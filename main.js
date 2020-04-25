@@ -781,7 +781,7 @@ const fortify = new Card('Fortify', {
 const gainFortify = new Card('Fortify', {
     fixedCost: coin(5),
     effect: card => ({
-        description: 'Create a fortify in your discrad pile. Discard your hand.',
+        description: 'Create a fortify in your discard pile. Discard your hand.',
         effect: doAll([moveWholeZone('hand', 'discard'), create(fortify, 'discard')])
     }),
     relatedCards: [fortify],
