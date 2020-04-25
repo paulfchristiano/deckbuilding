@@ -784,13 +784,31 @@ coreSupplies.push(reboot)
 // ----- MIXINS ----- 
 //
 
+const throneRoom = new Card('Throne Room', {
+    fixedCost: time(1),
+    effect: card => ({
+        description: `Play a card in your hand. Then if it's in your discard pile play it again.`,
+        effect: async function(state) {
+            const card = await choice(state,
+                'Choose a card to play twice.',
+                state.hand.map(cardAsChoice))
+            if (card == null) return state
+            state = await card.play()(state)
+            const [newCard, zone] = find(state, card.id)
+            if (zone == 'discard') state = await newCard.play()(state)
+            return state
+        }
+    })
+})
+mixins.push(gainCard(throneRoom, coin(4)))
+
 const crown = new Card('Crown', {
     fixedCost: time(0),
     effect: card => ({
         description: `Pay the cost of a card in your hand to play it. Then if it's in your discard pile play it again.`,
         effect: doOrAbort(async function(state) {
             const card = await choice(state,
-                'Choose a card to play twice with Crown.',
+                'Choose a card to play twice.',
                 state.hand.map(cardAsChoice))
             if (card == null) return state
             state = await card.payCost()(state)
@@ -895,7 +913,7 @@ const expedite = new Card('Expedite', {
 mixins.push(expedite)
 
 const bustlingSquare = new Card('Bustling Square', {
-    fixedCost: time(2),
+    fixedCost: time(1),
     effect: card => ({
         description: `Set aside all cards in your hand. Play them in any order.`,
         effect: async function(state) {
@@ -948,7 +966,7 @@ mixins.push(gainCard(horse, coin(2)))
 const lookout = new Card('Lookout', {
     fixedCost: time(0),
     effect: card => ({
-        description: 'Set aside 3 random cards from your deck. Put one into your hand, discard one, and trash one.', 
+        description: 'Set aside 3 random cards from your deck. Trash one, then put one in your hand.',
         effect: async function(state) {
             var picks = randomChoice(state.deck, 3)
             for (var i = 0; i < picks.length; i++) state = await moveTo(picks[i].id, 'aside')(state)
@@ -962,8 +980,8 @@ const lookout = new Card('Lookout', {
                 state = await pickOne('trash', null, state)
             if (picks.length > 0)
                 state = await pickOne('put into your hand', 'hand', state)
-            if (picks.length > 0) 
-                state = await pickOne('discard', 'discard', state)
+            if (picks.length > 0)
+                state = await moveTo(picks[0].id, 'deck')(state)
             return state
         }
     })
