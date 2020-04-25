@@ -1,4 +1,4 @@
-//TODO: introduce tokens
+//TODO: change the way that card management works
 //TODO: fix the deck sorting for rendering
 //TODO: add history
 //TODO: add undo
@@ -31,9 +31,11 @@ function applyToKey(k, f) {
 
 //TODO: operating on a given card involves a linear scan, could speed up with clever datastructure 
 // the function that applies f to all cards in zone that have an id of id
-function applyToId(state, id, f) {
-    const [_, zone] = find(state, id)
-    return update(state, zone, state[zone].map(x => (x.id == id) ? f(x) : x))
+function applyToId(id, f) {
+    return function(state) {
+        const [_, zone] = find(state, id)
+        return update(state, zone, state[zone].map(x => (x.id == id) ? f(x) : x))
+    }
 }
 
 //e is an event that just happened
@@ -111,6 +113,7 @@ function addSpacesToCamel(name) {
 class Card {
     constructor() {
         this.charge = 0
+        this.tokens = []
         this.name = addSpacesToCamel(this.constructor.name)
     }
     toString() {
@@ -402,6 +405,13 @@ function discharge(id, n) {
     return charge(id, -n, cost=true)
 }
 
+function addToken(id, token) {
+    return async function(state) {
+        state = applyToId(id, applyToKey('tokens', x => x.concat([token])))(state)
+        return trigger({type:'addToken', id:id, token:token})(state)
+    }
+}
+
 function charge(id, n, cost=false) {
     return async function(state) {
         const [card, _] = find(state, id)
@@ -413,7 +423,7 @@ function charge(id, n, cost=false) {
         }
         const oldcharge = card.charge
         const newcharge = (oldcharge + n < 0) ? 0 : oldcharge + n
-        state = applyToId(state, id, updateKey('charge', newcharge))
+        state = applyToId(id, updateKey('charge', newcharge))(state)
         return trigger({type:'chargeChange', card:card,
             oldcharge:oldcharge, newcharge:newcharge, cost:cost})(state)
     }
@@ -568,13 +578,55 @@ class Reboot extends Card{
         }
     }
 }
+function countTokens(card, token) {
+    var count = 0
+    const tokens = card.tokens
+    for (var i = 0; i < tokens.length; i++) {
+        if (tokens[i]  == token) {
+            count += 1
+        }
+    }
+    return count
+}
+class Pathfinding extends Card{
+    rawCost(state) {
+        return {coin:0, time:1}
+        //return {coin:5, time:1}
+    }
+    effect() {
+        return {
+            description: 'Put a path token on a card in your hand.',
+            effect: async function(state) {
+                const card = await choice(state,
+                    'Choose a card to put a path token on.',
+                    state.hand.map(cardAsChoice))
+                if (card == null) return state
+                console.log(state)
+                console.log(card)
+                state = await addToken(card.id, 'path')(state)
+                console.log(state)
+                return state
+            }
+        }
+    }
+    triggers() {
+        return [{
+            'description': 'Whenever you play a card, draw a card per path token on it.',
+            'handles':e => (e.type == 'played' && e.card.tokens.includes('path')),
+            //'handles':e => (e.type == 'played'),
+            'effect':e => draw(countTokens(e.card, 'path'))
+            //'effect':e => draw(1)
+        }]
+    }
+}
 
 
 function renderTooltip(card, state) {
     const effectHtml = `<div>${card.effect().description}</div>`
     const abilitiesHtml = card.abilities().map(x => `<div>${x.description}</div>`)
     const staticHtml = card.triggers().concat(card.replacers()).map(x => `<div>(static) ${x.description}</div>`)
-    const baseFilling = [effectHtml, abilitiesHtml, staticHtml].join('')
+    const tokensHtml = card.tokens.length > 0 ? `Tokens: ${card.tokens.join(', ')}` : ''
+    const baseFilling = [effectHtml, abilitiesHtml, staticHtml, tokensHtml].join('')
     function renderRelated(x) {
         const cost = x.cost(state)
         const costStr = (cost.coin == 0 && cost.time == 0) ? '0' : renderCost(cost)
@@ -585,11 +637,13 @@ function renderTooltip(card, state) {
 }
 
 function renderCard(card, state, i, asOption=null) {
+    const tokenhtml = card.tokens.length > 0 ? '*' : ''
     const chargehtml = card.charge > 0 ? `(${card.charge})` : ''
     const costhtml = renderCost(card.cost(state))
     const attrtext = asOption == null ? '' : `choosable option=${asOption}`
     return [`<div class='card' id='${i}'${attrtext}>`,
-            `<div class='cardbody'>${card}${chargehtml}</div><div class='cardcost'>${costhtml}</div>`,
+            `<div class='cardbody'>${card}${tokenhtml}${chargehtml}</div>`,
+            `<div class='cardcost'>${costhtml}</div>`,
             `<span class='tooltip'>${renderTooltip(card, state)}</span>`,
             `</div>`].join('')
 }
@@ -749,6 +803,7 @@ allSupplies = [
     new GainCard(new Blacksmith(), 2),
     new GainCard(new ThroneRoom(), 4),
     new Reboot(),
+    new Pathfinding(),
     new Expedite(),
 ]
 room = new ThroneRoom()
