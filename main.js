@@ -830,7 +830,7 @@ mixins.push(gainCard(tutor, coin(4)))
 const vassal = new Card('Vassal', {
     fixedCost: time(1),
     effect: card => ({
-        description: "Set aside a random card from your deck. You may play it or discard it.",
+        description: "+$2. Set aside a random card from your deck. You may play it or discard it.",
         effect: async function(state) {
             state = await gainCoin(2)(state)
             const picks = randomChoice(state.deck, 1)
