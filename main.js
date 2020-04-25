@@ -39,33 +39,20 @@ function applyToKey(k, f) {
 //TODO: operating on a given card involves a linear scan, could speed up with clever datastructure 
 // the function that applies f to all cards in zone that have an id of id
 function applyToId(state, id, f) {
-    zone = currentZone(state, id)
+    const [_, zone] = find(state, id)
     return update(state, zone, state[zone].map(x => (x.id == id) ? f(x) : x))
-}
-
-// returns the first card in a given zone that has a given id
-function getById(state, id) {
-    zone = currentZone(state, id)
-    const matches = state[zone].filter(x => x.id == id)
-    if (matches.length == 0) return null
-    return matches[0]
-}
-
-function applyToIndex(n, f) {
-    return list => list.map((x, i) => (i == n) ? f(x) : x)
 }
 
 //e is an event that just happened
 //each card in play and aura can have a followup
-async function trigger(e, state) {
-    var triggers = state.play.concat(state.supplies).concat(state.auras).map(x => x.triggers()).flat()
-    triggers = triggers.filter(trigger => trigger.handles(e))
-    const effects = triggers.map(trigger => trigger.effect(e))
-    for (var i = 0; i < effects.length; i++) {
-        const result = await effects[i](state)
-        state = result[1]
+//NOTE: this is slow, we should cache triggers (in a dictionary by event type) if it becomes a problem
+function trigger(e) {
+    return async function(state) {
+        var triggers = state.play.concat(state.supplies).concat(state.auras).map(x => x.triggers()).flat()
+        triggers = triggers.filter(trigger => trigger.handles(e))
+        const effects = triggers.map(trigger => trigger.effect(e))
+        return doAll(effects)(state)
     }
-    return state
 }
 
 //x is an event that is about to happen
@@ -75,7 +62,7 @@ function replace(x, state) {
     for (var i = 0; i < replacers.length; i++) {
         replacers = replacers[i]
         if (replacer.handles(x)) {
-            x = replacer.change(x, state)
+            x = replacer.replace(x, state)
         }
     }
     return x
@@ -85,7 +72,7 @@ function replace(x, state) {
 function addAura(aura) {
     return async function(state) {
         var [state, newaura] = assignUID(state, aura)
-        return [newaura, update(state, 'auras', state.auras.concat([newaura]))]
+        return update(state, 'auras', state.auras.concat([newaura]))
     }
 }
 
@@ -94,9 +81,9 @@ function deleteAura(id) {
     return async function(state) {
         const result = removeIfPresent(state.auras, id)
         if (result.found) {
-            return [true, update(state, 'auras', result.without)]
+            return update(state, 'auras', result.without)
         } else {
-            return [false, state]
+            return state
         }
     }
 }
@@ -109,7 +96,7 @@ function nextTime(when, what) {
             const id = this.id
             return [{
                 handles(e) { return when(e) },
-                effect(e) { return doAll(what(e), deleteAura(id)) }
+                effect(e) { return doAll([what(e), deleteAura(id)]) }
             }]
         }
     }
@@ -148,14 +135,33 @@ class Card {
         const newCost = replace(initialCost, state)
         return newCost.cost
     }
-    //template for the trivial on-play effect that puts this in the discard pile
-    //before you play a card, you need to remove it from play
-    effect() {
-        const thisCard = this
-        return {
-            description:'Do nothing.',
-            effect: addToDiscard(thisCard)
+    // the effect that actually pays the cost
+    payCost() {
+        const card = this
+        return async function(state) {
+            const cost = card.cost(state)
+            return doAll([gainTime(cost.time), payCoin(cost.coin)])(state)
         }
+    }
+    mainEffect() {
+        throw Error('Not implemented.')
+    }
+    buy(normalWay=false) {
+        const card = this
+        return doAll([
+            this.effect().effect,
+            trigger({type:'buy', card:card, normalWay:normalWay})
+        ])
+    }
+    play(normalWay=false) {
+        const effect = this.effect()
+        const card = this
+        return doAll([
+            moveTo(card.id, null),
+            effect.effect,
+            effect['skipDiscard'] ? nothing : addToZone(card, 'discard'),
+            trigger({type:'played', card:card, normalWay:normalWay})
+        ])
     }
     triggers() {
         return []
@@ -169,6 +175,10 @@ class Card {
     relatedCards() {
         return []
     }
+}
+
+async function nothing(state) {
+    return state
 }
 
 class GainCard extends Card {
@@ -204,19 +214,15 @@ function assignUID(state, card) {
 function create(card, toZone='discard') {
     return async function(state) {
         [state, card] = assignUID(state, card)
-        var [_, state] = await addToZone(card, toZone)(state)
-        state = await trigger({type:'create', card:card, toZone:toZone}, state)
-        return [card, state]
+        state = await addToZone(card, toZone)(state)
+        return trigger({type:'create', card:card, toZone:toZone})(state)
     }
-}
-
-function addToDiscard(card) {
-    return addToZone(card, 'discard')
 }
 
 function addToZone(card, toZone) {
     return async function(state) {
-        return [card, update(state, toZone, state[toZone].concat([card]))]
+        state = update(state, toZone, state[toZone].concat([card]))
+        return trigger({type:'added', zone:toZone, card:card})(state)
     }
 }
 
@@ -235,10 +241,11 @@ function removeIfPresent(xs, id) {
 
 ZONES = ['hand', 'deck', 'discard', 'play', 'supplies', 'trash']
 
-function currentZone(state, id) {
+function find(state, id) {
     for (var i = 0; i < ZONES.length; i++) {
-        if (state[ZONES[i]].some(x => x.id == id)) {
-            return ZONES[i]
+        const zone = state[ZONES[i]]
+        for (var j = 0; j < zone.length; j++) {
+            if (zone[j].id == id) return [zone[j], ZONES[i]]
         }
     }
     return null
@@ -246,28 +253,19 @@ function currentZone(state, id) {
 
 function moveTo(id, toZone) {
     return async function(state) {
-        const fromZone = currentZone(state, id)
-        if (fromZone != null) {
-            const [result, newstate] = await move(id, fromZone, toZone)(state)
-            return [fromZone, newstate]
-        } else {
-            return [null, state]
-        }
+        const [_, fromZone] = find(state, id)
+        if (fromZone == null) return state
+        return move(id, fromZone, toZone)(state)
     }
 }
 
 function move(id, fromZone, toZone) {
     return async function(state) {
         const result = removeIfPresent(state[fromZone], id)
-        if (result.found) {
-            state = update(state, fromZone, result.without)
-            if (toZone != null) {
-                const z = await addToZone(result.card, toZone)(state)
-                state = z[1]
-            }
-            state = await trigger({type:'moved', card:result.card, fromZone:fromZone, toZone:toZone}, state)
-        }
-        return [result.found, state]
+        if (!result.found) return state
+        state = update(state, fromZone, result.without)
+        if (toZone != null) state = await addToZone(result.card, toZone)(state)
+        return await trigger({type:'moved', card:result.card, fromZone:fromZone, toZone:toZone})(state)
     }
 }
 
@@ -277,9 +275,9 @@ function moveWholeZone(fromZone, toZone) {
         state = update(state, fromZone, [])
         state = update(state, toZone, state[toZone].concat(cards))
         for (var i = 0; i < cards.length; i++) {
-            state = await trigger({type:'moved', card:cards[i], fromZone:fromZone, toZone:toZone}, state)
+            state = await trigger({type:'moved', card:cards[i], fromZone:fromZone, toZone:toZone})(state)
         }
-        return [cards, state]
+        return state
     }
 }
 
@@ -292,29 +290,15 @@ function randomChoice(xs) {
 function draw(n) {
     return async function(state) {
         var drawn = 0
-        var _
-        var nextCard
         for (var i = 0; i < n; i++) {
             if (state.deck.length > 0) {
-                nextCard = randomChoice(state.deck)
-                const result = await move(nextCard.id, 'deck', 'hand')(state)
-                state = result[1]
+                const nextCard = randomChoice(state.deck)
+                state = await move(nextCard.id, 'deck', 'hand')(state)
                 drawn += 1
             }
         }
-        state = await trigger({type:'draw', drawn:drawn, triedToDraw:n}, state)
-        return [drawn, state]
+        return trigger({type:'draw', drawn:drawn, triedToDraw:n})(state)
     }
-}
-
-//TODO: way to choose multiple (this should be pretty elegant)
-//TODO: generalize 'choose' so that it can pick things by clicking directly in zone)
-//(and maybe have things somehow indicate that they are a valid choice)
-//(I guess an option can either specify a string, or specify a card in a zone?)
-//TODO: write discard(n)
-
-function annotate(xs) {
-    return xs.map(x => [x.toString(), x])
 }
 
 class CostNotPaid extends Error {
@@ -329,16 +313,14 @@ function setCoins(n) {
     return async function(state) {
         const adjustment = n - state.coin
         state = update(state, 'coin', n)
-        state = await trigger({type:'gainCoin', amount:adjustment, cost:false}, state)
-        return [adjustment, state]
+        return trigger({type:'gainCoin', amount:adjustment, cost:false})(state)
     }
 }
 
 function gainTime(n) {
     return async function(state) {
         state = update(state, 'time', state.time+n)
-        state = await trigger({type:'gainTime', amount:n}, state)
-        return [null, state]
+        return trigger({type:'gainTime', amount:n})(state)
     }
 }
 
@@ -346,8 +328,7 @@ function gainPoints(n, cost=false) {
     return async function(state) {
         if (state.coin + n < 0 && cost) throw new CostNotPaid("Not enough points")
         state = update(state, 'points', state.points + n)
-        state = await trigger({type:'gainPoints', amount:n, cost:cost}, state)
-        return [null, state]
+        return trigger({type:'gainPoints', amount:n, cost:cost})(state)
     }
 }
 
@@ -356,109 +337,93 @@ function gainCoin(n, cost=false) {
         if (state.coin + n < 0 && cost) throw new CostNotPaid("Not enough coin")
         const adjustment = state.coin + n < 0 ? - state.coin : n
         state = update(state, 'coin', state.coin + adjustment)
-        state = await trigger({type:'gainCoin', amount:adjustment, cost:cost}, state)
-        return [null, state]
+        return trigger({type:'gainCoin', amount:adjustment, cost:cost})(state)
     }
 }
 
-// trying to pay cost is mandatory
-// TODO: better calculus for this stuff
-function payToDo(cost, effect) {
+function doOrAbort(f, fallback=null) {
     return async function(state) {
         try {
-            var [costResult, state] = await cost(state)
-            var [effectResult, state] = await effect(state)
-            return [[true, [costResult, effectResult]], state]
-        } catch(e) {
-            if (e instanceof CostNotPaid) {
-                return [[false, null], state]
+            return f(state)
+        } catch(error){
+            if (error instanceof CostNotPaid) {
+                if (fallback != null) return fallback(state)
+                return state
             } else {
-                throw e
+                throw error
             }
         }
     }
+}
+
+
+function payToDo(cost, effect) {
+    return doOrAbort(async function(state){
+        state = await cost(state)
+        return effect(state)
+    })
 }
 
 // trying to pay cost is mandatory
 function payOrDo(cost, effect) {
+    return doOrAbort(cost, effect)
+}
+
+function removeElement(xs, i) {
+    return xs.slice(i).concat(xs.slice(i+1, xs.length))
+}
+
+//options is a list of [string, cost] pairs
+function payAny(options) {
     return async function(state) {
-        try {
-            var [result, state] = await cost(state)
-            return [['cost', result], state]
-        } catch (e) {
-            if (e instanceof CostNotPaid) {
-                var [result, state] = await effect(state)
-                return [['effect', result], state]
-            } else {
-                throw e
-            }
+        const costAndIndex = await choice(state,
+            "Choose which cost to pay:",
+            options.map(x,i => [['string', x[0]], [x[1], i]])
+        )
+        if (costAndIndex == null) throw CostNotPaid("no options available")
+        const [cost, i] = costAndIndex
+        return payOrDo(cost, payAny(removeElement(options, i)))
+    }
+}
+
+function doAll(effects) {
+    return async function(state) {
+        for (var i = 0; i < effects.length; i++) {
+            state = await effects[i](state)
         }
+        return state
     }
 }
 
-//TODO: remove cost from consideration and keep going if you can't pay it
-function payAny(...args) {
+//options is a list of [string, effect] pairs
+function doAny(options) {
     return async function(state) {
-        const cost = await choice(state, "Choose which cost to pay:", args)
-        if (cost == null) throw CostNotPaid("no options available")
-        return cost(state)
-    }
-}
-
-function doAll(...args) {
-    return async function(state) {
-        const results = []
-        for (var i = 0; i < args.length; i++) {
-            const z = await args[i](state)
-            var result
-            [result, state] = z
-            results.push(result)
-        }
-        return [results, state]
-    }
-}
-
-function doAny(...args) {
-    return async function(state) {
-        const effect = await choice(state, "Choose an effect:", args)
+        const effect = await choice(state,
+            "Choose an effect to do:",
+            options.map(x => [['string', x[0]], x[1]]))
         return effect(state)
     }
 }
 
-function discardCost(id, fromZone='play') {
-    return async function(state) {
-        var [result, state] = await (move(id, fromZone, 'discard')(state))
-        if (!result) {
-            throw CostNotPaid("failed to discard")
-        }
-    }
-}
-
-function discharge(id, n, zone='play') {
-    return charge(id, -n, zone, cost=true)
+function discharge(id, n) {
+    return charge(id, -n, cost=true)
 }
 
 function charge(id, n, cost=false) {
     return async function(state) {
-        card = getById(state, id)
+        const [card, _] = find(state, id)
         if (card == null) {
             if (cost) throw new CostNotPaid(`card no longer in ${zone}`)
-            return [0, state]
+            return state
         } else if (card.charge + n < 0 && cost) {
             throw new CostNotPaid(`not enough charge`)
         }
-        const f = x => (x+n < 0) ? 0 : x+n
         const oldcharge = card.charge
         const newcharge = (oldcharge + n < 0) ? 0 : oldcharge + n
         state = applyToId(state, id, updateKey('charge', newcharge))
-        state = await trigger({type:'chargeChange', card:card,
-            oldcharge:oldcharge, newcharge:newcharge, cost:cost}, state)
-        return [newcharge - oldcharge, state]
+        return trigger({type:'chargeChange', card:card,
+            oldcharge:oldcharge, newcharge:newcharge, cost:cost})(state)
     }
-}
-
-function entersPlay(id) {
-    return (e => (e.type == 'moved') && (e.toZone == 'play') && (e.card.id == id))
 }
 
 class Copper extends Card {
@@ -556,16 +521,12 @@ class ThroneRoom extends Card {
                 const card = await choice(state,
                     'Choose a card to play twice with Throne Room.',
                     state.hand.map(cardAsChoice))
-                if (card == null) {
-                    return [[false, null], state]
-                }
-                var [_, state] = await costForCard(card)(state)
-                var [_, state] = await play(card)(state)
-                if (currentZone(state, card.id) == 'discard') {
-                    [_, state] = await play(card)(state)
-                    return [true, state]
-                }
-                return [false, state]
+                if (card == null) return state
+                state = await card.payCost()(state)
+                state = await card.play()(state)
+                const [newCard, zone] = find(state, card.id)
+                if (zone == 'discard') state = await newCard.play()(state)
+                return state
             })
         }
     }
@@ -579,11 +540,11 @@ class Blacksmith extends Card {
         return {
             description: '+1 card per charge token on this, then add a charge token to this.',
             effect: async function(state) {
-                var [_, state] = await draw(card.charge)(state)
+                state = await draw(card.charge)(state)
                 const newCard = update(card, 'charge', card.charge+1)
-                var [_, state] = await addToDiscard(newCard)(state)
-                return [null, state]
-            }
+                return addToZone(newCard, 'discard')(state)
+            },
+            skipDiscard:true,
         }
     }
 }
@@ -609,25 +570,22 @@ class Reboot extends Card{
     effect() {
         return {
             description: 'Put your hand and discard pile into your deck, then +5 cards.',
-            effect: doAll(
+            effect: doAll([
                 setCoins(0),
                 moveWholeZone('hand', 'deck'),
                 moveWholeZone('discard', 'deck'),
                 draw(5)
-            )
+            ])
         }
     }
 }
 
 
 
-function tooltipText(card) {
-}
-
-//TODO: probably have other text that gets included, e.g. for replacements?
-//TODO: improve this formatting
+//TODO: include replacements
+//TODO: clearly mark triggers/replacements in formatting
 function renderTooltip(card, state) {
-    const baseFilling = [card.effect()].concat(card.abilities()).concat(card.triggers()).concat().map(
+    const baseFilling = [card.effect()].concat(card.abilities()).concat(card.triggers()).concat(card.replacers()).map(
         x => `<div>${x.description}</div>`
     )
     function renderRelated(x) {
@@ -652,7 +610,6 @@ function renderCard(card, state, i, asOption=null) {
 function renderState(state, optionsMap=null) {
     function render(card, i) {
         if (optionsMap != null && optionsMap[card.id] != undefined) {
-            console.log(card, state, i, optionsMap[card.id])
             return renderCard(card, state, i, optionsMap[card.id])
         } else {
             return renderCard(card, state, i)
@@ -708,52 +665,17 @@ function clearChoice() {
     $('#options').html('')
 }
 
-async function useAbility(ability, state) {
-    const [result, newstate] = await doOrAbort(async function(state){
-        var [result, state] = await ability.cost(state)
-        var [_, state] = await (ability.effect(result))(state)
-        return [null, state]
-    })(state)
-    return newstate
-}
-
-async function useCard(card, state) {
-    ability = await choice(state, "Choose an ability to use:",
-        card.abilities().map(x => [['string', x.description], x]))
-    if (ability == null) return state
-    return useAbility(ability, state)
-}
-
-function costForCard(card) {
+function useCard(card) {
     return async function(state) {
-        const cost = card.cost(state)
-        const result = doAll(gainTime(cost.time), payCoin(cost.coin))(state)
-        return result
+        ability = await choice(state, "Choose an ability to use:",
+            card.abilities().map(x => [['string', x.description], x]))
+        if (ability == null) return state
+        return payToDo(ability.cost, ability.effect)(state)
     }
 }
 
-function doOrAbort(f) {
-    return async function(state) {
-        try {
-            const [result, newstate] = await f(state)
-            return [[true, result], newstate]
-        } catch(error){
-            if (error instanceof CostNotPaid) {
-                return [[false, null], state]
-            } else {
-                throw error
-            }
-        }
-    }
-}
-
-async function useSupply(supply, state) {
-    const [result, newstate] = await doOrAbort(async function(state) {
-        var [_, state] = await costForCard(supply)(state)
-        var [_, state] = await supply.effect().effect(state)
-        return [null, state]
-    })(state)
-    return newstate
+function tryToBuy(supply) {
+    return payToDo(supply.payCost(), supply.buy())
 }
 
 function allCards(state) {
@@ -764,39 +686,21 @@ function cardExists(state, id) {
     return allCards(state).some(x => x.id == id)
 }
 
-function play(card, normalWay=false) {
-    return async function(state) {
-        var [_, state] = await moveTo(card.id, null)(state)
-        var [_, state] = await card.effect().effect(state)
-        if (!cardExists(state, card.id)) {
-            var [_, state] = await addToDiscard(card)(state)
-        }
-        state = await trigger({type:'played', card:card, normalWay:normalWay}, state)
-        return [null, state]
-    }
-}
-
-async function tryToPlay(card, state) {
-    const [result, newstate] = await doOrAbort(async function(state) {
-        var [_, state] = (await costForCard(card)(state))
-        const z = (await play(card, true)(state))
-        state = z[1]
-        return [null, state]
-    })(state)
-    return newstate
+function tryToPlay(card) {
+    return payToDo(card.payCost(), card.play(true))
 }
 
 async function act(state) {
-    const chosen = await coreChoice(state)
-    choiceType = currentZone(state, chosen.id)
-    if (choiceType == 'play') {
-        return useItem(chosen, state)
-    } else if (choiceType == 'hand') {
-        return tryToPlay(chosen, state)
-    } else if (choiceType == 'supplies') {
-        return useSupply(chosen, state)
+    const card = await coreChoice(state)
+    const [_, zone] = find(state, card.id)
+    if (zone == 'play') {
+        return useCard(card)(state)
+    } else if (zone == 'hand') {
+        return tryToPlay(card)(state)
+    } else if (zone == 'supplies') {
+        return tryToBuy(card)(state)
     } else {
-        throw new Error(`Unrecognized choice zone ${choiceType}`)
+        throw new Error(`Unrecognized choice zone ${zone}`)
     }
 }
 
@@ -820,9 +724,6 @@ function choice(state, choicePrompt, options) {
             throw new Error(`Got type ${type}`)
         }
     }
-    console.log(options)
-    console.log(optionsMap)
-    console.log(stringOptions)
     renderState(state, optionsMap)
     $('#choicePrompt').html(choicePrompt)
     $('#options').html(stringOptions.map(renderOption))
@@ -867,20 +768,14 @@ startingDeck = [
     copper, copper, copper, copper, copper, copper,
     estate, estate,
     donkey, donkey,
-    room, room, room, room, room
 ]
 
 async function playGame(seed=0) {
     var state = emptyState
-    for (var i = 0; i < startingDeck.length; i++) {
-        var [_, state] = await create(startingDeck[i], 'deck')(state)
-    }
-    for (var i = 0; i < allSupplies.length; i++) {
-        var [_, state] = await create(allSupplies[i], 'supplies')(state)
-    }
-    state = await trigger({type:'gameStart'}, state)
+    state = await doAll(startingDeck.map(x => create(x, 'deck')))(state)
+    state = await doAll(allSupplies.map(x => create(x, 'supplies')))(state)
+    state = await trigger({type:'gameStart'})(state)
     while (true) {
-        console.log(state)
         renderState(state)
         state = await act(state)
     }
