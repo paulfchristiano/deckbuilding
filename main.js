@@ -966,7 +966,7 @@ mixins.push(gainCard(horse, coin(2)))
 const lookout = new Card('Lookout', {
     fixedCost: time(0),
     effect: card => ({
-        description: 'Set aside 3 random cards from your deck. Trash one, then put one in your hand.',
+        description: 'Set aside 3 random cards from your deck. Trash one, put one in your hand, and return one to your deck.',
         effect: async function(state) {
             var picks = randomChoice(state.deck, 3)
             for (var i = 0; i < picks.length; i++) state = await moveTo(picks[i].id, 'aside')(state)
