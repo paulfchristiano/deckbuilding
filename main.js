@@ -33,16 +33,8 @@ function applyToKey(k, f) {
 //TODO: operating on a given card involves a linear scan, could speed up with clever datastructure 
 // the function that applies f to all cards in zone that have an id of id
 function applyToId(state, id, f) {
-    zone = currentZone(state, id)
+    const [_, zone] = find(state, id)
     return update(state, zone, state[zone].map(x => (x.id == id) ? f(x) : x))
-}
-
-// returns the first card in a given zone that has a given id
-function getById(state, id) {
-    zone = currentZone(state, id)
-    if (zone == null) return null
-    const matches = state[zone].filter(x => x.id == id)
-    return matches[0]
 }
 
 //e is an event that just happened
@@ -243,10 +235,11 @@ function removeIfPresent(xs, id) {
 
 ZONES = ['hand', 'deck', 'discard', 'play', 'supplies', 'trash']
 
-function currentZone(state, id) {
+function find(state, id) {
     for (var i = 0; i < ZONES.length; i++) {
-        if (state[ZONES[i]].some(x => x.id == id)) {
-            return ZONES[i]
+        const zone = state[ZONES[i]]
+        for (var j = 0; j < zone.length; j++) {
+            if (zone[j].id == id) return [zone[j], ZONES[i]]
         }
     }
     return null
@@ -254,7 +247,7 @@ function currentZone(state, id) {
 
 function moveTo(id, toZone) {
     return async function(state) {
-        const fromZone = currentZone(state, id)
+        const [_, fromZone] = find(state, id)
         if (fromZone == null) return state
         return move(id, fromZone, toZone)(state)
     }
@@ -412,7 +405,7 @@ function discharge(id, n) {
 
 function charge(id, n, cost=false) {
     return async function(state) {
-        card = getById(state, id)
+        const [card, _] = find(state, id)
         if (card == null) {
             if (cost) throw new CostNotPaid(`card no longer in ${zone}`)
             return state
@@ -525,7 +518,8 @@ class ThroneRoom extends Card {
                 if (card == null) return state
                 state = await card.payCost()(state)
                 state = await card.play()(state)
-                if (currentZone(state, card.id) == 'discard') state = await card.play()(state)
+                const [newCard, zone] = find(state, card.id)
+                if (zone == 'discard') state = await newCard.play()(state)
                 return state
             })
         }
@@ -692,15 +686,15 @@ function tryToPlay(card) {
 
 async function act(state) {
     const card = await coreChoice(state)
-    const choiceType = currentZone(state, card.id)
-    if (choiceType == 'play') {
+    const [_, zone] = find(state, card.id)
+    if (zone == 'play') {
         return useCard(card)(state)
-    } else if (choiceType == 'hand') {
+    } else if (zone == 'hand') {
         return tryToPlay(card)(state)
-    } else if (choiceType == 'supplies') {
+    } else if (zone == 'supplies') {
         return tryToBuy(card)(state)
     } else {
-        throw new Error(`Unrecognized choice zone ${choiceType}`)
+        throw new Error(`Unrecognized choice zone ${zone}`)
     }
 }
 
@@ -768,7 +762,6 @@ startingDeck = [
     copper, copper, copper, copper, copper, copper,
     estate, estate,
     donkey, donkey,
-    room, room, room, room, room
 ]
 
 async function playGame(seed=0) {
