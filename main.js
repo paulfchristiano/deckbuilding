@@ -982,12 +982,10 @@ function coreChoice(state) {
         cards.map(cardAsChoice))
 }
 
-testing = lab
 startingDeck = [
     copper, copper, copper, copper, copper, copper,
     estate, estate,
     donkey, donkey,
-    testing, testing, testing, testing, testing
 ]
 
 //TODO: improve sort
