@@ -25,6 +25,9 @@
 .card[choosable], .option {
     background-color: rgba(254, 216, 177, 0.4);
 }
+.zone {
+    min-height: 3em;
+}
 .card[chosen], .option[chosen] {
     background-color: rgb(152,251,152);
 }
@@ -49,8 +52,8 @@
   /* Position the tooltip */
   position: absolute;
   z-index: 1;
-  top: -5px;
-  left: 105%;
+  top: 3em;
+  left: 0px;
 }
 
 .card:hover .tooltip {
@@ -77,28 +80,33 @@
     <div id='options'></div>
 </div>
 <div> &nbsp; </div> 
-<div> Supplies: </div> 
-<div id='supplies'> </div>
+<div> Resolving: </div> 
+<div id='resolving' class='zone'> </div>
 
 <div> &nbsp; </div> 
-<div> Play: </div> 
-<div id='play'> </div>
+<div> Supplies: </div> 
+<div id='supplies' class='zone'> </div>
 
 <div> &nbsp; </div> 
 <div> Hand: </div> 
-<div id='hand'> </div>
-
-<div> &nbsp; </div> 
-<div> Discard: </div> 
-<div id='discard'> </div>
+<div id='hand' class='zone'> </div>
 
 <div> &nbsp; </div> 
 <div> Deck: </div> 
-<div id='deck'> </div>
+<div id='deck' class='zone'> </div>
 
 <div> &nbsp; </div> 
-<div> Trash: </div> 
-<div id='trash'> </div>
+<div> Discard: </div> 
+<div id='discard' class='zone'> </div>
+
+<div> &nbsp; </div> 
+<div> Play: </div> 
+<div id='play' class='zone'> </div>
+
+
+<div> &nbsp; </div> 
+<div> Set aside: </div> 
+<div id='aside' class='zone'> </div>
 
 
 </html> 

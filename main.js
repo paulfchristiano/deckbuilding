@@ -1,10 +1,3 @@
-//TODO: totally eliminate the [result, state] convention, transformations are just async functions turning states to states
-//TODO: improve rendering of static abilities, right now seems tricky
-//TODO: fix the "pay any cost" so that it makes you try again if you fail on one option
-//TODO: fix doAny()
-//TODO: have a 'Resolving' zone
-//TODO: have a 'Set aside' zone
-//TODO: remove 'Trash' zone
 //TODO: introduce tokens
 //TODO: fix the deck sorting for rendering
 //TODO: add history
@@ -157,9 +150,9 @@ class Card {
         const effect = this.effect()
         const card = this
         return doAll([
-            moveTo(card.id, null),
+            moveTo(card.id, 'resolving'),
             effect.effect,
-            effect['skipDiscard'] ? nothing : addToZone(card, 'discard'),
+            effect['skipDiscard'] ? nothing : moveTo(card.id, 'discard'),
             trigger({type:'played', card:card, normalWay:normalWay})
         ])
     }
@@ -239,7 +232,7 @@ function removeIfPresent(xs, id) {
     return {found:false}
 }
 
-ZONES = ['hand', 'deck', 'discard', 'play', 'supplies', 'trash']
+ZONES = ['hand', 'deck', 'discard', 'play', 'supplies', 'resolving', 'aside']
 
 function find(state, id) {
     for (var i = 0; i < ZONES.length; i++) {
@@ -539,11 +532,7 @@ class Blacksmith extends Card {
         const card = this
         return {
             description: '+1 card per charge token on this, then add a charge token to this.',
-            effect: async function(state) {
-                state = await draw(card.charge)(state)
-                const newCard = update(card, 'charge', card.charge+1)
-                return addToZone(newCard, 'discard')(state)
-            },
+            effect: doAll([draw(card.charge), charge(card.id, 1), moveTo(card.id, 'discard')]),
             skipDiscard:true,
         }
     }
@@ -581,13 +570,11 @@ class Reboot extends Card{
 }
 
 
-
-//TODO: include replacements
-//TODO: clearly mark triggers/replacements in formatting
 function renderTooltip(card, state) {
-    const baseFilling = [card.effect()].concat(card.abilities()).concat(card.triggers()).concat(card.replacers()).map(
-        x => `<div>${x.description}</div>`
-    )
+    const effectHtml = `<div>${card.effect().description}</div>`
+    const abilitiesHtml = card.abilities().map(x => `<div>${x.description}</div>`)
+    const staticHtml = card.triggers().concat(card.replacers()).map(x => `<div>(static) ${x.description}</div>`)
+    const baseFilling = [effectHtml, abilitiesHtml, staticHtml].join('')
     function renderRelated(x) {
         const cost = x.cost(state)
         const costStr = (cost.coin == 0 && cost.time == 0) ? '0' : renderCost(cost)
@@ -618,6 +605,8 @@ function renderState(state, optionsMap=null) {
     $('#time').html(state.time)
     $('#coin').html(state.coin)
     $('#points').html(state.points)
+    $('#aside').html(state.aside.map(render).join(''))
+    $('#resolving').html(state.resolving.map(render).join(''))
     $('#play').html(state.play.map(render).join(''))
     $('#supplies').html(state.supplies.map(render).join(''))
     $('#hand').html(state.hand.map(render).join(''))
@@ -647,6 +636,8 @@ function renderTime(n) {
 
 const emptyState = {
     play: [],
+    aside: [],
+    resolving: [],
     hand: [],
     discard: [],
     deck: [],
