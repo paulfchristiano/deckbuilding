@@ -1,0 +1,102 @@
+<html> 
+<head> 
+  <script src="https://code.jquery.com/jquery-1.12.4.js"></script>
+  <script src="https://code.jquery.com/ui/1.12.1/jquery-ui.js"></script>
+<script type="text/javascript" src="jquery.js"></script> 
+<script type="text/javascript" src="main.js"></script>
+<title>Dominion-like</title>
+</head> 
+
+<style>
+.card, .option {
+    border: 2px solid;
+    border-radius: 5px;
+    padding-left: 3px;
+    padding-right: 3px;
+    padding-top: 3px;
+    padding-bottom: 3px;
+    margin-right: 3px;
+    margin-top: 3px;
+    display: inline-block;
+    cursor: pointer;
+    text-align: center;
+    position: relative;
+}
+.card[choosable], .option {
+    background-color: rgba(254, 216, 177, 0.4);
+}
+.card[chosen], .option[chosen] {
+    background-color: rgb(152,251,152);
+}
+
+#choicePrompt {
+    font-size: 1.5em;
+}
+
+.card {
+    text-align:center
+}
+
+.tooltip {
+  visibility: hidden;
+  width: 240px;
+  background-color: black;
+  color: #fff;
+  text-align: center;
+  border-radius: 6px;
+  padding: 5px;
+
+  /* Position the tooltip */
+  position: absolute;
+  z-index: 1;
+  top: -5px;
+  left: 105%;
+}
+
+.card:hover .tooltip {
+  visibility: visible;
+}
+.supply:hover .tooltip {
+  visibility: visible;
+}
+</style>
+ 
+<body onload="load();"> 
+
+</body> 
+
+<div> Coin ($): <span id='coin'></span></span> </div>
+<div> Time (@): <span id='time'></span></span> </div>
+<div> Points (vp): <span id='points'></span></span> </div>
+<div> &nbsp; </div> 
+<div id='choice'> 
+    <div id='choicePrompt'></div>
+<div> &nbsp; </div> 
+    <div id='options'></div>
+</div>
+<div> &nbsp; </div> 
+<div> Supplies: </div> 
+<div id='supplies'> </div>
+
+<div> &nbsp; </div> 
+<div> Play: </div> 
+<div id='play'> </div>
+
+<div> &nbsp; </div> 
+<div> Hand: </div> 
+<div id='hand'> </div>
+
+<div> &nbsp; </div> 
+<div> Discard: </div> 
+<div id='discard'> </div>
+
+<div> &nbsp; </div> 
+<div> Deck: </div> 
+<div id='deck'> </div>
+
+<div> &nbsp; </div> 
+<div> Trash: </div> 
+<div id='trash'> </div>
+
+
+</html> 
