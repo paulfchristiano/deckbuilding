@@ -18,20 +18,21 @@
     margin-right: 3px;
     margin-top: 3px;
     display: inline-block;
-    cursor: pointer;
+    cursor:default;
     text-align: center;
     position: relative;
 }
-.card[choosable], .option {
+[choosable] {
     background-color: rgba(254, 216, 177, 0.4);
+    cursor:pointer;
+}
+[chosen] {
+    background-color: rgba(254, 216, 177, 1.0);
+    cursor:pointer;
 }
 .zone {
     min-height: 3em;
 }
-.card[chosen], .option[chosen] {
-    background-color: rgb(152,251,152);
-}
-
 #choicePrompt, #resources {
     font-size: 1.25em;
 }
