@@ -918,7 +918,7 @@ const colony = new Card('Colony', {
     fixedCost: time(1),
     effect: card => ({
         description: '+5vp',
-        effect: gainPoints(4),
+        effect: gainPoints(5),
     })
 })
 mixins.push(gainCard(colony, coin(16)))
