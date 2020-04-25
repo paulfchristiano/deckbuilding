@@ -1,6 +1,3 @@
-//TODO: add kingdom randomization
-//TODO: get seed from URL?
-//TODO: post to github
 //TODO: add multi-select
 
 // returns a copy x of object with x.k = v for all k:v in kvs
