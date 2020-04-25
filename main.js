@@ -2,8 +2,12 @@
 //TODO: improve rendering of static abilities, right now seems tricky
 //TODO: fix the "pay any cost" so that it makes you try again if you fail on one option
 //TODO: fix doAny()
-//TODO: introduce tokens (test out with a bridge-like card)
+//TODO: have a 'Resolving' zone
+//TODO: have a 'Set aside' zone
+//TODO: remove 'Trash' zone
+//TODO: introduce tokens
 //TODO: fix the deck sorting for rendering
+
 // returns a copy x of object with x.k = v for all k:v in kvs
 function updates(object, kvs) {
     const result = Object.assign({}, object)
