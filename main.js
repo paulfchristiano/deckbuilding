@@ -589,8 +589,7 @@ function countTokens(card, token) {
 }
 class Pathfinding extends Card{
     rawCost(state) {
-        return {coin:0, time:1}
-        //return {coin:5, time:1}
+        return {coin:5, time:1}
     }
     effect() {
         return {
@@ -612,9 +611,7 @@ class Pathfinding extends Card{
         return [{
             'description': 'Whenever you play a card, draw a card per path token on it.',
             'handles':e => (e.type == 'played' && e.card.tokens.includes('path')),
-            //'handles':e => (e.type == 'played'),
             'effect':e => draw(countTokens(e.card, 'path'))
-            //'effect':e => draw(1)
         }]
     }
 }
