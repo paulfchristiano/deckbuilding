@@ -1,6 +1,7 @@
 //TODO: change the way that card management works
 //TODO: add history
 //TODO: add undo
+//TODO: add multi-select
 
 // returns a copy x of object with x.k = v for all k:v in kvs
 function updates(object, kvs) {
@@ -29,7 +30,7 @@ function applyToKey(k, f) {
 }
 
 //TODO: operating on a given card involves a linear scan, could speed up with clever datastructure 
-// the function that applies f to all cards in zone that have an id of id
+// the function that applies f to the card with a given id
 function applyToId(id, f) {
     return function(state) {
         const [_, zone] = find(state, id)
@@ -153,9 +154,9 @@ class Card {
         const card = this
         return doAll([
             moveTo(card.id, 'resolving'),
+            trigger({type:'play', card:card, normalWay:normalWay})
             effect.effect,
             effect['skipDiscard'] ? nothing : moveTo(card.id, 'discard'),
-            trigger({type:'played', card:card, normalWay:normalWay})
         ])
     }
     triggers() {
@@ -610,7 +611,7 @@ class Pathfinding extends Card{
     triggers() {
         return [{
             'description': 'Whenever you play a card, draw a card per path token on it.',
-            'handles':e => (e.type == 'played' && e.card.tokens.includes('path')),
+            'handles':e => (e.type == 'play' && e.card.tokens.includes('path')),
             'effect':e => draw(countTokens(e.card, 'path'))
         }]
     }
