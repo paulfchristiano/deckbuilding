@@ -949,7 +949,7 @@ const lookout = new Card('Lookout', {
     effect: card => ({
         description: 'Set aside 3 random cards from your deck. Put one into your hand, discard one, and trash one.', 
         effect: async function(state) {
-            var picks = randomChoice(state.deck, 3)
+            var picks = randomChoice(state.deck, Math.min(3, state.deck.length))
             for (var i = 0; i < picks.length; i++) state = await moveTo(picks[i].id, 'aside')(state)
             async function pickOne(descriptor, zone, state) {
                 const pick = await choice(state, `Pick a card to ${descriptor}.`,
