@@ -1,5 +1,4 @@
 //TODO: change the way that card management works
-//TODO: fix the deck sorting for rendering
 //TODO: add history
 //TODO: add undo
 
@@ -641,7 +640,7 @@ function renderCard(card, state, i, asOption=null) {
     const chargehtml = card.charge > 0 ? `(${card.charge})` : ''
     const costhtml = renderCost(card.cost(state))
     const attrtext = asOption == null ? '' : `choosable option=${asOption}`
-    return [`<div class='card' id='${i}'${attrtext}>`,
+    return [`<div class='card' ${attrtext}>`,
             `<div class='cardbody'>${card}${tokenhtml}${chargehtml}</div>`,
             `<div class='cardcost'>${costhtml}</div>`,
             `<span class='tooltip'>${renderTooltip(card, state)}</span>`,
@@ -664,9 +663,11 @@ function renderState(state, optionsMap=null) {
     $('#play').html(state.play.map(render).join(''))
     $('#supplies').html(state.supplies.map(render).join(''))
     $('#hand').html(state.hand.map(render).join(''))
-    const deckCards = state.deck.map(render)
-    deckCards.sort()
-    $('#deck').html(deckCards.join(''))
+    const deckHtmls = state.deck.map(render)
+    console.log(deckHtmls)
+    deckHtmls.sort()
+    console.log(deckHtmls)
+    $('#deck').html(deckHtmls.join(''))
     $('#discard').html(state.discard.map(render).join(''))
     $('#trash').html(state.trash.map(render).join(''))
 }
