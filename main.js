@@ -7,6 +7,8 @@
 //TODO: remove 'Trash' zone
 //TODO: introduce tokens
 //TODO: fix the deck sorting for rendering
+//TODO: add history
+//TODO: add undo
 
 // returns a copy x of object with x.k = v for all k:v in kvs
 function updates(object, kvs) {
