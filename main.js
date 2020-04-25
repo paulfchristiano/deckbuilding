@@ -995,7 +995,7 @@ const twins = new Card('Twins', {
 mixins.push(makeCard(twins, {time:1, coin:6}))
 
 const recycle = new Card('Recycle', {
-    fixedCost: {coin:1, time:1},
+    fixedCost: {coin:2, time:1},
     effect: _ => ({
         description: 'Put a card from your discard into your hand.',
         effect: async function(state) {
