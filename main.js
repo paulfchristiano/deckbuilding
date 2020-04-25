@@ -1,4 +1,6 @@
-//TODO: change the way that card management works
+//TODO: add kingdom randomization
+//TODO: get seed from URL?
+//TODO: post to github
 //TODO: add multi-select
 
 // returns a copy x of object with x.k = v for all k:v in kvs
@@ -265,8 +267,16 @@ function moveWholeZone(fromZone, toZone) {
     }
 }
 
-function randomChoice(xs) {
-    const result = xs[Math.floor(Math.random() * xs.length)]
+function randomChoice(xs, n=1) {
+    result = []
+    xs = xs.slice()
+    while (result.length < n) {
+        if (xs.length == 0) throw Error("No items left to get.")
+        const k = Math.floor(Math.random() * xs.length)
+        result.push(xs[k])
+        xs[k] = xs[xs.length-1]
+        xs = xs.slice(0, xs.length-1)
+    }
     return result
 }
 
@@ -768,10 +778,10 @@ startingDeck = [
 
 async function playGame(seed=0) {
     var state = emptyState
-    console.log(state)
     state = await doAll(startingDeck.map(x => create(x, 'deck')))(state)
-    console.log(state)
-    state = await doAll(coreSupplies.concat(mixins).map(x => create(x, 'supplies')))(state)
+    //TODO: sort kingdom in increasing order of cost
+    const kingdom = coreSupplies.concat(randomChoice(mixins, 3))
+    state = await doAll(kingdom.map(x => create(x, 'supplies')))(state)
     state = await trigger({type:'gameStart'})(state)
     while (true) {
         renderState(state)
