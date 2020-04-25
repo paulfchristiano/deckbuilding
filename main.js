@@ -1,6 +1,4 @@
 //TODO: change the way that card management works
-//TODO: add history
-//TODO: add undo
 //TODO: add multi-select
 
 // returns a copy x of object with x.k = v for all k:v in kvs
