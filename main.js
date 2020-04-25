@@ -275,12 +275,21 @@ function moveWholeZone(fromZone, toZone) {
     }
 }
 
-function randomChoice(xs, n=1) {
+// pseudorandom float in [0,1] based on two integers a, b
+function PRF(a, b) {
+    const N = 123456789
+    return ((a * 1003303882 + b * 6690673372 + b * b * 992036483 + 
+        a * a * 99202618 + ((a*a+1) / (b*b+1)) * 399220 + 
+        ((b*b+1) / (a*a+1)) * 392901666676)  % N) / N
+}
+
+function randomChoice(xs, n=1, seed=null) {
     result = []
     xs = xs.slice()
     while (result.length < n) {
         if (xs.length == 0) throw Error("No items left to get.")
-        const k = Math.floor(Math.random() * xs.length)
+        const rand = (seed == null) ? Math.random() : PRF(seed, result.length)
+        const k = Math.floor(rand * xs.length)
         result.push(xs[k])
         xs[k] = xs[xs.length-1]
         xs = xs.slice(0, xs.length-1)
@@ -357,7 +366,6 @@ function doOrAbort(f, fallback=null) {
         }
     }
 }
-
 
 function payToDo(cost, effect) {
     return doOrAbort(async function(state){
@@ -645,12 +653,12 @@ function supplySort(card1, card2) {
     return supplyKey(card1) - supplyKey(card2)
 }
 
-async function playGame(seed=0) {
+async function playGame(seed=null) {
     var state = emptyState
     const startingDeck = [copper, copper, copper, copper, copper,
                           copper, estate, estate, donkey, donkey]
     state = await doAll(startingDeck.map(x => create(x, 'deck')))(state)
-    const variableSupplies = randomChoice(mixins, 10)
+    const variableSupplies = randomChoice(mixins, 10, seed)
     variableSupplies.sort(supplySort)
     const kingdom = coreSupplies.concat(variableSupplies)
     state = await doAll(kingdom.map(x => create(x, 'supplies')))(state)
@@ -663,8 +671,15 @@ async function playGame(seed=0) {
     $('#choicePrompt').html(`You got to 50vp using ${state.time} time!`)
 }
 
+function getSeed() {
+    const seed = new URLSearchParams(window.location.search).get('seed')
+    const n = Number(seed)
+    return (seed == null || isNaN(n)) ? null : seed
+
+}
+
 function load() {
-    playGame().then(function () {
+    playGame(getSeed()).then(function () {
         console.log('done!')
     })
 }
