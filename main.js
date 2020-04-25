@@ -957,12 +957,12 @@ const lookout = new Card('Lookout', {
                 picks = picks.filter(card => card.id != pick)
                 return moveTo(pick, zone)(state)
             }
+            if (picks.length > 0) 
+                state = await pickOne('trash', null, state)
             if (picks.length > 0)
                 state = await pickOne('put into your hand', 'hand', state)
             if (picks.length > 0) 
                 state = await pickOne('discard', 'discard', state)
-            if (picks.length > 0) 
-                state = await pickOne('trash', null, state)
             return state
         }
     })
