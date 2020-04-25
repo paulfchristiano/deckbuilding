@@ -43,8 +43,6 @@ function applyToId(id, f) {
 //NOTE: this is slow, we should cache triggers (in a dictionary by event type) if it becomes a problem
 function trigger(e) {
     return async function(state) {
-        console.log(state)
-        console.log(state.play.concat(state.supplies).concat(state.auras))
         var triggers = state.play.concat(state.supplies).concat(state.auras).map(x => x.triggers()).flat()
         triggers = triggers.filter(trigger => trigger.handles(e))
         const effects = triggers.map(trigger => trigger.effect(e))
@@ -199,7 +197,6 @@ function assignUID(state, card) {
 function create(card, toZone='discard') {
     return async function(state) {
         [state, card] = assignUID(state, card)
-        console.log(state, card)
         state = await addToZone(card, toZone)(state)
         return trigger({type:'create', card:card, toZone:toZone})(state)
     }
@@ -207,9 +204,7 @@ function create(card, toZone='discard') {
 
 function addToZone(card, toZone) {
     return async function(state) {
-        console.log(state)
         state = update(state, toZone, state[toZone].concat([card]))
-        console.log(state)
         return trigger({type:'added', zone:toZone, card:card})(state)
     }
 }
@@ -248,8 +243,13 @@ function moveTo(id, toZone) {
 function move(id, fromZone, toZone) {
     return async function(state) {
         const result = removeIfPresent(state[fromZone], id)
+        console.log(id)
+        console.log(result)
+        console.log(state)
         if (!result.found) return state
+        console.log(state)
         state = update(state, fromZone, result.without)
+        console.log(state)
         if (toZone != null) state = await addToZone(result.card, toZone)(state)
         return await trigger({type:'moved', card:result.card, fromZone:fromZone, toZone:toZone})(state)
     }
@@ -283,10 +283,11 @@ function randomChoice(xs, n=1) {
 //TODO all of these are going to have to have hooks for replacement, e.g. "draw one more" or whatever
 function draw(n) {
     return async function(state) {
+        console.log(state)
         var drawn = 0
         for (var i = 0; i < n; i++) {
             if (state.deck.length > 0) {
-                const nextCard = randomChoice(state.deck)
+                const nextCard = randomChoice(state.deck)[0]
                 state = await move(nextCard.id, 'deck', 'hand')(state)
                 drawn += 1
             }
@@ -592,10 +593,7 @@ const pathfinding = new Card('Pathfinding', {
                 'Choose a card to put a path token on.',
                 state.hand.map(cardAsChoice))
             if (card == null) return state
-            console.log(state)
-            console.log(card)
             state = await addToken(card.id, 'path')(state)
-            console.log(state)
             return state
         }
     }),
@@ -776,17 +774,31 @@ startingDeck = [
     donkey, donkey,
 ]
 
+//TODO: improve sort
+function supplyKey(card) {
+    if (card.props.fixedCost == undefined) {
+        return 10
+    } else {
+        return card.props.fixedCost.coin
+    }
+}
+function supplySort(card1, card2) {
+    return supplyKey(card1) - supplyKey(card2)
+}
+
 async function playGame(seed=0) {
     var state = emptyState
     state = await doAll(startingDeck.map(x => create(x, 'deck')))(state)
-    //TODO: sort kingdom in increasing order of cost
-    const kingdom = coreSupplies.concat(randomChoice(mixins, 3))
+    const variableSupplies = randomChoice(mixins, 3)
+    variableSupplies.sort(supplySort)
+    const kingdom = coreSupplies.concat(variableSupplies)
     state = await doAll(kingdom.map(x => create(x, 'supplies')))(state)
     state = await trigger({type:'gameStart'})(state)
-    while (true) {
+    while (state.points < 50) {
         renderState(state)
         state = await act(state)
     }
+    //TODO: do something when you win
 }
 
 function load() {
