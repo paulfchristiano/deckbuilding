@@ -8,7 +8,11 @@
 </head> 
 
 <style>
+#resources, #choicePrompt, .header {
+    font-size: 1.25em;
+}
 .card, .option {
+    font-size: 1em;
     border: 2px solid;
     border-radius: 5px;
     padding-left: 3px;
@@ -22,6 +26,15 @@
     text-align: center;
     position: relative;
 }
+#resolving {
+    display:inline-block;
+}
+#choicePrompt {
+    position:absolute;
+    display:inline-block;
+    top:33%;
+    padding-left: 3px;
+}
 [choosable] {
     background-color: rgba(254, 216, 177, 0.4);
     cursor:pointer;
@@ -33,8 +46,8 @@
 .zone {
     min-height: 3em;
 }
-#choicePrompt, #resources {
-    font-size: 1.25em;
+#toparea {
+    position: relative
 }
 
 .card {
@@ -70,43 +83,37 @@
 </body> 
 
 <div id='resources'>
-    <div> Coin ($): <span id='coin'></span></span> </div>
-    <div> Time (@): <span id='time'></span></span> </div>
-    <div> Points (vp): <span id='points'></span></span> </div>
+    $: <span id='coin'></span> @: <span id='time'></span> vp: <span id='points'></span>
 </div>
 <div> &nbsp; </div> 
-<div id='choice'> 
+<div class='header'> Resolving: </div> 
+<div id='toparea'>
+    <div id='resolving' class='zone'> </div>
     <div id='choicePrompt'></div>
-<div> &nbsp; </div> 
-    <div id='options'></div>
 </div>
 <div> &nbsp; </div> 
-<div> Resolving: </div> 
-<div id='resolving' class='zone'> </div>
-
-<div> &nbsp; </div> 
-<div> Supplies: </div> 
+<div class='header'> Supplies: </div> 
 <div id='supplies' class='zone'> </div>
 
 <div> &nbsp; </div> 
-<div> Hand: </div> 
+<div class='header'> Hand: </div> 
 <div id='hand' class='zone'> </div>
 
 <div> &nbsp; </div> 
-<div> Deck: </div> 
+<div class='header'> Deck: </div> 
 <div id='deck' class='zone'> </div>
 
 <div> &nbsp; </div> 
-<div> Discard: </div> 
+<div class='header'> Discard: </div> 
 <div id='discard' class='zone'> </div>
 
 <div> &nbsp; </div> 
-<div> Play: </div> 
+<div class='header'> Play: </div> 
 <div id='play' class='zone'> </div>
 
 
 <div> &nbsp; </div> 
-<div> Set aside: </div> 
+<div class='header'> Set aside: </div> 
 <div id='aside' class='zone'> </div>
 
 
