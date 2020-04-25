@@ -784,13 +784,13 @@ coreSupplies.push(reboot)
 // ----- MIXINS ----- 
 //
 
-const throneRoom = new Card('Throne Room', {
+const crown = new Card('Crown', {
     fixedCost: time(0),
     effect: card => ({
         description: `Pay the cost of a card in your hand to play it. Then if it's in your discard pile play it again.`,
         effect: doOrAbort(async function(state) {
             const card = await choice(state,
-                'Choose a card to play twice with Throne Room.',
+                'Choose a card to play twice with Crown.',
                 state.hand.map(cardAsChoice))
             if (card == null) return state
             state = await card.payCost()(state)
@@ -801,7 +801,7 @@ const throneRoom = new Card('Throne Room', {
         })
     })
 })
-mixins.push(gainCard(throneRoom, coin(4)))
+mixins.push(gainCard(crown, coin(5)))
 
 const smithy = new Card('Smithy', {
     fixedCost: time(1),
@@ -828,10 +828,11 @@ const tutor = new Card('Tutor', {
 mixins.push(gainCard(tutor, coin(4)))
 
 const vassal = new Card('Vassal', {
-    fixedCost: time(0),
+    fixedCost: time(1),
     effect: card => ({
         description: "Set aside a random card from your deck. You may play it or discard it.",
         effect: async function(state) {
+            state = await gainCoin(2)(state)
             const picks = randomChoice(state.deck, 1)
             if (picks.length < 1) return state
             const target = picks[0]
