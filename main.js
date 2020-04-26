@@ -946,9 +946,9 @@ coreSupplies.push(gainCard(province, coin(8)))
 // ----- MIXINS ----- 
 //
 
-function buyable(card, n, test=false) {
+function buyable(card, n, test=null) {
     mixins.push(gainCard(card, coin(n)))
-    if (test) testing.push(gainCard(card, coin(n)))
+    if (test=='test') testing.push(gainCard(card, coin(n)))
 }
 
 const throneRoom = new Card('Throne Room', {
@@ -1189,19 +1189,13 @@ buyable(plough, 4)
 const vassal = new Card('Vassal', {
     fixedCost: time(1),
     effect: card => ({
-        description: "+$2. Set aside a random card from your deck. You may play it or discard it.",
+        description: "+$2. Look at a random card from your deck. You may play it.",
         effect: async function(state) {
             state = await gainCoin(2)(state);
             [state, target] = randomChoice(state, state.deck)
-            if (target == null) return state
-            state = await move(target, 'aside')(state);
-            [state, playIt] = await choice(state, `Play or discard ${target.name}?`,
-                [[['string', 'Play'], true], [['string', 'Discard'], false]])
-            if (playIt)
-                state = await playById(target.id, 'vassal')(state)
-            else
-                state = await move(target, 'discard')(state)
-            return state
+            if (target != null) [state, target] = await choice(state, `Play ${target.name}?`,
+                allowNull([asChoice(target), [['string', 'Play'], target]], "Don't play"))
+            return (target == null) ? state : target.play('vassal')(state)
         }
     })
 })
