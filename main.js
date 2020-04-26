@@ -964,13 +964,14 @@ const blacksmith = new Card('Blacksmith', {
 mixins.push(gainCard(blacksmith, coin(2)))
 
 const expedite = new Card('Expedite', {
-    fixedCost: {time:1, coin:1},
+    calculatedCost: (card, state) => ({time:1, coin:card.charge}),
     effect: card => ({
-        description: `The next time you gain a card this turn, put it into your hand.`,
-        effect: nextTime(
+        description: `The next time you gain a card this turn, put it into your hand.'+
+            ' Put a charge token on this. It costs $1 more per charge token on it.`,
+        effect: doAll([charge(card.id, 1), nextTime(
             e => (e.type == 'create'),
             e => moveTo(e.card.id, 'hand')
-        )
+        )])
     })
 })
 mixins.push(expedite)
@@ -1107,6 +1108,18 @@ const recycle = new Card('Recycle', {
     })
 })
 mixins.push(recycle)
+
+const foolsGold = new Card("Fool's Gold", {
+    fixedCost: time(0),
+    effect: card => ({
+        description: "+$1. +$1 per Fool's Gold in your discard pile.",
+        effect: async function(state) {
+            n = state.discard.filter(x => x.name == card.name).length
+            return gainCoin(n+1)(state)
+        }
+    })
+})
+mixins.push(gainCard(foolsGold, coin(2)))
 
 const harvest = new Card('Harvest', {
     fixedCost: time(1),
