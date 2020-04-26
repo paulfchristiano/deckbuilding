@@ -247,6 +247,14 @@ function moveTo(id, toZone) {
     }
 }
 
+//TODO: should we move them all at once, with one trigger?
+//Could do this by changing move
+function moveMany(ids, toZone) {
+    console.log(ids)
+    console.log(toZone)
+    return doAll(ids.map(id => moveTo(id, toZone)))
+}
+
 function trash(id) {
     return moveTo(id, null)
 }
@@ -706,7 +714,7 @@ async function playGame(seed=null) {
     const startingDeck = [copper, copper, copper, copper, copper,
                           copper, estate, estate, donkey, donkey]
     state = await doAll(startingDeck.map(x => create(x, 'deck')))(state)
-    const variableSupplies = randomChoices(mixins, 10, seed)
+    const variableSupplies = randomChoices(mixins, 12, seed)
     variableSupplies.sort(supplySort)
     const kingdom = coreSupplies.concat(variableSupplies)
     state = await doAll(kingdom.map(x => create(x, 'supplies')))(state)
@@ -890,6 +898,21 @@ const tutor = new Card('Tutor', {
     })
 })
 mixins.push(gainCard(tutor, coin(3)))
+
+const cellar = new Card('Cellar', {
+    fixedCost: time(0),
+    effect: card => ({
+        description: 'Discard any number of cards in your hand, then draw that many cards.',
+        effect: async function(state) {
+            const toDiscard = await choice(state, 'Choose any number of cards to discard.',
+                state.hand.map(cardAsChoice), xs => true)
+            //TODO: discard all at once
+            state = await moveMany(toDiscard.map(x => x.id), 'discard')(state)
+            return draw(toDiscard.length)(state)
+        }
+    })
+})
+mixins.push(gainCard(cellar, coin(2)))
 
 const sage = new Card('Sage', {
     fixedCost: time(0),
@@ -1174,6 +1197,22 @@ const foolsGold = new Card("Fool's Gold", {
     })
 })
 mixins.push(gainCard(foolsGold, coin(2)))
+
+const sacrifice = new Card('Sacrifice', {
+    fixedCost: time(0),
+    effect: _ => ({
+        description: 'Play a card in your hand, then trash it.',
+        effect: async function(state) {
+            const card = await choice(state,
+                'Choose a card to play and trash.',
+                state.hand.map(cardAsChoice))
+            if (card == null) return state
+            state = await card.play('sacrifice')(state)
+            return await moveTo(card.id, null)(state)
+        }
+    })
+})
+mixins.push(gainCard(sacrifice, coin(3)))
  
 const horseTraders = new Card('Horse Traders', {
     fixedCost: time(1),
@@ -1191,10 +1230,7 @@ const purge = new Card('Purge', {
         effect: async function(state) {
             const toTrash = await choice(state, 'Choose up to four cards to trash.',
                 state.hand.map(cardAsChoice), (xs => xs.length <= 4))
-            for (var i = 0; i < toTrash.length; i++){
-                state = await moveTo(toTrash[i].id, null)(state)
-            }
-            return state
+            return moveMany(toTrash.map(x => x.id), null)(state)
         }
     })
 })
@@ -1208,10 +1244,7 @@ const chapel = new Card('Chapel', {
         effect: async function(state) {
             const toTrash = await choice(state, 'Choose up to four cards to trash.',
                 state.hand.map(cardAsChoice), (xs => xs.length <= 4))
-            for (var i = 0; i < toTrash.length; i++){
-                state = await moveTo(toTrash[i].id, null)(state)
-            }
-            return state
+            return moveMany(toTrash.map(x => x.id), null)(state)
         }
     })
 })
