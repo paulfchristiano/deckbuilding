@@ -1079,17 +1079,19 @@ async function freeAction(state) {
 }
 
 const village = new Card('Village', {
+    fixedCost: time(1),
     effect: card => ({
-        description: '+1 card. You may play a card in your hand costing up to @.',
-        effect: doAll([draw(1), freeAction])
+        description: '+1 card. You may play a card in your hand costing up to @, twice.',
+        effect: doAll([draw(1), freeAction, freeAction])
     })
 })
 buyable(village, 3)
 
 const bazaar = new Card('Bazaar', {
+    fixedCost: time(1),
     effect: card => ({
-        description: '+1 card. +$1. You may play a card in your hand costing up to @.',
-        effect: doAll([draw(1), gainCoin(1), freeAction, ])
+        description: '+1 card. +$1. You may play a card in your hand costing up to @, twice.',
+        effect: doAll([draw(1), gainCoin(1), freeAction, freeAction])
     })
 })
 buyable(bazaar, 5)
