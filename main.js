@@ -1404,7 +1404,7 @@ const twins = new Card('Twins', {
         handles: e => (e.type == 'afterPlay' && e.source != 'twins'),
         effect: e => async function(state) {
             const cardOptions = state.hand.filter(x => x.name == e.card.name)
-            if (cardOptions.length == 0) return state
+            if (cardOptions.length == 0) return state;
             [state, replay] = await choice(state, `Choose a card named '${e.card.name}' to play.`,
                 cardOptions.map(asChoice).concat([[['string', "Don't play"], null]]))
             return (replay == null) ? state : replay.play('twins')(state)
@@ -1412,6 +1412,7 @@ const twins = new Card('Twins', {
     }]
 })
 mixins.push(makeCard(twins, {time:0, coin:6}))
+testing.push(makeCard(twins, {time:0, coin:6}))
 
 const masterSmith = new Card('Master Smith', {
     fixedCost: time(2),
