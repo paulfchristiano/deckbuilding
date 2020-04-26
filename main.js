@@ -289,23 +289,23 @@ function PRF(a, b) {
         ((b*b+1) / (a*a+1)) * 392901666676)  % N) / N
 }
 
-function randomChoice(xs, seed=null) {
-    if (xs.length == 0) return null
-    return randomChoices(xs, 1, seed)[0]
+function randomChoice(state, xs, seed=null) {
+    if (xs.length == 0) return [state, null]
+    return randomChoices(state, xs, 1, seed)[0]
 }
 
-function randomChoices(xs, n, seed=null) {
+function randomChoices(state, xs, n, seed=null) {
     result = []
     xs = xs.slice()
     while (result.length < n) {
-        if (xs.length == 0) return result
-        const rand = (seed == null) ? Math.random() : PRF(seed, result.length)
+        if (xs.length == 0) return result;
+        [state, rand] = doOrReplay(state, _ => (seed == null) ? Math.random() : PRF(seed, result.length), 'rng')
         const k = Math.floor(rand * xs.length)
         result.push(xs[k])
         xs[k] = xs[xs.length-1]
         xs = xs.slice(0, xs.length-1)
     }
-    return result
+    return [state, result]
 }
 
 function draw(n) {
@@ -313,7 +313,7 @@ function draw(n) {
         var drawn = 0
         for (var i = 0; i < n; i++) {
             if (state.deck.length > 0) {
-                nextCard = randomChoice(state.deck)
+                [state, newCard] = randomChoice(state, state.deck)
                 state = await move(nextCard.id, 'deck', 'hand')(state)
                 drawn += 1
             }
@@ -325,18 +325,14 @@ function draw(n) {
 //TODO: discard all at once?
 function discard(n) {
     return async function(state) {
-        const toDiscard = (state.hand.length < n) ? state.hand :
+        [state, toDiscard] = (state.hand.length < n) ? state.hand :
             await choice(state, `Choose ${n} cards to discard.`, state.hand.map(cardAsChoice),
                 (xs => xs.length == n))
-        for (var i = 0; i < toDiscard.length; i++) {
-            state = await move(toDiscard[i].id, 'hand', 'discard')(state)
-        }
-        return state
+        return moveMany(toDiscard.map(x => x.id), 'hand', 'discard')(state)
     }
 }
 
-class CostNotPaid extends Error {
-}
+class CostNotPaid extends Error { }
 
 
 function payCoin(n) {
@@ -409,7 +405,7 @@ function removeElement(xs, i) {
 //options is a list of [string, cost] pairs
 function payAny(options) {
     return async function(state) {
-        const costAndIndex = await choice(state,
+        [state, costAndIndex] = await choice(state,
             "Choose which cost to pay:",
             options.map(x,i => [['string', x[0]], [x[1], i]])
         )
@@ -436,7 +432,7 @@ async function noop(state) {
 //options is a list of [string, effect] pairs
 function doAny(options) {
     return async function(state) {
-        const effect = await choice(state,
+        [state, effect] = await choice(state,
             "Choose an effect to do:",
             options.map(x => [['string', x[0]], x[1]]))
         return effect(state)
@@ -572,9 +568,22 @@ function renderTime(n) {
 
 const ZONES = ['hand', 'deck', 'discard', 'play', 'supplies', 'resolving', 'aside']
 const RESOURCES = ['coin', 'time', 'points']
-const emptyState = {nextID: 0, auras:[]}
+const emptyState = {nextID: 0, auras:[], future:[], history:[], checkpoint:null}
 for (var i = 0; i < ZONES.length; i++) emptyState[ZONES[i]] = []
 for (var i = 0; i < RESOURCES.length; i++) emptyState[RESOURCES[i]] = 0
+
+function checkpoint(state) {
+    return updates(state, {future:[], history:[], checkpoint:state})
+}
+
+function popLast(xs) {
+    const n = xs.length
+    return [xs[n-1], xs.slice(0, n-1)]
+}
+
+function shiftFirst(xs) {
+    return [xs[0], xs.slice(1)]
+}
 
 function clearChoice() {
     $('#choicePrompt').html('')
@@ -583,7 +592,7 @@ function clearChoice() {
 
 function useCard(card) {
     return async function(state) {
-        ability = await choice(state, "Choose an ability to use:",
+        [state, ability] = await choice(state, "Choose an ability to use:",
             card.abilities().map(x => [['string', x.description], x]))
         if (ability == null) return state
         return payToDo(ability.cost, ability.effect)(state)
@@ -625,9 +634,39 @@ function renderOption(z) {
     return `<span class='option' id='${i}' option='${i}' choosable='true' chosen='false'>${option}</span>`
 }
 
+function doOrReplay(state, f, key) {
+    var x, future, k
+    if (state.future.length == 0) {
+        x = f()
+    } else {
+        [[k, x], future] = shiftFirst(state.future)
+        if (k != 'key') throw Error(`replaying history we found ${[x, k]} where expecting key ${key}`)
+        state = update(state, 'future', future)
+    }
+    const newHistory = state.history.concat([[k, x]])
+    return [update(state, 'history', newHistory), x]
+}
+
+function choice(state, ...args) {
+    return Promise.resolve(doOrReplay(state, _ => coreChoice(state, ...args), 'choice'))
+}
+
+function getLastEvent(state) {
+    const n = state.history.length
+    if (n > 0) return state.history[n-1]
+    else if (state.checkpoint == null) return null
+    else return getLastEvent(state.checkpoint)
+}
+
+function undoIsPossible(state) {
+    const lastEvent = getLastEvent(state)
+    return (lastEvent != null && lastEvent[0] == 'choice')
+}
+
 //TODO: what to do if you can't pick a valid set for the validator?
-function choice(state, choicePrompt, options, multichoiceValidator=null) {
+function coreChoice(state, choicePrompt, options, multichoiceValidator=null) {
     if (options.length == 0 && multichoiceValidator == null) return null
+    const undoable = undoIsPossible(state)
     const optionsMap = {} //map card ids to their position in the choice list
     const stringOptions = []
     const chosen = {} //records what options are being chosen for multithoice
@@ -641,7 +680,8 @@ function choice(state, choicePrompt, options, multichoiceValidator=null) {
             throw new Error(`Got type ${type}`)
         }
     }
-    if (multichoiceValidator!=null) stringOptions.push(['Done', -1])
+    if (multichoiceValidator!=null) stringOptions.push(['Done', 'submit'])
+    stringOptions.push(['Undo', 'undo'])
     renderState(state, optionsMap)
     $('#choicePrompt').html(choicePrompt)
     $('#options').html(stringOptions.map(renderOption))
@@ -657,12 +697,13 @@ function choice(state, choicePrompt, options, multichoiceValidator=null) {
     }
     function setReady() {
         if (isReady()) {
-            $(`[option='-1']`).attr('choosable', true)
+            $(`[option='submit']`).attr('choosable', true)
         } else {
-            $(`[option='-1']`).removeAttr('choosable')
+            $(`[option='submit']`).removeAttr('choosable')
         }
     }
     if (multichoiceValidator != null) setReady(isReady())
+    if (!undoable(state)) $(`[option='undo']`).removeAttr('choosable')
     return new Promise(function(resolve, reject) {
         for (var i = 0; i < options.length; i++) {
             const j = i;
@@ -679,8 +720,13 @@ function choice(state, choicePrompt, options, multichoiceValidator=null) {
             })
         }
         if (multichoiceValidator != null) {
-            $(`[option='-1']`).on('click', function(e) {
+            $(`[option='submit']`).on('click', function(e) {
                 if (isReady()) resolve(chosenOptions())
+            })
+        }
+        if (undoable) {
+            $(`[option='undo']`).on('click', function(e) {
+                reject(new Undo())
             })
         }
     })
@@ -709,19 +755,46 @@ function supplySort(card1, card2) {
     return supplyKey(card1) - supplyKey(card2)
 }
 
+class Undo extends Error { }
+
+async function mainLoop(state) {
+    state = checkpoint(state)
+    renderState(state)
+    try {
+        return act(state)
+    } catch (error) {
+        if (error instanceof Undo) {
+            while (state.history.length == 0) {
+                if (state.checkpoint == null) {
+                    return state //TODO: indicate that undo impossible because we've exhausted history
+                } else {
+                    state = state.checkpoint
+                }
+            }
+            const [last, future] = popLast(state.history)
+            if (last[0] == 'choice') {
+                return updates(state, {history: [], future: future})
+            } else {
+                return state //TODO: indicate that undo impossible because last event was random
+            }
+        } else {
+            throw error
+        }
+    }
+}
+
 async function playGame(seed=null) {
     var state = emptyState
     const startingDeck = [copper, copper, copper, copper, copper,
                           copper, estate, estate, donkey, donkey]
     state = await doAll(startingDeck.map(x => create(x, 'deck')))(state)
-    const variableSupplies = randomChoices(mixins, 12, seed)
+    [state, variableSupplies] = randomChoices(state, mixins, 12, seed)
     variableSupplies.sort(supplySort)
     const kingdom = coreSupplies.concat(variableSupplies)
     state = await doAll(kingdom.map(x => create(x, 'supplies')))(state)
     state = await trigger({type:'gameStart'})(state)
     while (state.points < 50) {
-        renderState(state)
-        state = await act(state)
+        state = await mainLoop(state)
     }
     renderState(state)
     $('#choicePrompt').html(`You got to 50vp using ${state.time} time!`)
@@ -843,7 +916,7 @@ const throneRoom = new Card('Throne Room', {
     effect: card => ({
         description: `Play a card in your hand. Then if it's in your discard pile play it again.`,
         effect: async function(state) {
-            const card = await choice(state,
+            [state, card] = await choice(state,
                 'Choose a card to play twice.',
                 state.hand.map(cardAsChoice))
             if (card == null) return state
@@ -861,7 +934,7 @@ const crown = new Card('Crown', {
     effect: card => ({
         description: `Pay the cost of a card in your hand to play it. Then if it's in your discard pile play it again.`,
         effect: doOrAbort(async function(state) {
-            const card = await choice(state,
+            [state, card] = await choice(state,
                 'Choose a card to play twice.',
                 state.hand.map(cardAsChoice))
             if (card == null) return state
@@ -889,7 +962,7 @@ const tutor = new Card('Tutor', {
     effect: card => ({
         description: 'Put any card from your deck into your hand.',
         effect: async function(state) {
-            const toDraw = await choice(state,
+            [state, toDraw] = await choice(state,
                 'Choose a card to put in your hand.',
                 state.deck.map(cardAsChoice))
             if (toDraw == null) return state
@@ -904,7 +977,7 @@ const cellar = new Card('Cellar', {
     effect: card => ({
         description: 'Discard any number of cards in your hand, then draw that many cards.',
         effect: async function(state) {
-            const toDiscard = await choice(state, 'Choose any number of cards to discard.',
+            [state, toDiscard] = await choice(state, 'Choose any number of cards to discard.',
                 state.hand.map(cardAsChoice), xs => true)
             //TODO: discard all at once
             state = await moveMany(toDiscard.map(x => x.id), 'discard')(state)
@@ -920,9 +993,9 @@ const sage = new Card('Sage', {
         description: 'Set aside a random card from your deck. Put it into either your deck or discard pile. +1 card.',
         effect: async function(state) {
             if (state.deck.length > 0) {
-                const card = randomChoice(state.deck)
-                state = await moveTo(card.id, 'aside')(state)
-                const targetZone = await choice(state, `Discard ${card.name} or put it in your deck?`,
+                [state, card] = randomChoice(state, state.deck)
+                state = await moveTo(card.id, 'aside')(state);
+                [state, targetZone] = await choice(state, `Discard ${card.name} or put it in your deck?`,
                     [[['string', 'Discard'], 'discard'], [['string', 'Deck'], 'deck']])
                 state = await moveTo(card.id, targetZone)(state)
             }
@@ -977,10 +1050,10 @@ const vassal = new Card('Vassal', {
         description: "+$2. Set aside a random card from your deck. You may play it or discard it.",
         effect: async function(state) {
             state = await gainCoin(2)(state)
-            const target = randomChoice(state.deck)
+            [state, target] = randomChoice(state, state.deck)
             if (target == null) return state
-            state = await moveTo(target.id, 'aside')(state)
-            const playIt = await choice(state, `Play or discard ${target.name}?`,
+            state = await moveTo(target.id, 'aside')(state);
+            [state, playIt] = await choice(state, `Play or discard ${target.name}?`,
                 [[['string', 'Play'], true], [['string', 'Discard'], false]])
             if (playIt)
                 state = await playById(target.id, 'vassal')(state)
@@ -997,7 +1070,7 @@ const reinforce = new Card('Reinforce', {
     effect: card => ({
         description: 'Put a reinforce token on a card in your hand.',
         effect: async function(state) {
-            const card = await choice(state,
+            [state, card] = await choice(state,
                 'Choose a card to put a reinforce token on.',
                 state.hand.map(cardAsChoice))
             if (card == null) return state
@@ -1048,7 +1121,7 @@ const bustlingSquare = new Card('Bustling Square', {
             var ids = state.hand.map(x => x.id)
             state = await moveWholeZone('hand', 'aside')(state)
             while (ids.length > 0) {
-                const id = await choice(state, 'Choose which card to play next.',
+                [state, id] = await choice(state, 'Choose which card to play next.',
                     ids.map(x => [['card', x], x]))
                 state = await playById(id, 'bustlingSquare')(state)
                 ids = ids.filter(x => x != id)
@@ -1094,10 +1167,10 @@ const lookout = new Card('Lookout', {
     effect: card => ({
         description: 'Set aside 3 random cards from your deck. Trash one, put one in your hand, and return one to your deck.',
         effect: async function(state) {
-            var picks = randomChoices(state.deck, 3)
+            [state, picks] = randomChoices(state, state.deck, 3)
             for (var i = 0; i < picks.length; i++) state = await moveTo(picks[i].id, 'aside')(state)
             async function pickOne(descriptor, zone, state) {
-                const pick = await choice(state, `Pick a card to ${descriptor}.`,
+                [state, pick] = await choice(state, `Pick a card to ${descriptor}.`,
                     picks.map(card => [['card', card.id], card.id]))
                 picks = picks.filter(card => card.id != pick)
                 return moveTo(pick, zone)(state)
@@ -1141,7 +1214,7 @@ const twins = new Card('Twins', {
         effect: e => async function(state) {
             const cardOptions = state.hand.filter(x => x.name == e.card.name)
             if (cardOptions.length == 0) return state
-            const replay = await choice(state, `Choose a card named '${e.card.name}' to play.`,
+            [state, replay] = await choice(state, `Choose a card named '${e.card.name}' to play.`,
                 cardOptions.map(cardAsChoice).concat([[['string', "Don't play"], null]]))
             return (replay == null) ? state : replay.play('twins')(state)
         }
@@ -1163,7 +1236,7 @@ const recycle = new Card('Recycle', {
     effect: card => ({
         description: 'Put a card from your discard into your hand. Put a charge token on this. This costs +$1 per charge token on it.',
         effect: async function(state) {
-            const target = await choice(state, 'Choose a card to put into your hand.',
+            [state, target] = await choice(state, 'Choose a card to put into your hand.',
                 state.discard.map(cardAsChoice))
             state = await charge(card.id, 1)(state)
             return (target == null) ? state : moveTo(target.id, 'hand')(state)
@@ -1177,7 +1250,7 @@ const seek = new Card('Seek', {
     effect: card => ({
         description: 'Put a card from your deck into your hand. Put a charge token on this. This costs +$2 per charge token on it.',
         effect: async function(state) {
-            const target = await choice(state, 'Choose a card to put into your hand.',
+            [state, target] = await choice(state, 'Choose a card to put into your hand.',
                 state.deck.map(cardAsChoice))
             state = await charge(card.id, 1)(state)
             return (target == null) ? state : moveTo(target.id, 'hand')(state)
@@ -1203,7 +1276,7 @@ const sacrifice = new Card('Sacrifice', {
     effect: _ => ({
         description: 'Play a card in your hand, then trash it.',
         effect: async function(state) {
-            const card = await choice(state,
+            [state, card] = await choice(state,
                 'Choose a card to play and trash.',
                 state.hand.map(cardAsChoice))
             if (card == null) return state
@@ -1228,7 +1301,7 @@ const purge = new Card('Purge', {
     effect: _ => ({
         description: 'Trash up to four cards from your hand.',
         effect: async function(state) {
-            const toTrash = await choice(state, 'Choose up to four cards to trash.',
+            [state, toTrash] = await choice(state, 'Choose up to four cards to trash.',
                 state.hand.map(cardAsChoice), (xs => xs.length <= 4))
             return moveMany(toTrash.map(x => x.id), null)(state)
         }
@@ -1242,7 +1315,7 @@ const chapel = new Card('Chapel', {
     effect: _ => ({
         description: 'Trash up to four cards from your hand.',
         effect: async function(state) {
-            const toTrash = await choice(state, 'Choose up to four cards to trash.',
+            [state, toTrash] = await choice(state, 'Choose up to four cards to trash.',
                 state.hand.map(cardAsChoice), (xs => xs.length <= 4))
             return moveMany(toTrash.map(x => x.id), null)(state)
         }
@@ -1284,7 +1357,7 @@ const pathfinding = new Card('Pathfinding', {
     effect: card => ({
         description: 'Put a path token on a card in your hand.',
         effect: async function(state) {
-            const card = await choice(state,
+            [state, card] = await choice(state,
                 'Choose a card to put a path token on.',
                 state.hand.map(cardAsChoice))
             if (card == null) return state
