@@ -1,3 +1,10 @@
+// TODO: improve sorting of hand/deck
+// TODO: choice buttons can overlap with other stuff in the resolving zone
+// TODO: trashing balance?
+// TODO: more cards that generate money
+// TODO: helper method for 'choose than do X with result'
+// TODO: set aside should show up at top somehow? (maybe beside resolving?)
+//
 // returns a copy x of object with x.k = v for all k:v in kvs
 function updates(object, kvs) {
     const result = Object.assign({}, object)
@@ -170,8 +177,8 @@ class Card {
     }
 }
 
-function callOr(f, x, backup) {
-    return (f == undefined) ? backup : f(x)
+function callOr(f, x, fallback) {
+    return (f == undefined) ? fallback : f(x)
 }
 
 function gainCard(card, cost)  {
@@ -250,8 +257,6 @@ function moveTo(id, toZone) {
 //TODO: should we move them all at once, with one trigger?
 //Could do this by changing move
 function moveMany(ids, toZone) {
-    console.log(ids)
-    console.log(toZone)
     return doAll(ids.map(id => moveTo(id, toZone)))
 }
 
@@ -290,8 +295,9 @@ function PRF(a, b) {
 }
 
 function randomChoice(state, xs, seed=null) {
-    if (xs.length == 0) return [state, null]
-    return randomChoices(state, xs, 1, seed)[0]
+    if (xs.length == 0) return [state, null];
+    [state, [x]] = randomChoices(state, xs, 1, seed)
+    return [state, x]
 }
 
 function randomChoices(state, xs, n, seed=null) {
@@ -313,7 +319,7 @@ function draw(n) {
         var drawn = 0
         for (var i = 0; i < n; i++) {
             if (state.deck.length > 0) {
-                [state, newCard] = randomChoice(state, state.deck)
+                [state, nextCard] = randomChoice(state, state.deck);
                 state = await move(nextCard.id, 'deck', 'hand')(state)
                 drawn += 1
             }
@@ -525,9 +531,12 @@ function renderCard(card, state, i, asOption=null) {
             `</div>`].join('')
 }
 
+var renderedState
+
 //TODO: sort hand?
 //TODO: sort deck in way that is robust when you are offered choice
 function renderState(state, optionsMap=null) {
+    renderedState = state
     function render(card, i) {
         if (optionsMap != null && optionsMap[card.id] != undefined) {
             return renderCard(card, state, i, optionsMap[card.id])
@@ -572,19 +581,6 @@ const emptyState = {nextID: 0, auras:[], future:[], history:[], checkpoint:null}
 for (var i = 0; i < ZONES.length; i++) emptyState[ZONES[i]] = []
 for (var i = 0; i < RESOURCES.length; i++) emptyState[RESOURCES[i]] = 0
 
-function checkpoint(state) {
-    return updates(state, {future:[], history:[], checkpoint:state})
-}
-
-function popLast(xs) {
-    const n = xs.length
-    return [xs[n-1], xs.slice(0, n-1)]
-}
-
-function shiftFirst(xs) {
-    return [xs[0], xs.slice(1)]
-}
-
 function clearChoice() {
     $('#choicePrompt').html('')
     $('#options').html('')
@@ -616,7 +612,7 @@ function tryToPlay(card) {
 }
 
 async function act(state) {
-    const card = await coreChoice(state)
+    [state, card] = await actChoice(state)
     const [_, zone] = find(state, card.id)
     if (zone == 'play') {
         return useCard(card)(state)
@@ -631,7 +627,7 @@ async function act(state) {
 
 function renderOption(z) {
     const [option, i] = z
-    return `<span class='option' id='${i}' option='${i}' choosable='true' chosen='false'>${option}</span>`
+    return `<span class='option' option='${i}' choosable='true' chosen='false'>${option}</span>`
 }
 
 function doOrReplay(state, f, key) {
@@ -640,15 +636,29 @@ function doOrReplay(state, f, key) {
         x = f()
     } else {
         [[k, x], future] = shiftFirst(state.future)
-        if (k != 'key') throw Error(`replaying history we found ${[x, k]} where expecting key ${key}`)
+        if (k != key) throw Error(`replaying history we found ${[k, x]} where expecting key ${key}`)
         state = update(state, 'future', future)
     }
-    const newHistory = state.history.concat([[k, x]])
+    const newHistory = state.history.concat([[key, x]])
+    return [update(state, 'history', newHistory), x]
+}
+
+//TODO: surely there is some way to unify these?
+async function asyncDoOrReplay(state, f, key) {
+    var x, future, k
+    if (state.future.length == 0) {
+        x = await f()
+    } else {
+        [[k, x], future] = shiftFirst(state.future)
+        if (k != key) throw Error(`replaying history we found ${[k, x]} where expecting key ${key}`)
+        state = update(state, 'future', future)
+    }
+    const newHistory = state.history.concat([[key, x]])
     return [update(state, 'history', newHistory), x]
 }
 
 function choice(state, ...args) {
-    return Promise.resolve(doOrReplay(state, _ => coreChoice(state, ...args), 'choice'))
+    return asyncDoOrReplay(state, _ => freshChoice(state, ...args), 'choice')
 }
 
 function getLastEvent(state) {
@@ -664,7 +674,7 @@ function undoIsPossible(state) {
 }
 
 //TODO: what to do if you can't pick a valid set for the validator?
-function coreChoice(state, choicePrompt, options, multichoiceValidator=null) {
+function freshChoice(state, choicePrompt, options, multichoiceValidator=null) {
     if (options.length == 0 && multichoiceValidator == null) return null
     const undoable = undoIsPossible(state)
     const optionsMap = {} //map card ids to their position in the choice list
@@ -684,7 +694,7 @@ function coreChoice(state, choicePrompt, options, multichoiceValidator=null) {
     stringOptions.push(['Undo', 'undo'])
     renderState(state, optionsMap)
     $('#choicePrompt').html(choicePrompt)
-    $('#options').html(stringOptions.map(renderOption))
+    $('#options').html(stringOptions.map(renderOption).join(''))
     function chosenOptions() {
         const result = []
         for (var i = 0; i < options.length; i++) {
@@ -703,7 +713,7 @@ function coreChoice(state, choicePrompt, options, multichoiceValidator=null) {
         }
     }
     if (multichoiceValidator != null) setReady(isReady())
-    if (!undoable(state)) $(`[option='undo']`).removeAttr('choosable')
+    if (!undoable) $(`[option='undo']`).removeAttr('choosable')
     return new Promise(function(resolve, reject) {
         for (var i = 0; i < options.length; i++) {
             const j = i;
@@ -726,18 +736,19 @@ function coreChoice(state, choicePrompt, options, multichoiceValidator=null) {
         }
         if (undoable) {
             $(`[option='undo']`).on('click', function(e) {
-                reject(new Undo())
+                reject(new Undo(state))
             })
         }
     })
 }
 
 //TODO: introduce an isPayable for costs?
-function coreChoice(state) {
+function actChoice(state) {
     const validSupplies = state.supplies.filter(x => (x.cost(state).coin <= state.coin))
     const validHand = state.hand
     const validPlay = state.play.filter(x => (x.abilities().length > 0))
     const cards = validSupplies.concat(validHand).concat(validPlay)
+    console.log(state.future)
     return choice(state,
         'Play from your hand, use an ability, or buy from a supply.',
         cards.map(cardAsChoice))
@@ -755,27 +766,57 @@ function supplySort(card1, card2) {
     return supplyKey(card1) - supplyKey(card2)
 }
 
-class Undo extends Error { }
+class Undo extends Error { 
+    constructor(state) {
+        super('Undo')
+        this.state = state
+    }
+}
+
+// Invariant: starting from checkpoint and replaying the history gets you to the current state
+// To maintain this invariant, we need to record history every time there is a change
+function checkpoint(state) {
+    return updates(state, {history:[], checkpoint:state})
+}
+
+// backup(state) leads to the same place as state if you run mainLoop, but it has more future
+// this enables undoing by backing up until you have future, then just popping from the future
+function backup(state) {
+    return updates(state.checkpoint, {future: state.history.concat(state.future)})
+}
+
+function popLast(xs) {
+    const n = xs.length
+    return [xs[n-1], xs.slice(0, n-1)]
+}
+
+function shiftFirst(xs) {
+    return [xs[0], xs.slice(1)]
+}
+
 
 async function mainLoop(state) {
     state = checkpoint(state)
     renderState(state)
     try {
-        return act(state)
+        state = await act(state)
+        return state
     } catch (error) {
         if (error instanceof Undo) {
-            while (state.history.length == 0) {
+            state = error.state
+            while (state.future.length == 0) {
                 if (state.checkpoint == null) {
-                    return state //TODO: indicate that undo impossible because we've exhausted history
+                    throw Error("tried to undo past beginning of time")
                 } else {
-                    state = state.checkpoint
+                    state = backup(state)
                 }
             }
-            const [last, future] = popLast(state.history)
+            const [last, future] = popLast(state.future)
             if (last[0] == 'choice') {
-                return updates(state, {history: [], future: future})
+                console.log(future)
+                return update(state, 'future', future)
             } else {
-                return state //TODO: indicate that undo impossible because last event was random
+                throw Error("tried to undo past randomness")
             }
         } else {
             throw error
@@ -787,7 +828,7 @@ async function playGame(seed=null) {
     var state = emptyState
     const startingDeck = [copper, copper, copper, copper, copper,
                           copper, estate, estate, donkey, donkey]
-    state = await doAll(startingDeck.map(x => create(x, 'deck')))(state)
+    state = await doAll(startingDeck.map(x => create(x, 'deck')))(state);
     [state, variableSupplies] = randomChoices(state, mixins, 12, seed)
     variableSupplies.sort(supplySort)
     const kingdom = coreSupplies.concat(variableSupplies)
@@ -821,6 +862,20 @@ const mixins = []
 //
 // ------ CORE ------ 
 //
+
+const reboot = new Card('Reboot', {
+    fixedCost: time(3),
+    effect: card => ({
+        description: 'Put your hand and discard pile into your deck, then +5 cards.',
+        effect: doAll([
+            setCoins(0),
+            moveWholeZone('hand', 'deck'),
+            moveWholeZone('discard', 'deck'),
+            draw(5)
+        ])
+    })
+})
+coreSupplies.push(reboot)
 
 const copper = new Card('Copper', {
     fixedCost: time(0),
@@ -892,20 +947,6 @@ const mule = new Card('Mule', {
     })
 })
 coreSupplies.push(gainCard(mule, coin(2)))
-
-const reboot = new Card('Reboot', {
-    fixedCost: time(3),
-    effect: card => ({
-        description: 'Put your hand and discard pile into your deck, then +5 cards.',
-        effect: doAll([
-            setCoins(0),
-            moveWholeZone('hand', 'deck'),
-            moveWholeZone('discard', 'deck'),
-            draw(5)
-        ])
-    })
-})
-coreSupplies.push(reboot)
 
 //
 // ----- MIXINS ----- 
@@ -1049,7 +1090,7 @@ const vassal = new Card('Vassal', {
     effect: card => ({
         description: "+$2. Set aside a random card from your deck. You may play it or discard it.",
         effect: async function(state) {
-            state = await gainCoin(2)(state)
+            state = await gainCoin(2)(state);
             [state, target] = randomChoice(state, state.deck)
             if (target == null) return state
             state = await moveTo(target.id, 'aside')(state);
@@ -1101,8 +1142,8 @@ mixins.push(gainCard(blacksmith, coin(2)))
 const expedite = new Card('Expedite', {
     calculatedCost: (card, state) => ({time:1, coin:card.charge}),
     effect: card => ({
-        description: `The next time you gain a card this turn, put it into your hand.'+
-            ' Put a charge token on this. It costs $1 more per charge token on it.`,
+        description: 'The next time you gain a card this turn, put it into your hand.'+
+            ' Put a charge token on this. It costs $1 more per charge token on it.',
         effect: doAll([charge(card.id, 1), nextTime(
             e => (e.type == 'create'),
             e => moveTo(e.card.id, 'hand')
@@ -1297,21 +1338,21 @@ const horseTraders = new Card('Horse Traders', {
 mixins.push(gainCard(horseTraders, coin(4)))
 
 const purge = new Card('Purge', {
-    fixedCost: time(4),
-    effect: _ => ({
-        description: 'Trash up to four cards from your hand.',
+    fixedCost: time(5),
+    effect: card => ({
+        description: 'Trash any number of cards from your hand. Trash this.',
         effect: async function(state) {
-            [state, toTrash] = await choice(state, 'Choose up to four cards to trash.',
-                state.hand.map(cardAsChoice), (xs => xs.length <= 4))
-            return moveMany(toTrash.map(x => x.id), null)(state)
+            [state, toTrash] = await choice(state, 'Choose any number of cards to trash.',
+                state.hand.map(cardAsChoice), (xs => true))
+            state = await moveMany(toTrash.map(x => x.id), null)(state)
+            return trash(card.id)(state)
         }
     })
 })
 mixins.push(purge)
 
-
 const chapel = new Card('Chapel', {
-    fixedCost: time(2),
+    fixedCost: time(1),
     effect: _ => ({
         description: 'Trash up to four cards from your hand.',
         effect: async function(state) {
