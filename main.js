@@ -95,16 +95,16 @@ function nextTime(when, what) {
     return addAura(aura)
 }
 
-function addSpacesToCamel(name) {
-    result = []
-    for (var i = 0; i < name.length; i++) {
-       const c = name[i]
-        if (c == c.toUpperCase() && i > 0) {
-            result.push(' ')
+function countDistinct(xs) {
+    const y = {}
+    var result = 0
+    for (var i = 0; i < xs.length; i++) {
+        if (y[xs[i]] == undefined) {
+            y[xs[i]] = true
+            result += 1
         }
-        result.push(c)
     }
-    return result.join('')
+    return result
 }
 
 class Card {
@@ -1111,8 +1111,10 @@ mixins.push(recycle)
 const harvest = new Card('Harvest', {
     fixedCost: time(1),
     effect: _ => ({
-        description: '+$4',
-        effect: gainCoin(4),
+        description: '+$1 per differently named card in your hand, up to +$4.',
+        effect: async function(state) {
+            return gainCoin(Math.min(4, countDistinct(state.hand.map(x => x.name))))(state)
+        }
     })
 })
 mixins.push(gainCard(harvest, coin(4)))
