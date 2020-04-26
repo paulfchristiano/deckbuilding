@@ -302,7 +302,6 @@ function randomChoices(xs, n, seed=null) {
     return result
 }
 
-//TODO all of these are going to have to have hooks for replacement, e.g. "draw one more" or whatever
 function draw(n) {
     return async function(state) {
         var drawn = 0
@@ -314,6 +313,19 @@ function draw(n) {
             }
         }
         return trigger({type:'draw', drawn:drawn, triedToDraw:n})(state)
+    }
+}
+
+//TODO: discard all at once?
+function discard(n) {
+    return async function(state) {
+        const toDiscard = (state.hand.length < n) ? state.hand :
+            await choice(state, `Choose ${n} cards to discard.`, state.hand.map(cardAsChoice),
+                (xs => xs.length == n))
+        for (var i = 0; i < toDiscard.length; i++) {
+            state = await move(toDiscard[i].id, 'hand', 'discard')(state)
+        }
+        return state
     }
 }
 
@@ -503,7 +515,7 @@ function renderCard(card, state, i, asOption=null) {
     const tokenhtml = card.tokens.length > 0 ? '*' : ''
     const chargehtml = card.charge > 0 ? `(${card.charge})` : ''
     const costhtml = renderCost(card.cost(state))
-    const attrtext = asOption == null ? '' : `choosable option=${asOption}`
+    const attrtext = asOption == null ? '' : `choosable chosen='false' option=${asOption}`
     return [`<div class='card' ${attrtext}>`,
             `<div class='cardbody'>${card}${tokenhtml}${chargehtml}</div>`,
             `<div class='cardcost'>${costhtml}</div>`,
@@ -604,13 +616,15 @@ async function act(state) {
 
 function renderOption(z) {
     const [option, i] = z
-    return `<span class='option' id='${i}' option='${i}' choosable>${option}</span>`
+    return `<span class='option' id='${i}' option='${i}' choosable='true' chosen='false'>${option}</span>`
 }
 
-function choice(state, choicePrompt, options) {
-    if (options.length == 0) return null
+//TODO: what to do if you can't pick a valid set for the validator?
+function choice(state, choicePrompt, options, multichoiceValidator=null) {
+    if (options.length == 0 && multichoiceValidator == null) return null
     const optionsMap = {} //map card ids to their position in the choice list
     const stringOptions = []
+    const chosen = {} //records what options are being chosen for multithoice
     for (i = 0; i < options.length; i++) {
         const [type, x] = options[i][0]
         if (type == 'card') {
@@ -621,15 +635,46 @@ function choice(state, choicePrompt, options) {
             throw new Error(`Got type ${type}`)
         }
     }
+    if (multichoiceValidator!=null) stringOptions.push(['Done', -1])
     renderState(state, optionsMap)
     $('#choicePrompt').html(choicePrompt)
     $('#options').html(stringOptions.map(renderOption))
+    function chosenOptions() {
+        const result = []
+        for (var i = 0; i < options.length; i++) {
+            if (chosen[i]) result.push(options[i][1])
+        }
+        return result
+    }
+    function isReady() {
+        return multichoiceValidator(chosenOptions())
+    }
+    function setReady() {
+        if (isReady()) {
+            $(`[option='-1']`).attr('choosable', true)
+        } else {
+            $(`[option='-1']`).removeAttr('choosable')
+        }
+    }
+    if (multichoiceValidator != null) setReady(isReady())
     return new Promise(function(resolve, reject) {
         for (var i = 0; i < options.length; i++) {
             const j = i;
-            $(`[option='${i}']`).on('click', function (e) {
-                clearChoice()
-                resolve(options[j][1])
+            const elem = $(`[option='${i}']`)
+            elem.on('click', function (e) {
+                if (multichoiceValidator == null) {
+                    clearChoice()
+                    resolve(options[j][1])
+                } else {
+                    elem.attr('chosen', elem.attr('chosen') != 'true')
+                    chosen[j] = (chosen[j] != true)
+                    setReady()
+                }
+            })
+        }
+        if (multichoiceValidator != null) {
+            $(`[option='-1']`).on('click', function(e) {
+                if (isReady()) resolve(chosenOptions())
             })
         }
     })
@@ -649,7 +694,7 @@ function coreChoice(state) {
 //TODO: improve sort
 function supplyKey(card) {
     if (card.props.fixedCost == undefined) {
-        return 10
+        return 100
     } else {
         return card.props.fixedCost.coin
     }
@@ -665,7 +710,6 @@ async function playGame(seed=null) {
     state = await doAll(startingDeck.map(x => create(x, 'deck')))(state)
     const variableSupplies = randomChoices(mixins, 10, seed)
     variableSupplies.sort(supplySort)
-    console.log(variableSupplies.map(card => card.name))
     const kingdom = coreSupplies.concat(variableSupplies)
     state = await doAll(kingdom.map(x => create(x, 'supplies')))(state)
     state = await trigger({type:'gameStart'})(state)
@@ -685,9 +729,7 @@ function getSeed() {
 }
 
 function load() {
-    playGame(getSeed()).then(function () {
-        console.log('done!')
-    })
+    playGame(getSeed())
 }
 
 //
@@ -898,7 +940,7 @@ const slog = new Card('Slog', {
         replace: (x, state) => applyToKey('cost', applyToKey('time', x => Math.max(0, x - 2)))(x)
     }]
 })
-mixins.push(slog)
+//mixins.push(slog)
 
 const refresh = new Card('Refresh', {
     fixedCost: time(1),
@@ -1086,13 +1128,14 @@ const twins = new Card('Twins', {
 })
 mixins.push(makeCard(twins, {time:1, coin:6}))
 
-const masterSmith = new Card('Master smith', {
+const masterSmith = new Card('Master Smith', {
     fixedCost: time(2),
     effect: card => ({
         description: '+5 cards',
         effect: draw(5),
     })
 })
+mixins.push(gainCard(masterSmith, coin(5)))
 
 const recycle = new Card('Recycle', {
     calculatedCost: (card, state) => ({time:1, coin:card.charge}),
@@ -1107,6 +1150,50 @@ const recycle = new Card('Recycle', {
     })
 })
 mixins.push(recycle)
+
+const horseTraders = new Card('Horse Traders', {
+    fixedCost: time(1),
+    effect: _ => ({
+        description: 'Discard 2 cards from your hand. +$5.',
+        effect: doAll([discard(2), gainCoin(5)])
+    })
+})
+mixins.push(gainCard(horseTraders, coin(4)))
+
+const purge = new Card('Purge', {
+    fixedCost: time(4),
+    effect: _ => ({
+        description: 'Trash up to four cards from your hand.',
+        effect: async function(state) {
+            const toTrash = await choice(state, 'Choose up to four cards to trash.',
+                state.hand.map(cardAsChoice), (xs => xs.length <= 4))
+            for (var i = 0; i < toTrash.length; i++){
+                state = await moveTo(toTrash[i].id, null)(state)
+            }
+            return state
+        }
+    })
+})
+mixins.push(purge)
+
+
+const chapel = new Card('Chapel', {
+    fixedCost: time(2),
+    effect: _ => ({
+        description: 'Trash up to four cards from your hand.',
+        effect: async function(state) {
+            const toTrash = await choice(state, 'Choose up to four cards to trash.',
+                state.hand.map(cardAsChoice), (xs => xs.length <= 4))
+            for (var i = 0; i < toTrash.length; i++){
+                state = await moveTo(toTrash[i].id, null)(state)
+            }
+            return state
+        }
+    })
+})
+mixins.push(gainCard(chapel, coin(2)))
+
+
 
 const harvest = new Card('Harvest', {
     fixedCost: time(1),
