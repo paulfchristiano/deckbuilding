@@ -1,5 +1,3 @@
-//TODO: add multi-select
-
 // returns a copy x of object with x.k = v for all k:v in kvs
 function updates(object, kvs) {
     const result = Object.assign({}, object)
@@ -898,7 +896,6 @@ const slog = new Card('Slog', {
         replace: (x, state) => applyToKey('cost', applyToKey('time', x => Math.max(0, x - 2)))(x)
     }]
 })
-mixins.push(slog)
 
 const refresh = new Card('Refresh', {
     fixedCost: time(1),
@@ -1108,6 +1105,20 @@ const recycle = new Card('Recycle', {
     })
 })
 mixins.push(recycle)
+
+const seek = new Card('Seek', {
+    calculatedCost: (card, state) => ({time:1, coin:2 * card.charge}),
+    effect: card => ({
+        description: 'Put a card from your deck into your hand. Put a charge token on this. This costs +$2 per charge token on it.',
+        effect: async function(state) {
+            const target = await choice(state, 'Choose a card to put into your hand.',
+                state.deck.map(cardAsChoice))
+            state = await charge(card.id, 1)(state)
+            return (target == null) ? state : moveTo(target.id, 'hand')(state)
+        }
+    })
+})
+mixins.push(seek)
 
 const foolsGold = new Card("Fool's Gold", {
     fixedCost: time(0),
