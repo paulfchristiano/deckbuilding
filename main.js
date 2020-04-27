@@ -1529,8 +1529,8 @@ mixins.push(makeCard(innovation, {coin:8, time:0}, true))
 
 const citadel = new Card("Citadel", {
     triggers: card => [{
-        description: `After playing a card other than with ${card.name}, if it's the only card in your discard pile, play it again.`,
-        handles: e => (e.type == 'afterPlay' && e.source != 'citadel'),
+        description: `After playing a card the normal way, if it's the only card in your discard pile, play it again.`,
+        handles: e => (e.type == 'afterPlay' && e.source == 'act'),
         effect: e => async function(state) {
             if (find(state, e.card.id)[1] == 'discard' && state.discard.length == 1) {
                 return e.card.play('citadel')(state)
