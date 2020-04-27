@@ -2,7 +2,7 @@
 // TODO: visually mark on TR/crown/village/bazaar whether we are on the first or second part
 // (could do slightly different colors or something?)
 // TODO: when a triggered effect or buy is resolving, put a greyed-out item in the resolving area?
-// (e.g. so you know that you are currently playing from twin/innovation/citadel)
+// (e.g. so you know that you are currently playing from twin/innovation/citadel? or maybe highlight the thing that's triggering?)
 // TODO: be able to highlight cards during a choice? (so that Sage doesn't have to set aside)
 // TODO: set aside should show up at top somehow? (maybe next to resolving?)
 //
@@ -338,10 +338,9 @@ function draw(n, source=null) {
     }
 }
 
-//TODO: discard all at once?
 function discard(n) {
     return async function(state) {
-        [state, toDiscard] = (state.hand.length < n) ? state.hand :
+        [state, toDiscard] = (state.hand.length < n) ? [state, state.hand] :
             await choice(state, `Choose ${n} cards to discard.`, state.hand.map(asChoice),
                 (xs => xs.length == n))
         return moveMany(toDiscard, 'hand', 'discard')(state)
