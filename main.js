@@ -1417,6 +1417,7 @@ const twins = new Card('Twins', {
     }]
 })
 mixins.push(makeCard(twins, {time:0, coin:6}))
+testing.push(makeCard(twins, {time:0, coin:6}))
 
 const masterSmith = new Card('Master Smith', {
     fixedCost: time(2),
