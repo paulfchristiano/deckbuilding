@@ -340,7 +340,7 @@ function draw(n, source=null) {
 
 function discard(n) {
     return async function(state) {
-        [state, toDiscard] = (state.hand.length < n) ? [state, state.hand] :
+        [state, toDiscard] = (state.hand.length <= n) ? [state, state.hand] :
             await choice(state, `Choose ${n} cards to discard.`, state.hand.map(asChoice),
                 (xs => xs.length == n))
         return moveMany(toDiscard, 'discard')(state)
