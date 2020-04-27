@@ -673,6 +673,7 @@ async function asyncDoOrReplay(state, f, key) {
 }
 
 function choice(state, ...args) {
+    if (isTrivial(state, ...args)) return Promise.resolve([state, null])
     return asyncDoOrReplay(state, _ => freshChoice(state, ...args), 'choice')
 }
 
@@ -688,9 +689,12 @@ function undoIsPossible(state) {
     return (lastEvent != null && lastEvent[0] == 'choice')
 }
 
+function isTrivial(state, choicePromopt, options, multichoiceValidator=null) {
+    return (options.length == 0 && multichoiceValidator == null)
+}
+
 //TODO: what to do if you can't pick a valid set for the validator?
 function freshChoice(state, choicePrompt, options, multichoiceValidator=null) {
-    if (options.length == 0 && multichoiceValidator == null) return null
     const undoable = undoIsPossible(state)
     const optionsMap = {} //map card ids to their position in the choice list
     const stringOptions = []
