@@ -1,7 +1,12 @@
 // TODO: improve sorting of hand/deck
-// TODO: trashing balance?
-// TODO: more cards that generate money
+// TODO: visually mark on TR/crown/village/bazaar whether we are on the first or second part
+// (could do slightly different colors or something?)
+// TODO: when a triggered effect or buy is resolving, put a greyed-out item in the resolving area?
+// (e.g. so you know that you are currently playing from twin/innovation/citadel)
+// TODO: be able to highlight cards during a choice? (so that Sage doesn't have to set aside)
 // TODO: set aside should show up at top somehow? (maybe next to resolving?)
+// TODO: adjust balance (plough, refresh, research?, workshop, boostrap at 1/2?, pathfinding to $4?, blacksmith? cursed province -> cursed kingdom at +4 vp)
+// TODO: add cards (KC, gardens event, explorer, anti-bootstrap like 5 for 7 cards?)
 //
 // returns a copy x of object with x.k = v for all k:v in kvs
 function updates(object, kvs) {
@@ -44,8 +49,8 @@ function applyToId(id, f) {
 function trigger(e) {
     return async function(state) {
         var triggers = state.play.concat(state.supplies).concat(state.auras).map(x => x.triggers()).flat()
-        triggers = triggers.filter(trigger => trigger.handles(e))
-        const effects = triggers.map(trigger => trigger.effect(e))
+        triggers = triggers.filter(trigger => trigger.handles(e, state))
+        const effects = triggers.map(trigger => trigger.effect(e, state))
         return doAll(effects)(state)
     }
 }
@@ -1400,8 +1405,8 @@ mixins.push(makeCard(roadNetwork, coin(5)))
 const twins = new Card('Twins', {
     fixedCost: time(0),
     triggers: card => [{
-        description: 'When you finish playing a card other than with twins, you may play a card in your hand with the same name.',
-        handles: e => (e.type == 'afterPlay' && e.source != 'twins'),
+        description: "When you finish playing a card other than with Twins, if it costs @ or more then you may play a card in your hand with the same name.",
+        handles: (e, state) => (e.type == 'afterPlay' && e.source != 'twins' && e.card.cost(state).time >= 1),
         effect: e => async function(state) {
             const cardOptions = state.hand.filter(x => x.name == e.card.name)
             if (cardOptions.length == 0) return state;
@@ -1412,6 +1417,7 @@ const twins = new Card('Twins', {
     }]
 })
 mixins.push(makeCard(twins, {time:0, coin:6}))
+testing.push(makeCard(twins, {time:0, coin:6}))
 
 const masterSmith = new Card('Master Smith', {
     fixedCost: time(2),
