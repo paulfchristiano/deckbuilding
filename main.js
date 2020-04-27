@@ -343,7 +343,7 @@ function discard(n) {
         [state, toDiscard] = (state.hand.length < n) ? [state, state.hand] :
             await choice(state, `Choose ${n} cards to discard.`, state.hand.map(asChoice),
                 (xs => xs.length == n))
-        return moveMany(toDiscard, 'hand', 'discard')(state)
+        return moveMany(toDiscard, 'discard')(state)
     }
 }
 
