@@ -1706,7 +1706,7 @@ mixins.push(gardens)
 
 
 const pathfinding = new Card('Pathfinding', {
-    fixedCost: coin(5),
+    fixedCost: {coin:5, time:1},
     effect: card => ({
         description: 'Put a path token on a card in your hand.',
         effect: async function(state) {
