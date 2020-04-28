@@ -223,10 +223,42 @@ function create(card, toZone='discard') {
     }
 }
 
-function addToZone(card, toZone) {
+function recycle(cards) {
     return async function(state) {
-        state = update(state, toZone, state[toZone].concat([card]))
-        return trigger({type:'added', zone:toZone, card:card})(state)
+        [state, cards] = randomChoices(state, cards, cards.length);
+        return moveMany(cards, 'deck')(state)
+    }
+}
+
+function comesBefore(card1, card2)  {
+    const key = card => card.name + card.charge + card.tokens.join('')
+    return key(card1) < (key(card2))
+}
+
+function insertAt(card, zone, i) {
+    return zone.slice(0, loc-1).concat([card]).concat(zone.slice(loc))
+}
+
+function insertSorted(card, zone) {
+    for (var i = 0; i < zone.length; i++) {
+        if (comesBefore(card, zone[i])) return insertAt(card, zone, i)
+    }
+    return zone.concat([card])
+}
+
+function addToZone(card, zoneName, loc='end') {
+    return async function(state) {
+        if (loc == 'end')
+            insert = (card, zone) => zone.concat([card])
+        else if (loc == 'start'){
+            insert = (card, zone) => [card].concat(zone)
+        }else if (loc == 'sorted')
+            insert = insertSorted
+        else {
+            insert = (card, zone) => insertAt(card, zone, loc)
+        }
+        state = update(state, zoneName, insert(card, state[zoneName]))
+        return trigger({type:'added', zone:zoneName, card:card, loc:loc})(state)
     }
 }
 
@@ -253,17 +285,17 @@ function find(state, id) {
     return [null, null]
 }
 
-function move(card, toZone) {
+function move(card, toZone, loc='end') {
     return async function(state) {
         const [_, fromZone] = find(state, card.id)
         if (fromZone == null) return state
-        return moveFromTo(card, fromZone, toZone)(state)
+        return moveFromTo(card, fromZone, toZone, loc)(state)
     }
 }
 
 //TODO: should we move them all at once, with one trigger?
 //Could do this by changing move
-function moveMany(cards, toZone) {
+function moveMany(cards, toZone, loc='end') {
     return doAll(cards.map(card => move(card, toZone)))
 }
 
@@ -271,25 +303,19 @@ function trash(card) {
     return move(card, null)
 }
 
-function moveFromTo(card, fromZone, toZone) {
+function moveFromTo(card, fromZone, toZone, loc='end') {
     return async function(state) {
         const result = removeIfPresent(state[fromZone], card.id)
         if (!result.found) return state
         state = update(state, fromZone, result.without)
-        if (toZone != null) state = await addToZone(result.card, toZone)(state)
+        if (toZone != null) state = await addToZone(result.card, toZone, loc)(state)
         return await trigger({type:'moved', card:result.card, fromZone:fromZone, toZone:toZone})(state)
     }
 }
 
-function moveWholeZone(fromZone, toZone) {
+function moveWholeZone(fromZone, toZone, loc='end') {
     return async function(state) {
-        const cards = state[fromZone]
-        state = update(state, fromZone, [])
-        state = update(state, toZone, state[toZone].concat(cards))
-        for (var i = 0; i < cards.length; i++) {
-            state = await trigger({type:'moved', card:cards[i], fromZone:fromZone, toZone:toZone})(state)
-        }
-        return state
+        return moveMany(state[fromZone], toZone, loc)(state)
     }
 }
 
@@ -329,7 +355,7 @@ function draw(n, source=null) {
         var drawn = 0
         for (var i = 0; i < n; i++) {
             if (state.deck.length > 0) {
-                [state, nextCard] = randomChoice(state, state.deck);
+                [nextCard, rest] = shiftFirst(state.deck)
                 state = await moveFromTo(nextCard, 'deck', 'hand')(state)
                 drawn += 1
             }
@@ -569,9 +595,7 @@ function renderState(state, optionsMap=null) {
     $('#play').html(state.play.map(render).join(''))
     $('#supplies').html(state.supplies.map(render).join(''))
     $('#hand').html(state.hand.map(render).join(''))
-    const deckHtmls = state.deck.map(render)
-    deckHtmls.sort()
-    $('#deck').html(deckHtmls.join(''))
+    $('#deck').html(state.deck.map(render).join(''))
     $('#discard').html(state.discard.map(render).join(''))
 }
 
@@ -884,12 +908,11 @@ const reboot = new Card('Reboot', {
     fixedCost: time(3),
     effect: card => ({
         description: 'Put your hand and discard pile into your deck, lose all $, and +5 cards.',
-        effect: doAll([
-            setCoins(0),
-            moveWholeZone('hand', 'deck'),
-            moveWholeZone('discard', 'deck'),
-            draw(5, 'reboot')
-        ])
+        effect: async function(state) {
+            state = await setCoins(0)(state)
+            state = await recycle(state.hand.concat(state.discard))(state)
+            return draw(5, 'reboot')(state)
+        }
     })
 })
 coreSupplies.push(reboot)
@@ -1043,23 +1066,21 @@ const cellar = new Card('Cellar', {
 })
 buyable(cellar, 2)
 
-const sage = new Card('Sage', {
+const pearlDiver = new Card('Pearl Diver', {
     fixedCost: time(0),
     effect: _ => ({
         description: 'Set aside a random card from your deck. Put it into either your deck or discard pile. +1 card.',
         effect: async function(state) {
-            if (state.deck.length > 0) {
-                [state, card] = randomChoice(state, state.deck)
-                state = await move(card, 'aside')(state);
-                [state, targetZone] = await choice(state, `Discard ${card.name} or put it in your deck?`,
-                    [[['string', 'Discard'], 'discard'], [['string', 'Deck'], 'deck']])
-                state = await move(card, targetZone)(state)
-            }
-            return draw(1)(state)
+            state = await draw(1)(state)
+            if (state.deck.length == 0) return state
+            const target = state.deck[state.deck.length - 1]
+            let moveIt; [state, moveIt] = await choice(state,
+                `Move ${target.name} to the top of your deck?`, yesOrNo)
+            return moveIt ? move(target, 'deck', loc='start')(state) : state
         }
     })
 })
-buyable(sage, 1)
+buyable(pearlDiver, 2)
 
 const peddler = new Card('Peddler', {
     fixedCost: time(0),
@@ -1172,8 +1193,8 @@ buyable(junkDealer, 5)
 const refresh = new Card('Refresh', {
     fixedCost: time(1),
     effect: card => ({
-        description: 'Put your discard pile into your deck.',
-        effect: moveWholeZone('discard', 'deck')
+        description: 'Recycle your discard pile.',
+        effect: async function(state) { return recycle(state.discard)(state) }
     })
 })
 mixins.push(refresh)
@@ -1181,11 +1202,11 @@ mixins.push(refresh)
 const plough = new Card('Plough', {
     fixedCost: time(1),
     effect: card => ({
-        description: 'Put any number of cards from your discard pile into your deck. +2 cards.',
+        description: 'Recycle any number of cards from your discard pile. +2 cards.',
         effect: async function(state) {
-            [state, cards] = await choice(state, 'Choose any number of cards to move to your deck.',
+            [state, cards] = await choice(state, 'Choose any number of cards to recycle.',
                 state.discard.map(asChoice), xs => true)
-            state = await moveMany(cards, 'deck')(state)
+            state = await recycle(cards)(state)
             return draw(2)(state)
         }
     })
@@ -1198,10 +1219,10 @@ const vassal = new Card('Vassal', {
         description: "+$2. Look at a random card from your deck. You may play it.",
         effect: async function(state) {
             state = await gainCoin(2)(state);
-            [state, target] = randomChoice(state, state.deck)
-            if (target != null) [state, target] = await choice(state, `Play ${target.name}?`,
-                allowNull([asChoice(target), [['string', 'Play'], target]], "Don't play"))
-            return (target == null) ? state : target.play('vassal')(state)
+            if (state.deck.length == 0) return state
+            const target = state.deck[0]
+            let playIt; [state, playIt] = await choice(state, `Play ${target.name}?`, yesOrNo)
+            return playIt ? target.play('vassal')(state) : state
         }
     })
 })
@@ -1368,9 +1389,9 @@ buyable(horse, 2)
 const lookout = new Card('Lookout', {
     fixedCost: time(0),
     effect: card => ({
-        description: 'Look at 3 random cards from your deck. Trash one.',
+        description: 'Look at the top 3 cards from your deck. Trash one then discard one.',
         effect: async function(state) {
-            [state, picks] = randomChoices(state, state.deck, 3)
+            let picks = state.deck.slice(0, 3)
             async function pickOne(descriptor, zone, state) {
                 [state, pick] = await choice(state, `Pick a card to ${descriptor}.`,
                     picks.map(card => [['card', card.id], card]))
@@ -1379,11 +1400,13 @@ const lookout = new Card('Lookout', {
             }
             if (picks.length > 0) 
                 state = await pickOne('trash', null, state)
+            if (picks.length > 0) 
+                state = await pickOne('discard', 'discard', state)
             return state
         }
     })
 })
-buyable(lookout, 1)
+buyable(lookout, 3)
 
 const lab = new Card('Lab', {
     fixedCost: time(0),
@@ -1448,13 +1471,10 @@ const reconfigure = new Card('Reconfigure', {
     effect: card => ({
         description: 'Put your hand and discard pile into your deck, lose all $, and +1 card per card that was in your hand.',
         effect: async function(state) {
+            state = await setCoins(0)(state)
             const n = state.hand.length
-            return doAll([
-                setCoins(0),
-                moveWholeZone('hand', 'deck'),
-                moveWholeZone('discard', 'deck'),
-                draw(n, 'reconfigure')
-            ])(state)
+            state = recycle(state.hand.concat(state.discard))(state)
+            return draw(n, 'reconfigure')(state)
         }
     })
 })
@@ -1464,12 +1484,11 @@ const bootstrap = new Card('Bootstrap', {
     fixedCost: time(1),
     effect: card => ({
         description: 'Put your hand and discard pile into your deck, lose all $, and +2 cards.',
-        effect: doAll([
-            setCoins(0),
-            moveWholeZone('hand', 'deck'),
-            moveWholeZone('discard', 'deck'),
-            draw(2, 'bootstrap')
-        ])
+        effect: async function(state) {
+            state = await setCoins(0)(state)
+            state = recycle(state.hand.concat(state.discard))(state)
+            return draw(2, 'bootstrap')(state)
+        }
     })
 })
 mixins.push(bootstrap)
