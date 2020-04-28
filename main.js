@@ -1336,7 +1336,7 @@ var estate = new Card('Estate', {
         effect: gainPoints(1),
     }); }
 });
-coreSupplies.push(gainCard(estate, coin(2)));
+coreSupplies.push(gainCard(estate, coin(1)));
 var duchy = new Card('Duchy', {
     fixedCost: time(1),
     effect: function (card) { return ({
