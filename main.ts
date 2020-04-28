@@ -84,12 +84,12 @@ function deleteAura(id) {
 
 function clearAurasFrom(card) {
     return async function(state) {
-        return update(state, 'auras', state.auras.filter(x => x.source == null || x.source.id != card.id))
+        return update(state, 'auras', state.auras.filter(x => x.source.id != card.id))
     }
 }
 
 //add an aura that triggers what(e) next time an event matching when(e) occurs, then deletes itself
-function nextTime(when, what, source=null) {
+function nextTime(when, what, source={}) {
     const aura = {
         replacers() { return [] },
         triggers() {
@@ -159,7 +159,7 @@ class Card {
     effect() {
         return callOr(this.props.effect, this, {description:''})
     }
-    buy(source=null) {
+    buy(source={}) {
         const card = this
         return async function(state) {
             state = await trigger({type:'buy', card:card, source:source})(state)
@@ -168,7 +168,7 @@ class Card {
             return trigger({type:'afterBuy', before:card, after:newCard, source:source})(state)
         }
     }
-    play(source=null) {
+    play(source={}) {
         const effect = this.effect()
         const card = this
         return async function(state) {
@@ -369,11 +369,10 @@ function randomChoices(state, xs, n, seed=null) {
     return [state, result]
 }
 
-function draw(n, source=null) {
+function draw(n, source={}) {
     return async function(state) {
         var drawParams = {type:'draw', draw:n, source:source, effects:[]}
         drawParams = replace(drawParams, state)
-        console.log(drawParams.effects)
         state = await doAll(drawParams.effects)(state)
         n = drawParams.draw
         var drawn = 0
@@ -557,26 +556,6 @@ function coin(n) {
     return {time:0, coin:n}
 }
 
-const yesOrNo = [[['string', 'yes'], true], [['string', 'no'], false]]
-
-function asChoice(x) {
-    if (x instanceof Card) return [['card', x.id], x]
-    else return [['string', x.toString()], x]
-}
-
-function allowNull(options, message="None") {
-    return options.concat([[['string', message], null]])
-}
-
-
-function playById(id, source) {
-    return async function(state) {
-        //TODO: we are doing multiple linear scans unnecessarily...
-        const [card, _] = find(state, id)
-        return (card == null) ? state : card.play(source)(state)
-    }
-}
-
 function countTokens(card, token) {
     var count = 0
     const tokens = card.tokens
@@ -692,7 +671,7 @@ function cardExists(state, id) {
 }
 
 function tryToPlay(card) {
-    return payToDo(card.payCost(), card.play('act'))
+    return payToDo(card.payCost(), card.play({name:'act'}))
 }
 
 async function act(state) {
@@ -762,9 +741,17 @@ function undoIsPossible(state) {
     return (lastEvent != null && lastEvent[0] == 'choice')
 }
 
-function isTrivial(state, choicePrompt, options, multichoiceValidator=null) {
-    return (options.length == 0 && multichoiceValidator == null)
+const yesOrNo = [[['string', 'yes'], true], [['string', 'no'], false]]
+
+function asChoice(x) {
+    if (x instanceof Card) return [['card', x.id], x]
+    else return [['string', x.toString()], x]
 }
+
+function allowNull(options, message="None") {
+    return options.concat([[['string', message], null]])
+}
+
 
 //TODO: what to do if you can't pick a valid set for the validator?
 function freshChoice(state, choicePrompt, options, multichoiceValidator=null) {
@@ -1044,9 +1031,9 @@ const throneRoom = new Card('Throne Room', {
                 'Choose a card to play twice.',
                 state.hand.map(asChoice))
             if (card == null) return state
-            state = await card.play('throneRoom')(state)
+            state = await card.play(card)(state)
             const [newCard, zone] = find(state, card.id)
-            if (zone == 'discard') state = await newCard.play('throneRoom')(state)
+            if (zone == 'discard') state = await newCard.play(card)(state)
             return state
         }
     })
@@ -1063,9 +1050,9 @@ const crown = new Card('Crown', {
                 state.hand.map(asChoice))
             if (card == null) return state
             state = await card.payCost()(state)
-            state = await card.play('crown')(state)
+            state = await card.play(crown)(state)
             const [newCard, zone] = find(state, card.id)
-            if (zone == 'discard') state = await newCard.play('crown')(state)
+            if (zone == 'discard') state = await newCard.play(crown)(state)
             return state
         })
     })
@@ -1310,7 +1297,7 @@ const vassal = new Card('Vassal', {
             if (state.deck.length == 0) return state
             const target = state.deck[0]
             let playIt; [state, playIt] = await choice(state, `Play ${target.name}?`, yesOrNo)
-            return playIt ? target.play('vassal')(state) : state
+            return playIt ? target.play(card)(state) : state
         }
     })
 })
@@ -1329,15 +1316,15 @@ const reinforce = new Card('Reinforce', {
         }
     }),
     triggers: card => [{
-        'description': "After playing a card with a reinforce token other than with reinforce, if it's in your discard pile play it again.",
-        'handles':e => (e.type == 'afterPlay' && e.before.tokens.includes('reinforce') && e.source != 'reinforce'),
+        'description': `After playing a card with a reinforce token other than with this, if it's in your discard pile play it again.`,
+        'handles':e => (e.type == 'afterPlay' && e.before.tokens.includes('reinforce') && e.source.id != card.id),
         'effect':e => async function(state) {
-            const [played, zone] = find(state, e.card.id)
-            return (zone == 'discard') ? played.play('reinforce')(state) : state
+            const [played, zone] = find(state, e.before.id)
+            return (zone == 'discard') ? played.play(card)(state) : state
         }
     }],
 })
-mixins.push(reinforce)
+register(reinforce)
 
 const blacksmith = new Card('Blacksmith', {
     fixedCost: time(1),
@@ -1431,14 +1418,13 @@ const bustlingSquare = new Card('Bustling Square', {
         description: `+1 card. Set aside all cards in your hand. Play them in any order.`,
         effect: async function(state) {
             state = await draw(1)(state)
-            var ids = state.hand.map(x => x.id)
+            let hand = state.hand;
             state = await moveWholeZone('hand', 'aside')(state)
-            while (ids.length > 0) {
-                let id;
-                [state, id] = await choice(state, 'Choose which card to play next.',
-                    ids.map(x => [['card', x], x]))
-                state = await playById(id, 'bustlingSquare')(state)
-                ids = ids.filter(x => x != id)
+            while (hand.length > 0) {
+                let target;
+                [state, target] = await choice(state, 'Choose which card to play next.', hand.map(asChoice))
+                state = await target.play(card)(state)
+                hand = hand.filter(c => c.id != target.id)
             }
             return state
         }
@@ -1521,19 +1507,18 @@ mixins.push(makeCard(roadNetwork, coin(5)))
 const twins = new Card('Twins', {
     fixedCost: time(0),
     triggers: card => [{
-        description: "When you finish playing a card other than with Twins, if it costs @ or more then you may play a card in your hand with the same name.",
-        handles: (e, state) => (e.type == 'afterPlay' && e.source != 'twins' && e.before.cost(state).time >= 1),
+        description: `When you finish playing a card other than with ${card}, if it costs @ or more then you may play a card in your hand with the same name.`,
+        handles: (e, state) => (e.type == 'afterPlay' && e.source.name != twins.name && e.before.cost(state).time >= 1),
         effect: e => async function(state) {
-            const cardOptions = state.hand.filter(x => x.name == e.card.name)
-            if (cardOptions.length == 0) return state;
+            const cardOptions = state.hand.filter(x => (x.name == e.before.name))
             let replay;
-            [state, replay] = await choice(state, `Choose a card named '${e.card.name}' to play.`,
-                cardOptions.map(asChoice).concat([[['string', "Don't play"], null]]))
-            return (replay == null) ? state : replay.play('twins')(state)
+            [state, replay] = await choice(state, `Choose a card named '${e.before.name}' to play.`,
+                allowNull(cardOptions.map(asChoice), "Don't play"))
+            return (replay == null) ? state : replay.play(card)(state)
         }
     }]
 })
-mixins.push(makeCard(twins, {time:0, coin:6}))
+register(makeCard(twins, {time:0, coin:6}))
 
 const masterSmith = new Card('Master Smith', {
     fixedCost: time(2),
@@ -1626,14 +1611,14 @@ buyable(platinum, 10)
 //TODO: this should probably be an ability that makes a next time aura rather than an optional trigger?
 const innovation = new Card("Innovation", {
     abilities: card => [{
-        description: "Next time you create a card in your discard pile, discard your hand, lose all $, and play it." +
+        description: "Next time you create a card in your discard pile: discard your hand, lose all $, and play it." +
           " This can't be used to play the same card multiple times.",
         cost: noop,
         effect: doAll([
             clearAurasFrom(card),
             nextTime(
                 e => (e.type == 'create' && e.toZone == 'discard'),
-                e => doAll([moveWholeZone('hand', 'discard'), setCoins(0), e.card.play(innovation.name)]),
+                e => doAll([moveWholeZone('hand', 'discard'), setCoins(0), e.card.play(card)]),
                 card
             )
         ])
@@ -1644,10 +1629,10 @@ mixins.push(makeCard(innovation, {coin:7, time:0}, true))
 const citadel = new Card("Citadel", {
     triggers: card => [{
         description: `After playing a card the normal way, if it's the only card in your discard pile, play it again.`,
-        handles: e => (e.type == 'afterPlay' && e.source == 'act'),
+        handles: e => (e.type == 'afterPlay' && e.source.name == 'act'),
         effect: e => async function(state) {
             if (find(state, e.card.id)[1] == 'discard' && state.discard.length == 1) {
-                return e.card.play('citadel')(state)
+                return e.card.play(card)(state)
             } else {
                 return state
             }
@@ -1672,7 +1657,7 @@ const hireling = new Card('Hireling', {
     fixedCost: time(0),
     replacers: card => [{
         description: "Whenever you draw a card from Reboot, draw an additional card.",
-        handles: x => (x.type == 'draw', x.source == 'reboot'),
+        handles: x => (x.type == 'draw', x.source.name == reboot.name),
         replace: (x, state) => update(x, 'draw', x.draw+1),
     }]
 })
@@ -1680,16 +1665,16 @@ mixins.push(makeCard(hireling, {coin:6, time:2}))
 
 const sacrifice = new Card('Sacrifice', {
     fixedCost: time(0),
-    effect: _ => ({
+    effect: card => ({
         description: 'Play a card in your hand, then trash it.',
         effect: async function(state) {
-            let card;
-            [state, card] = await choice(state,
+            let target;
+            [state, target] = await choice(state,
                 'Choose a card to play and trash.',
                 state.hand.map(asChoice))
-            if (card == null) return state
-            state = await card.play('sacrifice')(state)
-            return await move(card, null)(state)
+            if (target == null) return state
+            state = await target.play(card)(state)
+            return await move(target, null)(state)
         }
     })
 })
@@ -1795,14 +1780,14 @@ const kingsCourt = new Card("King's Court", {
             "then if it's in your discard pile play it again, "+
             "then if it's in your discard pile play it again.",
         effect: async function(state) {
-            [state, card] = await choice(state,
+            let target; [state, target] = await choice(state,
                 'Choose a card to play three times.',
                 state.hand.map(asChoice))
-            if (card == null) return state
-            state = await card.play(card.name)(state)
+            if (target == null) return state
+            state = await target.play(card)(state)
             for (var i = 0; i < 2; i++) {
-                const [newCard, zone] = find(state, card.id)
-                if (zone == 'discard') state = await newCard.play(card.name)(state)
+                let zone; [target, zone] = find(state, target.id)
+                if (zone == 'discard') state = await target.play(card)(state)
             }
             return state
         }
@@ -1845,7 +1830,7 @@ mixins.push(pathfinding)
 
 const counterfeit = new Card('Counterfeit', {
     effect: card => ({
-        description: 'Play a card from your ceck, then trash it.',
+        description: 'Play a card from your deck, then trash it.',
         effect: async function(state) {
             if (state.deck.length == 0) return state
             let target; [state, target] = await choice(state,
@@ -1918,7 +1903,7 @@ buyable(harbinger, 3)
 
 const coffers = new Card('Coffers', {
     abilities: card => [{
-        description: 'Remove a charge counter from this. If you do, +$1.',
+        description: 'Remove a charge token from this. If you do, +$1.',
         cost: discharge(card, 1),
         effect: gainCoin(1),
     }]
@@ -1990,7 +1975,7 @@ buyable(mountainVillage, 3)
 
 const stables = new Card('Stables', {
     abilities: card => [{
-        description: 'Remove a charge counter from this. If you do, +1 card.',
+        description: 'Remove a charge token from this. If you do, +1 card.',
         cost: discharge(card, 1),
         effect: draw(1, 'stables'),
     }]
@@ -2009,7 +1994,7 @@ const livery = new Card('Livery', {
     replacers: card => [{
         description: `Whenever you would draw cards other than with ${stables},` +
             ` put that many charge tokens on a ${stables} in play instead.`,
-        handles: e => (e.type == 'draw' && e.source != 'stables'),
+        handles: e => (e.type == 'draw' && e.source.name != stables.name)
         replace: e => updates(e, {'draw':0, 'effects':e.effects.concat([fill(stables, e.draw)])})
     }]
 })
@@ -2017,8 +2002,8 @@ const makeLivery = new Card('Livery', {
     fixedCost: time(4),
     relatedCards: [livery, stables],
     effect: card => ({
-        description: `Create a ${livery.name} in play, and a stables if there isn't one.`,
-        effect: doAll([create(livery, 'play'), createIfNeeded(stables)])
+        description: `Create a ${livery.name} in play, and a stables if there isn't one. Trash this.`,
+        effect: doAll([create(livery, 'play'), createIfNeeded(stables), trash(card)])
     }),
 })
 register(makeLivery)
@@ -2073,4 +2058,4 @@ const freeTrash = new Card('Free trash', {
 cheats.push(freeTrash)
 
 var test = false
-//test = true
+test = true
