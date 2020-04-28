@@ -1111,6 +1111,7 @@ var Undo = /** @class */ (function (_super) {
     function Undo(state) {
         var _this = _super.call(this, 'Undo') || this;
         _this.state = state;
+        Object.setPrototypeOf(_this, Undo.prototype);
         return _this;
     }
     return Undo;

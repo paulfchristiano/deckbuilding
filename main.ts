@@ -835,6 +835,7 @@ class Undo extends Error {
     constructor(state) {
         super('Undo')
         this.state = state
+        Object.setPrototypeOf(this, Undo.prototype)
     }
 }
 
