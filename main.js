@@ -866,7 +866,8 @@ async function playGame(seed=null) {
     var state = emptyState
     const startingDeck = [copper, copper, copper, copper, copper,
                           copper, copper, estate, estate, estate]
-    state = await doAll(startingDeck.map(x => create(x, 'deck')))(state);
+    let [_, shuffledDeck] = randomChoices(state, startingDeck, startingDeck.length, seed+1)
+    state = await doAll(shuffledDeck.map(x => create(x, 'deck')))(state);
     [state, variableSupplies] = randomChoices(state, mixins, 12, seed)
     variableSupplies.sort(supplySort)
     if (testing.length > 0) testing.push(freeMoney)
