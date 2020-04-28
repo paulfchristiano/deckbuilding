@@ -1158,7 +1158,7 @@ mixins.push(gainWarFooting)
 const junkDealer = new Card('Junk Dealer', {
     fixedCost: time(0),
     effect: card => ({
-        description: '+1 card. +$1.',
+        description: '+1 card. +$1. Trash a card in your hand.',
         effect: async function(state) {
             state = await draw(1)(state);
             state = await gainCoin(1)(state);
@@ -1220,7 +1220,7 @@ const reinforce = new Card('Reinforce', {
         }
     }),
     triggers: card => [{
-        'description': "After playing a card with a reinforce token other than with reinforce, if it's in your discard plile play it again.",
+        'description': "After playing a card with a reinforce token other than with reinforce, if it's in your discard pile play it again.",
         'handles':e => (e.type == 'afterPlay' && e.card.tokens.includes('reinforce') && e.source != 'reinforce'),
         'effect':e => async function(state) {
             const [played, zone] = find(state, e.card.id)
