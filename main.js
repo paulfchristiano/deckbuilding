@@ -236,7 +236,7 @@ function comesBefore(card1, card2)  {
 }
 
 function insertAt(card, zone, i) {
-    return zone.slice(0, loc-1).concat([card]).concat(zone.slice(loc))
+    return zone.slice(0, i).concat([card]).concat(zone.slice(i))
 }
 
 function insertSorted(card, zone) {
@@ -248,13 +248,13 @@ function insertSorted(card, zone) {
 
 function addToZone(card, zoneName, loc='end') {
     return async function(state) {
-        if (loc == 'end')
+        if (loc == 'end'){
             insert = (card, zone) => zone.concat([card])
-        else if (loc == 'start'){
+        }else if (loc == 'start'){
             insert = (card, zone) => [card].concat(zone)
-        }else if (loc == 'sorted')
+        }else if (loc == 'sorted'){
             insert = insertSorted
-        else {
+        }else {
             insert = (card, zone) => insertAt(card, zone, loc)
         }
         state = update(state, zoneName, insert(card, state[zoneName]))
@@ -304,6 +304,7 @@ function trash(card) {
 }
 
 function moveFromTo(card, fromZone, toZone, loc='end') {
+    if (toZone == 'hand') loc = 'sorted' //TODO: this is a kind of hacky way to maintain a sort
     return async function(state) {
         const result = removeIfPresent(state[fromZone], card.id)
         if (!result.found) return state
@@ -356,7 +357,7 @@ function draw(n, source=null) {
         for (var i = 0; i < n; i++) {
             if (state.deck.length > 0) {
                 [nextCard, rest] = shiftFirst(state.deck)
-                state = await moveFromTo(nextCard, 'deck', 'hand')(state)
+                state = await moveFromTo(nextCard, 'deck', 'hand', 'sorted')(state)
                 drawn += 1
             }
         }
@@ -870,8 +871,10 @@ async function playGame(seed=null) {
     state = await doAll(shuffledDeck.map(x => create(x, 'deck')))(state);
     [state, variableSupplies] = randomChoices(state, mixins, 12, seed)
     variableSupplies.sort(supplySort)
-    if (testing.length > 0) testing.push(freeMoney)
-    if (testing.length > 0) testing.push(freeTutor)
+    if (testing.length > 0 || test) {
+        testing.push(freeMoney)
+        testing.push(freeTutor)
+    }
     const kingdom = coreSupplies.concat(variableSupplies).concat(testing)
     state = await doAll(kingdom.map(x => create(x, 'supplies')))(state)
     state = await trigger({type:'gameStart'})(state)
@@ -1768,3 +1771,6 @@ const freeTutor = new Card('Free tutor', {
         }
     })
 })
+
+test = false
+//test = true
