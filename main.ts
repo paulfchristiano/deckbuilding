@@ -359,6 +359,7 @@ function randomChoices(state, xs, n, seed=null) {
     xs = xs.slice()
     while (result.length < n) {
         if (xs.length == 0) return [state, result];
+        if (xs.length == 1) return [state, result.concat(xs)]
         let rand;
         [state, rand] = doOrReplay(state, _ => (seed == null) ? Math.random() : PRF(seed, result.length), 'rng')
         const k = Math.floor(rand * xs.length)

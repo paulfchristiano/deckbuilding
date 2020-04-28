@@ -507,6 +507,8 @@ function randomChoices(state, xs, n, seed) {
     while (result.length < n) {
         if (xs.length == 0)
             return [state, result];
+        if (xs.length == 1)
+            return [state, result.concat(xs)];
         var rand = void 0;
         _a = __read(doOrReplay(state, function (_) { return (seed == null) ? Math.random() : PRF(seed, result.length); }, 'rng'), 2), state = _a[0], rand = _a[1];
         var k = Math.floor(rand * xs.length);
