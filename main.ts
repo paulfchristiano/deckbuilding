@@ -1789,7 +1789,7 @@ const explorer = new Card("Explorer", {
 buyable(explorer, 5)
 
 const kingsCourt = new Card("King's Court", {
-    fixedCost: time(1),
+    fixedCost: time(2),
     effect: card => ({
         description: "Choose a card in your hand. Play it, " +
             "then if it's in your discard pile play it again, "+
@@ -1808,7 +1808,7 @@ const kingsCourt = new Card("King's Court", {
         }
     })
 })
-buyable(kingsCourt, 11)
+buyable(kingsCourt, 10)
 
 const gardens = new Card("Gardens", {
     fixedCost: {time:1, coin:4},
@@ -1932,7 +1932,7 @@ function createIfNeeded(card) {
 }
 function ensureAtStart(card) {
     return {
-        description: `At the start of the game, create a ${card} in play if there isn't one yet.`,
+        description: `At the start of the game, create a ${card} in play if there isn't one.`,
         handles: e => e.type == 'gameStart',
         effect: e => createIfNeeded(card)
     }
@@ -2017,7 +2017,7 @@ const makeLivery = new Card('Livery', {
     fixedCost: time(4),
     relatedCards: [livery, stables],
     effect: card => ({
-        description: `Create a ${livery.name} in play, and a stables if there isn't one yet.`,
+        description: `Create a ${livery.name} in play, and a stables if there isn't one.`,
         effect: doAll([create(livery, 'play'), createIfNeeded(stables)])
     }),
 })

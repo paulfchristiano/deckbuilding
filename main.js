@@ -2391,7 +2391,7 @@ var explorer = new Card("Explorer", {
 });
 buyable(explorer, 5);
 var kingsCourt = new Card("King's Court", {
-    fixedCost: time(1),
+    fixedCost: time(2),
     effect: function (card) { return ({
         description: "Choose a card in your hand. Play it, " +
             "then if it's in your discard pile play it again, " +
@@ -2430,7 +2430,7 @@ var kingsCourt = new Card("King's Court", {
         }
     }); }
 });
-buyable(kingsCourt, 11);
+buyable(kingsCourt, 10);
 var gardens = new Card("Gardens", {
     fixedCost: { time: 1, coin: 4 },
     effect: function (card) { return ({
@@ -2599,7 +2599,7 @@ function createIfNeeded(card) {
 }
 function ensureAtStart(card) {
     return {
-        description: "At the start of the game, create a " + card + " in play if there isn't one yet.",
+        description: "At the start of the game, create a " + card + " in play if there isn't one.",
         handles: function (e) { return e.type == 'gameStart'; },
         effect: function (e) { return createIfNeeded(card); }
     };
@@ -2703,7 +2703,7 @@ var makeLivery = new Card('Livery', {
     fixedCost: time(4),
     relatedCards: [livery, stables],
     effect: function (card) { return ({
-        description: "Create a " + livery.name + " in play, and a stables if there isn't one yet.",
+        description: "Create a " + livery.name + " in play, and a stables if there isn't one.",
         effect: doAll([create(livery, 'play'), createIfNeeded(stables)])
     }); },
 });
