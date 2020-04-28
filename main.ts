@@ -1991,7 +1991,7 @@ const mountainVillage = new Card('Mountain Village', {
     fixedCost: time(1),
     effect: card => ({
         description: "You may play a card in your hand or discard pile costing up to @." +
-            "You may play a card in your hand costing up to @.",
+            " You may play a card in your hand costing up to @.",
         effect: async function(state) {
             const options = state.hand.concat(state.discard).filter(card => (card.cost(state).time <= 1)).map(asChoice);
             let target;

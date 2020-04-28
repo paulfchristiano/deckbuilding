@@ -2666,7 +2666,7 @@ var mountainVillage = new Card('Mountain Village', {
     fixedCost: time(1),
     effect: function (card) { return ({
         description: "You may play a card in your hand or discard pile costing up to @." +
-            "You may play a card in your hand costing up to @.",
+            " You may play a card in your hand costing up to @.",
         effect: function (state) {
             return __awaiter(this, void 0, void 0, function () {
                 var options, target;
