@@ -1977,7 +1977,7 @@ const stables = new Card('Stables', {
     abilities: card => [{
         description: 'Remove a charge token from this. If you do, +1 card.',
         cost: discharge(card, 1),
-        effect: draw(1, 'stables'),
+        effect: draw(1, card),
     }]
 })
 const fillStables = new Card('Fill Stables', {
@@ -1994,7 +1994,7 @@ const livery = new Card('Livery', {
     replacers: card => [{
         description: `Whenever you would draw cards other than with ${stables},` +
             ` put that many charge tokens on a ${stables} in play instead.`,
-        handles: e => (e.type == 'draw' && e.source.name != stables.name)
+        handles: e => (e.type == 'draw' && e.source.name != stables.name),
         replace: e => updates(e, {'draw':0, 'effects':e.effects.concat([fill(stables, e.draw)])})
     }]
 })
@@ -2058,4 +2058,4 @@ const freeTrash = new Card('Free trash', {
 cheats.push(freeTrash)
 
 var test = false
-test = true
+//test = true

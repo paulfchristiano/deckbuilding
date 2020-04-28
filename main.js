@@ -2662,7 +2662,7 @@ var stables = new Card('Stables', {
     abilities: function (card) { return [{
             description: 'Remove a charge token from this. If you do, +1 card.',
             cost: discharge(card, 1),
-            effect: draw(1, 'stables'),
+            effect: draw(1, card),
         }]; }
 });
 var fillStables = new Card('Fill Stables', {
@@ -2752,5 +2752,5 @@ var freeTrash = new Card('Free trash', {
 });
 cheats.push(freeTrash);
 var test = false;
-test = true;
+//test = true
 //# sourceMappingURL=main.js.map
