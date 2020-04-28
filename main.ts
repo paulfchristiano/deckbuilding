@@ -256,6 +256,7 @@ function insertSorted(card, zone) {
 
 function addToZone(card, zoneName, loc='end') {
     return async function(state) {
+        let insert;
         if (loc == 'end'){
             insert = (card, zone) => zone.concat([card])
         }else if (loc == 'start'){
@@ -1100,7 +1101,7 @@ const pearlDiver = new Card('Pearl Diver', {
             const target = state.deck[state.deck.length - 1]
             let moveIt; [state, moveIt] = await choice(state,
                 `Move ${target.name} to the top of your deck?`, yesOrNo)
-            return moveIt ? move(target, 'deck', loc='start')(state) : state
+            return moveIt ? move(target, 'deck', 'start')(state) : state
         }
     })
 })
@@ -1807,5 +1808,5 @@ const freeTutor = new Card('Free tutor', {
     })
 })
 
-test = false
+var test = false
 //test = true
