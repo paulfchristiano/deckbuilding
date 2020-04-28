@@ -1872,12 +1872,11 @@ const perpetualMotion = new Card('Perpetual Motion', {
 })
 mixins.push(makeCard(perpetualMotion, time(7), true))
 
-const scavenger = new Card('Scavenger', {
-    fixedCost: time(1),
+const looter = new Card('Looter', {
     effect: card => ({
-        description: '+$2. Discard any number of cards from the top of your deck.',
+        description: '+1 card. Discard any number of cards from the top of your deck.',
         effect: async function(state) {
-            state = await gainCoin(2)(state)
+            state = await draw(1)(state)
             let index; [state, index] = await choice(state,
                 'Choose a card to discard (along with everything above it).',
                 allowNull(state.deck.map((x, i) => [['card', state.deck[i].id], i])))
@@ -1885,13 +1884,14 @@ const scavenger = new Card('Scavenger', {
         }
     })
 })
-buyable(scavenger, 4)
+buyable(looter, 3)
 
-const harbinger = new Card('Harbinger', {
+const scavenger = new Card('Scavenger', {
+    fixedCost: time(1),
     effect: card => ({
-        description: '+1 card. Put a card from your discard pile on top of your deck.',
+        description: '+$2. Put a card from your discard pile on top of your deck.',
         effect: async function(state) {
-            state = await draw(1)(state)
+            state = await gainCoin(2)(state)
             let target; [state, target] = await choice(state,
                 'Choose a card to put on top of your deck.',
                 allowNull(state.discard.map(asChoice)))
@@ -1899,7 +1899,8 @@ const harbinger = new Card('Harbinger', {
         }
     })
 })
-buyable(harbinger, 3)
+buyable(scavenger, 4)
+
 
 const coffers = new Card('Coffers', {
     abilities: card => [{
