@@ -172,7 +172,7 @@ class Card {
             state = await effect.effect(state)
             if (!effect['skipDiscard']) state = await move(card, 'discard')(state)
             let [newCard, _] = find(state, card.id)
-            return trigger({type:'afterPlay', card:newCard, source:source})(state)
+            return trigger({type:'afterPlay', before:card, after:newCard, source:source})(state)
         }
     }
     triggers() {
@@ -506,8 +506,6 @@ function addToken(card, token) {
 function removeTokens(card, token) {
     return async function(state) {
         const removed = countTokens(card, token)
-        console.log(card.tokens)
-        console.log(card.tokens.filter(x => x != token))
         state = applyToCard(card, applyToKey('tokens', xs => xs.filter(x => (x != token))))(state)
         return trigger({type:'removeTokens', card:card, token:token, removed:removed})(state)
     }
@@ -723,9 +721,13 @@ async function asyncDoOrReplay(state, f, key) {
     return [update(state, 'history', newHistory), x]
 }
 
-function choice(state, choicePrompt, options, multichoiceValidator=null) {
-    if (isTrivial(state, choicePrompt, options, multichoiceValidator)) return Promise.resolve([state, null])
-    return asyncDoOrReplay(state, _ => freshChoice(state, choicePrompt, options, multichoiceValidator), 'choice')
+async function choice(state, choicePrompt, options, multichoiceValidator=null) {
+    if (options.length == 0 && multichoiceValidator == null) return [state, null]
+    else if (options.length == 0) return [state, []]
+    else if (options.length == 1 && multichoiceValidator == null) {
+        console.log(options[0])
+        return [state, options[0][1]]
+    } else return asyncDoOrReplay(state, _ => freshChoice(state, choicePrompt, options, multichoiceValidator), 'choice')
 }
 
 function getLastEvent(state) {
@@ -868,8 +870,6 @@ async function mainLoop(state) {
         state = await act(state)
         return state
     } catch (error) {
-        console.log(error)
-        console.log(error instanceof Undo)
         if (error instanceof Undo) {
             state = error.state
             while (state.future.length == 0) {
@@ -900,10 +900,7 @@ async function playGame(seed=null) {
     let variableSupplies;
     [state, variableSupplies] = randomChoices(state, mixins, 12, seed)
     variableSupplies.sort(supplySort)
-    if (testing.length > 0 || test) {
-        testing.push(freeMoney)
-        testing.push(freeTutor)
-    }
+    if (testing.length > 0 || test) for (let i = 0; i < cheats.length; i++) testing.push(cheats[i])
     const kingdom = coreSupplies.concat(variableSupplies).concat(testing)
     state = await doAll(kingdom.map(x => create(x, 'supplies')))(state)
     state = await trigger({type:'gameStart'})(state)
@@ -932,6 +929,7 @@ function load() {
 const coreSupplies = []
 const mixins = []
 const testing = []
+const cheats = []
 
 //
 // ------ CORE ------
@@ -1281,7 +1279,7 @@ const reinforce = new Card('Reinforce', {
     }),
     triggers: card => [{
         'description': "After playing a card with a reinforce token other than with reinforce, if it's in your discard pile play it again.",
-        'handles':e => (e.type == 'afterPlay' && e.card.tokens.includes('reinforce') && e.source != 'reinforce'),
+        'handles':e => (e.type == 'afterPlay' && e.before.tokens.includes('reinforce') && e.source != 'reinforce'),
         'effect':e => async function(state) {
             const [played, zone] = find(state, e.card.id)
             return (zone == 'discard') ? played.play('reinforce')(state) : state
@@ -1440,6 +1438,7 @@ const lookout = new Card('Lookout', {
                 picks = picks.filter(card => card.id != pick.id)
                 return move(pick, zone)(state)
             }
+            console.log(picks)
             if (picks.length > 0)
                 state = await pickOne('trash', null, state)
             if (picks.length > 0) 
@@ -1473,7 +1472,7 @@ const twins = new Card('Twins', {
     fixedCost: time(0),
     triggers: card => [{
         description: "When you finish playing a card other than with Twins, if it costs @ or more then you may play a card in your hand with the same name.",
-        handles: (e, state) => (e.type == 'afterPlay' && e.source != 'twins' && e.card.cost(state).time >= 1),
+        handles: (e, state) => (e.type == 'afterPlay' && e.source != 'twins' && e.before.cost(state).time >= 1),
         effect: e => async function(state) {
             const cardOptions = state.hand.filter(x => x.name == e.card.name)
             if (cardOptions.length == 0) return state;
@@ -1517,7 +1516,7 @@ const reconfigure = new Card('Reconfigure', {
         effect: async function(state) {
             state = await setCoins(0)(state)
             const n = state.hand.length
-            state = recycle(state.hand.concat(state.discard))(state)
+            state = await recycle(state.hand.concat(state.discard))(state)
             return draw(n, 'reconfigure')(state)
         }
     })
@@ -1530,7 +1529,7 @@ const bootstrap = new Card('Bootstrap', {
         description: 'Recycle your hand and discard pile, lose all $, and +2 cards.',
         effect: async function(state) {
             state = await setCoins(0)(state)
-            state = recycle(state.hand.concat(state.discard))(state)
+            state = await recycle(state.hand.concat(state.discard))(state)
             return draw(2, 'bootstrap')(state)
         }
     })
@@ -1822,7 +1821,7 @@ const decay = new Card('Decay', {
         effect: e => addToken(e.card, 'decay')
     }, {
         description: 'After you play a card, if it has 3 or more decay tokens on it trash it.',
-        handles: e => (e.type == 'afterPlay' && countTokens(e.card, 'decay') >= 3),
+        handles: e => (e.type == 'afterPlay' && e.after != null && countTokens(e.after, 'decay') >= 3),
         effect: e => trash(e.card),
     }]
 })
@@ -1835,7 +1834,7 @@ const perpetualMotion = new Card('Perpetual Motion', {
         effect: e => draw(1)
     }]
 })
-mixins.push(makeCard(perpetualMotion, time(6), true))
+mixins.push(makeCard(perpetualMotion, time(7), true))
 
 
 
@@ -1848,6 +1847,7 @@ const freeMoney = new Card('Free money', {
         effect: gainCoin(10)
     })
 })
+cheats.push(freeMoney)
 
 const freeTutor = new Card('Free tutor', {
     fixedCost: time(0),
@@ -1863,6 +1863,29 @@ const freeTutor = new Card('Free tutor', {
         }
     })
 })
+cheats.push(freeTutor)
+
+const freeDraw = new Card('Free draw', {
+    fixedCost: time(0),
+    effect: card => ({
+        description: 'Draw a card.',
+        effect: draw(1),
+    })
+})
+cheats.push(freeDraw)
+
+const freeTrash = new Card('Free trash', {
+    effect: card => ({
+        description: 'Trash any number of cards in your hand, deck, and discard pile.',
+        effect: async function(state) {
+            let toTrash; [state, toTrash] = await choice(state, 'Choose cards to trash.',
+                state.deck.concat(state.discard).concat(state.hand).map(asChoice),
+                xs => true)
+            return moveMany(toTrash, null)(state)
+        }
+    })
+})
+cheats.push(freeTrash)
 
 var test = false
 //test = true

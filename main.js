@@ -260,7 +260,7 @@ var Card = /** @class */ (function () {
                             _b.label = 5;
                         case 5:
                             _a = __read(find(state, card.id), 2), newCard = _a[0], _ = _a[1];
-                            return [2 /*return*/, trigger({ type: 'afterPlay', card: newCard, source: source })(state)];
+                            return [2 /*return*/, trigger({ type: 'afterPlay', before: card, after: newCard, source: source })(state)];
                     }
                 });
             });
@@ -735,8 +735,6 @@ function removeTokens(card, token) {
             var removed;
             return __generator(this, function (_a) {
                 removed = countTokens(card, token);
-                console.log(card.tokens);
-                console.log(card.tokens.filter(function (x) { return x != token; }));
                 state = applyToCard(card, applyToKey('tokens', function (xs) { return xs.filter(function (x) { return (x != token); }); }))(state);
                 return [2 /*return*/, trigger({ type: 'removeTokens', card: card, token: token, removed: removed })(state)];
             });
@@ -991,9 +989,21 @@ function asyncDoOrReplay(state, f, key) {
 }
 function choice(state, choicePrompt, options, multichoiceValidator) {
     if (multichoiceValidator === void 0) { multichoiceValidator = null; }
-    if (isTrivial(state, choicePrompt, options, multichoiceValidator))
-        return Promise.resolve([state, null]);
-    return asyncDoOrReplay(state, function (_) { return freshChoice(state, choicePrompt, options, multichoiceValidator); }, 'choice');
+    return __awaiter(this, void 0, void 0, function () {
+        return __generator(this, function (_a) {
+            if (options.length == 0 && multichoiceValidator == null)
+                return [2 /*return*/, [state, null]];
+            else if (options.length == 0)
+                return [2 /*return*/, [state, []]];
+            else if (options.length == 1 && multichoiceValidator == null) {
+                console.log(options[0]);
+                return [2 /*return*/, [state, options[0][1]]];
+            }
+            else
+                return [2 /*return*/, asyncDoOrReplay(state, function (_) { return freshChoice(state, choicePrompt, options, multichoiceValidator); }, 'choice')];
+            return [2 /*return*/];
+        });
+    });
 }
 function getLastEvent(state) {
     var n = state.history.length;
@@ -1150,8 +1160,6 @@ function mainLoop(state) {
                     return [2 /*return*/, state];
                 case 3:
                     error_1 = _b.sent();
-                    console.log(error_1);
-                    console.log(error_1 instanceof Undo);
                     if (error_1 instanceof Undo) {
                         state = error_1.state;
                         while (state.future.length == 0) {
@@ -1182,7 +1190,7 @@ function mainLoop(state) {
 function playGame(seed) {
     if (seed === void 0) { seed = null; }
     return __awaiter(this, void 0, void 0, function () {
-        var state, startingDeck, _a, _, shuffledDeck, variableSupplies, kingdom;
+        var state, startingDeck, _a, _, shuffledDeck, variableSupplies, i_1, kingdom;
         var _b;
         return __generator(this, function (_c) {
             switch (_c.label) {
@@ -1196,10 +1204,9 @@ function playGame(seed) {
                     state = _c.sent();
                     _b = __read(randomChoices(state, mixins, 12, seed), 2), state = _b[0], variableSupplies = _b[1];
                     variableSupplies.sort(supplySort);
-                    if (testing.length > 0 || test) {
-                        testing.push(freeMoney);
-                        testing.push(freeTutor);
-                    }
+                    if (testing.length > 0 || test)
+                        for (i_1 = 0; i_1 < cheats.length; i_1++)
+                            testing.push(cheats[i_1]);
                     kingdom = coreSupplies.concat(variableSupplies).concat(testing);
                     return [4 /*yield*/, doAll(kingdom.map(function (x) { return create(x, 'supplies'); }))(state)];
                 case 2:
@@ -1236,6 +1243,7 @@ function load() {
 var coreSupplies = [];
 var mixins = [];
 var testing = [];
+var cheats = [];
 //
 // ------ CORE ------
 //
@@ -1700,7 +1708,7 @@ var reinforce = new Card('Reinforce', {
     }); },
     triggers: function (card) { return [{
             'description': "After playing a card with a reinforce token other than with reinforce, if it's in your discard pile play it again.",
-            'handles': function (e) { return (e.type == 'afterPlay' && e.card.tokens.includes('reinforce') && e.source != 'reinforce'); },
+            'handles': function (e) { return (e.type == 'afterPlay' && e.before.tokens.includes('reinforce') && e.source != 'reinforce'); },
             'effect': function (e) { return function (state) {
                 return __awaiter(this, void 0, void 0, function () {
                     var _a, played, zone;
@@ -1916,6 +1924,7 @@ var lookout = new Card('Lookout', {
                     switch (_a.label) {
                         case 0:
                             picks = state.deck.slice(0, 3);
+                            console.log(picks);
                             if (!(picks.length > 0)) return [3 /*break*/, 2];
                             return [4 /*yield*/, pickOne('trash', null, state)];
                         case 1:
@@ -1956,7 +1965,7 @@ var twins = new Card('Twins', {
     fixedCost: time(0),
     triggers: function (card) { return [{
             description: "When you finish playing a card other than with Twins, if it costs @ or more then you may play a card in your hand with the same name.",
-            handles: function (e, state) { return (e.type == 'afterPlay' && e.source != 'twins' && e.card.cost(state).time >= 1); },
+            handles: function (e, state) { return (e.type == 'afterPlay' && e.source != 'twins' && e.before.cost(state).time >= 1); },
             effect: function (e) { return function (state) {
                 return __awaiter(this, void 0, void 0, function () {
                     var cardOptions, replay;
@@ -2023,7 +2032,9 @@ var reconfigure = new Card('Reconfigure', {
                         case 1:
                             state = _a.sent();
                             n = state.hand.length;
-                            state = recycle(state.hand.concat(state.discard))(state);
+                            return [4 /*yield*/, recycle(state.hand.concat(state.discard))(state)];
+                        case 2:
+                            state = _a.sent();
                             return [2 /*return*/, draw(n, 'reconfigure')(state)];
                     }
                 });
@@ -2043,7 +2054,9 @@ var bootstrap = new Card('Bootstrap', {
                         case 0: return [4 /*yield*/, setCoins(0)(state)];
                         case 1:
                             state = _a.sent();
-                            state = recycle(state.hand.concat(state.discard))(state);
+                            return [4 /*yield*/, recycle(state.hand.concat(state.discard))(state)];
+                        case 2:
+                            state = _a.sent();
                             return [2 /*return*/, draw(2, 'bootstrap')(state)];
                     }
                 });
@@ -2445,7 +2458,7 @@ var decay = new Card('Decay', {
             effect: function (e) { return addToken(e.card, 'decay'); }
         }, {
             description: 'After you play a card, if it has 3 or more decay tokens on it trash it.',
-            handles: function (e) { return (e.type == 'afterPlay' && countTokens(e.card, 'decay') >= 3); },
+            handles: function (e) { return (e.type == 'afterPlay' && e.after != null && countTokens(e.after, 'decay') >= 3); },
             effect: function (e) { return trash(e.card); },
         }]; }
 });
@@ -2457,7 +2470,7 @@ var perpetualMotion = new Card('Perpetual Motion', {
             effect: function (e) { return draw(1); }
         }]; }
 });
-mixins.push(makeCard(perpetualMotion, time(6), true));
+mixins.push(makeCard(perpetualMotion, time(7), true));
 // ------------------ Testing -------------------
 var freeMoney = new Card('Free money', {
     fixedCost: time(0),
@@ -2466,6 +2479,7 @@ var freeMoney = new Card('Free money', {
         effect: gainCoin(10)
     }); }
 });
+cheats.push(freeMoney);
 var freeTutor = new Card('Free tutor', {
     fixedCost: time(0),
     effect: function (card) { return ({
@@ -2488,6 +2502,35 @@ var freeTutor = new Card('Free tutor', {
         }
     }); }
 });
+cheats.push(freeTutor);
+var freeDraw = new Card('Free draw', {
+    fixedCost: time(0),
+    effect: function (card) { return ({
+        description: 'Draw a card.',
+        effect: draw(1),
+    }); }
+});
+cheats.push(freeDraw);
+var freeTrash = new Card('Free trash', {
+    effect: function (card) { return ({
+        description: 'Trash any number of cards in your hand, deck, and discard pile.',
+        effect: function (state) {
+            return __awaiter(this, void 0, void 0, function () {
+                var toTrash;
+                var _a;
+                return __generator(this, function (_b) {
+                    switch (_b.label) {
+                        case 0: return [4 /*yield*/, choice(state, 'Choose cards to trash.', state.deck.concat(state.discard).concat(state.hand).map(asChoice), function (xs) { return true; })];
+                        case 1:
+                            _a = __read.apply(void 0, [_b.sent(), 2]), state = _a[0], toTrash = _a[1];
+                            return [2 /*return*/, moveMany(toTrash, null)(state)];
+                    }
+                });
+            });
+        }
+    }); }
+});
+cheats.push(freeTrash);
 var test = false;
 //test = true
 //# sourceMappingURL=main.js.map
