@@ -357,10 +357,10 @@ function addToZone(card, zoneName, loc) {
         return __awaiter(this, void 0, void 0, function () {
             var insert;
             return __generator(this, function (_a) {
-                if (loc == 'end') {
+                if (loc == 'end' || loc == 'bottom') {
                     insert = function (card, zone) { return zone.concat([card]); };
                 }
-                else if (loc == 'start') {
+                else if (loc == 'start' || loc == 'top') {
                     insert = function (card, zone) { return [card].concat(zone); };
                 }
                 else if (loc == 'sorted') {
@@ -546,8 +546,10 @@ function discard(n) {
 }
 var CostNotPaid = /** @class */ (function (_super) {
     __extends(CostNotPaid, _super);
-    function CostNotPaid() {
-        return _super !== null && _super.apply(this, arguments) || this;
+    function CostNotPaid(message) {
+        var _this = _super.call(this, message) || this;
+        Object.setPrototypeOf(_this, CostNotPaid.prototype);
+        return _this;
     }
     return CostNotPaid;
 }(Error));
@@ -608,21 +610,28 @@ function doOrAbort(f, fallback) {
     if (fallback === void 0) { fallback = null; }
     return function (state) {
         return __awaiter(this, void 0, void 0, function () {
+            var result, error_1;
             return __generator(this, function (_a) {
-                try {
-                    return [2 /*return*/, f(state)];
+                switch (_a.label) {
+                    case 0:
+                        _a.trys.push([0, 2, , 3]);
+                        return [4 /*yield*/, f(state)];
+                    case 1:
+                        result = _a.sent();
+                        return [2 /*return*/, result];
+                    case 2:
+                        error_1 = _a.sent();
+                        if (error_1 instanceof CostNotPaid) {
+                            if (fallback != null)
+                                return [2 /*return*/, fallback(state)];
+                            return [2 /*return*/, state];
+                        }
+                        else {
+                            throw error_1;
+                        }
+                        return [3 /*break*/, 3];
+                    case 3: return [2 /*return*/];
                 }
-                catch (error) {
-                    if (error instanceof CostNotPaid) {
-                        if (fallback != null)
-                            return [2 /*return*/, fallback(state)];
-                        return [2 /*return*/, state];
-                    }
-                    else {
-                        throw error;
-                    }
-                }
-                return [2 /*return*/];
             });
         });
     };
@@ -806,7 +815,7 @@ function countTokens(card, token) {
 }
 function renderTooltip(card, state) {
     var effectHtml = "<div>" + card.effect().description + "</div>";
-    var abilitiesHtml = card.abilities().map(function (x) { return "<div>" + x.description + "</div>"; }).join('');
+    var abilitiesHtml = card.abilities().map(function (x) { return "<div>(ability) " + x.description + "</div>"; }).join('');
     var staticHtml = card.triggers().concat(card.replacers()).map(function (x) { return "<div>(static) " + x.description + "</div>"; }).join('');
     var tokensHtml = card.tokens.length > 0 ? "Tokens: " + card.tokens.join(', ') : '';
     var baseFilling = [effectHtml, abilitiesHtml, staticHtml, tokensHtml].join('');
@@ -996,7 +1005,6 @@ function choice(state, choicePrompt, options, multichoiceValidator) {
             else if (options.length == 0)
                 return [2 /*return*/, [state, []]];
             else if (options.length == 1 && multichoiceValidator == null) {
-                console.log(options[0]);
                 return [2 /*return*/, [state, options[0][1]]];
             }
             else
@@ -1145,7 +1153,7 @@ function shiftFirst(xs) {
 }
 function mainLoop(state) {
     return __awaiter(this, void 0, void 0, function () {
-        var error_1, _a, last, future;
+        var error_2, _a, last, future;
         return __generator(this, function (_b) {
             switch (_b.label) {
                 case 0:
@@ -1159,9 +1167,9 @@ function mainLoop(state) {
                     state = _b.sent();
                     return [2 /*return*/, state];
                 case 3:
-                    error_1 = _b.sent();
-                    if (error_1 instanceof Undo) {
-                        state = error_1.state;
+                    error_2 = _b.sent();
+                    if (error_2 instanceof Undo) {
+                        state = error_2.state;
                         while (state.future.length == 0) {
                             if (state.checkpoint == null) {
                                 throw Error("tried to undo past beginning of time");
@@ -1179,7 +1187,7 @@ function mainLoop(state) {
                         }
                     }
                     else {
-                        throw error_1;
+                        throw error_2;
                     }
                     return [3 /*break*/, 4];
                 case 4: return [2 /*return*/];
@@ -1464,7 +1472,7 @@ buyable(cellar, 2);
 var pearlDiver = new Card('Pearl Diver', {
     fixedCost: time(0),
     effect: function (_) { return ({
-        description: 'Set aside a random card from your deck. Put it into either your deck or discard pile. +1 card.',
+        description: '+1 card. You may put the bottom card of your deck on top of your deck.',
         effect: function (state) {
             return __awaiter(this, void 0, void 0, function () {
                 var target, moveIt;
@@ -1480,7 +1488,7 @@ var pearlDiver = new Card('Pearl Diver', {
                             return [4 /*yield*/, choice(state, "Move " + target.name + " to the top of your deck?", yesOrNo)];
                         case 2:
                             _a = __read.apply(void 0, [_b.sent(), 2]), state = _a[0], moveIt = _a[1];
-                            return [2 /*return*/, moveIt ? move(target, 'deck', 'start')(state) : state];
+                            return [2 /*return*/, moveIt ? move(target, 'deck', 'top')(state) : state];
                     }
                 });
             });
@@ -1924,7 +1932,6 @@ var lookout = new Card('Lookout', {
                     switch (_a.label) {
                         case 0:
                             picks = state.deck.slice(0, 3);
-                            console.log(picks);
                             if (!(picks.length > 0)) return [3 /*break*/, 2];
                             return [4 /*yield*/, pickOne('trash', null, state)];
                         case 1:
@@ -2471,6 +2478,86 @@ var perpetualMotion = new Card('Perpetual Motion', {
         }]; }
 });
 mixins.push(makeCard(perpetualMotion, time(7), true));
+var scavenger = new Card('Scavenger', {
+    fixedCost: time(1),
+    effect: function (card) { return ({
+        description: '+$2. Discard any number of cards from the top of your deck.',
+        effect: function (state) {
+            return __awaiter(this, void 0, void 0, function () {
+                var index;
+                var _a;
+                return __generator(this, function (_b) {
+                    switch (_b.label) {
+                        case 0: return [4 /*yield*/, gainCoin(2)(state)];
+                        case 1:
+                            state = _b.sent();
+                            return [4 /*yield*/, choice(state, 'Choose a card to discard (along with everything above it).', allowNull(state.deck.map(function (x, i) { return [['card', state.deck[i].id], i]; })))];
+                        case 2:
+                            _a = __read.apply(void 0, [_b.sent(), 2]), state = _a[0], index = _a[1];
+                            return [2 /*return*/, (index == null) ? state : moveMany(state.deck.slice(0, index + 1), 'discard')(state)];
+                    }
+                });
+            });
+        }
+    }); }
+});
+buyable(scavenger, 4);
+var harbinger = new Card('Harbinger', {
+    effect: function (card) { return ({
+        description: '+1 card. Put a card from your discard pile on top of your deck.',
+        effect: function (state) {
+            return __awaiter(this, void 0, void 0, function () {
+                var target;
+                var _a;
+                return __generator(this, function (_b) {
+                    switch (_b.label) {
+                        case 0: return [4 /*yield*/, draw(1)(state)];
+                        case 1:
+                            state = _b.sent();
+                            return [4 /*yield*/, choice(state, 'Choose a card to put on top of your deck.', allowNull(state.discard.map(asChoice)))];
+                        case 2:
+                            _a = __read.apply(void 0, [_b.sent(), 2]), state = _a[0], target = _a[1];
+                            return [2 /*return*/, (target == null) ? state : move(target, 'deck', 'top')(state)];
+                    }
+                });
+            });
+        }
+    }); }
+});
+buyable(harbinger, 3);
+var coffers = new Card('Coffers', {
+    abilities: function (card) { return [{
+            description: 'Remove a charge counter from this. If you do, +$1.',
+            cost: discharge(card, 1),
+            effect: gainCoin(1),
+        }]; }
+});
+var fillCoffers = new Card('Fill Coffers', {
+    fixedCost: coin(3),
+    effect: function (card) { return ({
+        description: 'Put two charge tokens on a Coffers in play.',
+        effect: function (state) {
+            return __awaiter(this, void 0, void 0, function () {
+                var target;
+                var _a;
+                return __generator(this, function (_b) {
+                    switch (_b.label) {
+                        case 0: return [4 /*yield*/, choice(state, 'Place two charge tokens on a coffers.', state.play.filter(function (c) { return c.name == coffers.name; }).map(asChoice))];
+                        case 1:
+                            _a = __read.apply(void 0, [_b.sent(), 2]), state = _a[0], target = _a[1];
+                            return [2 /*return*/, (target == null) ? state : charge(target, 2)(state)];
+                    }
+                });
+            });
+        }
+    }); },
+    triggers: function (card) { return [{
+            description: 'At the start of the game, create a Coffers in play.',
+            handles: function (e) { return e.type == 'gameStart'; },
+            effect: function (e) { return create(coffers, 'play'); }
+        }]; }
+});
+mixins.push(fillCoffers);
 // ------------------ Testing -------------------
 var freeMoney = new Card('Free money', {
     fixedCost: time(0),

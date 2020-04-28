@@ -254,9 +254,9 @@ function insertSorted(card, zone) {
 function addToZone(card, zoneName, loc='end') {
     return async function(state) {
         let insert;
-        if (loc == 'end'){
+        if (loc == 'end' || loc == 'bottom'){
             insert = (card, zone) => zone.concat([card])
-        }else if (loc == 'start'){
+        }else if (loc == 'start' || loc == 'top'){
             insert = (card, zone) => [card].concat(zone)
         }else if (loc == 'sorted'){
             insert = insertSorted
@@ -383,7 +383,12 @@ function discard(n) {
     }
 }
 
-class CostNotPaid extends Error { }
+class CostNotPaid extends Error { 
+    constructor(message) {
+        super(message)
+        Object.setPrototypeOf(this, CostNotPaid.prototype)
+    }
+}
 
 
 function payCoin(n) {
@@ -425,7 +430,8 @@ function gainCoin(n, cost=false) {
 function doOrAbort(f, fallback=null) {
     return async function(state) {
         try {
-            return f(state)
+            const result = await f(state)
+            return result
         } catch(error){
             if (error instanceof CostNotPaid) {
                 if (fallback != null) return fallback(state)
@@ -570,7 +576,7 @@ function countTokens(card, token) {
 
 function renderTooltip(card, state) {
     const effectHtml = `<div>${card.effect().description}</div>`
-    const abilitiesHtml = card.abilities().map(x => `<div>${x.description}</div>`).join('')
+    const abilitiesHtml = card.abilities().map(x => `<div>(ability) ${x.description}</div>`).join('')
     const staticHtml = card.triggers().concat(card.replacers()).map(x => `<div>(static) ${x.description}</div>`).join('')
     const tokensHtml = card.tokens.length > 0 ? `Tokens: ${card.tokens.join(', ')}` : ''
     const baseFilling = [effectHtml, abilitiesHtml, staticHtml, tokensHtml].join('')
@@ -725,7 +731,6 @@ async function choice(state, choicePrompt, options, multichoiceValidator=null) {
     if (options.length == 0 && multichoiceValidator == null) return [state, null]
     else if (options.length == 0) return [state, []]
     else if (options.length == 1 && multichoiceValidator == null) {
-        console.log(options[0])
         return [state, options[0][1]]
     } else return asyncDoOrReplay(state, _ => freshChoice(state, choicePrompt, options, multichoiceValidator), 'choice')
 }
@@ -1102,14 +1107,14 @@ buyable(cellar, 2)
 const pearlDiver = new Card('Pearl Diver', {
     fixedCost: time(0),
     effect: _ => ({
-        description: 'Set aside a random card from your deck. Put it into either your deck or discard pile. +1 card.',
+        description: '+1 card. You may put the bottom card of your deck on top of your deck.',
         effect: async function(state) {
             state = await draw(1)(state)
             if (state.deck.length == 0) return state
             const target = state.deck[state.deck.length - 1]
             let moveIt; [state, moveIt] = await choice(state,
                 `Move ${target.name} to the top of your deck?`, yesOrNo)
-            return moveIt ? move(target, 'deck', 'start')(state) : state
+            return moveIt ? move(target, 'deck', 'top')(state) : state
         }
     })
 })
@@ -1438,7 +1443,6 @@ const lookout = new Card('Lookout', {
                 picks = picks.filter(card => card.id != pick.id)
                 return move(pick, zone)(state)
             }
-            console.log(picks)
             if (picks.length > 0)
                 state = await pickOne('trash', null, state)
             if (picks.length > 0) 
@@ -1835,6 +1839,61 @@ const perpetualMotion = new Card('Perpetual Motion', {
     }]
 })
 mixins.push(makeCard(perpetualMotion, time(7), true))
+
+const scavenger = new Card('Scavenger', {
+    fixedCost: time(1),
+    effect: card => ({
+        description: '+$2. Discard any number of cards from the top of your deck.',
+        effect: async function(state) {
+            state = await gainCoin(2)(state)
+            let index; [state, index] = await choice(state,
+                'Choose a card to discard (along with everything above it).',
+                allowNull(state.deck.map((x, i) => [['card', state.deck[i].id], i])))
+            return (index == null) ? state  : moveMany(state.deck.slice(0, index+1), 'discard')(state)
+        }
+    })
+})
+buyable(scavenger, 4)
+
+const harbinger = new Card('Harbinger', {
+    effect: card => ({
+        description: '+1 card. Put a card from your discard pile on top of your deck.',
+        effect: async function(state) {
+            state = await draw(1)(state)
+            let target; [state, target] = await choice(state,
+                'Choose a card to put on top of your deck.',
+                allowNull(state.discard.map(asChoice)))
+            return (target == null) ? state : move(target, 'deck', 'top')(state)
+        }
+    })
+})
+buyable(harbinger, 3)
+
+const coffers = new Card('Coffers', {
+    abilities: card => [{
+        description: 'Remove a charge counter from this. If you do, +$1.',
+        cost: discharge(card, 1),
+        effect: gainCoin(1),
+    }]
+})
+const fillCoffers = new Card('Fill Coffers', {
+    fixedCost: coin(3),
+    effect: card => ({
+        description: 'Put two charge tokens on a Coffers in play.',
+        effect: async function(state) {
+            let target; [state, target] = await choice(state,
+                'Place two charge tokens on a coffers.',
+                state.play.filter(c => c.name == coffers.name).map(asChoice))
+            return (target == null) ? state : charge(target, 2)(state)
+        }
+    }),
+    triggers: card => [{
+        description: 'At the start of the game, create a Coffers in play.',
+        handles: e => e.type == 'gameStart',
+        effect: e => create(coffers, 'play')
+    }]
+})
+mixins.push(fillCoffers)
 
 
 
