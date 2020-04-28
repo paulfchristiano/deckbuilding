@@ -85,17 +85,14 @@ function update(object, key, value) {
     Object.setPrototypeOf(result, Object.getPrototypeOf(object));
     return result;
 }
-// the function that sets x.k = v
-function updateKey(k, v) {
-    return function (x) { return update(x, k, v); };
-}
 // the function that sets x.k = f(x.k)
 function applyToKey(k, f) {
     return function (x) { return update(x, k, f(x[k])); };
 }
 //TODO: operating on a given card involves a linear scan, could speed up with clever datastructure
 // the function that applies f to the card with a given id
-function applyToId(id, f) {
+function applyToCard(card, f) {
+    var id = card.id;
     return function (state) {
         var _a = __read(find(state, id), 2), _ = _a[0], zone = _a[1];
         return update(state, zone, state[zone].map(function (x) { return (x.id == id) ? f(x) : x; }));
@@ -242,13 +239,32 @@ var Card = /** @class */ (function () {
         if (source === void 0) { source = null; }
         var effect = this.effect();
         var card = this;
-        return doAll([
-            move(card, 'resolving'),
-            trigger({ type: 'play', card: card, source: source }),
-            effect.effect,
-            effect['skipDiscard'] ? noop : move(card, 'discard'),
-            trigger({ type: 'afterPlay', card: card, source: source }),
-        ]);
+        return function (state) {
+            return __awaiter(this, void 0, void 0, function () {
+                var _a, newCard, _;
+                return __generator(this, function (_b) {
+                    switch (_b.label) {
+                        case 0: return [4 /*yield*/, move(card, 'resolving')(state)];
+                        case 1:
+                            state = _b.sent();
+                            return [4 /*yield*/, trigger({ type: 'play', card: card, source: source })(state)];
+                        case 2:
+                            state = _b.sent();
+                            return [4 /*yield*/, effect.effect(state)];
+                        case 3:
+                            state = _b.sent();
+                            if (!!effect['skipDiscard']) return [3 /*break*/, 5];
+                            return [4 /*yield*/, move(card, 'discard')(state)];
+                        case 4:
+                            state = _b.sent();
+                            _b.label = 5;
+                        case 5:
+                            _a = __read(find(state, card.id), 2), newCard = _a[0], _ = _a[1];
+                            return [2 /*return*/, trigger({ type: 'afterPlay', card: newCard, source: source })(state)];
+                    }
+                });
+            });
+        };
     };
     Card.prototype.triggers = function () {
         return callOr(this.props.triggers, this, []);
@@ -290,7 +306,7 @@ function makeCard(card, cost, selfdestruct) {
 }
 function assignUID(state, card) {
     var id = state.nextID;
-    return [update(state, 'nextID', id + 1), updates(card, { id: id })];
+    return [update(state, 'nextID', id + 1), update(card, 'id', id)];
 }
 function create(card, toZone) {
     if (toZone === void 0) { toZone = 'discard'; }
@@ -703,12 +719,26 @@ function doAny(options) {
 function discharge(card, n) {
     return charge(card, -n, true);
 }
-function addToken(id, token) {
+function addToken(card, token) {
     return function (state) {
         return __awaiter(this, void 0, void 0, function () {
             return __generator(this, function (_a) {
-                state = applyToId(id, applyToKey('tokens', function (x) { return x.concat([token]); }))(state);
-                return [2 /*return*/, trigger({ type: 'addToken', id: id, token: token })(state)];
+                state = applyToCard(card, applyToKey('tokens', function (x) { return x.concat([token]); }))(state);
+                return [2 /*return*/, trigger({ type: 'addToken', card: card, token: token })(state)];
+            });
+        });
+    };
+}
+function removeTokens(card, token) {
+    return function (state) {
+        return __awaiter(this, void 0, void 0, function () {
+            var removed;
+            return __generator(this, function (_a) {
+                removed = countTokens(card, token);
+                console.log(card.tokens);
+                console.log(card.tokens.filter(function (x) { return x != token; }));
+                state = applyToCard(card, applyToKey('tokens', function (xs) { return xs.filter(function (x) { return (x != token); }); }))(state);
+                return [2 /*return*/, trigger({ type: 'removeTokens', card: card, token: token, removed: removed })(state)];
             });
         });
     };
@@ -731,7 +761,7 @@ function charge(card, n, cost) {
                 }
                 oldcharge = card.charge;
                 newcharge = (oldcharge + n < 0) ? 0 : oldcharge + n;
-                state = applyToId(card.id, updateKey('charge', newcharge))(state);
+                state = applyToCard(card, applyToKey('charge', function (_) { return newcharge; }))(state);
                 return [2 /*return*/, trigger({ type: 'chargeChange', card: card,
                         oldcharge: oldcharge, newcharge: newcharge, cost: cost })(state)];
             });
@@ -1119,6 +1149,8 @@ function mainLoop(state) {
                     return [2 /*return*/, state];
                 case 3:
                     error_1 = _b.sent();
+                    console.log(error_1);
+                    console.log(error_1 instanceof Undo);
                     if (error_1 instanceof Undo) {
                         state = error_1.state;
                         while (state.future.length == 0) {
@@ -1659,7 +1691,7 @@ var reinforce = new Card('Reinforce', {
                             _a = __read.apply(void 0, [_b.sent(), 2]), state = _a[0], card = _a[1];
                             if (card == null)
                                 return [2 /*return*/, state];
-                            return [2 /*return*/, addToken(card.id, 'reinforce')(state)];
+                            return [2 /*return*/, addToken(card, 'reinforce')(state)];
                     }
                 });
             });
@@ -2346,15 +2378,16 @@ var pathfinding = new Card('Pathfinding', {
         description: 'Put a path token on a card in your hand.',
         effect: function (state) {
             return __awaiter(this, void 0, void 0, function () {
+                var target;
                 var _a;
                 return __generator(this, function (_b) {
                     switch (_b.label) {
                         case 0: return [4 /*yield*/, choice(state, 'Choose a card to put a path token on.', state.hand.map(asChoice))];
                         case 1:
-                            _a = __read.apply(void 0, [_b.sent(), 2]), state = _a[0], card = _a[1];
+                            _a = __read.apply(void 0, [_b.sent(), 2]), state = _a[0], target = _a[1];
                             if (card == null)
                                 return [2 /*return*/, state];
-                            return [2 /*return*/, addToken(card.id, 'path')(state)];
+                            return [2 /*return*/, addToken(target, 'path')(state)];
                     }
                 });
             });
@@ -2367,6 +2400,63 @@ var pathfinding = new Card('Pathfinding', {
         }]; },
 });
 mixins.push(pathfinding);
+var counterfeit = new Card('Counterfeit', {
+    effect: function (card) { return ({
+        description: 'Play a card from your ceck, then trash it.',
+        effect: function (state) {
+            return __awaiter(this, void 0, void 0, function () {
+                var target;
+                var _a;
+                return __generator(this, function (_b) {
+                    switch (_b.label) {
+                        case 0:
+                            if (state.deck.length == 0)
+                                return [2 /*return*/, state];
+                            return [4 /*yield*/, choice(state, 'Choose a card to play then trash.', state.deck.map(asChoice))];
+                        case 1:
+                            _a = __read.apply(void 0, [_b.sent(), 2]), state = _a[0], target = _a[1];
+                            return [4 /*yield*/, target.play()(state)];
+                        case 2:
+                            state = _b.sent();
+                            return [2 /*return*/, trash(target)(state)];
+                    }
+                });
+            });
+        }
+    }); }
+});
+buyable(counterfeit, 5);
+var decay = new Card('Decay', {
+    fixedCost: coin(4),
+    effect: function (card) { return ({
+        description: 'Remove all decay tokens for all cards in your hand.',
+        effect: function (state) {
+            return __awaiter(this, void 0, void 0, function () {
+                return __generator(this, function (_a) {
+                    return [2 /*return*/, doAll(state.hand.map(function (x) { return removeTokens(x, 'decay'); }))(state)];
+                });
+            });
+        }
+    }); },
+    triggers: function (card) { return [{
+            description: 'Whenever you play a card, put a decay token on it.',
+            handles: function (e) { return (e.type == 'play'); },
+            effect: function (e) { return addToken(e.card, 'decay'); }
+        }, {
+            description: 'After you play a card, if it has 3 or more decay tokens on it trash it.',
+            handles: function (e) { return (e.type == 'afterPlay' && countTokens(e.card, 'decay') >= 3); },
+            effect: function (e) { return trash(e.card); },
+        }]; }
+});
+mixins.push(decay);
+var perpetualMotion = new Card('Perpetual Motion', {
+    triggers: function (card) { return [{
+            description: 'Whenever you have no cards in hand, draw a card.',
+            handles: function (e, state) { return (state.hand.length == 0 && state.deck.length > 0); },
+            effect: function (e) { return draw(1); }
+        }]; }
+});
+mixins.push(makeCard(perpetualMotion, time(6), true));
 // ------------------ Testing -------------------
 var freeMoney = new Card('Free money', {
     fixedCost: time(0),
@@ -2399,3 +2489,4 @@ var freeTutor = new Card('Free tutor', {
 });
 var test = false;
 //test = true
+//# sourceMappingURL=main.js.map

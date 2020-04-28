@@ -25,11 +25,6 @@ function update(object, key, value) {
     return result
 }
 
-// the function that sets x.k = v
-function updateKey(k, v) {
-    return x => update(x, k, v)
-}
-
 // the function that sets x.k = f(x.k)
 function applyToKey(k, f) {
     return x => update(x, k, f(x[k]))
@@ -37,7 +32,8 @@ function applyToKey(k, f) {
 
 //TODO: operating on a given card involves a linear scan, could speed up with clever datastructure
 // the function that applies f to the card with a given id
-function applyToId(id, f) {
+function applyToCard(card, f) {
+    const id = card.id
     return function(state) {
         const [_, zone] = find(state, id)
         return update(state, zone, state[zone].map(x => (x.id == id) ? f(x) : x))
@@ -170,13 +166,14 @@ class Card {
     play(source=null) {
         const effect = this.effect()
         const card = this
-        return doAll([
-            move(card, 'resolving'),
-            trigger({type:'play', card:card, source:source}),
-            effect.effect,
-            effect['skipDiscard'] ? noop : move(card, 'discard'),
-            trigger({type:'afterPlay', card:card, source:source}),
-        ])
+        return async function(state) {
+            state = await move(card, 'resolving')(state)
+            state = await trigger({type:'play', card:card, source:source})(state)
+            state = await effect.effect(state)
+            if (!effect['skipDiscard']) state = await move(card, 'discard')(state)
+            let [newCard, _] = find(state, card.id)
+            return trigger({type:'afterPlay', card:newCard, source:source})(state)
+        }
     }
     triggers() {
         return callOr(this.props.triggers, this, [])
@@ -220,7 +217,7 @@ function makeCard(card, cost, selfdestruct=false)  {
 
 function assignUID(state, card) {
     const id = state.nextID
-    return [update(state, 'nextID', id+1), updates(card, {id:id})]
+    return [update(state, 'nextID', id+1), update(card, 'id', id)]
 }
 
 function create(card, toZone='discard') {
@@ -499,10 +496,20 @@ function discharge(card, n) {
     return charge(card, -n, true)
 }
 
-function addToken(id, token) {
+function addToken(card, token) {
     return async function(state) {
-        state = applyToId(id, applyToKey('tokens', x => x.concat([token])))(state)
-        return trigger({type:'addToken', id:id, token:token})(state)
+        state = applyToCard(card, applyToKey('tokens', x => x.concat([token])))(state)
+        return trigger({type:'addToken', card:card, token:token})(state)
+    }
+}
+
+function removeTokens(card, token) {
+    return async function(state) {
+        const removed = countTokens(card, token)
+        console.log(card.tokens)
+        console.log(card.tokens.filter(x => x != token))
+        state = applyToCard(card, applyToKey('tokens', xs => xs.filter(x => (x != token))))(state)
+        return trigger({type:'removeTokens', card:card, token:token, removed:removed})(state)
     }
 }
 
@@ -518,7 +525,7 @@ function charge(card, n, cost=false) {
         }
         const oldcharge = card.charge
         const newcharge = (oldcharge + n < 0) ? 0 : oldcharge + n
-        state = applyToId(card.id, updateKey('charge', newcharge))(state)
+        state = applyToCard(card, applyToKey('charge', _ => newcharge))(state)
         return trigger({type:'chargeChange', card:card,
             oldcharge:oldcharge, newcharge:newcharge, cost:cost})(state)
     }
@@ -860,6 +867,8 @@ async function mainLoop(state) {
         state = await act(state)
         return state
     } catch (error) {
+        console.log(error)
+        console.log(error instanceof Undo)
         if (error instanceof Undo) {
             state = error.state
             while (state.future.length == 0) {
@@ -1266,7 +1275,7 @@ const reinforce = new Card('Reinforce', {
                 'Choose a card to put a reinforce token on.',
                 state.hand.map(asChoice))
             if (card == null) return state
-            return addToken(card.id, 'reinforce')(state)
+            return addToken(card, 'reinforce')(state)
         }
     }),
     triggers: card => [{
@@ -1768,11 +1777,11 @@ const pathfinding = new Card('Pathfinding', {
     effect: card => ({
         description: 'Put a path token on a card in your hand.',
         effect: async function(state) {
-            [state, card] = await choice(state,
+            let target; [state, target] = await choice(state,
                 'Choose a card to put a path token on.',
                 state.hand.map(asChoice))
             if (card == null) return state
-            return addToken(card.id, 'path')(state)
+            return addToken(target, 'path')(state)
         }
     }),
     triggers: card => [{
@@ -1782,6 +1791,52 @@ const pathfinding = new Card('Pathfinding', {
     }],
 })
 mixins.push(pathfinding)
+
+const counterfeit = new Card('Counterfeit', {
+    effect: card => ({
+        description: 'Play a card from your ceck, then trash it.',
+        effect: async function(state) {
+            if (state.deck.length == 0) return state
+            let target; [state, target] = await choice(state,
+                'Choose a card to play then trash.',
+                state.deck.map(asChoice))
+            state = await target.play()(state)
+            return trash(target)(state)
+        }
+    })
+})
+buyable(counterfeit, 5)
+
+const decay = new Card('Decay', {
+    fixedCost: coin(4),
+    effect: card => ({
+        description: 'Remove all decay tokens for all cards in your hand.',
+        effect: async function(state) {
+            return doAll(state.hand.map(x => removeTokens(x, 'decay')))(state)
+        }
+    }),
+    triggers: card => [{
+        description: 'Whenever you play a card, put a decay token on it.',
+        handles: e => (e.type == 'play'),
+        effect: e => addToken(e.card, 'decay')
+    }, {
+        description: 'After you play a card, if it has 3 or more decay tokens on it trash it.',
+        handles: e => (e.type == 'afterPlay' && countTokens(e.card, 'decay') >= 3),
+        effect: e => trash(e.card),
+    }]
+})
+mixins.push(decay)
+
+const perpetualMotion = new Card('Perpetual Motion', {
+    triggers: card => [{
+        description: 'Whenever you have no cards in hand, draw a card.',
+        handles: (e, state) => (state.hand.length == 0 && state.deck.length > 0),
+        effect: e => draw(1)
+    }]
+})
+mixins.push(makeCard(perpetualMotion, time(6), true))
+
+
 
 // ------------------ Testing -------------------
 
