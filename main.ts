@@ -1,12 +1,13 @@
-// TODO: use cards instead of names for sources
-// TODO: when cards are playing or triggered effects are resolving, let them tick through stages...
-// TODO: be able to highlight cards during a choice?
-// TODO: set aside should show up at top somehow? (maybe next to resolving?)
-//
-// returns a copy x of object with x.k = v for all k:v in kvs
+// TODO: it's possible for ticks to get pretty messed up, if you play a card while activating it...
+// (we could fix this by putting things on a stack and using the top thing from the stack)
+// TODO: when an aura activates, put a faint pseudo-card in resolving?
+// should I do the same thing for triggers/abilities/buys? might just be better, and would probably avoid stack issue described above
+// TODO: I think the cost framework isn't really appropriate any more, but maybe think a bit before getting rid of it
+
 
 type State = any;
 
+// returns a copy x of object with x.k = v for all k:v in kvs
 function updates(object, kvs) {
     const result = Object.assign({}, object)
     Object.assign(result, kvs)
@@ -33,7 +34,7 @@ function applyToCard(card, f) {
     const id = card.id
     return function(state) {
         const [_, zone] = find(state, id)
-        return update(state, zone, state[zone].map(x => (x.id == id) ? f(x) : x))
+        return (zone == null) ? state : update(state, zone, state[zone].map(x => (x.id == id) ? f(x) : x))
     }
 }
 
@@ -42,9 +43,12 @@ function applyToCard(card, f) {
 //NOTE: this is slow, we should cache triggers (in a dictionary by event type) if it becomes a problem
 function trigger(e) {
     return async function(state) {
-        var triggers = state.play.concat(state.supplies).concat(state.auras).map(x => x.triggers()).flat()
-        triggers = triggers.filter(trigger => trigger.handles(e, state))
-        const effects = triggers.map(trigger => trigger.effect(e, state))
+        //this is a list of (source, trigger) pairs
+        //only need the source for teh purpose of tick, clear below
+        var triggers = state.play.concat(state.supplies).concat(state.auras).map(x => x.triggers().map(y => [x, y])).flat()
+        console.log(triggers)
+        triggers = triggers.filter(trigger => trigger[1].handles(e, state))
+        const effects = triggers.map(trigger => doAll([tick(trigger[0]), trigger[1].effect(e, state), clear(trigger[0])]))
         return doAll(effects)(state)
     }
 }
@@ -104,26 +108,25 @@ function nextTime(when, what, source={}) {
     return addAura(aura)
 }
 
-function countDistinct(xs) {
-    const y = {}
-    var result = 0
-    for (var i = 0; i < xs.length; i++) {
-        if (y[xs[i]] == undefined) {
-            y[xs[i]] = true
-            result += 1
-        }
-    }
-    return result
+// this updates a state by incrementing the tick on the given card,
+// or by removing the tick
+function tick(card) {
+    return applyToCard(card, applyToKey('tick', x => x + 1))
+}
+function clear(card) {
+    return applyToCard(card, applyToKey('tick', x => 0))
 }
 
 class Card {
     id: number;
     props: any;
     charge: number;
+    tick: number;
     tokens: Array<string>;
     name: string;
     constructor(name, props) {
         this.charge = 0
+        this.tick = 0
         this.tokens = []
         this.name = name
         this.props = props
@@ -163,7 +166,9 @@ class Card {
         const card = this
         return async function(state) {
             state = await trigger({type:'buy', card:card, source:source})(state)
+            state = tick(card)(state)
             state = await card.effect().effect(state)
+            state = clear(card)(state)
             let [newCard, _] = find(state, card.id)
             return trigger({type:'afterBuy', before:card, after:newCard, source:source})(state)
         }
@@ -174,8 +179,10 @@ class Card {
         return async function(state) {
             state = await move(card, 'resolving')(state)
             state = await trigger({type:'play', card:card, source:source})(state)
+            state = tick(card)(state)
             state = await effect.effect(state)
             if (!effect['skipDiscard']) state = await move(card, 'discard')(state)
+            state = clear(card)(state)
             let [newCard, _] = find(state, card.id)
             return trigger({type:'afterPlay', before:card, after:newCard, source:source})(state)
         }
@@ -589,7 +596,8 @@ function renderCard(card, state, i, asOption=null) {
     const chargehtml = card.charge > 0 ? `(${card.charge})` : ''
     const costhtml = renderCost(card.cost(state))
     const attrtext = asOption == null ? '' : `choosable chosen='false' option=${asOption}`
-    return [`<div class='card' ${attrtext}>`,
+    const ticktext = `tick=${card.tick}`
+    return [`<div class='card' ${ticktext} ${attrtext}>`,
             `<div class='cardbody'>${card}${tokenhtml}${chargehtml}</div>`,
             `<div class='cardcost'>${costhtml}</div>`,
             `<span class='tooltip'>${renderTooltip(card, state)}</span>`,
@@ -652,10 +660,12 @@ function clearChoice() {
 function useCard(card) {
     return async function(state) {
         let ability;
+        state = tick(card)(state);
         [state, ability] = await choice(state, "Choose an ability to use:",
             card.abilities().map(x => [['string', x.description], x]))
-        if (ability == null) return state
-        return payToDo(ability.cost, ability.effect)(state)
+        if (ability != null) state = await payToDo(ability.cost, ability.effect)(state)
+        state = clear(card)(state)
+        return state
     }
 }
 
@@ -1028,12 +1038,13 @@ const throneRoom = new Card('Throne Room', {
     effect: card => ({
         description: `Play a card in your hand. Then if it's in your discard pile play it again.`,
         effect: async function(state) {
-            [state, card] = await choice(state,
+            let target; [state, target] = await choice(state,
                 'Choose a card to play twice.',
                 state.hand.map(asChoice))
-            if (card == null) return state
-            state = await card.play(card)(state)
-            const [newCard, zone] = find(state, card.id)
+            if (target == null) return state
+            state = await target.play(card)(state)
+            state = tick(card)(state)
+            const [newCard, zone] = find(state, target.id)
             if (zone == 'discard') state = await newCard.play(card)(state)
             return state
         }
@@ -1046,14 +1057,15 @@ const crown = new Card('Crown', {
     effect: card => ({
         description: `Pay the cost of a card in your hand to play it. Then if it's in your discard pile play it again.`,
         effect: doOrAbort(async function(state) {
-            [state, card] = await choice(state,
+            let target; [state, target] = await choice(state,
                 'Choose a card to play twice.',
                 state.hand.map(asChoice))
-            if (card == null) return state
-            state = await card.payCost()(state)
-            state = await card.play(crown)(state)
-            const [newCard, zone] = find(state, card.id)
-            if (zone == 'discard') state = await newCard.play(crown)(state)
+            if (target == null) return state
+            state = await target.payCost()(state)
+            state = await target.play(card)(state)
+            state = tick(card)(state)
+            const [newCard, zone] = find(state, target.id)
+            if (zone == 'discard') state = await newCard.play(card)(state)
             return state
         })
     })
@@ -1156,7 +1168,7 @@ const village = new Card('Village', {
     fixedCost: time(1),
     effect: card => ({
         description: `+1 card. ${villagestr}`,
-        effect: doAll([draw(1), freeAction, freeAction])
+        effect: doAll([draw(1), freeAction, tick(card), freeAction])
     })
 })
 buyable(village, 3)
@@ -1165,7 +1177,7 @@ const bazaar = new Card('Bazaar', {
     fixedCost: time(1),
     effect: card => ({
         description: `+1 card. +$1. ${villagestr}`,
-        effect: doAll([draw(1), gainCoin(1), freeAction, freeAction])
+        effect: doAll([draw(1), gainCoin(1), freeAction, tick(card), freeAction])
     })
 })
 buyable(bazaar, 5)
@@ -1732,6 +1744,19 @@ const coppersmith = new Card('Coppersmith', {
 })
 buyable(coppersmith, 3)
 
+function countDistinct(xs) {
+    const y = {}
+    var result = 0
+    for (var i = 0; i < xs.length; i++) {
+        if (y[xs[i]] == undefined) {
+            y[xs[i]] = true
+            result += 1
+        }
+    }
+    return result
+}
+
+
 const harvest = new Card('Harvest', {
     fixedCost: time(1),
     effect: _ => ({
@@ -1789,6 +1814,7 @@ const kingsCourt = new Card("King's Court", {
             if (target == null) return state
             state = await target.play(card)(state)
             for (var i = 0; i < 2; i++) {
+                state = tick(card)(state)
                 let zone; [target, zone] = find(state, target.id)
                 if (zone == 'discard') state = await target.play(card)(state)
             }
@@ -1954,9 +1980,9 @@ const cotr = new Card('Coin of the Realm', {
         effect: doAll([gainCoin(1), move(card, 'play')])
     }),
     abilities: card => [{
-        description: `${villagestr} Disard this.`,
+        description: `${villagestr} Discard this.`,
         cost: noop,
-        effect: doAll([freeAction, freeAction, move(card, 'discard')]),
+        effect: doAll([freeAction, tick(card), freeAction, move(card, 'discard')]),
     }]
 })
 buyable(cotr, 3)
@@ -1971,6 +1997,7 @@ const mountainVillage = new Card('Mountain Village', {
             let target;
             [state, target] = await choice(state, 'Choose a card costing up to @ to play',allowNull(options))
             if (target != null) state = await target.play()(state)
+            state = tick(card)(state)
             return freeAction(state)
         }
     })
@@ -2017,8 +2044,8 @@ register(makeLivery)
 const freeMoney = new Card('Free money', {
     fixedCost: time(0),
     effect: card => ({
-        description: '+$10',
-        effect: gainCoin(10)
+        description: '+$100',
+        effect: gainCoin(100)
     })
 })
 cheats.push(freeMoney)
@@ -2060,6 +2087,15 @@ const freeTrash = new Card('Free trash', {
     })
 })
 cheats.push(freeTrash)
+
+const drawAll = new Card('Draw all', {
+    fixedCost: time(0),
+    effect: card => ({
+        description: 'Put all cards from your deck and discard pile into your hand.',
+        effect: doAll([moveWholeZone('discard', 'hand'), moveWholeZone('deck', 'hand')]),
+    })
+})
+cheats.push(drawAll)
 
 var test = false
 //test = true

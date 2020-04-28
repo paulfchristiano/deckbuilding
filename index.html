@@ -26,6 +26,9 @@
     text-align: center;
     position: relative;
 }
+.option {
+    max-width: 20em;
+}
 #resolving {
     display:inline-block;
 }
@@ -35,13 +38,40 @@
     top:33%;
     padding-left: 3px;
 }
+[tick='1'] {
+    background-color: rgba(0, 128, 255, 0.1);
+}
+[tick='2'] {
+    background-color: rgba(0, 255, 128, 0.1);
+}
+[tick='3'] {
+    background-color: rgba(255, 0, 128, 0.1);
+}
 [choosable] {
     background-color: rgba(254, 216, 177, 0.4);
     cursor:pointer;
 }
+[tick='1'][choosable] {
+    background: linear-gradient(45deg, rgba(254, 216, 177, 0.4) 0%, rgba(0, 128, 255, 0.1) 100%);
+}
+[tick='2'][choosable] {
+    background: linear-gradient(45deg, rgba(254, 216, 177, 0.4) 0%, rgba(0, 255, 128, 0.1) 100%);
+}
+[tick='3'][choosable] {
+    background: linear-gradient(45deg, rgba(254, 216, 177, 0.4) 0%, rgba(255, 0, 128, 0.1) 100%);
+}
 [chosen=true] {
     background-color: rgba(254, 216, 177, 1.0);
     cursor:pointer;
+}
+[tick='1'][chosen] {
+    background: linear-gradient(45deg, rgba(254, 216, 177, 1.0) 0%, rgba(0, 128, 255, 0.1) 100%);
+}
+[tick='2'][chosen] {
+    background: linear-gradient(45deg, rgba(254, 216, 177, 1.0) 0%, rgba(0, 255, 128, 0.1) 100%);
+}
+[tick='3'][chosen] {
+    background: linear-gradient(45deg, rgba(254, 216, 177, 1.0) 0%, rgba(0, 255, 128, 0.1) 100%);
 }
 .zone {
     min-height: 3.1em;
@@ -56,7 +86,7 @@
 
 .tooltip {
   visibility: hidden;
-  width: 300px;
+  width: 20em;
   background-color: black;
   color: #fff;
   text-align: center;

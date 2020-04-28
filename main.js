@@ -1,9 +1,8 @@
-// TODO: use cards instead of names for sources
-// TODO: when cards are playing or triggered effects are resolving, let them tick through stages...
-// TODO: be able to highlight cards during a choice?
-// TODO: set aside should show up at top somehow? (maybe next to resolving?)
-//
-// returns a copy x of object with x.k = v for all k:v in kvs
+// TODO: it's possible for ticks to get pretty messed up, if you play a card while activating it...
+// (we could fix this by putting things on a stack and using the top thing from the stack)
+// TODO: when an aura activates, put a faint pseudo-card in resolving?
+// should I do the same thing for triggers/abilities/buys? might just be better, and would probably avoid stack issue described above
+// TODO: I think the cost framework isn't really appropriate any more, but maybe think a bit before getting rid of it
 var __extends = (this && this.__extends) || (function () {
     var extendStatics = function (d, b) {
         extendStatics = Object.setPrototypeOf ||
@@ -69,6 +68,7 @@ var __read = (this && this.__read) || function (o, n) {
     }
     return ar;
 };
+// returns a copy x of object with x.k = v for all k:v in kvs
 function updates(object, kvs) {
     var result = Object.assign({}, object);
     Object.assign(result, kvs);
@@ -92,7 +92,7 @@ function applyToCard(card, f) {
     var id = card.id;
     return function (state) {
         var _a = __read(find(state, id), 2), _ = _a[0], zone = _a[1];
-        return update(state, zone, state[zone].map(function (x) { return (x.id == id) ? f(x) : x; }));
+        return (zone == null) ? state : update(state, zone, state[zone].map(function (x) { return (x.id == id) ? f(x) : x; }));
     };
 }
 //e is an event that just happened
@@ -103,9 +103,10 @@ function trigger(e) {
         return __awaiter(this, void 0, void 0, function () {
             var triggers, effects;
             return __generator(this, function (_a) {
-                triggers = state.play.concat(state.supplies).concat(state.auras).map(function (x) { return x.triggers(); }).flat();
-                triggers = triggers.filter(function (trigger) { return trigger.handles(e, state); });
-                effects = triggers.map(function (trigger) { return trigger.effect(e, state); });
+                triggers = state.play.concat(state.supplies).concat(state.auras).map(function (x) { return x.triggers().map(function (y) { return [x, y]; }); }).flat();
+                console.log(triggers);
+                triggers = triggers.filter(function (trigger) { return trigger[1].handles(e, state); });
+                effects = triggers.map(function (trigger) { return doAll([tick(trigger[0]), trigger[1].effect(e, state), clear(trigger[0])]); });
                 return [2 /*return*/, doAll(effects)(state)];
             });
         });
@@ -179,20 +180,18 @@ function nextTime(when, what, source) {
     };
     return addAura(aura);
 }
-function countDistinct(xs) {
-    var y = {};
-    var result = 0;
-    for (var i = 0; i < xs.length; i++) {
-        if (y[xs[i]] == undefined) {
-            y[xs[i]] = true;
-            result += 1;
-        }
-    }
-    return result;
+// this updates a state by incrementing the tick on the given card,
+// or by removing the tick
+function tick(card) {
+    return applyToCard(card, applyToKey('tick', function (x) { return x + 1; }));
+}
+function clear(card) {
+    return applyToCard(card, applyToKey('tick', function (x) { return 0; }));
 }
 var Card = /** @class */ (function () {
     function Card(name, props) {
         this.charge = 0;
+        this.tick = 0;
         this.tokens = [];
         this.name = name;
         this.props = props;
@@ -245,9 +244,11 @@ var Card = /** @class */ (function () {
                         case 0: return [4 /*yield*/, trigger({ type: 'buy', card: card, source: source })(state)];
                         case 1:
                             state = _b.sent();
+                            state = tick(card)(state);
                             return [4 /*yield*/, card.effect().effect(state)];
                         case 2:
                             state = _b.sent();
+                            state = clear(card)(state);
                             _a = __read(find(state, card.id), 2), newCard = _a[0], _ = _a[1];
                             return [2 /*return*/, trigger({ type: 'afterBuy', before: card, after: newCard, source: source })(state)];
                     }
@@ -270,6 +271,7 @@ var Card = /** @class */ (function () {
                             return [4 /*yield*/, trigger({ type: 'play', card: card, source: source })(state)];
                         case 2:
                             state = _b.sent();
+                            state = tick(card)(state);
                             return [4 /*yield*/, effect.effect(state)];
                         case 3:
                             state = _b.sent();
@@ -279,6 +281,7 @@ var Card = /** @class */ (function () {
                             state = _b.sent();
                             _b.label = 5;
                         case 5:
+                            state = clear(card)(state);
                             _a = __read(find(state, card.id), 2), newCard = _a[0], _ = _a[1];
                             return [2 /*return*/, trigger({ type: 'afterPlay', before: card, after: newCard, source: source })(state)];
                     }
@@ -843,7 +846,8 @@ function renderCard(card, state, i, asOption) {
     var chargehtml = card.charge > 0 ? "(" + card.charge + ")" : '';
     var costhtml = renderCost(card.cost(state));
     var attrtext = asOption == null ? '' : "choosable chosen='false' option=" + asOption;
-    return ["<div class='card' " + attrtext + ">",
+    var ticktext = "tick=" + card.tick;
+    return ["<div class='card' " + ticktext + " " + attrtext + ">",
         "<div class='cardbody'>" + card + tokenhtml + chargehtml + "</div>",
         "<div class='cardcost'>" + costhtml + "</div>",
         "<span class='tooltip'>" + renderTooltip(card, state) + "</span>",
@@ -911,12 +915,19 @@ function useCard(card) {
             var _a;
             return __generator(this, function (_b) {
                 switch (_b.label) {
-                    case 0: return [4 /*yield*/, choice(state, "Choose an ability to use:", card.abilities().map(function (x) { return [['string', x.description], x]; }))];
+                    case 0:
+                        state = tick(card)(state);
+                        return [4 /*yield*/, choice(state, "Choose an ability to use:", card.abilities().map(function (x) { return [['string', x.description], x]; }))];
                     case 1:
                         _a = __read.apply(void 0, [_b.sent(), 2]), state = _a[0], ability = _a[1];
-                        if (ability == null)
-                            return [2 /*return*/, state];
-                        return [2 /*return*/, payToDo(ability.cost, ability.effect)(state)];
+                        if (!(ability != null)) return [3 /*break*/, 3];
+                        return [4 /*yield*/, payToDo(ability.cost, ability.effect)(state)];
+                    case 2:
+                        state = _b.sent();
+                        _b.label = 3;
+                    case 3:
+                        state = clear(card)(state);
+                        return [2 /*return*/, state];
                 }
             });
         });
@@ -1363,19 +1374,20 @@ var throneRoom = new Card('Throne Room', {
         description: "Play a card in your hand. Then if it's in your discard pile play it again.",
         effect: function (state) {
             return __awaiter(this, void 0, void 0, function () {
-                var _a, newCard, zone;
+                var target, _a, newCard, zone;
                 var _b;
                 return __generator(this, function (_c) {
                     switch (_c.label) {
                         case 0: return [4 /*yield*/, choice(state, 'Choose a card to play twice.', state.hand.map(asChoice))];
                         case 1:
-                            _b = __read.apply(void 0, [_c.sent(), 2]), state = _b[0], card = _b[1];
-                            if (card == null)
+                            _b = __read.apply(void 0, [_c.sent(), 2]), state = _b[0], target = _b[1];
+                            if (target == null)
                                 return [2 /*return*/, state];
-                            return [4 /*yield*/, card.play(card)(state)];
+                            return [4 /*yield*/, target.play(card)(state)];
                         case 2:
                             state = _c.sent();
-                            _a = __read(find(state, card.id), 2), newCard = _a[0], zone = _a[1];
+                            state = tick(card)(state);
+                            _a = __read(find(state, target.id), 2), newCard = _a[0], zone = _a[1];
                             if (!(zone == 'discard')) return [3 /*break*/, 4];
                             return [4 /*yield*/, newCard.play(card)(state)];
                         case 3:
@@ -1395,24 +1407,25 @@ var crown = new Card('Crown', {
         description: "Pay the cost of a card in your hand to play it. Then if it's in your discard pile play it again.",
         effect: doOrAbort(function (state) {
             return __awaiter(this, void 0, void 0, function () {
-                var _a, newCard, zone;
+                var target, _a, newCard, zone;
                 var _b;
                 return __generator(this, function (_c) {
                     switch (_c.label) {
                         case 0: return [4 /*yield*/, choice(state, 'Choose a card to play twice.', state.hand.map(asChoice))];
                         case 1:
-                            _b = __read.apply(void 0, [_c.sent(), 2]), state = _b[0], card = _b[1];
-                            if (card == null)
+                            _b = __read.apply(void 0, [_c.sent(), 2]), state = _b[0], target = _b[1];
+                            if (target == null)
                                 return [2 /*return*/, state];
-                            return [4 /*yield*/, card.payCost()(state)];
+                            return [4 /*yield*/, target.payCost()(state)];
                         case 2:
                             state = _c.sent();
-                            return [4 /*yield*/, card.play(crown)(state)];
+                            return [4 /*yield*/, target.play(card)(state)];
                         case 3:
                             state = _c.sent();
-                            _a = __read(find(state, card.id), 2), newCard = _a[0], zone = _a[1];
+                            state = tick(card)(state);
+                            _a = __read(find(state, target.id), 2), newCard = _a[0], zone = _a[1];
                             if (!(zone == 'discard')) return [3 /*break*/, 5];
-                            return [4 /*yield*/, newCard.play(crown)(state)];
+                            return [4 /*yield*/, newCard.play(card)(state)];
                         case 4:
                             state = _c.sent();
                             _c.label = 5;
@@ -1556,7 +1569,7 @@ var village = new Card('Village', {
     fixedCost: time(1),
     effect: function (card) { return ({
         description: "+1 card. " + villagestr,
-        effect: doAll([draw(1), freeAction, freeAction])
+        effect: doAll([draw(1), freeAction, tick(card), freeAction])
     }); }
 });
 buyable(village, 3);
@@ -1564,7 +1577,7 @@ var bazaar = new Card('Bazaar', {
     fixedCost: time(1),
     effect: function (card) { return ({
         description: "+1 card. +$1. " + villagestr,
-        effect: doAll([draw(1), gainCoin(1), freeAction, freeAction])
+        effect: doAll([draw(1), gainCoin(1), freeAction, tick(card), freeAction])
     }); }
 });
 buyable(bazaar, 5);
@@ -2329,6 +2342,17 @@ var coppersmith = new Card('Coppersmith', {
     }); }
 });
 buyable(coppersmith, 3);
+function countDistinct(xs) {
+    var y = {};
+    var result = 0;
+    for (var i = 0; i < xs.length; i++) {
+        if (y[xs[i]] == undefined) {
+            y[xs[i]] = true;
+            result += 1;
+        }
+    }
+    return result;
+}
 var harvest = new Card('Harvest', {
     fixedCost: time(1),
     effect: function (_) { return ({
@@ -2404,6 +2428,7 @@ var kingsCourt = new Card("King's Court", {
                             _c.label = 3;
                         case 3:
                             if (!(i < 2)) return [3 /*break*/, 6];
+                            state = tick(card)(state);
                             zone = void 0;
                             _b = __read(find(state, target.id), 2), target = _b[0], zone = _b[1];
                             if (!(zone == 'discard')) return [3 /*break*/, 5];
@@ -2631,9 +2656,9 @@ var cotr = new Card('Coin of the Realm', {
         effect: doAll([gainCoin(1), move(card, 'play')])
     }); },
     abilities: function (card) { return [{
-            description: villagestr + " Disard this.",
+            description: villagestr + " Discard this.",
             cost: noop,
-            effect: doAll([freeAction, freeAction, move(card, 'discard')]),
+            effect: doAll([freeAction, tick(card), freeAction, move(card, 'discard')]),
         }]; }
 });
 buyable(cotr, 3);
@@ -2658,7 +2683,9 @@ var mountainVillage = new Card('Mountain Village', {
                         case 2:
                             state = _b.sent();
                             _b.label = 3;
-                        case 3: return [2 /*return*/, freeAction(state)];
+                        case 3:
+                            state = tick(card)(state);
+                            return [2 /*return*/, freeAction(state)];
                     }
                 });
             });
@@ -2703,8 +2730,8 @@ register(makeLivery);
 var freeMoney = new Card('Free money', {
     fixedCost: time(0),
     effect: function (card) { return ({
-        description: '+$10',
-        effect: gainCoin(10)
+        description: '+$100',
+        effect: gainCoin(100)
     }); }
 });
 cheats.push(freeMoney);
@@ -2759,6 +2786,14 @@ var freeTrash = new Card('Free trash', {
     }); }
 });
 cheats.push(freeTrash);
+var drawAll = new Card('Draw all', {
+    fixedCost: time(0),
+    effect: function (card) { return ({
+        description: 'Put all cards from your deck and discard pile into your hand.',
+        effect: doAll([moveWholeZone('discard', 'hand'), moveWholeZone('deck', 'hand')]),
+    }); }
+});
+cheats.push(drawAll);
 var test = false;
 //test = true
 //# sourceMappingURL=main.js.map
