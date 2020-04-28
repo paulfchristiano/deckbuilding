@@ -1,9 +1,6 @@
-// TODO: improve sorting of hand/deck
-// TODO: visually mark on TR/crown/village/bazaar whether we are on the first or second part
-// (could do slightly different colors or something?)
-// TODO: when a triggered effect or buy is resolving, put a greyed-out item in the resolving area?
-// (e.g. so you know that you are currently playing from twin/innovation/citadel? or maybe highlight the thing that's triggering?)
-// TODO: be able to highlight cards during a choice? (so that Sage doesn't have to set aside)
+// TODO: use cards instead of names for sources
+// TODO: when cards are playing or triggered effects are resolving, let them tick through stages...
+// TODO: be able to highlight cards during a choice?
 // TODO: set aside should show up at top somehow? (maybe next to resolving?)
 //
 // returns a copy x of object with x.k = v for all k:v in kvs
@@ -85,17 +82,24 @@ function deleteAura(id) {
     }
 }
 
+function clearAurasFrom(card) {
+    return async function(state) {
+        return update(state, 'auras', state.auras.filter(x => x.source == null || x.source.id != card.id))
+    }
+}
+
 //add an aura that triggers what(e) next time an event matching when(e) occurs, then deletes itself
-function nextTime(when, what) {
+function nextTime(when, what, source=null) {
     const aura = {
         replacers() { return [] },
         triggers() {
             const id = this.id
             return [{
                 handles(e) { return when(e) },
-                effect(e) { return doAll([what(e), deleteAura(id)]) }
+                effect(e) { return doAll([deleteAura(id), what(e)]) }
             }]
-        }
+        },
+        source: source
     }
     return addAura(aura)
 }
@@ -157,11 +161,12 @@ class Card {
     }
     buy(source=null) {
         const card = this
-        return doAll([
-            trigger({type:'buy', card:card, source:source}),
-            this.effect().effect,
-            trigger({type:'afterBuy', card:card, source:source})
-        ])
+        return async function(state) {
+            state = await trigger({type:'buy', card:card, source:source})(state)
+            state = await card.effect().effect(state)
+            let [newCard, _] = find(state, card.id)
+            return trigger({type:'afterBuy', before:card, after:newCard, source:source})(state)
+        }
     }
     play(source=null) {
         const effect = this.effect()
@@ -204,11 +209,19 @@ function gainCard(card, cost)  {
     })
 }
 
+function a(x) {
+    const s = x.toString()
+    const c = s[0].toLowerCase()
+    if (c == 'a' || c == 'e' || c == 'i' || c == 'o' || c == 'u')
+        return 'an ' + s
+    return 'a ' + s
+}
+
 function makeCard(card, cost, selfdestruct=false)  {
     return new Card(card.name, {
         fixedCost: cost,
         effect: supply => ({
-            description:`Create a ${card} in play.${selfdestruct ? ' Trash this.' : ''}`,
+            description:`Create ${a(card)} in play.${selfdestruct ? ' Trash this.' : ''}`,
             effect: doAll([create(card, 'play'), selfdestruct ? trash(supply) : noop])
         }),
         relatedCards: [card],
@@ -358,8 +371,10 @@ function randomChoices(state, xs, n, seed=null) {
 
 function draw(n, source=null) {
     return async function(state) {
-        var drawParams = {type:'draw', draw:n, source:source}
+        var drawParams = {type:'draw', draw:n, source:source, effects:[]}
         drawParams = replace(drawParams, state)
+        console.log(drawParams.effects)
+        state = await doAll(drawParams.effects)(state)
         n = drawParams.draw
         var drawn = 0
         for (var i = 0; i < n; i++) {
@@ -1011,9 +1026,13 @@ coreSupplies.push(gainCard(province, coin(8)))
 // ----- MIXINS -----
 //
 
+function register(card, test=null) {
+    mixins.push(card)
+    if (test=='test') testing.push(card)
+    else if (test != null) throw Error("bad argument to register")
+}
 function buyable(card, n, test=null) {
-    mixins.push(gainCard(card, coin(n)))
-    if (test=='test') testing.push(gainCard(card, coin(n)))
+    register(gainCard(card, coin(n)), test)
 }
 
 const throneRoom = new Card('Throne Room', {
@@ -1143,11 +1162,12 @@ async function freeAction(state) {
     [state, target] = await choice(state, 'Choose a card costing up to @ to play',allowNull(options))
     return (target == null) ? state : target.play()(state)
 }
+const villagestr = 'You may play a card in your hand costing up to @. You may play a card in your hand costing up to @.'
 
 const village = new Card('Village', {
     fixedCost: time(1),
     effect: card => ({
-        description: '+1 card. You may play a card in your hand costing up to @, twice.',
+        description: `+1 card. ${villagestr}`,
         effect: doAll([draw(1), freeAction, freeAction])
     })
 })
@@ -1156,14 +1176,13 @@ buyable(village, 3)
 const bazaar = new Card('Bazaar', {
     fixedCost: time(1),
     effect: card => ({
-        description: '+1 card. +$1. You may play a card in your hand costing up to @, twice.',
+        description: `+1 card. +$1. ${villagestr}`,
         effect: doAll([draw(1), gainCoin(1), freeAction, freeAction])
     })
 })
 buyable(bazaar, 5)
 
 const workshop = new Card('Workshop', {
-    fixedCost: time(1),
     effect: card => ({
         description: 'Buy a card in the supply costing up to $4.',
         effect: async function(state) {
@@ -1175,7 +1194,34 @@ const workshop = new Card('Workshop', {
         }
     })
 })
-buyable(workshop, 2)
+buyable(workshop, 3)
+
+const shippingLane = new Card('Shipping Lane', {
+    fixedCost: time(1),
+    effect: card => ({
+        description: "+$2. Next time you finish buying a card this turn, buy it again if it still exists.",
+        effect: doAll([
+            gainCoin(2),
+            nextTime(e => e.type == 'afterBuy', e => (e.after == null) ? noop : e.after.buy(card.name))
+        ])
+    })
+})
+buyable(shippingLane, 5)
+
+const factory = new Card('Factory', {
+    fixedCost: time(1),
+    effect: card => ({
+        description: 'Buy a card in the supply costing up to $6.',
+        effect: async function(state) {
+            const options = state.supplies.filter(card => (card.cost(state).coin <= 6 && card.cost(state).time <= 0));
+            let target;
+            [state, target] = await choice(state, 'Choose a card costing up to $6 to buy.',
+                allowNull(options.map(asChoice)))
+            return target.buy('workshop')(state)
+        }
+    })
+})
+buyable(factory, 4)
 
 const feast = new Card('Feast', {
     fixedCost: time(0),
@@ -1315,7 +1361,7 @@ const expedite = new Card('Expedite', {
             ' Put a charge token on this. It costs $1 more per charge token on it.',
         effect: doAll([charge(card, 1), nextTime(
             e => (e.type == 'create'),
-            e => move(e.card, 'hand')
+            e => move(e.card, 'hand'),
         )])
     })
 })
@@ -1577,22 +1623,23 @@ const platinum = new Card("Platinum", {
 })
 buyable(platinum, 10)
 
-//TODO: this should probably be an ability that makes a next time aura rather than an optoinal trigger?
+//TODO: this should probably be an ability that makes a next time aura rather than an optional trigger?
 const innovation = new Card("Innovation", {
-    triggers: card => [{
-        description: "Whenever you create a card in your discard pile, you may discard your hand, lose all $, and play it.",
-        handles: e => (e.type == 'create' && e.toZone == 'discard'),
-        effect: e => async function(state) {
-            let activate;
-            [state, activate] = await choice(state, `Do you want to discard your hand, lose all $, and play ${e.card.name}?`, yesOrNo)
-            if (!activate) return state
-            state = await moveWholeZone('hand', 'discard')(state)
-            state = await setCoins(0)(state)
-            return e.card.play('innovation')(state)
-        }
+    abilities: card => [{
+        description: "Next time you create a card in your discard pile, discard your hand, lose all $, and play it." +
+          " This can't be used to play the same card multiple times.",
+        cost: noop,
+        effect: doAll([
+            clearAurasFrom(card),
+            nextTime(
+                e => (e.type == 'create' && e.toZone == 'discard'),
+                e => doAll([moveWholeZone('hand', 'discard'), setCoins(0), e.card.play(innovation.name)]),
+                card
+            )
+        ])
     }]
 })
-mixins.push(makeCard(innovation, {coin:8, time:0}, true))
+mixins.push(makeCard(innovation, {coin:7, time:0}, true))
 
 const citadel = new Card("Citadel", {
     triggers: card => [{
@@ -1876,26 +1923,105 @@ const coffers = new Card('Coffers', {
         effect: gainCoin(1),
     }]
 })
+function createIfNeeded(card) {
+    return async function(state) {
+        if (state.play.some(x => x.name == card.name)) return state
+        return create(card, 'play')(state)
+    }
+
+}
+function ensureAtStart(card) {
+    return {
+        description: `At the start of the game, create a ${card} in play if there isn't one yet.`,
+        handles: e => e.type == 'gameStart',
+        effect: e => createIfNeeded(card)
+    }
+}
+function fill(card, n) {
+    return async function(state) {
+        console.log(card)
+        let target; [state, target] = await choice(state,
+            `Place two charge tokens on a ${card}.`,
+            state.play.filter(c => c.name == card.name).map(asChoice))
+        console.log(target)
+        return (target == null) ? state : charge(target, n)(state)
+    }
+}
 const fillCoffers = new Card('Fill Coffers', {
     fixedCost: coin(3),
     effect: card => ({
-        description: 'Put two charge tokens on a Coffers in play.',
-        effect: async function(state) {
-            let target; [state, target] = await choice(state,
-                'Place two charge tokens on a coffers.',
-                state.play.filter(c => c.name == coffers.name).map(asChoice))
-            return (target == null) ? state : charge(target, 2)(state)
-        }
+        description: `Put two charge tokens on a ${coffers} in play.`,
+        effect: fill(coffers, 2)
     }),
-    triggers: card => [{
-        description: 'At the start of the game, create a Coffers in play.',
-        handles: e => e.type == 'gameStart',
-        effect: e => create(coffers, 'play')
+    triggers: card => [ensureAtStart(coffers)]
+})
+register(fillCoffers)
+
+const cotr = new Card('Coin of the Realm', {
+    fixedCost: time(1),
+    effect: card => ({
+        description: '+$1. Put this in play.',
+        skipDiscard: true,
+        effect: doAll([gainCoin(1), move(card, 'play')])
+    }),
+    abilities: card => [{
+        description: `${villagestr} Disard this.`,
+        cost: noop,
+        effect: doAll([freeAction, freeAction, move(card, 'discard')]),
     }]
 })
-mixins.push(fillCoffers)
+buyable(cotr, 3)
 
+const mountainVillage = new Card('Mountain Village', {
+    fixedCost: time(1),
+    effect: card => ({
+        description: "You may play a card in your hand or discard pile costing up to @." +
+            "You may play a card in your hand costing up to @.",
+        effect: async function(state) {
+            const options = state.hand.concat(state.discard).filter(card => (card.cost(state).time <= 1)).map(asChoice);
+            let target;
+            [state, target] = await choice(state, 'Choose a card costing up to @ to play',allowNull(options))
+            if (target != null) state = await target.play()(state)
+            return freeAction(state)
+        }
+    })
+})
+buyable(mountainVillage, 3)
 
+const stables = new Card('Stables', {
+    abilities: card => [{
+        description: 'Remove a charge counter from this. If you do, +1 card.',
+        cost: discharge(card, 1),
+        effect: draw(1, 'stables'),
+    }]
+})
+const fillStables = new Card('Fill Stables', {
+    fixedCost: coin(4),
+    effect: card => ({
+        description: `Put two charge tokens on a ${stables} in play.`,
+        effect: fill(stables, 2),
+    }),
+    triggers: card => [ensureAtStart(stables)],
+})
+register(fillStables)
+
+const livery = new Card('Livery', {
+    replacers: card => [{
+        description: `Whenever you would draw cards other than with ${stables},` +
+            ` put that many charge tokens on a ${stables} in play instead.`,
+        handles: e => (e.type == 'draw' && e.source != 'stables'),
+        replace: e => updates(e, {'draw':0, 'effects':e.effects.concat([fill(stables, e.draw)])})
+    }]
+})
+const makeLivery = new Card('Livery', {
+    fixedCost: time(4),
+    relatedCards: [livery, stables],
+    effect: card => ({
+        description: `Create a ${livery.name} in play, and a stables if there isn't one yet.`,
+        effect: doAll([create(livery, 'play'), createIfNeeded(stables)])
+    }),
+})
+register(makeLivery)
 
 // ------------------ Testing -------------------
 

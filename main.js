@@ -1,9 +1,6 @@
-// TODO: improve sorting of hand/deck
-// TODO: visually mark on TR/crown/village/bazaar whether we are on the first or second part
-// (could do slightly different colors or something?)
-// TODO: when a triggered effect or buy is resolving, put a greyed-out item in the resolving area?
-// (e.g. so you know that you are currently playing from twin/innovation/citadel? or maybe highlight the thing that's triggering?)
-// TODO: be able to highlight cards during a choice? (so that Sage doesn't have to set aside)
+// TODO: use cards instead of names for sources
+// TODO: when cards are playing or triggered effects are resolving, let them tick through stages...
+// TODO: be able to highlight cards during a choice?
 // TODO: set aside should show up at top somehow? (maybe next to resolving?)
 //
 // returns a copy x of object with x.k = v for all k:v in kvs
@@ -157,17 +154,28 @@ function deleteAura(id) {
         });
     };
 }
+function clearAurasFrom(card) {
+    return function (state) {
+        return __awaiter(this, void 0, void 0, function () {
+            return __generator(this, function (_a) {
+                return [2 /*return*/, update(state, 'auras', state.auras.filter(function (x) { return x.source == null || x.source.id != card.id; }))];
+            });
+        });
+    };
+}
 //add an aura that triggers what(e) next time an event matching when(e) occurs, then deletes itself
-function nextTime(when, what) {
+function nextTime(when, what, source) {
+    if (source === void 0) { source = null; }
     var aura = {
         replacers: function () { return []; },
         triggers: function () {
             var id = this.id;
             return [{
                     handles: function (e) { return when(e); },
-                    effect: function (e) { return doAll([what(e), deleteAura(id)]); }
+                    effect: function (e) { return doAll([deleteAura(id), what(e)]); }
                 }];
-        }
+        },
+        source: source
     };
     return addAura(aura);
 }
@@ -229,11 +237,23 @@ var Card = /** @class */ (function () {
     Card.prototype.buy = function (source) {
         if (source === void 0) { source = null; }
         var card = this;
-        return doAll([
-            trigger({ type: 'buy', card: card, source: source }),
-            this.effect().effect,
-            trigger({ type: 'afterBuy', card: card, source: source })
-        ]);
+        return function (state) {
+            return __awaiter(this, void 0, void 0, function () {
+                var _a, newCard, _;
+                return __generator(this, function (_b) {
+                    switch (_b.label) {
+                        case 0: return [4 /*yield*/, trigger({ type: 'buy', card: card, source: source })(state)];
+                        case 1:
+                            state = _b.sent();
+                            return [4 /*yield*/, card.effect().effect(state)];
+                        case 2:
+                            state = _b.sent();
+                            _a = __read(find(state, card.id), 2), newCard = _a[0], _ = _a[1];
+                            return [2 /*return*/, trigger({ type: 'afterBuy', before: card, after: newCard, source: source })(state)];
+                    }
+                });
+            });
+        };
     };
     Card.prototype.play = function (source) {
         if (source === void 0) { source = null; }
@@ -293,12 +313,19 @@ function gainCard(card, cost) {
         relatedCards: [card],
     });
 }
+function a(x) {
+    var s = x.toString();
+    var c = s[0].toLowerCase();
+    if (c == 'a' || c == 'e' || c == 'i' || c == 'o' || c == 'u')
+        return 'an ' + s;
+    return 'a ' + s;
+}
 function makeCard(card, cost, selfdestruct) {
     if (selfdestruct === void 0) { selfdestruct = false; }
     return new Card(card.name, {
         fixedCost: cost,
         effect: function (supply) { return ({
-            description: "Create a " + card + " in play." + (selfdestruct ? ' Trash this.' : ''),
+            description: "Create " + a(card) + " in play." + (selfdestruct ? ' Trash this.' : ''),
             effect: doAll([create(card, 'play'), selfdestruct ? trash(supply) : noop])
         }); },
         relatedCards: [card],
@@ -497,25 +524,29 @@ function draw(n, source) {
             return __generator(this, function (_b) {
                 switch (_b.label) {
                     case 0:
-                        drawParams = { type: 'draw', draw: n, source: source };
+                        drawParams = { type: 'draw', draw: n, source: source, effects: [] };
                         drawParams = replace(drawParams, state);
+                        console.log(drawParams.effects);
+                        return [4 /*yield*/, doAll(drawParams.effects)(state)];
+                    case 1:
+                        state = _b.sent();
                         n = drawParams.draw;
                         drawn = 0;
                         i = 0;
-                        _b.label = 1;
-                    case 1:
-                        if (!(i < n)) return [3 /*break*/, 4];
-                        if (!(state.deck.length > 0)) return [3 /*break*/, 3];
+                        _b.label = 2;
+                    case 2:
+                        if (!(i < n)) return [3 /*break*/, 5];
+                        if (!(state.deck.length > 0)) return [3 /*break*/, 4];
                         _a = __read(shiftFirst(state.deck), 2), nextCard = _a[0], rest = _a[1];
                         return [4 /*yield*/, moveFromTo(nextCard, 'deck', 'hand', 'sorted')(state)];
-                    case 2:
+                    case 3:
                         state = _b.sent();
                         drawn += 1;
-                        _b.label = 3;
-                    case 3:
+                        _b.label = 4;
+                    case 4:
                         i++;
-                        return [3 /*break*/, 1];
-                    case 4: return [2 /*return*/, trigger({ type: 'draw', drawn: drawn, triedToDraw: n, source: source })(state)];
+                        return [3 /*break*/, 2];
+                    case 5: return [2 /*return*/, trigger({ type: 'draw', drawn: drawn, triedToDraw: n, source: source })(state)];
                 }
             });
         });
@@ -1328,11 +1359,17 @@ coreSupplies.push(gainCard(province, coin(8)));
 //
 // ----- MIXINS -----
 //
+function register(card, test) {
+    if (test === void 0) { test = null; }
+    mixins.push(card);
+    if (test == 'test')
+        testing.push(card);
+    else if (test != null)
+        throw Error("bad argument to register");
+}
 function buyable(card, n, test) {
     if (test === void 0) { test = null; }
-    mixins.push(gainCard(card, coin(n)));
-    if (test == 'test')
-        testing.push(gainCard(card, coin(n)));
+    register(gainCard(card, coin(n)), test);
 }
 var throneRoom = new Card('Throne Room', {
     fixedCost: time(1),
@@ -1528,10 +1565,11 @@ function freeAction(state) {
         });
     });
 }
+var villagestr = 'You may play a card in your hand costing up to @. You may play a card in your hand costing up to @.';
 var village = new Card('Village', {
     fixedCost: time(1),
     effect: function (card) { return ({
-        description: '+1 card. You may play a card in your hand costing up to @, twice.',
+        description: "+1 card. " + villagestr,
         effect: doAll([draw(1), freeAction, freeAction])
     }); }
 });
@@ -1539,13 +1577,12 @@ buyable(village, 3);
 var bazaar = new Card('Bazaar', {
     fixedCost: time(1),
     effect: function (card) { return ({
-        description: '+1 card. +$1. You may play a card in your hand costing up to @, twice.',
+        description: "+1 card. +$1. " + villagestr,
         effect: doAll([draw(1), gainCoin(1), freeAction, freeAction])
     }); }
 });
 buyable(bazaar, 5);
 var workshop = new Card('Workshop', {
-    fixedCost: time(1),
     effect: function (card) { return ({
         description: 'Buy a card in the supply costing up to $4.',
         effect: function (state) {
@@ -1566,7 +1603,41 @@ var workshop = new Card('Workshop', {
         }
     }); }
 });
-buyable(workshop, 2);
+buyable(workshop, 3);
+var shippingLane = new Card('Shipping Lane', {
+    fixedCost: time(1),
+    effect: function (card) { return ({
+        description: "+$2. Next time you finish buying a card this turn, buy it again if it still exists.",
+        effect: doAll([
+            gainCoin(2),
+            nextTime(function (e) { return e.type == 'afterBuy'; }, function (e) { return (e.after == null) ? noop : e.after.buy(card.name); })
+        ])
+    }); }
+});
+buyable(shippingLane, 5);
+var factory = new Card('Factory', {
+    fixedCost: time(1),
+    effect: function (card) { return ({
+        description: 'Buy a card in the supply costing up to $6.',
+        effect: function (state) {
+            return __awaiter(this, void 0, void 0, function () {
+                var options, target;
+                var _a;
+                return __generator(this, function (_b) {
+                    switch (_b.label) {
+                        case 0:
+                            options = state.supplies.filter(function (card) { return (card.cost(state).coin <= 6 && card.cost(state).time <= 0); });
+                            return [4 /*yield*/, choice(state, 'Choose a card costing up to $6 to buy.', allowNull(options.map(asChoice)))];
+                        case 1:
+                            _a = __read.apply(void 0, [_b.sent(), 2]), state = _a[0], target = _a[1];
+                            return [2 /*return*/, target.buy('workshop')(state)];
+                    }
+                });
+            });
+        }
+    }); }
+});
+buyable(factory, 4);
 var feast = new Card('Feast', {
     fixedCost: time(0),
     effect: function (card) { return ({
@@ -2116,36 +2187,19 @@ var platinum = new Card("Platinum", {
     }); }
 });
 buyable(platinum, 10);
-//TODO: this should probably be an ability that makes a next time aura rather than an optoinal trigger?
+//TODO: this should probably be an ability that makes a next time aura rather than an optional trigger?
 var innovation = new Card("Innovation", {
-    triggers: function (card) { return [{
-            description: "Whenever you create a card in your discard pile, you may discard your hand, lose all $, and play it.",
-            handles: function (e) { return (e.type == 'create' && e.toZone == 'discard'); },
-            effect: function (e) { return function (state) {
-                return __awaiter(this, void 0, void 0, function () {
-                    var activate;
-                    var _a;
-                    return __generator(this, function (_b) {
-                        switch (_b.label) {
-                            case 0: return [4 /*yield*/, choice(state, "Do you want to discard your hand, lose all $, and play " + e.card.name + "?", yesOrNo)];
-                            case 1:
-                                _a = __read.apply(void 0, [_b.sent(), 2]), state = _a[0], activate = _a[1];
-                                if (!activate)
-                                    return [2 /*return*/, state];
-                                return [4 /*yield*/, moveWholeZone('hand', 'discard')(state)];
-                            case 2:
-                                state = _b.sent();
-                                return [4 /*yield*/, setCoins(0)(state)];
-                            case 3:
-                                state = _b.sent();
-                                return [2 /*return*/, e.card.play('innovation')(state)];
-                        }
-                    });
-                });
-            }; }
+    abilities: function (card) { return [{
+            description: "Next time you create a card in your discard pile, discard your hand, lose all $, and play it." +
+                " This can't be used to play the same card multiple times.",
+            cost: noop,
+            effect: doAll([
+                clearAurasFrom(card),
+                nextTime(function (e) { return (e.type == 'create' && e.toZone == 'discard'); }, function (e) { return doAll([moveWholeZone('hand', 'discard'), setCoins(0), e.card.play(innovation.name)]); }, card)
+            ])
         }]; }
 });
-mixins.push(makeCard(innovation, { coin: 8, time: 0 }, true));
+mixins.push(makeCard(innovation, { coin: 7, time: 0 }, true));
 var citadel = new Card("Citadel", {
     triggers: function (card) { return [{
             description: "After playing a card the normal way, if it's the only card in your discard pile, play it again.",
@@ -2532,32 +2586,128 @@ var coffers = new Card('Coffers', {
             effect: gainCoin(1),
         }]; }
 });
+function createIfNeeded(card) {
+    return function (state) {
+        return __awaiter(this, void 0, void 0, function () {
+            return __generator(this, function (_a) {
+                if (state.play.some(function (x) { return x.name == card.name; }))
+                    return [2 /*return*/, state];
+                return [2 /*return*/, create(card, 'play')(state)];
+            });
+        });
+    };
+}
+function ensureAtStart(card) {
+    return {
+        description: "At the start of the game, create a " + card + " in play if there isn't one yet.",
+        handles: function (e) { return e.type == 'gameStart'; },
+        effect: function (e) { return createIfNeeded(card); }
+    };
+}
+function fill(card, n) {
+    return function (state) {
+        return __awaiter(this, void 0, void 0, function () {
+            var target;
+            var _a;
+            return __generator(this, function (_b) {
+                switch (_b.label) {
+                    case 0:
+                        console.log(card);
+                        return [4 /*yield*/, choice(state, "Place two charge tokens on a " + card + ".", state.play.filter(function (c) { return c.name == card.name; }).map(asChoice))];
+                    case 1:
+                        _a = __read.apply(void 0, [_b.sent(), 2]), state = _a[0], target = _a[1];
+                        console.log(target);
+                        return [2 /*return*/, (target == null) ? state : charge(target, n)(state)];
+                }
+            });
+        });
+    };
+}
 var fillCoffers = new Card('Fill Coffers', {
     fixedCost: coin(3),
     effect: function (card) { return ({
-        description: 'Put two charge tokens on a Coffers in play.',
+        description: "Put two charge tokens on a " + coffers + " in play.",
+        effect: fill(coffers, 2)
+    }); },
+    triggers: function (card) { return [ensureAtStart(coffers)]; }
+});
+register(fillCoffers);
+var cotr = new Card('Coin of the Realm', {
+    fixedCost: time(1),
+    effect: function (card) { return ({
+        description: '+$1. Put this in play.',
+        skipDiscard: true,
+        effect: doAll([gainCoin(1), move(card, 'play')])
+    }); },
+    abilities: function (card) { return [{
+            description: villagestr + " Disard this.",
+            cost: noop,
+            effect: doAll([freeAction, freeAction, move(card, 'discard')]),
+        }]; }
+});
+buyable(cotr, 3);
+var mountainVillage = new Card('Mountain Village', {
+    fixedCost: time(1),
+    effect: function (card) { return ({
+        description: "You may play a card in your hand or discard pile costing up to @." +
+            "You may play a card in your hand costing up to @.",
         effect: function (state) {
             return __awaiter(this, void 0, void 0, function () {
-                var target;
+                var options, target;
                 var _a;
                 return __generator(this, function (_b) {
                     switch (_b.label) {
-                        case 0: return [4 /*yield*/, choice(state, 'Place two charge tokens on a coffers.', state.play.filter(function (c) { return c.name == coffers.name; }).map(asChoice))];
+                        case 0:
+                            options = state.hand.concat(state.discard).filter(function (card) { return (card.cost(state).time <= 1); }).map(asChoice);
+                            return [4 /*yield*/, choice(state, 'Choose a card costing up to @ to play', allowNull(options))];
                         case 1:
                             _a = __read.apply(void 0, [_b.sent(), 2]), state = _a[0], target = _a[1];
-                            return [2 /*return*/, (target == null) ? state : charge(target, 2)(state)];
+                            if (!(target != null)) return [3 /*break*/, 3];
+                            return [4 /*yield*/, target.play()(state)];
+                        case 2:
+                            state = _b.sent();
+                            _b.label = 3;
+                        case 3: return [2 /*return*/, freeAction(state)];
                     }
                 });
             });
         }
-    }); },
-    triggers: function (card) { return [{
-            description: 'At the start of the game, create a Coffers in play.',
-            handles: function (e) { return e.type == 'gameStart'; },
-            effect: function (e) { return create(coffers, 'play'); }
+    }); }
+});
+buyable(mountainVillage, 3);
+var stables = new Card('Stables', {
+    abilities: function (card) { return [{
+            description: 'Remove a charge counter from this. If you do, +1 card.',
+            cost: discharge(card, 1),
+            effect: draw(1, 'stables'),
         }]; }
 });
-mixins.push(fillCoffers);
+var fillStables = new Card('Fill Stables', {
+    fixedCost: coin(4),
+    effect: function (card) { return ({
+        description: "Put two charge tokens on a " + stables + " in play.",
+        effect: fill(stables, 2),
+    }); },
+    triggers: function (card) { return [ensureAtStart(stables)]; },
+});
+register(fillStables);
+var livery = new Card('Livery', {
+    replacers: function (card) { return [{
+            description: "Whenever you would draw cards other than with " + stables + "," +
+                (" put that many charge tokens on a " + stables + " in play instead."),
+            handles: function (e) { return (e.type == 'draw' && e.source != 'stables'); },
+            replace: function (e) { return updates(e, { 'draw': 0, 'effects': e.effects.concat([fill(stables, e.draw)]) }); }
+        }]; }
+});
+var makeLivery = new Card('Livery', {
+    fixedCost: time(4),
+    relatedCards: [livery, stables],
+    effect: function (card) { return ({
+        description: "Create a " + livery.name + " in play, and a stables if there isn't one yet.",
+        effect: doAll([create(livery, 'play'), createIfNeeded(stables)])
+    }); },
+});
+register(makeLivery);
 // ------------------ Testing -------------------
 var freeMoney = new Card('Free money', {
     fixedCost: time(0),
