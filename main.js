@@ -485,10 +485,11 @@ function discharge(card, n) {
     return charge(card, -n, cost=true)
 }
 
-function addToken(id, token) {
+//TODO: tokens should just be a dict from token names to counts, not a list
+function addToken(card, token) {
     return async function(state) {
-        state = applyToId(id, applyToKey('tokens', x => x.concat([token])))(state)
-        return trigger({type:'addToken', id:id, token:token})(state)
+        state = applyToId(card.id, applyToKey('tokens', x => x.concat([token])))(state)
+        return trigger({type:'addToken', card:card, token:token})(state)
     }
 }
 
@@ -1241,7 +1242,7 @@ const reinforce = new Card('Reinforce', {
                 'Choose a card to put a reinforce token on.',
                 state.hand.map(asChoice))
             if (card == null) return state
-            return addToken(card.id, 'reinforce')(state)
+            return addToken(card, 'reinforce')(state)
         }
     }),
     triggers: card => [{
@@ -1737,7 +1738,7 @@ const pathfinding = new Card('Pathfinding', {
                 'Choose a card to put a path token on.',
                 state.hand.map(asChoice))
             if (card == null) return state
-            return addToken(card.id, 'path')(state)
+            return addToken(card, 'path')(state)
         }
     }),
     triggers: card => [{
@@ -1747,6 +1748,45 @@ const pathfinding = new Card('Pathfinding', {
     }],
 })
 mixins.push(pathfinding)
+
+const counterfeit = new Card('Counterfeit', {
+    effect: card => ({
+        description: 'Play a card in your deck, then trash it.',
+        effect: async function(state) {
+            let target; [state, target] = await choice(state,
+                'Choose a card to play then trash.',
+                state.deck)
+            if (cand == null) return state
+            state = await target.play()(state)
+            return trash(target)(state)
+        }
+    })
+})
+buyable(counterfeit, 5, 'true')
+
+const decay = new Card('Decay', {
+    fixedCost: coin(4),
+    effect: card => ({
+        description: 'Remove all decay tokens from cards in your hand.',
+        effect: async function(state) {
+            return update(state, 'hand',
+                state.hand.map(c => update(c, 'tokens', c.tokens.filter(t != 'decay'))))
+        }
+    }),
+    triggers: card => [{
+        description: 'Whenever you play a card, put a decay token on it.',
+        handles: e => e.type == 'play',
+        effect: e => addToken(e.card, 'decay'),
+    }, {
+        description: 'After playing a card, if it has three or more decay tokens on it, trash it.',
+        handles: e => (e.type == 'afterPlay' && e.card.tokens.filter(t == 'decay').length > 3),
+        effect: e => trash(e.card),
+    }]
+})
+mixins.push(decay)
+testing.push(decay)
+
+
 
 // ------------------ Testing -------------------
 
