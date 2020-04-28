@@ -2169,19 +2169,25 @@ var platinum = new Card("Platinum", {
     }); }
 });
 buyable(platinum, 10);
-//TODO: this should probably be an ability that makes a next time aura rather than an optional trigger?
 var innovation = new Card("Innovation", {
+    triggers: function (card) { return [{
+            description: "Whenever you create a card in your discard pile, if this has an innovate token on it:" +
+                " remove all innovate tokens from this, discard your hand, lose all $, and play the card.",
+            handles: function (e) { return (e.type == 'create' && e.toZone == 'discard' && countTokens(card, 'innovate') > 0); },
+            effect: function (e) { return doAll([
+                removeTokens(card, 'innovate'),
+                moveWholeZone('hand', 'discard'),
+                setCoins(0),
+                e.card.play(card)
+            ]); },
+        }]; },
     abilities: function (card) { return [{
-            description: "Next time you create a card in your discard pile: discard your hand, lose all $, and play it." +
-                " This can't be used to play the same card multiple times.",
+            description: "Put an innovate token on this.",
             cost: noop,
-            effect: doAll([
-                clearAurasFrom(card),
-                nextTime(function (e) { return (e.type == 'create' && e.toZone == 'discard'); }, function (e) { return doAll([moveWholeZone('hand', 'discard'), setCoins(0), e.card.play(card)]); }, card)
-            ])
+            effect: addToken(card, 'innovate')
         }]; }
 });
-mixins.push(makeCard(innovation, { coin: 7, time: 0 }, true));
+register(makeCard(innovation, { coin: 7, time: 0 }, true));
 var citadel = new Card("Citadel", {
     triggers: function (card) { return [{
             description: "After playing a card the normal way, if it's the only card in your discard pile, play it again.",
@@ -2487,7 +2493,7 @@ buyable(counterfeit, 5);
 var decay = new Card('Decay', {
     fixedCost: coin(4),
     effect: function (card) { return ({
-        description: 'Remove all decay tokens for all cards in your hand.',
+        description: 'Remove all decay tokens from all cards in your hand.',
         effect: function (state) {
             return __awaiter(this, void 0, void 0, function () {
                 return __generator(this, function (_a) {

@@ -1608,23 +1608,25 @@ const platinum = new Card("Platinum", {
 })
 buyable(platinum, 10)
 
-//TODO: this should probably be an ability that makes a next time aura rather than an optional trigger?
 const innovation = new Card("Innovation", {
+    triggers: card => [{
+        description: "Whenever you create a card in your discard pile, if this has an innovate token on it:" +
+        " remove all innovate tokens from this, discard your hand, lose all $, and play the card.",
+        handles: e => (e.type == 'create' && e.toZone == 'discard' && countTokens(card, 'innovate') > 0),
+        effect: e => doAll([
+            removeTokens(card, 'innovate'),
+            moveWholeZone('hand', 'discard'),
+            setCoins(0),
+            e.card.play(card)
+        ]),
+    }],
     abilities: card => [{
-        description: "Next time you create a card in your discard pile: discard your hand, lose all $, and play it." +
-          " This can't be used to play the same card multiple times.",
+        description: "Put an innovate token on this.",
         cost: noop,
-        effect: doAll([
-            clearAurasFrom(card),
-            nextTime(
-                e => (e.type == 'create' && e.toZone == 'discard'),
-                e => doAll([moveWholeZone('hand', 'discard'), setCoins(0), e.card.play(card)]),
-                card
-            )
-        ])
+        effect: addToken(card, 'innovate')
     }]
 })
-mixins.push(makeCard(innovation, {coin:7, time:0}, true))
+register(makeCard(innovation, {coin:7, time:0}, true))
 
 const citadel = new Card("Citadel", {
     triggers: card => [{
@@ -1846,7 +1848,7 @@ buyable(counterfeit, 5)
 const decay = new Card('Decay', {
     fixedCost: coin(4),
     effect: card => ({
-        description: 'Remove all decay tokens for all cards in your hand.',
+        description: 'Remove all decay tokens from all cards in your hand.',
         effect: async function(state) {
             return doAll(state.hand.map(x => removeTokens(x, 'decay')))(state)
         }
