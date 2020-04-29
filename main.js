@@ -1372,7 +1372,7 @@ function playGame(seed) {
                     state = _c.sent();
                     _b = __read(randomChoices(state, mixins, 12, seed), 2), state = _b[0], variableSupplies = _b[1];
                     variableSupplies.sort(supplySort);
-                    if (testing.length > 0 || test)
+                    if (testing.length > 0)
                         for (i_1 = 0; i_1 < cheats.length; i_1++)
                             testing.push(cheats[i_1]);
                     kingdom = coreSupplies.concat(variableSupplies).concat(testing);
@@ -2472,7 +2472,7 @@ var coppersmith = new Card('Coppersmith', {
         }
     }); }
 });
-buyable(coppersmith, 3, 'test');
+buyable(coppersmith, 3);
 function countDistinct(xs) {
     var y = {};
     var result = 0;
@@ -3106,6 +3106,4 @@ var drawAll = new Card('Draw all', {
     }); }
 });
 cheats.push(drawAll);
-var test = false;
-//test = true
 //# sourceMappingURL=main.js.map

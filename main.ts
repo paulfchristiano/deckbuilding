@@ -1025,7 +1025,7 @@ async function playGame(seed=null) {
     let variableSupplies;
     [state, variableSupplies] = randomChoices(state, mixins, 12, seed)
     variableSupplies.sort(supplySort)
-    if (testing.length > 0 || test) for (let i = 0; i < cheats.length; i++) testing.push(cheats[i])
+    if (testing.length > 0) for (let i = 0; i < cheats.length; i++) testing.push(cheats[i])
     const kingdom = coreSupplies.concat(variableSupplies).concat(testing)
     state = await doAll(kingdom.map(x => create(x, 'supplies')))(state)
     state = await trigger({type:'gameStart'})(state)
@@ -1869,7 +1869,7 @@ const coppersmith = new Card('Coppersmith', {
         }
     })
 })
-buyable(coppersmith, 3,'test')
+buyable(coppersmith, 3)
 
 function countDistinct(xs) {
     const y = {}
@@ -2351,6 +2351,3 @@ const drawAll = new Card('Draw all', {
     })
 })
 cheats.push(drawAll)
-
-var test = false
-//test = true
