@@ -2552,7 +2552,8 @@ var kingsCourt = new Card("King's Court", {
                             state = tick(card)(state);
                             zone = void 0;
                             _b = __read(find(state, target.id), 2), target = _b[0], zone = _b[1];
-                            if (!(zone == 'discard')) return [3 /*break*/, 5];
+                            if (zone != 'discard')
+                                return [3 /*break*/, 6];
                             return [4 /*yield*/, target.play(card)(state)];
                         case 4:
                             state = _c.sent();

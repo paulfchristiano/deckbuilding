@@ -1932,7 +1932,8 @@ const kingsCourt = new Card("King's Court", {
             for (var i = 0; i < 2; i++) {
                 state = tick(card)(state)
                 let zone; [target, zone] = find(state, target.id)
-                if (zone == 'discard') state = await target.play(card)(state)
+                if (zone != 'discard') break
+                state = await target.play(card)(state)
             }
             return state
         }
