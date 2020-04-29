@@ -1,7 +1,6 @@
 // TODO: it's possible for ticks to get pretty messed up, if you play a card while activating it...
 // (we could fix this by putting things on a stack and using the top thing from the stack)
-// TODO: when an aura activates, put a faint pseudo-card in resolving?
-// should I do the same thing for triggers/abilities/buys? might just be better, and would probably avoid stack issue described above
+// (and tracking which shadow is which)
 // TODO: I think the cost framework isn't really appropriate any more, but maybe think a bit before getting rid of it
 
 
@@ -30,7 +29,7 @@ function applyToKey(k, f) {
 
 //TODO: operating on a given card involves a linear scan, could speed up with clever datastructure
 // the function that applies f to the card with a given id
-function applyToCard(card, f) {
+function applyToCard(card: Card, f: ((c: Card) => Card)): ((state: State) => State) {
     const id = card.id
     return function(state) {
         const [_, zone] = find(state, id)
@@ -46,9 +45,15 @@ function trigger(e) {
         //this is a list of (source, trigger) pairs
         //only need the source for teh purpose of tick, clear below
         var triggers = state.play.concat(state.supplies).concat(state.auras).map(x => x.triggers().map(y => [x, y])).flat()
-        console.log(triggers)
         triggers = triggers.filter(trigger => trigger[1].handles(e, state))
-        const effects = triggers.map(trigger => doAll([tick(trigger[0]), trigger[1].effect(e, state), clear(trigger[0])]))
+        const effects = triggers.map(trigger => async function(state) {
+            let shadow; [state, shadow] = addShadow(state, trigger[0], 'trigger', trigger[1])
+            state = tick(trigger[0])(state)
+            state = await trigger[1].effect(e)(state)
+            state = clear(trigger[0])(state)
+            state = removeShadow(state, shadow)
+            return state
+        })
         return doAll(effects)(state)
     }
 }
@@ -109,10 +114,18 @@ function nextTime(when, what, source={}) {
 }
 
 // this updates a state by incrementing the tick on the given card,
-// or by removing the tick
-function tick(card) {
-    return applyToCard(card, applyToKey('tick', x => x + 1))
+// and ticking its shadow
+function tick(card: Card): ((s: State) => State) {
+    return function(state: State): State {
+        state = applyToCard(card, applyToKey('tick', x => x + 1))(state)
+        state = applyToKey('resolving', xs => xs.map( x => 
+            (x instanceof Shadow && x.original.id == card.id) ?
+            applyToKey('tick', x => x + 1)(x) : x
+        ))(state)
+        return state
+    }
 }
+// or by removing the tick
 function clear(card) {
     return applyToCard(card, applyToKey('tick', x => 0))
 }
@@ -166,9 +179,11 @@ class Card {
         const card = this
         return async function(state) {
             state = await trigger({type:'buy', card:card, source:source})(state)
+            let shadow; [state, shadow] = addShadow(state, card, 'buy')
             state = tick(card)(state)
             state = await card.effect().effect(state)
             state = clear(card)(state)
+            state = removeShadow(state, shadow)
             let [newCard, _] = find(state, card.id)
             return trigger({type:'afterBuy', before:card, after:newCard, source:source})(state)
         }
@@ -205,6 +220,38 @@ function callOr(f, x, fallback) {
     return (f == undefined) ? fallback : f(x)
 }
 
+// these are displayed in the resolving area to help track what's going on
+class Shadow {
+    original: Card;
+    kind: string;
+    text: string;
+    tick: number;
+    constructor(original: Card, kind: string, text?: string) {
+        this.tick = 0
+        this.original = original 
+        this.kind = kind
+        this.text = text
+    }
+}
+
+function addShadow(state, original, kind, text?) {
+    let shadow; [state, shadow] = assignUID(state, new Shadow(original, kind, text));
+    state = applyToKey('resolving', xs => xs.concat([shadow]))(state)
+    return [state, shadow]
+}
+
+function removeShadow(state, shadow) {
+    return applyToKey('resolving', xs => xs.filter(x => x.id != shadow.id))(state)
+}
+
+function getShadow(state, card) {
+    for (var i = 0; i < state.resolving.length; i++) {
+        if (state.resolving[i] instanceof Shadow && state.resolving[i].original.id == card.id) {
+            return state.resolving[i]
+        }
+    }
+}
+
 function gainCard(card, cost)  {
     return new Card(card.name, {
         fixedCost: cost,
@@ -222,17 +269,6 @@ function a(x) {
     if (c == 'a' || c == 'e' || c == 'i' || c == 'o' || c == 'u')
         return 'an ' + s
     return 'a ' + s
-}
-
-function makeCard(card, cost, selfdestruct=false)  {
-    return new Card(card.name, {
-        fixedCost: cost,
-        effect: supply => ({
-            description:`Create ${a(card)} in play.${selfdestruct ? ' Trash this.' : ''}`,
-            effect: doAll([create(card, 'play'), selfdestruct ? trash(supply) : noop])
-        }),
-        relatedCards: [card],
-    })
 }
 
 function assignUID(state, card) {
@@ -575,11 +611,18 @@ function countTokens(card, token) {
     return count
 }
 
+function renderStatic(text) {
+    return `<div>(static) ${text}</div>`
+}
+
+function renderAbility(text) {
+    `<div>(ability) ${text}</div>`
+}
 
 function renderTooltip(card, state) {
     const effectHtml = `<div>${card.effect().description}</div>`
-    const abilitiesHtml = card.abilities().map(x => `<div>(ability) ${x.description}</div>`).join('')
-    const staticHtml = card.triggers().concat(card.replacers()).map(x => `<div>(static) ${x.description}</div>`).join('')
+    const abilitiesHtml = card.abilities().map(x => renderAbility(x.description)).join('')
+    const staticHtml = card.triggers().concat(card.replacers()).map(x => renderStatic(x.description)).join('')
     const tokensHtml = card.tokens.length > 0 ? `Tokens: ${card.tokens.join(', ')}` : ''
     const baseFilling = [effectHtml, abilitiesHtml, staticHtml, tokensHtml].join('')
     function renderRelated(x) {
@@ -591,13 +634,33 @@ function renderTooltip(card, state) {
     return `${baseFilling}${relatedFilling}`
 }
 
-function renderCard(card, state, i, asOption=null) {
+function renderShadow(shadow, state) {
+    const card = shadow.original
     const tokenhtml = card.tokens.length > 0 ? '*' : ''
     const chargehtml = card.charge > 0 ? `(${card.charge})` : ''
     const costhtml = renderCost(card.cost(state))
-    const attrtext = asOption == null ? '' : `choosable chosen='false' option=${asOption}`
+    const ticktext = `tick=${shadow.tick}`
+    const shadowtext = `shadow='true'`
+    let tooltip;
+    if (shadow.kind == 'ability') tooltip = renderAbility(shadow.text)
+    if (shadow.kind == 'trigger') tooltip = renderStatic(shadow.text)
+    if (shadow.kind == 'replacer') tooltip = renderStatic(shadow.text)
+    if (shadow.kind == 'buy') tooltip = shadow.text
+    return [`<div class='card' ${ticktext} ${shadowtext}>`,
+            `<div class='cardbody'>${card}${tokenhtml}${chargehtml}</div>`,
+            `<div class='cardcost'>${costhtml}</div>`,
+            `<span class='tooltip'>${tooltip}</span>`,
+            `</div>`].join('')
+}
+
+function renderCard(card, state, asOption=null) {
+    if (card instanceof Shadow) return renderShadow(card, state)
+    const tokenhtml = card.tokens.length > 0 ? '*' : ''
+    const chargehtml = card.charge > 0 ? `(${card.charge})` : ''
+    const costhtml = renderCost(card.cost(state))
+    const choosetext = asOption == null ? '' : `choosable chosen='false' option=${asOption}`
     const ticktext = `tick=${card.tick}`
-    return [`<div class='card' ${ticktext} ${attrtext}>`,
+    return [`<div class='card' ${ticktext} ${choosetext}>`,
             `<div class='cardbody'>${card}${tokenhtml}${chargehtml}</div>`,
             `<div class='cardcost'>${costhtml}</div>`,
             `<span class='tooltip'>${renderTooltip(card, state)}</span>`,
@@ -612,9 +675,9 @@ function renderState(state, optionsMap=null) {
     renderedState = state
     function render(card, i) {
         if (optionsMap != null && optionsMap[card.id] != undefined) {
-            return renderCard(card, state, i, optionsMap[card.id])
+            return renderCard(card, state, optionsMap[card.id])
         } else {
-            return renderCard(card, state, i)
+            return renderCard(card, state)
         }
     }
     $('#time').html(state.time)
@@ -659,18 +722,23 @@ function clearChoice() {
 
 function useCard(card) {
     return async function(state) {
-        let ability;
         state = tick(card)(state);
-        [state, ability] = await choice(state, "Choose an ability to use:",
+        let ability; [state, ability] = await choice(state, "Choose an ability to use:",
             card.abilities().map(x => [['string', x.description], x]))
-        if (ability != null) state = await payToDo(ability.cost, ability.effect)(state)
         state = clear(card)(state)
+        if (ability != null) {
+            let shadow; [state, shadow] = addShadow(state, card, 'ability', ability)
+            state = tick(card)(state)
+            state = await payToDo(ability.cost, ability.effect)(state)
+            state = clear(card)(state)
+            state = removeShadow(state, shadow)
+        }
         return state
     }
 }
 
 function tryToBuy(supply) {
-    return payToDo(supply.payCost(), supply.buy('act'))
+    return payToDo(supply.payCost(), supply.buy({name:'act'}))
 }
 
 function allCards(state) {
@@ -1033,6 +1101,17 @@ function buyable(card, n, test=null) {
     register(gainCard(card, coin(n)), test)
 }
 
+function makeCard(card, cost, selfdestruct=false)  {
+    return new Card(card.name, {
+        fixedCost: cost,
+        effect: supply => ({
+            description:`Create ${a(card)} in play.${selfdestruct ? ' Trash this.' : ''}`,
+            effect: doAll([create(card, 'play'), selfdestruct ? trash(supply) : noop])
+        }),
+        relatedCards: [card],
+    })
+}
+
 const throneRoom = new Card('Throne Room', {
     fixedCost: time(1),
     effect: card => ({
@@ -1171,7 +1250,7 @@ const village = new Card('Village', {
         effect: doAll([draw(1), freeAction, tick(card), freeAction])
     })
 })
-buyable(village, 3)
+buyable(village, 3, 'test')
 
 const bazaar = new Card('Bazaar', {
     fixedCost: time(1),
@@ -1190,7 +1269,7 @@ const workshop = new Card('Workshop', {
             let target;
             [state, target] = await choice(state, 'Choose a card costing up to $4 to buy.',
                 allowNull(options.map(asChoice)))
-            return target.buy('workshop')(state)
+            return target.buy(card)(state)
         }
     })
 })
@@ -1202,7 +1281,7 @@ const shippingLane = new Card('Shipping Lane', {
         description: "+$2. Next time you finish buying a card this turn, buy it again if it still exists.",
         effect: doAll([
             gainCoin(2),
-            nextTime(e => e.type == 'afterBuy', e => (e.after == null) ? noop : e.after.buy(card.name))
+            nextTime(e => e.type == 'afterBuy', e => (e.after == null) ? noop : e.after.buy(card))
         ])
     })
 })
@@ -1217,7 +1296,7 @@ const factory = new Card('Factory', {
             let target;
             [state, target] = await choice(state, 'Choose a card costing up to $6 to buy.',
                 allowNull(options.map(asChoice)))
-            return target.buy('workshop')(state)
+            return target.buy(card)(state)
         }
     })
 })
@@ -1521,8 +1600,9 @@ const twins = new Card('Twins', {
     fixedCost: time(0),
     triggers: card => [{
         description: `When you finish playing a card other than with ${card}, if it costs @ or more then you may play a card in your hand with the same name.`,
-        handles: (e, state) => (e.type == 'afterPlay' && e.source.name != twins.name && e.before.cost(state).time >= 1),
+        handles: (e, state) => (e.type == 'afterPlay' && e.source.name != twins.name),
         effect: e => async function(state) {
+            if (e.before.cost(state).time == 0) return state
             const cardOptions = state.hand.filter(x => (x.name == e.before.name))
             let replay;
             [state, replay] = await choice(state, `Choose a card named '${e.before.name}' to play.`,
@@ -1531,7 +1611,7 @@ const twins = new Card('Twins', {
         }
     }]
 })
-register(makeCard(twins, {time:0, coin:6}))
+register(makeCard(twins, {time:0, coin:6}),'test')
 
 const masterSmith = new Card('Master Smith', {
     fixedCost: time(2),
@@ -1639,7 +1719,7 @@ const innovation = new Card("Innovation", {
         effect: addToken(card, 'innovate')
     }]
 })
-register(makeCard(innovation, {coin:7, time:0}, true))
+register(makeCard(innovation, {coin:7, time:0}, true), 'test')
 
 const citadel = new Card("Citadel", {
     triggers: card => [{
@@ -1822,7 +1902,7 @@ const kingsCourt = new Card("King's Court", {
         }
     })
 })
-buyable(kingsCourt, 10)
+buyable(kingsCourt, 10, 'test')
 
 const gardens = new Card("Gardens", {
     fixedCost: {time:1, coin:4},
@@ -1954,11 +2034,9 @@ function ensureAtStart(card) {
 }
 function fill(card, n) {
     return async function(state) {
-        console.log(card)
         let target; [state, target] = await choice(state,
             `Place two charge tokens on a ${card}.`,
             state.play.filter(c => c.name == card.name).map(asChoice))
-        console.log(target)
         return (target == null) ? state : charge(target, n)(state)
     }
 }
@@ -1985,7 +2063,7 @@ const cotr = new Card('Coin of the Realm', {
         effect: doAll([freeAction, tick(card), freeAction, move(card, 'discard')]),
     }]
 })
-buyable(cotr, 3)
+buyable(cotr, 3, 'test')
 
 const mountainVillage = new Card('Mountain Village', {
     fixedCost: time(1),
