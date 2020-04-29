@@ -598,6 +598,7 @@ function draw(n, source) {
             return __generator(this, function (_b) {
                 switch (_b.label) {
                     case 0:
+                        console.log(source);
                         drawParams = { type: 'draw', draw: n, source: source, effects: [] };
                         drawParams = replace(drawParams, state);
                         return [4 /*yield*/, doAll(drawParams.effects)(state)];
@@ -1456,7 +1457,7 @@ var reboot = new Card('Reboot', {
                             return [4 /*yield*/, recycle(state.hand.concat(state.discard))(state)];
                         case 2:
                             state = _a.sent();
-                            return [2 /*return*/, draw(5, 'reboot')(state)];
+                            return [2 /*return*/, draw(5, reboot)(state)];
                     }
                 });
             });
@@ -2374,11 +2375,11 @@ var hireling = new Card('Hireling', {
     fixedCost: time(0),
     replacers: function (card) { return [{
             description: "Whenever you draw a card from Reboot, draw an additional card.",
-            handles: function (x) { return (x.type == 'draw', x.source.name == reboot.name); },
-            replace: function (x, state) { return update(x, 'draw', x.draw + 1); },
+            handles: function (x) { return (x.type == 'draw' && x.source.name == reboot.name); },
+            replace: function (x) { return update(x, 'draw', x.draw + 1); },
         }]; }
 });
-mixins.push(makeCard(hireling, { coin: 6, time: 2 }));
+register(makeCard(hireling, { coin: 6, time: 2 }));
 var sacrifice = new Card('Sacrifice', {
     fixedCost: time(0),
     effect: function (card) { return ({
@@ -2906,6 +2907,7 @@ function ferryReduce(cost, n) {
 }
 var makeFerry = new Card('Ferry', {
     fixedCost: coin(3),
+    relatedCards: [ferry],
     effect: function (card) { return gainCard(ferry); },
     replacers: function (card) { return [{
             description: 'Cards cost $1 less per ferry token on them, unless it would make them cost 0.',
@@ -3019,6 +3021,8 @@ var chancellor = new Card('Chancellor', {
                         case 0: return [4 /*yield*/, gainCoin(2)(state)];
                         case 1:
                             state = _b.sent();
+                            if (!(state.deck.length > 0)) return [3 /*break*/, 4];
+                            doit = void 0;
                             return [4 /*yield*/, choice(state, 'Discard your deck?', yesOrNo)];
                         case 2:
                             _a = __read.apply(void 0, [_b.sent(), 2]), state = _a[0], doit = _a[1];

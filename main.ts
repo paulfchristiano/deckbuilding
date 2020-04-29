@@ -435,6 +435,7 @@ function randomChoices(state, xs, n, seed=null) {
 
 function draw(n, source={}) {
     return async function(state) {
+        console.log(source)
         var drawParams = {type:'draw', draw:n, source:source, effects:[]}
         drawParams = replace(drawParams, state)
         state = await doAll(drawParams.effects)(state)
@@ -1096,7 +1097,7 @@ const reboot = new Card('Reboot', {
         effect: async function(state) {
             state = await setCoins(0)(state)
             state = await recycle(state.hand.concat(state.discard))(state)
-            return draw(5, 'reboot')(state)
+            return draw(5, reboot)(state)
         }
     })
 })
@@ -1799,11 +1800,11 @@ const hireling = new Card('Hireling', {
     fixedCost: time(0),
     replacers: card => [{
         description: "Whenever you draw a card from Reboot, draw an additional card.",
-        handles: x => (x.type == 'draw', x.source.name == reboot.name),
-        replace: (x, state) => update(x, 'draw', x.draw+1),
+        handles: x => (x.type == 'draw' && x.source.name == reboot.name),
+        replace: x => update(x, 'draw', x.draw+1),
     }]
 })
-mixins.push(makeCard(hireling, {coin:6, time:2}))
+register(makeCard(hireling, {coin:6, time:2}))
 
 const sacrifice = new Card('Sacrifice', {
     fixedCost: time(0),
@@ -2191,6 +2192,7 @@ function ferryReduce(cost, n) {
 }
 const makeFerry = new Card('Ferry', {
     fixedCost: coin(3),
+    relatedCards: [ferry],
     effect: card => gainCard(ferry),
     replacers: card => [{
         description: 'Cards cost $1 less per ferry token on them, unless it would make them cost 0.',
@@ -2282,8 +2284,10 @@ const chancellor = new Card('Chancellor', {
         description: '+$2. You may discard your deck.',
         effect: async function(state) {
             state = await gainCoin(2)(state)
-            let doit; [state, doit] = await choice(state, 'Discard your deck?', yesOrNo)
-            if (doit) state = await moveWholeZone('deck', 'discard')(state)
+            if (state.deck.length > 0) {
+                let doit; [state, doit] = await choice(state, 'Discard your deck?', yesOrNo)
+                if (doit) state = await moveWholeZone('deck', 'discard')(state)
+            }
             return state
         }
     })
