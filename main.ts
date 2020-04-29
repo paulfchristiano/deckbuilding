@@ -4,7 +4,10 @@
 // TODO: make the tooltip nice---should show up immediately, but be impossible to keep it alive by mousing over it
 // TODO: History?
 // TODO: I think the cost framework isn't really appropriate any more, but maybe think a bit before getting rid of it
-// TODO: annoying how undo jumps around
+// TODO: Undo isn't in a great position
+// TODO: if a zone gets bigger and then, it's annoying to keep resizing it. As soon as a zone gets big I want to leave it big probably.
+// TODO: probably worth distinguishing items with 1 vs 2 tokens?
+// TODO: minimum width for option choices
 
 type State = any;
 
@@ -46,7 +49,7 @@ function trigger(e) {
     return async function(state) {
         //this is a list of (source, trigger) pairs
         //only need the source for teh purpose of tick, clear below
-        var triggers = state.play.concat(state.supplies).concat(state.auras).map(x => x.triggers().map(y => [x, y])).flat()
+        var triggers = state.supplies.concat(state.auras).concat(state.play).map(x => x.triggers().map(y => [x, y])).flat()
         triggers = triggers.filter(trigger => trigger[1].handles(e, state))
         const effects = triggers.map(trigger => async function(state) {
             let shadow; [state, shadow] = addShadow(state, trigger[0], 'trigger', trigger[1].description)
@@ -1485,8 +1488,8 @@ register(expedite)
 const goldMine = new Card('Gold Mine', {
     fixedCost: time(2),
     effect: card => ({
-        description: 'Create two golds in your deck.',
-        effect: doAll([create(gold, 'deck'), create(gold, 'deck')]),
+        description: 'Create a gold in your hand and a gold on top of your deck.',
+        effect: doAll([create(gold, 'hand', 'top'), create(gold, 'hand')]),
     })
 })
 buyable(goldMine, 6)
@@ -1494,14 +1497,14 @@ buyable(goldMine, 6)
 const vault = new Card('Vault', {
     fixedCost: time(1),
     effect: card => ({
-        description: '+2 cards. Discard any number of cards from your hand, +$1 per card discarded.',
+        description: '+2 cards. Discard any number of cards from your hand, +1 card per card discarded.',
         effect: async function(state) {
             state = await draw(2)(state);
             let toDiscard;
             [state, toDiscard] = await choice(state, 'Discard any number of cards for +$1 each.',
                 state.hand.map(asChoice), xs => true)
             state = await moveMany(toDiscard, 'discard')(state)
-            return gainCoin(toDiscard.length)(state)
+            return draw(toDiscard.length)(state)
         }
     })
 })
@@ -1578,17 +1581,25 @@ const windfall = new Card('Windfall', {
         }
     })
 })
-mixins.push(windfall)
+register(windfall)
 
-const horse = new Card('Horse', {
-    fixedCost: time(0),
-    effect: card => ({
-        description: '+2 cards. Trash this.',
-        skipDiscard: true,
-        effect: doAll([draw(2), trash(card)])
-    })
+const stables = new Card('Stables', {
+    abilities: card => [{
+        description: 'Remove a charge token from this. If you do, +1 card.',
+        cost: discharge(card, 1),
+        effect: draw(1, card),
+    }]
 })
-buyable(horse, 2)
+const horse = new Card('Horse', {
+    fixedCost: coin(2),
+    effect: card => ({
+        description: `Put a charge token on a ${stables} in play.`,
+        effect: fill(stables, 1),
+    }),
+    triggers: card => [ensureAtStart(stables)],
+})
+register(horse)
+
 
 const lookout = new Card('Lookout', {
     fixedCost: time(0),
@@ -1625,12 +1636,12 @@ buyable(lab, 5)
 const roadNetwork = new Card('Road Network', {
     fixedCost: time(0),
     triggers: _ => [{
-        description: 'Whenever you create a card in your discard pile, move it to your deck.',
+        description: 'Whenever you create a card in your discard pile, move it to the top of your deck.',
         handles: e => (e.type == 'create' && e.toZone == 'discard'),
-        effect: e => move(e.card, 'deck')
+        effect: e => move(e.card, 'deck', 'top')
     }]
 })
-mixins.push(makeCard(roadNetwork, coin(5)))
+mixins.push(makeCard(roadNetwork, coin(5), true))
 
 const twins = new Card('Twins', {
     fixedCost: time(0),
@@ -1762,15 +1773,15 @@ const citadel = new Card("Citadel", {
         description: `After playing a card the normal way, if it's the only card in your discard pile, play it again.`,
         handles: e => (e.type == 'afterPlay' && e.source.name == 'act'),
         effect: e => async function(state) {
-            if (find(state, e.card.id)[1] == 'discard' && state.discard.length == 1) {
-                return e.card.play(card)(state)
+            if (e.after != null && find(state, e.after.id)[1] == 'discard' && state.discard.length == 1) {
+                return e.after.play(card)(state)
             } else {
                 return state
             }
         }
     }]
 })
-mixins.push(makeCard(citadel, {coin:8, time:0}, true))
+register(makeCard(citadel, {coin:8, time:0}, true))
 
 const foolsGold = new Card("Fool's Gold", {
     fixedCost: time(0),
@@ -2119,13 +2130,6 @@ const mountainVillage = new Card('Mountain Village', {
 })
 buyable(mountainVillage, 3)
 
-const stables = new Card('Stables', {
-    abilities: card => [{
-        description: 'Remove a charge token from this. If you do, +1 card.',
-        cost: discharge(card, 1),
-        effect: draw(1, card),
-    }]
-})
 const fillStables = new Card('Fill Stables', {
     fixedCost: coin(4),
     effect: card => ({
@@ -2135,6 +2139,8 @@ const fillStables = new Card('Fill Stables', {
     triggers: card => [ensureAtStart(stables)],
 })
 register(fillStables)
+
+
 
 const sleigh = new Card('Sleigh', {
     fixedCost: time(1),
@@ -2150,7 +2156,7 @@ const makeSleigh = new Card('Sleigh', {
     triggers: card => [
         ensureAtStart(stables),
         {
-            description: 'Whenever you create a card, if you have a sleigh in your hand,' +
+            description: `Whenever you create a card, if you have a ${sleigh} in your hand,` +
                 ' you may discard it to put the card into your hand.',
             handles: e => (e.type == 'create'),
             effect: e => async function(state) {
@@ -2275,6 +2281,7 @@ const chancellor = new Card('Chancellor', {
     effect: card => ({
         description: '+$2. You may discard your deck.',
         effect: async function(state) {
+            state = await gainCoin(2)(state)
             let doit; [state, doit] = await choice(state, 'Discard your deck?', yesOrNo)
             if (doit) state = await moveWholeZone('deck', 'discard')(state)
             return state

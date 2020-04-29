@@ -4,7 +4,10 @@
 // TODO: make the tooltip nice---should show up immediately, but be impossible to keep it alive by mousing over it
 // TODO: History?
 // TODO: I think the cost framework isn't really appropriate any more, but maybe think a bit before getting rid of it
-// TODO: annoying how undo jumps around
+// TODO: Undo isn't in a great position
+// TODO: if a zone gets bigger and then, it's annoying to keep resizing it. As soon as a zone gets big I want to leave it big probably.
+// TODO: probably worth distinguishing items with 1 vs 2 tokens?
+// TODO: minimum width for option choices
 var __extends = (this && this.__extends) || (function () {
     var extendStatics = function (d, b) {
         extendStatics = Object.setPrototypeOf ||
@@ -105,7 +108,7 @@ function trigger(e) {
         return __awaiter(this, void 0, void 0, function () {
             var triggers, effects;
             return __generator(this, function (_a) {
-                triggers = state.play.concat(state.supplies).concat(state.auras).map(function (x) { return x.triggers().map(function (y) { return [x, y]; }); }).flat();
+                triggers = state.supplies.concat(state.auras).concat(state.play).map(function (x) { return x.triggers().map(function (y) { return [x, y]; }); }).flat();
                 triggers = triggers.filter(function (trigger) { return trigger[1].handles(e, state); });
                 effects = triggers.map(function (trigger) { return function (state) {
                     return __awaiter(this, void 0, void 0, function () {
@@ -1955,15 +1958,15 @@ register(expedite);
 var goldMine = new Card('Gold Mine', {
     fixedCost: time(2),
     effect: function (card) { return ({
-        description: 'Create two golds in your deck.',
-        effect: doAll([create(gold, 'deck'), create(gold, 'deck')]),
+        description: 'Create a gold in your hand and a gold on top of your deck.',
+        effect: doAll([create(gold, 'hand', 'top'), create(gold, 'hand')]),
     }); }
 });
 buyable(goldMine, 6);
 var vault = new Card('Vault', {
     fixedCost: time(1),
     effect: function (card) { return ({
-        description: '+2 cards. Discard any number of cards from your hand, +$1 per card discarded.',
+        description: '+2 cards. Discard any number of cards from your hand, +1 card per card discarded.',
         effect: function (state) {
             return __awaiter(this, void 0, void 0, function () {
                 var toDiscard;
@@ -1979,7 +1982,7 @@ var vault = new Card('Vault', {
                             return [4 /*yield*/, moveMany(toDiscard, 'discard')(state)];
                         case 3:
                             state = _b.sent();
-                            return [2 /*return*/, gainCoin(toDiscard.length)(state)];
+                            return [2 /*return*/, draw(toDiscard.length)(state)];
                     }
                 });
             });
@@ -2085,16 +2088,23 @@ var windfall = new Card('Windfall', {
         }
     }); }
 });
-mixins.push(windfall);
-var horse = new Card('Horse', {
-    fixedCost: time(0),
-    effect: function (card) { return ({
-        description: '+2 cards. Trash this.',
-        skipDiscard: true,
-        effect: doAll([draw(2), trash(card)])
-    }); }
+register(windfall);
+var stables = new Card('Stables', {
+    abilities: function (card) { return [{
+            description: 'Remove a charge token from this. If you do, +1 card.',
+            cost: discharge(card, 1),
+            effect: draw(1, card),
+        }]; }
 });
-buyable(horse, 2);
+var horse = new Card('Horse', {
+    fixedCost: coin(2),
+    effect: function (card) { return ({
+        description: "Put a charge token on a " + stables + " in play.",
+        effect: fill(stables, 1),
+    }); },
+    triggers: function (card) { return [ensureAtStart(stables)]; },
+});
+register(horse);
 var lookout = new Card('Lookout', {
     fixedCost: time(0),
     effect: function (card) { return ({
@@ -2151,12 +2161,12 @@ buyable(lab, 5);
 var roadNetwork = new Card('Road Network', {
     fixedCost: time(0),
     triggers: function (_) { return [{
-            description: 'Whenever you create a card in your discard pile, move it to your deck.',
+            description: 'Whenever you create a card in your discard pile, move it to the top of your deck.',
             handles: function (e) { return (e.type == 'create' && e.toZone == 'discard'); },
-            effect: function (e) { return move(e.card, 'deck'); }
+            effect: function (e) { return move(e.card, 'deck', 'top'); }
         }]; }
 });
-mixins.push(makeCard(roadNetwork, coin(5)));
+mixins.push(makeCard(roadNetwork, coin(5), true));
 var twins = new Card('Twins', {
     fixedCost: time(0),
     triggers: function (card) { return [{
@@ -2331,8 +2341,8 @@ var citadel = new Card("Citadel", {
             effect: function (e) { return function (state) {
                 return __awaiter(this, void 0, void 0, function () {
                     return __generator(this, function (_a) {
-                        if (find(state, e.card.id)[1] == 'discard' && state.discard.length == 1) {
-                            return [2 /*return*/, e.card.play(card)(state)];
+                        if (e.after != null && find(state, e.after.id)[1] == 'discard' && state.discard.length == 1) {
+                            return [2 /*return*/, e.after.play(card)(state)];
                         }
                         else {
                             return [2 /*return*/, state];
@@ -2343,7 +2353,7 @@ var citadel = new Card("Citadel", {
             }; }
         }]; }
 });
-mixins.push(makeCard(citadel, { coin: 8, time: 0 }, true));
+register(makeCard(citadel, { coin: 8, time: 0 }, true));
 var foolsGold = new Card("Fool's Gold", {
     fixedCost: time(0),
     effect: function (card) { return ({
@@ -2812,13 +2822,6 @@ var mountainVillage = new Card('Mountain Village', {
     }); }
 });
 buyable(mountainVillage, 3);
-var stables = new Card('Stables', {
-    abilities: function (card) { return [{
-            description: 'Remove a charge token from this. If you do, +1 card.',
-            cost: discharge(card, 1),
-            effect: draw(1, card),
-        }]; }
-});
 var fillStables = new Card('Fill Stables', {
     fixedCost: coin(4),
     effect: function (card) { return ({
@@ -2842,7 +2845,7 @@ var makeSleigh = new Card('Sleigh', {
     triggers: function (card) { return [
         ensureAtStart(stables),
         {
-            description: 'Whenever you create a card, if you have a sleigh in your hand,' +
+            description: "Whenever you create a card, if you have a " + sleigh + " in your hand," +
                 ' you may discard it to put the card into your hand.',
             handles: function (e) { return (e.type == 'create'); },
             effect: function (e) { return function (state) {
@@ -3013,15 +3016,18 @@ var chancellor = new Card('Chancellor', {
                 var _a;
                 return __generator(this, function (_b) {
                     switch (_b.label) {
-                        case 0: return [4 /*yield*/, choice(state, 'Discard your deck?', yesOrNo)];
+                        case 0: return [4 /*yield*/, gainCoin(2)(state)];
                         case 1:
-                            _a = __read.apply(void 0, [_b.sent(), 2]), state = _a[0], doit = _a[1];
-                            if (!doit) return [3 /*break*/, 3];
-                            return [4 /*yield*/, moveWholeZone('deck', 'discard')(state)];
-                        case 2:
                             state = _b.sent();
-                            _b.label = 3;
-                        case 3: return [2 /*return*/, state];
+                            return [4 /*yield*/, choice(state, 'Discard your deck?', yesOrNo)];
+                        case 2:
+                            _a = __read.apply(void 0, [_b.sent(), 2]), state = _a[0], doit = _a[1];
+                            if (!doit) return [3 /*break*/, 4];
+                            return [4 /*yield*/, moveWholeZone('deck', 'discard')(state)];
+                        case 3:
+                            state = _b.sent();
+                            _b.label = 4;
+                        case 4: return [2 /*return*/, state];
                     }
                 });
             });
