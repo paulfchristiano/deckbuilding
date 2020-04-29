@@ -1,6 +1,4 @@
-// TODO: it's possible for ticks to get pretty messed up, if you play a card while activating it...
-// (we could fix this by putting things on a stack and using the top thing from the stack)
-// (and tracking which shadow is which)
+// TODO: History?
 // TODO: I think the cost framework isn't really appropriate any more, but maybe think a bit before getting rid of it
 var __extends = (this && this.__extends) || (function () {
     var extendStatics = function (d, b) {
@@ -111,12 +109,12 @@ function trigger(e) {
                         return __generator(this, function (_b) {
                             switch (_b.label) {
                                 case 0:
-                                    _a = __read(addShadow(state, trigger[0], 'trigger', trigger[1]), 2), state = _a[0], shadow = _a[1];
-                                    state = tick(trigger[0])(state);
+                                    _a = __read(addShadow(state, trigger[0], 'trigger', trigger[1].description), 2), state = _a[0], shadow = _a[1];
+                                    state = startTick(trigger[0])(state);
                                     return [4 /*yield*/, trigger[1].effect(e)(state)];
                                 case 1:
                                     state = _b.sent();
-                                    state = clear(trigger[0])(state);
+                                    state = endTick(trigger[0])(state);
                                     state = removeShadow(state, shadow);
                                     return [2 /*return*/, state];
                             }
@@ -196,26 +194,46 @@ function nextTime(when, what, source) {
     };
     return addAura(aura);
 }
+function applyToLast(f) {
+    return function (xs) {
+        return xs.slice(0, xs.length - 1).concat([f(xs[xs.length - 1])]);
+    };
+}
+//applies the function f to the latest shadow that matches the card
+//(this would cause trouble if a card had a shadow and then was played the normal way)
+//TODO: probably in ticks a card should just record the shadow that it wants to tick with it
+function updateLastShadow(state, card, f) {
+    var lastIndex = null;
+    for (var i = 0; i < state.resolving.length; i++) {
+        var x = state.resolving[i];
+        if (x instanceof Shadow && x.original.id == card.id) {
+            lastIndex = i;
+        }
+    }
+    if (lastIndex == null)
+        return state;
+    return applyToKey('resolving', function (xs) { return xs.map(function (x, i) { return (i == lastIndex) ? f(x) : x; }); })(state);
+}
 // this updates a state by incrementing the tick on the given card,
 // and ticking its shadow
 function tick(card) {
     return function (state) {
-        state = applyToCard(card, applyToKey('tick', function (x) { return x + 1; }))(state);
-        state = applyToKey('resolving', function (xs) { return xs.map(function (x) {
-            return (x instanceof Shadow && x.original.id == card.id) ?
-                applyToKey('tick', function (x) { return x + 1; })(x) : x;
-        }); })(state);
+        state = applyToCard(card, applyToKey('ticks', applyToLast(function (x) { return x + 1; })))(state);
+        state = updateLastShadow(state, card, applyToKey('tick', function (x) { return x + 1; }));
         return state;
     };
 }
+function startTick(card) {
+    return applyToCard(card, applyToKey('ticks', function (xs) { return xs.concat([1]); }));
+}
 // or by removing the tick
-function clear(card) {
-    return applyToCard(card, applyToKey('tick', function (x) { return 0; }));
+function endTick(card) {
+    return applyToCard(card, applyToKey('ticks', function (xs) { return xs.slice(0, xs.length - 1); }));
 }
 var Card = /** @class */ (function () {
     function Card(name, props) {
         this.charge = 0;
-        this.tick = 0;
+        this.ticks = [0];
         this.tokens = [];
         this.name = name;
         this.props = props;
@@ -270,11 +288,11 @@ var Card = /** @class */ (function () {
                         case 1:
                             state = _c.sent();
                             _b = __read(addShadow(state, card, 'buy'), 2), state = _b[0], shadow = _b[1];
-                            state = tick(card)(state);
+                            state = startTick(card)(state);
                             return [4 /*yield*/, card.effect().effect(state)];
                         case 2:
                             state = _c.sent();
-                            state = clear(card)(state);
+                            state = endTick(card)(state);
                             state = removeShadow(state, shadow);
                             _a = __read(find(state, card.id), 2), newCard = _a[0], _ = _a[1];
                             return [2 /*return*/, trigger({ type: 'afterBuy', before: card, after: newCard, source: source })(state)];
@@ -298,7 +316,7 @@ var Card = /** @class */ (function () {
                             return [4 /*yield*/, trigger({ type: 'play', card: card, source: source })(state)];
                         case 2:
                             state = _b.sent();
-                            state = tick(card)(state);
+                            state = startTick(card)(state);
                             return [4 /*yield*/, effect.effect(state)];
                         case 3:
                             state = _b.sent();
@@ -308,7 +326,7 @@ var Card = /** @class */ (function () {
                             state = _b.sent();
                             _b.label = 5;
                         case 5:
-                            state = clear(card)(state);
+                            state = endTick(card)(state);
                             _a = __read(find(state, card.id), 2), newCard = _a[0], _ = _a[1];
                             return [2 /*return*/, trigger({ type: 'afterPlay', before: card, after: newCard, source: source })(state)];
                     }
@@ -336,7 +354,7 @@ function callOr(f, x, fallback) {
 // these are displayed in the resolving area to help track what's going on
 var Shadow = /** @class */ (function () {
     function Shadow(original, kind, text) {
-        this.tick = 0;
+        this.tick = 1;
         this.original = original;
         this.kind = kind;
         this.text = text;
@@ -873,7 +891,7 @@ function renderStatic(text) {
     return "<div>(static) " + text + "</div>";
 }
 function renderAbility(text) {
-    "<div>(ability) " + text + "</div>";
+    return "<div>(ability) " + text + "</div>";
 }
 function renderTooltip(card, state) {
     var effectHtml = "<div>" + card.effect().description + "</div>";
@@ -904,7 +922,7 @@ function renderShadow(shadow, state) {
     if (shadow.kind == 'replacer')
         tooltip = renderStatic(shadow.text);
     if (shadow.kind == 'buy')
-        tooltip = shadow.text;
+        tooltip = shadow.original.effect().description;
     return ["<div class='card' " + ticktext + " " + shadowtext + ">",
         "<div class='cardbody'>" + card + tokenhtml + chargehtml + "</div>",
         "<div class='cardcost'>" + costhtml + "</div>",
@@ -919,7 +937,7 @@ function renderCard(card, state, asOption) {
     var chargehtml = card.charge > 0 ? "(" + card.charge + ")" : '';
     var costhtml = renderCost(card.cost(state));
     var choosetext = asOption == null ? '' : "choosable chosen='false' option=" + asOption;
-    var ticktext = "tick=" + card.tick;
+    var ticktext = "tick=" + card.ticks[card.ticks.length - 1];
     return ["<div class='card' " + ticktext + " " + choosetext + ">",
         "<div class='cardbody'>" + card + tokenhtml + chargehtml + "</div>",
         "<div class='cardcost'>" + costhtml + "</div>",
@@ -989,19 +1007,19 @@ function useCard(card) {
             return __generator(this, function (_c) {
                 switch (_c.label) {
                     case 0:
-                        state = tick(card)(state);
+                        state = startTick(card)(state);
                         return [4 /*yield*/, choice(state, "Choose an ability to use:", card.abilities().map(function (x) { return [['string', x.description], x]; }))];
                     case 1:
                         _a = __read.apply(void 0, [_c.sent(), 2]), state = _a[0], ability = _a[1];
-                        state = clear(card)(state);
+                        state = endTick(card)(state);
                         if (!(ability != null)) return [3 /*break*/, 3];
                         shadow = void 0;
-                        _b = __read(addShadow(state, card, 'ability', ability), 2), state = _b[0], shadow = _b[1];
-                        state = tick(card)(state);
+                        _b = __read(addShadow(state, card, 'ability', ability.description), 2), state = _b[0], shadow = _b[1];
+                        state = startTick(card)(state);
                         return [4 /*yield*/, payToDo(ability.cost, ability.effect)(state)];
                     case 2:
                         state = _c.sent();
-                        state = clear(card)(state);
+                        state = endTick(card)(state);
                         state = removeShadow(state, shadow);
                         _c.label = 3;
                     case 3: return [2 /*return*/, state];
@@ -1660,7 +1678,7 @@ var village = new Card('Village', {
         effect: doAll([draw(1), freeAction, tick(card), freeAction])
     }); }
 });
-buyable(village, 3, 'test');
+buyable(village, 3);
 var bazaar = new Card('Bazaar', {
     fixedCost: time(1),
     effect: function (card) { return ({
@@ -2151,7 +2169,7 @@ var twins = new Card('Twins', {
             }; }
         }]; }
 });
-register(makeCard(twins, { time: 0, coin: 6 }), 'test');
+register(makeCard(twins, { time: 0, coin: 6 }));
 var masterSmith = new Card('Master Smith', {
     fixedCost: time(2),
     effect: function (card) { return ({
@@ -2292,7 +2310,7 @@ var innovation = new Card("Innovation", {
             effect: addToken(card, 'innovate')
         }]; }
 });
-register(makeCard(innovation, { coin: 7, time: 0 }, true), 'test');
+register(makeCard(innovation, { coin: 7, time: 0 }, true));
 var citadel = new Card("Citadel", {
     triggers: function (card) { return [{
             description: "After playing a card the normal way, if it's the only card in your discard pile, play it again.",
@@ -2536,7 +2554,7 @@ var kingsCourt = new Card("King's Court", {
         }
     }); }
 });
-buyable(kingsCourt, 10, 'test');
+buyable(kingsCourt, 10);
 var gardens = new Card("Gardens", {
     fixedCost: { time: 1, coin: 4 },
     effect: function (card) { return ({
@@ -2748,7 +2766,7 @@ var cotr = new Card('Coin of the Realm', {
             effect: doAll([freeAction, tick(card), freeAction, move(card, 'discard')]),
         }]; }
 });
-buyable(cotr, 3, 'test');
+buyable(cotr, 3);
 var mountainVillage = new Card('Mountain Village', {
     fixedCost: time(1),
     effect: function (card) { return ({
