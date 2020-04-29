@@ -1864,13 +1864,13 @@ buyable(chapel, 3)
 const coppersmith = new Card('Coppersmith', {
     fixedCost: time(1),
     effect: card => ({
-        description: 'Put all coppers in your discard pile into your hand.',
+        description: '+$1 per copper in your hand.',
         effect: async function(state) {
-            return moveMany(state.discard.filter(x => x.name == 'Copper'), 'hand')(state)
+            return gainCoin(state.hand.filter(x => x.name == copper.name).length)(state)
         }
     })
 })
-buyable(coppersmith, 3)
+buyable(coppersmith, 3,'test')
 
 function countDistinct(xs) {
     const y = {}

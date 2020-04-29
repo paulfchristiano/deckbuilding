@@ -2463,17 +2463,17 @@ buyable(chapel, 3);
 var coppersmith = new Card('Coppersmith', {
     fixedCost: time(1),
     effect: function (card) { return ({
-        description: 'Put all coppers in your discard pile into your hand.',
+        description: '+$1 per copper in your hand.',
         effect: function (state) {
             return __awaiter(this, void 0, void 0, function () {
                 return __generator(this, function (_a) {
-                    return [2 /*return*/, moveMany(state.discard.filter(function (x) { return x.name == 'Copper'; }), 'hand')(state)];
+                    return [2 /*return*/, gainCoin(state.hand.filter(function (x) { return x.name == copper.name; }).length)(state)];
                 });
             });
         }
     }); }
 });
-buyable(coppersmith, 3);
+buyable(coppersmith, 3, 'test');
 function countDistinct(xs) {
     var y = {};
     var result = 0;
