@@ -1670,7 +1670,7 @@ function freeAction(state) {
         });
     });
 }
-var villagestr = 'You may play a card in your hand costing up to @. You may play a card in your hand costing up to @.';
+var villagestr = 'Do this up to two times: play a card in your hand costing up to @.';
 var village = new Card('Village', {
     fixedCost: time(1),
     effect: function (card) { return ({

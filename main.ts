@@ -1260,7 +1260,7 @@ async function freeAction(state) {
     [state, target] = await choice(state, 'Choose a card costing up to @ to play',allowNull(options))
     return (target == null) ? state : target.play()(state)
 }
-const villagestr = 'You may play a card in your hand costing up to @. You may play a card in your hand costing up to @.'
+const villagestr = 'Do this up to two times: play a card in your hand costing up to @.'
 
 const village = new Card('Village', {
     fixedCost: time(1),
