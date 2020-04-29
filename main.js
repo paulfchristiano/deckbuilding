@@ -1556,42 +1556,6 @@ var throneRoom = new Card('Throne Room', {
     }); }
 });
 buyable(throneRoom, 4);
-var crown = new Card('Crown', {
-    fixedCost: time(0),
-    effect: function (card) { return ({
-        description: "Pay the cost of a card in your hand to play it. Then if it's in your discard pile play it again.",
-        effect: doOrAbort(function (state) {
-            return __awaiter(this, void 0, void 0, function () {
-                var target, _a, newCard, zone;
-                var _b;
-                return __generator(this, function (_c) {
-                    switch (_c.label) {
-                        case 0: return [4 /*yield*/, choice(state, 'Choose a card to play twice.', state.hand.map(asChoice))];
-                        case 1:
-                            _b = __read.apply(void 0, [_c.sent(), 2]), state = _b[0], target = _b[1];
-                            if (target == null)
-                                return [2 /*return*/, state];
-                            return [4 /*yield*/, target.payCost()(state)];
-                        case 2:
-                            state = _c.sent();
-                            return [4 /*yield*/, target.play(card)(state)];
-                        case 3:
-                            state = _c.sent();
-                            state = tick(card)(state);
-                            _a = __read(find(state, target.id), 2), newCard = _a[0], zone = _a[1];
-                            if (!(zone == 'discard')) return [3 /*break*/, 5];
-                            return [4 /*yield*/, newCard.play(card)(state)];
-                        case 4:
-                            state = _c.sent();
-                            _c.label = 5;
-                        case 5: return [2 /*return*/, state];
-                    }
-                });
-            });
-        })
-    }); }
-});
-buyable(crown, 5);
 var mule = new Card('Mule', {
     fixedCost: time(1),
     effect: function (card) { return ({

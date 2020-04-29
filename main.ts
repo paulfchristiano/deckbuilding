@@ -1187,26 +1187,6 @@ const throneRoom = new Card('Throne Room', {
 })
 buyable(throneRoom, 4)
 
-const crown = new Card('Crown', {
-    fixedCost: time(0),
-    effect: card => ({
-        description: `Pay the cost of a card in your hand to play it. Then if it's in your discard pile play it again.`,
-        effect: doOrAbort(async function(state) {
-            let target; [state, target] = await choice(state,
-                'Choose a card to play twice.',
-                state.hand.map(asChoice))
-            if (target == null) return state
-            state = await target.payCost()(state)
-            state = await target.play(card)(state)
-            state = tick(card)(state)
-            const [newCard, zone] = find(state, target.id)
-            if (zone == 'discard') state = await newCard.play(card)(state)
-            return state
-        })
-    })
-})
-buyable(crown, 5)
-
 const mule = new Card('Mule', {
     fixedCost: time(1),
     effect: card => ({
