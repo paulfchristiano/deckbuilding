@@ -1,5 +1,10 @@
+// TODO: render tokens more nicely if there are multiples
+// TODO: nicer architecture where we separate out intrinsic properties of cards from charge/tokens/etc.?
+// TODO: use types
+// TODO: make the tooltip nice---should show up immediately, but be impossible to keep it alive by mousing over it
 // TODO: History?
 // TODO: I think the cost framework isn't really appropriate any more, but maybe think a bit before getting rid of it
+// TODO: annoying how undo jumps around
 var __extends = (this && this.__extends) || (function () {
     var extendStatics = function (d, b) {
         extendStatics = Object.setPrototypeOf ||
@@ -255,7 +260,7 @@ var Card = /** @class */ (function () {
     // the cost after replacement effects
     Card.prototype.cost = function (state) {
         var thisCard = this;
-        var initialCost = { type: 'cardCost', card: thisCard, cost: thisCard.baseCost() };
+        var initialCost = { type: 'cost', card: thisCard, cost: thisCard.baseCost() };
         var newCost = replace(initialCost, state);
         return newCost.cost;
     };
@@ -280,18 +285,22 @@ var Card = /** @class */ (function () {
         var card = this;
         return function (state) {
             return __awaiter(this, void 0, void 0, function () {
-                var shadow, _a, newCard, _;
-                var _b;
-                return __generator(this, function (_c) {
-                    switch (_c.label) {
-                        case 0: return [4 /*yield*/, trigger({ type: 'buy', card: card, source: source })(state)];
+                var zone, shadow, _a, newCard, _;
+                var _b, _c;
+                return __generator(this, function (_d) {
+                    switch (_d.label) {
+                        case 0:
+                            _b = __read(find(state, card.id), 2), card = _b[0], zone = _b[1];
+                            if (card == null)
+                                return [2 /*return*/];
+                            return [4 /*yield*/, trigger({ type: 'buy', card: card, source: source })(state)];
                         case 1:
-                            state = _c.sent();
-                            _b = __read(addShadow(state, card, 'buy'), 2), state = _b[0], shadow = _b[1];
+                            state = _d.sent();
+                            _c = __read(addShadow(state, card, 'buy'), 2), state = _c[0], shadow = _c[1];
                             state = startTick(card)(state);
                             return [4 /*yield*/, card.effect().effect(state)];
                         case 2:
-                            state = _c.sent();
+                            state = _d.sent();
                             state = endTick(card)(state);
                             state = removeShadow(state, shadow);
                             _a = __read(find(state, card.id), 2), newCard = _a[0], _ = _a[1];
@@ -307,24 +316,29 @@ var Card = /** @class */ (function () {
         var card = this;
         return function (state) {
             return __awaiter(this, void 0, void 0, function () {
-                var _a, newCard, _;
-                return __generator(this, function (_b) {
-                    switch (_b.label) {
-                        case 0: return [4 /*yield*/, move(card, 'resolving')(state)];
+                var zone, _a, newCard, _;
+                var _b;
+                return __generator(this, function (_c) {
+                    switch (_c.label) {
+                        case 0:
+                            _b = __read(find(state, card.id), 2), card = _b[0], zone = _b[1];
+                            if (card == null)
+                                return [2 /*return*/];
+                            return [4 /*yield*/, move(card, 'resolving')(state)];
                         case 1:
-                            state = _b.sent();
+                            state = _c.sent();
                             return [4 /*yield*/, trigger({ type: 'play', card: card, source: source })(state)];
                         case 2:
-                            state = _b.sent();
+                            state = _c.sent();
                             state = startTick(card)(state);
                             return [4 /*yield*/, effect.effect(state)];
                         case 3:
-                            state = _b.sent();
+                            state = _c.sent();
                             if (!!effect['skipDiscard']) return [3 /*break*/, 5];
                             return [4 /*yield*/, move(card, 'discard')(state)];
                         case 4:
-                            state = _b.sent();
-                            _b.label = 5;
+                            state = _c.sent();
+                            _c.label = 5;
                         case 5:
                             state = endTick(card)(state);
                             _a = __read(find(state, card.id), 2), newCard = _a[0], _ = _a[1];
@@ -378,16 +392,6 @@ function getShadow(state, card) {
         }
     }
 }
-function gainCard(card, cost) {
-    return new Card(card.name, {
-        fixedCost: cost,
-        effect: function (_) { return ({
-            description: "Create a " + card + " in your discard pile.",
-            effect: create(card)
-        }); },
-        relatedCards: [card],
-    });
-}
 function a(x) {
     var s = x.toString();
     var c = s[0].toLowerCase();
@@ -399,8 +403,9 @@ function assignUID(state, card) {
     var id = state.nextID;
     return [update(state, 'nextID', id + 1), update(card, 'id', id)];
 }
-function create(card, toZone) {
+function create(card, toZone, loc) {
     if (toZone === void 0) { toZone = 'discard'; }
+    if (loc === void 0) { loc = 'bottom'; }
     return function (state) {
         return __awaiter(this, void 0, void 0, function () {
             var _a;
@@ -408,7 +413,7 @@ function create(card, toZone) {
                 switch (_b.label) {
                     case 0:
                         _a = __read(assignUID(state, card), 2), state = _a[0], card = _a[1];
-                        return [4 /*yield*/, addToZone(card, toZone)(state)];
+                        return [4 /*yield*/, addToZone(card, toZone, loc)(state)];
                     case 1:
                         state = _b.sent();
                         return [2 /*return*/, trigger({ type: 'create', card: card, toZone: toZone })(state)];
@@ -674,15 +679,23 @@ function gainTime(n) {
         });
     };
 }
-function gainPoints(n, cost) {
-    if (cost === void 0) { cost = false; }
+function gainPoints(n, source) {
+    if (source === void 0) { source = {}; }
     return function (state) {
         return __awaiter(this, void 0, void 0, function () {
+            var params;
             return __generator(this, function (_a) {
-                if (state.coin + n < 0 && cost)
-                    throw new CostNotPaid("Not enough points");
-                state = update(state, 'points', state.points + n);
-                return [2 /*return*/, trigger({ type: 'gainPoints', amount: n, cost: cost })(state)];
+                switch (_a.label) {
+                    case 0:
+                        params = { type: 'gainPoints', points: n, effects: [], source: source };
+                        params = replace(params, state);
+                        return [4 /*yield*/, doAll(params.effects)(state)];
+                    case 1:
+                        state = _a.sent();
+                        n = params.points;
+                        state = update(state, 'points', state.points + n);
+                        return [2 /*return*/, trigger({ type: 'gainPoints', points: n, source: source })(state)];
+                }
             });
         });
     };
@@ -841,7 +854,28 @@ function removeTokens(card, token) {
             return __generator(this, function (_a) {
                 removed = countTokens(card, token);
                 state = applyToCard(card, applyToKey('tokens', function (xs) { return xs.filter(function (x) { return (x != token); }); }))(state);
-                return [2 /*return*/, trigger({ type: 'removeTokens', card: card, token: token, removed: removed })(state)];
+                return [2 /*return*/, trigger({ type: 'removeTokens', token: token, removed: removed })(state)];
+            });
+        });
+    };
+}
+function removeOneToken(card, token) {
+    return function (state) {
+        return __awaiter(this, void 0, void 0, function () {
+            function removeOneToken(tokens) {
+                for (var i = 0; i < tokens.length; i++) {
+                    if (tokens[i] == token) {
+                        removed = 1;
+                        return tokens.slice(0, i).concat(tokens.slice(i + 1));
+                    }
+                }
+                return tokens;
+            }
+            var removed;
+            return __generator(this, function (_a) {
+                removed = 0;
+                state = applyToCard(card, applyToKey('tokens', removeOneToken))(state);
+                return [2 /*return*/, trigger({ type: 'removeTokens', token: token, removed: removed })(state)];
             });
         });
     };
@@ -1354,7 +1388,7 @@ function playGame(seed) {
                     return [3 /*break*/, 4];
                 case 6:
                     renderState(state);
-                    $('#choicePrompt').html("You got to 50vp using " + state.time + " time!");
+                    $('#choicePrompt').html("You won using " + state.time + " time!");
                     return [2 /*return*/];
             }
         });
@@ -1375,6 +1409,33 @@ var coreSupplies = [];
 var mixins = [];
 var testing = [];
 var cheats = [];
+//
+// ----------- UTILS -------------------
+//
+function gainCard(card) {
+    return {
+        description: "Create a " + card + " in your discard pile.",
+        effect: create(card)
+    };
+}
+function supplyForCard(card, cost) {
+    return new Card(card.name, {
+        fixedCost: cost,
+        effect: function (_) { return gainCard(card); },
+        relatedCards: [card],
+    });
+}
+function register(card, test) {
+    mixins.push(card);
+    if (test == 'test')
+        testing.push(card);
+    else if (test != undefined)
+        throw Error("bad argument to register");
+}
+function buyable(card, n, test) {
+    register(supplyForCard(card, coin(n)), test);
+}
+//
 //
 // ------ CORE ------
 //
@@ -1407,7 +1468,7 @@ var copper = new Card('Copper', {
         effect: gainCoin(1),
     }); }
 });
-coreSupplies.push(gainCard(copper, coin(1)));
+coreSupplies.push(supplyForCard(copper, coin(1)));
 var silver = new Card('Silver', {
     fixedCost: time(0),
     effect: function (card) { return ({
@@ -1415,7 +1476,7 @@ var silver = new Card('Silver', {
         effect: gainCoin(2)
     }); }
 });
-coreSupplies.push(gainCard(silver, coin(3)));
+coreSupplies.push(supplyForCard(silver, coin(3)));
 var gold = new Card('Gold', {
     fixedCost: time(0),
     effect: function (card) { return ({
@@ -1423,7 +1484,7 @@ var gold = new Card('Gold', {
         effect: gainCoin(3)
     }); }
 });
-coreSupplies.push(gainCard(gold, coin(6)));
+coreSupplies.push(supplyForCard(gold, coin(6)));
 var estate = new Card('Estate', {
     fixedCost: time(1),
     effect: function (card) { return ({
@@ -1431,7 +1492,7 @@ var estate = new Card('Estate', {
         effect: gainPoints(1),
     }); }
 });
-coreSupplies.push(gainCard(estate, coin(1)));
+coreSupplies.push(supplyForCard(estate, coin(1)));
 var duchy = new Card('Duchy', {
     fixedCost: time(1),
     effect: function (card) { return ({
@@ -1439,7 +1500,7 @@ var duchy = new Card('Duchy', {
         effect: gainPoints(2),
     }); }
 });
-coreSupplies.push(gainCard(duchy, coin(4)));
+coreSupplies.push(supplyForCard(duchy, coin(4)));
 var province = new Card('Province', {
     fixedCost: time(1),
     effect: function (card) { return ({
@@ -1447,22 +1508,10 @@ var province = new Card('Province', {
         effect: gainPoints(3),
     }); }
 });
-coreSupplies.push(gainCard(province, coin(8)));
+coreSupplies.push(supplyForCard(province, coin(8)));
 //
 // ----- MIXINS -----
 //
-function register(card, test) {
-    if (test === void 0) { test = null; }
-    mixins.push(card);
-    if (test == 'test')
-        testing.push(card);
-    else if (test != null)
-        throw Error("bad argument to register");
-}
-function buyable(card, n, test) {
-    if (test === void 0) { test = null; }
-    register(gainCard(card, coin(n)), test);
-}
 function makeCard(card, cost, selfdestruct) {
     if (selfdestruct === void 0) { selfdestruct = false; }
     return new Card(card.name, {
@@ -1550,7 +1599,7 @@ var mule = new Card('Mule', {
         effect: draw(2)
     }); }
 });
-mixins.push(gainCard(mule, coin(1)));
+buyable(mule, 1);
 var smithy = new Card('Smithy', {
     fixedCost: time(1),
     effect: function (card) { return ({
@@ -1648,12 +1697,12 @@ var peddler = new Card('Peddler', {
 var makePeddler = new Card('Peddler', {
     fixedCost: coin(5),
     effect: function (card) { return ({
-        description: 'Create a peddler in your deck.',
-        effect: create(peddler, 'deck')
+        description: 'Create a peddler on top of your deck',
+        effect: create(peddler, 'deck', 'top')
     }); },
     relatedCards: [peddler]
 });
-mixins.push(makePeddler);
+register(makePeddler);
 function freeAction(state) {
     return __awaiter(this, void 0, void 0, function () {
         var options, target;
@@ -1766,7 +1815,7 @@ buyable(feast, 4);
 var warFooting = new Card('War Footing', {
     replacers: function (card) { return [{
             description: 'Reboot costs @ less to play.',
-            handles: function (x) { return (x.type == 'cardCost' && x.card == 'Reboot'); },
+            handles: function (x) { return (x.type == 'cost' && x.card == 'Reboot'); },
             replace: applyToKey('cost', applyToKey('time', function (x) { return Math.max(0, x - 1); }))
         }]; }
 });
@@ -1938,7 +1987,7 @@ var expedite = new Card('Expedite', {
         effect: doAll([charge(card, 1), nextTime(function (e) { return (e.type == 'create'); }, function (e) { return move(e.card, 'hand'); })])
     }); }
 });
-mixins.push(expedite);
+register(expedite);
 var goldMine = new Card('Gold Mine', {
     fixedCost: time(2),
     effect: function (card) { return ({
@@ -2148,7 +2197,7 @@ var twins = new Card('Twins', {
     fixedCost: time(0),
     triggers: function (card) { return [{
             description: "When you finish playing a card other than with " + card + ", if it costs @ or more then you may play a card in your hand with the same name.",
-            handles: function (e, state) { return (e.type == 'afterPlay' && e.source.name != twins.name); },
+            handles: function (e) { return (e.type == 'afterPlay' && e.source.name != twins.name); },
             effect: function (e) { return function (state) {
                 return __awaiter(this, void 0, void 0, function () {
                     var cardOptions, replay;
@@ -2644,7 +2693,7 @@ var decay = new Card('Decay', {
         }, {
             description: 'After you play a card, if it has 3 or more decay tokens on it trash it.',
             handles: function (e) { return (e.type == 'afterPlay' && e.after != null && countTokens(e.after, 'decay') >= 3); },
-            effect: function (e) { return trash(e.card); },
+            effect: function (e) { return trash(e.after); },
         }]; }
 });
 mixins.push(decay);
@@ -2652,10 +2701,10 @@ var perpetualMotion = new Card('Perpetual Motion', {
     triggers: function (card) { return [{
             description: 'Whenever you have no cards in hand, draw a card.',
             handles: function (e, state) { return (state.hand.length == 0 && state.deck.length > 0); },
-            effect: function (e) { return draw(1); }
+            effect: function (e) { return draw(1); },
         }]; }
 });
-mixins.push(makeCard(perpetualMotion, time(7), true));
+register(makeCard(perpetualMotion, time(7), true));
 var looter = new Card('Looter', {
     effect: function (card) { return ({
         description: '+1 card. Discard any number of cards from the top of your deck.',
@@ -2814,12 +2863,95 @@ var fillStables = new Card('Fill Stables', {
     triggers: function (card) { return [ensureAtStart(stables)]; },
 });
 register(fillStables);
+var sleigh = new Card('Sleigh', {
+    fixedCost: time(1),
+    effect: function (card) { return ({
+        description: "Put two charge tokens on a " + stables + " in play.",
+        effect: fill(stables, 2),
+    }); }
+});
+var makeSleigh = new Card('Sleigh', {
+    fixedCost: coin(2),
+    relatedCards: [sleigh],
+    effect: function (card) { return gainCard(sleigh); },
+    triggers: function (card) { return [
+        ensureAtStart(stables),
+        {
+            description: 'Whenever you create a card, if you have a sleigh in your hand,' +
+                ' you may discard it to put the card into your hand.',
+            handles: function (e) { return (e.type == 'create'); },
+            effect: function (e) { return function (state) {
+                return __awaiter(this, void 0, void 0, function () {
+                    var options, target;
+                    var _a;
+                    return __generator(this, function (_b) {
+                        switch (_b.label) {
+                            case 0:
+                                options = state.hand.filter(function (x) { return x.name == sleigh.name; });
+                                return [4 /*yield*/, choice(state, 'Discard a sleigh?', allowNull(options.map(asChoice)))];
+                            case 1:
+                                _a = __read.apply(void 0, [_b.sent(), 2]), state = _a[0], target = _a[1];
+                                if (!(target != null)) return [3 /*break*/, 4];
+                                return [4 /*yield*/, move(target, 'discard')(state)];
+                            case 2:
+                                state = _b.sent();
+                                return [4 /*yield*/, move(e.card, 'hand')(state)];
+                            case 3:
+                                state = _b.sent();
+                                _b.label = 4;
+                            case 4: return [2 /*return*/, state];
+                        }
+                    });
+                });
+            }; }
+        }
+    ]; }
+});
+register(makeSleigh);
+var ferry = new Card('Ferry', {
+    fixedCost: time(1),
+    effect: function (card) { return ({
+        description: 'Put a ferry token on a supply.',
+        effect: function (state) {
+            return __awaiter(this, void 0, void 0, function () {
+                var target;
+                var _a;
+                return __generator(this, function (_b) {
+                    switch (_b.label) {
+                        case 0: return [4 /*yield*/, choice(state, 'Put a ferry token on a supply.', state.supplies.map(asChoice))];
+                        case 1:
+                            _a = __read.apply(void 0, [_b.sent(), 2]), state = _a[0], target = _a[1];
+                            if (!(target != null)) return [3 /*break*/, 3];
+                            return [4 /*yield*/, addToken(target, 'ferry')(state)];
+                        case 2:
+                            state = _b.sent();
+                            _b.label = 3;
+                        case 3: return [2 /*return*/, state];
+                    }
+                });
+            });
+        }
+    }); }
+});
+function ferryReduce(cost, n) {
+    return update(cost, 'coin', Math.max(cost.coin - n, (cost.time > 0) ? 0 : 1));
+}
+var makeFerry = new Card('Ferry', {
+    fixedCost: coin(3),
+    effect: function (card) { return gainCard(ferry); },
+    replacers: function (card) { return [{
+            description: 'Cards cost $1 less per ferry token on them, unless it would make them cost 0.',
+            handles: function (p) { return (p.type == 'cost' && countTokens(p.card, 'ferry') > 0); },
+            replace: function (p) { return update(p, 'cost', ferryReduce(p.cost, countTokens(p.card, 'ferry'))); }
+        }]; }
+});
+register(makeFerry);
 var livery = new Card('Livery', {
     replacers: function (card) { return [{
             description: "Whenever you would draw cards other than with " + stables + "," +
                 (" put that many charge tokens on a " + stables + " in play instead."),
-            handles: function (e) { return (e.type == 'draw' && e.source.name != stables.name); },
-            replace: function (e) { return updates(e, { 'draw': 0, 'effects': e.effects.concat([fill(stables, e.draw)]) }); }
+            handles: function (x) { return (x.type == 'draw' && x.source.name != stables.name); },
+            replace: function (x) { return updates(x, { 'draw': 0, 'effects': x.effects.concat([fill(stables, x.draw)]) }); }
         }]; }
 });
 var makeLivery = new Card('Livery', {
@@ -2831,6 +2963,107 @@ var makeLivery = new Card('Livery', {
     }); },
 });
 register(makeLivery);
+function slogCheck(card) {
+    return function (state) {
+        return __awaiter(this, void 0, void 0, function () {
+            var _;
+            var _a;
+            return __generator(this, function (_b) {
+                switch (_b.label) {
+                    case 0:
+                        _a = __read(find(state, card.id), 2), card = _a[0], _ = _a[1];
+                        if (!(card != null && card.charge >= 100)) return [3 /*break*/, 2];
+                        return [4 /*yield*/, gainPoints(100, card)(state)];
+                    case 1:
+                        state = _b.sent();
+                        _b.label = 2;
+                    case 2: return [2 /*return*/, state];
+                }
+            });
+        });
+    };
+}
+var slog = new Card('Slog', {
+    fixedCost: coin(4),
+    effect: function (card) { return ({
+        description: 'Add a charge token to this. Whenever this has 100 or more charge tokens, +100 points.',
+        effect: doAll([charge(card, 1), slogCheck(card)]),
+    }); },
+    replacers: function (card) { return [{
+            description: 'Whenever you gain points other than with this, instead put that many charge tokens on this.',
+            handles: function (x) { return (x.type == 'gainPoints' && x.source.id != card.id); },
+            replace: function (x) { return updates(x, { points: 0, effects: x.effects.concat([charge(card, x.points), slogCheck(card)]) }); }
+        }]; }
+});
+register(slog);
+var burden = new Card('Burden', {
+    fixedCost: time(1),
+    effect: function (card) { return ({
+        description: 'Remove a burden token from a card in the supply',
+        effect: function (state) {
+            return __awaiter(this, void 0, void 0, function () {
+                var options, target;
+                var _a;
+                return __generator(this, function (_b) {
+                    switch (_b.label) {
+                        case 0:
+                            options = state.supplies.filter(function (x) { return countTokens(x, 'burden') > 0; });
+                            return [4 /*yield*/, choice(state, 'Choose a supply to unburden.', allowNull(options.map(asChoice)))];
+                        case 1:
+                            _a = __read.apply(void 0, [_b.sent(), 2]), state = _a[0], target = _a[1];
+                            if (target == null)
+                                return [2 /*return*/, state];
+                            return [2 /*return*/, removeOneToken(target, 'burden')(state)];
+                    }
+                });
+            });
+        }
+    }); },
+    triggers: function (card) { return [{
+            description: 'Whenever you buy a card costing $, put a burden token on it.',
+            handles: function (e, state) { return (e.type == 'buy' && e.card.cost(state).coin >= 1); },
+            effect: function (e) { return addToken(e.card, 'burden'); }
+        }]; },
+    replacers: function (card) { return [{
+            description: 'Cards cost $1 more for each burden token on them.',
+            handles: function (x) { return (x.type == 'cost' && countTokens(x.card, 'burden') > 0); },
+            replace: function (x) { return applyToKey('cost', applyToKey('coin', function (c) { return c + countTokens(x.card, 'burden'); }))(x); }
+        }]; }
+});
+register(burden);
+var artisan = new Card('Artisan', {
+    fixedCost: time(1),
+    effect: function (card) { return ({
+        description: '+2 cards. +$3.',
+        effect: doAll([draw(2), gainCoin(3)]),
+    }); }
+});
+buyable(artisan, 6);
+var chancellor = new Card('Chancellor', {
+    effect: function (card) { return ({
+        description: '+$2. You may discard your deck.',
+        effect: function (state) {
+            return __awaiter(this, void 0, void 0, function () {
+                var doit;
+                var _a;
+                return __generator(this, function (_b) {
+                    switch (_b.label) {
+                        case 0: return [4 /*yield*/, choice(state, 'Discard your deck?', yesOrNo)];
+                        case 1:
+                            _a = __read.apply(void 0, [_b.sent(), 2]), state = _a[0], doit = _a[1];
+                            if (!doit) return [3 /*break*/, 3];
+                            return [4 /*yield*/, moveWholeZone('deck', 'discard')(state)];
+                        case 2:
+                            state = _b.sent();
+                            _b.label = 3;
+                        case 3: return [2 /*return*/, state];
+                    }
+                });
+            });
+        }
+    }); }
+});
+buyable(chancellor, 4);
 // ------------------ Testing -------------------
 var freeMoney = new Card('Free money', {
     fixedCost: time(0),
