@@ -435,7 +435,6 @@ function randomChoices(state, xs, n, seed=null) {
 
 function draw(n, source={}) {
     return async function(state) {
-        console.log(source)
         var drawParams = {type:'draw', draw:n, source:source, effects:[]}
         drawParams = replace(drawParams, state)
         state = await doAll(drawParams.effects)(state)

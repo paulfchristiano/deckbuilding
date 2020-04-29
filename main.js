@@ -598,7 +598,6 @@ function draw(n, source) {
             return __generator(this, function (_b) {
                 switch (_b.label) {
                     case 0:
-                        console.log(source);
                         drawParams = { type: 'draw', draw: n, source: source, effects: [] };
                         drawParams = replace(drawParams, state);
                         return [4 /*yield*/, doAll(drawParams.effects)(state)];
