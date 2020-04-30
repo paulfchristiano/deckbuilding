@@ -1,11 +1,10 @@
 "use strict";
-// TODO: render tokens more nicely if there are multiples
 // TODO: move CSS into a separate style file
-// TODO: the first 90 lines of this file aren't sorted very well
+// TODO: the first section of this file isn't 't sorted very well
+// TODO: don't currently get type checking for replacement and triggers; checking types would catch a lot of bugs
 // TODO: make the tooltip nice---should show up immediately, but be impossible to keep it alive by mousing over it
 // TODO: History?
 // TODO: I think the cost framework isn't really appropriate any more, but maybe think a bit before getting rid of it
-// TODO: Undo isn't in a great position
 // TODO: if a zone gets bigger and then, it's annoying to keep resizing it. As soon as a zone gets big I want to leave it big probably.
 // TODO: probably worth distinguishing items with 1 vs 2 tokens?
 // TODO: minimum width for option choices
@@ -1050,13 +1049,45 @@ function renderStatic(text) {
 function renderAbility(text) {
     return "<div>(ability) " + text + "</div>";
 }
+function renderTokens(tokens) {
+    var e_6, _a, e_7, _b;
+    var counter = new Map();
+    try {
+        for (var tokens_1 = __values(tokens), tokens_1_1 = tokens_1.next(); !tokens_1_1.done; tokens_1_1 = tokens_1.next()) {
+            var token = tokens_1_1.value;
+            counter.set(token, (counter.get(token) || 0) + 1);
+        }
+    }
+    catch (e_6_1) { e_6 = { error: e_6_1 }; }
+    finally {
+        try {
+            if (tokens_1_1 && !tokens_1_1.done && (_a = tokens_1.return)) _a.call(tokens_1);
+        }
+        finally { if (e_6) throw e_6.error; }
+    }
+    var parts = [];
+    try {
+        for (var counter_1 = __values(counter), counter_1_1 = counter_1.next(); !counter_1_1.done; counter_1_1 = counter_1.next()) {
+            var _c = __read(counter_1_1.value, 2), token = _c[0], count = _c[1];
+            parts.push((count == 1) ? token : token + "(" + count + ")");
+        }
+    }
+    catch (e_7_1) { e_7 = { error: e_7_1 }; }
+    finally {
+        try {
+            if (counter_1_1 && !counter_1_1.done && (_b = counter_1.return)) _b.call(counter_1);
+        }
+        finally { if (e_7) throw e_7.error; }
+    }
+    return parts.join(', ');
+}
 function renderTooltip(card, state) {
     var effectHtml = "<div>" + card.effect().description + "</div>";
     var abilitiesHtml = card.abilities().map(function (x) { return renderAbility(x.description); }).join('');
     var triggerHtml = card.triggers().map(function (x) { return renderStatic(x.description); }).join('');
     var replacerHtml = card.replacers().map(function (x) { return renderStatic(x.description); }).join('');
     var staticHtml = triggerHtml + replacerHtml;
-    var tokensHtml = card.tokens.length > 0 ? "Tokens: " + card.tokens.join(', ') : '';
+    var tokensHtml = card.tokens.length > 0 ? "Tokens: " + renderTokens(card.tokens) : '';
     var baseFilling = [effectHtml, abilitiesHtml, staticHtml, tokensHtml].join('');
     function renderRelated(spec) {
         var card = new Card(spec, -1);
@@ -1254,7 +1285,7 @@ function freshMultichoice(state, choicePrompt, options, validator) {
     renderChoice(state, choicePrompt, options, true);
     var chosen = new Set();
     function chosenOptions() {
-        var e_6, _a;
+        var e_8, _a;
         var result = [];
         try {
             for (var chosen_1 = __values(chosen), chosen_1_1 = chosen_1.next(); !chosen_1_1.done; chosen_1_1 = chosen_1.next()) {
@@ -1262,12 +1293,12 @@ function freshMultichoice(state, choicePrompt, options, validator) {
                 result.push(options[i].value);
             }
         }
-        catch (e_6_1) { e_6 = { error: e_6_1 }; }
+        catch (e_8_1) { e_8 = { error: e_8_1 }; }
         finally {
             try {
                 if (chosen_1_1 && !chosen_1_1.done && (_a = chosen_1.return)) _a.call(chosen_1);
             }
-            finally { if (e_6) throw e_6.error; }
+            finally { if (e_8) throw e_8.error; }
         }
         return result;
     }
@@ -2017,6 +2048,8 @@ var reinforce = { name: 'Reinforce',
                     var result;
                     return __generator(this, function (_a) {
                         result = state.find(e.before);
+                        console.log(card);
+                        console.log(e.source);
                         return [2 /*return*/, (result.place == 'discard') ? result.card.play(card)(state) : state];
                     });
                 });
@@ -2605,7 +2638,7 @@ var coppersmith = { name: 'Coppersmith',
 };
 buyable(coppersmith, 3);
 function countDistinct(xs) {
-    var e_7, _a;
+    var e_9, _a;
     var y = new Set();
     var result = 0;
     try {
@@ -2617,12 +2650,12 @@ function countDistinct(xs) {
             }
         }
     }
-    catch (e_7_1) { e_7 = { error: e_7_1 }; }
+    catch (e_9_1) { e_9 = { error: e_9_1 }; }
     finally {
         try {
             if (xs_1_1 && !xs_1_1.done && (_a = xs_1.return)) _a.call(xs_1);
         }
-        finally { if (e_7) throw e_7.error; }
+        finally { if (e_9) throw e_9.error; }
     }
     return result;
 }
@@ -2767,7 +2800,7 @@ var pathfinding = { name: 'Pathfinding',
             effect: function (e) { return draw(countTokens(e.card, 'path')); }
         }]; },
 };
-mixins.push(pathfinding);
+register(pathfinding);
 var counterfeit = { name: 'Counterfeit',
     effect: function (card) { return ({
         description: 'Play a card from your deck, then trash it.',

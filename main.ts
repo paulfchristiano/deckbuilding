@@ -1,10 +1,9 @@
-// TODO: render tokens more nicely if there are multiples
 // TODO: move CSS into a separate style file
-// TODO: the first 90 lines of this file aren't sorted very well
+// TODO: the first section of this file isn't 't sorted very well
+// TODO: don't currently get type checking for replacement and triggers; checking types would catch a lot of bugs
 // TODO: make the tooltip nice---should show up immediately, but be impossible to keep it alive by mousing over it
 // TODO: History?
 // TODO: I think the cost framework isn't really appropriate any more, but maybe think a bit before getting rid of it
-// TODO: Undo isn't in a great position
 // TODO: if a zone gets bigger and then, it's annoying to keep resizing it. As soon as a zone gets big I want to leave it big probably.
 // TODO: probably worth distinguishing items with 1 vs 2 tokens?
 // TODO: minimum width for option choices
@@ -872,13 +871,25 @@ function renderAbility(text:string): string {
     return `<div>(ability) ${text}</div>`
 }
 
+function renderTokens(tokens:string[]): string {
+    const counter:Map<string,number> = new Map()
+    for (const token of tokens) {
+        counter.set(token, (counter.get(token) || 0) + 1)
+    }
+    const parts:string[] = []
+    for (const [token, count] of counter) {
+        parts.push((count == 1) ? token : `${token}(${count})`)
+    }
+    return parts.join(', ')
+}
+
 function renderTooltip(card:Card, state:State): string {
     const effectHtml:string = `<div>${card.effect().description}</div>`
     const abilitiesHtml:string = card.abilities().map(x => renderAbility(x.description)).join('')
     const triggerHtml:string = card.triggers().map(x => renderStatic(x.description)).join('')
     const replacerHtml:string = card.replacers().map(x => renderStatic(x.description)).join('')
     const staticHtml:string = triggerHtml + replacerHtml
-    const tokensHtml:string = card.tokens.length > 0 ? `Tokens: ${card.tokens.join(', ')}` : ''
+    const tokensHtml:string = card.tokens.length > 0 ? `Tokens: ${renderTokens(card.tokens)}` : ''
     const baseFilling:string = [effectHtml, abilitiesHtml, staticHtml, tokensHtml].join('')
     function renderRelated(spec:CardSpec) {
         const card:Card = new Card(spec, -1)
@@ -1702,6 +1713,8 @@ const reinforce:CardSpec = {name: 'Reinforce',
         'handles':e => (e.type == 'afterPlay' && e.before.tokens.includes('reinforce') && e.source.id != card.id),
         'effect':e => async function(state) {
             const result = state.find(e.before)
+            console.log(card)
+            console.log(e.source)
             return (result.place == 'discard') ? result.card.play(card)(state) : state
         }
     }],
@@ -2267,7 +2280,7 @@ const pathfinding:CardSpec = {name: 'Pathfinding',
         effect:e => draw(countTokens(e.card, 'path'))
     }],
 }
-mixins.push(pathfinding)
+register(pathfinding)
 
 const counterfeit:CardSpec = {name: 'Counterfeit',
     effect: card => ({
