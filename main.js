@@ -2297,7 +2297,7 @@ var roadNetwork = { name: 'Road Network',
             effect: function (e) { return move(e.card, 'deck', 'top'); }
         }]; }
 };
-register(makeCard(roadNetwork, coin(5), true), 'test');
+register(makeCard(roadNetwork, coin(5), true));
 var twins = { name: 'Twins',
     fixedCost: time(0),
     triggers: function (card) { return [{

@@ -1919,7 +1919,7 @@ const roadNetwork:CardSpec = {name: 'Road Network',
         effect: e => move(e.card, 'deck', 'top')
     }]
 }
-register(makeCard(roadNetwork, coin(5), true), 'test')
+register(makeCard(roadNetwork, coin(5), true))
 
 const twins:CardSpec = {name: 'Twins',
     fixedCost: time(0),
