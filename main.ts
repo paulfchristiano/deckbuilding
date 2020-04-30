@@ -1,6 +1,5 @@
 // TODO: render tokens more nicely if there are multiples
 // TODO: nicer architecture where we separate out intrinsic properties of cards from charge/tokens/etc.?
-// TODO: use types
 // TODO: make the tooltip nice---should show up immediately, but be impossible to keep it alive by mousing over it
 // TODO: History?
 // TODO: I think the cost framework isn't really appropriate any more, but maybe think a bit before getting rid of it
@@ -8,8 +7,6 @@
 // TODO: if a zone gets bigger and then, it's annoying to keep resizing it. As soon as a zone gets big I want to leave it big probably.
 // TODO: probably worth distinguishing items with 1 vs 2 tokens?
 // TODO: minimum width for option choices
-
-type State = any;
 
 // returns a copy x of object with x.k = v for all k:v in kvs
 function updates(object, kvs) {
@@ -32,31 +29,25 @@ function applyToKey(k, f) {
     return x => update(x, k, f(x[k]))
 }
 
-//TODO: operating on a given card involves a linear scan, could speed up with clever datastructure
-// the function that applies f to the card with a given id
 function applyToCard(card: Card, f: ((c: Card) => Card)): ((state: State) => State) {
-    const id = card.id
-    return function(state) {
-        const [_, zone] = find(state, id)
-        return (zone == null) ? state : update(state, zone, state[zone].map(x => (x.id == id) ? f(x) : x))
-    }
+    return (state:State) => state.apply(f, card)
 }
 
 //e is an event that just happened
 //each card in play and aura can have a followup
 //NOTE: this is slow, we should cache triggers (in a dictionary by event type) if it becomes a problem
-function trigger(e) {
-    return async function(state) {
+function trigger(e:Event): Transform {
+    return async function(state:State): State {
         //this is a list of (source, trigger) pairs
         //only need the source for teh purpose of tick, clear below
-        var triggers = state.supplies.concat(state.auras).concat(state.play).map(x => x.triggers().map(y => [x, y])).flat()
+        let triggers:[Card,Trigger][] = state.supply.concat(state.play).map(x => x.triggers().map(y => [x, y])).flat()
         triggers = triggers.filter(trigger => trigger[1].handles(e, state))
-        const effects = triggers.map(trigger => async function(state) {
-            let shadow; [state, shadow] = addShadow(state, trigger[0], 'trigger', trigger[1].description)
-            state = startTick(trigger[0])(state)
+        const effects:Transform[] = triggers.map(trigger => async function(state) {
+            state = state.addShadow(trigger[0], 'trigger', trigger[1].description)
+            state = state.startTicker(trigger[0])
             state = await trigger[1].effect(e)(state)
-            state = endTick(trigger[0])(state)
-            state = removeShadow(state, shadow)
+            state = state.endTicker(trigger[0])
+            state = state.popResolving()
             return state
         })
         return doAll(effects)(state)
@@ -64,9 +55,9 @@ function trigger(e) {
 }
 
 //x is an event that is about to happen
-//each card in play and aura can change properties of x
+//each card in play or supplies can change properties of x
 function replace(x, state) {
-    var replacers = state.play.concat(state.supplies).concat(state.auras).map(x => x.replacers()).flat()
+    var replacers = state.supply.concat(state.play).map(x => x.replacers()).flat()
     for (var i = 0; i < replacers.length; i++) {
         const replacer = replacers[i]
         if (replacer.handles(x, state)) {
@@ -76,228 +67,424 @@ function replace(x, state) {
     return x
 }
 
-//the effect that adds aura
-function addAura(aura) {
-    return async function(state) {
-        var [state, newaura] = assignUID(state, aura)
-        return update(state, 'auras', state.auras.concat([newaura]))
-    }
-}
-
-//the effect that deletes an aura with the given id,
-function deleteAura(id) {
-    return async function(state) {
-        const result = removeIfPresent(state.auras, id)
-        if (result.found) {
-            return update(state, 'auras', result.without)
-        } else {
-            return state
-        }
-    }
-}
-
-function clearAurasFrom(card) {
-    return async function(state) {
-        return update(state, 'auras', state.auras.filter(x => x.source.id != card.id))
-    }
-}
-
-//add an aura that triggers what(e) next time an event matching when(e) occurs, then deletes itself
-function nextTime(when, what, source={}) {
-    const aura = {
-        replacers() { return [] },
-        triggers() {
-            const id = this.id
-            return [{
-                handles(e) { return when(e) },
-                effect(e) { return doAll([deleteAura(id), what(e)]) }
-            }]
-        },
-        source: source
-    }
-    return addAura(aura)
-}
-
-function applyToLast<T>(f : ((t:T) => T)): (xs: T[]) => T[] {
-    return function(xs: T[]) {
-        return xs.slice(0, xs.length-1).concat([f(xs[xs.length-1])])
-    }
-}
-
-//applies the function f to the latest shadow that matches the card
-//(this would cause trouble if a card had a shadow and then was played the normal way)
-//TODO: probably in ticks a card should just record the shadow that it wants to tick with it
-function updateLastShadow(state:State, card:Card, f: (shadow:Shadow) => Shadow): State {
-    let lastIndex:number | null = null;
-    for (var i = 0; i < state.resolving.length; i++) {
-        let x = state.resolving[i];
-        if (x instanceof Shadow && x.original.id == card.id) {
-            lastIndex = i
-        }
-    }
-    if (lastIndex == null) return state
-    return applyToKey('resolving', xs => xs.map((x, i) => (i == lastIndex) ? f(x) : x))(state)
-}
-
 // this updates a state by incrementing the tick on the given card,
-// and ticking its shadow
+// and ticking its shadow (which we assume is the last thing in resolving)
 function tick(card: Card): ((s: State) => State) {
     return function(state: State): State {
-        state = applyToCard(card, applyToKey('ticks', applyToLast((x:number) => x + 1)))(state)
-        state = updateLastShadow(state, card, applyToKey('tick', (x:number) => x + 1))
+        state = state.apply(x => x.tick(), card)
+        const last:(Card|Shadow) = state.resolving[state.resolving.length-1];
+        if (last instanceof Shadow) {
+            state = state.popResolving()
+            state = state.addResolving(last.tick())
+        }
         return state
     }
 }
-function startTick(card: Card): (s:State) => State {
-    return applyToCard(card, applyToKey('ticks', xs => xs.concat([1])))
+
+interface Cost {
+    coin: number
+    time: number
 }
-// or by removing the tick
-function endTick(card) {
-    return applyToCard(card, applyToKey('ticks', xs => xs.slice(0, xs.length-1)))
+
+interface CardSpec {
+    name: string;
+    fixedCost?: Cost;
+    calculatedCost?: (state:State) => Cost;
+    relatedCards: Card[];
+    effect?: (card:Card) => Effect;
+    triggers?: (card:Card) => Trigger[];
+    abilities?: (card:Card) => Ability[];
+    replacers?: (card:Card) => Replacer[];
+}
+
+type Transform = (state:State) => Promise<State>
+
+interface Effect {
+    description: string;
+    skipDiscard?: boolean;
+    effect: Transform;
+}
+
+type Event = any
+
+interface Trigger {
+    description: string;
+    handles: (e:Event, s:State) => boolean;
+    effect: (e:Event) => Transform;
+}
+
+type Params = any
+
+interface Replacer{
+    description: string;
+    handles: (p:Params, s:State) => boolean;
+    replace: (p:Params, s:State) => Params;
+}
+
+interface Ability {
+    description: string;
+    cost: Transform;
+    effect: Transform;
+}
+
+interface Source {
+    id?: number;
+    name: string;
+}
+
+function read<T>(x:any, k:string, fallback:T) {
+    return (x[k] == undefined) ? fallback : x[k]
+}
+
+interface CardUpdate {
+    charge?: number;
+    ticks?: number[];
+    tokens: string[];
 }
 
 class Card {
-    id: number;
-    props: any;
-    charge: number;
-    ticks: number[];
-    tokens: string[];
-    shadows: Shadow[]; 
-    name: string;
-    constructor(name, props) {
-        this.charge = 0
-        this.ticks = [0]
-        this.tokens = []
-        this.name = name
-        this.props = props
-    }
-    toString() {
+    readonly name: string;
+    readonly id: number;
+    readonly charge: number;
+    readonly ticks: number[];
+    readonly tokens: string[];
+    constructor(
+        private readonly spec:CardSpec,
+        public readonly id:number,
+        public readonly charge:number = 0,
+        public readonly ticks: number[] = [0],
+        public readonly tokens: string[] = [],
+    ) {}
+    toString():string {
         return this.name
     }
-    // cost can depend on the state of the game
-    // is measured in time
-    baseCost(state=null) {
-        if (this.props.fixedCost != undefined)
-            return this.props.fixedCost
-        else if (this.props.calculatedCost != undefined)
-            return this.props.calculatedCost(this, state)
+    update(newValues: CardUpdate): Card {
+        return new Card(
+            this.spec,
+            this.id,
+            read(newValues, 'charge', this.charge),
+            read(newValues, 'ticks', this.ticks),
+            read(newValues, 'tokens', this.tokens),
+        )
+    }
+    startTicker(): Card {
+        return this.update({ticks: this.ticks.concat([1])})
+    }
+    clearTicker(): Card {
+        return this.update({ticks: this.ticks.slice(0, this.ticks.length-1)})
+    }
+    tick(): Card {
+        const n:number = this.ticks.length
+        const t:number = this.ticks[n-1]
+        return this.update({ticks: this.ticks.slice(0, n-1).concat([t+1])})
+    }
+    baseCost(state:State): Cost {
+        if (this.spec.fixedCost != undefined)
+            return this.spec.fixedCost
+        else if (this.spec.calculatedCost != undefined)
+            return this.spec.calculatedCost(this, state)
         else
             return {coin:0, time:0}
     }
     // the cost after replacement effects
-    cost(state) {
-        const thisCard = this
-        const initialCost = {type:'cost', card:thisCard, cost:thisCard.baseCost()}
-        const newCost = replace(initialCost, state)
+    cost(state:State): Cost {
+        const card:Card = this
+        const initialCost:Params = {type:'cost', card:card, cost:card.baseCost(state)}
+        const newCost:Params = replace(initialCost, state)
         return newCost.cost
     }
-    // the effect that actually pays the cost
-    payCost() {
+    // the transformation that actually pays the cost
+    payCost(): Transform {
         const card = this
-        return async function(state) {
-            const cost = card.cost(state)
+        return async function(state:State): State {
+            const cost:Cost = card.cost(state)
             return doAll([gainTime(cost.time), payCoin(cost.coin)])(state)
         }
     }
-    effect() {
-        return callOr(this.props.effect, this, {description:''})
+    effect(): Effect {
+        if (this.spec.effect == undefined) return {description: '', effect: noop}
+        return this.spec.effect(this)
     }
-    buy(source={}) {
-        let card = this
-        return async function(state) {
-            let zone; [card, zone] = find(state, card.id)
+    buy(source:Source={name:'?'}): Transform {
+        let card:Card = this
+        return async function(state:State):State {
+            let zone:string; [card, zone] = state.find(card)
             if (card == null) return
             state = await trigger({type:'buy', card:card, source:source})(state)
-            let shadow; [state, shadow] = addShadow(state, card, 'buy')
-            state = startTick(card)(state)
+            state = state.addShadow(state, card, 'buy')
+            state = state.startTicker(card)
             state = await card.effect().effect(state)
-            state = endTick(card)(state)
-            state = removeShadow(state, shadow)
-            let [newCard, _] = find(state, card.id)
+            state = state.endTicker(card)
+            state = state.popResolving()
+            let [newCard, _] = state.find(card)
             return trigger({type:'afterBuy', before:card, after:newCard, source:source})(state)
         }
     }
-    play(source={}) {
-        const effect = this.effect()
-        var card = this
-        return async function(state) {
-            let zone; [card, zone] = find(state, card.id)
+    play(source:Source={name:'?'}): Transform {
+        const effect:Effect = this.effect()
+        var card:Card = this
+        return async function(state:State):State {
+            let zone:string; [card, zone] = state.find(card)
             if (card == null) return
             state = await move(card, 'resolving')(state)
             state = await trigger({type:'play', card:card, source:source})(state)
-            state = startTick(card)(state)
+            state = state.startTicker(card)
             state = await effect.effect(state)
+            state = state.endTicker(card)
             if (!effect['skipDiscard']) state = await move(card, 'discard')(state)
-            state = endTick(card)(state)
-            let [newCard, _] = find(state, card.id)
+            let newCard:Card; [newCard, zone] = state.find(card)
             return trigger({type:'afterPlay', before:card, after:newCard, source:source})(state)
         }
     }
-    triggers() {
-        return callOr(this.props.triggers, this, [])
+    triggers(): Trigger[] {
+        if (this.spec.triggers == undefined) return []
+        return this.spec.triggers(this)
     }
-    abilities() {
-        return callOr(this.props.abilities, this, [])
+    abilities(): Ability[] {
+        if (this.spec.abilities == undefined) return []
+        return this.spec.abilities(this)
     }
-    replacers() {
-        return callOr(this.props.replacers, this, [])
+    replacers(): Replacer[] {
+        if (this.spec.replacers == undefined) return []
+        return this.replacers.abilities(this)
     }
-    relatedCards() {
-        return this.props.relatedCards || []
+    relatedCards(): CardSpec[] {
+        return this.spec.relatedCards || []
     }
 }
 
-function callOr(f, x, fallback) {
-    return (f == undefined) ? fallback : f(x)
+type RecordKind = 'RNG' | 'Choice' | 'MultiChoice'
+
+interface RNGRecord {
+    kind: 'RNG';
+    value: number;
+}
+interface ChoiceRecord {
+    kind: 'Choice';
+    value: number; 
+}
+interface MultiChoiceRecord {
+    kind: 'Choice';
+    value: [number];
+}
+type Record = RNGRecord | ChoiceRecord | MultiChoiceRecord
+
+type Location = 'bottom' | 'top' | 'start' | 'end' | 'sorted'
+
+type ZoneName = 'supply' | 'hand' | 'deck' | 'discard' | 'play' | 'aside'
+type Zone = Card[]
+
+type Resolving = (Card|Shadow)[]
+
+interface Counters {
+    coin:number;
+    time:number;
+    points:number
+}
+
+type CounterName = 'coin' | 'time' | 'points'
+
+interface StateUpdate {
+    counters?:Counters;
+    zones?:Zones;
+    resolving?:Resolving;
+    log?:Log;
+    nextID?:number;
+}
+
+class State {
+    public readonly coin:number;
+    public readonly time:number;
+    public readonly points:number;
+
+    public readonly supply:Zone;
+    public readonly hand:Zone;
+    public readonly deck:Zone;
+    public readonly discard:Zone;
+    public readonly play:Zone;
+    public readonly aside:Zone;
+    constructor(
+        private readonly counters:Counters,
+        private readonly zones:Map<ZoneName,Zone>,
+        public readonly resolving:Resolving,
+        private readonly log: Log,
+        private readonly nextID,
+        private readonly history: Record[],
+        private readonly future: Record[],
+        private readonly checkpoint: State|null
+    ) {
+        this.coin = counters.coin
+        this.time = counters.time
+        this.points = counters.points
+
+        this.supply = zones.get('supply')
+        this.hand = zones.get('hand')
+        this.deck = zones.get('deck')
+        this.discard= zones.get('discard')
+        this.play = zones.get('play')
+        this.aside = zones.get('aside')
+    }
+    private update(stateUpdate:stateUpdate) {
+        return new State(
+            read(stateUpdate, 'counters', this.counters),
+            read(stateUpdate, 'zones', this.zones),
+            read(stateUpdate, 'resolving', this.resolving),
+            read(stateUpdate, 'log', this.log),
+            read(stateUpdate, 'nextID', this.nextID),
+            read(stateUpdate, 'history', this.history),
+            read(stateUpdate, 'future', this.future),
+            read(stateUpdate, 'checkpoint', this.checkpoint),
+        )
+    }
+    addResolving(x:Card|Shadow): State {
+        return this.update({resolving: this.resolving.concat([x])})
+    }
+    popResolving(): State {
+        return this.update({resolving: this.resolving.slice(0, this.resolving.length-1)})
+    }
+    addToZone(card:Card, zone:ZoneName, loc:Location='end'): State {
+        if (zoneName == 'hand') loc = 'sort'
+        const newZones:Map<ZoneName,Zone> = Map(this.zones)
+        newZones[zone] = insertAt(this.zones[zone], card, loc)
+        return this.update({zones:newZones})
+    }
+    remove(card:Card): State {
+        const newZones:Map<ZoneName,Zone> = {}
+        for (let [name, zone] of this.zones) {
+            newZones[name] = zone.filter(c => c.id != card.id)
+        }
+        return this.update({zones:newZones})
+    }
+    apply(f:(c:Card) => Card, card:Card): State {
+        const newZones:Map<ZoneName,Zone> = {}
+        for (let [name, zone] of this.zones) {
+            newZones[name] = zone.map(c => (c.id == card.id) ? f(c) : c)
+        }
+        return this.update({zones:newZones})
+    }
+    setCoin(n:number): State {
+        return this.update({counters: {coin:n, time:this.time, points:this.poitns}})
+    }
+    setTime(n:number): State {
+        return this.update({counters: {coin:this.coin, time:n, points:this.poitns}})
+    }
+    setPoints(n:number): State {
+        return this.update({counters: {coin:this.coin, time:this.time, points:n}})
+    }
+    find(card:Card): [Card|null, ZoneName|null] {
+        for ([name, zone] of this.zones) {
+            const matches:Card = zone.filter(c => c.id == card.id)
+            if (matches.length > 0) return [matches[0], name]
+        }
+        return [null, null]
+    }
+    startTicker(card:Card): State {
+        return this.apply(card => card.startTicker(), card)
+    }
+    endTicker(card:Card): State {
+        return this.apply(card => card.endTicker(), card)
+    }
+    addHistory(record:Record): State {
+        return this.update({history: history:this.history.concat([record])})
+    }
+    consumeFuture(): [State, Record] {
+        let [record, future] = shiftFirst(this.log.future);
+        return [this.update({future:future,}), record]
+    }
+    // Invariant: starting from checkpoint and replaying the history gets you to the current state
+    // To maintain this invariant, we need to record history every time there is a change
+    checkpoint(): State {
+        return this.update({log: {history:[], future:this.log.future, checkpoint:this}})
+    }
+    // backup() leads to the same place as this if you run mainLoop, but it has more future
+    // this enables undoing by backing up until you have future, then just popping from the future
+    backup(): State {
+        return this.checkpoint.update({future: this.history.concat(this.future)})
+    }
+    makeID(): [State, int] {
+        const id:number = this.nextID
+        return [this.update({nextID: id+1}), id]
+    }
+    lastRecord(): Record|null {
+        if (this.history.length > 0)
+            return this.history[this.history.length-1]
+        else if (this.checkpoint == null)
+            return null
+        else
+            return this.checkpoint.lastRecord()
+    }
+    undoable(): boolean {
+        const record:Record = this.lastRecord()
+        return (record != null && record.kind == 'choice')
+    }
+}
+
+// ---------- Methods for inserting cards into zones
+
+// tests whether card1 should appear before card2 in sorted order
+
+function comesBefore(card1:Card, card2:Card): boolean  {
+    const key = card => card.name + card.charge + card.tokens.join('')
+    return key(card1) < (key(card2))
+}
+
+function assertNever(x: never): never {
+    throw new Error(`Unexpected: ${x}`)
+}
+
+function insertInto<T>(x:T, xs:T[], n:number): T[] {
+    return xs.slice(0, n).concat([x]).concat(xs.slice(n+1))
+}
+
+function insertAt(zone:Zone, card:Card, loc:Location): Zone {
+    switch(loc) {
+        case 'start':
+        case 'top':
+            return [card].concat(zone)
+        case 'bottom':
+        case 'end':
+            return zone.concat([card])
+        case 'sorted':
+            for (var i = 0; i < zone.length; i++) {
+                if (comesBefore(card, zone[i])) return insertInto(card, zone, i)
+            }
+            return zone.concat([card])
+        default: return assertNever(loc)
+    }
 }
 
 // these are displayed in the resolving area to help track what's going on
+//
+
+type ShadowKind = 'ability' | 'trigger' | 'replacer' | 'buy'
+
 class Shadow {
-    original: Card;
-    kind: string;
-    text: string;
-    tick: number;
-    constructor(original: Card, kind: string, text?: string) {
-        this.tick = 1
-        this.original = original 
-        this.kind = kind
-        this.text = text
+    constructor(
+        public readonly id:number,
+        public readonly original:Card,
+        public readonly kind: string,
+        public readonly tick:number,
+        public readonly text?: string,
+    ) {}
+    tick(): Shadow {
+        return new Shadow(this.id, this.original, this.kind, this.tick+1, this.text)
     }
 }
 
-function addShadow(state, original, kind, text?) {
-    let shadow; [state, shadow] = assignUID(state, new Shadow(original, kind, text));
-    state = applyToKey('resolving', xs => xs.concat([shadow]))(state)
-    return [state, shadow]
+function addShadow(state:State, original:Card, kind:string, text?: string): [State, Shadow] {
+    let id:number; [state, id] = state.makeID()
+    let shadow:Shadow = new Shadow(id, original, kind, 1, text)
+    return [state.addResolving(shadow), shadow]
 }
 
-function removeShadow(state, shadow) {
-    return applyToKey('resolving', xs => xs.filter(x => x.id != shadow.id))(state)
-}
-
-function getShadow(state, card) {
-    for (var i = 0; i < state.resolving.length; i++) {
-        if (state.resolving[i] instanceof Shadow && state.resolving[i].original.id == card.id) {
-            return state.resolving[i]
-        }
-    }
-}
-
-function a(x) {
-    const s = x.toString()
-    const c = s[0].toLowerCase()
-    if (c == 'a' || c == 'e' || c == 'i' || c == 'o' || c == 'u')
-        return 'an ' + s
-    return 'a ' + s
-}
-
-function assignUID(state, card) {
+function assignUID(state:State, card) {
     const id = state.nextID
     return [update(state, 'nextID', id+1), update(card, 'id', id)]
 }
 
-function create(card, toZone='discard', loc='bottom') {
+function create(spec:CardSpec, toZone:ZoneName='discard', loc:Location='bottom') {
     return async function(state) {
+        let id:number; [state, id] = state.nextID()
         [state, card] = assignUID(state, card)
         state = await addToZone(card, toZone, loc)(state)
         return trigger({type:'create', card:card, toZone:toZone})(state)
@@ -309,11 +496,6 @@ function recycle(cards) {
         [state, cards] = randomChoices(state, cards, cards.length);
         return moveMany(cards, 'deck')(state)
     }
-}
-
-function comesBefore(card1, card2)  {
-    const key = card => card.name + card.charge + card.tokens.join('')
-    return key(card1) < (key(card2))
 }
 
 function insertAt(card, zone, i) {
@@ -357,43 +539,20 @@ function removeIfPresent(xs, id) {
     return {found:false}
 }
 
-function find(state, id) {
-    for (var i = 0; i < ZONES.length; i++) {
-        const zone = state[ZONES[i]]
-        for (var j = 0; j < zone.length; j++) {
-            if (zone[j].id == id) return [zone[j], ZONES[i]]
-        }
-    }
-    return [null, null]
-}
-
-function move(card, toZone, loc='end') {
+function move(card:Card, toZone:ZoneName, loc:Location='end'): Transform {
     return async function(state) {
-        const [_, fromZone] = find(state, card.id)
-        if (fromZone == null) return state
-        return moveFromTo(card, fromZone, toZone, loc)(state)
+        let fromZone:ZoneName; [card, fromZone] = state.find(card)
+        if (card != null) {
+            state = state.remove(card)
+            state = state.addToZone(card, toZone, loc)
+            state = await trigger({type:'move', fromZone:fromZone, toZone:toZone, loc:loc, card:card})
+        }
+        return state
     }
 }
 
-//TODO: should we move them all at once, with one trigger?
-//Could do this by changing move
 function moveMany(cards, toZone, loc='end') {
     return doAll(cards.map(card => move(card, toZone)))
-}
-
-function trash(card) {
-    return move(card, null)
-}
-
-function moveFromTo(card, fromZone, toZone, loc='end') {
-    if (toZone == 'hand') loc = 'sorted' //TODO: this is a kind of hacky way to maintain a sort
-    return async function(state) {
-        const result = removeIfPresent(state[fromZone], card.id)
-        if (!result.found) return state
-        state = update(state, fromZone, result.without)
-        if (toZone != null) state = await addToZone(result.card, toZone, loc)(state)
-        return await trigger({type:'moved', card:result.card, fromZone:fromZone, toZone:toZone})(state)
-    }
 }
 
 function moveWholeZone(fromZone, toZone, loc='end') {
@@ -402,7 +561,13 @@ function moveWholeZone(fromZone, toZone, loc='end') {
     }
 }
 
+function trash(card) {
+    return move(card, null)
+}
+
+
 // pseudorandom float in [0,1] based on two integers a, b
+// homemade, probably not very good
 function PRF(a, b) {
     const N = 123456789
     return ((a * 1003303882 + b * 6690673372 + b * b * 992036483 +
@@ -410,14 +575,13 @@ function PRF(a, b) {
         ((b*b+1) / (a*a+1)) * 392901666676)  % N) / N
 }
 
-function randomChoice(state, xs, seed=null) {
+function randomChoice<T>(state:State, xs:T[], seed=null): T|null {
     if (xs.length == 0) return [state, null];
-    let x;
-    [state, [x]] = randomChoices(state, xs, 1, seed)
-    return [state, x]
+    let xs:T[]; [state, xs] = randomChoices(state, xs, 1, seed)
+    return [state, xs[0]]
 }
 
-function randomChoices(state, xs, n, seed=null) {
+function randomChoices<T>(state:State, xs:T[], n:number, seed=null): T[] {
     const result = []
     xs = xs.slice()
     while (result.length < n) {
@@ -433,17 +597,18 @@ function randomChoices(state, xs, n, seed=null) {
     return [state, result]
 }
 
-function draw(n, source={}) {
-    return async function(state) {
-        var drawParams = {type:'draw', draw:n, source:source, effects:[]}
+function draw(n:number, source:Source={}):Transform {
+    return async function(state:State):State {
+        var drawParams:Params = {type:'draw', draw:n, source:source, effects:[]}
         drawParams = replace(drawParams, state)
         state = await doAll(drawParams.effects)(state)
         n = drawParams.draw
-        var drawn = 0
-        for (var i = 0; i < n; i++) {
+        let drawn = 0
+        for (let i = 0; i < n; i++) {
             if (state.deck.length > 0) {
-                let [nextCard, rest] = shiftFirst(state.deck)
-                state = await moveFromTo(nextCard, 'deck', 'hand', 'sorted')(state)
+                let nextCard:Card, rest:Card[];
+                [nextCard, rest] = shiftFirst(state.deck)
+                state = await move(nextCard, 'hand', 'sorted')(state)
                 drawn += 1
             }
         }
@@ -453,7 +618,7 @@ function draw(n, source={}) {
 
 function discard(n) {
     return async function(state) {
-        let toDiscard;
+        let toDiscard:Card[];
         [state, toDiscard] = (state.hand.length <= n) ? [state, state.hand] :
             await choice(state, `Choose ${n} cards to discard.`, state.hand.map(asChoice),
                 (xs => xs.length == n))
@@ -469,37 +634,36 @@ class CostNotPaid extends Error {
 }
 
 
-function payCoin(n) {
+function payCoin(n:number): Transform {
     return gainCoin(-n, true)
 }
 
-function setCoins(n) {
-    return async function(state) {
-        const adjustment = n - state.coin
-        state = update(state, 'coin', n)
-        return trigger({type:'gainCoin', amount:adjustment, cost:false})(state)
+function setCoin(n:number): Transform {
+    return async function(state:State):State {
+        const adjustment:number = n - state.coin
+        return gainCoin(adjustment)(state)
     }
 }
 
-function gainTime(n) {
-    return async function(state) {
-        state = update(state, 'time', state.time+n)
+function gainTime(n:number): Transform {
+    return async function(state:State): State {
+        state = state.setTime(state.time+n)
         return trigger({type:'gainTime', amount:n})(state)
     }
 }
 
 function gainPoints(n, source={}) {
     return async function(state) {
-        var params = {type:'gainPoints', points:n, effects:[], source:source}
+        let params:Params = {type:'gainPoints', points:n, effects:[], source:source}
         params = replace(params, state)
         state = await doAll(params.effects)(state)
         n = params.points
-        state = update(state, 'points', state.points + n)
+        state = state.setPoints(state.points+n)
         return trigger({type:'gainPoints', points:n, source:source})(state)
     }
 }
 
-function gainCoin(n, cost=false) {
+function gainCoin(n:number, cost:boolean=false): Transform {
     return async function(state) {
         if (state.coin + n < 0 && cost) throw new CostNotPaid("Not enough coin")
         const adjustment = state.coin + n < 0 ? - state.coin : n
@@ -508,8 +672,8 @@ function gainCoin(n, cost=false) {
     }
 }
 
-function doOrAbort(f, fallback=null) {
-    return async function(state) {
+function doOrAbort(f:Transform, fallback:Transform|null=null) {
+    return async function(state:State):State {
         try {
             const result = await f(state)
             return result
@@ -524,122 +688,56 @@ function doOrAbort(f, fallback=null) {
     }
 }
 
-function payToDo(cost, effect) {
-    return doOrAbort(async function(state){
+function payToDo(cost:Transform, effect:Transform): Transform {
+    return doOrAbort(async function(state:State): State{
         state = await cost(state)
         return effect(state)
     })
 }
 
-// trying to pay cost is mandatory
-function payOrDo(cost, effect) {
-    return doOrAbort(cost, effect)
-}
-
-function removeElement(xs, i) {
-    return xs.slice(i).concat(xs.slice(i+1, xs.length))
-}
-
-//options is a list of [string, cost] pairs
-function payAny(options) {
+function doAll(effects:Transform[]): Transform {
     return async function(state) {
-        let costAndIndex;
-        [state, costAndIndex] = await choice(state,
-            "Choose which cost to pay:",
-            options.map((x,i) => [['string', x[0]], [x[1], i]])
-        )
-        if (costAndIndex == null) throw new CostNotPaid("no options available")
-        const [cost, i] = costAndIndex
-        return payOrDo(cost, payAny(removeElement(options, i)))
-    }
-}
-
-function doAll(effects) {
-    return async function(state) {
-        for (var i = 0; i < effects.length; i++) {
+        for (let i = 0; i < effects.length; i++) {
             state = await effects[i](state)
         }
         return state
     }
 }
 
-async function noop(state) {
+async function noop(state:State): State {
     return state
 }
 
 
-//options is a list of [string, effect] pairs
-function doAny(options) {
-    return async function(state) {
-        let effect;
-        [state, effect] = await choice(state,
-            "Choose an effect to do:",
-            options.map(x => [['string', x[0]], x[1]]))
-        return effect(state)
-    }
-}
-
-function discharge(card, n) {
+function discharge(card:Card, n:number): Transform {
     return charge(card, -n, true)
 }
 
-function addToken(card, token) {
-    return async function(state) {
-        state = applyToCard(card, applyToKey('tokens', x => x.concat([token])))(state)
-        return trigger({type:'addToken', card:card, token:token})(state)
-    }
-}
-
-function removeTokens(card, token) {
-    return async function(state) {
-        const removed = countTokens(card, token)
-        state = applyToCard(card, applyToKey('tokens', xs => xs.filter(x => (x != token))))(state)
-        return trigger({type:'removeTokens', token:token, removed:removed})(state)
-    }
-}
-function removeOneToken(card, token) {
-    return async function(state) {
-        let removed:number = 0
-        function removeOneToken(tokens) {
-            for (var i = 0; i < tokens.length; i++) {
-                if (tokens[i] == token) {
-                    removed = 1
-                    return tokens.slice(0, i).concat(tokens.slice(i+1))
-                }
-            }
-            return tokens
-        }
-        state = applyToCard(card, applyToKey('tokens', removeOneToken))(state)
-        return trigger({type:'removeTokens', token:token, removed:removed})(state)
-    }
-}
-
-function charge(card, n, cost=false) {
-    return async function(state) {
-        let _;
-        [card, _] = find(state, card.id)
+function charge(card:Card, n:number, cost:boolean=false): Transform {
+    return async function(state:State): State {
+        let _; [card, _] = state.find(card)
         if (card == null) {
             if (cost) throw new CostNotPaid(`card no longer exists`)
             return state
         } else if (card.charge + n < 0 && cost) {
             throw new CostNotPaid(`not enough charge`)
         }
-        const oldcharge = card.charge
-        const newcharge = (oldcharge + n < 0) ? 0 : oldcharge + n
-        state = applyToCard(card, applyToKey('charge', _ => newcharge))(state)
+        const oldcharge:number = card.charge
+        const newcharge:number = Math.max(oldcharge+n, 0)
+        state = state.apply(card => card.update({charge:newCharge}), card)
         return trigger({type:'chargeChange', card:card,
             oldcharge:oldcharge, newcharge:newcharge, cost:cost})(state)
     }
 }
 
-function time(n) {
-    return {time:n, coin:0}
-}
-function coin(n) {
-    return {time:0, coin:n}
+function addToken(card:Card, token:string): transform {
+    return async function(state:State): State {
+        state = state.apply(card=>card.update({tokens: card.tokens.concat([token])}), card)
+        return trigger({type:'addToken', card:card, token:token})(state)
+    }
 }
 
-function countTokens(card, token) {
+function countTokens(card:Card, token:string): number {
     var count = 0
     const tokens = card.tokens
     for (var i = 0; i < tokens.length; i++) {
@@ -650,41 +748,71 @@ function countTokens(card, token) {
     return count
 }
 
-function renderStatic(text) {
+function removeTokens(card:Card, token:string): Transform {
+    return async function(state:State): State {
+        const removed: number = countTokens(card, token)
+        state = state.apply(card => card.update({tokens: card.tokens.filter(x => (x != token))}), card)
+        return trigger({type:'removeTokens', token:token, removed:removed})(state)
+    }
+}
+function removeOneToken(card:Card, token:string): Transform {
+    return async function(state:State): State {
+        let removed:number = 0
+        function removeOneToken(tokens) {
+            for (var i = 0; i < tokens.length; i++) {
+                if (tokens[i] == token) {
+                    removed = 1
+                    return tokens.slice(0, i).concat(tokens.slice(i+1))
+                }
+            }
+            return tokens
+        }
+        state = state.apply(card => card.update({tokens: removeOnetoken(tokens)}), card)
+        return trigger({type:'removeTokens', token:token, removed:removed})(state)
+    }
+}
+
+function renderStatic(text:string): string {
     return `<div>(static) ${text}</div>`
 }
 
-function renderAbility(text) {
+function renderAbility(text:string): string {
     return `<div>(ability) ${text}</div>`
 }
 
-function renderTooltip(card, state) {
-    const effectHtml = `<div>${card.effect().description}</div>`
-    const abilitiesHtml = card.abilities().map(x => renderAbility(x.description)).join('')
-    const staticHtml = card.triggers().concat(card.replacers()).map(x => renderStatic(x.description)).join('')
-    const tokensHtml = card.tokens.length > 0 ? `Tokens: ${card.tokens.join(', ')}` : ''
-    const baseFilling = [effectHtml, abilitiesHtml, staticHtml, tokensHtml].join('')
-    function renderRelated(x) {
-        const cost = x.cost(state)
-        const costStr = (cost.coin == 0 && cost.time == 0) ? '0' : renderCost(cost)
+function renderTooltip(card:Card, state:State): string {
+    const effectHtml:string = `<div>${card.effect().description}</div>`
+    const abilitiesHtml:string = card.abilities().map(x => renderAbility(x.description)).join('')
+    const staticHtml:string = card.triggers().concat(card.replacers()).map(x => renderStatic(x.description)).join('')
+    const tokensHtml:string = card.tokens.length > 0 ? `Tokens: ${card.tokens.join(', ')}` : ''
+    const baseFilling:string = [effectHtml, abilitiesHtml, staticHtml, tokensHtml].join('')
+    function renderRelated(x:Card) {
+        const cost:Cost = x.cost(state)
+        const costStr:string = (cost.coin == 0 && cost.time == 0) ? '0' : renderCost(cost)
         return `<div>---${x.toString()} (${costStr})---</div>${renderTooltip(x, state)}`
     }
-    const relatedFilling = card.relatedCards().map(renderRelated).join('')
+    const relatedFilling:string = card.relatedCards().map(renderRelated).join('')
     return `${baseFilling}${relatedFilling}`
 }
 
-function renderShadow(shadow, state) {
-    const card = shadow.original
-    const tokenhtml = card.tokens.length > 0 ? '*' : ''
-    const chargehtml = card.charge > 0 ? `(${card.charge})` : ''
-    const costhtml = renderCost(card.cost(state))
-    const ticktext = `tick=${shadow.tick}`
-    const shadowtext = `shadow='true'`
-    let tooltip;
-    if (shadow.kind == 'ability') tooltip = renderAbility(shadow.text)
-    if (shadow.kind == 'trigger') tooltip = renderStatic(shadow.text)
-    if (shadow.kind == 'replacer') tooltip = renderStatic(shadow.text)
-    if (shadow.kind == 'buy') tooltip = shadow.original.effect().description
+function renderShadow(shadow:Shadow, state:State):string {
+    const card:Card = shadow.original
+    const tokenhtml:string = card.tokens.length > 0 ? '*' : ''
+    const chargehtml:string = card.charge > 0 ? `(${card.charge})` : ''
+    const costhtml:string = renderCost(card.cost(state))
+    const ticktext:string = `tick=${shadow.tick}`
+    const shadowtext:string = `shadow='true'`
+    let tooltip:string;
+    switch (shadow.kind) {
+        case 'ability':
+            tooltip = renderAbility(shadow.text)
+        case 'trigger':
+        case 'replacer':
+            tooltip = renderStatic(shadow.text)
+        case 'buy':
+            tooltip = shadow.original.effect().description
+        default: assertNever(shadow.kind)
+    }
     return [`<div class='card' ${ticktext} ${shadowtext}>`,
             `<div class='cardbody'>${card}${tokenhtml}${chargehtml}</div>`,
             `<div class='cardcost'>${costhtml}</div>`,
@@ -692,29 +820,31 @@ function renderShadow(shadow, state) {
             `</div>`].join('')
 }
 
-function renderCard(card, state, asOption=null) {
-    if (card instanceof Shadow) return renderShadow(card, state)
-    const tokenhtml = card.tokens.length > 0 ? '*' : ''
-    const chargehtml = card.charge > 0 ? `(${card.charge})` : ''
-    const costhtml = renderCost(card.cost(state))
-    const choosetext = asOption == null ? '' : `choosable chosen='false' option=${asOption}`
-    const ticktext = `tick=${card.ticks[card.ticks.length-1]}`
-    return [`<div class='card' ${ticktext} ${choosetext}>`,
-            `<div class='cardbody'>${card}${tokenhtml}${chargehtml}</div>`,
-            `<div class='cardcost'>${costhtml}</div>`,
-            `<span class='tooltip'>${renderTooltip(card, state)}</span>`,
-            `</div>`].join('')
+function renderCard(card:Card|Shadow, state:State, asOption:number|null=null):string {
+    if (card instanceof Shadow) {
+        return renderShadow(card, state)
+    } else if (card instanceof Card) {
+        const tokenhtml:string = card.tokens.length > 0 ? '*' : ''
+        const chargehtml:string = card.charge > 0 ? `(${card.charge})` : ''
+        const costhtml:string = renderCost(card.cost(state))
+        const choosetext:string = asOption == null ? '' : `choosable chosen='false' option=${asOption}`
+        const ticktext:string = `tick=${card.ticks[card.ticks.length-1]}`
+        return [`<div class='card' ${ticktext} ${choosetext}>`,
+                `<div class='cardbody'>${card}${tokenhtml}${chargehtml}</div>`,
+                `<div class='cardcost'>${costhtml}</div>`,
+                `<span class='tooltip'>${renderTooltip(card, state)}</span>`,
+                `</div>`].join('')
+    }
 }
 
-var renderedState
+var renderedState: State
 
-//TODO: sort hand?
-//TODO: sort deck in way that is robust when you are offered choice
-function renderState(state, optionsMap=null) {
+function renderState(state:State, optionsMap:Map<number,number>=null): void {
     renderedState = state
-    function render(card, i) {
-        if (optionsMap != null && optionsMap[card.id] != undefined) {
-            return renderCard(card, state, optionsMap[card.id])
+    clearChoice()
+    function render(card) {
+        if (optionsMap != null && optionsMap.has(card.id)) {
+            return renderCard(card, state, optionsMap.get(card.id))
         } else {
             return renderCard(card, state)
         }
@@ -731,220 +861,287 @@ function renderState(state, optionsMap=null) {
     $('#discard').html(state.discard.map(render).join(''))
 }
 
-function renderCost(cost) {
-    const coinHtml = cost.coin > 0 ? `$${cost.coin}` : ''
-    const timeHtml = renderTime(cost.time)
-    if (coinHtml == '') {
-        if (timeHtml == '') return '&nbsp;'
-        else return timeHtml
-    } else return [coinHtml, timeHtml].join(' ')
+function renderCost(cost:Cost): string {
+    const coinHtml: string = cost.coin > 0 ? `$${cost.coin}` : ''
+    const timeHtml: string = renderTime(cost.time)
+    if (coinHtml == '' && timeHtml == '') return '&nbsp'
+    else if (coinHtml == '') return timeHtml
+    else return [coinHtml, timeHtml].join(' ')
 }
 
-function renderTime(n) {
-    const result = []
+function renderTime(n:number): string {
+    const result: string[] = []
     for (var i = 0; i < n; i++) {
         result.push('@')
     }
     return result.join('')
 }
 
-const ZONES = ['hand', 'deck', 'discard', 'play', 'supplies', 'resolving', 'aside']
-const RESOURCES = ['coin', 'time', 'points']
-const emptyState: State = {nextID: 0, auras:[], future:[], history:[], checkpoint:null}
-for (var i = 0; i < ZONES.length; i++) emptyState[ZONES[i]] = []
-for (var i = 0; i < RESOURCES.length; i++) emptyState[RESOURCES[i]] = 0
+const emptyState:State = new State(
+    {coin:0, time:0, points:0},
+    new Map([ ['supply', []], ['hand', []], ['deck', []], ['discard', []], ['play', []], ['aside', []] ]),
+    resolving: [],
+    log: {history:[], future:[], checkpoint:null},
+    nextID: 0
+)
 
-function clearChoice() {
-    $('#choicePrompt').html('')
-    $('#options').html('')
-}
-
-function useCard(card) {
+function useCard(card: Card): Transform {
     return async function(state) {
-        state = startTick(card)(state);
+        state = state.startTicker(card);
         let ability; [state, ability] = await choice(state, "Choose an ability to use:",
             card.abilities().map(x => [['string', x.description], x]))
-        state = endTick(card)(state)
+        state = endTicker(card)(state)
         if (ability != null) {
-            let shadow; [state, shadow] = addShadow(state, card, 'ability', ability.description)
+            state = state.addShadow(state, card, 'ability', ability.description)
             state = startTick(card)(state)
             state = await payToDo(ability.cost, ability.effect)(state)
             state = endTick(card)(state)
-            state = removeShadow(state, shadow)
+            state = state.popResolving()
         }
         return state
     }
 }
 
-function tryToBuy(supply) {
-    return payToDo(supply.payCost(), supply.buy({name:'act'}))
+function tryToBuy(card: Card): Transform {
+    return payToDo(card.payCost(), card.buy({name:'act'}))
 }
 
-function allCards(state) {
-    return state.play.concat(state.hand).concat(state.deck).concat(state.discard).concat(state.trash)
-}
-
-function cardExists(state, id) {
-    return allCards(state).some(x => x.id == id)
-}
-
-function tryToPlay(card) {
+function tryToPlay(card:Card): Transform {
     return payToDo(card.payCost(), card.play({name:'act'}))
 }
 
-async function act(state) {
-    let card;
+async function act(state:State): State {
+    let card:Card;
     [state, card] = await actChoice(state)
-    const [_, zone] = find(state, card.id)
-    if (zone == 'play') {
-        return useCard(card)(state)
-    } else if (zone == 'hand') {
-        return tryToPlay(card)(state)
-    } else if (zone == 'supplies') {
-        return tryToBuy(card)(state)
-    } else {
-        throw new Error(`Unrecognized choice zone ${zone}`)
+    if (card == null) throw new Error('Chose non-existent card?)
+    let zone:ZoneName;
+    [card, zone] = state.find(card)
+    switch (zone) {
+        case 'play':
+            return useCard(card)(state)
+        case 'hand':
+            return tryToPlay(card)(state)
+        case 'supplies':
+            return tryToBuy(card)(state)
+        case 'aside':
+        case 'deck':
+        case null:
+            throw new Error(`Card can't be in zone ${zone}`)
+        case default: assertNever(zone)
     }
 }
 
-function renderOption(z) {
+function doOrReplay<T>(state: State, f: () => T, kind: RecordKind): [State, T] {
+    let x: T, future: Record[], k: RecordKind, record: Record;
+    if (state.future.length == 0) {
+        x = f()
+    } else {
+        [state, record] = state.consumeFuture()
+        if (record.kind != kind) throw Error(`replaying history we found ${record} where expecting kind ${kind}`)
+        x = record.value
+    }
+    return [state.addHistory({kind:kind, value:x}), x]
+}
+
+//TODO: surely there is some way to unify these?
+async function asyncDoOrReplay<T>(state: State, f: () => T, kind: RecordKind): [State, T] {
+    let x: T, future: Record[], k: RecordKind, record: Record;
+    if (state.future.length == 0) {
+        x = await f()
+    } else {
+        [state, record] = state.consumeFuture()
+        if (record.kind != kind) throw Error(`replaying history we found ${record} where expecting kind ${kind}`)
+        x = record.value
+    }
+    return [state.addHistory({kind:kind, value:x}), x]
+}
+
+type OptionTypes = 'string' | 'card'
+
+interface StringOption<T> {
+    kind: 'string';
+    render: string;
+    value: T;
+}
+
+interface CardOption<T> {
+    kind: 'card';
+    render: Card;
+    value: T
+}
+
+
+type ChoiceOption<T> = StringOption<T>|CardOption<T>;
+
+//TODO: these don't have bodies
+async function multiChoice<T>(
+    state:State, 
+    prompt:string,
+    options:ChoiceOption<T>[],
+    multichoiceValidator:(xs:T[]) => boolean = (xs => true),
+): T[] {
+    if (options.length == 0) return [state, []]
+}
+
+async function choice<T>(
+    state:State, 
+    prompt:string,
+    options:ChoiceOption<T>[],
+): T|null {
+    let index:number;
+    if (options.length == 0) return [state, null]
+    else if (options.length == 1) index = 0;
+    else index = asyncDoOrReplay(state, freshChoice(state, prompt, options), 'choice')
+    return options[index].value
+}
+
+const yesOrNo:ChoiceOption<boolean>[] = [
+    {kind:'string', render:'Yes', value:true},
+    {kind:'string', render:'No', value:false}
+]
+
+function asChoice(x:Card): ChoiceOption<Card> {
+    return {kind: 'card', render: x.id, value:x}
+}
+
+function allowNull<T>(options: ChoiceOption<T>[], message:string="None"): ChoiceOption<T|null>[] {
+    return options.concat([{kind:'string', render:message, value:null}])
+}
+
+function renderChoice(
+    state: State,
+    choicePrompt: string,
+    options: ChoiceOption,
+    multi: boolean,
+): void {
+    const optionsMap:Map<number,number> = {} //map card ids to their position in the choice list
+    const stringOptions:[number|'submit', string][] = []
+    for (i = 0; i < options.length; i++) {
+        const option = options[i]
+        switch (option.kind) {
+            case 'card':
+                optionsMap.set(i, option.render)
+            case 'string':
+                stringOptions.push([i, option.render])
+            case default: assertNever(option.kind)
+        }
+    }
+    if (multi) stringOptions.push(['undo', 'Done'])
+    renderState(state, optionsMap)
+    renderChoices(choicePrompt, stringOptions, state.undoable())
+}
+
+class Undo extends Error {
+    constructor(public state:State) {
+        super('Undo')
+        Object.setPrototypeOf(this, Undo.prototype)
+    }
+}
+
+function renderOption(z:[string, number]): string {
     const [option, i] = z
     return `<span class='option' option='${i}' choosable='true' chosen='false'>${option}</span>`
 }
 
-function doOrReplay(state, f, key) {
-    var x, future, k
-    if (state.future.length == 0) {
-        x = f()
-    } else {
-        [[k, x], future] = shiftFirst(state.future)
-        if (k != key) throw Error(`replaying history we found ${[k, x]} where expecting key ${key}`)
-        state = update(state, 'future', future)
-    }
-    const newHistory = state.history.concat([[key, x]])
-    return [update(state, 'history', newHistory), x]
+function renderUndo(undoable:boolean): string {
+    return `<span class='option', option='undo' chooseable='${undoable}' chosen='false'>Undo</span>`
 }
 
-//TODO: surely there is some way to unify these?
-async function asyncDoOrReplay(state, f, key) {
-    var x, future, k
-    if (state.future.length == 0) {
-        x = await f()
-    } else {
-        [[k, x], future] = shiftFirst(state.future)
-        if (k != key) throw Error(`replaying history we found ${[k, x]} where expecting key ${key}`)
-        state = update(state, 'future', future)
-    }
-    const newHistory = state.history.concat([[key, x]])
-    return [update(state, 'history', newHistory), x]
-}
-
-async function choice(state, choicePrompt, options, multichoiceValidator=null) {
-    if (options.length == 0 && multichoiceValidator == null) return [state, null]
-    else if (options.length == 0) return [state, []]
-    else if (options.length == 1 && multichoiceValidator == null) {
-        return [state, options[0][1]]
-    } else return asyncDoOrReplay(state, _ => freshChoice(state, choicePrompt, options, multichoiceValidator), 'choice')
-}
-
-function getLastEvent(state) {
-    const n = state.history.length
-    if (n > 0) return state.history[n-1]
-    else if (state.checkpoint == null) return null
-    else return getLastEvent(state.checkpoint)
-}
-
-function undoIsPossible(state) {
-    const lastEvent = getLastEvent(state)
-    return (lastEvent != null && lastEvent[0] == 'choice')
-}
-
-const yesOrNo = [[['string', 'yes'], true], [['string', 'no'], false]]
-
-function asChoice(x) {
-    if (x instanceof Card) return [['card', x.id], x]
-    else return [['string', x.toString()], x]
-}
-
-function allowNull(options, message="None") {
-    return options.concat([[['string', message], null]])
-}
-
-
-//TODO: what to do if you can't pick a valid set for the validator?
-function freshChoice(state, choicePrompt, options, multichoiceValidator=null) {
-    const undoable = undoIsPossible(state)
-    const optionsMap = {} //map card ids to their position in the choice list
-    const stringOptions = []
-    const chosen = {} //records what options are being chosen for multithoice
-    for (i = 0; i < options.length; i++) {
-        const [type, x] = options[i][0]
-        if (type == 'card') {
-            optionsMap[x] = i
-        } else if (type == 'string') {
-            stringOptions.push([x, i])
-        } else {
-            throw new Error(`Got type ${type}`)
-        }
-    }
-    if (multichoiceValidator!=null) stringOptions.push(['Done', 'submit'])
-    stringOptions.push(['Undo', 'undo'])
-    renderState(state, optionsMap)
+//TODO: render undo
+function renderChoices(prompt:string, options:[number|'submit', string][], undoable:boolean) {
     $('#choicePrompt').html(choicePrompt)
     $('#options').html(stringOptions.map(renderOption).join(''))
-    function chosenOptions() {
+    $('#undoArea').html(renderUndo(undoable))
+}
+
+//TODO: clear undo as well
+function clearChoice(): void {
+    $('#choicePrompt').html('')
+    $('#options').html('')
+    $('#undoArea').html('')
+}
+
+//TODO
+function bindUndo(state, reject): void {
+    $(`[option='undo']`).on('click', function(e){
+        if (state.undoable()) reject(new Undo(state))
+    })
+}
+
+//TODO: order can matter, should we make order visible somehow?
+//TODO: what to do if you can't pick a valid set for the validator?
+function freshMultiChoice<T>(
+    state: State,
+    choicePrompt: string,
+    options: ChoiceOption<T>,
+    validator:((xs:T[]) => boolean): (xs => true)
+): Promise<[State, T[]]> {
+    rencerChoice(state, choicePrompt, options, true)
+    const chosen:Set<number> = new Set()
+    function chosenOptions(): T[] {
         const result = []
-        for (var i = 0; i < options.length; i++) {
-            if (chosen[i]) result.push(options[i][1])
-        }
+        for (let i of chosen) result.push(options[i].value)
         return result
     }
-    function isReady() {
-        return multichoiceValidator(chosenOptions())
+    function isReady(): boolean {
+        return validator(chosenOptions())
     }
-    function setReady() {
+    function setReady(): void {
         if (isReady()) {
             $(`[option='submit']`).attr('choosable', true)
         } else {
             $(`[option='submit']`).removeAttr('choosable')
         }
     }
-    if (multichoiceValidator != null) setReady()
-    if (!undoable) $(`[option='undo']`).removeAttr('choosable')
+    setReady()
     return new Promise(function(resolve, reject) {
-        for (var i = 0; i < options.length; i++) {
+        for (let i = 0; i < options.length; i++) {
+            const j = i;
+            const elem = $(`[option='${i}']`)
+            elem.on('click', function(e) {
+                if (chosen.has(j)) {
+                    chosen.delete(j)
+                    elem.attr('chosen', false)
+                } else {
+                    chosen.add(j)
+                    elem.attr('chosen', true)
+                }
+            }
+        }
+        $(`[option='submit']`).on('click', function(e){
+            if (isReady()) {
+                resolve(Array.from(chosen.values()))
+            }
+        })
+        bindUndo(state.undoable(), reject)
+    }
+}
+
+
+function freshChoice<T>(
+    state: State,
+    choicePrompt: string,
+    options: ChoiceOption<T>,
+): Promise<[State, T]> {
+    renderChoice(state, choicePrompt, options)
+    return new Promise(function(resolve, reject) {
+        for (let i = 0; i < options.length; i++) {
             const j = i;
             const elem = $(`[option='${i}']`)
             elem.on('click', function (e) {
-                if (multichoiceValidator == null) {
-                    clearChoice()
-                    resolve(options[j][1])
-                } else {
-                    elem.attr('chosen', elem.attr('chosen') != 'true')
-                    chosen[j] = (chosen[j] != true)
-                    setReady()
-                }
+                clearChoice()
+                resolve(options[j][1])
             })
         }
-        if (multichoiceValidator != null) {
-            $(`[option='submit']`).on('click', function(e) {
-                if (isReady()) resolve(chosenOptions())
-            })
-        }
-        if (undoable) {
-            $(`[option='undo']`).on('click', function(e) {
-                reject(new Undo(state))
-            })
-        }
+        bindUndo(state.undoable(), reject)
     })
 }
 
-//TODO: introduce an isPayable for costs?
-function actChoice(state) {
-    const validSupplies = state.supplies.filter(x => (x.cost(state).coin <= state.coin))
-    const validHand = state.hand
-    const validPlay = state.play.filter(x => (x.abilities().length > 0))
-    const cards = validSupplies.concat(validHand).concat(validPlay)
+function actChoice(state:State): Promise<[State, Card]> {
+    const validSupplies:Card[] = state.supplies.filter(x => (x.cost(state).coin <= state.coin))
+    const validHand:Card[] = state.hand
+    const validPlay:Card[] = state.play.filter(x => (x.abilities().length > 0))
+    const cards:Card[] = validSupplies.concat(validHand).concat(validPlay)
     return choice(state,
         'Play from your hand, use an ability, or buy from a supply.',
         cards.map(asChoice))
@@ -955,27 +1152,6 @@ function supplyKey(card) {
 }
 function supplySort(card1, card2) {
     return supplyKey(card1) - supplyKey(card2)
-}
-
-class Undo extends Error {
-    state: State;
-    constructor(state) {
-        super('Undo')
-        this.state = state
-        Object.setPrototypeOf(this, Undo.prototype)
-    }
-}
-
-// Invariant: starting from checkpoint and replaying the history gets you to the current state
-// To maintain this invariant, we need to record history every time there is a change
-function checkpoint(state) {
-    return updates(state, {history:[], checkpoint:state})
-}
-
-// backup(state) leads to the same place as state if you run mainLoop, but it has more future
-// this enables undoing by backing up until you have future, then just popping from the future
-function backup(state) {
-    return updates(state.checkpoint, {future: state.history.concat(state.future)})
 }
 
 function popLast(xs) {
@@ -1060,28 +1236,57 @@ const cheats = []
 // ----------- UTILS -------------------
 //
 
-function gainCard(card) {
+function gainCard(card:Card): Effect {
     return {
             description:`Create a ${card} in your discard pile.`,
             effect: create(card)
     }
 }
-
-function supplyForCard(card, cost)  {
-    return new Card(card.name, {
+function supplyForCard(card:CardSpec, cost:Cost): CardSpec  {
+    return {
+        name: card.name,
         fixedCost: cost,
-        effect: _ => gainCard(card),
+        effect: (_:Card) => gainCard(card),
         relatedCards: [card],
     })
 }
-function register(card, test?:string) {
+function register(card:CardSpec, test:'test'|null=null):void {
     mixins.push(card)
     if (test=='test') testing.push(card)
-    else if (test != undefined) throw Error("bad argument to register")
 }
-function buyable(card: Card, n: number, test?:string) {
+function buyable(card: Card, n: number, test:'test'|null=null):void {
     register(supplyForCard(card, coin(n)), test)
 }
+
+function time(n:number):Cost {
+    return {time:n, coin:0}
+}
+function coin(n:number):Cost {
+    return {time:0, coin:n}
+}
+
+//renders either "a" or "an" as appropriate
+function a(x:any): string {
+    const s = x.toString()
+    const c = s[0].toLowerCase()
+    if (c == 'a' || c == 'e' || c == 'i' || c == 'o' || c == 'u')
+        return 'an ' + s
+    return 'a ' + s
+}
+
+
+function makeCard(card:CardSpec, cost:Cost, selfdestruct:boolean=false):CardSpec  {
+    return {
+        name:card.name,
+        fixedCost: cost,
+        effect: supply => ({
+            description:`Create ${a(card)} in play.` + selfdestruct ? ' Trash this.': '',
+            effect: doAll([create(card, 'play'), selfdestruct ? trash(supply) : noop])
+        }),
+        relatedCards: [card],
+    })
+}
+
 
 
 //
@@ -1089,12 +1294,13 @@ function buyable(card: Card, n: number, test?:string) {
 // ------ CORE ------
 //
 
+
 const reboot = new Card('Reboot', {
     fixedCost: time(3),
     effect: card => ({
         description: 'Recycle your hand and discard pile, lose all $, and +5 cards.',
         effect: async function(state) {
-            state = await setCoins(0)(state)
+            state = await setCoin(0)(state)
             state = await recycle(state.hand.concat(state.discard))(state)
             return draw(5, reboot)(state)
         }
@@ -1159,17 +1365,6 @@ coreSupplies.push(supplyForCard(province, coin(8)))
 //
 // ----- MIXINS -----
 //
-
-function makeCard(card, cost, selfdestruct=false)  {
-    return new Card(card.name, {
-        fixedCost: cost,
-        effect: supply => ({
-            description:`Create ${a(card)} in play.${selfdestruct ? ' Trash this.' : ''}`,
-            effect: doAll([create(card, 'play'), selfdestruct ? trash(supply) : noop])
-        }),
-        relatedCards: [card],
-    })
-}
 
 const throneRoom = new Card('Throne Room', {
     fixedCost: time(1),
@@ -1317,10 +1512,11 @@ buyable(workshop, 3)
 const shippingLane = new Card('Shipping Lane', {
     fixedCost: time(1),
     effect: card => ({
-        description: "+$2. Next time you finish buying a card this turn, buy it again if it still exists.",
+        description: "+$2. Next time you finish buying a card, buy it again if it still exists.",
         effect: doAll([
             gainCoin(2),
-            nextTime(e => e.type == 'afterBuy', e => (e.after == null) ? noop : e.after.buy(card))
+            nextTime('Shipping Lane', 'When you finish buying a card, discard this and buy it again if it still exists.',
+                e => e.type == 'afterBuy', e => (e.after == null) ? noop : e.after.buy(card))
         ])
     })
 })
@@ -1472,15 +1668,30 @@ const blacksmith = new Card('Blacksmith', {
 })
 buyable(blacksmith, 2)
 
+function nextTime(name:string,
+    description:string,
+    when: (e:Event, state:State) => boolean,
+    what: (e:Event)  => Transform
+): Transform {
+    const spec:CardSpec = {
+        name:name,
+        triggers: card => [{
+            description: description,
+            handles: when,
+            effect: (e:Event) => doAll([trash(card), what(e)]),
+        }]
+    }
+    return create(spec, 'play')
+
+}
+
 const expedite = new Card('Expedite', {
     calculatedCost: (card, state) => ({time:1, coin:card.charge}),
     effect: card => ({
-        description: 'The next time you gain a card this turn, put it into your hand.'+
+        description: 'The next time you create a card, put it into your hand.'+
             ' Put a charge token on this. It costs $1 more per charge token on it.',
-        effect: doAll([charge(card, 1), nextTime(
-            e => (e.type == 'create'),
-            e => move(e.card, 'hand'),
-        )])
+        effect: nextTime('Expedite', 'When you create a card, trash this and put it into your hand.',
+            (e, state) => (e.type == 'create'), e => move(e.card, 'hand'))
     })
 })
 register(expedite)
@@ -1689,7 +1900,7 @@ const reconfigure = new Card('Reconfigure', {
     effect: card => ({
         description: 'Recycle your hand and discard pile, lose all $, and +1 card per card that was in your hand.',
         effect: async function(state) {
-            state = await setCoins(0)(state)
+            state = await setCoin(0)(state)
             const n = state.hand.length
             state = await recycle(state.hand.concat(state.discard))(state)
             return draw(n, 'reconfigure')(state)
@@ -1703,7 +1914,7 @@ const bootstrap = new Card('Bootstrap', {
     effect: card => ({
         description: 'Recycle your hand and discard pile, lose all $, and +2 cards.',
         effect: async function(state) {
-            state = await setCoins(0)(state)
+            state = await setCoin(0)(state)
             state = await recycle(state.hand.concat(state.discard))(state)
             return draw(2, 'bootstrap')(state)
         }
@@ -1716,7 +1927,7 @@ const retry = new Card('Resume', {
     effect: card => ({
         description: 'Discard your hand, lose all $, and +5 cards.',
         effect: doAll([
-            setCoins(0),
+            setCoin(0),
             moveWholeZone('hand', 'discard'),
             draw(5, 'retry')
         ])
@@ -1756,7 +1967,7 @@ const innovation = new Card("Innovation", {
         effect: e => doAll([
             removeTokens(card, 'innovate'),
             moveWholeZone('hand', 'discard'),
-            setCoins(0),
+            setCoin(0),
             e.card.play(card)
         ]),
     }],
