@@ -414,12 +414,12 @@ var State = /** @class */ (function () {
             }
             finally { if (e_4) throw e_4.error; }
         }
-        function fOnCards(c) {
-            if (c instanceof Shadow)
+        function fOnCard(c) {
+            if (c instanceof Shadow || c.id != card.id)
                 return c;
             return f(c);
         }
-        return this.update({ zones: newZones, resolving: this.resolving.map(fOnCards) });
+        return this.update({ zones: newZones, resolving: this.resolving.map(fOnCard) });
     };
     State.prototype.setCoin = function (n) {
         return this.update({ counters: { coin: n, time: this.time, points: this.points } });
@@ -619,19 +619,15 @@ function move(card, toZone, loc) {
             return __generator(this, function (_a) {
                 switch (_a.label) {
                     case 0:
-                        console.log(card, toZone);
                         result = state.find(card);
-                        console.log(result);
                         if (!result.found) return [3 /*break*/, 2];
                         card_1 = result.card;
                         state = state.remove(card_1);
                         if (toZone != null)
                             state = state.addToZone(card_1, toZone, loc);
-                        console.log(state);
                         return [4 /*yield*/, trigger({ type: 'move', fromZone: result.place, toZone: toZone, loc: loc, card: card_1 })(state)];
                     case 1:
                         state = _a.sent();
-                        console.log(state);
                         _a.label = 2;
                     case 2: return [2 /*return*/, state];
                 }
@@ -679,11 +675,9 @@ function draw(n, source) {
                         nextCard = void 0, rest = void 0;
                         _a = __read(shiftFirst(state.deck), 2), nextCard = _a[0], rest = _a[1];
                         if (!(nextCard != null)) return [3 /*break*/, 4];
-                        console.log(state);
                         return [4 /*yield*/, move(nextCard, 'hand', 'sorted')(state)];
                     case 3:
                         state = _b.sent();
-                        console.log(state);
                         drawn += 1;
                         _b.label = 4;
                     case 4:
@@ -1210,10 +1204,10 @@ function renderChoice(state, choicePrompt, options, multi) {
     $('#undoArea').html(renderUndo(state.undoable()));
 }
 function renderOption(option) {
-    return "<span class='option' option='" + option[0] + "' choosable='true' chosen='false'>" + option[1] + "</span>";
+    return "<span class='option' option='" + option[0] + "' choosable chosen='false'>" + option[1] + "</span>";
 }
 function renderUndo(undoable) {
-    return "<span class='option', option='undo' chooseable='" + undoable + "' chosen='false'>Undo</span>";
+    return "<span class='option', option='undo' " + (undoable ? 'choosable' : '') + " chosen='false'>Undo</span>";
 }
 function clearChoice() {
     $('#choicePrompt').html('');
@@ -1302,6 +1296,7 @@ function freshMultichoice(state, choicePrompt, options, validator) {
                     chosen.add(j);
                     elem.attr('chosen', true);
                 }
+                setReady();
             });
         };
         for (var i = 0; i < options.length; i++) {
@@ -1365,20 +1360,25 @@ function useCard(card) {
                 switch (_b.label) {
                     case 0:
                         state = state.startTicker(card);
-                        return [4 /*yield*/, choice(state, "Choose an ability to use:", allowNull(card.abilities().map(function (x) { return ({ kind: 'string', render: x.description, value: x }); })))];
-                    case 1:
+                        if (!(card.abilities().length == 1)) return [3 /*break*/, 1];
+                        ability = card.abilities()[0];
+                        return [3 /*break*/, 3];
+                    case 1: return [4 /*yield*/, choice(state, "Choose an ability to use:", allowNull(card.abilities().map(function (x) { return ({ kind: 'string', render: x.description, value: x }); })))];
+                    case 2:
                         _a = __read.apply(void 0, [_b.sent(), 2]), state = _a[0], ability = _a[1];
+                        _b.label = 3;
+                    case 3:
                         state = state.endTicker(card);
-                        if (!(ability != null)) return [3 /*break*/, 3];
+                        if (!(ability != null)) return [3 /*break*/, 5];
                         state = state.addShadow(card, 'ability', ability.description);
                         state = state.startTicker(card);
                         return [4 /*yield*/, payToDo(ability.cost, ability.effect)(state)];
-                    case 2:
+                    case 4:
                         state = _b.sent();
                         state = state.endTicker(card);
                         state = state.popResolving();
-                        _b.label = 3;
-                    case 3: return [2 /*return*/, state];
+                        _b.label = 5;
+                    case 5: return [2 /*return*/, state];
                 }
             });
         });
@@ -1848,7 +1848,7 @@ var shippingLane = { name: 'Shipping Lane',
         ])
     }); }
 };
-buyable(shippingLane, 5, 'test');
+buyable(shippingLane, 5);
 var factory = { name: 'Factory',
     fixedCost: time(1),
     effect: function (card) { return ({
@@ -2078,7 +2078,7 @@ var goldMine = { name: 'Gold Mine',
     fixedCost: time(2),
     effect: function (card) { return ({
         description: 'Create a gold in your hand and a gold on top of your deck.',
-        effect: doAll([create(gold, 'hand', 'top'), create(gold, 'hand')]),
+        effect: doAll([create(gold, 'deck', 'top'), create(gold, 'hand')]),
     }); }
 };
 buyable(goldMine, 6);
@@ -3144,7 +3144,7 @@ var burden = { name: 'Burden',
             replace: function (x) { return updates(x, { cost: { time: x.cost.time, coin: x.cost.coin + countTokens(x.card, 'burden') } }); }
         }]; }
 };
-register(burden, 'test');
+register(burden);
 var artisan = { name: 'Artisan',
     fixedCost: time(1),
     effect: function (card) { return ({

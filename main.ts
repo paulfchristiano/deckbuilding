@@ -370,11 +370,11 @@ class State {
         for (let [name, zone] of this.zones) {
             newZones.set(name, zone.map(c => (c.id == card.id) ? f(c) : c))
         }
-        function fOnCards(c:(Card|Shadow)): Card|Shadow {
-            if (c instanceof Shadow) return c
+        function fOnCard(c:(Card|Shadow)): Card|Shadow {
+            if (c instanceof Shadow || c.id != card.id) return c
             return f(c)
         }
-        return this.update({zones:newZones, resolving:this.resolving.map(fOnCards)})
+        return this.update({zones:newZones, resolving:this.resolving.map(fOnCard)})
     }
     setCoin(n:number): State {
         return this.update({counters: {coin:n, time:this.time, points:this.points}})
@@ -551,17 +551,13 @@ function recycle(cards:Card[]): Transform {
 
 function move(card:Card, toZone:PlaceName, loc:InsertLocation='end'): Transform {
     return async function(state) {
-        console.log(card, toZone)
         let result = state.find(card)
-        console.log(result)
         if (result.found) {
             const card = result.card
             state = state.remove(card)
             if (toZone != null)
                 state = state.addToZone(card, toZone, loc)
-            console.log(state)
             state = await trigger({type:'move', fromZone:result.place, toZone:toZone, loc:loc, card:card})(state)
-            console.log(state)
         }
         return state
     }
@@ -592,9 +588,7 @@ function draw(n:number, source:Source={name:'?'}):Transform {
             let nextCard:Card|null, rest:Card[];
             [nextCard, rest] = shiftFirst(state.deck)
             if (nextCard != null) {
-                console.log(state)
                 state = await move(nextCard, 'hand', 'sorted')(state)
-                console.log(state)
                 drawn += 1
             }
         }
@@ -1049,11 +1043,11 @@ function renderChoice(
 }
 
 function renderOption(option:[number|'submit', string]): string {
-    return `<span class='option' option='${option[0]}' choosable='true' chosen='false'>${option[1]}</span>`
+    return `<span class='option' option='${option[0]}' choosable chosen='false'>${option[1]}</span>`
 }
 
 function renderUndo(undoable:boolean): string {
-    return `<span class='option', option='undo' chooseable='${undoable}' chosen='false'>Undo</span>`
+    return `<span class='option', option='undo' ${undoable ? 'choosable' : ''} chosen='false'>Undo</span>`
 }
 
 function clearChoice(): void {
@@ -1132,6 +1126,7 @@ function freshMultichoice<T>(
                     chosen.add(j)
                     elem.attr('chosen', true)
                 }
+                setReady()
             })
         }
         $(`[option='submit']`).on('click', function(e:any){
@@ -1183,10 +1178,15 @@ function actChoice(state:State): Promise<[State, Card|null]> {
 function useCard(card: Card): Transform {
     return async function(state: State): Promise<State> {
         state = state.startTicker(card);
-        let ability:Ability|null; [state, ability] = await choice(state,
-            "Choose an ability to use:",
-            allowNull(card.abilities().map(x => ({kind:'string', render:x.description, value:x})))
-        )
+        let ability:Ability|null
+        if (card.abilities().length == 1) {
+            ability = card.abilities()[0]
+        } else {
+            [state, ability] = await choice(state,
+                "Choose an ability to use:",
+                allowNull(card.abilities().map(x => ({kind:'string', render:x.description, value:x})))
+            )
+        }
         state = state.endTicker(card)
         if (ability != null) {
             state = state.addShadow(card, 'ability', ability.description)
@@ -1584,7 +1584,7 @@ const shippingLane:CardSpec = {name: 'Shipping Lane',
         ])
     })
 }
-buyable(shippingLane, 5, 'test')
+buyable(shippingLane, 5)
 
 const factory:CardSpec = {name: 'Factory',
     fixedCost: time(1),
@@ -1758,7 +1758,7 @@ const goldMine:CardSpec = {name: 'Gold Mine',
     fixedCost: time(2),
     effect: card => ({
         description: 'Create a gold in your hand and a gold on top of your deck.',
-        effect: doAll([create(gold, 'hand', 'top'), create(gold, 'hand')]),
+        effect: doAll([create(gold, 'deck', 'top'), create(gold, 'hand')]),
     })
 }
 buyable(goldMine, 6)
@@ -2551,7 +2551,7 @@ const burden:CardSpec = {name: 'Burden',
         replace: x => updates(x, {cost: {time:x.cost.time, coin: x.cost.coin+countTokens(x.card, 'burden')}})
     }]
 }
-register(burden, 'test')
+register(burden)
 
 const artisan:CardSpec = {name: 'Artisan',
     fixedCost: time(1),

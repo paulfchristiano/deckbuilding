@@ -80,11 +80,14 @@
     min-height: 3.1em;
     max-width: 45em;
 }
-.undoArea {
+#undoArea {
     min-height: 1em;
 }
 #toparea {
-    position: relative
+    position: relative;
+}
+#options {
+    min-height: 2em;
 }
 .card {
     text-align:center
@@ -119,8 +122,8 @@
 <div id='resources'>
     $: <span id='coin'></span> @: <span id='time'></span> vp: <span id='points'></span>
 </div>
+<div id='undoArea'> </div>
 <div> &nbsp; </div> 
-<div class='undoArea'> </div>
 <div class='header'> Resolving: </div> 
 <div id='toparea'>
     <div id='resolving' class='zone'> </div>
