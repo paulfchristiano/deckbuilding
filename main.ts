@@ -10,28 +10,10 @@
 // TODO: minimum width for option choices
 
 // returns a copy x of object with x.k = v for all k:v in kvs
-function updates(object, kvs) {
-    const result = Object.assign({}, object)
-    Object.assign(result, kvs)
-    Object.setPrototypeOf(result, Object.getPrototypeOf(object))
+function updates(x:object, y:object): object {
+    const result = Object.assign({}, x)
+    return Object.assign(result, y)
     return result
-}
-
-// returns a copy of x object with x.key = value
-function update(object, key, value) {
-    const result = Object.assign({}, object)
-    result[key] = value
-    Object.setPrototypeOf(result, Object.getPrototypeOf(object))
-    return result
-}
-
-// the function that sets x.k = f(x.k)
-function applyToKey(k, f) {
-    return x => update(x, k, f(x[k]))
-}
-
-function applyToCard(card: Card, f: ((c: Card) => Card)): ((state: State) => State) {
-    return (state:State) => state.apply(f, card)
 }
 
 type Transform = ((state:State) => Promise<State>) | ((state:State) => State)
@@ -41,26 +23,25 @@ type Transform = ((state:State) => Promise<State>) | ((state:State) => State)
 //NOTE: this is slow, we should cache triggers (in a dictionary by event type) if it becomes a problem
 function trigger(e:GameEvent): Transform {
     return async function(state:State): Promise<State> {
-        //this is a list of (source, trigger) pairs
-        //only need the source for teh purpose of tick, clear below
-        const cardsToTrigger:Card[] = state.supply.concat(state.play)
-        let triggers:[Card, Trigger][] = [].concat(cardsToTrigger.map(x => x.triggers().map(y => [x, y])))
-        triggers = triggers.filter(trigger => trigger[1].handles(e, state))
-        const effects:Transform[] = triggers.map(trigger => async function(state) {
-            state = state.addShadow(trigger[0], 'trigger', trigger[1].description)
-            state = state.startTicker(trigger[0])
-            state = await trigger[1].effect(e)(state)
-            state = state.endTicker(trigger[0])
-            state = state.popResolving()
-            return state
-        })
-        return doAll(effects)(state)
+        const initialState = state;
+        for (const card of state.supply.concat(state.play)) {
+            for (const trigger of card.triggers()) {
+                if (trigger.handles(e, initialState) && trigger.handles(e, state)) {
+                    state = state.addShadow(card, 'trigger', trigger.description)
+                    state = state.startTicker(card)
+                    state = await trigger.effect(e)(state)
+                    state = state.endTicker(card)
+                    state = state.popResolving()
+                }
+            }
+        }
+        return state
     }
 }
 
 //x is an event that is about to happen
 //each card in play or supply can change properties of x
-function replace(x, state) {
+function replace(x: Params, state: State): any {
     var replacers = state.supply.concat(state.play).map(x => x.replacers()).flat()
     for (var i = 0; i < replacers.length; i++) {
         const replacer = replacers[i]
@@ -194,6 +175,7 @@ class Card {
     cost(state:State): Cost {
         const card:Card = this
         const initialCost:Params = {type:'cost', card:card, cost:card.baseCost(state)}
+        //TODO: would be nice to type check manipulations of these params, but seems harder
         const newCost:Params = replace(initialCost, state)
         return newCost.cost
     }
@@ -212,32 +194,37 @@ class Card {
     buy(source:Source={name:'?'}): Transform {
         let card:Card = this
         return async function(state:State): Promise<State> {
-            let zone:string; [card, zone] = state.find(card)
-            if (card == null) return
+            const result:FindResult = state.find(card)
+            if (!result.found)
+                return state
+            card = result.card
             state = await trigger({type:'buy', card:card, source:source})(state)
             state = state.addShadow(card, 'buy')
             state = state.startTicker(card)
             state = await card.effect().effect(state)
             state = state.endTicker(card)
             state = state.popResolving()
-            let [newCard, _] = state.find(card)
-            return trigger({type:'afterBuy', before:card, after:newCard, source:source})(state)
+            return trigger({type:'afterBuy', before:card, after:state.find(card).card, source:source})(state)
         }
     }
     play(source:Source={name:'?'}): Transform {
         const effect:Effect = this.effect()
-        var card:Card = this
+        let card:Card = this
         return async function(state:State):Promise<State> {
-            let zone:string; [card, zone] = state.find(card)
-            if (card == null) return
+            const result = state.find(card)
+            switch (result.found) {
+                case false:
+                    return state
+                case true:
+                    card = result.card
+            }
             state = await move(card, 'resolving')(state)
             state = await trigger({type:'play', card:card, source:source})(state)
             state = state.startTicker(card)
             state = await effect.effect(state)
             state = state.endTicker(card)
             if (!effect['skipDiscard']) state = await move(card, 'discard')(state)
-            let newCard:Card; [newCard, zone] = state.find(card)
-            return trigger({type:'afterPlay', before:card, after:newCard, source:source})(state)
+            return trigger({type:'afterPlay', before:card, after:state.find(card).card, source:source})(state)
         }
     }
     triggers(): Trigger[] {
@@ -279,6 +266,7 @@ type InsertLocation = 'bottom' | 'top' | 'start' | 'end' | 'sorted'
 
 type ZoneName = 'supply' | 'hand' | 'deck' | 'discard' | 'play' | 'aside'
 type Zone = Card[]
+type PlaceName = ZoneName | null | 'resolving'
 
 type Resolving = (Card|Shadow)[]
 
@@ -300,6 +288,21 @@ interface StateUpdate {
     nextID?:number;
 }
 
+interface FoundResult {
+    found:true;
+    card:Card;
+    place:ZoneName | 'resolving'
+}
+
+interface NotFoundResult {
+    found:false;
+    card:null;
+    place:null;
+}
+const notFound = {found:(false as false), card:null, place:null}
+
+type FindResult = FoundResult | NotFoundResult
+
 class State {
     public readonly coin:number;
     public readonly time:number;
@@ -315,7 +318,7 @@ class State {
         private readonly counters:Counters,
         private readonly zones:Map<ZoneName,Zone>,
         public readonly resolving:Resolving,
-        private readonly nextID,
+        private readonly nextID:number,
         private readonly history: Replayable[],
         private readonly future: Replayable[],
         private readonly checkpoint: State|null
@@ -324,12 +327,12 @@ class State {
         this.time = counters.time
         this.points = counters.points
 
-        this.supply = zones.get('supply')
-        this.hand = zones.get('hand')
-        this.deck = zones.get('deck')
-        this.discard= zones.get('discard')
-        this.play = zones.get('play')
-        this.aside = zones.get('aside')
+        this.supply = zones.get('supply') || []
+        this.hand = zones.get('hand') || []
+        this.deck = zones.get('deck') || []
+        this.discard= zones.get('discard') || []
+        this.play = zones.get('play') || []
+        this.aside = zones.get('aside') || []
     }
     private update(stateUpdate:StateUpdate) {
         return new State(
@@ -348,25 +351,30 @@ class State {
     popResolving(): State {
         return this.update({resolving: this.resolving.slice(0, this.resolving.length-1)})
     }
-    addToZone(card:Card, zone:ZoneName, loc:InsertLocation='end'): State {
+    addToZone(card:Card, zone:ZoneName|'resolving', loc:InsertLocation='end'): State {
         if (zone == 'hand') loc = 'sorted'
+        if (zone == 'resolving') return this.addResolving(card)
         const newZones:Map<ZoneName,Zone> = new Map(this.zones)
-        newZones[zone] = insertAt(this.zones[zone], card, loc)
+        newZones.set(zone,  insertAt(this[zone], card, loc))
         return this.update({zones:newZones})
     }
     remove(card:Card): State {
         const newZones:Map<ZoneName,Zone> = new Map()
         for (let [name, zone] of this.zones) {
-            newZones[name] = zone.filter(c => c.id != card.id)
+            newZones.set(name, zone.filter(c => c.id != card.id))
         }
-        return this.update({zones:newZones})
+        return this.update({zones:newZones, resolving:this.resolving.filter(c => c.id != card.id)})
     }
     apply(f:(c:Card) => Card, card:Card): State {
         const newZones:Map<ZoneName,Zone> = new Map()
         for (let [name, zone] of this.zones) {
-            newZones[name] = zone.map(c => (c.id == card.id) ? f(c) : c)
+            newZones.set(name, zone.map(c => (c.id == card.id) ? f(c) : c))
         }
-        return this.update({zones:newZones})
+        function fOnCards(c:(Card|Shadow)): Card|Shadow {
+            if (c instanceof Shadow) return c
+            return f(c)
+        }
+        return this.update({zones:newZones, resolving:this.resolving.map(fOnCards)})
     }
     setCoin(n:number): State {
         return this.update({counters: {coin:n, time:this.time, points:this.points}})
@@ -383,12 +391,15 @@ class State {
     setPoints(n:number): State {
         return this.update({counters: {coin:this.coin, time:this.time, points:n}})
     }
-    find(card:Card): [Card|null, ZoneName|null] {
+    find(card:Card): FindResult {
         for (let [name, zone] of this.zones) {
             const matches:Card[] = zone.filter(c => c.id == card.id)
-            if (matches.length > 0) return [matches[0], name]
+            if (matches.length > 0) return {found:true, card:matches[0], place:name}
         }
-        return [null, null]
+        const name = 'resolving', zone = this.resolving;
+        const matches:Card[] = (zone.filter(c => c.id == card.id) as Card[])
+        if (matches.length > 0) return {found:true, card:matches[0], place:name}
+        return notFound
     }
     startTicker(card:Card): State {
         return this.apply(card => card.startTicker(), card)
@@ -400,12 +411,12 @@ class State {
         return this.update({history: this.history.concat([record])})
     }
     shiftFuture(): [State, Replayable|null] {
-        let record:Replayable, future:Replayable[]; [record, future] = shiftFirst(this.future);
-        return [this.update({future:future,}), record]
+        let result:Replayable|null, future:Replayable[]; [result, future] = shiftFirst(this.future);
+        return [this.update({future:future,}), result]
     }
     popFuture(): [State, Replayable|null] {
-        let record:Replayable, future:Replayable[]; [record, future] = popLast(this.future);
-        return [this.update({future:future,}), record]
+        let result:Replayable|null, future:Replayable[]; [result, future] = popLast(this.future);
+        return [this.update({future:future,}), result]
     }
     // Invariant: starting from checkpoint and replaying the history gets you to the current state
     // To maintain this invariant, we need to record history every time there is a change
@@ -414,8 +425,9 @@ class State {
     }
     // backup() leads to the same place as this if you run mainLoop, but it has more future
     // this enables undoing by backing up until you have future, then just popping from the future
-    backup(): State {
-        return this.checkpoint.update({future: this.history.concat(this.future)})
+    backup(): State|null {
+        const last:State|null = this.checkpoint
+        return (last==null) ? null : last.update({future:this.history.concat(this.future)})
     }
     makeID(): [State, number] {
         const id:number = this.nextID
@@ -430,7 +442,7 @@ class State {
             return this.checkpoint.lastReplayable()
     }
     undoable(): boolean {
-        const record:Replayable = this.lastReplayable()
+        const record:Replayable|null = this.lastReplayable()
         return (record != null && record.kind == 'choice')
     }
 }
@@ -459,7 +471,7 @@ const emptyState:State = new State(
 // tests whether card1 should appear before card2 in sorted order
 
 function comesBefore(card1:Card, card2:Card): boolean  {
-    const key = card => card.name + card.charge + card.tokens.join('')
+    const key = (card:Card) => card.name + card.charge + card.tokens.join('')
     return key(card1) < (key(card2))
 }
 
@@ -468,7 +480,7 @@ function assertNever(x: never): never {
 }
 
 function insertInto<T>(x:T, xs:T[], n:number): T[] {
-    return xs.slice(0, n).concat([x]).concat(xs.slice(n+1))
+    return xs.slice(0, n).concat([x]).concat(xs.slice(n))
 }
 
 function insertAt(zone:Zone, card:Card, loc:InsertLocation): Zone {
@@ -495,13 +507,22 @@ function insertAt(zone:Zone, card:Card, loc:InsertLocation): Zone {
 type ShadowKind = 'ability' | 'trigger' | 'replacer' | 'buy'
 
 class Shadow {
+    public readonly text: string;
     constructor(
         public readonly id:number,
         public readonly original:Card,
         public readonly kind: ShadowKind,
         public readonly tick:number,
-        public readonly text?: string,
-    ) {}
+        text?: string,
+    ) {
+        if (text == undefined) {
+            //TODO: analyze this statically?
+            if (kind != 'buy') throw Error("Shadow needs to have text")
+            this.text = original.effect().description
+        } else {
+            this.text = text
+        }
+    }
     tickUp(): Shadow {
         return new Shadow(this.id, this.original, this.kind, this.tick+1, this.text)
     }
@@ -528,33 +549,35 @@ function recycle(cards:Card[]): Transform {
     }
 }
 
-function move(card:Card, toZone:ZoneName|"resolving", loc:InsertLocation='end'): Transform {
+function move(card:Card, toZone:PlaceName, loc:InsertLocation='end'): Transform {
     return async function(state) {
-        let fromZone:ZoneName; [card, fromZone] = state.find(card)
-        if (card != null) {
+        console.log(card, toZone)
+        let result = state.find(card)
+        console.log(result)
+        if (result.found) {
+            const card = result.card
             state = state.remove(card)
-            if (toZone == "resolving") {
-                state = state.remove(card).addResolving(card)
-            } else {
+            if (toZone != null)
                 state = state.addToZone(card, toZone, loc)
-            }
-            state = await trigger({type:'move', fromZone:fromZone, toZone:toZone, loc:loc, card:card})(state)
+            console.log(state)
+            state = await trigger({type:'move', fromZone:result.place, toZone:toZone, loc:loc, card:card})(state)
+            console.log(state)
         }
         return state
     }
 }
 
-function moveMany(cards, toZone, loc='end') {
+function moveMany(cards:Card[], toZone:PlaceName, loc:InsertLocation='end'): Transform {
     return doAll(cards.map(card => move(card, toZone)))
 }
 
-function moveWholeZone(fromZone, toZone, loc='end') {
+function moveWholeZone(fromZone:ZoneName, toZone:PlaceName, loc:InsertLocation='end'): Transform {
     return async function(state) {
         return moveMany(state[fromZone], toZone, loc)(state)
     }
 }
 
-function trash(card) {
+function trash(card:Card): Transform {
     return move(card, null)
 }
 
@@ -566,10 +589,12 @@ function draw(n:number, source:Source={name:'?'}):Transform {
         n = drawParams.draw
         let drawn = 0
         for (let i = 0; i < n; i++) {
-            if (state.deck.length > 0) {
-                let nextCard:Card, rest:Card[];
-                [nextCard, rest] = shiftFirst(state.deck)
+            let nextCard:Card|null, rest:Card[];
+            [nextCard, rest] = shiftFirst(state.deck)
+            if (nextCard != null) {
+                console.log(state)
                 state = await move(nextCard, 'hand', 'sorted')(state)
+                console.log(state)
                 drawn += 1
             }
         }
@@ -577,7 +602,7 @@ function draw(n:number, source:Source={name:'?'}):Transform {
     }
 }
 
-function discard(n) {
+function discard(n:number): Transform {
     return async function(state) {
         let toDiscard:Card[];
         [state, toDiscard] = (state.hand.length <= n) ? [state, state.hand] :
@@ -591,7 +616,7 @@ function discard(n) {
 // --------------- Transforms that change points, time, and coints
 
 class CostNotPaid extends Error { 
-    constructor(message) {
+    constructor(message:string) {
         super(message)
         Object.setPrototypeOf(this, CostNotPaid.prototype)
     }
@@ -624,7 +649,7 @@ class Victory extends Error {
 }
 
 
-function gainPoints(n, source={}) {
+function gainPoints(n:number, source:Source={name:'?'}): Transform {
     return async function(state) {
         let params:Params = {type:'gainPoints', points:n, effects:[], source:source}
         params = replace(params, state)
@@ -640,7 +665,7 @@ function gainCoin(n:number, cost:boolean=false): Transform {
     return async function(state) {
         if (state.coin + n < 0 && cost) throw new CostNotPaid("Not enough coin")
         const adjustment = state.coin + n < 0 ? - state.coin : n
-        state = update(state, 'coin', state.coin + adjustment)
+        state = state.setCoin(state.coin+adjustment)
         return trigger({type:'gainCoin', amount:adjustment, cost:cost})(state)
     }
 }
@@ -691,13 +716,14 @@ function discharge(card:Card, n:number): Transform {
 
 function charge(card:Card, n:number, cost:boolean=false): Transform {
     return async function(state:State): Promise<State> {
-        let _; [card, _] = state.find(card)
-        if (card == null) {
+        let result = state.find(card)
+        if (!result.found) {
             if (cost) throw new CostNotPaid(`card no longer exists`)
             return state
-        } else if (card.charge + n < 0 && cost) {
-            throw new CostNotPaid(`not enough charge`)
         }
+        card = result.card
+        if (card.charge + n < 0 && cost)
+            throw new CostNotPaid(`not enough charge`)
         const oldCharge:number = card.charge
         const newCharge:number = Math.max(oldCharge+n, 0)
         state = state.apply(card => card.update({charge:newCharge}), card)
@@ -734,7 +760,7 @@ function removeTokens(card:Card, token:string): Transform {
 function removeOneToken(card:Card, token:string): Transform {
     return async function(state) {
         let removed:number = 0
-        function removeOneToken(tokens) {
+        function removeOneToken(tokens: string[]) {
             for (var i = 0; i < tokens.length; i++) {
                 if (tokens[i] == token) {
                     removed = 1
@@ -751,20 +777,20 @@ function removeOneToken(card:Card, token:string): Transform {
 
 // pseudorandom float in [0,1] based on two integers a, b
 // homemade, probably not very good
-function PRF(a, b) {
+function PRF(a: number, b: number) {
     const N = 123456789
     return ((a * 1003303882 + b * 6690673372 + b * b * 992036483 +
         a * a * 99202618 + ((a*a+1) / (b*b+1)) * 399220 +
         ((b*b+1) / (a*a+1)) * 392901666676)  % N) / N
 }
 
-function randomChoice<T>(state:State, xs:T[], seed=null): [State, T|null] {
+function randomChoice<T>(state:State, xs:T[], seed?:number): [State, T|null] {
     if (xs.length == 0) return [state, null];
     [state, xs] = randomChoices(state, xs, 1, seed)
     return [state, xs[0]]
 }
 
-function randomChoices<T>(state:State, xs:T[], n:number, seed=null): [State, T[]] {
+function randomChoices<T>(state:State, xs:T[], n:number, seed?:number): [State, T[]] {
     const result = []
     xs = xs.slice()
     while (result.length < n) {
@@ -809,11 +835,11 @@ function renderShadow(shadow:Shadow, state:State):string {
     let tooltip:string;
     switch (shadow.kind) {
         case 'ability':
-            tooltip = renderAbility(shadow.text)
+            tooltip = renderAbility((shadow.text as string))
             break
         case 'trigger':
         case 'replacer':
-            tooltip = renderStatic(shadow.text)
+            tooltip = renderStatic((shadow.text as string))
             break
         case 'buy':
             tooltip = shadow.original.effect().description
@@ -830,7 +856,7 @@ function renderShadow(shadow:Shadow, state:State):string {
 function renderCard(card:Card|Shadow, state:State, asOption:number|null=null):string {
     if (card instanceof Shadow) {
         return renderShadow(card, state)
-    } else if (card instanceof Card) {
+    } else {
         const tokenhtml:string = card.tokens.length > 0 ? '*' : ''
         const chargehtml:string = card.charge > 0 ? `(${card.charge})` : ''
         const costhtml:string = renderCost(card.cost(state))
@@ -872,10 +898,10 @@ function renderTooltip(card:Card, state:State): string {
 // make the currently rendered state available in the console for debugging purposes
 var renderedState: State 
 
-function renderState(state:State, optionsMap:Map<number,number>=null): void {
+function renderState(state:State, optionsMap:Map<number,number>|null=null): void {
     renderedState = state
     clearChoice()
-    function render(card) {
+    function render(card:Card|Shadow) {
         if (optionsMap != null && optionsMap.has(card.id)) {
             return renderCard(card, state, optionsMap.get(card.id))
         } else {
@@ -992,7 +1018,7 @@ function asChoice(x:Card): ChoiceOption<Card> {
 }
 
 function allowNull<T>(options: ChoiceOption<T>[], message:string="None"): ChoiceOption<T|null>[] {
-    return options.concat([{kind:'string', render:message, value:null}])
+    return (options as ChoiceOption<T|null>[]).concat([{kind:'string', render:message, value:null}])
 }
 
 function renderChoice(
@@ -1043,8 +1069,8 @@ class Undo extends Error {
     }
 }
 
-function bindUndo(state:State, reject): void {
-    $(`[option='undo']`).on('click', function(e){
+function bindUndo(state:State, reject: ((x:any) => void)): void {
+    $(`[option='undo']`).on('click', function(e: any){
         if (state.undoable()) reject(new Undo(state))
     })
 }
@@ -1059,7 +1085,7 @@ function freshChoice<T>(
         for (let i = 0; i < options.length; i++) {
             const j = i;
             const elem = $(`[option='${i}']`)
-            elem.on('click', function (e) {
+            elem.on('click', function (e: any) {
                 clearChoice()
                 resolve(j)
             })
@@ -1098,7 +1124,7 @@ function freshMultichoice<T>(
         for (let i = 0; i < options.length; i++) {
             const j = i;
             const elem = $(`[option='${i}']`)
-            elem.on('click', function(e) {
+            elem.on('click', function(e:any) {
                 if (chosen.has(j)) {
                     chosen.delete(j)
                     elem.attr('chosen', false)
@@ -1108,7 +1134,7 @@ function freshMultichoice<T>(
                 }
             })
         }
-        $(`[option='submit']`).on('click', function(e){
+        $(`[option='submit']`).on('click', function(e:any){
             if (isReady()) {
                 resolve(Array.from(chosen.values()))
             }
@@ -1123,11 +1149,11 @@ function freshMultichoice<T>(
 // This is the 'default' choice the player makes when nothing else is happening
 
 async function act(state:State): Promise<State> {
-    let card:Card;
+    let card:Card|null;
     [state, card] = await actChoice(state)
     if (card == null) throw new Error('No valid options.')
-    let zone:ZoneName; [card, zone] = state.find(card)
-    switch (zone) {
+    let result = state.find(card)
+    switch (result.place) {
         case 'play':
             return useCard(card)(state)
         case 'hand':
@@ -1137,9 +1163,10 @@ async function act(state:State): Promise<State> {
         case 'aside':
         case 'discard':
         case 'deck':
+        case 'resolving':
         case null:
-            throw new Error(`Card can't be in zone ${zone}`)
-        default: assertNever(zone)
+            throw new Error(`Card can't be in zone ${result.place}`)
+        default: assertNever(result)
     }
 }
 
@@ -1156,10 +1183,9 @@ function actChoice(state:State): Promise<[State, Card|null]> {
 function useCard(card: Card): Transform {
     return async function(state: State): Promise<State> {
         state = state.startTicker(card);
-        let ability:Ability; [state, ability] = await choice(
-            state,
+        let ability:Ability|null; [state, ability] = await choice(state,
             "Choose an ability to use:",
-            card.abilities().map(x => ({kind:'string', render:x.description, value:x}))
+            allowNull(card.abilities().map(x => ({kind:'string', render:x.description, value:x})))
         )
         state = state.endTicker(card)
         if (ability != null) {
@@ -1183,7 +1209,8 @@ function tryToPlay(card:Card): Transform {
 
 // ---------------------------- Game loop
 
-function undo(state: State): State {
+function undo(startState: State): State {
+    let state:State|null = startState
     while (true) {
         let last:Replayable|null; [state, last] = state.popFuture()
         if (last == null) {
@@ -1218,19 +1245,19 @@ async function mainLoop(state: State): Promise<State> {
 
 // ------------------------------ Start the game
 
-function supplyKey(card:Card): number {
-    return card.cost(emptyState).coin
+function supplyKey(spec:CardSpec): number {
+    return new Card(spec, -1).cost(emptyState).coin
 }
-function supplySort(card1:Card, card2:Card): number {
+function supplySort(card1:CardSpec, card2:CardSpec): number {
     return supplyKey(card1) - supplyKey(card2)
 }
 
 
-async function playGame(seed=null): Promise<void> {
+async function playGame(seed?:number): Promise<void> {
     const startingDeck:CardSpec[] = [copper, copper, copper, copper, copper,
                                  copper, copper, estate, estate, estate]
     let state = emptyState;
-    let shuffledDeck; [state, shuffledDeck] = randomChoices(state, startingDeck, startingDeck.length, seed+1)
+    let shuffledDeck; [state, shuffledDeck] = randomChoices(state, startingDeck, startingDeck.length, seed)
     state = await doAll(shuffledDeck.map(x => create(x, 'deck')))(state);
     let variableSupplies; [state, variableSupplies] = randomChoices(state, mixins, 12, seed)
     variableSupplies.sort(supplySort)
@@ -1239,7 +1266,9 @@ async function playGame(seed=null): Promise<void> {
     state = await doAll(kingdom.map(x => create(x, 'supply')))(state)
     state = await trigger({type:'gameStart'})(state)
     try {
-        state = await mainLoop(state) 
+        while (true) {
+            state = await mainLoop(state) 
+        }
     } catch (error) {
         if (error instanceof Victory) {
             renderState(error.state)
@@ -1248,10 +1277,10 @@ async function playGame(seed=null): Promise<void> {
     }
 }
 
-function getSeed(): number|null {
+function getSeed(): number|undefined {
     const seed = new URLSearchParams(window.location.search).get('seed')
     const n:number = Number(seed)
-    return (isNaN(n)) ? null : n
+    return (isNaN(n)) ? undefined : n
 
 }
 
@@ -1263,10 +1292,10 @@ function load(): void {
 // ----------------- CARDS -----------------
 //
 
-const coreSupplies = []
-const mixins = []
-const testing = []
-const cheats = []
+const coreSupplies:CardSpec[] = []
+const mixins:CardSpec[] = []
+const testing:CardSpec[] = []
+const cheats:CardSpec[] = []
 
 //
 // ----------- UTILS -------------------
@@ -1274,7 +1303,7 @@ const cheats = []
 
 function gainCard(card:CardSpec): Effect {
     return {
-        description:`Create a ${card} in your discard pile.`,
+        description:`Create a ${card.name} in your discard pile.`,
         effect: create(card)
     }
 }
@@ -1314,7 +1343,7 @@ function makeCard(card:CardSpec, cost:Cost, selfdestruct:boolean=false):CardSpec
     return {name:card.name,
         fixedCost: cost,
         effect: supply => ({
-            description:`Create ${a(card)} in play.` + selfdestruct ? ' Trash this.': '',
+            description:`Create ${a(card.name)} in play.` + selfdestruct ? ' Trash this.': '',
             effect: doAll([create(card, 'play'), selfdestruct ? trash(supply) : noop])
         }),
         relatedCards: [card],
@@ -1336,7 +1365,8 @@ const reboot:CardSpec = {name: 'Reboot',
         effect: async function(state) {
             state = await setCoin(0)(state)
             state = await recycle(state.hand.concat(state.discard))(state)
-            return draw(5, reboot)(state)
+            state = await draw(5, reboot)(state)
+            return state
         }
     })
 }
@@ -1411,8 +1441,8 @@ const throneRoom:CardSpec = {name: 'Throne Room',
             if (target == null) return state
             state = await target.play(card)(state)
             state = tick(card)(state)
-            let zone; [target, zone] = state.find(target)
-            if (zone == 'discard') state = await target.play(card)(state)
+            let result = state.find(target)
+            if (result.place == 'discard') state = await result.card.play(card)(state)
             return state
         }
     })
@@ -1503,8 +1533,8 @@ const makePeddler:CardSpec = {name: 'Peddler',
 }
 register(makePeddler)
 
-async function freeAction(state) {
-    const options = state.hand.filter(card => (card.cost(state).time <= 1)).map(asChoice);
+async function freeAction(state: State): Promise<State> {
+    const options = state.hand.filter((card:Card) => (card.cost(state).time <= 1)).map(asChoice);
     let target;
     [state, target] = await choice(state, 'Choose a card costing up to @ to play',allowNull(options))
     return (target == null) ? state : target.play()(state)
@@ -1537,7 +1567,7 @@ const workshop:CardSpec = {name: 'Workshop',
             let target;
             [state, target] = await choice(state, 'Choose a card costing up to $4 to buy.',
                 allowNull(options.map(asChoice)))
-            return target.buy(card)(state)
+            return (target == null) ? state : target.buy(card)(state)
         }
     })
 }
@@ -1554,7 +1584,7 @@ const shippingLane:CardSpec = {name: 'Shipping Lane',
         ])
     })
 }
-buyable(shippingLane, 5)
+buyable(shippingLane, 5, 'test')
 
 const factory:CardSpec = {name: 'Factory',
     fixedCost: time(1),
@@ -1565,7 +1595,7 @@ const factory:CardSpec = {name: 'Factory',
             let target;
             [state, target] = await choice(state, 'Choose a card costing up to $6 to buy.',
                 allowNull(options.map(asChoice)))
-            return target.buy(card)(state)
+            return (target == null) ? state : target.buy(card)(state)
         }
     })
 }
@@ -1577,17 +1607,6 @@ const feast:CardSpec = {name: 'Feast',
         description: '+$5. Trash this.',
         effect: doAll([gainCoin(5), trash(card)]),
     })
-    //effect: card => ({
-    //    description: 'Buy a card costing up to $6. Trash this.',
-    //    effect: async function(state) {
-    //        options = state.supply.filter(card => (card.cost(state).coin <= 6 && card.cost(state).time <= 0));
-    //        [state, target] = await choice(state, 'Choose a card costing up to $6 to buy.',
-    //            allowNull(options.map(asChoice)))
-    //        state = await target.buy('feast')(state)
-    //        return trash(card)(state)
-    //    },
-    //    skipDiscard:true,
-    //})
 }
 buyable(feast, 4)
 
@@ -1596,13 +1615,13 @@ const warFooting:CardSpec = {name: 'War Footing',
     replacers: card => [{
         description: 'Reboot costs @ less to play.',
         handles: x => (x.type == 'cost' && x.card == 'Reboot'),
-        replace: applyToKey('cost', applyToKey('time', x=>Math.max(0, x-1)))
+        replace: x => updates(x, {'cost': {'coin': x.cost.coin, 'time': Math.max(0, x.cost.time-1)}})
     }]
 }
 const gainWarFooting:CardSpec = {name: 'War Footing',
     calculatedCost: (card, state) => ({time:0, coin:15+10*card.charge}),
     effect: card => ({
-        description: `Create a ${card.relatedCards()[0]} in play.` +
+        description: `Create a ${warFooting.name} in play.` +
             ' Put a charge token on this. It costs $10 more per charge token on it.',
         effect: doAll([create(warFooting, 'play'), charge(card, 1)])
     }),
@@ -1671,19 +1690,19 @@ const reinforce:CardSpec = {name: 'Reinforce',
     effect: card => ({
         description: 'Put a reinforce token on a card in your hand.',
         effect: async function(state) {
-            [state, card] = await choice(state,
+            let target:Card|null; [state, target] = await choice(state,
                 'Choose a card to put a reinforce token on.',
                 state.hand.map(asChoice))
-            if (card == null) return state
-            return addToken(card, 'reinforce')(state)
+            if (target == null) return state
+            return addToken(target, 'reinforce')(state)
         }
     }),
     triggers: card => [{
         'description': `After playing a card with a reinforce token other than with this, if it's in your discard pile play it again.`,
         'handles':e => (e.type == 'afterPlay' && e.before.tokens.includes('reinforce') && e.source.id != card.id),
         'effect':e => async function(state) {
-            const [played, zone] = state.find(e.before)
-            return (zone == 'discard') ? played.play(card)(state) : state
+            const result = state.find(e.before)
+            return (result.place == 'discard') ? result.card.play(card)(state) : state
         }
     }],
 }
@@ -1695,9 +1714,12 @@ const blacksmith:CardSpec = {name: 'Blacksmith',
         description: 'Add a charge token to this, then +1 card per charge token on this.',
         effect: async function(state) {
             state = await charge(card, 1)(state);
-            let [played, _] = state.find(card)
-            state = await draw(played.charge)(state);
-            return move(played, 'discard')(state)
+            const result = state.find(card)
+            if (result.found) {
+                state = await draw(result.card.charge)(state);
+                state = await move(result.card, 'discard')(state)
+            }
+            return state
         },
         skipDiscard: true
     })
@@ -1713,7 +1735,7 @@ function nextTime(name:string,
         name:name,
         triggers: card => [{
             description: description,
-            handles: when,
+            handles: (e:GameEvent, state:State) => (when(e, state) && state.find(card).place == 'play'),
             effect: (e:GameEvent) => doAll([trash(card), what(e)]),
         }]
     }
@@ -1798,15 +1820,19 @@ const bustlingSquare:CardSpec = {name: 'Bustling Square',
         description: `+1 card. Set aside all cards in your hand. Play them in any order.`,
         effect: async function(state) {
             state = await draw(1)(state)
-            let hand = state.hand;
+            let hand:Card[]= state.hand;
             state = await moveWholeZone('hand', 'aside')(state)
-            while (hand.length > 0) {
-                let target;
-                [state, target] = await choice(state, 'Choose which card to play next.', hand.map(asChoice))
-                state = await target.play(card)(state)
-                hand = hand.filter(c => c.id != target.id)
+            while (true) {
+                let target:Card|null; [state, target] = await choice(state,
+                    'Choose which card to play next.', hand.map(asChoice))
+                if (target == null) {
+                    return state
+                } else {
+                    state = await target.play(card)(state)
+                    const id = target.id
+                    hand = hand.filter((c:Card) => c.id != id)
+                }
             }
-            return state
         }
     })
 }
@@ -1842,7 +1868,7 @@ const stables:CardSpec = {name: 'Stables',
 const horse:CardSpec = {name: 'Horse',
     fixedCost: coin(2),
     effect: card => ({
-        description: `Put a charge token on a ${stables} in play.`,
+        description: `Put a charge token on a ${stables.name} in play.`,
         effect: fill(stables, 1),
     }),
     triggers: card => [ensureAtStart(stables)],
@@ -1856,11 +1882,13 @@ const lookout:CardSpec = {name: 'Lookout',
         description: 'Look at the top 3 cards from your deck. Trash one then discard one.',
         effect: async function(state) {
             let picks = state.deck.slice(0, 3)
-            async function pickOne(descriptor, zone, state) {
-                let pick:Card; [state, pick] = await choice(state,
+            async function pickOne(descriptor: string, zone: PlaceName, state: State) {
+                let pick:Card|null; [state, pick] = await choice(state,
                     `Pick a card to ${descriptor}.`,
                     picks.map(asChoice))
-                picks = picks.filter(card => card.id != pick.id)
+                if (pick==null) return state // shouldn't be possible
+                const id = pick.id
+                picks = picks.filter(card => card.id != id)
                 return move(pick, zone)(state)
             }
             if (picks.length > 0)
@@ -1895,7 +1923,7 @@ mixins.push(makeCard(roadNetwork, coin(5), true))
 const twins:CardSpec = {name: 'Twins',
     fixedCost: time(0),
     triggers: card => [{
-        description: `When you finish playing a card other than with ${card}, if it costs @ or more then you may play a card in your hand with the same name.`,
+        description: `When you finish playing a card other than with ${twins.name}, if it costs @ or more then you may play a card in your hand with the same name.`,
         handles: e => (e.type == 'afterPlay' && e.source.name != twins.name),
         effect: e => async function(state) {
             if (e.before.cost(state).time == 0) return state
@@ -2022,7 +2050,7 @@ const citadel:CardSpec = {name: "Citadel",
         description: `After playing a card the normal way, if it's the only card in your discard pile, play it again.`,
         handles: e => (e.type == 'afterPlay' && e.source.name == 'act'),
         effect: e => async function(state) {
-            if (e.after != null && state.find(e.after)[1] == 'discard' && state.discard.length == 1) {
+            if (e.after != null && state.find(e.after).place == 'discard' && state.discard.length == 1) {
                 return e.after.play(card)(state)
             } else {
                 return state
@@ -2049,7 +2077,7 @@ const hireling:CardSpec = {name: 'Hireling',
     replacers: card => [{
         description: "Whenever you draw a card from Reboot, draw an additional card.",
         handles: x => (x.type == 'draw' && x.source.name == reboot.name),
-        replace: x => update(x, 'draw', x.draw+1),
+        replace: x => updates(x, {draw:x.draw+1})
     }]
 }
 register(makeCard(hireling, {coin:6, time:2}))
@@ -2124,13 +2152,13 @@ const coppersmith:CardSpec = {name: 'Coppersmith',
 }
 buyable(coppersmith, 3)
 
-function countDistinct(xs) {
-    const y = {}
+function countDistinct<T>(xs: T[]): number {
+    const y: Set<T> = new Set()
     var result = 0
-    for (var i = 0; i < xs.length; i++) {
-        if (y[xs[i]] == undefined) {
-            y[xs[i]] = true
+    for (const x of xs) {
+        if (!y.has(x)) {
             result += 1
+            y.add(x)
         }
     }
     return result
@@ -2188,15 +2216,17 @@ const kingsCourt:CardSpec = {name: "King's Court",
             "then if it's in your discard pile play it again, "+
             "then if it's in your discard pile play it again.",
         effect: async function(state) {
-            let target; [state, target] = await choice(state,
+            let target:Card, targetNullable; [state, targetNullable] = await choice(state,
                 'Choose a card to play three times.',
                 state.hand.map(asChoice))
-            if (target == null) return state
+            if (targetNullable == null) return state
+            else target = targetNullable
             state = await target.play(card)(state)
             for (var i = 0; i < 2; i++) {
                 state = tick(card)(state)
-                let zone; [target, zone] = state.find(target)
-                if (zone != 'discard') break
+                const result = state.find(target)
+                if (result.place != 'discard') break
+                else target = result.card
                 state = await target.play(card)(state)
             }
             return state
@@ -2226,7 +2256,7 @@ const pathfinding:CardSpec = {name: 'Pathfinding',
             let target; [state, target] = await choice(state,
                 'Choose a card to put a path token on.',
                 state.hand.map(asChoice))
-            if (card == null) return state
+            if (target == null) return state
             return addToken(target, 'path')(state)
         }
     }),
@@ -2246,6 +2276,7 @@ const counterfeit:CardSpec = {name: 'Counterfeit',
             let target; [state, target] = await choice(state,
                 'Choose a card to play then trash.',
                 state.deck.map(asChoice))
+            if (target == null) return state
             state = await target.play()(state)
             return trash(target)(state)
         }
@@ -2319,32 +2350,32 @@ const coffers:CardSpec = {name: 'Coffers',
         effect: gainCoin(1),
     }]
 }
-function createIfNeeded(card) {
+function createIfNeeded(spec:CardSpec): Transform {
     return async function(state) {
-        if (state.play.some(x => x.name == card.name)) return state
-        return create(card, 'play')(state)
+        if (state.play.some(x => x.name == spec.name)) return state
+        return create(spec, 'play')(state)
     }
 
 }
-function ensureAtStart(card) {
+function ensureAtStart(spec:CardSpec): Trigger {
     return {
-        description: `At the start of the game, create a ${card} in play if there isn't one.`,
+        description: `At the start of the game, create a ${spec.name} in play if there isn't one.`,
         handles: e => e.type == 'gameStart',
-        effect: e => createIfNeeded(card)
+        effect: e => createIfNeeded(spec)
     }
 }
-function fill(card, n) {
+function fill(spec:CardSpec, n:number): Transform {
     return async function(state) {
         let target; [state, target] = await choice(state,
-            `Place two charge tokens on a ${card}.`,
-            state.play.filter(c => c.name == card.name).map(asChoice))
+            `Place two ${n} tokens on a ${spec.name} in play.`,
+            state.play.filter(c => c.name == spec.name).map(asChoice))
         return (target == null) ? state : charge(target, n)(state)
     }
 }
 const fillCoffers:CardSpec = {name: 'Fill Coffers',
     fixedCost: coin(3),
     effect: card => ({
-        description: `Put two charge tokens on a ${coffers} in play.`,
+        description: `Put two charge tokens on a ${coffers.name} in play.`,
         effect: fill(coffers, 2)
     }),
     triggers: card => [ensureAtStart(coffers)]
@@ -2386,7 +2417,7 @@ buyable(mountainVillage, 3)
 const fillStables:CardSpec = {name: 'Fill Stables',
     fixedCost: coin(4),
     effect: card => ({
-        description: `Put two charge tokens on a ${stables} in play.`,
+        description: `Put two charge tokens on a ${stables.name} in play.`,
         effect: fill(stables, 2),
     }),
     triggers: card => [ensureAtStart(stables)],
@@ -2398,7 +2429,7 @@ register(fillStables)
 const sleigh:CardSpec = {name: 'Sleigh',
     fixedCost: time(1),
     effect: card => ({
-        description: `Put two charge tokens on a ${stables} in play.`,
+        description: `Put two charge tokens on a ${stables.name} in play.`,
         effect: fill(stables, 2),
     })
 }
@@ -2409,7 +2440,7 @@ const makeSleigh:CardSpec = {name: 'Sleigh',
     triggers: card => [
         ensureAtStart(stables),
         {
-            description: `Whenever you create a card, if you have a ${sleigh} in your hand,` +
+            description: `Whenever you create a card, if you have a ${sleigh.name} in your hand,` +
                 ' you may discard it to put the card into your hand.',
             handles: e => (e.type == 'create'),
             effect: e => async function(state) {
@@ -2439,8 +2470,8 @@ const ferry:CardSpec = {name: 'Ferry',
         }
     })
 }
-function ferryReduce(cost, n) {
-    return update(cost, 'coin', Math.max(cost.coin - n, (cost.time > 0) ? 0 : 1))
+function ferryReduce(cost:Cost, n:number): Cost {
+    return {time: cost.time, coin: Math.max(cost.coin - n, (cost.time > 0) ? 0 : 1)}
 }
 const makeFerry:CardSpec = {name: 'Ferry',
     fixedCost: coin(3),
@@ -2449,7 +2480,7 @@ const makeFerry:CardSpec = {name: 'Ferry',
     replacers: card => [{
         description: 'Cards cost $1 less per ferry token on them, unless it would make them cost 0.',
         handles: p => (p.type == 'cost' && countTokens(p.card, 'ferry') > 0),
-        replace: p => update(p, 'cost', ferryReduce(p.cost, countTokens(p.card, 'ferry')))
+        replace: p => updates(p, {cost: ferryReduce(p.cost, countTokens(p.card, 'ferry'))})
     }]
 }
 register(makeFerry)
@@ -2460,8 +2491,8 @@ register(makeFerry)
 
 const livery:CardSpec = {name: 'Livery',
     replacers: card => [{
-        description: `Whenever you would draw cards other than with ${stables},` +
-            ` put that many charge tokens on a ${stables} in play instead.`,
+        description: `Whenever you would draw cards other than with ${stables.name},` +
+            ` put that many charge tokens on a ${stables.name} in play instead.`,
         handles: x => (x.type == 'draw' && x.source.name != stables.name),
         replace: x => updates(x, {'draw':0, 'effects':x.effects.concat([fill(stables, x.draw)])})
     }]
@@ -2478,8 +2509,8 @@ register(makeLivery)
 
 function slogCheck(card: Card): (state: State) => Promise<State> {
     return async function(state) {
-        let zone; [card, zone] = state.find(card)
-        if (card != null && card.charge >= 100) state = await gainPoints(100, card)(state)
+        const result = state.find(card)
+        if (result.found && result.card.charge >= 100) state = await gainPoints(100, card)(state)
         return state
     }
 }
@@ -2517,10 +2548,10 @@ const burden:CardSpec = {name: 'Burden',
     replacers: card => [{
         description: 'Cards cost $1 more for each burden token on them.',
         handles: x => (x.type == 'cost' && countTokens(x.card, 'burden') > 0),
-        replace: x => applyToKey('cost', applyToKey('coin', (c:number) => c + countTokens(x.card, 'burden')))(x)
+        replace: x => updates(x, {cost: {time:x.cost.time, coin: x.cost.coin+countTokens(x.card, 'burden')}})
     }]
 }
-register(burden)
+register(burden, 'test')
 
 const artisan:CardSpec = {name: 'Artisan',
     fixedCost: time(1),
