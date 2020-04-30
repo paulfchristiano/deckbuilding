@@ -1,0 +1,102 @@
+#resources, #choicePrompt, .header {
+    font-size: 1.25em;
+}
+.card, .option {
+    font-size: 1em;
+    border: 2px solid;
+    border-radius: 5px;
+    padding-left: 3px;
+    padding-right: 3px;
+    padding-top: 3px;
+    padding-bottom: 3px;
+    margin-right: 3px;
+    margin-top: 3px;
+    display: inline-block;
+    cursor:default;
+    text-align: center;
+    position: relative;
+}
+.option {
+    max-width: 20em;
+}
+#resolving {
+    display:inline-block;
+}
+#choicePrompt {
+    position:absolute;
+    display:inline-block;
+    top:33%;
+    padding-left: 3px;
+}
+.card[shadow='true'] {
+    color: grey;
+    border-color: grey;
+}
+[tick='1'] {
+    background-color: rgba(0, 128, 255, 0.1);
+}
+[tick='2'] {
+    background-color: rgba(0, 255, 128, 0.1);
+}
+[tick='3'] {
+    background-color: rgba(255, 0, 128, 0.1);
+}
+[choosable] {
+    background-color: rgba(254, 216, 177, 0.4);
+    cursor:pointer;
+}
+[tick='1'][choosable] {
+    background: linear-gradient(45deg, rgba(254, 216, 177, 0.4) 0%, rgba(0, 128, 255, 0.1) 100%);
+}
+[tick='2'][choosable] {
+    background: linear-gradient(45deg, rgba(254, 216, 177, 0.4) 0%, rgba(0, 255, 128, 0.1) 100%);
+}
+[tick='3'][choosable] {
+    background: linear-gradient(45deg, rgba(254, 216, 177, 0.4) 0%, rgba(255, 0, 128, 0.1) 100%);
+}
+[chosen=true] {
+    background-color: rgba(254, 216, 177, 1.0);
+}
+[tick='1'][chosen] {
+    background: linear-gradient(45deg, rgba(254, 216, 177, 1.0) 0%, rgba(0, 128, 255, 0.1) 100%);
+}
+[tick='2'][chosen] {
+    background: linear-gradient(45deg, rgba(254, 216, 177, 1.0) 0%, rgba(0, 255, 128, 0.1) 100%);
+}
+[tick='3'][chosen] {
+    background: linear-gradient(45deg, rgba(254, 216, 177, 1.0) 0%, rgba(0, 255, 128, 0.1) 100%);
+}
+.zone {
+    min-height: 3.1em;
+    max-width: 45em;
+}
+#undoArea {
+    min-height: 1em;
+}
+#toparea {
+    position: relative;
+}
+#options {
+    min-height: 2em;
+}
+.card {
+    text-align:center
+}
+
+.tooltip {
+  visibility: hidden;
+  width: 20em;
+  background-color: black;
+  color: #fff;
+  text-align: center;
+  border-radius: 6px;
+  padding: 5px;
+  position: absolute;
+  z-index: 1;
+  top: 3em;
+  left: 0px;
+}
+.card:hover .tooltip {
+    visibility: visible;
+    transition-delay: 0.5s;
+}

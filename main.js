@@ -1,5 +1,4 @@
 "use strict";
-// TODO: move CSS into a separate style file
 // TODO: the first section of this file isn't 't sorted very well
 // TODO: don't currently get type checking for replacement and triggers; checking types would catch a lot of bugs
 // TODO: make the tooltip nice---should show up immediately, but be impossible to keep it alive by mousing over it
