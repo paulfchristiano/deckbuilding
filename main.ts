@@ -1913,12 +1913,13 @@ buyable(lab, 5)
 const roadNetwork:CardSpec = {name: 'Road Network',
     fixedCost: time(0),
     triggers: _ => [{
-        description: 'Whenever you create a card in your discard pile, move it to the top of your deck.',
-        handles: e => (e.type == 'create' && e.toZone == 'discard'),
+        description: "Whenever you create a card," +
+            " if it's in your discard pile then move it to the top of your deck.",
+        handles: (e, state) => (e.type == 'create' && state.find(e.card).place == 'discard'),
         effect: e => move(e.card, 'deck', 'top')
     }]
 }
-mixins.push(makeCard(roadNetwork, coin(5), true))
+register(makeCard(roadNetwork, coin(5), true), 'test')
 
 const twins:CardSpec = {name: 'Twins',
     fixedCost: time(0),
@@ -2029,7 +2030,7 @@ const innovation:CardSpec = {name: "Innovation",
     triggers: card => [{
         description: "Whenever you create a card in your discard pile, if this has an innovate token on it:" +
         " remove all innovate tokens from this, discard your hand, lose all $, and play the card.",
-        handles: e => (e.type == 'create' && e.toZone == 'discard' && countTokens(card, 'innovate') > 0),
+        handles: e => (e.type == 'create' && e.zone == 'discard' && countTokens(card, 'innovate') > 0),
         effect: e => doAll([
             removeTokens(card, 'innovate'),
             moveWholeZone('hand', 'discard'),

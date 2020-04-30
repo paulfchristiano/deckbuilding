@@ -2291,12 +2291,13 @@ buyable(lab, 5);
 var roadNetwork = { name: 'Road Network',
     fixedCost: time(0),
     triggers: function (_) { return [{
-            description: 'Whenever you create a card in your discard pile, move it to the top of your deck.',
-            handles: function (e) { return (e.type == 'create' && e.toZone == 'discard'); },
+            description: "Whenever you create a card," +
+                " if it's in your discard pile then move it to the top of your deck.",
+            handles: function (e, state) { return (e.type == 'create' && state.find(e.card).place == 'discard'); },
             effect: function (e) { return move(e.card, 'deck', 'top'); }
         }]; }
 };
-mixins.push(makeCard(roadNetwork, coin(5), true));
+register(makeCard(roadNetwork, coin(5), true), 'test');
 var twins = { name: 'Twins',
     fixedCost: time(0),
     triggers: function (card) { return [{
@@ -2449,7 +2450,7 @@ var innovation = { name: "Innovation",
     triggers: function (card) { return [{
             description: "Whenever you create a card in your discard pile, if this has an innovate token on it:" +
                 " remove all innovate tokens from this, discard your hand, lose all $, and play the card.",
-            handles: function (e) { return (e.type == 'create' && e.toZone == 'discard' && countTokens(card, 'innovate') > 0); },
+            handles: function (e) { return (e.type == 'create' && e.zone == 'discard' && countTokens(card, 'innovate') > 0); },
             effect: function (e) { return doAll([
                 removeTokens(card, 'innovate'),
                 moveWholeZone('hand', 'discard'),
