@@ -2,7 +2,6 @@
 // TODO: the first section of this file isn't 't sorted very well
 // TODO: don't currently get type checking for replacement and triggers; checking types would catch a lot of bugs
 // TODO: make the tooltip nice---should show up immediately, but be impossible to keep it alive by mousing over it
-// TODO: History?
 // TODO: I think the cost framework isn't really appropriate any more, but maybe think a bit before getting rid of it
 // TODO: if a zone gets bigger and then, it's annoying to keep resizing it. As soon as a zone gets big I want to leave it big probably.
 // TODO: lay things out more nicely
@@ -120,6 +119,7 @@ function trigger(e) {
                         if (!!_d.done) return [3 /*break*/, 7];
                         trigger_1 = _d.value;
                         if (!(trigger_1.handles(e, initialState) && trigger_1.handles(e, state))) return [3 /*break*/, 6];
+                        state = state.log("Triggering " + card);
                         return [4 /*yield*/, withTracking(trigger_1.effect(e), { kind: 'trigger', trigger: trigger_1, card: card })(state)];
                     case 5:
                         state = _g.sent();
@@ -267,6 +267,7 @@ var Card = /** @class */ (function () {
                             return [4 /*yield*/, (state)];
                         case 1:
                             state = _a.sent();
+                            state = state.log("Buying " + card.name);
                             return [2 /*return*/, withTracking(doAll([
                                     trigger({ type: 'buy', card: card, source: source }),
                                     card.effect().effect,
@@ -294,9 +295,10 @@ var Card = /** @class */ (function () {
                                 case true:
                                     card = result.card;
                             }
-                            return [4 /*yield*/, move(card, 'resolving')(state)];
+                            return [4 /*yield*/, move(card, 'resolving', 'end', true)(state)];
                         case 1:
                             state = _a.sent();
+                            state = state.log("Playing " + card.name);
                             return [4 /*yield*/, withTracking(function (state) {
                                     return __awaiter(this, void 0, void 0, function () {
                                         return __generator(this, function (_a) {
@@ -348,7 +350,7 @@ var Card = /** @class */ (function () {
 }());
 var notFound = { found: false, card: null, place: null };
 var State = /** @class */ (function () {
-    function State(counters, zones, resolving, nextID, history, future, checkpoint) {
+    function State(counters, zones, resolving, nextID, history, future, checkpoint, logs) {
         this.counters = counters;
         this.zones = zones;
         this.resolving = resolving;
@@ -356,6 +358,7 @@ var State = /** @class */ (function () {
         this.history = history;
         this.future = future;
         this.checkpoint = checkpoint;
+        this.logs = logs;
         this.coin = counters.coin;
         this.time = counters.time;
         this.points = counters.points;
@@ -367,7 +370,7 @@ var State = /** @class */ (function () {
         this.aside = zones.get('aside') || [];
     }
     State.prototype.update = function (stateUpdate) {
-        return new State(read(stateUpdate, 'counters', this.counters), read(stateUpdate, 'zones', this.zones), read(stateUpdate, 'resolving', this.resolving), read(stateUpdate, 'nextID', this.nextID), read(stateUpdate, 'history', this.history), read(stateUpdate, 'future', this.future), read(stateUpdate, 'checkpoint', this.checkpoint));
+        return new State(read(stateUpdate, 'counters', this.counters), read(stateUpdate, 'zones', this.zones), read(stateUpdate, 'resolving', this.resolving), read(stateUpdate, 'nextID', this.nextID), read(stateUpdate, 'history', this.history), read(stateUpdate, 'future', this.future), read(stateUpdate, 'checkpoint', this.checkpoint), read(stateUpdate, 'logs', this.logs));
     };
     State.prototype.addResolving = function (x) {
         return this.update({ resolving: this.resolving.concat([x]) });
@@ -475,6 +478,9 @@ var State = /** @class */ (function () {
     State.prototype.addHistory = function (record) {
         return this.update({ history: this.history.concat([record]) });
     };
+    State.prototype.log = function (msg) {
+        return this.update({ logs: this.logs.concat([msg]) });
+    };
     State.prototype.shiftFuture = function () {
         var _a;
         var result, future;
@@ -527,7 +533,7 @@ function shiftFirst(xs) {
         return [null, xs];
     return [xs[0], xs.slice(1)];
 }
-var emptyState = new State({ coin: 0, time: 0, points: 0 }, new Map([['supply', []], ['hand', []], ['deck', []], ['discard', []], ['play', []], ['aside', []]]), [], 0, [], [], null // resolving, nextID, history, future, checkpoint
+var emptyState = new State({ coin: 0, time: 0, points: 0 }, new Map([['supply', []], ['hand', []], ['deck', []], ['discard', []], ['play', []], ['aside', []]]), [], 0, [], [], null, [] // resolving, nextID, history, future, checkpoint, logs
 );
 // ---------- Methods for inserting cards into zones
 // tests whether card1 should appear before card2 in sorted order
@@ -611,33 +617,15 @@ function create(spec, zone, loc) {
                 _a = __read(state.makeID(), 2), state = _a[0], id = _a[1];
                 card = new Card(spec, id);
                 state = state.addToZone(card, zone, loc);
+                state = state.log("Created " + a(card.name) + " in " + zone);
                 return [2 /*return*/, trigger({ type: 'create', card: card, zone: zone })(state)];
             });
         });
     };
 }
-function recycle(cards) {
-    return function (state) {
-        return __awaiter(this, void 0, void 0, function () {
-            var _a;
-            return __generator(this, function (_b) {
-                switch (_b.label) {
-                    case 0:
-                        _a = __read(randomChoices(state, cards, cards.length), 2), state = _a[0], cards = _a[1];
-                        return [4 /*yield*/, trigger({ type: 'recycle', cards: cards })(state)];
-                    case 1:
-                        state = _b.sent();
-                        return [4 /*yield*/, moveMany(cards, 'deck')(state)];
-                    case 2:
-                        state = _b.sent();
-                        return [2 /*return*/, state];
-                }
-            });
-        });
-    };
-}
-function move(card, toZone, loc) {
+function move(card, toZone, loc, logged) {
     if (loc === void 0) { loc = 'end'; }
+    if (logged === void 0) { logged = false; }
     return function (state) {
         return __awaiter(this, void 0, void 0, function () {
             var result, card_1;
@@ -648,8 +636,15 @@ function move(card, toZone, loc) {
                         if (!result.found) return [3 /*break*/, 2];
                         card_1 = result.card;
                         state = state.remove(card_1);
-                        if (toZone != null)
+                        if (toZone == null) {
+                            if (!logged)
+                                state = state.log("Trashed " + card_1.name + " from " + result.place);
+                        }
+                        else {
                             state = state.addToZone(card_1, toZone, loc);
+                            if (!logged)
+                                state = state.log("Moved " + card_1.name + " from " + result.place + " to " + toZone);
+                        }
                         return [4 /*yield*/, trigger({ type: 'move', fromZone: result.place, toZone: toZone, loc: loc, card: card_1 })(state)];
                     case 1:
                         state = _a.sent();
@@ -660,9 +655,33 @@ function move(card, toZone, loc) {
         });
     };
 }
-function moveMany(cards, toZone, loc) {
+function showCards(cards) {
+    return cards.map(function (card) { return card.name; }).join(', ');
+}
+function moveMany(cards, toZone, loc, logged) {
     if (loc === void 0) { loc = 'end'; }
-    return doAll(cards.map(function (card) { return move(card, toZone); }));
+    if (logged === void 0) { logged = false; }
+    return function (state) {
+        return __awaiter(this, void 0, void 0, function () {
+            return __generator(this, function (_a) {
+                switch (_a.label) {
+                    case 0: return [4 /*yield*/, doAll(cards.map(function (card) { return move(card, toZone, loc, true); }))(state)];
+                    case 1:
+                        state = _a.sent();
+                        if (cards.length == 0 || logged) {
+                            return [2 /*return*/, state];
+                        }
+                        else if (toZone == null) {
+                            return [2 /*return*/, state.log("Trashed " + showCards(cards))];
+                        }
+                        else {
+                            return [2 /*return*/, state.log("Moved " + showCards(cards) + " to " + toZone)];
+                        }
+                        return [2 /*return*/];
+                }
+            });
+        });
+    };
 }
 function moveWholeZone(fromZone, toZone, loc) {
     if (loc === void 0) { loc = 'end'; }
@@ -674,8 +693,32 @@ function moveWholeZone(fromZone, toZone, loc) {
         });
     };
 }
-function trash(card) {
-    return move(card, null);
+function trash(card, logged) {
+    if (logged === void 0) { logged = false; }
+    return move(card, null, 'end', logged);
+}
+function recycle(cards) {
+    return function (state) {
+        return __awaiter(this, void 0, void 0, function () {
+            var _a;
+            return __generator(this, function (_b) {
+                switch (_b.label) {
+                    case 0:
+                        _a = __read(randomChoices(state, cards, cards.length), 2), state = _a[0], cards = _a[1];
+                        if (cards.length > 0) {
+                            state = state.log("Recycled " + showCards(cards) + " to bottom of deck");
+                        }
+                        return [4 /*yield*/, moveMany(cards, 'deck', 'bottom', true)(state)];
+                    case 1:
+                        state = _b.sent();
+                        return [4 /*yield*/, trigger({ type: 'recycle', cards: cards })(state)];
+                    case 2:
+                        state = _b.sent();
+                        return [2 /*return*/, state];
+                }
+            });
+        });
+    };
 }
 function draw(n, source) {
     if (source === void 0) { source = { name: '?' }; }
@@ -692,7 +735,7 @@ function draw(n, source) {
                     case 1:
                         state = _b.sent();
                         n = drawParams.draw;
-                        drawn = 0;
+                        drawn = [];
                         i = 0;
                         _b.label = 2;
                     case 2:
@@ -700,15 +743,19 @@ function draw(n, source) {
                         nextCard = void 0, rest = void 0;
                         _a = __read(shiftFirst(state.deck), 2), nextCard = _a[0], rest = _a[1];
                         if (!(nextCard != null)) return [3 /*break*/, 4];
-                        return [4 /*yield*/, move(nextCard, 'hand')(state)];
+                        return [4 /*yield*/, move(nextCard, 'hand', 'handSort', true)(state)];
                     case 3:
                         state = _b.sent();
-                        drawn += 1;
+                        drawn.push(nextCard);
                         _b.label = 4;
                     case 4:
                         i++;
                         return [3 /*break*/, 2];
-                    case 5: return [2 /*return*/, trigger({ type: 'draw', drawn: drawn, triedToDraw: n, source: source })(state)];
+                    case 5:
+                        if (drawn.length > 0) {
+                            state = state.log("Drew " + showCards(drawn));
+                        }
+                        return [2 /*return*/, trigger({ type: 'draw', drawn: drawn.length, triedToDraw: n, source: source })(state)];
                 }
             });
         });
@@ -717,7 +764,7 @@ function draw(n, source) {
 function discard(n) {
     return function (state) {
         return __awaiter(this, void 0, void 0, function () {
-            var toDiscard, _a;
+            var cards, _a;
             var _b;
             return __generator(this, function (_c) {
                 switch (_c.label) {
@@ -730,14 +777,29 @@ function discard(n) {
                         _a = _c.sent();
                         _c.label = 3;
                     case 3:
-                        _b = __read.apply(void 0, [_a, 2]), state = _b[0], toDiscard = _b[1];
-                        return [2 /*return*/, moveMany(toDiscard, 'discard')(state)];
+                        _b = __read.apply(void 0, [_a, 2]), state = _b[0], cards = _b[1];
+                        return [4 /*yield*/, moveMany(cards, 'discard')(state)];
+                    case 4:
+                        state = _c.sent();
+                        return [2 /*return*/, trigger({ type: 'discard', cards: cards })(state)];
                 }
             });
         });
     };
 }
 // --------------- Transforms that change points, time, and coins
+function logChange(state, noun, n, positive, negative) {
+    if (n == 1) {
+        return state.log(positive[0] + a(noun) + positive[1]);
+    }
+    else if (n > 1) {
+        return state.log(positive[0] + (n + " ") + noun + 's' + positive[1]);
+    }
+    else if (n < 0) {
+        return logChange(state, noun, -n, negative, positive);
+    }
+    return state;
+}
 var CostNotPaid = /** @class */ (function (_super) {
     __extends(CostNotPaid, _super);
     function CostNotPaid(message) {
@@ -761,17 +823,6 @@ function setCoin(n) {
         });
     };
 }
-function gainTime(n) {
-    return function (state) {
-        return __awaiter(this, void 0, void 0, function () {
-            return __generator(this, function (_a) {
-                state = state.setTime(state.time + n);
-                console.log(state);
-                return [2 /*return*/, trigger({ type: 'gainTime', amount: n })(state)];
-            });
-        });
-    };
-}
 var Victory = /** @class */ (function (_super) {
     __extends(Victory, _super);
     function Victory(state) {
@@ -782,6 +833,18 @@ var Victory = /** @class */ (function (_super) {
     }
     return Victory;
 }(Error));
+function gainTime(n) {
+    return function (state) {
+        return __awaiter(this, void 0, void 0, function () {
+            return __generator(this, function (_a) {
+                state = state.setTime(state.time + n);
+                if (n != 0)
+                    state = state.log("Gained " + renderTime(n));
+                return [2 /*return*/, trigger({ type: 'gainTime', amount: n })(state)];
+            });
+        });
+    };
+}
 function gainPoints(n, source) {
     if (source === void 0) { source = { name: '?' }; }
     return function (state) {
@@ -797,6 +860,8 @@ function gainPoints(n, source) {
                         state = _a.sent();
                         n = params.points;
                         state = state.setPoints(state.points + n);
+                        if (n != 0)
+                            state = state.log(n > 0 ? "Gained " + n + " vp" : "Lost " + -n + " vp");
                         if (state.points >= 50)
                             throw new Victory(state);
                         return [2 /*return*/, trigger({ type: 'gainPoints', points: n, source: source })(state)];
@@ -809,13 +874,16 @@ function gainCoin(n, cost) {
     if (cost === void 0) { cost = false; }
     return function (state) {
         return __awaiter(this, void 0, void 0, function () {
-            var adjustment;
             return __generator(this, function (_a) {
-                if (state.coin + n < 0 && cost)
-                    throw new CostNotPaid("Not enough coin");
-                adjustment = state.coin + n < 0 ? -state.coin : n;
-                state = state.setCoin(state.coin + adjustment);
-                return [2 /*return*/, trigger({ type: 'gainCoin', amount: adjustment, cost: cost })(state)];
+                if (state.coin + n < 0) {
+                    if (cost)
+                        throw new CostNotPaid("Not enough coin");
+                    n = -state.coin;
+                }
+                state = state.setCoin(state.coin + n);
+                if (n != 0)
+                    state = state.log(n > 0 ? "Gained $" + n : "Lost $" + -n);
+                return [2 /*return*/, trigger({ type: 'gainCoin', amount: n, cost: cost })(state)];
             });
         });
     };
@@ -914,17 +982,22 @@ function charge(card, n, cost) {
                 oldCharge = card.charge;
                 newCharge = Math.max(oldCharge + n, 0);
                 state = state.apply(function (card) { return card.update({ charge: newCharge }); }, card);
+                state = logChange(state, 'charge token', newCharge - oldCharge, ['Added ', " to " + card.name], ['Removed ', " from " + card.name]);
                 return [2 /*return*/, trigger({ type: 'chargeChange', card: card,
                         oldCharge: oldCharge, newCharge: newCharge, cost: cost })(state)];
             });
         });
     };
 }
+function logTokenChange(state, card, token, n) {
+    return logChange(state, token + " token", n, ['Added ', " to " + card.name], ['Removed ', " from " + card.name]);
+}
 function addToken(card, token) {
     return function (state) {
         return __awaiter(this, void 0, void 0, function () {
             return __generator(this, function (_a) {
                 state = state.apply(function (card) { return card.update({ tokens: card.tokens.concat([token]) }); }, card);
+                state = logTokenChange(state, card, token, 1);
                 return [2 /*return*/, trigger({ type: 'addToken', card: card, token: token })(state)];
             });
         });
@@ -947,6 +1020,7 @@ function removeTokens(card, token) {
             return __generator(this, function (_a) {
                 removed = countTokens(card, token);
                 state = state.apply(function (card) { return card.update({ tokens: card.tokens.filter(function (x) { return (x != token); }) }); }, card);
+                state = logTokenChange(state, card, token, -removed);
                 return [2 /*return*/, trigger({ type: 'removeTokens', token: token, removed: removed })(state)];
             });
         });
@@ -968,6 +1042,7 @@ function removeOneToken(card, token) {
             return __generator(this, function (_a) {
                 removed = 0;
                 state = state.apply(function (card) { return card.update({ tokens: removeOneToken(card.tokens) }); }, card);
+                state = logTokenChange(state, card, token, -removed);
                 return [2 /*return*/, trigger({ type: 'removeTokens', token: token, removed: removed })(state)];
             });
         });
@@ -1020,6 +1095,8 @@ function renderCost(cost) {
 }
 function renderTime(n) {
     var result = [];
+    if (n < 0)
+        return '-' + renderTime(-n);
     for (var i = 0; i < n; i++) {
         result.push('@');
     }
@@ -1139,6 +1216,9 @@ function renderTooltip(card, state) {
     var relatedFilling = card.relatedCards().map(renderRelated).join('');
     return "" + baseFilling + relatedFilling;
 }
+function render_log(msg) {
+    return "<div class=\".log\">" + msg + "</div>";
+}
 // make the currently rendered state available in the console for debugging purposes
 var renderedState;
 function renderState(state, optionsMap) {
@@ -1163,6 +1243,7 @@ function renderState(state, optionsMap) {
     $('#hand').html(state.hand.map(render).join(''));
     $('#deck').html(state.deck.map(render).join(''));
     $('#discard').html(state.discard.map(render).join(''));
+    $('#log').html(state.logs.slice().reverse().map(render_log).join(''));
 }
 // ------------------------------ History replay
 function doOrReplay(state, f, kind) {
@@ -1465,6 +1546,7 @@ function useCard(card) {
                     case 3:
                         state = stopTracking(state, { kind: 'abilities', card: card });
                         if (!(ability != null)) return [3 /*break*/, 5];
+                        state = state.log("Activating " + card.name);
                         return [4 /*yield*/, withTracking(payToDo(ability.cost, ability.effect), { card: card, kind: 'ability', ability: ability })(state)];
                     case 4:
                         state = _b.sent();
@@ -1566,6 +1648,7 @@ function playGame(seed) {
                     return [4 /*yield*/, trigger({ type: 'gameStart' })(state)];
                 case 3:
                     state = _c.sent();
+                    state = state.log("Setup done, game starting");
                     _c.label = 4;
                 case 4:
                     _c.trys.push([4, 8, , 9]);
@@ -1637,8 +1720,7 @@ function coin(n) {
     return { time: 0, coin: n };
 }
 //renders either "a" or "an" as appropriate
-function a(x) {
-    var s = x.toString();
+function a(s) {
     var c = s[0].toLowerCase();
     if (c == 'a' || c == 'e' || c == 'i' || c == 'o' || c == 'u')
         return 'an ' + s;
@@ -2907,7 +2989,7 @@ buyable(counterfeit, 5);
 var decay = { name: 'Decay',
     fixedCost: coin(2),
     effect: function (card) { return ({
-        description: 'Remove a decay tokens from each card in your hand.',
+        description: 'Remove a decay token from each card in your hand.',
         effect: function (state) {
             return __awaiter(this, void 0, void 0, function () {
                 return __generator(this, function (_a) {
