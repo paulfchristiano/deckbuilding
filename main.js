@@ -1816,36 +1816,55 @@ var makePeddler = { name: 'Peddler',
     relatedCards: [peddler]
 };
 register(makePeddler);
-function freeAction(state) {
-    return __awaiter(this, void 0, void 0, function () {
-        var options, target;
-        var _a;
-        return __generator(this, function (_b) {
-            switch (_b.label) {
-                case 0:
-                    options = state.hand.filter(function (card) { return (card.cost(state).time <= 1); }).map(asChoice);
-                    return [4 /*yield*/, choice(state, 'Choose a card costing up to @ to play', allowNull(options))];
-                case 1:
-                    _a = __read.apply(void 0, [_b.sent(), 2]), state = _a[0], target = _a[1];
-                    return [2 /*return*/, (target == null) ? state : target.play()(state)];
-            }
+function freeActions(totalTime, card) {
+    return function (state) {
+        return __awaiter(this, void 0, void 0, function () {
+            var remainingTime, options, target, timeCost, i;
+            var _a;
+            return __generator(this, function (_b) {
+                switch (_b.label) {
+                    case 0:
+                        remainingTime = totalTime;
+                        _b.label = 1;
+                    case 1:
+                        if (!(remainingTime > 0)) return [3 /*break*/, 4];
+                        options = state.hand.filter(function (card) { return (card.cost(state).time <= remainingTime); });
+                        target = void 0;
+                        return [4 /*yield*/, choice(state, "Choose a card costing up to " + renderTime(remainingTime) + " to play", allowNull(options.map(asChoice)))];
+                    case 2:
+                        _a = __read.apply(void 0, [_b.sent(), 2]), state = _a[0], target = _a[1];
+                        if (target == null)
+                            return [3 /*break*/, 4];
+                        timeCost = target.cost(state).time;
+                        return [4 /*yield*/, target.play()(state)];
+                    case 3:
+                        state = _b.sent();
+                        remainingTime -= timeCost;
+                        for (i = 0; i < timeCost; i++)
+                            state = tick(card)(state);
+                        return [3 /*break*/, 1];
+                    case 4: return [2 /*return*/, state];
+                }
+            });
         });
-    });
+    };
 }
-var villagestr = 'Do this up to two times: play a card in your hand costing up to @.';
+function villagestr(n) {
+    return "Play cards from your hand with total cost at most " + renderTime(n) + ".";
+}
 var village = { name: 'Village',
     fixedCost: time(1),
     effect: function (card) { return ({
-        description: "+1 card. " + villagestr,
-        effect: doAll([draw(1), freeAction, tick(card), freeAction])
+        description: "+1 card. " + villagestr(2),
+        effect: doAll([draw(1), freeActions(2, card)]),
     }); }
 };
 buyable(village, 3);
 var bazaar = { name: 'Bazaar',
     fixedCost: time(1),
     effect: function (card) { return ({
-        description: "+1 card. +$1. " + villagestr,
-        effect: doAll([draw(1), gainCoin(1), freeAction, tick(card), freeAction])
+        description: "+1 card. +$1. " + villagestr(2),
+        effect: doAll([draw(1), gainCoin(1), freeActions(2, card)])
     }); }
 };
 buyable(bazaar, 5);
@@ -1971,7 +1990,7 @@ var refresh = { name: 'Refresh',
 };
 mixins.push(refresh);
 var plough = { name: 'Plough',
-    fixedCost: time(1),
+    fixedCost: time(2),
     effect: function (card) { return ({
         description: 'Recycle any number of cards from your discard pile. +2 cards.',
         effect: function (state) {
@@ -1986,14 +2005,14 @@ var plough = { name: 'Plough',
                             return [4 /*yield*/, recycle(cards)(state)];
                         case 2:
                             state = _b.sent();
-                            return [2 /*return*/, draw(2)(state)];
+                            return [2 /*return*/, draw(3)(state)];
                     }
                 });
             });
         }
     }); }
 };
-buyable(plough, 5);
+buyable(plough, 4);
 var vassal = { name: 'Vassal',
     fixedCost: time(1),
     effect: function (card) { return ({
@@ -2548,7 +2567,7 @@ var hireling = { name: 'Hireling',
             replace: function (x) { return updates(x, { draw: x.draw + 1 }); }
         }]; }
 };
-register(makeCard(hireling, { coin: 6, time: 2 }));
+register(makeCard(hireling, { coin: 6, time: 1 }));
 var sacrifice = { name: 'Sacrifice',
     fixedCost: time(0),
     effect: function (card) { return ({
@@ -2971,9 +2990,9 @@ var cotr = { name: 'Coin of the Realm',
         effect: doAll([gainCoin(1), move(card, 'play')])
     }); },
     abilities: function (card) { return [{
-            description: villagestr + " Discard this.",
+            description: villagestr(2) + " Discard this.",
             cost: noop,
-            effect: doAll([freeAction, tick(card), freeAction, move(card, 'discard')]),
+            effect: doAll([freeActions(2, card), move(card, 'discard')]),
         }]; }
 };
 buyable(cotr, 3);
@@ -3000,7 +3019,7 @@ var mountainVillage = { name: 'Mountain Village',
                             _b.label = 3;
                         case 3:
                             state = tick(card)(state);
-                            return [2 /*return*/, freeAction(state)];
+                            return [2 /*return*/, freeActions(1, card)(state)];
                     }
                 });
             });
@@ -3016,7 +3035,7 @@ var fillStables = { name: 'Fill Stables',
     }); },
     triggers: function (card) { return [ensureAtStart(stables)]; },
 };
-register(fillStables);
+//register(fillStables)
 var sleigh = { name: 'Sleigh',
     fixedCost: time(1),
     effect: function (card) { return ({

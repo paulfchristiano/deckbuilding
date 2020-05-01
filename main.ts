@@ -1546,19 +1546,36 @@ const makePeddler:CardSpec = {name: 'Peddler',
 }
 register(makePeddler)
 
-async function freeAction(state: State): Promise<State> {
-    const options = state.hand.filter((card:Card) => (card.cost(state).time <= 1)).map(asChoice);
-    let target;
-    [state, target] = await choice(state, 'Choose a card costing up to @ to play',allowNull(options))
-    return (target == null) ? state : target.play()(state)
+function freeActions(totalTime: number, card:Card): Transform {
+    return async function(state) {
+        let remainingTime = totalTime;
+        while (remainingTime > 0) {
+            const options = state.hand.filter((card:Card) => (card.cost(state).time <= remainingTime));
+            let target;
+            [state, target] = await choice(state,
+                `Choose a card costing up to ${renderTime(remainingTime)} to play`,
+                allowNull(options.map(asChoice))
+            )
+            if (target == null) 
+                break
+            const timeCost = target.cost(state).time
+            state = await target.play()(state)
+            remainingTime -= timeCost
+            for (let i = 0; i < timeCost; i++) state = tick(card)(state)
+        }
+        return state
+    }
 }
-const villagestr = 'Do this up to two times: play a card in your hand costing up to @.'
+
+function villagestr(n:number): string {
+    return `Play cards from your hand with total cost at most ${renderTime(n)}.`
+}
 
 const village:CardSpec = {name: 'Village',
     fixedCost: time(1),
     effect: card => ({
-        description: `+1 card. ${villagestr}`,
-        effect: doAll([draw(1), freeAction, tick(card), freeAction])
+        description: `+1 card. ${villagestr(2)}`,
+        effect: doAll([draw(1), freeActions(2, card)]),
     })
 }
 buyable(village, 3)
@@ -1566,8 +1583,8 @@ buyable(village, 3)
 const bazaar:CardSpec = {name: 'Bazaar',
     fixedCost: time(1),
     effect: card => ({
-        description: `+1 card. +$1. ${villagestr}`,
-        effect: doAll([draw(1), gainCoin(1), freeAction, tick(card), freeAction])
+        description: `+1 card. +$1. ${villagestr(2)}`,
+        effect: doAll([draw(1), gainCoin(1), freeActions(2, card)])
     })
 }
 buyable(bazaar, 5)
@@ -1667,7 +1684,7 @@ const refresh:CardSpec = {name: 'Refresh',
 mixins.push(refresh)
 
 const plough:CardSpec = {name: 'Plough',
-    fixedCost: time(1),
+    fixedCost: time(2),
     effect: card => ({
         description: 'Recycle any number of cards from your discard pile. +2 cards.',
         effect: async function(state) {
@@ -1677,11 +1694,11 @@ const plough:CardSpec = {name: 'Plough',
                 state.discard.map(asChoice),
                 xs => true)
             state = await recycle(cards)(state)
-            return draw(2)(state)
+            return draw(3)(state)
         }
     })
 }
-buyable(plough, 5)
+buyable(plough, 4)
 
 const vassal:CardSpec = {name: 'Vassal',
     fixedCost: time(1),
@@ -2101,7 +2118,7 @@ const hireling:CardSpec = {name: 'Hireling',
         replace: x => updates(x, {draw:x.draw+1})
     }]
 }
-register(makeCard(hireling, {coin:6, time:2}))
+register(makeCard(hireling, {coin:6, time:1}))
 
 const sacrifice:CardSpec = {name: 'Sacrifice',
     fixedCost: time(0),
@@ -2411,9 +2428,9 @@ const cotr:CardSpec = {name: 'Coin of the Realm',
         effect: doAll([gainCoin(1), move(card, 'play')])
     }),
     abilities: card => [{
-        description: `${villagestr} Discard this.`,
+        description: `${villagestr(2)} Discard this.`,
         cost: noop,
-        effect: doAll([freeAction, tick(card), freeAction, move(card, 'discard')]),
+        effect: doAll([freeActions(2, card), move(card, 'discard')]),
     }]
 }
 buyable(cotr, 3)
@@ -2429,7 +2446,7 @@ const mountainVillage:CardSpec = {name: 'Mountain Village',
             [state, target] = await choice(state, 'Choose a card costing up to @ to play',allowNull(options))
             if (target != null) state = await target.play()(state)
             state = tick(card)(state)
-            return freeAction(state)
+            return freeActions(1, card)(state)
         }
     })
 }
@@ -2443,8 +2460,7 @@ const fillStables:CardSpec = {name: 'Fill Stables',
     }),
     triggers: card => [ensureAtStart(stables)],
 }
-register(fillStables)
-
+//register(fillStables)
 
 
 const sleigh:CardSpec = {name: 'Sleigh',
