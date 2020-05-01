@@ -200,6 +200,7 @@ class Card {
             if (!result.found)
                 return state
             card = result.card
+            state = state.addLog(`Buying ${card.name}`)
             state = await trigger({type:'buy', card:card, source:source})(state)
             state = state.addShadow(card, 'buy')
             state = state.startTicker(card)
@@ -221,6 +222,7 @@ class Card {
                     card = result.card
             }
             state = await move(card, 'resolving')(state)
+            state = state.addLog(`Playing ${card.name}`)
             state = await trigger({type:'play', card:card, source:source})(state)
             state = state.startTicker(card)
             state = await effect.effect(state)
@@ -256,7 +258,7 @@ interface RNGReplayable {
 }
 interface ChoiceReplayable {
     kind: 'choice';
-    value: number; 
+    value: number;
 }
 interface MultichoiceReplayable {
     kind: 'multichoice';
@@ -286,6 +288,7 @@ interface StateUpdate {
     resolving?:Resolving;
     history?:Replayable[];
     future?:Replayable[];
+    log?:string[];
     checkpoint?:State;
     nextID?:number;
 }
@@ -323,7 +326,8 @@ class State {
         private readonly nextID:number,
         private readonly history: Replayable[],
         private readonly future: Replayable[],
-        private readonly checkpoint: State|null
+        private readonly checkpoint: State|null,
+        public readonly log: string[],
     ) {
         this.coin = counters.coin
         this.time = counters.time
@@ -345,6 +349,7 @@ class State {
             read(stateUpdate, 'history', this.history),
             read(stateUpdate, 'future', this.future),
             read(stateUpdate, 'checkpoint', this.checkpoint),
+            read(stateUpdate, 'log', this.log),
         )
     }
     addResolving(x:Card|Shadow): State {
@@ -412,6 +417,9 @@ class State {
     addHistory(record:Replayable): State {
         return this.update({history: this.history.concat([record])})
     }
+    addLog(msg:string): State {
+        return this.update({log: this.log.concat([msg])})
+    }
     shiftFuture(): [State, Replayable|null] {
         let result:Replayable|null, future:Replayable[]; [result, future] = shiftFirst(this.future);
         return [this.update({future:future,}), result]
@@ -464,7 +472,7 @@ function shiftFirst<T>(xs:T[]): [T|null, T[]] {
 const emptyState:State = new State(
     {coin:0, time:0, points:0},
     new Map([ ['supply', []], ['hand', []], ['deck', []], ['discard', []], ['play', []], ['aside', []] ]),
-    [], 0, [], [], null // resolving, nextID, history, future, checkpoint
+    [], 0, [], [], null, [] // resolving, nextID, history, future, checkpoint, log
 )
 
 
@@ -538,6 +546,7 @@ function create(spec:CardSpec, zone:ZoneName='discard', loc:InsertLocation='bott
         let id:number; [state, id] = state.makeID()
         const card:Card = new Card(spec, id)
         state = state.addToZone(card, zone, loc)
+        state = state.addLog(`Created a ${card.name} in ${zone}`)
         return trigger({type:'create', card:card, zone:zone})(state)
     }
 }
@@ -546,6 +555,9 @@ function recycle(cards:Card[]): Transform {
     return async function(state: State): Promise<State> {
         [state, cards] = randomChoices(state, cards, cards.length);
         state = await trigger({type:'recycle', cards:cards})(state)
+        if (cards.length) {
+          state = state.addLog(`Recycled ${cards.map((card => card.name)).join(', ')} to bottom of deck`)
+        }
         state = await moveMany(cards, 'deck')(state)
         return state
     }
@@ -611,7 +623,7 @@ function discard(n:number): Transform {
 
 // --------------- Transforms that change points, time, and coints
 
-class CostNotPaid extends Error { 
+class CostNotPaid extends Error {
     constructor(message:string) {
         super(message)
         Object.setPrototypeOf(this, CostNotPaid.prototype)
@@ -897,8 +909,8 @@ function renderTooltip(card:Card, state:State): string {
     function renderRelated(spec:CardSpec) {
         const card:Card = new Card(spec, -1)
         const costStr = renderCost(card.cost(emptyState))
-        const header = (costStr.length > 0) ? 
-            `<div>---${card.toString()} (${costStr})---</div>` : 
+        const header = (costStr.length > 0) ?
+            `<div>---${card.toString()} (${costStr})---</div>` :
             `<div>-----${card.toString() }----</div>`
         return header + renderTooltip(card, state)
     }
@@ -906,8 +918,12 @@ function renderTooltip(card:Card, state:State): string {
     return `${baseFilling}${relatedFilling}`
 }
 
+function render_log(msg: string) {
+  return `<div class=".log">${msg}</div>`
+}
+
 // make the currently rendered state available in the console for debugging purposes
-var renderedState: State 
+var renderedState: State
 
 function renderState(state:State, optionsMap:Map<number,number>|null=null): void {
     renderedState = state
@@ -929,6 +945,7 @@ function renderState(state:State, optionsMap:Map<number,number>|null=null): void
     $('#hand').html(state.hand.map(render).join(''))
     $('#deck').html(state.deck.map(render).join(''))
     $('#discard').html(state.discard.map(render).join(''))
+    $('#log').html(state.log.reverse().map(render_log).join(''))
 }
 
 // ------------------------------ History replay
@@ -951,7 +968,7 @@ function doOrReplay<T extends number|[number]>(
 
 //TODO: surely there is some way to unify these?
 async function asyncDoOrReplay<T extends number|number[]>(
-    state: State, 
+    state: State,
     f: () => Promise<T>,
     kind: ReplayableKind
 ): Promise<[State, T]> {
@@ -985,7 +1002,7 @@ interface CardOption<T> {
 type ChoiceOption<T> = StringOption<T>|CardOption<T>;
 
 async function multichoice<T>(
-    state:State, 
+    state:State,
     prompt:string,
     options:ChoiceOption<T>[],
     validator:(xs:T[]) => boolean = (xs => true),
@@ -1002,7 +1019,7 @@ async function multichoice<T>(
 }
 
 async function choice<T>(
-    state:State, 
+    state:State,
     prompt:string,
     options:ChoiceOption<T>[],
 ): Promise<[State, T|null]> {
@@ -1282,9 +1299,10 @@ async function playGame(seed?:number): Promise<void> {
     const kingdom = coreSupplies.concat(variableSupplies).concat(testing)
     state = await doAll(kingdom.map(x => create(x, 'supply')))(state)
     state = await trigger({type:'gameStart'})(state)
+    state = state.addLog(`Setup done, game starting`)
     try {
         while (true) {
-            state = await mainLoop(state) 
+            state = await mainLoop(state)
         }
     } catch (error) {
         if (error instanceof Victory) {
@@ -1560,7 +1578,7 @@ function freeActions(totalTime: number, card:Card): Transform {
                 `Choose a card costing up to ${renderTime(remainingTime)} to play`,
                 allowNull(options.map(asChoice))
             )
-            if (target == null) 
+            if (target == null)
                 break
             const timeCost = target.cost(state).time
             state = await target.play()(state)
@@ -1784,7 +1802,7 @@ const expedite:CardSpec = {name: 'Expedite',
         effect: doAll([
             nextTime('Expedite', "When you create a card, if it's in your discard pile" +
                          " then trash this and put it into your hand.",
-                         (e, state) => (e.type == 'create' && state.find(e.card).place == 'discard'), 
+                         (e, state) => (e.type == 'create' && state.find(e.card).place == 'discard'),
                          e => move(e.card, 'hand')),
             charge(card, 1),
         ])
@@ -1954,7 +1972,7 @@ const lookout:CardSpec = {name: 'Lookout',
             }
             if (picks.length > 0)
                 state = await pickOne('trash', null, state)
-            if (picks.length > 0) 
+            if (picks.length > 0)
                 state = await pickOne('discard', 'discard', state)
             return state
         }
@@ -2337,7 +2355,7 @@ buyable(counterfeit, 5)
 const decay:CardSpec = {name: 'Decay',
     fixedCost: coin(2),
     effect: card => ({
-        description: 'Remove a decay tokens from each card in your hand.',
+        description: 'Remove a decay token from each card in your hand.',
         effect: async function(state) {
             return doAll(state.hand.map(x => removeOneToken(x, 'decay')))(state)
         }

@@ -268,6 +268,7 @@ var Card = /** @class */ (function () {
                             if (!result.found)
                                 return [2 /*return*/, state];
                             card = result.card;
+                            state = state.addLog("Buying " + card.name);
                             return [4 /*yield*/, trigger({ type: 'buy', card: card, source: source })(state)];
                         case 1:
                             state = _a.sent();
@@ -304,6 +305,7 @@ var Card = /** @class */ (function () {
                             return [4 /*yield*/, move(card, 'resolving')(state)];
                         case 1:
                             state = _a.sent();
+                            state = state.addLog("Playing " + card.name);
                             return [4 /*yield*/, trigger({ type: 'play', card: card, source: source })(state)];
                         case 2:
                             state = _a.sent();
@@ -345,7 +347,7 @@ var Card = /** @class */ (function () {
 }());
 var notFound = { found: false, card: null, place: null };
 var State = /** @class */ (function () {
-    function State(counters, zones, resolving, nextID, history, future, checkpoint) {
+    function State(counters, zones, resolving, nextID, history, future, checkpoint, log) {
         this.counters = counters;
         this.zones = zones;
         this.resolving = resolving;
@@ -353,6 +355,7 @@ var State = /** @class */ (function () {
         this.history = history;
         this.future = future;
         this.checkpoint = checkpoint;
+        this.log = log;
         this.coin = counters.coin;
         this.time = counters.time;
         this.points = counters.points;
@@ -364,7 +367,7 @@ var State = /** @class */ (function () {
         this.aside = zones.get('aside') || [];
     }
     State.prototype.update = function (stateUpdate) {
-        return new State(read(stateUpdate, 'counters', this.counters), read(stateUpdate, 'zones', this.zones), read(stateUpdate, 'resolving', this.resolving), read(stateUpdate, 'nextID', this.nextID), read(stateUpdate, 'history', this.history), read(stateUpdate, 'future', this.future), read(stateUpdate, 'checkpoint', this.checkpoint));
+        return new State(read(stateUpdate, 'counters', this.counters), read(stateUpdate, 'zones', this.zones), read(stateUpdate, 'resolving', this.resolving), read(stateUpdate, 'nextID', this.nextID), read(stateUpdate, 'history', this.history), read(stateUpdate, 'future', this.future), read(stateUpdate, 'checkpoint', this.checkpoint), read(stateUpdate, 'log', this.log));
     };
     State.prototype.addResolving = function (x) {
         return this.update({ resolving: this.resolving.concat([x]) });
@@ -472,6 +475,9 @@ var State = /** @class */ (function () {
     State.prototype.addHistory = function (record) {
         return this.update({ history: this.history.concat([record]) });
     };
+    State.prototype.addLog = function (msg) {
+        return this.update({ log: this.log.concat([msg]) });
+    };
     State.prototype.shiftFuture = function () {
         var _a;
         var result, future;
@@ -524,7 +530,7 @@ function shiftFirst(xs) {
         return [null, xs];
     return [xs[0], xs.slice(1)];
 }
-var emptyState = new State({ coin: 0, time: 0, points: 0 }, new Map([['supply', []], ['hand', []], ['deck', []], ['discard', []], ['play', []], ['aside', []]]), [], 0, [], [], null // resolving, nextID, history, future, checkpoint
+var emptyState = new State({ coin: 0, time: 0, points: 0 }, new Map([['supply', []], ['hand', []], ['deck', []], ['discard', []], ['play', []], ['aside', []]]), [], 0, [], [], null, [] // resolving, nextID, history, future, checkpoint, log
 );
 // ---------- Methods for inserting cards into zones
 // tests whether card1 should appear before card2 in sorted order
@@ -588,6 +594,7 @@ function create(spec, zone, loc) {
                 _a = __read(state.makeID(), 2), state = _a[0], id = _a[1];
                 card = new Card(spec, id);
                 state = state.addToZone(card, zone, loc);
+                state = state.addLog("Created a " + card.name + " in " + zone);
                 return [2 /*return*/, trigger({ type: 'create', card: card, zone: zone })(state)];
             });
         });
@@ -604,6 +611,9 @@ function recycle(cards) {
                         return [4 /*yield*/, trigger({ type: 'recycle', cards: cards })(state)];
                     case 1:
                         state = _b.sent();
+                        if (cards.length) {
+                            state = state.addLog("Recycled " + cards.map((function (card) { return card.name; })).join(', ') + " to bottom of deck");
+                        }
                         return [4 /*yield*/, moveMany(cards, 'deck')(state)];
                     case 2:
                         state = _b.sent();
@@ -1103,6 +1113,9 @@ function renderTooltip(card, state) {
     var relatedFilling = card.relatedCards().map(renderRelated).join('');
     return "" + baseFilling + relatedFilling;
 }
+function render_log(msg) {
+    return "<div class=\".log\">" + msg + "</div>";
+}
 // make the currently rendered state available in the console for debugging purposes
 var renderedState;
 function renderState(state, optionsMap) {
@@ -1127,6 +1140,7 @@ function renderState(state, optionsMap) {
     $('#hand').html(state.hand.map(render).join(''));
     $('#deck').html(state.deck.map(render).join(''));
     $('#discard').html(state.discard.map(render).join(''));
+    $('#log').html(state.log.reverse().map(render_log).join(''));
 }
 // ------------------------------ History replay
 function doOrReplay(state, f, kind) {
@@ -1512,6 +1526,7 @@ function playGame(seed) {
                     return [4 /*yield*/, trigger({ type: 'gameStart' })(state)];
                 case 3:
                     state = _c.sent();
+                    state = state.addLog("Setup done, game starting");
                     _c.label = 4;
                 case 4:
                     _c.trys.push([4, 8, , 9]);
@@ -2857,7 +2872,7 @@ buyable(counterfeit, 5);
 var decay = { name: 'Decay',
     fixedCost: coin(2),
     effect: function (card) { return ({
-        description: 'Remove a decay tokens from each card in your hand.',
+        description: 'Remove a decay token from each card in your hand.',
         effect: function (state) {
             return __awaiter(this, void 0, void 0, function () {
                 return __generator(this, function (_a) {
