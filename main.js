@@ -238,10 +238,26 @@ var Card = /** @class */ (function () {
         var card = this;
         return function (state) {
             return __awaiter(this, void 0, void 0, function () {
-                var cost;
                 return __generator(this, function (_a) {
-                    cost = card.cost(state);
-                    return [2 /*return*/, doAll([gainTime(cost.time), payCoin(cost.coin)])(state)];
+                    state = state.log("Paying for " + card.name);
+                    return [2 /*return*/, withTracking(function (state) {
+                            return __awaiter(this, void 0, void 0, function () {
+                                var cost;
+                                return __generator(this, function (_a) {
+                                    switch (_a.label) {
+                                        case 0:
+                                            cost = card.cost(state);
+                                            return [4 /*yield*/, gainTime(cost.time)(state)];
+                                        case 1:
+                                            state = _a.sent();
+                                            return [4 /*yield*/, payCoin(cost.coin)(state)];
+                                        case 2:
+                                            state = _a.sent();
+                                            return [2 /*return*/, state];
+                                    }
+                                });
+                            });
+                        }, { kind: 'effect', card: card })(state)];
                 });
             });
         };
@@ -350,7 +366,7 @@ var Card = /** @class */ (function () {
 }());
 var notFound = { found: false, card: null, place: null };
 var State = /** @class */ (function () {
-    function State(counters, zones, resolving, nextID, history, future, checkpoint, logs) {
+    function State(counters, zones, resolving, nextID, history, future, checkpoint, logs, logIndent) {
         this.counters = counters;
         this.zones = zones;
         this.resolving = resolving;
@@ -359,6 +375,7 @@ var State = /** @class */ (function () {
         this.future = future;
         this.checkpoint = checkpoint;
         this.logs = logs;
+        this.logIndent = logIndent;
         this.coin = counters.coin;
         this.time = counters.time;
         this.points = counters.points;
@@ -370,7 +387,7 @@ var State = /** @class */ (function () {
         this.aside = zones.get('aside') || [];
     }
     State.prototype.update = function (stateUpdate) {
-        return new State(read(stateUpdate, 'counters', this.counters), read(stateUpdate, 'zones', this.zones), read(stateUpdate, 'resolving', this.resolving), read(stateUpdate, 'nextID', this.nextID), read(stateUpdate, 'history', this.history), read(stateUpdate, 'future', this.future), read(stateUpdate, 'checkpoint', this.checkpoint), read(stateUpdate, 'logs', this.logs));
+        return new State(read(stateUpdate, 'counters', this.counters), read(stateUpdate, 'zones', this.zones), read(stateUpdate, 'resolving', this.resolving), read(stateUpdate, 'nextID', this.nextID), read(stateUpdate, 'history', this.history), read(stateUpdate, 'future', this.future), read(stateUpdate, 'checkpoint', this.checkpoint), read(stateUpdate, 'logs', this.logs), read(stateUpdate, 'logIndent', this.logIndent));
     };
     State.prototype.addResolving = function (x) {
         return this.update({ resolving: this.resolving.concat([x]) });
@@ -479,7 +496,7 @@ var State = /** @class */ (function () {
         return this.update({ history: this.history.concat([record]) });
     };
     State.prototype.log = function (msg) {
-        return this.update({ logs: this.logs.concat([msg]) });
+        return this.update({ logs: this.logs.concat([indent(this.logIndent, msg)]) });
     };
     State.prototype.shiftFuture = function () {
         var _a;
@@ -497,6 +514,12 @@ var State = /** @class */ (function () {
     // To maintain this invariant, we need to record history every time there is a change
     State.prototype.setCheckpoint = function () {
         return this.update({ history: [], future: this.future, checkpoint: this });
+    };
+    State.prototype.indent = function () {
+        return this.update({ logIndent: this.logIndent + 1 });
+    };
+    State.prototype.unindent = function () {
+        return this.update({ logIndent: this.logIndent - 1 });
     };
     // backup() leads to the same place as this if you run mainLoop, but it has more future
     // this enables undoing by backing up until you have future, then just popping from the future
@@ -522,6 +545,14 @@ var State = /** @class */ (function () {
     };
     return State;
 }());
+function indent(n, s) {
+    var parts = [];
+    for (var i = 0; i < n; i++) {
+        parts.push('&nbsp;&nbsp;');
+    }
+    parts.push(s);
+    return parts.join('');
+}
 function popLast(xs) {
     var n = xs.length;
     if (n == 0)
@@ -533,7 +564,7 @@ function shiftFirst(xs) {
         return [null, xs];
     return [xs[0], xs.slice(1)];
 }
-var emptyState = new State({ coin: 0, time: 0, points: 0 }, new Map([['supply', []], ['hand', []], ['deck', []], ['discard', []], ['play', []], ['aside', []]]), [], 0, [], [], null, [] // resolving, nextID, history, future, checkpoint, logs
+var emptyState = new State({ coin: 0, time: 0, points: 0 }, new Map([['supply', []], ['hand', []], ['deck', []], ['discard', []], ['play', []], ['aside', []]]), [], 0, [], [], null, [], 0 // resolving, nextID, history, future, checkpoint, logs, logIndent
 );
 // ---------- Methods for inserting cards into zones
 // tests whether card1 should appear before card2 in sorted order
@@ -579,11 +610,11 @@ var Shadow = /** @class */ (function () {
 function startTracking(state, spec) {
     if (spec.kind != 'none')
         state = state.addShadow(spec);
-    state = state.startTicker(spec.card);
+    state = state.startTicker(spec.card).indent();
     return state;
 }
 function stopTracking(state, spec) {
-    state = state.endTicker(spec.card);
+    state = state.unindent().endTicker(spec.card);
     if (spec.kind != 'none')
         state = state.popResolving();
     return state;
@@ -1558,10 +1589,10 @@ function useCard(card) {
     };
 }
 function tryToBuy(card) {
-    return payToDo(withTracking(card.payCost(), { kind: 'cost', card: card }), card.buy({ name: 'act' }));
+    return payToDo(card.payCost(), card.buy({ name: 'act' }));
 }
 function tryToPlay(card) {
-    return payToDo(withTracking(card.payCost(), { kind: 'cost', card: card }), card.play({ name: 'act' }));
+    return payToDo(card.payCost(), card.play({ name: 'act' }));
 }
 // ---------------------------- Game loop
 function undo(startState) {

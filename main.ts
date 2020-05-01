@@ -184,8 +184,13 @@ class Card {
     payCost(): Transform {
         const card = this
         return async function(state:State): Promise<State> {
-            const cost:Cost = card.cost(state)
-            return doAll([gainTime(cost.time), payCoin(cost.coin)])(state)
+            state = state.log(`Paying for ${card.name}`)
+            return withTracking(async function(state:State): Promise<State> {
+                const cost:Cost = card.cost(state)
+                state = await gainTime(cost.time)(state)
+                state = await payCoin(cost.coin)(state)
+                return state
+            }, {kind:'effect', card:card})(state)
         }
     }
     effect(): Effect {
@@ -290,6 +295,7 @@ interface StateUpdate {
     history?:Replayable[];
     future?:Replayable[];
     logs?:string[];
+    logIndent?:number;
     checkpoint?:State;
     nextID?:number;
 }
@@ -329,6 +335,7 @@ class State {
         private readonly future: Replayable[],
         private readonly checkpoint: State|null,
         public readonly logs: string[],
+        private readonly logIndent: number,
     ) {
         this.coin = counters.coin
         this.time = counters.time
@@ -351,6 +358,7 @@ class State {
             read(stateUpdate, 'future', this.future),
             read(stateUpdate, 'checkpoint', this.checkpoint),
             read(stateUpdate, 'logs', this.logs),
+            read(stateUpdate, 'logIndent', this.logIndent),
         )
     }
     addResolving(x:Card|Shadow): State {
@@ -419,7 +427,7 @@ class State {
         return this.update({history: this.history.concat([record])})
     }
     log(msg:string): State {
-        return this.update({logs: this.logs.concat([msg])})
+        return this.update({logs: this.logs.concat([indent(this.logIndent, msg)])})
     }
     shiftFuture(): [State, Replayable|null] {
         let result:Replayable|null, future:Replayable[]; [result, future] = shiftFirst(this.future);
@@ -433,6 +441,12 @@ class State {
     // To maintain this invariant, we need to record history every time there is a change
     setCheckpoint(): State {
         return this.update({history:[], future:this.future, checkpoint:this})
+    }
+    indent(): State {
+        return this.update({logIndent:this.logIndent+1})
+    }
+    unindent(): State {
+        return this.update({logIndent:this.logIndent-1})
     }
     // backup() leads to the same place as this if you run mainLoop, but it has more future
     // this enables undoing by backing up until you have future, then just popping from the future
@@ -458,6 +472,15 @@ class State {
     }
 }
 
+function indent(n:number, s:string) {
+    const parts:string[] = []
+    for (let i = 0; i < n; i++) {
+        parts.push('&nbsp;&nbsp;')
+    }
+    parts.push(s)
+    return parts.join('')
+}
+
 function popLast<T>(xs: T[]): [T|null, T[]] {
     const n = xs.length
     if (n == 0) return [null, xs]
@@ -473,7 +496,7 @@ function shiftFirst<T>(xs:T[]): [T|null, T[]] {
 const emptyState:State = new State(
     {coin:0, time:0, points:0},
     new Map([ ['supply', []], ['hand', []], ['deck', []], ['discard', []], ['play', []], ['aside', []] ]),
-    [], 0, [], [], null, [] // resolving, nextID, history, future, checkpoint, logs
+    [], 0, [], [], null, [], 0 // resolving, nextID, history, future, checkpoint, logs, logIndent
 )
 
 
@@ -558,12 +581,12 @@ class Shadow {
 
 function startTracking(state:State, spec:TrackingSpec): State {
     if (spec.kind != 'none') state = state.addShadow((spec as ShadowSpec))
-    state = state.startTicker(spec.card)
+    state = state.startTicker(spec.card).indent()
     return state
 }
 
 function stopTracking(state:State, spec:TrackingSpec): State {
-    state = state.endTicker(spec.card)
+    state = state.unindent().endTicker(spec.card)
     if (spec.kind != 'none') state = state.popResolving()
     return state
 }
@@ -1360,11 +1383,11 @@ function useCard(card: Card): Transform {
 }
 
 function tryToBuy(card: Card): Transform {
-    return payToDo(withTracking(card.payCost(), {kind:'cost', card:card}), card.buy({name:'act'}))
+    return payToDo(card.payCost(), card.buy({name:'act'}))
 }
 
 function tryToPlay(card:Card): Transform {
-    return payToDo(withTracking(card.payCost(), {kind:'cost', card:card}), card.play({name:'act'}))
+    return payToDo(card.payCost(), card.play({name:'act'}))
 }
 
 // ---------------------------- Game loop
