@@ -38,6 +38,8 @@ function trigger(e:GameEvent): Transform {
     }
 }
 
+//TODO: this should maybe be async and return a new state?
+//(e.g. the "put it into your hand" should maybe be replacement effects)
 //x is an event that is about to happen
 //each card in play or supply can change properties of x
 function replace(x: Params, state: State): any {
@@ -1759,10 +1761,15 @@ function nextTime(name:string,
 const expedite:CardSpec = {name: 'Expedite',
     calculatedCost: (card, state) => ({time:1, coin:card.charge}),
     effect: card => ({
-        description: 'The next time you create a card, put it into your hand.'+
+        description: "The next time you create a card, if it's in your discard pile put it into your hand."+
             ' Put a charge token on this. It costs $1 more per charge token on it.',
-        effect: nextTime('Expedite', 'When you create a card, trash this and put it into your hand.',
-            (e, state) => (e.type == 'create'), e => move(e.card, 'hand'))
+        effect: doAll([
+            nextTime('Expedite', "When you create a card, if it's in your discard pile" +
+                         " then trash this and put it into your hand.",
+                         (e, state) => (e.type == 'create' && state.find(e.card).place == 'discard'), 
+                         e => move(e.card, 'hand')),
+            charge(card, 1),
+        ])
     })
 }
 register(expedite)
@@ -2454,14 +2461,16 @@ const makeSleigh:CardSpec = {name: 'Sleigh',
     triggers: card => [
         ensureAtStart(stables),
         {
-            description: `Whenever you create a card, if you have a ${sleigh.name} in your hand,` +
-                ' you may discard it to put the card into your hand.',
-            handles: e => (e.type == 'create'),
+            description: `Whenever you create a card in your discard pile, `
+                + ` if you have a ${sleigh.name} in your hand,`
+                + ' you may discard it to put the card from your discard pile into your hand.',
+            handles: (e, state) => (e.type == 'create' && state.find(e.card).place == 'discard'),
             effect: e => async function(state) {
                 const options: Card[] = state.hand.filter(x => x.name == sleigh.name)
                 let target; [state, target] = await choice(state, 'Discard a sleigh?',
                     allowNull(options.map(asChoice)))
                 if (target != null) {
+                    if (state.find(e.card).place != 'discard') return state
                     state = await move(target, 'discard')(state)
                     state = await move(e.card, 'hand')(state)
                 }

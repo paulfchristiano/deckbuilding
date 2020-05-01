@@ -161,6 +161,8 @@ function trigger(e) {
         });
     };
 }
+//TODO: this should maybe be async and return a new state?
+//(e.g. the "put it into your hand" should maybe be replacement effects)
 //x is an event that is about to happen
 //each card in play or supply can change properties of x
 function replace(x, state) {
@@ -2101,9 +2103,13 @@ function nextTime(name, description, when, what) {
 var expedite = { name: 'Expedite',
     calculatedCost: function (card, state) { return ({ time: 1, coin: card.charge }); },
     effect: function (card) { return ({
-        description: 'The next time you create a card, put it into your hand.' +
+        description: "The next time you create a card, if it's in your discard pile put it into your hand." +
             ' Put a charge token on this. It costs $1 more per charge token on it.',
-        effect: nextTime('Expedite', 'When you create a card, trash this and put it into your hand.', function (e, state) { return (e.type == 'create'); }, function (e) { return move(e.card, 'hand'); })
+        effect: doAll([
+            nextTime('Expedite', "When you create a card, if it's in your discard pile" +
+                " then trash this and put it into your hand.", function (e, state) { return (e.type == 'create' && state.find(e.card).place == 'discard'); }, function (e) { return move(e.card, 'hand'); }),
+            charge(card, 1),
+        ])
     }); }
 };
 register(expedite);
@@ -3025,9 +3031,10 @@ var makeSleigh = { name: 'Sleigh',
     triggers: function (card) { return [
         ensureAtStart(stables),
         {
-            description: "Whenever you create a card, if you have a " + sleigh.name + " in your hand," +
-                ' you may discard it to put the card into your hand.',
-            handles: function (e) { return (e.type == 'create'); },
+            description: "Whenever you create a card in your discard pile, "
+                + (" if you have a " + sleigh.name + " in your hand,")
+                + ' you may discard it to put the card from your discard pile into your hand.',
+            handles: function (e, state) { return (e.type == 'create' && state.find(e.card).place == 'discard'); },
             effect: function (e) { return function (state) {
                 return __awaiter(this, void 0, void 0, function () {
                     var options, target;
@@ -3040,6 +3047,8 @@ var makeSleigh = { name: 'Sleigh',
                             case 1:
                                 _a = __read.apply(void 0, [_b.sent(), 2]), state = _a[0], target = _a[1];
                                 if (!(target != null)) return [3 /*break*/, 4];
+                                if (state.find(e.card).place != 'discard')
+                                    return [2 /*return*/, state];
                                 return [4 /*yield*/, move(target, 'discard')(state)];
                             case 2:
                                 state = _b.sent();
