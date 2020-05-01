@@ -7,6 +7,7 @@
 // TODO: lay things out more nicely
 // TODO: minimum width for option choices
 // TODO: starting to see performance hiccups in big games
+// TODO: probably just want to stop things moving in/out of resolving, as if they didn't exist...
 
 // returns a copy x of object with x.k = v for all k:v in kvs
 function updates(x:object, y:object): object {
@@ -263,7 +264,7 @@ interface MultichoiceReplayable {
 }
 type Replayable = RNGReplayable | ChoiceReplayable | MultichoiceReplayable
 
-type InsertLocation = 'bottom' | 'top' | 'start' | 'end' | 'sorted'
+type InsertLocation = 'bottom' | 'top' | 'start' | 'end' | 'handSort'
 
 type ZoneName = 'supply' | 'hand' | 'deck' | 'discard' | 'play' | 'aside'
 type Zone = Card[]
@@ -353,7 +354,7 @@ class State {
         return this.update({resolving: this.resolving.slice(0, this.resolving.length-1)})
     }
     addToZone(card:Card, zone:ZoneName|'resolving', loc:InsertLocation='end'): State {
-        if (zone == 'hand') loc = 'sorted'
+        if (zone == 'hand') loc = 'handSort'
         if (zone == 'resolving') return this.addResolving(card)
         const newZones:Map<ZoneName,Zone> = new Map(this.zones)
         newZones.set(zone,  insertAt(this[zone], card, loc))
@@ -492,7 +493,7 @@ function insertAt(zone:Zone, card:Card, loc:InsertLocation): Zone {
         case 'bottom':
         case 'end':
             return zone.concat([card])
-        case 'sorted':
+        case 'handSort':
             for (var i = 0; i < zone.length; i++) {
                 if (comesBefore(card, zone[i])) return insertInto(card, zone, i)
             }
@@ -589,7 +590,7 @@ function draw(n:number, source:Source={name:'?'}):Transform {
             let nextCard:Card|null, rest:Card[];
             [nextCard, rest] = shiftFirst(state.deck)
             if (nextCard != null) {
-                state = await move(nextCard, 'hand', 'sorted')(state)
+                state = await move(nextCard, 'hand')(state)
                 drawn += 1
             }
         }
@@ -1316,7 +1317,7 @@ const cheats:CardSpec[] = []
 
 function gainCard(card:CardSpec): Effect {
     return {
-        description:`Create a ${card.name} in your discard pile.`,
+        description:`Create ${a(card.name)} in your discard pile.`,
         effect: create(card)
     }
 }
@@ -1875,6 +1876,19 @@ const bustlingSquare:CardSpec = {name: 'Bustling Square',
 }
 buyable(bustlingSquare, 6)
 
+
+function ensureInSupply(spec:CardSpec): Trigger {
+    return {
+        'description': `At the beginning of the game, add ${spec.name} to the supply` +
+            ` if it isn't already there.`,
+        'handles': e => (e.type == 'gameStart'),
+        'effect': e => async function(state) {
+            if (state.supply.every(c => c.name != spec.name)) state = await create(spec, 'supply')(state)
+            return state
+        }
+    }
+}
+
 const colony:CardSpec = {name: 'Colony',
     fixedCost: time(1),
     effect: card => ({
@@ -1882,7 +1896,27 @@ const colony:CardSpec = {name: 'Colony',
         effect: gainPoints(5),
     })
 }
-buyable(colony, 16)
+const buyColony:CardSpec = {name: 'Colony',
+    fixedCost: coin(14),
+    effect: card => gainCard(colony),
+    triggers: card => [ensureInSupply(buyPlatinum)],
+}
+register(buyColony)
+
+const platinum:CardSpec = {name: "Platinum",
+    fixedCost: time(0),
+    effect: card => ({
+        description: '+$5',
+        effect: gainCoin(5)
+    })
+}
+const buyPlatinum:CardSpec = {name: 'Platinum',
+    fixedCost: coin(10),
+    effect: card => gainCard(colony),
+    triggers: card => [ensureInSupply(buyColony)],
+}
+register(buyPlatinum)
+
 
 const windfall:CardSpec = {name: 'Windfall',
     fixedCost: {time:0, coin:6},
@@ -1908,7 +1942,7 @@ const horse:CardSpec = {name: 'Horse',
         description: `Put a charge token on a ${stables.name} in play.`,
         effect: fill(stables, 1),
     }),
-    triggers: card => [ensureAtStart(stables)],
+    triggers: card => [ensureInPlay(stables)],
 }
 register(horse)
 
@@ -1975,14 +2009,14 @@ const twins:CardSpec = {name: 'Twins',
 }
 register(makeCard(twins, {time:0, coin:6}))
 
-const masterSmith:CardSpec = {name: 'Master Smith',
+const forge:CardSpec = {name: 'Forge',
     fixedCost: time(2),
     effect: card => ({
-        description: '+5 cards',
-        effect: draw(5),
+        description: '+6 cards',
+        effect: draw(6),
     })
 }
-buyable(masterSmith, 5)
+buyable(forge, 5)
 
 const reuse:CardSpec = {name: 'Reuse',
     calculatedCost: (card, state) => ({time:1, coin:card.charge}),
@@ -2054,22 +2088,15 @@ const research:CardSpec = {name: 'Research',
 }
 mixins.push(research)
 
-const platinum:CardSpec = {name: "Platinum",
-    fixedCost: time(0),
-    effect: card => ({
-        description: '+$5',
-        effect: gainCoin(5)
-    })
-}
-buyable(platinum, 10)
-
 const innovation:CardSpec = {name: "Innovation",
     triggers: card => [{
-        description: "Whenever you create a card in your discard pile, if this has an innovate token on it:" +
-        " remove all innovate tokens from this, discard your hand, lose all $, and play the card.",
-        handles: e => (e.type == 'create' && e.zone == 'discard' && countTokens(card, 'innovate') > 0),
+        description: "Whenever you create a card, if it's in your discard pile and this has an innovate token on it:" +
+        " remove an innovate token from this, discard your hand, lose all $, and play the card.",
+        handles: (e, state) => (e.type == 'create'
+            && countTokens(card, 'innovate') > 0
+            && state.find(e.card).place == 'discard'),
         effect: e => doAll([
-            removeTokens(card, 'innovate'),
+            removeOneToken(card, 'innovate'),
             moveWholeZone('hand', 'discard'),
             setCoin(0),
             e.card.play(card)
@@ -2086,14 +2113,9 @@ register(makeCard(innovation, {coin:7, time:0}, true))
 const citadel:CardSpec = {name: "Citadel",
     triggers: card => [{
         description: `After playing a card the normal way, if it's the only card in your discard pile, play it again.`,
-        handles: e => (e.type == 'afterPlay' && e.source.name == 'act'),
-        effect: e => async function(state) {
-            if (e.after != null && state.find(e.after).place == 'discard' && state.discard.length == 1) {
-                return e.after.play(card)(state)
-            } else {
-                return state
-            }
-        }
+        handles: (e, state) => (e.type == 'afterPlay' && e.source.name == 'act'
+            && state.discard.length == 1 && state.find(e.after).place == 'discard'),
+        effect: e => e.after.play(card),
     }]
 }
 register(makeCard(citadel, {coin:8, time:0}, true))
@@ -2225,7 +2247,7 @@ const fortify:CardSpec = {name: 'Fortify',
 const gainFortify:CardSpec = {name: 'Fortify',
     fixedCost: coin(5),
     effect: card => ({
-        description: 'Create a fortify in your discard pile. Discard your hand.',
+        description: `Create ${a(fortify.name)} in your discard pile. Discard your hand.`,
         effect: doAll([create(fortify, 'discard'), moveWholeZone('hand', 'discard')])
     }),
     relatedCards: [fortify],
@@ -2235,8 +2257,8 @@ mixins.push(gainFortify)
 const explorer:CardSpec = {name: "Explorer",
     fixedCost: time(1),
     effect: card => ({
-        description: "Create a silver in your hand. "+
-            "If you have a province in your hand, instead create a gold in your hand.",
+        description: `Create ${a(silver.name)} in your hand.` +
+            ` If you have ${a(province.name)} in your hand, instead create ${a(gold.name)} in your hand.`,
         effect: async function(state) {
             for (var i = 0; i < state.hand.length; i++) {
                 if (state.hand[i].name == 'Province') return create(gold, 'hand')(state)
@@ -2323,33 +2345,36 @@ const counterfeit:CardSpec = {name: 'Counterfeit',
 buyable(counterfeit, 5)
 
 const decay:CardSpec = {name: 'Decay',
-    fixedCost: coin(4),
+    fixedCost: coin(2),
     effect: card => ({
-        description: 'Remove all decay tokens from all cards in your hand.',
+        description: 'Remove a decay tokens from each card in your hand.',
         effect: async function(state) {
-            return doAll(state.hand.map(x => removeTokens(x, 'decay')))(state)
+            return doAll(state.hand.map(x => removeOneToken(x, 'decay')))(state)
         }
     }),
     triggers: card => [{
-        description: 'Whenever you play a card, put a decay token on it.',
-        handles: e => (e.type == 'play'),
-        effect: e => addToken(e.card, 'decay')
+        description: 'Whenever you recycle a card, put a decay token on it.',
+        handles: e => (e.type == 'recycle'),
+        effect: e => doAll(e.cards.map((c:Card) => addToken(c, 'decay')))
     }, {
         description: 'After you play a card, if it has 3 or more decay tokens on it trash it.',
         handles: e => (e.type == 'afterPlay' && e.after != null && countTokens(e.after, 'decay') >= 3),
         effect: e => trash(e.after),
     }]
 }
-mixins.push(decay)
+register(decay)
 
 const perpetualMotion:CardSpec = {name: 'Perpetual Motion',
-    triggers: card => [{
-        description: 'Whenever you have no cards in hand, draw a card.',
-        handles: (e, state) => (state.hand.length == 0 && state.deck.length > 0),
-        effect: e => draw(1),
-    }]
+    fixedCost: time(1),
+    effect: card => ({
+        description: `If you have no cards in hand, +2 cards.`,
+        effect: async function(state) {
+            if (state.hand.length == 0) state = await draw(2, card)(state)
+            return state
+        }
+    })
 }
-register(makeCard(perpetualMotion, time(7), true))
+register(perpetualMotion)
 
 const looter:CardSpec = {name: 'Looter',
     effect: card => ({
@@ -2395,9 +2420,9 @@ function createIfNeeded(spec:CardSpec): Transform {
     }
 
 }
-function ensureAtStart(spec:CardSpec): Trigger {
+function ensureInPlay(spec:CardSpec): Trigger {
     return {
-        description: `At the start of the game, create a ${spec.name} in play if there isn't one.`,
+        description: `At the start of the game, create ${a(spec.name)} in play if there isn't one.`,
         handles: e => e.type == 'gameStart',
         effect: e => createIfNeeded(spec)
     }
@@ -2416,7 +2441,7 @@ const fillCoffers:CardSpec = {name: 'Fill Coffers',
         description: `Put two charge tokens on a ${coffers.name} in play.`,
         effect: fill(coffers, 2)
     }),
-    triggers: card => [ensureAtStart(coffers)]
+    triggers: card => [ensureInPlay(coffers)]
 }
 register(fillCoffers)
 
@@ -2458,7 +2483,7 @@ const fillStables:CardSpec = {name: 'Fill Stables',
         description: `Put two charge tokens on a ${stables.name} in play.`,
         effect: fill(stables, 2),
     }),
-    triggers: card => [ensureAtStart(stables)],
+    triggers: card => [ensureInPlay(stables)],
 }
 //register(fillStables)
 
@@ -2475,18 +2500,17 @@ const makeSleigh:CardSpec = {name: 'Sleigh',
     relatedCards: [sleigh],
     effect: card => gainCard(sleigh),
     triggers: card => [
-        ensureAtStart(stables),
+        ensureInPlay(stables),
         {
-            description: `Whenever you create a card in your discard pile, `
-                + ` if you have a ${sleigh.name} in your hand,`
-                + ' you may discard it to put the card from your discard pile into your hand.',
+            description: `Whenever you create a card, `
+                + ` if it's in your discard pile and you have ${a(sleigh.name)} in your hand,`
+                + ` you may discard the ${sleigh.name} to put the new card into your hand.`,
             handles: (e, state) => (e.type == 'create' && state.find(e.card).place == 'discard'),
             effect: e => async function(state) {
                 const options: Card[] = state.hand.filter(x => x.name == sleigh.name)
                 let target; [state, target] = await choice(state, 'Discard a sleigh?',
                     allowNull(options.map(asChoice)))
                 if (target != null) {
-                    if (state.find(e.card).place != 'discard') return state
                     state = await move(target, 'discard')(state)
                     state = await move(e.card, 'hand')(state)
                 }
@@ -2524,10 +2548,6 @@ const makeFerry:CardSpec = {name: 'Ferry',
 }
 register(makeFerry)
 
-
-
-
-
 const livery:CardSpec = {name: 'Livery',
     replacers: card => [{
         description: `Whenever you would draw cards other than with ${stables.name},` +
@@ -2540,9 +2560,10 @@ const makeLivery:CardSpec = {name: 'Livery',
     fixedCost: time(4),
     relatedCards: [livery, stables],
     effect: card => ({
-        description: `Create a ${livery.name} in play, and a stables if there isn't one. Trash this.`,
-        effect: doAll([create(livery, 'play'), createIfNeeded(stables), trash(card)])
+        description: `Create ${a(livery.name)} in play. Trsh this.`,
+        effect: doAll([create(livery, 'play'), trash(card)])
     }),
+    triggers: card => [ensureInPlay(stables)],
 }
 register(makeLivery)
 
@@ -2560,7 +2581,7 @@ const slog:CardSpec = {name: 'Slog',
         effect: doAll([charge(card, 1), slogCheck(card)]),
     }),
     replacers: card => [{
-        description: 'Whenever you gain points other than with this, instead put that many charge tokens on this.',
+        description: 'Whenever you would gain points other than with this, instead put that many charge tokens on this.',
         handles: x => (x.type == 'gainPoints' && x.source.id != card.id),
         replace: x => updates(x, {points: 0, effects: x.effects.concat([charge(card, x.points), slogCheck(card)])})
     }]

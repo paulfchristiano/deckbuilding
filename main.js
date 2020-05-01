@@ -8,6 +8,7 @@
 // TODO: lay things out more nicely
 // TODO: minimum width for option choices
 // TODO: starting to see performance hiccups in big games
+// TODO: probably just want to stop things moving in/out of resolving, as if they didn't exist...
 var __extends = (this && this.__extends) || (function () {
     var extendStatics = function (d, b) {
         extendStatics = Object.setPrototypeOf ||
@@ -374,7 +375,7 @@ var State = /** @class */ (function () {
     State.prototype.addToZone = function (card, zone, loc) {
         if (loc === void 0) { loc = 'end'; }
         if (zone == 'hand')
-            loc = 'sorted';
+            loc = 'handSort';
         if (zone == 'resolving')
             return this.addResolving(card);
         var newZones = new Map(this.zones);
@@ -545,7 +546,7 @@ function insertAt(zone, card, loc) {
         case 'bottom':
         case 'end':
             return zone.concat([card]);
-        case 'sorted':
+        case 'handSort':
             for (var i = 0; i < zone.length; i++) {
                 if (comesBefore(card, zone[i]))
                     return insertInto(card, zone, i);
@@ -676,7 +677,7 @@ function draw(n, source) {
                         nextCard = void 0, rest = void 0;
                         _a = __read(shiftFirst(state.deck), 2), nextCard = _a[0], rest = _a[1];
                         if (!(nextCard != null)) return [3 /*break*/, 4];
-                        return [4 /*yield*/, move(nextCard, 'hand', 'sorted')(state)];
+                        return [4 /*yield*/, move(nextCard, 'hand')(state)];
                     case 3:
                         state = _b.sent();
                         drawn += 1;
@@ -1551,7 +1552,7 @@ var cheats = [];
 //
 function gainCard(card) {
     return {
-        description: "Create a " + card.name + " in your discard pile.",
+        description: "Create " + a(card.name) + " in your discard pile.",
         effect: create(card)
     };
 }
@@ -2252,6 +2253,28 @@ var bustlingSquare = { name: 'Bustling Square',
     }); }
 };
 buyable(bustlingSquare, 6);
+function ensureInSupply(spec) {
+    return {
+        'description': "At the beginning of the game, add " + spec.name + " to the supply" +
+            " if it isn't already there.",
+        'handles': function (e) { return (e.type == 'gameStart'); },
+        'effect': function (e) { return function (state) {
+            return __awaiter(this, void 0, void 0, function () {
+                return __generator(this, function (_a) {
+                    switch (_a.label) {
+                        case 0:
+                            if (!state.supply.every(function (c) { return c.name != spec.name; })) return [3 /*break*/, 2];
+                            return [4 /*yield*/, create(spec, 'supply')(state)];
+                        case 1:
+                            state = _a.sent();
+                            _a.label = 2;
+                        case 2: return [2 /*return*/, state];
+                    }
+                });
+            });
+        }; }
+    };
+}
 var colony = { name: 'Colony',
     fixedCost: time(1),
     effect: function (card) { return ({
@@ -2259,7 +2282,25 @@ var colony = { name: 'Colony',
         effect: gainPoints(5),
     }); }
 };
-buyable(colony, 16);
+var buyColony = { name: 'Colony',
+    fixedCost: coin(14),
+    effect: function (card) { return gainCard(colony); },
+    triggers: function (card) { return [ensureInSupply(buyPlatinum)]; },
+};
+register(buyColony);
+var platinum = { name: "Platinum",
+    fixedCost: time(0),
+    effect: function (card) { return ({
+        description: '+$5',
+        effect: gainCoin(5)
+    }); }
+};
+var buyPlatinum = { name: 'Platinum',
+    fixedCost: coin(10),
+    effect: function (card) { return gainCard(colony); },
+    triggers: function (card) { return [ensureInSupply(buyColony)]; },
+};
+register(buyPlatinum);
 var windfall = { name: 'Windfall',
     fixedCost: { time: 0, coin: 6 },
     effect: function (card) { return ({
@@ -2287,7 +2328,7 @@ var horse = { name: 'Horse',
         description: "Put a charge token on a " + stables.name + " in play.",
         effect: fill(stables, 1),
     }); },
-    triggers: function (card) { return [ensureAtStart(stables)]; },
+    triggers: function (card) { return [ensureInPlay(stables)]; },
 };
 register(horse);
 var lookout = { name: 'Lookout',
@@ -2382,14 +2423,14 @@ var twins = { name: 'Twins',
         }]; }
 };
 register(makeCard(twins, { time: 0, coin: 6 }));
-var masterSmith = { name: 'Master Smith',
+var forge = { name: 'Forge',
     fixedCost: time(2),
     effect: function (card) { return ({
-        description: '+5 cards',
-        effect: draw(5),
+        description: '+6 cards',
+        effect: draw(6),
     }); }
 };
-buyable(masterSmith, 5);
+buyable(forge, 5);
 var reuse = { name: 'Reuse',
     calculatedCost: function (card, state) { return ({ time: 1, coin: card.charge }); },
     effect: function (card) { return ({
@@ -2496,21 +2537,15 @@ var research = { name: 'Research',
     }); }
 };
 mixins.push(research);
-var platinum = { name: "Platinum",
-    fixedCost: time(0),
-    effect: function (card) { return ({
-        description: '+$5',
-        effect: gainCoin(5)
-    }); }
-};
-buyable(platinum, 10);
 var innovation = { name: "Innovation",
     triggers: function (card) { return [{
-            description: "Whenever you create a card in your discard pile, if this has an innovate token on it:" +
-                " remove all innovate tokens from this, discard your hand, lose all $, and play the card.",
-            handles: function (e) { return (e.type == 'create' && e.zone == 'discard' && countTokens(card, 'innovate') > 0); },
+            description: "Whenever you create a card, if it's in your discard pile and this has an innovate token on it:" +
+                " remove an innovate token from this, discard your hand, lose all $, and play the card.",
+            handles: function (e, state) { return (e.type == 'create'
+                && countTokens(card, 'innovate') > 0
+                && state.find(e.card).place == 'discard'); },
             effect: function (e) { return doAll([
-                removeTokens(card, 'innovate'),
+                removeOneToken(card, 'innovate'),
                 moveWholeZone('hand', 'discard'),
                 setCoin(0),
                 e.card.play(card)
@@ -2526,20 +2561,9 @@ register(makeCard(innovation, { coin: 7, time: 0 }, true));
 var citadel = { name: "Citadel",
     triggers: function (card) { return [{
             description: "After playing a card the normal way, if it's the only card in your discard pile, play it again.",
-            handles: function (e) { return (e.type == 'afterPlay' && e.source.name == 'act'); },
-            effect: function (e) { return function (state) {
-                return __awaiter(this, void 0, void 0, function () {
-                    return __generator(this, function (_a) {
-                        if (e.after != null && state.find(e.after).place == 'discard' && state.discard.length == 1) {
-                            return [2 /*return*/, e.after.play(card)(state)];
-                        }
-                        else {
-                            return [2 /*return*/, state];
-                        }
-                        return [2 /*return*/];
-                    });
-                });
-            }; }
+            handles: function (e, state) { return (e.type == 'afterPlay' && e.source.name == 'act'
+                && state.discard.length == 1 && state.find(e.after).place == 'discard'); },
+            effect: function (e) { return e.after.play(card); },
         }]; }
 };
 register(makeCard(citadel, { coin: 8, time: 0 }, true));
@@ -2709,7 +2733,7 @@ var fortify = { name: 'Fortify',
 var gainFortify = { name: 'Fortify',
     fixedCost: coin(5),
     effect: function (card) { return ({
-        description: 'Create a fortify in your discard pile. Discard your hand.',
+        description: "Create " + a(fortify.name) + " in your discard pile. Discard your hand.",
         effect: doAll([create(fortify, 'discard'), moveWholeZone('hand', 'discard')])
     }); },
     relatedCards: [fortify],
@@ -2718,8 +2742,8 @@ mixins.push(gainFortify);
 var explorer = { name: "Explorer",
     fixedCost: time(1),
     effect: function (card) { return ({
-        description: "Create a silver in your hand. " +
-            "If you have a province in your hand, instead create a gold in your hand.",
+        description: "Create " + a(silver.name) + " in your hand." +
+            (" If you have " + a(province.name) + " in your hand, instead create " + a(gold.name) + " in your hand."),
         effect: function (state) {
             return __awaiter(this, void 0, void 0, function () {
                 var i;
@@ -2855,36 +2879,50 @@ var counterfeit = { name: 'Counterfeit',
 };
 buyable(counterfeit, 5);
 var decay = { name: 'Decay',
-    fixedCost: coin(4),
+    fixedCost: coin(2),
     effect: function (card) { return ({
-        description: 'Remove all decay tokens from all cards in your hand.',
+        description: 'Remove a decay tokens from each card in your hand.',
         effect: function (state) {
             return __awaiter(this, void 0, void 0, function () {
                 return __generator(this, function (_a) {
-                    return [2 /*return*/, doAll(state.hand.map(function (x) { return removeTokens(x, 'decay'); }))(state)];
+                    return [2 /*return*/, doAll(state.hand.map(function (x) { return removeOneToken(x, 'decay'); }))(state)];
                 });
             });
         }
     }); },
     triggers: function (card) { return [{
-            description: 'Whenever you play a card, put a decay token on it.',
-            handles: function (e) { return (e.type == 'play'); },
-            effect: function (e) { return addToken(e.card, 'decay'); }
+            description: 'Whenever you recycle a card, put a decay token on it.',
+            handles: function (e) { return (e.type == 'recycle'); },
+            effect: function (e) { return doAll(e.cards.map(function (c) { return addToken(c, 'decay'); })); }
         }, {
             description: 'After you play a card, if it has 3 or more decay tokens on it trash it.',
             handles: function (e) { return (e.type == 'afterPlay' && e.after != null && countTokens(e.after, 'decay') >= 3); },
             effect: function (e) { return trash(e.after); },
         }]; }
 };
-mixins.push(decay);
+register(decay);
 var perpetualMotion = { name: 'Perpetual Motion',
-    triggers: function (card) { return [{
-            description: 'Whenever you have no cards in hand, draw a card.',
-            handles: function (e, state) { return (state.hand.length == 0 && state.deck.length > 0); },
-            effect: function (e) { return draw(1); },
-        }]; }
+    fixedCost: time(1),
+    effect: function (card) { return ({
+        description: "If you have no cards in hand, +2 cards.",
+        effect: function (state) {
+            return __awaiter(this, void 0, void 0, function () {
+                return __generator(this, function (_a) {
+                    switch (_a.label) {
+                        case 0:
+                            if (!(state.hand.length == 0)) return [3 /*break*/, 2];
+                            return [4 /*yield*/, draw(2, card)(state)];
+                        case 1:
+                            state = _a.sent();
+                            _a.label = 2;
+                        case 2: return [2 /*return*/, state];
+                    }
+                });
+            });
+        }
+    }); }
 };
-register(makeCard(perpetualMotion, time(7), true));
+register(perpetualMotion);
 var looter = { name: 'Looter',
     effect: function (card) { return ({
         description: '+1 card. Discard any number of cards from the top of your deck.',
@@ -2950,9 +2988,9 @@ function createIfNeeded(spec) {
         });
     };
 }
-function ensureAtStart(spec) {
+function ensureInPlay(spec) {
     return {
-        description: "At the start of the game, create a " + spec.name + " in play if there isn't one.",
+        description: "At the start of the game, create " + a(spec.name) + " in play if there isn't one.",
         handles: function (e) { return e.type == 'gameStart'; },
         effect: function (e) { return createIfNeeded(spec); }
     };
@@ -2979,7 +3017,7 @@ var fillCoffers = { name: 'Fill Coffers',
         description: "Put two charge tokens on a " + coffers.name + " in play.",
         effect: fill(coffers, 2)
     }); },
-    triggers: function (card) { return [ensureAtStart(coffers)]; }
+    triggers: function (card) { return [ensureInPlay(coffers)]; }
 };
 register(fillCoffers);
 var cotr = { name: 'Coin of the Realm',
@@ -3033,7 +3071,7 @@ var fillStables = { name: 'Fill Stables',
         description: "Put two charge tokens on a " + stables.name + " in play.",
         effect: fill(stables, 2),
     }); },
-    triggers: function (card) { return [ensureAtStart(stables)]; },
+    triggers: function (card) { return [ensureInPlay(stables)]; },
 };
 //register(fillStables)
 var sleigh = { name: 'Sleigh',
@@ -3048,11 +3086,11 @@ var makeSleigh = { name: 'Sleigh',
     relatedCards: [sleigh],
     effect: function (card) { return gainCard(sleigh); },
     triggers: function (card) { return [
-        ensureAtStart(stables),
+        ensureInPlay(stables),
         {
-            description: "Whenever you create a card in your discard pile, "
-                + (" if you have a " + sleigh.name + " in your hand,")
-                + ' you may discard it to put the card from your discard pile into your hand.',
+            description: "Whenever you create a card, "
+                + (" if it's in your discard pile and you have " + a(sleigh.name) + " in your hand,")
+                + (" you may discard the " + sleigh.name + " to put the new card into your hand."),
             handles: function (e, state) { return (e.type == 'create' && state.find(e.card).place == 'discard'); },
             effect: function (e) { return function (state) {
                 return __awaiter(this, void 0, void 0, function () {
@@ -3066,8 +3104,6 @@ var makeSleigh = { name: 'Sleigh',
                             case 1:
                                 _a = __read.apply(void 0, [_b.sent(), 2]), state = _a[0], target = _a[1];
                                 if (!(target != null)) return [3 /*break*/, 4];
-                                if (state.find(e.card).place != 'discard')
-                                    return [2 /*return*/, state];
                                 return [4 /*yield*/, move(target, 'discard')(state)];
                             case 2:
                                 state = _b.sent();
@@ -3135,9 +3171,10 @@ var makeLivery = { name: 'Livery',
     fixedCost: time(4),
     relatedCards: [livery, stables],
     effect: function (card) { return ({
-        description: "Create a " + livery.name + " in play, and a stables if there isn't one. Trash this.",
-        effect: doAll([create(livery, 'play'), createIfNeeded(stables), trash(card)])
+        description: "Create " + a(livery.name) + " in play. Trsh this.",
+        effect: doAll([create(livery, 'play'), trash(card)])
     }); },
+    triggers: function (card) { return [ensureInPlay(stables)]; },
 };
 register(makeLivery);
 function slogCheck(card) {
@@ -3166,7 +3203,7 @@ var slog = { name: 'Slog',
         effect: doAll([charge(card, 1), slogCheck(card)]),
     }); },
     replacers: function (card) { return [{
-            description: 'Whenever you gain points other than with this, instead put that many charge tokens on this.',
+            description: 'Whenever you would gain points other than with this, instead put that many charge tokens on this.',
             handles: function (x) { return (x.type == 'gainPoints' && x.source.id != card.id); },
             replace: function (x) { return updates(x, { points: 0, effects: x.effects.concat([charge(card, x.points), slogCheck(card)]) }); }
         }]; }
