@@ -808,7 +808,7 @@ function randomChoices<T>(state:State, xs:T[], n:number, seed?:number): [State, 
 function renderCost(cost:Cost): string {
     const coinHtml: string = cost.coin > 0 ? `$${cost.coin}` : ''
     const timeHtml: string = renderTime(cost.time)
-    if (coinHtml == '' && timeHtml == '') return '&nbsp'
+    if (coinHtml == '' && timeHtml == '') return ''
     else if (coinHtml == '') return timeHtml
     else return [coinHtml, timeHtml].join(' ')
 }
@@ -855,7 +855,7 @@ function renderCard(card:Card|Shadow, state:State, asOption:number|null=null):st
     } else {
         const tokenhtml:string = card.tokens.length > 0 ? '*' : ''
         const chargehtml:string = card.charge > 0 ? `(${card.charge})` : ''
-        const costhtml:string = renderCost(card.cost(state))
+        const costhtml:string = renderCost(card.cost(state)) || '&nbsp'
         const choosetext:string = asOption == null ? '' : `choosable chosen='false' option=${asOption}`
         const ticktext:string = `tick=${card.ticks[card.ticks.length-1]}`
         return [`<div class='card' ${ticktext} ${choosetext}>`,
@@ -897,7 +897,10 @@ function renderTooltip(card:Card, state:State): string {
     function renderRelated(spec:CardSpec) {
         const card:Card = new Card(spec, -1)
         const costStr = renderCost(card.cost(emptyState))
-        return `<div>---${card.toString()} (${costStr})---</div>${renderTooltip(card, state)}`
+        const header = (costStr.length > 0) ? 
+            `<div>---${card.toString()} (${costStr})---</div>` : 
+            `<div>-----${card.toString() }----</div>`
+        return header + renderTooltip(card, state)
     }
     const relatedFilling:string = card.relatedCards().map(renderRelated).join('')
     return `${baseFilling}${relatedFilling}`

@@ -988,7 +988,7 @@ function renderCost(cost) {
     var coinHtml = cost.coin > 0 ? "$" + cost.coin : '';
     var timeHtml = renderTime(cost.time);
     if (coinHtml == '' && timeHtml == '')
-        return '&nbsp';
+        return '';
     else if (coinHtml == '')
         return timeHtml;
     else
@@ -1036,7 +1036,7 @@ function renderCard(card, state, asOption) {
     else {
         var tokenhtml = card.tokens.length > 0 ? '*' : '';
         var chargehtml = card.charge > 0 ? "(" + card.charge + ")" : '';
-        var costhtml = renderCost(card.cost(state));
+        var costhtml = renderCost(card.cost(state)) || '&nbsp';
         var choosetext = asOption == null ? '' : "choosable chosen='false' option=" + asOption;
         var ticktext = "tick=" + card.ticks[card.ticks.length - 1];
         return ["<div class='card' " + ticktext + " " + choosetext + ">",
@@ -1095,7 +1095,10 @@ function renderTooltip(card, state) {
     function renderRelated(spec) {
         var card = new Card(spec, -1);
         var costStr = renderCost(card.cost(emptyState));
-        return "<div>---" + card.toString() + " (" + costStr + ")---</div>" + renderTooltip(card, state);
+        var header = (costStr.length > 0) ?
+            "<div>---" + card.toString() + " (" + costStr + ")---</div>" :
+            "<div>-----" + card.toString() + "----</div>";
+        return header + renderTooltip(card, state);
     }
     var relatedFilling = card.relatedCards().map(renderRelated).join('');
     return "" + baseFilling + relatedFilling;
