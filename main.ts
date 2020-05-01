@@ -27,11 +27,10 @@ function trigger(e:GameEvent): Transform {
         for (const card of state.supply.concat(state.play)) {
             for (const trigger of card.triggers()) {
                 if (trigger.handles(e, initialState) && trigger.handles(e, state)) {
-                    state = state.addShadow(card, 'trigger', trigger.description)
-                    state = state.startTicker(card)
-                    state = await trigger.effect(e)(state)
-                    state = state.endTicker(card)
-                    state = state.popResolving()
+                    state = await withTracking(
+                        trigger.effect(e),
+                        {kind:'trigger', trigger:trigger, card:card}
+                    )(state)
                 }
             }
         }
@@ -93,7 +92,7 @@ interface Cost {
 
 interface Effect {
     description: string;
-    skipDiscard?: boolean;
+    toZone?: ZoneName | null;
     effect: Transform;
 }
 
@@ -200,13 +199,12 @@ class Card {
             if (!result.found)
                 return state
             card = result.card
-            state = await trigger({type:'buy', card:card, source:source})(state)
-            state = state.addShadow(card, 'buy')
-            state = state.startTicker(card)
-            state = await card.effect().effect(state)
-            state = state.endTicker(card)
-            state = state.popResolving()
-            return trigger({type:'afterBuy', before:card, after:state.find(card).card, source:source})(state)
+            state = await (state)
+            return  withTracking(doAll([
+                trigger({type:'buy', card:card, source:source}),
+                card.effect().effect,
+                trigger({type:'afterBuy', before:card, after:state.find(card).card, source:source})
+             ]), {kind:'effect', card:card})(state)
         }
     }
     play(source:Source={name:'?'}): Transform {
@@ -221,12 +219,14 @@ class Card {
                     card = result.card
             }
             state = await move(card, 'resolving')(state)
-            state = await trigger({type:'play', card:card, source:source})(state)
-            state = state.startTicker(card)
-            state = await effect.effect(state)
-            state = state.endTicker(card)
-            if (!effect['skipDiscard']) state = await move(card, 'discard')(state)
-            return trigger({type:'afterPlay', before:card, after:state.find(card).card, source:source})(state)
+            state = await withTracking(async function(state) {
+                state = await trigger({type:'play', card:card, source:source})(state)
+                state = await effect.effect(state)
+                return state
+            }, {kind:'none', card:card})(state)
+            state = await trigger({type:'afterPlay', before:card, after:state.find(card).card, source:source})(state)
+            state = await move(card, effect['toZone'] || 'discard')(state)
+            return state
         }
     }
     triggers(): Trigger[] {
@@ -381,10 +381,10 @@ class State {
     setCoin(n:number): State {
         return this.update({counters: {coin:n, time:this.time, points:this.points}})
     }
-    addShadow(original:Card, kind:ShadowKind, text?: string): State {
+    addShadow(spec:ShadowSpec): State {
         let state:State = this
         let id:number; [state, id] = state.makeID()
-        let shadow:Shadow = new Shadow(id, original, kind, 1, text)
+        let shadow:Shadow = new Shadow(id, spec)
         return state.addResolving(shadow)
     }
     setTime(n:number): State {
@@ -506,29 +506,68 @@ function insertAt(zone:Zone, card:Card, loc:InsertLocation): Zone {
 
 // a Shadow is displayed in the resolving area if there is no card to put there
 
-type ShadowKind = 'ability' | 'trigger' | 'replacer' | 'buy'
+interface ShadowEffectSpec {
+    kind:'effect';
+    card:Card;
+}
+interface ShadowCostSpec {
+    kind:'cost';
+    card:Card;
+}
+interface ShadowAbilitySpec {
+    kind:'ability';
+    card:Card;
+    ability:Ability;
+}
+interface ShadowTriggerSpec {
+    kind:'trigger';
+    card:Card;
+    trigger:Trigger;
+}
+interface ShadowAbilityChoiceSpec {
+    kind:'abilities';
+    card:Card
+}
+interface NoShadowSpec {
+    kind:'none',
+    card:Card
+}
+type ShadowSpec = ShadowEffectSpec | ShadowAbilitySpec | 
+    ShadowTriggerSpec | ShadowAbilityChoiceSpec | ShadowCostSpec
+type TrackingSpec = ShadowSpec | NoShadowSpec
 
 class Shadow {
-    public readonly text: string;
     constructor(
         public readonly id:number,
-        public readonly original:Card,
-        public readonly kind: ShadowKind,
-        public readonly tick:number,
-        text?: string,
-    ) {
-        if (text == undefined) {
-            //TODO: analyze this statically?
-            if (kind != 'buy') throw Error("Shadow needs to have text")
-            this.text = original.effect().description
-        } else {
-            this.text = text
-        }
-    }
+        public readonly spec:ShadowSpec,
+        public readonly tick:number=1,
+    ) { }
     tickUp(): Shadow {
-        return new Shadow(this.id, this.original, this.kind, this.tick+1, this.text)
+        return new Shadow(this.id, this.spec, this.tick+1)
     }
 }
+
+function startTracking(state:State, spec:TrackingSpec): State {
+    if (spec.kind != 'none') state = state.addShadow((spec as ShadowSpec))
+    state = state.startTicker(spec.card)
+    return state
+}
+
+function stopTracking(state:State, spec:TrackingSpec): State {
+    state = state.endTicker(spec.card)
+    if (spec.kind != 'none') state = state.popResolving()
+    return state
+}
+
+function withTracking(f:Transform, spec:TrackingSpec): Transform {
+    return async function(state) {
+        state = startTracking(state, spec)
+        state = await f(state)
+        state = stopTracking(state, spec)
+        return state
+    }
+}
+
 
 
 // ---------------------------------- Transformations that move cards
@@ -609,7 +648,7 @@ function discard(n:number): Transform {
     }
 }
 
-// --------------- Transforms that change points, time, and coints
+// --------------- Transforms that change points, time, and coins
 
 class CostNotPaid extends Error { 
     constructor(message:string) {
@@ -633,6 +672,7 @@ function setCoin(n:number): Transform {
 function gainTime(n:number): Transform {
     return async function(state) {
         state = state.setTime(state.time+n)
+        console.log(state)
         return trigger({type:'gainTime', amount:n})(state)
     }
 }
@@ -821,26 +861,39 @@ function renderTime(n:number): string {
     return result.join('')
 }
 
+function describeCost(cost:Cost): string {
+    const coinCost = (cost.coin > 0) ? [`lose $${cost.coin}`] : []
+    const timeCost = (cost.time > 0) ? [`gain ${renderTime(cost.time)}`] : []
+    const costs = coinCost.concat(timeCost)
+    const costStr = (costs.length > 0) ? costs.join(' and ') : 'do nothing'
+    return `Cost: ${costStr}.`
+}
+
 function renderShadow(shadow:Shadow, state:State):string {
-    const card:Card = shadow.original
+    const card:Card = shadow.spec.card
     const tokenhtml:string = card.tokens.length > 0 ? '*' : ''
     const chargehtml:string = card.charge > 0 ? `(${card.charge})` : ''
-    const costhtml:string = renderCost(card.cost(state))
+    const costhtml:string = renderCost(card.cost(state)) || '&nbsp'
     const ticktext:string = `tick=${shadow.tick}`
     const shadowtext:string = `shadow='true'`
     let tooltip:string;
-    switch (shadow.kind) {
+    switch (shadow.spec.kind) {
         case 'ability':
-            tooltip = renderAbility((shadow.text as string))
+            tooltip = renderAbility(shadow.spec.ability)
             break
         case 'trigger':
-        case 'replacer':
-            tooltip = renderStatic((shadow.text as string))
+            tooltip = renderStatic(shadow.spec.trigger)
             break
-        case 'buy':
-            tooltip = shadow.original.effect().description
+        case 'effect':
+            tooltip = card.effect().description
             break
-        default: assertNever(shadow.kind)
+        case 'abilities':
+            tooltip = card.abilities().map(renderAbility).join('')
+            break
+        case 'cost':
+            tooltip = describeCost(card.cost(state))
+            break
+        default: assertNever(shadow.spec)
     }
     return [`<div class='card' ${ticktext} ${shadowtext}>`,
             `<div class='cardbody'>${card}${tokenhtml}${chargehtml}</div>`,
@@ -866,12 +919,12 @@ function renderCard(card:Card|Shadow, state:State, asOption:number|null=null):st
     }
 }
 
-function renderStatic(text:string): string {
-    return `<div>(static) ${text}</div>`
+function renderStatic(x:Trigger|Replacer): string {
+    return `<div>(static) ${x.description}</div>`
 }
 
-function renderAbility(text:string): string {
-    return `<div>(ability) ${text}</div>`
+function renderAbility(x:Ability): string {
+    return `<div>(ability) ${x.description}</div>`
 }
 
 function renderTokens(tokens:string[]): string {
@@ -888,9 +941,9 @@ function renderTokens(tokens:string[]): string {
 
 function renderTooltip(card:Card, state:State): string {
     const effectHtml:string = `<div>${card.effect().description}</div>`
-    const abilitiesHtml:string = card.abilities().map(x => renderAbility(x.description)).join('')
-    const triggerHtml:string = card.triggers().map(x => renderStatic(x.description)).join('')
-    const replacerHtml:string = card.replacers().map(x => renderStatic(x.description)).join('')
+    const abilitiesHtml:string = card.abilities().map(x => renderAbility(x)).join('')
+    const triggerHtml:string = card.triggers().map(x => renderStatic(x)).join('')
+    const replacerHtml:string = card.replacers().map(x => renderStatic(x)).join('')
     const staticHtml:string = triggerHtml + replacerHtml
     const tokensHtml:string = card.tokens.length > 0 ? `Tokens: ${renderTokens(card.tokens)}` : ''
     const baseFilling:string = [effectHtml, abilitiesHtml, staticHtml, tokensHtml].join('')
@@ -1016,6 +1069,22 @@ async function choice<T>(
             'choice'
         )
         return [state, options[index].value]
+    }
+}
+
+async function multichoiceIfNeeded<T>(
+    state:State,
+    prompt:string,
+    options:ChoiceOption<T>[],
+    n:number,
+    upto:boolean,
+): Promise<[State, T[]]> {
+    if (n == 0) return [state, []]
+    else if (n == 1) {
+        let x:T|null; [state, x] = await choice(state, prompt, upto ? allowNull(options) : options)
+        return (x == null) ? [state, []] : [state, [x]]
+    } else {
+        return multichoice(state, prompt, options, xs => (upto ? xs.length <= n : xs.length == n))
     }
 }
 
@@ -1194,8 +1263,8 @@ function actChoice(state:State): Promise<[State, Card|null]> {
 
 function useCard(card: Card): Transform {
     return async function(state: State): Promise<State> {
-        state = state.startTicker(card);
-        let ability:Ability|null
+        state = startTracking(state, {kind:'abilities', card:card})
+        let ability:Ability|null = null
         if (card.abilities().length == 1) {
             ability = card.abilities()[0]
         } else {
@@ -1204,24 +1273,23 @@ function useCard(card: Card): Transform {
                 allowNull(card.abilities().map(x => ({kind:'string', render:x.description, value:x})))
             )
         }
-        state = state.endTicker(card)
+        state = stopTracking(state, {kind:'abilities', card:card})
         if (ability != null) {
-            state = state.addShadow(card, 'ability', ability.description)
-            state = state.startTicker(card)
-            state = await payToDo(ability.cost, ability.effect)(state)
-            state = state.endTicker(card)
-            state = state.popResolving()
+            state = await withTracking(
+                payToDo(ability.cost, ability.effect), 
+                {card:card, kind:'ability', ability:ability}
+            )(state)
         }
         return state
     }
 }
 
 function tryToBuy(card: Card): Transform {
-    return payToDo(card.payCost(), card.buy({name:'act'}))
+    return payToDo(withTracking(card.payCost(), {kind:'cost', card:card}), card.buy({name:'act'}))
 }
 
 function tryToPlay(card:Card): Transform {
-    return payToDo(card.payCost(), card.play({name:'act'}))
+    return payToDo(withTracking(card.payCost(), {kind:'cost', card:card}), card.play({name:'act'}))
 }
 
 // ---------------------------- Game loop
@@ -1644,23 +1712,23 @@ const feast:CardSpec = {name: 'Feast',
 }
 buyable(feast, 4)
 
-const warFooting:CardSpec = {name: 'War Footing',
+const mobilization:CardSpec = {name: 'Mobilization',
     replacers: card => [{
         description: 'Reboot costs @ less to play, but not zero.',
         handles: x => (x.type == 'cost' && x.card == 'Reboot'),
         replace: x => updates(x, {'cost': reduceTimeNonzero(x.cost, 1)})
     }]
 }
-const gainWarFooting:CardSpec = {name: 'War Footing',
+const gainMobilization:CardSpec = {name: 'Mobilization',
     calculatedCost: (card, state) => ({time:0, coin:15+10*card.charge}),
     effect: card => ({
-        description: `Create a ${warFooting.name} in play.` +
+        description: `Create a ${mobilization.name} in play.` +
             ' Put a charge token on this. It costs $10 more per charge token on it.',
-        effect: doAll([create(warFooting, 'play'), charge(card, 1)])
+        effect: doAll([create(mobilization, 'play'), charge(card, 1)])
     }),
-    relatedCards: [warFooting],
+    relatedCards: [mobilization],
 }
-register(gainWarFooting)
+register(gainMobilization)
 
 const junkDealer:CardSpec = {name: 'Junk Dealer',
     fixedCost: time(0),
@@ -1748,13 +1816,9 @@ const blacksmith:CardSpec = {name: 'Blacksmith',
         effect: async function(state) {
             state = await charge(card, 1)(state);
             const result = state.find(card)
-            if (result.found) {
-                state = await draw(result.card.charge)(state);
-                state = await move(result.card, 'discard')(state)
-            }
+            if (result.found) state = await draw(result.card.charge)(state);
             return state
         },
-        skipDiscard: true
     })
 }
 buyable(blacksmith, 2)
@@ -1839,7 +1903,7 @@ const junkyard:CardSpec = {name: 'Junkyard',
         effect: e => gainPoints(1)
     }]
 }
-mixins.push(makeCard(junkyard, {coin:7, time:3}))
+mixins.push(makeCard(junkyard, {coin:5, time:2}))
 
 
 const bustlingSquare:CardSpec = {name: 'Bustling Square',
@@ -2230,8 +2294,8 @@ const fortify:CardSpec = {name: 'Fortify',
     fixedCost: time(2),
     effect: card => ({
         description: 'Put your discard pile in your hand. Trash this.',
-        effect: doAll([moveWholeZone('discard', 'hand'), trash(card)]),
-        skipDiscard:true,
+        effect: moveWholeZone('discard', 'hand'),
+        toZone: null,
     })
 }
 const gainFortify:CardSpec = {name: 'Fortify',
@@ -2439,7 +2503,7 @@ const cotr:CardSpec = {name: 'Coin of the Realm',
     fixedCost: time(1),
     effect: card => ({
         description: '+$1. Put this in play.',
-        skipDiscard: true,
+        toZone: 'play',
         effect: doAll([gainCoin(1), move(card, 'play')])
     }),
     abilities: card => [{
@@ -2629,6 +2693,30 @@ const chancellor:CardSpec = {name: 'Chancellor',
     })
 }
 buyable(chancellor, 4)
+
+const barracks:CardSpec = {name: 'Barracks',
+    triggers: card => [{
+        description: 'Whenever you draw 4 or more cards, play cards from your hand with total cost up to @.',
+        handles: e => (e.type == 'draw' && e.drawn >= 4),
+        effect: e => freeActions(1, card)
+    }]
+}
+register(makeCard(barracks, coin(5)))
+
+const composting:CardSpec = {name: 'Composting',
+    triggers: card => [{
+        description: 'Whenever you gain time, you may recycle that many cards from your discard pile.',
+        handles: e => (e.type == 'gainTime' && e.amount > 0),
+        effect: e => async function(state) {
+            const n = e.amount;
+            const prompt = (n == 1) ? 'Choose a card to recycle.' : `Choose up to ${n} cards to recycle`
+            let cards:Card[]; [state, cards] = await multichoiceIfNeeded(state,
+                prompt, state.discard.map(asChoice), n, true)
+            return recycle(cards)(state)
+        }
+    }]
+}
+register(makeCard(composting, coin(6)))
 
 
 // ------------------ Testing -------------------
