@@ -1,52 +1,55 @@
-<html> 
-<head> 
+<html>
+<head>
   <script src="https://code.jquery.com/jquery-1.12.4.js"></script>
   <script src="https://code.jquery.com/ui/1.12.1/jquery-ui.js"></script>
-<script type="text/javascript" src="jquery.js"></script> 
+<script type="text/javascript" src="jquery.js"></script>
 <script type="text/javascript" src="main.js"></script>
 <link rel="stylesheet" type="text/css" href="style.css"/>
 <title>Dominion-like</title>
-</head> 
+</head>
 
-<body onload="load();"> 
+<body onload="load();">
 
-</body> 
+</body>
 
 <div id='resources'>
     $: <span id='coin'></span> @: <span id='time'></span> vp: <span id='points'></span>
 </div>
 <div id='undoArea'> </div>
-<div> &nbsp; </div> 
-<div class='header'> Resolving: </div> 
+<div> &nbsp; </div>
+<div class='header'> Resolving: </div>
 <div id='toparea'>
     <div id='resolving' class='zone'> </div>
     <div id='choicePrompt'></div>
 </div>
 <div id='options'></div>
-<div> &nbsp; </div> 
-<div class='header'> Supplies: </div> 
+<div> &nbsp; </div>
+<div class='header'> Supplies: </div>
 <div id='supply' class='zone'> </div>
 
-<div> &nbsp; </div> 
-<div class='header'> Hand: </div> 
+<div> &nbsp; </div>
+<div class='header'> Hand: </div>
 <div id='hand' class='zone'> </div>
 
-<div> &nbsp; </div> 
-<div class='header'> Deck: </div> 
+<div> &nbsp; </div>
+<div class='header'> Deck: </div>
 <div id='deck' class='zone'> </div>
 
-<div> &nbsp; </div> 
-<div class='header'> Discard: </div> 
+<div> &nbsp; </div>
+<div class='header'> Discard: </div>
 <div id='discard' class='zone'> </div>
 
-<div> &nbsp; </div> 
-<div class='header'> Play: </div> 
+<div> &nbsp; </div>
+<div class='header'> Play: </div>
 <div id='play' class='zone'> </div>
 
 
-<div> &nbsp; </div> 
-<div class='header'> Set aside: </div> 
+<div> &nbsp; </div>
+<div class='header'> Set aside: </div>
 <div id='aside' class='zone'> </div>
 
+<div> &nbsp; </div>
+<div class='header'> History: </div>
+<div id='log'> </div>
 
-</html> 
+</html>
