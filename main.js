@@ -2137,33 +2137,13 @@ var goldMine = { name: 'Gold Mine',
     }); }
 };
 buyable(goldMine, 6);
-var vault = { name: 'Vault',
-    fixedCost: time(1),
+var warehouse = { name: 'Warehouse',
     effect: function (card) { return ({
-        description: '+2 cards. Discard any number of cards from your hand, +1 card per card discarded.',
-        effect: function (state) {
-            return __awaiter(this, void 0, void 0, function () {
-                var toDiscard;
-                var _a;
-                return __generator(this, function (_b) {
-                    switch (_b.label) {
-                        case 0: return [4 /*yield*/, draw(2)(state)];
-                        case 1:
-                            state = _b.sent();
-                            return [4 /*yield*/, multichoice(state, 'Discard any number of cards for +$1 each.', state.hand.map(asChoice), function (xs) { return true; })];
-                        case 2:
-                            _a = __read.apply(void 0, [_b.sent(), 2]), state = _a[0], toDiscard = _a[1];
-                            return [4 /*yield*/, moveMany(toDiscard, 'discard')(state)];
-                        case 3:
-                            state = _b.sent();
-                            return [2 /*return*/, draw(toDiscard.length)(state)];
-                    }
-                });
-            });
-        }
+        description: 'Draw 3 cards, then discard 3 cards.',
+        effect: doAll([draw(3), discard(3)]),
     }); }
 };
-buyable(vault, 5);
+buyable(warehouse, 3);
 var cursedKingdom = { name: 'Cursed Kingdom',
     fixedCost: time(0),
     effect: function (card) { return ({

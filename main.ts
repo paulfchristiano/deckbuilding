@@ -1801,23 +1801,13 @@ const goldMine:CardSpec = {name: 'Gold Mine',
 }
 buyable(goldMine, 6)
 
-const vault:CardSpec = {name: 'Vault',
-    fixedCost: time(1),
+const warehouse:CardSpec = {name: 'Warehouse',
     effect: card => ({
-        description: '+2 cards. Discard any number of cards from your hand, +1 card per card discarded.',
-        effect: async function(state) {
-            state = await draw(2)(state);
-            let toDiscard;
-            [state, toDiscard] = await multichoice(state,
-                'Discard any number of cards for +$1 each.',
-                state.hand.map(asChoice),
-                xs => true)
-            state = await moveMany(toDiscard, 'discard')(state)
-            return draw(toDiscard.length)(state)
-        }
+        description: 'Draw 3 cards, then discard 3 cards.',
+        effect: doAll([draw(3), discard(3)]),
     })
 }
-buyable(vault, 5)
+buyable(warehouse, 3)
 
 const cursedKingdom:CardSpec = {name: 'Cursed Kingdom',
     fixedCost: time(0),
