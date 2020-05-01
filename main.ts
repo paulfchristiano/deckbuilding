@@ -1641,12 +1641,11 @@ const feast:CardSpec = {name: 'Feast',
 }
 buyable(feast, 4)
 
-//TODO: let Reboot choose cards arbitrarily if it costs 0
 const warFooting:CardSpec = {name: 'War Footing',
     replacers: card => [{
-        description: 'Reboot costs @ less to play.',
+        description: 'Reboot costs @ less to play, but not zero.',
         handles: x => (x.type == 'cost' && x.card == 'Reboot'),
-        replace: x => updates(x, {'cost': {'coin': x.cost.coin, 'time': Math.max(0, x.cost.time-1)}})
+        replace: x => updates(x, {'cost': reduceTimeNonzero(x.cost, 1)})
     }]
 }
 const gainWarFooting:CardSpec = {name: 'War Footing',
@@ -1658,7 +1657,7 @@ const gainWarFooting:CardSpec = {name: 'War Footing',
     }),
     relatedCards: [warFooting],
 }
-mixins.push(gainWarFooting)
+register(gainWarFooting)
 
 const junkDealer:CardSpec = {name: 'Junk Dealer',
     fixedCost: time(0),
@@ -1704,13 +1703,11 @@ buyable(plough, 4)
 const vassal:CardSpec = {name: 'Vassal',
     fixedCost: time(1),
     effect: card => ({
-        description: "+$2. Look at a random card from your deck. You may play it.",
+        description: "+$2. Play the top card of your deck.",
         effect: async function(state) {
             state = await gainCoin(2)(state);
             if (state.deck.length == 0) return state
-            const target = state.deck[0]
-            let playIt; [state, playIt] = await choice(state, `Play ${target.name}?`, yesOrNo)
-            return playIt ? target.play(card)(state) : state
+            return state.deck[0].play(card)(state)
         }
     })
 }
@@ -2533,8 +2530,11 @@ const ferry:CardSpec = {name: 'Ferry',
         }
     })
 }
-function ferryReduce(cost:Cost, n:number): Cost {
+function reduceCoinNonzero(cost:Cost, n:number): Cost {
     return {time: cost.time, coin: Math.max(cost.coin - n, (cost.time > 0) ? 0 : 1)}
+}
+function reduceTimeNonzero(cost:Cost, n:number): Cost {
+    return {coin: cost.coin, time: Math.max(cost.time - n, (cost.coin > 0) ? 0 : 1)}
 }
 const makeFerry:CardSpec = {name: 'Ferry',
     fixedCost: coin(3),
@@ -2543,7 +2543,7 @@ const makeFerry:CardSpec = {name: 'Ferry',
     replacers: card => [{
         description: 'Cards cost $1 less per ferry token on them, unless it would make them cost 0.',
         handles: p => (p.type == 'cost' && countTokens(p.card, 'ferry') > 0),
-        replace: p => updates(p, {cost: ferryReduce(p.cost, countTokens(p.card, 'ferry'))})
+        replace: p => updates(p, {cost: reduceCoinNonzero(p.cost, countTokens(p.card, 'ferry'))})
     }]
 }
 register(makeFerry)

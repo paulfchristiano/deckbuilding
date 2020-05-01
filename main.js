@@ -1933,12 +1933,11 @@ var feast = { name: 'Feast',
     }); }
 };
 buyable(feast, 4);
-//TODO: let Reboot choose cards arbitrarily if it costs 0
 var warFooting = { name: 'War Footing',
     replacers: function (card) { return [{
-            description: 'Reboot costs @ less to play.',
+            description: 'Reboot costs @ less to play, but not zero.',
             handles: function (x) { return (x.type == 'cost' && x.card == 'Reboot'); },
-            replace: function (x) { return updates(x, { 'cost': { 'coin': x.cost.coin, 'time': Math.max(0, x.cost.time - 1) } }); }
+            replace: function (x) { return updates(x, { 'cost': reduceTimeNonzero(x.cost, 1) }); }
         }]; }
 };
 var gainWarFooting = { name: 'War Footing',
@@ -1950,7 +1949,7 @@ var gainWarFooting = { name: 'War Footing',
     }); },
     relatedCards: [warFooting],
 };
-mixins.push(gainWarFooting);
+register(gainWarFooting);
 var junkDealer = { name: 'Junk Dealer',
     fixedCost: time(0),
     effect: function (card) { return ({
@@ -2017,23 +2016,17 @@ buyable(plough, 4);
 var vassal = { name: 'Vassal',
     fixedCost: time(1),
     effect: function (card) { return ({
-        description: "+$2. Look at a random card from your deck. You may play it.",
+        description: "+$2. Play the top card of your deck.",
         effect: function (state) {
             return __awaiter(this, void 0, void 0, function () {
-                var target, playIt;
-                var _a;
-                return __generator(this, function (_b) {
-                    switch (_b.label) {
+                return __generator(this, function (_a) {
+                    switch (_a.label) {
                         case 0: return [4 /*yield*/, gainCoin(2)(state)];
                         case 1:
-                            state = _b.sent();
+                            state = _a.sent();
                             if (state.deck.length == 0)
                                 return [2 /*return*/, state];
-                            target = state.deck[0];
-                            return [4 /*yield*/, choice(state, "Play " + target.name + "?", yesOrNo)];
-                        case 2:
-                            _a = __read.apply(void 0, [_b.sent(), 2]), state = _a[0], playIt = _a[1];
-                            return [2 /*return*/, playIt ? target.play(card)(state) : state];
+                            return [2 /*return*/, state.deck[0].play(card)(state)];
                     }
                 });
             });
@@ -3145,8 +3138,11 @@ var ferry = { name: 'Ferry',
         }
     }); }
 };
-function ferryReduce(cost, n) {
+function reduceCoinNonzero(cost, n) {
     return { time: cost.time, coin: Math.max(cost.coin - n, (cost.time > 0) ? 0 : 1) };
+}
+function reduceTimeNonzero(cost, n) {
+    return { coin: cost.coin, time: Math.max(cost.time - n, (cost.coin > 0) ? 0 : 1) };
 }
 var makeFerry = { name: 'Ferry',
     fixedCost: coin(3),
@@ -3155,7 +3151,7 @@ var makeFerry = { name: 'Ferry',
     replacers: function (card) { return [{
             description: 'Cards cost $1 less per ferry token on them, unless it would make them cost 0.',
             handles: function (p) { return (p.type == 'cost' && countTokens(p.card, 'ferry') > 0); },
-            replace: function (p) { return updates(p, { cost: ferryReduce(p.cost, countTokens(p.card, 'ferry')) }); }
+            replace: function (p) { return updates(p, { cost: reduceCoinNonzero(p.cost, countTokens(p.card, 'ferry')) }); }
         }]; }
 };
 register(makeFerry);
