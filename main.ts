@@ -4,8 +4,9 @@
 // TODO: History?
 // TODO: I think the cost framework isn't really appropriate any more, but maybe think a bit before getting rid of it
 // TODO: if a zone gets bigger and then, it's annoying to keep resizing it. As soon as a zone gets big I want to leave it big probably.
-// TODO: probably worth distinguishing items with 1 vs 2 tokens?
+// TODO: lay things out more nicely
 // TODO: minimum width for option choices
+// TODO: starting to see performance hiccups in big games
 
 // returns a copy x of object with x.k = v for all k:v in kvs
 function updates(x:object, y:object): object {
@@ -648,7 +649,7 @@ function gainPoints(n:number, source:Source={name:'?'}): Transform {
         state = await doAll(params.effects)(state)
         n = params.points
         state = state.setPoints(state.points+n)
-        if (state.points > 50) throw new Victory(state)
+        if (state.points >= 50) throw new Victory(state)
         return trigger({type:'gainPoints', points:n, source:source})(state)
     }
 }

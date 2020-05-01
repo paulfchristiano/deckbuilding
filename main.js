@@ -5,8 +5,9 @@
 // TODO: History?
 // TODO: I think the cost framework isn't really appropriate any more, but maybe think a bit before getting rid of it
 // TODO: if a zone gets bigger and then, it's annoying to keep resizing it. As soon as a zone gets big I want to leave it big probably.
-// TODO: probably worth distinguishing items with 1 vs 2 tokens?
+// TODO: lay things out more nicely
 // TODO: minimum width for option choices
+// TODO: starting to see performance hiccups in big games
 var __extends = (this && this.__extends) || (function () {
     var extendStatics = function (d, b) {
         extendStatics = Object.setPrototypeOf ||
@@ -769,7 +770,7 @@ function gainPoints(n, source) {
                         state = _a.sent();
                         n = params.points;
                         state = state.setPoints(state.points + n);
-                        if (state.points > 50)
+                        if (state.points >= 50)
                             throw new Victory(state);
                         return [2 /*return*/, trigger({ type: 'gainPoints', points: n, source: source })(state)];
                 }
