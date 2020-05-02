@@ -568,7 +568,7 @@ interface NoShadowSpec {
     kind:'none',
     card:Card
 }
-type ShadowSpec = ShadowEffectSpec | ShadowAbilitySpec | 
+type ShadowSpec = ShadowEffectSpec | ShadowAbilitySpec |
     ShadowTriggerSpec | ShadowAbilityChoiceSpec | ShadowCostSpec
 type TrackingSpec = ShadowSpec | NoShadowSpec
 
@@ -847,7 +847,7 @@ function charge(card:Card, n:number, cost:boolean=false): Transform {
         const newCharge:number = Math.max(oldCharge+n, 0)
         state = state.apply(card => card.update({charge:newCharge}), card)
         state = logChange(state, 'charge token', newCharge - oldCharge,
-            ['Added ', ` to ${card.name}`], 
+            ['Added ', ` to ${card.name}`],
             ['Removed ', ` from ${card.name}`])
         return trigger({type:'chargeChange', card:card,
             oldCharge:oldCharge, newCharge:newCharge, cost:cost})(state)
@@ -998,6 +998,10 @@ function renderShadow(shadow:Shadow, state:State):string {
             `</div>`].join('')
 }
 
+function renderHotkey(hotkey: string) {
+  return `<span class="hotkey">${hotkey}</span> `
+}
+
 function renderCard(card:Card|Shadow, state:State, asOption:number|null=null):string {
     if (card instanceof Shadow) {
         return renderShadow(card, state)
@@ -1006,9 +1010,10 @@ function renderCard(card:Card|Shadow, state:State, asOption:number|null=null):st
         const chargehtml:string = card.charge > 0 ? `(${card.charge})` : ''
         const costhtml:string = renderCost(card.cost(state)) || '&nbsp'
         const choosetext:string = asOption == null ? '' : `choosable chosen='false' option=${asOption}`
+        const hotkeytext:string = asOption !== null && asOption < hotkeys.length ? renderHotkey(hotkeys[asOption]) : ''
         const ticktext:string = `tick=${card.ticks[card.ticks.length-1]}`
         return [`<div class='card' ${ticktext} ${choosetext}>`,
-                `<div class='cardbody'>${card}${tokenhtml}${chargehtml}</div>`,
+                `<div class='cardbody'>${hotkeytext}${card}${tokenhtml}${chargehtml}</div>`,
                 `<div class='cardcost'>${costhtml}</div>`,
                 `<span class='tooltip'>${renderTooltip(card, state)}</span>`,
                 `</div>`].join('')
@@ -1244,7 +1249,7 @@ function renderOption(option:[number|'submit', string]): string {
 }
 
 function renderUndo(undoable:boolean): string {
-    return `<span class='option', option='undo' ${undoable ? 'choosable' : ''} chosen='false'>Undo</span>`
+    return `<span class='option', option='undo' ${undoable ? 'choosable' : ''} chosen='false'>${renderHotkey('z')} Undo</span>`
 }
 
 function clearChoice(): void {
@@ -1260,7 +1265,25 @@ class Undo extends Error {
     }
 }
 
+const keyListeners: {[key: string]: () => void} = {};
+const hotkeys = [
+  '1', '2', '3', '4', '5', '6', '7', '8', '9', '0',
+  'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm',
+  'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', // 'z' reserved for undo
+  'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M',
+  'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z',
+]
+
+$(document).keydown((e: any) => {
+  if (e.key in keyListeners) {
+    keyListeners[e.key]();
+  }
+});
+
 function bindUndo(state:State, reject: ((x:any) => void)): void {
+    keyListeners['z'] = () => {
+      if (state.undoable()) reject(new Undo(state))
+    }
     $(`[option='undo']`).on('click', function(e: any){
         if (state.undoable()) reject(new Undo(state))
     })
@@ -1273,14 +1296,19 @@ function freshChoice<T>(
 ): Promise<number> {
     renderChoice(state, choicePrompt, options, false)
     return new Promise(function(resolve, reject) {
-        for (let i = 0; i < options.length; i++) {
-            const j = i;
+        options.forEach((option, i) => {
             const elem = $(`[option='${i}']`)
+            if (i < hotkeys.length) {
+              keyListeners[hotkeys[i]] = () => {
+                clearChoice()
+                resolve(i)
+              }
+            }
             elem.on('click', function (e: any) {
                 clearChoice()
-                resolve(j)
+                resolve(i)
             })
-        }
+        })
         bindUndo(state, reject)
     })
 }
@@ -1388,7 +1416,7 @@ function useCard(card: Card): Transform {
         if (ability != null) {
             state = state.log(`Activating ${card.name}`)
             state = await withTracking(
-                payToDo(ability.cost, ability.effect), 
+                payToDo(ability.cost, ability.effect),
                 {card:card, kind:'ability', ability:ability}
             )(state)
         }
@@ -1932,7 +1960,7 @@ function freeActions(
         let remainingTime = totalTime;
         while (remainingTime > 0) {
             const options = state.hand.filter(
-                (card:Card) => (card.cost(state).time <= remainingTime) 
+                (card:Card) => (card.cost(state).time <= remainingTime)
                 && constraint(card, state)
             );
             let target;
@@ -2252,7 +2280,7 @@ const synergy:CardSpec = {name:'Synergy',
         handles: e => (e.type == 'afterBuy' && e.source.id != card.id && countTokens(e.before, 'synergy') > 0),
         effect: e => async function(state) {
             const options:Card[] = state.supply.filter(
-                c => countTokens(c, 'synergy') > 0 
+                c => countTokens(c, 'synergy') > 0
                 && leq(c.cost(state), e.before.cost(state))
                 && c.id != e.before.id
             )
@@ -2943,7 +2971,7 @@ const oasis:CardSpec = {name: 'Oasis',
         description: `+1 card. You may discard a card to add a charge counter to a ${coffers.name} in play.`,
         effect: async function(state) {
             state = await draw(1)(state)
-            let target:Card|null; [state, target] = await choice(state, 
+            let target:Card|null; [state, target] = await choice(state,
                 'Choose a card to discard.',
                 allowNull(state.hand.map(asChoice)))
             if (target != null) {
@@ -3068,10 +3096,10 @@ const ferry:CardSpec = {name: 'Ferry',
     })
 }
 function reduceCoin(cost:Cost, n:number): Cost {
-    return {coin:Math.max(cost.coin - n,0), time:cost.time} 
+    return {coin:Math.max(cost.coin - n,0), time:cost.time}
 }
 function reduceTime(cost:Cost, n:number): Cost {
-    return {time:Math.max(cost.time- n,0), coin:cost.coin} 
+    return {time:Math.max(cost.time- n,0), coin:cost.coin}
 }
 function isZeroCost(cost:Cost): boolean {
     return cost.coin == 0 && cost.time == 0

@@ -1179,6 +1179,9 @@ function renderShadow(shadow, state) {
         "<span class='tooltip'>" + tooltip + "</span>",
         "</div>"].join('');
 }
+function renderHotkey(hotkey) {
+    return "<span class=\"hotkey\">" + hotkey + "</span> ";
+}
 function renderCard(card, state, asOption) {
     if (asOption === void 0) { asOption = null; }
     if (card instanceof Shadow) {
@@ -1189,9 +1192,10 @@ function renderCard(card, state, asOption) {
         var chargehtml = card.charge > 0 ? "(" + card.charge + ")" : '';
         var costhtml = renderCost(card.cost(state)) || '&nbsp';
         var choosetext = asOption == null ? '' : "choosable chosen='false' option=" + asOption;
+        var hotkeytext = asOption !== null && asOption < hotkeys.length ? renderHotkey(hotkeys[asOption]) : '';
         var ticktext = "tick=" + card.ticks[card.ticks.length - 1];
         return ["<div class='card' " + ticktext + " " + choosetext + ">",
-            "<div class='cardbody'>" + card + tokenhtml + chargehtml + "</div>",
+            "<div class='cardbody'>" + hotkeytext + card + tokenhtml + chargehtml + "</div>",
             "<div class='cardcost'>" + costhtml + "</div>",
             "<span class='tooltip'>" + renderTooltip(card, state) + "</span>",
             "</div>"].join('');
@@ -1429,7 +1433,7 @@ function renderOption(option) {
     return "<span class='option' option='" + option[0] + "' choosable chosen='false'>" + option[1] + "</span>";
 }
 function renderUndo(undoable) {
-    return "<span class='option', option='undo' " + (undoable ? 'choosable' : '') + " chosen='false'>Undo</span>";
+    return "<span class='option', option='undo' " + (undoable ? 'choosable' : '') + " chosen='false'>" + renderHotkey('z') + " Undo</span>";
 }
 function clearChoice() {
     $('#choicePrompt').html('');
@@ -1446,7 +1450,24 @@ var Undo = /** @class */ (function (_super) {
     }
     return Undo;
 }(Error));
+var keyListeners = {};
+var hotkeys = [
+    '1', '2', '3', '4', '5', '6', '7', '8', '9', '0',
+    'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm',
+    'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y',
+    'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M',
+    'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z',
+];
+$(document).keydown(function (e) {
+    if (e.key in keyListeners) {
+        keyListeners[e.key]();
+    }
+});
 function bindUndo(state, reject) {
+    keyListeners['z'] = function () {
+        if (state.undoable())
+            reject(new Undo(state));
+    };
     $("[option='undo']").on('click', function (e) {
         if (state.undoable())
             reject(new Undo(state));
@@ -1455,17 +1476,19 @@ function bindUndo(state, reject) {
 function freshChoice(state, choicePrompt, options) {
     renderChoice(state, choicePrompt, options, false);
     return new Promise(function (resolve, reject) {
-        var _loop_1 = function (i) {
-            var j = i;
+        options.forEach(function (option, i) {
             var elem = $("[option='" + i + "']");
+            if (i < hotkeys.length) {
+                keyListeners[hotkeys[i]] = function () {
+                    clearChoice();
+                    resolve(i);
+                };
+            }
             elem.on('click', function (e) {
                 clearChoice();
-                resolve(j);
+                resolve(i);
             });
-        };
-        for (var i = 0; i < options.length; i++) {
-            _loop_1(i);
-        }
+        });
         bindUndo(state, reject);
     });
 }
@@ -1506,7 +1529,7 @@ function freshMultichoice(state, choicePrompt, options, validator) {
     }
     setReady();
     return new Promise(function (resolve, reject) {
-        var _loop_2 = function (i) {
+        var _loop_1 = function (i) {
             var j = i;
             var elem = $("[option='" + i + "']");
             elem.on('click', function (e) {
@@ -1522,7 +1545,7 @@ function freshMultichoice(state, choicePrompt, options, validator) {
             });
         };
         for (var i = 0; i < options.length; i++) {
-            _loop_2(i);
+            _loop_1(i);
         }
         $("[option='submit']").on('click', function (e) {
             if (isReady()) {
@@ -2101,12 +2124,12 @@ var populate = { name: 'Populate',
         description: 'Buy any number of cards in the supply other than this.',
         effect: function (state) {
             return __awaiter(this, void 0, void 0, function () {
-                var options, _loop_3, state_1;
+                var options, _loop_2, state_1;
                 return __generator(this, function (_a) {
                     switch (_a.label) {
                         case 0:
                             options = state.supply.filter(function (c) { return c.id != card.id; });
-                            _loop_3 = function () {
+                            _loop_2 = function () {
                                 var picked, id_1;
                                 var _a;
                                 return __generator(this, function (_b) {
@@ -2132,7 +2155,7 @@ var populate = { name: 'Populate',
                             _a.label = 1;
                         case 1:
                             if (!true) return [3 /*break*/, 3];
-                            return [5 /*yield**/, _loop_3()];
+                            return [5 /*yield**/, _loop_2()];
                         case 2:
                             state_1 = _a.sent();
                             if (typeof state_1 === "object")
@@ -2763,7 +2786,7 @@ var bustlingSquare = { name: 'Bustling Square',
         description: "+1 card. Set aside all cards in your hand. Play them in any order.",
         effect: function (state) {
             return __awaiter(this, void 0, void 0, function () {
-                var hand, _loop_4, state_2;
+                var hand, _loop_3, state_2;
                 return __generator(this, function (_a) {
                     switch (_a.label) {
                         case 0: return [4 /*yield*/, draw(1)(state)];
@@ -2773,7 +2796,7 @@ var bustlingSquare = { name: 'Bustling Square',
                             return [4 /*yield*/, moveWholeZone('hand', 'aside')(state)];
                         case 2:
                             state = _a.sent();
-                            _loop_4 = function () {
+                            _loop_3 = function () {
                                 var target, id_2;
                                 var _a;
                                 return __generator(this, function (_b) {
@@ -2798,7 +2821,7 @@ var bustlingSquare = { name: 'Bustling Square',
                             _a.label = 3;
                         case 3:
                             if (!true) return [3 /*break*/, 5];
-                            return [5 /*yield**/, _loop_4()];
+                            return [5 /*yield**/, _loop_3()];
                         case 4:
                             state_2 = _a.sent();
                             if (typeof state_2 === "object")
