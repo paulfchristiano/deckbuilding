@@ -43,17 +43,20 @@ type GameEvent = BuyEvent | AfterBuyEvent | PlayEvent | AfterPlayEvent |
 //e is an event that just happened
 //each card in play and aura can have a followup
 //NOTE: this is slow, we should cache triggers (in a dictionary by event type) if it becomes a problem
-function trigger(e:GameEvent): Transform {
+function trigger<E extends GameEvent>(e:E): Transform {
     return async function(state:State): Promise<State> {
         const initialState = state;
         for (const card of state.supply.concat(state.play)) {
             for (const trigger of card.triggers()) {
-                if (trigger.handles(e, initialState) && trigger.handles(e, state)) {
-                    state = state.log(`Triggering ${card}`)
-                    state = await withTracking(
-                        trigger.effect(e),
-                        {kind:'trigger', trigger:trigger, card:card}
-                    )(state)
+                if (trigger.kind == e.kind) {
+                    const typedTrigger:Trigger<E> = trigger
+                    if (typedTrigger.handles(e, initialState) && typedTrigger.handles(e, state)) {
+                        state = state.log(`Triggering ${card}`)
+                        state = await withTracking(
+                            typedTrigger.effect(e),
+                            {kind:'trigger', trigger:trigger, card:card}
+                        )(state)
+                    }
                 }
             }
         }
@@ -100,7 +103,7 @@ interface CardSpec {
     calculatedCost?: (card:Card, state:State) => Cost;
     relatedCards?: CardSpec[];
     effect?: (card:Card) => Effect;
-    triggers?: (card:Card) => Trigger[];
+    triggers?: (card:Card) => Trigger<GameEvent>[];
     abilities?: (card:Card) => Ability[];
     replacers?: (card:Card) => Replacer[];
 }
@@ -118,10 +121,11 @@ interface Effect {
     effect: Transform;
 }
 
-interface Trigger {
+interface Trigger <E extends GameEvent> {
     description: string;
-    handles: (e:GameEvent, s:State) => boolean;
-    effect: (e:GameEvent) => Transform;
+    kind: string;
+    handles: (e:E, s:State) => boolean;
+    effect: (e:E) => Transform;
 }
 
 
@@ -261,7 +265,7 @@ class Card {
             return state
         }
     }
-    triggers(): Trigger[] {
+    triggers(): Trigger<GameEvent>[] {
         if (this.spec.triggers == undefined) return []
         return this.spec.triggers(this)
     }
@@ -1532,7 +1536,7 @@ function gainCard(card:CardSpec): Effect {
         effect: create(card)
     }
 }
-function supplyForCard(card:CardSpec, cost:Cost, triggers:Trigger[]=[]): CardSpec  {
+function supplyForCard(card:CardSpec, cost:Cost, triggers:Trigger<GameEvent>[]=[]): CardSpec  {
     return {name: card.name,
         fixedCost: cost,
         effect: (supply:Card) => gainCard(card),
@@ -1547,7 +1551,7 @@ function register(card:CardSpec, test:'test'|null=null):void {
 function buyable(card:CardSpec, n: number, test:'test'|null=null):void {
     register(supplyForCard(card, coin(n)), test)
 }
-function buyableAnd(card:CardSpec, n: number, triggers:Trigger[], test:'test'|null=null):void {
+function buyableAnd(card:CardSpec, n: number, triggers:Trigger<GameEvent>[], test:'test'|null=null):void {
     register(supplyForCard(card, coin(n), triggers), test)
 }
 
