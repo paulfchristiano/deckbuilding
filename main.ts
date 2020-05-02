@@ -34,33 +34,34 @@ interface RemoveTokensEvent { kind:'removeTokens', card:Card, token:string, remo
 interface AddTokenEvent {kind: 'addToken', card:Card, token:string}
 interface GameStartEvent {kind:'gameStart' }
 
-interface Events {'buy':BuyEvent; 'afterBuy':AfterBuyEvent; 'play':PlayEvent; 'afterPlay':AfterPlayEvent;
-    'create':CreateEvent; 'move':MoveEvent; 'recycle':RecycleEvent; 'draw':DrawEvent; 'discard':DiscardEvent;
-    'gainTime':GainTimeEvent; 'gainCoin':GainCoinEvent; 'gainPoints':GainPointsEvent;
-    'gainCharge': GainChargeEvent; 'removeTokens':RemoveTokensEvent; 'addToken':AddTokenEvent;
-    'gameStart': GameStartEvent}
-
 type GameEvent = BuyEvent | AfterBuyEvent | PlayEvent | AfterPlayEvent |
     CreateEvent | MoveEvent | RecycleEvent | DrawEvent | DiscardEvent |
     GainCoinEvent | GainTimeEvent | GainPointsEvent |
     GainChargeEvent | RemoveTokensEvent | AddTokenEvent |
     GameStartEvent
+type TypedTrigger = Trigger<BuyEvent> | Trigger<AfterBuyEvent> | Trigger<PlayEvent> | Trigger<AfterPlayEvent> |
+    Trigger<CreateEvent> | Trigger<MoveEvent> | Trigger<RecycleEvent> | Trigger<DrawEvent> | Trigger<DiscardEvent> |
+    Trigger<GainCoinEvent> | Trigger<GainTimeEvent> | Trigger<GainPointsEvent> |
+    Trigger<GainChargeEvent> | Trigger<RemoveTokensEvent> | Trigger<AddTokenEvent> |
+    Trigger<GameStartEvent>
 
 //e is an event that just happened
 //each card in play and aura can have a followup
 //NOTE: this is slow, we should cache triggers (in a dictionary by event type) if it becomes a problem
-function trigger<T extends keyof Events>(e:Events[T]): Transform {
+function trigger<T extends GameEvent>(e:T): Transform {
     return async function(state:State): Promise<State> {
         const initialState = state;
         for (const card of state.supply.concat(state.play)) {
-            for (const trigger of card.triggers()[e.kind] || []) {
-                const otherTrigger:Trigger<T> = trigger;
-                if (trigger.handles(e, initialState) && trigger.handles(e, state)) {
-                    state = state.log(`Triggering ${card}`)
-                    state = await withTracking(
-                        trigger.effect(e),
-                        {kind:'trigger', trigger:trigger, card:card}
-                    )(state)
+            for (const rawtrigger of card.triggers()) {
+                if (rawtrigger.kind == e.kind) {
+                    const trigger:Trigger<T> = ((rawtrigger as unknown) as Trigger<T>)
+                    if (trigger.handles(e, initialState) && trigger.handles(e, state)) {
+                        state = state.log(`Triggering ${card}`)
+                        state = await withTracking(
+                            trigger.effect(e),
+                            {kind:'trigger', trigger:trigger, card:card}
+                        )(state)
+                    }
                 }
             }
         }
@@ -125,20 +126,14 @@ interface Effect {
     effect: Transform;
 }
 
-type Triggers = {
-    [T in keyof Events]?: Trigger<T>[];
+type Triggers = TypedTrigger[];
 
-}
-
-interface Trigger <T extends keyof Events> {
+interface Trigger <T extends GameEvent = any> {
     description: string;
-    kind: Events[T][kind];
-    handles: (e:Events[T], s:State) => boolean;
-    effect: (e:Events[T]) => Transform;
+    kind: T['kind'];
+    handles: (e:T, s:State) => boolean;
+    effect: (e:T) => Transform;
 }
-
-type GenericTrigger = Trigger<keyof Events>
-
 
 interface Replacer{
     description: string;
@@ -277,7 +272,7 @@ class Card {
         }
     }
     triggers(): Triggers {
-        if (this.spec.triggers == undefined) return {}
+        if (this.spec.triggers == undefined) return []
         return this.spec.triggers(this)
     }
     abilities(): Ability[] {
@@ -699,8 +694,8 @@ function moveWholeZone(fromZone:ZoneName, toZone:PlaceName, loc:InsertLocation='
     }
 }
 
-function trash(card:Card, logged:boolean=false): Transform {
-    return move(card, null, 'end', logged)
+function trash(card:Card|null, logged:boolean=false): Transform {
+    return (card == null) ? noop : move(card, null, 'end', logged)
 }
 
 function recycle(cards:Card[]): Transform {
@@ -1547,7 +1542,7 @@ function gainCard(card:CardSpec): Effect {
         effect: create(card)
     }
 }
-function supplyForCard(card:CardSpec, cost:Cost, triggers:Trigger<keyof Events>[]=[]): CardSpec  {
+function supplyForCard(card:CardSpec, cost:Cost, triggers:Trigger[]=[]): CardSpec  {
     return {name: card.name,
         fixedCost: cost,
         effect: (supply:Card) => gainCard(card),
@@ -1562,7 +1557,7 @@ function register(card:CardSpec, test:'test'|null=null):void {
 function buyable(card:CardSpec, n: number, test:'test'|null=null):void {
     register(supplyForCard(card, coin(n)), test)
 }
-function buyableAnd(card:CardSpec, n: number, triggers:Trigger<keyof Events>[], test:'test'|null=null):void {
+function buyableAnd(card:CardSpec, n: number, triggers:Trigger[], test:'test'|null=null):void {
     register(supplyForCard(card, coin(n), triggers), test)
 }
 
@@ -1771,7 +1766,8 @@ register(relearn)
 const crafts:CardSpec = {name: 'Crafts',
     triggers: card => [{
         description: `After playing ${a(estate.name)}, +$1.`,
-        handles: e => (e.kind == 'afterPlay' && e.before.name == estate.name),
+        kind: 'afterPlay',
+        handles: e => (e.before.name == estate.name),
         effect: e => gainCoin(1),
     }]
 }
@@ -1780,7 +1776,8 @@ register(makeCard(crafts, time(2), true))
 const homestead:CardSpec = {name: 'Homesteading',
     triggers: card => [{
         description: `After playing ${a(estate.name)}, +1 card`,
-        handles: e => (e.kind == 'afterPlay' && e.before.name == estate.name),
+        kind: 'afterPlay',
+        handles: e => (e.before.name == estate.name),
         effect: e => draw(1)
     }]
 }
@@ -1859,7 +1856,8 @@ register(populate)
 const populism:CardSpec = {name: 'Populism',
     triggers: card => [{
         description: `After playing ${a(estate.name)}, play cards from your hand with total cost up to @.`,
-        handles: e => (e.kind == 'afterPlay' && e.before.name == estate.name),
+        kind:'afterPlay',
+        handles: e => (e.before.name == estate.name),
         effect: e => freeActions(1, card),
     }]
 }
@@ -1875,8 +1873,9 @@ const youngSmith:CardSpec = {name: 'Young Smith',
     triggers: card => [{
         description: 'Whenever you gain time, you may remove up to that many charge tokens from this.' +
             ' Draw a card per token removed, then if there are no charge tokens left discard this.',
-        handles: e => e.kind == 'gainTime',
-        effect: e => (e.kind != 'gainTime') ? noop : async function(state) {
+        kind: 'gainTime',
+        handles: () => true,
+        effect: e => async function(state) {
             const result = state.find(card)
             if (result.found) {
                 const options:ChoiceOption<number>[] = chooseNatural(Math.min(e.amount, result.card.charge) + 1)
@@ -1908,8 +1907,9 @@ const duplicate:CardSpec = {name: 'Duplicate',
     }),
     triggers: card => [{
         description: `After buying a card with a duplicate token on it, remove all duplicate tokens from it and buy it again.`,
-        handles: e => (e.kind == 'afterBuy' && e.after != null && countTokens(e.after, 'duplicate') > 0),
-        effect: e => doAll([removeTokens(e.after, 'duplicate'), e.after.buy(card)])
+        kind:'afterBuy',
+        handles: e => (e.after != null && countTokens(e.after, 'duplicate') > 0),
+        effect: e => (e.after != null) ? doAll([removeTokens(e.after, 'duplicate'), e.after.buy(card)]) : noop,
     }]
 }
 register(duplicate)
@@ -2061,7 +2061,7 @@ const shippingLane:CardSpec = {name: 'Shipping Lane',
         effect: doAll([
             gainCoin(2),
             nextTime('Shipping Lane', 'When you finish buying a card, discard this and buy it again if it still exists.',
-                e => e.kind == 'afterBuy', e => (e.after == null) ? noop : e.after.buy(card))
+                'afterBuy', (e:AfterBuyEvent) => true, (e:AfterBuyEvent) => (e.after == null) ? noop : e.after.buy(card))
         ])
     })
 }
@@ -2176,9 +2176,10 @@ const twin:CardSpec = {name: 'Twin',
         }
     }),
     triggers: card => [{
-        'description': `After playing a card with a twin token other than with this, if it's in your discard pile play it again.`,
-        'handles':e => (e.kind == 'afterPlay' && e.before.tokens.includes('twin') && e.source.id != card.id),
-        'effect':e => async function(state) {
+        description: `After playing a card with a twin token other than with this, if it's in your discard pile play it again.`,
+        kind: 'afterPlay',
+        handles:e => (e.before.tokens.includes('twin') && e.source.id != card.id),
+        effect:e => async function(state) {
             const result = state.find(e.before)
             console.log(card)
             console.log(e.source)
@@ -2202,21 +2203,22 @@ const blacksmith:CardSpec = {name: 'Blacksmith',
 }
 buyable(blacksmith, 2)
 
-function nextTime(name:string,
+function nextTime<T extends GameEvent>(name:string,
     description:string,
-    when: (e:GameEvent, state:State) => boolean,
-    what: (e:GameEvent)  => Transform
+    kind: T['kind'],
+    when: (e:T, state:State) => boolean,
+    what: (e:T)  => Transform
 ): Transform {
-    const spec:CardSpec = {
-        name:name,
-        triggers: card => [{
+    function triggers(card:Card): Trigger<T>[] {
+        return [{
             description: description,
-            handles: (e:GameEvent, state:State) => (when(e, state) && state.find(card).place == 'play'),
-            effect: (e:GameEvent) => doAll([trash(card), what(e)]),
+            kind: kind,
+            handles: (e:T, state:State) => (when(e, state) && state.find(card).place == 'play'),
+            effect: (e:T) => doAll([trash(card), what(e)]),
         }]
     }
+    const spec:CardSpec = ({name:name, triggers: triggers} as unknown) as CardSpec
     return create(spec, 'play')
-
 }
 
 const expedite:CardSpec = {name: 'Expedite',
@@ -2226,9 +2228,10 @@ const expedite:CardSpec = {name: 'Expedite',
             ' Put a charge token on this. It costs $1 more per charge token on it.',
         effect: doAll([
             nextTime('Expedite', "When you create a card, if it's in your discard pile" +
-                         " then trash this and put it into your hand.",
-                         (e, state) => (e.kind == 'create' && state.find(e.card).place == 'discard'),
-                         e => move(e.card, 'hand')),
+                " then trash this and put it into your hand.",
+                'create',
+                 (e:CreateEvent, state) => (state.find(e.card).place == 'discard'),
+                 (e:CreateEvent) => move(e.card, 'hand')),
             charge(card, 1),
         ])
     })
@@ -2268,7 +2271,8 @@ const gainCursedKingdom:CardSpec = {name: 'Cursed Kingdom',
     }),
     triggers: card => [{
         description: `Whenever you put a ${card.name} into your hand, +@ for each charge token on it.`,
-        handles: e => (e.kind == 'move' && e.card.name == card.name && e.toZone == 'hand'),
+        kind:'move',
+        handles: e => (e.card.name == card.name && e.toZone == 'hand'),
         effect: e => gainTime(e.card.charge)
     }]
 }
@@ -2278,7 +2282,8 @@ const junkyard:CardSpec = {name: 'Junkyard',
     fixedCost: time(0),
     triggers: card => [{
         description: 'Whenever you trash a card, +1 vp.',
-        handles: e => (e.kind == 'move' && e.toZone == null),
+        kind:'move',
+        handles: e => (e.toZone == null),
         effect: e => gainPoints(1)
     }]
 }
@@ -2291,7 +2296,8 @@ const synergy:CardSpec = {name:'Synergy',
     triggers: card => [{
         description: 'Whenever you buy a card with a synergy token other than with this,'
         + ' afterwards buy a different card with a synergy token with equal or lesser cost.',
-        handles: e => (e.kind == 'afterBuy' && e.source.id != card.id && countTokens(e.before, 'synergy') > 0),
+        kind:'afterBuy',
+        handles: e => (e.source.id != card.id && countTokens(e.before, 'synergy') > 0),
         effect: e => async function(state) {
             const options:Card[] = state.supply.filter(
                 c => countTokens(c, 'synergy') > 0 
@@ -2354,10 +2360,11 @@ buyable(bustlingSquare, 6)
 
 function ensureInSupply(spec:CardSpec): Trigger {
     return {
-        'description': `At the beginning of the game, add ${spec.name} to the supply` +
+        description: `At the beginning of the game, add ${spec.name} to the supply` +
             ` if it isn't already there.`,
-        'handles': e => (e.kind == 'gameStart'),
-        'effect': e => async function(state) {
+        kind:'gameStart',
+        handles: () => true,
+        effect: e => async function(state) {
             if (state.supply.every(c => c.name != spec.name)) state = await create(spec, 'supply')(state)
             return state
         }
@@ -2461,7 +2468,8 @@ const roadNetwork:CardSpec = {name: 'Road Network',
     triggers: _ => [{
         description: "Whenever you create a card," +
             " if it's in your discard pile then move it to the top of your deck.",
-        handles: (e, state) => (e.kind == 'create' && state.find(e.card).place == 'discard'),
+        kind:'create',
+        handles: (e, state) => (state.find(e.card).place == 'discard'),
         effect: e => move(e.card, 'deck', 'top')
     }]
 }
@@ -2471,7 +2479,8 @@ const formation:CardSpec = {name: 'Formation',
     fixedCost: time(0),
     triggers: card => [{
         description: `When you finish playing a card other than with ${formation.name}, if it costs @ or more then you may play a card in your hand with the same name.`,
-        handles: e => (e.kind == 'afterPlay' && e.source.name != formation.name),
+        kind: 'afterPlay',
+        handles: e => (e.source.name != formation.name),
         effect: e => async function(state) {
             if (e.before.cost(state).time == 0) return state
             const cardOptions = state.hand.filter(x => (x.name == e.before.name))
@@ -2567,9 +2576,8 @@ const innovation:CardSpec = {name: "Innovation",
     triggers: card => [{
         description: "Whenever you create a card, if it's in your discard pile and this has an innovate token on it:" +
         " remove an innovate token from this, discard your hand, lose all $, and play the card.",
-        handles: (e, state) => (e.kind == 'create'
-            && countTokens(card, 'innovate') > 0
-            && state.find(e.card).place == 'discard'),
+        kind:'create',
+        handles: (e, state) => (countTokens(card, 'innovate') > 0 && state.find(e.card).place == 'discard'),
         effect: e => doAll([
             removeOneToken(card, 'innovate'),
             moveWholeZone('hand', 'discard'),
@@ -2588,9 +2596,12 @@ register(makeCard(innovation, {coin:7, time:0}, true))
 const citadel:CardSpec = {name: "Citadel",
     triggers: card => [{
         description: `After playing a card the normal way, if it's the only card in your discard pile, play it again.`,
-        handles: (e, state) => (e.kind == 'afterPlay' && e.source.name == 'act'
-            && state.discard.length == 1 && state.find(e.after).place == 'discard'),
-        effect: e => e.after.play(card),
+        kind:'afterPlay',
+        handles: (e, state) => (e.source.name == 'act' && state.discard.length == 1),
+        effect: e => async function(state) {
+            if (e.after != null && state.find(e.after).place == 'discard') state = await e.after.play(card)(state)
+            return state
+        }
     }]
 }
 register(makeCard(citadel, {coin:8, time:0}, true))
@@ -2797,7 +2808,8 @@ const pathfinding:CardSpec = {name: 'Pathfinding',
     }),
     triggers: card => [{
         description: 'Whenever you play a card, draw a card per path token on it.',
-        handles:e => (e.kind == 'play' && e.card.tokens.includes('path')),
+        kind:'play',
+        handles:e => e.card.tokens.includes('path'),
         effect:e => draw(countTokens(e.card, 'path'))
     }],
 }
@@ -2829,11 +2841,13 @@ const decay:CardSpec = {name: 'Decay',
     }),
     triggers: card => [{
         description: 'Whenever you recycle a card, put a decay token on it.',
-        handles: e => (e.kind == 'recycle'),
+        kind: 'recycle',
+        handles: () => true,
         effect: e => doAll(e.cards.map((c:Card) => addToken(c, 'decay')))
     }, {
         description: 'After you play a card, if it has 3 or more decay tokens on it trash it.',
-        handles: e => (e.kind == 'afterPlay' && e.after != null && countTokens(e.after, 'decay') >= 3),
+        kind: 'afterPlay',
+        handles: e => (e.after != null && countTokens(e.after, 'decay') >= 3),
         effect: e => trash(e.after),
     }]
 }
@@ -2895,10 +2909,11 @@ function createIfNeeded(spec:CardSpec): Transform {
     }
 
 }
-function ensureInPlay(spec:CardSpec): Trigger {
+function ensureInPlay(spec:CardSpec): Trigger<GameStartEvent> {
     return {
         description: `At the start of the game, create ${a(spec.name)} in play if there isn't one.`,
-        handles: e => e.kind == 'gameStart',
+        kind:'gameStart',
+        handles: ()=>true,
         effect: e => createIfNeeded(spec)
     }
 }
@@ -3052,7 +3067,8 @@ const publicWorksReduction:CardSpec = {name: 'Public Works',
     }],
     triggers: card => [{
         description:"When you buy a card, trash this.",
-        handles: e => (e.kind == 'buy'),
+        kind:'buy',
+        handles: () => true,
         effect: e => trash(card)
     }]
 }
@@ -3081,7 +3097,8 @@ const makeSleigh:CardSpec = {name: 'Sleigh',
             description: `Whenever you create a card, `
                 + ` if it's in your discard pile and you have ${a(sleigh.name)} in your hand,`
                 + ` you may discard the ${sleigh.name} to put the new card into your hand.`,
-            handles: (e, state) => (e.kind == 'create' && state.find(e.card).place == 'discard'),
+            kind: 'create',
+            handles: (e, state) => (state.find(e.card).place == 'discard'),
             effect: e => async function(state) {
                 const options: Card[] = state.hand.filter(x => x.name == sleigh.name)
                 let target; [state, target] = await choice(state, 'Discard a sleigh?',
@@ -3192,7 +3209,8 @@ const burden:CardSpec = {name: 'Burden',
     }),
     triggers: card => [{
         description: 'Whenever you buy a card costing $, put a burden token on it.',
-        handles: (e, state) => (e.kind == 'buy' && e.card.cost(state).coin >= 1),
+        kind:'buy',
+        handles: (e, state) => (card.cost(state).coin >= 1),
         effect: e => addToken(e.card, 'burden')
     }],
     replacers: card => [{
@@ -3230,7 +3248,8 @@ buyable(chancellor, 4)
 const barracks:CardSpec = {name: 'Barracks',
     triggers: card => [{
         description: 'Whenever you draw 4 or more cards, play cards from your hand with total cost up to @.',
-        handles: e => (e.kind == 'draw' && e.drawn >= 4),
+        kind: 'draw',
+        handles: e => e.drawn >= 4,
         effect: e => freeActions(1, card)
     }]
 }
@@ -3239,7 +3258,8 @@ register(makeCard(barracks, coin(5)))
 const composting:CardSpec = {name: 'Composting',
     triggers: card => [{
         description: 'Whenever you gain time, you may recycle that many cards from your discard pile.',
-        handles: e => (e.kind == 'gainTime' && e.amount > 0),
+        kind: 'gainTime',
+        handles: e => e.amount > 0,
         effect: e => async function(state) {
             const n = e.amount;
             const prompt = (n == 1) ? 'Choose a card to recycle.' : `Choose up to ${n} cards to recycle`
