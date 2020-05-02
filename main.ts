@@ -29,34 +29,38 @@ interface DrawEvent {kind:'draw', cards:Card[], drawn:number, triedToDraw:number
 interface GainTimeEvent {kind:'gainTime', amount:number}
 interface GainCoinEvent {kind:'gainCoin', amount:number, cost:boolean}
 interface GainPointsEvent {kind:'gainPoints', amount:number, source:Source}
-interface ChargeChangeEvent {kind:'chargeChange', card:Card, oldCharge:number, newCharge:number, cost:boolean}
+interface GainChargeEvent {kind:'gainCharge', card:Card, oldCharge:number, newCharge:number, cost:boolean}
 interface RemoveTokensEvent { kind:'removeTokens', card:Card, token:string, removed:number }
 interface AddTokenEvent {kind: 'addToken', card:Card, token:string}
 interface GameStartEvent {kind:'gameStart' }
 
+interface Events {'buy':BuyEvent; 'afterBuy':AfterBuyEvent; 'play':PlayEvent; 'afterPlay':AfterPlayEvent;
+    'create':CreateEvent; 'move':MoveEvent; 'recycle':RecycleEvent; 'draw':DrawEvent; 'discard':DiscardEvent;
+    'gainTime':GainTimeEvent; 'gainCoin':GainCoinEvent; 'gainPoints':GainPointsEvent;
+    'gainCharge': GainChargeEvent; 'removeTokens':RemoveTokensEvent; 'addToken':AddTokenEvent;
+    'gameStart': GameStartEvent}
+
 type GameEvent = BuyEvent | AfterBuyEvent | PlayEvent | AfterPlayEvent |
     CreateEvent | MoveEvent | RecycleEvent | DrawEvent | DiscardEvent |
     GainCoinEvent | GainTimeEvent | GainPointsEvent |
-    ChargeChangeEvent | RemoveTokensEvent | AddTokenEvent |
+    GainChargeEvent | RemoveTokensEvent | AddTokenEvent |
     GameStartEvent
 
 //e is an event that just happened
 //each card in play and aura can have a followup
 //NOTE: this is slow, we should cache triggers (in a dictionary by event type) if it becomes a problem
-function trigger<E extends GameEvent>(e:E): Transform {
+function trigger<T extends keyof Events>(e:Events[T]): Transform {
     return async function(state:State): Promise<State> {
         const initialState = state;
         for (const card of state.supply.concat(state.play)) {
-            for (const trigger of card.triggers()) {
-                if (trigger.kind == e.kind) {
-                    const typedTrigger:Trigger<E> = trigger
-                    if (typedTrigger.handles(e, initialState) && typedTrigger.handles(e, state)) {
-                        state = state.log(`Triggering ${card}`)
-                        state = await withTracking(
-                            typedTrigger.effect(e),
-                            {kind:'trigger', trigger:trigger, card:card}
-                        )(state)
-                    }
+            for (const trigger of card.triggers()[e.kind] || []) {
+                const otherTrigger:Trigger<T> = trigger;
+                if (trigger.handles(e, initialState) && trigger.handles(e, state)) {
+                    state = state.log(`Triggering ${card}`)
+                    state = await withTracking(
+                        trigger.effect(e),
+                        {kind:'trigger', trigger:trigger, card:card}
+                    )(state)
                 }
             }
         }
@@ -103,7 +107,7 @@ interface CardSpec {
     calculatedCost?: (card:Card, state:State) => Cost;
     relatedCards?: CardSpec[];
     effect?: (card:Card) => Effect;
-    triggers?: (card:Card) => Trigger<GameEvent>[];
+    triggers?: (card:Card) => Triggers;
     abilities?: (card:Card) => Ability[];
     replacers?: (card:Card) => Replacer[];
 }
@@ -121,12 +125,19 @@ interface Effect {
     effect: Transform;
 }
 
-interface Trigger <E extends GameEvent> {
-    description: string;
-    kind: string;
-    handles: (e:E, s:State) => boolean;
-    effect: (e:E) => Transform;
+type Triggers = {
+    [T in keyof Events]?: Trigger<T>[];
+
 }
+
+interface Trigger <T extends keyof Events> {
+    description: string;
+    kind: Events[T][kind];
+    handles: (e:Events[T], s:State) => boolean;
+    effect: (e:Events[T]) => Transform;
+}
+
+type GenericTrigger = Trigger<keyof Events>
 
 
 interface Replacer{
@@ -265,8 +276,8 @@ class Card {
             return state
         }
     }
-    triggers(): Trigger<GameEvent>[] {
-        if (this.spec.triggers == undefined) return []
+    triggers(): Triggers {
+        if (this.spec.triggers == undefined) return {}
         return this.spec.triggers(this)
     }
     abilities(): Ability[] {
@@ -877,7 +888,7 @@ function charge(card:Card, n:number, cost:boolean=false): Transform {
         state = logChange(state, 'charge token', newCharge - oldCharge,
             ['Added ', ` to ${card.name}`], 
             ['Removed ', ` from ${card.name}`])
-        return trigger({kind:'chargeChange', card:card,
+        return trigger({kind:'gainCharge', card:card,
             oldCharge:oldCharge, newCharge:newCharge, cost:cost})(state)
     }
 }
@@ -1536,7 +1547,7 @@ function gainCard(card:CardSpec): Effect {
         effect: create(card)
     }
 }
-function supplyForCard(card:CardSpec, cost:Cost, triggers:Trigger<GameEvent>[]=[]): CardSpec  {
+function supplyForCard(card:CardSpec, cost:Cost, triggers:Trigger<keyof Events>[]=[]): CardSpec  {
     return {name: card.name,
         fixedCost: cost,
         effect: (supply:Card) => gainCard(card),
@@ -1551,7 +1562,7 @@ function register(card:CardSpec, test:'test'|null=null):void {
 function buyable(card:CardSpec, n: number, test:'test'|null=null):void {
     register(supplyForCard(card, coin(n)), test)
 }
-function buyableAnd(card:CardSpec, n: number, triggers:Trigger<GameEvent>[], test:'test'|null=null):void {
+function buyableAnd(card:CardSpec, n: number, triggers:Trigger<keyof Events>[], test:'test'|null=null):void {
     register(supplyForCard(card, coin(n), triggers), test)
 }
 

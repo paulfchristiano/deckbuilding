@@ -96,7 +96,7 @@ function updates(x, y) {
 function trigger(e) {
     return function (state) {
         return __awaiter(this, void 0, void 0, function () {
-            var initialState, _a, _b, card, _c, _d, trigger_1, e_1_1, e_2_1;
+            var initialState, _a, _b, card, _c, _d, trigger_1, otherTrigger, e_1_1, e_2_1;
             var e_2, _e, e_1, _f;
             return __generator(this, function (_g) {
                 switch (_g.label) {
@@ -113,11 +113,12 @@ function trigger(e) {
                         _g.label = 3;
                     case 3:
                         _g.trys.push([3, 8, 9, 10]);
-                        _c = (e_1 = void 0, __values(card.triggers())), _d = _c.next();
+                        _c = (e_1 = void 0, __values(card.triggers()[e.kind] || [])), _d = _c.next();
                         _g.label = 4;
                     case 4:
                         if (!!_d.done) return [3 /*break*/, 7];
                         trigger_1 = _d.value;
+                        otherTrigger = trigger_1;
                         if (!(trigger_1.handles(e, initialState) && trigger_1.handles(e, state))) return [3 /*break*/, 6];
                         state = state.log("Triggering " + card);
                         return [4 /*yield*/, withTracking(trigger_1.effect(e), { kind: 'trigger', trigger: trigger_1, card: card })(state)];
@@ -353,7 +354,7 @@ var Card = /** @class */ (function () {
     };
     Card.prototype.triggers = function () {
         if (this.spec.triggers == undefined)
-            return [];
+            return {};
         return this.spec.triggers(this);
     };
     Card.prototype.abilities = function () {
@@ -1024,7 +1025,7 @@ function charge(card, n, cost) {
                 newCharge = Math.max(oldCharge + n, 0);
                 state = state.apply(function (card) { return card.update({ charge: newCharge }); }, card);
                 state = logChange(state, 'charge token', newCharge - oldCharge, ['Added ', " to " + card.name], ['Removed ', " from " + card.name]);
-                return [2 /*return*/, trigger({ kind: 'chargeChange', card: card,
+                return [2 /*return*/, trigger({ kind: 'gainCharge', card: card,
                         oldCharge: oldCharge, newCharge: newCharge, cost: cost })(state)];
             });
         });
