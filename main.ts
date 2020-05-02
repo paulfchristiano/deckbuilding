@@ -40,8 +40,6 @@ type GameEvent = BuyEvent | AfterBuyEvent | PlayEvent | AfterPlayEvent |
     ChargeChangeEvent | RemoveTokensEvent | AddTokenEvent |
     GameStartEvent
 
-
-
 //e is an event that just happened
 //each card in play and aura can have a followup
 //NOTE: this is slow, we should cache triggers (in a dictionary by event type) if it becomes a problem
