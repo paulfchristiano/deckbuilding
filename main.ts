@@ -69,11 +69,18 @@ function trigger<T extends GameEvent>(e:T): Transform {
     }
 }
 
+interface GainPointsParams {kind:'gainPoints', points:number, effects:Transform[], source:Source}
+interface CostParams {kind:'cost', card:Card, cost:Cost}
+interface DrawParams {kind:'draw', draw:number, source:Source, effects:Transform[]}
+
+type Params = GainPointsParams | CostParams | DrawParams
+type TypedReplacer = Replacer<GainPointsParams> | Replacer<CostParams> | Replacer<DrawParams>
+
 //TODO: this should maybe be async and return a new state?
 //(e.g. the "put it into your hand" should maybe be replacement effects)
 //x is an event that is about to happen
 //each card in play or supply can change properties of x
-function replace(x: Params, state: State): Params {
+function replace<T extends Params>(x: Params, state: State): Params {
     var replacers = state.supply.concat(state.play).map(x => x.replacers()).flat()
     for (var i = 0; i < replacers.length; i++) {
         const replacer = replacers[i]
@@ -108,9 +115,9 @@ interface CardSpec {
     calculatedCost?: (card:Card, state:State) => Cost;
     relatedCards?: CardSpec[];
     effect?: (card:Card) => Effect;
-    triggers?: (card:Card) => Triggers;
+    triggers?: (card:Card) => TypedTrigger[];
     abilities?: (card:Card) => Ability[];
-    replacers?: (card:Card) => Replacer[];
+    replacers?: (card:Card) => TypedReplacer[];
 }
 
 interface Cost {
@@ -135,10 +142,10 @@ interface Trigger <T extends GameEvent = any> {
     effect: (e:T) => Transform;
 }
 
-interface Replacer{
+interface Replacer <T extends Params = any> {
     description: string;
-    handles: (p:Params, s:State) => boolean;
-    replace: (p:Params, s:State) => Params;
+    handles: (p:T, s:State) => boolean;
+    replace: (p:T, s:State) => T;
 }
 
 interface Ability {
@@ -2016,7 +2023,7 @@ const canal:CardSpec = {name: 'Canal',
     replacers: card => [{
         description: 'Cards in the supply cost $1 less, unless it would make them cost 0.',
         handles: p => (p.type == 'cost'),
-        replace: p => updates(p, {cost: reduceCoinNonzero(p.cost, 1)})
+        replace: p => ({...p, cost: reduceCoinNonzero(p.cost, 1)})
     }]
 }
 register(makeCard(canal, {coin:7, time:1}))
