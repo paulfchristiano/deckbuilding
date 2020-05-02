@@ -3717,7 +3717,7 @@ var makeInflation = { name: 'Inflation',
     fixedCost: time(3),
     relatedCards: [inflation],
     effect: function (card) { return ({
-        description: '+$15. Create an inflation in play. Trash this.',
+        description: "+$15. Create an " + inflation.name + " in play. Trash this.",
         effect: doAll([gainCoin(15), create(inflation, 'play'), trash(card)]),
     }); }
 };
