@@ -285,12 +285,12 @@ var Card = /** @class */ (function () {
                             state = _a.sent();
                             state = state.log("Buying " + card.name);
                             return [4 /*yield*/, withTracking(doAll([
-                                    trigger({ type: 'buy', card: card, source: source }),
+                                    trigger({ kind: 'buy', card: card, source: source }),
                                     card.effect().effect,
                                 ]), { kind: 'effect', card: card })(state)];
                         case 2:
                             state = _a.sent();
-                            return [4 /*yield*/, trigger({ type: 'afterBuy', before: card, after: state.find(card).card, source: source })(state)];
+                            return [4 /*yield*/, trigger({ kind: 'afterBuy', before: card, after: state.find(card).card, source: source })(state)];
                         case 3:
                             state = _a.sent();
                             return [2 /*return*/, state];
@@ -324,7 +324,7 @@ var Card = /** @class */ (function () {
                                     return __awaiter(this, void 0, void 0, function () {
                                         return __generator(this, function (_a) {
                                             switch (_a.label) {
-                                                case 0: return [4 /*yield*/, trigger({ type: 'play', card: card, source: source })(state)];
+                                                case 0: return [4 /*yield*/, trigger({ kind: 'play', card: card, source: source })(state)];
                                                 case 1:
                                                     state = _a.sent();
                                                     return [4 /*yield*/, effect.effect(state)];
@@ -342,7 +342,7 @@ var Card = /** @class */ (function () {
                             return [4 /*yield*/, move(card, toZone, toLoc, toZone == 'discard')(state)];
                         case 3:
                             state = _a.sent();
-                            return [4 /*yield*/, trigger({ type: 'afterPlay', before: card, after: state.find(card).card, source: source })(state)];
+                            return [4 /*yield*/, trigger({ kind: 'afterPlay', before: card, after: state.find(card).card, source: source })(state)];
                         case 4:
                             state = _a.sent();
                             return [2 /*return*/, state];
@@ -452,6 +452,9 @@ var State = /** @class */ (function () {
             return f(c);
         }
         return this.update({ zones: newZones, resolving: this.resolving.map(fOnCard) });
+    };
+    State.prototype.replace = function (oldCard, newCard) {
+        return this.apply(function (_) { return newCard; }, oldCard);
     };
     State.prototype.setCoin = function (n) {
         return this.update({ counters: { coin: n, time: this.time, points: this.points } });
@@ -656,7 +659,7 @@ function create(spec, zone, loc) {
                 card = new Card(spec, id);
                 state = state.addToZone(card, zone, loc);
                 state = state.log("Created " + a(card.name) + " in " + zone);
-                return [2 /*return*/, trigger({ type: 'create', card: card, zone: zone })(state)];
+                return [2 /*return*/, trigger({ kind: 'create', card: card, zone: zone })(state)];
             });
         });
     };
@@ -683,7 +686,7 @@ function move(card, toZone, loc, logged) {
                             if (!logged)
                                 state = state.log("Moved " + card_1.name + " from " + result.place + " to " + toZone);
                         }
-                        return [4 /*yield*/, trigger({ type: 'move', fromZone: result.place, toZone: toZone, loc: loc, card: card_1 })(state)];
+                        return [4 /*yield*/, trigger({ kind: 'move', fromZone: result.place, toZone: toZone, loc: loc, card: card_1 })(state)];
                     case 1:
                         state = _a.sent();
                         _a.label = 2;
@@ -749,7 +752,7 @@ function recycle(cards) {
                         return [4 /*yield*/, moveMany(cards, 'deck', 'bottom', true)(state)];
                     case 1:
                         state = _b.sent();
-                        return [4 /*yield*/, trigger({ type: 'recycle', cards: cards })(state)];
+                        return [4 /*yield*/, trigger({ kind: 'recycle', cards: cards })(state)];
                     case 2:
                         state = _b.sent();
                         return [2 /*return*/, state];
@@ -793,7 +796,7 @@ function draw(n, source) {
                         if (drawn.length > 0) {
                             state = state.log("Drew " + showCards(drawn));
                         }
-                        return [2 /*return*/, trigger({ type: 'draw', drawn: drawn.length, triedToDraw: n, source: source })(state)];
+                        return [2 /*return*/, trigger({ kind: 'draw', drawn: drawn.length, cards: drawn, triedToDraw: n, source: source })(state)];
                 }
             });
         });
@@ -819,7 +822,7 @@ function discard(n) {
                         return [4 /*yield*/, moveMany(cards, 'discard')(state)];
                     case 4:
                         state = _c.sent();
-                        return [2 /*return*/, trigger({ type: 'discard', cards: cards })(state)];
+                        return [2 /*return*/, trigger({ kind: 'discard', cards: cards })(state)];
                 }
             });
         });
@@ -878,7 +881,7 @@ function gainTime(n) {
                 state = state.setTime(state.time + n);
                 if (n != 0)
                     state = state.log("Gained " + renderTime(n));
-                return [2 /*return*/, trigger({ type: 'gainTime', amount: n })(state)];
+                return [2 /*return*/, trigger({ kind: 'gainTime', amount: n })(state)];
             });
         });
     };
@@ -902,7 +905,7 @@ function gainPoints(n, source) {
                             state = state.log(n > 0 ? "Gained " + n + " vp" : "Lost " + -n + " vp");
                         if (state.points >= 50)
                             throw new Victory(state);
-                        return [2 /*return*/, trigger({ type: 'gainPoints', points: n, source: source })(state)];
+                        return [2 /*return*/, trigger({ kind: 'gainPoints', amount: n, source: source })(state)];
                 }
             });
         });
@@ -921,7 +924,7 @@ function gainCoin(n, cost) {
                 state = state.setCoin(state.coin + n);
                 if (n != 0)
                     state = state.log(n > 0 ? "Gained $" + n : "Lost $" + -n);
-                return [2 /*return*/, trigger({ type: 'gainCoin', amount: n, cost: cost })(state)];
+                return [2 /*return*/, trigger({ kind: 'gainCoin', amount: n, cost: cost })(state)];
             });
         });
     };
@@ -1021,7 +1024,7 @@ function charge(card, n, cost) {
                 newCharge = Math.max(oldCharge + n, 0);
                 state = state.apply(function (card) { return card.update({ charge: newCharge }); }, card);
                 state = logChange(state, 'charge token', newCharge - oldCharge, ['Added ', " to " + card.name], ['Removed ', " from " + card.name]);
-                return [2 /*return*/, trigger({ type: 'chargeChange', card: card,
+                return [2 /*return*/, trigger({ kind: 'chargeChange', card: card,
                         oldCharge: oldCharge, newCharge: newCharge, cost: cost })(state)];
             });
         });
@@ -1033,10 +1036,12 @@ function logTokenChange(state, card, token, n) {
 function addToken(card, token) {
     return function (state) {
         return __awaiter(this, void 0, void 0, function () {
+            var newCard;
             return __generator(this, function (_a) {
-                state = state.apply(function (card) { return card.update({ tokens: card.tokens.concat([token]) }); }, card);
+                newCard = card.update({ tokens: card.tokens.concat([token]) });
+                state = state.replace(card, newCard);
                 state = logTokenChange(state, card, token, 1);
-                return [2 /*return*/, trigger({ type: 'addToken', card: card, token: token })(state)];
+                return [2 /*return*/, trigger({ kind: 'addToken', card: newCard, token: token })(state)];
             });
         });
     };
@@ -1054,12 +1059,13 @@ function countTokens(card, token) {
 function removeTokens(card, token) {
     return function (state) {
         return __awaiter(this, void 0, void 0, function () {
-            var removed;
+            var removed, newCard;
             return __generator(this, function (_a) {
                 removed = countTokens(card, token);
-                state = state.apply(function (card) { return card.update({ tokens: card.tokens.filter(function (x) { return (x != token); }) }); }, card);
+                newCard = card.update({ tokens: card.tokens.filter(function (x) { return (x != token); }) });
+                state = state.replace(card, newCard);
                 state = logTokenChange(state, card, token, -removed);
-                return [2 /*return*/, trigger({ type: 'removeTokens', token: token, removed: removed })(state)];
+                return [2 /*return*/, trigger({ kind: 'removeTokens', card: newCard, token: token, removed: removed })(state)];
             });
         });
     };
@@ -1076,12 +1082,13 @@ function removeOneToken(card, token) {
                 }
                 return tokens;
             }
-            var removed;
+            var removed, newCard;
             return __generator(this, function (_a) {
                 removed = 0;
-                state = state.apply(function (card) { return card.update({ tokens: removeOneToken(card.tokens) }); }, card);
+                newCard = card.update({ tokens: removeOneToken(card.tokens) });
+                state = state.replace(card, newCard);
                 state = logTokenChange(state, card, token, -removed);
-                return [2 /*return*/, trigger({ type: 'removeTokens', token: token, removed: removed })(state)];
+                return [2 /*return*/, trigger({ kind: 'removeTokens', card: newCard, token: token, removed: removed })(state)];
             });
         });
     };
@@ -1692,7 +1699,7 @@ function playGame(seed) {
                     return [4 /*yield*/, doAll(kingdom.map(function (x) { return create(x, 'supply'); }))(state)];
                 case 2:
                     state = _c.sent();
-                    return [4 /*yield*/, trigger({ type: 'gameStart' })(state)];
+                    return [4 /*yield*/, trigger({ kind: 'gameStart' })(state)];
                 case 3:
                     state = _c.sent();
                     state = state.log("Setup done, game starting");
@@ -2015,7 +2022,7 @@ register(relearn);
 var crafts = { name: 'Crafts',
     triggers: function (card) { return [{
             description: "After playing " + a(estate.name) + ", +$1.",
-            handles: function (e) { return (e.type == 'afterPlay' && e.before.name == estate.name); },
+            handles: function (e) { return (e.kind == 'afterPlay' && e.before.name == estate.name); },
             effect: function (e) { return gainCoin(1); },
         }]; }
 };
@@ -2023,7 +2030,7 @@ register(makeCard(crafts, time(2), true));
 var homestead = { name: 'Homesteading',
     triggers: function (card) { return [{
             description: "After playing " + a(estate.name) + ", +1 card",
-            handles: function (e) { return (e.type == 'afterPlay' && e.before.name == estate.name); },
+            handles: function (e) { return (e.kind == 'afterPlay' && e.before.name == estate.name); },
             effect: function (e) { return draw(1); }
         }]; }
 };
@@ -2149,7 +2156,7 @@ register(populate);
 var populism = { name: 'Populism',
     triggers: function (card) { return [{
             description: "After playing " + a(estate.name) + ", play cards from your hand with total cost up to @.",
-            handles: function (e) { return (e.type == 'afterPlay' && e.before.name == estate.name); },
+            handles: function (e) { return (e.kind == 'afterPlay' && e.before.name == estate.name); },
             effect: function (e) { return freeActions(1, card); },
         }]; }
 };
@@ -2164,8 +2171,8 @@ var youngSmith = { name: 'Young Smith',
     triggers: function (card) { return [{
             description: 'Whenever you gain time, you may remove up to that many charge tokens from this.' +
                 ' Draw a card per token removed, then if there are no charge tokens left discard this.',
-            handles: function (e) { return e.type == 'gainTime'; },
-            effect: function (e) { return function (state) {
+            handles: function (e) { return e.kind == 'gainTime'; },
+            effect: function (e) { return (e.kind != 'gainTime') ? noop : function (state) {
                 return __awaiter(this, void 0, void 0, function () {
                     var result, options, m, n, after;
                     var _a;
@@ -2214,7 +2221,7 @@ var duplicate = { name: 'Duplicate',
     }); },
     triggers: function (card) { return [{
             description: "After buying a card with a duplicate token on it, remove all duplicate tokens from it and buy it again.",
-            handles: function (e) { return (e.type == 'afterBuy' && e.after != null && countTokens(e.after, 'duplicate') > 0); },
+            handles: function (e) { return (e.kind == 'afterBuy' && e.after != null && countTokens(e.after, 'duplicate') > 0); },
             effect: function (e) { return doAll([removeTokens(e.after, 'duplicate'), e.after.buy(card)]); }
         }]; }
 };
@@ -2398,7 +2405,7 @@ var shippingLane = { name: 'Shipping Lane',
         description: "+$2. Next time you finish buying a card, buy it again if it still exists.",
         effect: doAll([
             gainCoin(2),
-            nextTime('Shipping Lane', 'When you finish buying a card, discard this and buy it again if it still exists.', function (e) { return e.type == 'afterBuy'; }, function (e) { return (e.after == null) ? noop : e.after.buy(card); })
+            nextTime('Shipping Lane', 'When you finish buying a card, discard this and buy it again if it still exists.', function (e) { return e.kind == 'afterBuy'; }, function (e) { return (e.after == null) ? noop : e.after.buy(card); })
         ])
     }); }
 };
@@ -2558,7 +2565,7 @@ var twin = { name: 'Twin',
     }); },
     triggers: function (card) { return [{
             'description': "After playing a card with a twin token other than with this, if it's in your discard pile play it again.",
-            'handles': function (e) { return (e.type == 'afterPlay' && e.before.tokens.includes('twin') && e.source.id != card.id); },
+            'handles': function (e) { return (e.kind == 'afterPlay' && e.before.tokens.includes('twin') && e.source.id != card.id); },
             'effect': function (e) { return function (state) {
                 return __awaiter(this, void 0, void 0, function () {
                     var result;
@@ -2617,7 +2624,7 @@ var expedite = { name: 'Expedite',
             ' Put a charge token on this. It costs $1 more per charge token on it.',
         effect: doAll([
             nextTime('Expedite', "When you create a card, if it's in your discard pile" +
-                " then trash this and put it into your hand.", function (e, state) { return (e.type == 'create' && state.find(e.card).place == 'discard'); }, function (e) { return move(e.card, 'hand'); }),
+                " then trash this and put it into your hand.", function (e, state) { return (e.kind == 'create' && state.find(e.card).place == 'discard'); }, function (e) { return move(e.card, 'hand'); }),
             charge(card, 1),
         ])
     }); }
@@ -2654,7 +2661,7 @@ var gainCursedKingdom = { name: 'Cursed Kingdom',
     }); },
     triggers: function (card) { return [{
             description: "Whenever you put a " + card.name + " into your hand, +@ for each charge token on it.",
-            handles: function (e) { return (e.type == 'move' && e.card.name == card.name && e.toZone == 'hand'); },
+            handles: function (e) { return (e.kind == 'move' && e.card.name == card.name && e.toZone == 'hand'); },
             effect: function (e) { return gainTime(e.card.charge); }
         }]; }
 };
@@ -2663,7 +2670,7 @@ var junkyard = { name: 'Junkyard',
     fixedCost: time(0),
     triggers: function (card) { return [{
             description: 'Whenever you trash a card, +1 vp.',
-            handles: function (e) { return (e.type == 'move' && e.toZone == null); },
+            handles: function (e) { return (e.kind == 'move' && e.toZone == null); },
             effect: function (e) { return gainPoints(1); }
         }]; }
 };
@@ -2675,7 +2682,7 @@ var synergy = { name: 'Synergy',
     triggers: function (card) { return [{
             description: 'Whenever you buy a card with a synergy token other than with this,'
                 + ' afterwards buy a different card with a synergy token with equal or lesser cost.',
-            handles: function (e) { return (e.type == 'afterBuy' && e.source.id != card.id && countTokens(e.before, 'synergy') > 0); },
+            handles: function (e) { return (e.kind == 'afterBuy' && e.source.id != card.id && countTokens(e.before, 'synergy') > 0); },
             effect: function (e) { return function (state) {
                 return __awaiter(this, void 0, void 0, function () {
                     var options, target;
@@ -2816,7 +2823,7 @@ function ensureInSupply(spec) {
     return {
         'description': "At the beginning of the game, add " + spec.name + " to the supply" +
             " if it isn't already there.",
-        'handles': function (e) { return (e.type == 'gameStart'); },
+        'handles': function (e) { return (e.kind == 'gameStart'); },
         'effect': function (e) { return function (state) {
             return __awaiter(this, void 0, void 0, function () {
                 return __generator(this, function (_a) {
@@ -2951,7 +2958,7 @@ var roadNetwork = { name: 'Road Network',
     triggers: function (_) { return [{
             description: "Whenever you create a card," +
                 " if it's in your discard pile then move it to the top of your deck.",
-            handles: function (e, state) { return (e.type == 'create' && state.find(e.card).place == 'discard'); },
+            handles: function (e, state) { return (e.kind == 'create' && state.find(e.card).place == 'discard'); },
             effect: function (e) { return move(e.card, 'deck', 'top'); }
         }]; }
 };
@@ -2960,7 +2967,7 @@ var formation = { name: 'Formation',
     fixedCost: time(0),
     triggers: function (card) { return [{
             description: "When you finish playing a card other than with " + formation.name + ", if it costs @ or more then you may play a card in your hand with the same name.",
-            handles: function (e) { return (e.type == 'afterPlay' && e.source.name != formation.name); },
+            handles: function (e) { return (e.kind == 'afterPlay' && e.source.name != formation.name); },
             effect: function (e) { return function (state) {
                 return __awaiter(this, void 0, void 0, function () {
                     var cardOptions, replay;
@@ -3100,7 +3107,7 @@ var innovation = { name: "Innovation",
     triggers: function (card) { return [{
             description: "Whenever you create a card, if it's in your discard pile and this has an innovate token on it:" +
                 " remove an innovate token from this, discard your hand, lose all $, and play the card.",
-            handles: function (e, state) { return (e.type == 'create'
+            handles: function (e, state) { return (e.kind == 'create'
                 && countTokens(card, 'innovate') > 0
                 && state.find(e.card).place == 'discard'); },
             effect: function (e) { return doAll([
@@ -3120,7 +3127,7 @@ register(makeCard(innovation, { coin: 7, time: 0 }, true));
 var citadel = { name: "Citadel",
     triggers: function (card) { return [{
             description: "After playing a card the normal way, if it's the only card in your discard pile, play it again.",
-            handles: function (e, state) { return (e.type == 'afterPlay' && e.source.name == 'act'
+            handles: function (e, state) { return (e.kind == 'afterPlay' && e.source.name == 'act'
                 && state.discard.length == 1 && state.find(e.after).place == 'discard'); },
             effect: function (e) { return e.after.play(card); },
         }]; }
@@ -3404,7 +3411,7 @@ var pathfinding = { name: 'Pathfinding',
     }); },
     triggers: function (card) { return [{
             description: 'Whenever you play a card, draw a card per path token on it.',
-            handles: function (e) { return (e.type == 'play' && e.card.tokens.includes('path')); },
+            handles: function (e) { return (e.kind == 'play' && e.card.tokens.includes('path')); },
             effect: function (e) { return draw(countTokens(e.card, 'path')); }
         }]; },
 };
@@ -3451,11 +3458,11 @@ var decay = { name: 'Decay',
     }); },
     triggers: function (card) { return [{
             description: 'Whenever you recycle a card, put a decay token on it.',
-            handles: function (e) { return (e.type == 'recycle'); },
+            handles: function (e) { return (e.kind == 'recycle'); },
             effect: function (e) { return doAll(e.cards.map(function (c) { return addToken(c, 'decay'); })); }
         }, {
             description: 'After you play a card, if it has 3 or more decay tokens on it trash it.',
-            handles: function (e) { return (e.type == 'afterPlay' && e.after != null && countTokens(e.after, 'decay') >= 3); },
+            handles: function (e) { return (e.kind == 'afterPlay' && e.after != null && countTokens(e.after, 'decay') >= 3); },
             effect: function (e) { return trash(e.after); },
         }]; }
 };
@@ -3550,7 +3557,7 @@ function createIfNeeded(spec) {
 function ensureInPlay(spec) {
     return {
         description: "At the start of the game, create " + a(spec.name) + " in play if there isn't one.",
-        handles: function (e) { return e.type == 'gameStart'; },
+        handles: function (e) { return e.kind == 'gameStart'; },
         effect: function (e) { return createIfNeeded(spec); }
     };
 }
@@ -3725,12 +3732,12 @@ register(makeInflation);
 var publicWorksReduction = { name: 'Public Works',
     replacers: function (card) { return [{
             description: "Cards in the supply cost @ less.",
-            handles: function (e, state) { return (e.type == 'cost' && state.find(e.card).place == 'supply'); },
+            handles: function (e, state) { return (e.kind == 'cost' && state.find(e.card).place == 'supply'); },
             replace: function (e) { return updates(e, { cost: reduceTime(e.cost, 1) }); }
         }]; },
     triggers: function (card) { return [{
             description: "When you buy a card, trash this.",
-            handles: function (e) { return (e.type == 'buy'); },
+            handles: function (e) { return (e.kind == 'buy'); },
             effect: function (e) { return trash(card); }
         }]; }
 };
@@ -3758,7 +3765,7 @@ var makeSleigh = { name: 'Sleigh',
             description: "Whenever you create a card, "
                 + (" if it's in your discard pile and you have " + a(sleigh.name) + " in your hand,")
                 + (" you may discard the " + sleigh.name + " to put the new card into your hand."),
-            handles: function (e, state) { return (e.type == 'create' && state.find(e.card).place == 'discard'); },
+            handles: function (e, state) { return (e.kind == 'create' && state.find(e.card).place == 'discard'); },
             effect: function (e) { return function (state) {
                 return __awaiter(this, void 0, void 0, function () {
                     var options, target;
@@ -3915,7 +3922,7 @@ var burden = { name: 'Burden',
     }); },
     triggers: function (card) { return [{
             description: 'Whenever you buy a card costing $, put a burden token on it.',
-            handles: function (e, state) { return (e.type == 'buy' && e.card.cost(state).coin >= 1); },
+            handles: function (e, state) { return (e.kind == 'buy' && e.card.cost(state).coin >= 1); },
             effect: function (e) { return addToken(e.card, 'burden'); }
         }]; },
     replacers: function (card) { return [{
@@ -3966,7 +3973,7 @@ buyable(chancellor, 4);
 var barracks = { name: 'Barracks',
     triggers: function (card) { return [{
             description: 'Whenever you draw 4 or more cards, play cards from your hand with total cost up to @.',
-            handles: function (e) { return (e.type == 'draw' && e.drawn >= 4); },
+            handles: function (e) { return (e.kind == 'draw' && e.drawn >= 4); },
             effect: function (e) { return freeActions(1, card); }
         }]; }
 };
@@ -3974,7 +3981,7 @@ register(makeCard(barracks, coin(5)));
 var composting = { name: 'Composting',
     triggers: function (card) { return [{
             description: 'Whenever you gain time, you may recycle that many cards from your discard pile.',
-            handles: function (e) { return (e.type == 'gainTime' && e.amount > 0); },
+            handles: function (e) { return (e.kind == 'gainTime' && e.amount > 0); },
             effect: function (e) { return function (state) {
                 return __awaiter(this, void 0, void 0, function () {
                     var n, prompt, cards;
