@@ -5,7 +5,7 @@
 // TODO: minimum width for option choices
 // TODO: starting to see performance hiccups in big games
 // TODO: probably just want to stop things moving in/out of resolving, as if they didn't exist...
-// TODO: accept string seeds
+// TODO: merge in hotkeys, think about how that should work
 
 // ----------------------------- Cards
 
