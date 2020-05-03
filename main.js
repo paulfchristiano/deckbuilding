@@ -1,9 +1,8 @@
 "use strict";
 // TODO: make the tooltip nice---should show up immediately, but be impossible to keep it alive by mousing over it
 // TODO: I think the cost framework isn't really appropriate any more, but maybe think a bit before getting rid of it
-// TODO: if a zone gets bigger and then, it's annoying to keep resizing it. As soon as a zone gets big I want to leave it big probably.
-// TODO: lay things out more nicely
-// TODO: minimum width for option choices
+// TODO: if a zone gets bigger and then smaller, it's annoying to keep resizing it. As soon as a zone gets big I want to leave it big probably.
+// TODO: lay out the zones a bit more nicely
 // TODO: starting to see performance hiccups in big games
 // TODO: probably just want to stop things moving in/out of resolving, as if they didn't exist...
 var __extends = (this && this.__extends) || (function () {
@@ -2729,7 +2728,7 @@ var workshop = { name: 'Workshop',
                     switch (_b.label) {
                         case 0:
                             options = state.supply.filter(function (card) { return (card.cost(state).coin <= 4 && card.cost(state).time <= 0); });
-                            return [4 /*yield*/, choice(state, 'Choose a card costing up to $4 to buy.', allowNull(options.map(asChoice)))];
+                            return [4 /*yield*/, choice(state, 'Choose a card costing up to $4 to buy.', options.map(asChoice))];
                         case 1:
                             _a = __read.apply(void 0, [_b.sent(), 2]), state = _a[0], target = _a[1];
                             return [2 /*return*/, (target == null) ? state : target.buy(card)(state)];
@@ -2763,7 +2762,7 @@ var factory = { name: 'Factory',
                     switch (_b.label) {
                         case 0:
                             options = state.supply.filter(function (card) { return (card.cost(state).coin <= 6 && card.cost(state).time <= 0); });
-                            return [4 /*yield*/, choice(state, 'Choose a card costing up to $6 to buy.', allowNull(options.map(asChoice)))];
+                            return [4 /*yield*/, choice(state, 'Choose a card costing up to $6 to buy.', options.map(asChoice))];
                         case 1:
                             _a = __read.apply(void 0, [_b.sent(), 2]), state = _a[0], target = _a[1];
                             return [2 /*return*/, (target == null) ? state : target.buy(card)(state)];

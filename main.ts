@@ -1,8 +1,7 @@
 // TODO: make the tooltip nice---should show up immediately, but be impossible to keep it alive by mousing over it
 // TODO: I think the cost framework isn't really appropriate any more, but maybe think a bit before getting rid of it
-// TODO: if a zone gets bigger and then, it's annoying to keep resizing it. As soon as a zone gets big I want to leave it big probably.
-// TODO: lay things out more nicely
-// TODO: minimum width for option choices
+// TODO: if a zone gets bigger and then smaller, it's annoying to keep resizing it. As soon as a zone gets big I want to leave it big probably.
+// TODO: lay out the zones a bit more nicely
 // TODO: starting to see performance hiccups in big games
 // TODO: probably just want to stop things moving in/out of resolving, as if they didn't exist...
 
@@ -2287,8 +2286,7 @@ const workshop:CardSpec = {name: 'Workshop',
         effect: async function(state) {
             const options = state.supply.filter(card => (card.cost(state).coin <= 4 && card.cost(state).time <= 0));
             let target;
-            [state, target] = await choice(state, 'Choose a card costing up to $4 to buy.',
-                allowNull(options.map(asChoice)))
+            [state, target] = await choice(state, 'Choose a card costing up to $4 to buy.',options.map(asChoice))
             return (target == null) ? state : target.buy(card)(state)
         }
     })
@@ -2315,8 +2313,7 @@ const factory:CardSpec = {name: 'Factory',
         effect: async function(state) {
             const options = state.supply.filter(card => (card.cost(state).coin <= 6 && card.cost(state).time <= 0));
             let target;
-            [state, target] = await choice(state, 'Choose a card costing up to $6 to buy.',
-                allowNull(options.map(asChoice)))
+            [state, target] = await choice(state, 'Choose a card costing up to $6 to buy.',options.map(asChoice))
             return (target == null) ? state : target.buy(card)(state)
         }
     })
