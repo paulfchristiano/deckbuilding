@@ -1,5 +1,3 @@
-// TODO: the first section of this file isn't 't sorted very well
-// TODO: don't currently get type checking for replacement and triggers; checking types would catch a lot of bugs
 // TODO: make the tooltip nice---should show up immediately, but be impossible to keep it alive by mousing over it
 // TODO: I think the cost framework isn't really appropriate any more, but maybe think a bit before getting rid of it
 // TODO: if a zone gets bigger and then, it's annoying to keep resizing it. As soon as a zone gets big I want to leave it big probably.
@@ -1044,15 +1042,21 @@ function renderHotkey(hotkey: string) {
   return `<span class="hotkey">${hotkey}</span> `
 }
 
-function renderCard(card:Card|Shadow, state:State, asOption:number|null=null):string {
+interface RenderSettings {
+    hotkeys: boolean
+}
+
+function renderCard(card:Card|Shadow, state:State, settings:RenderSettings, asOption:number|null=null):string {
     if (card instanceof Shadow) {
         return renderShadow(card, state)
     } else {
         const tokenhtml:string = card.tokens.length > 0 ? '*' : ''
         const chargehtml:string = card.charge > 0 ? `(${card.charge})` : ''
         const costhtml:string = renderCost(card.cost(state)) || '&nbsp'
-        const choosetext:string = asOption == null ? '' : `choosable chosen='false' option=${asOption}`
-        const hotkeytext:string = asOption !== null && asOption < hotkeys.length ? renderHotkey(hotkeys[asOption]) : ''
+        const choosetext:string = asOption !== null ? `choosable chosen='false' option=${asOption}` : ''
+        const hotkeytext:string = (asOption !== null
+            && asOption < hotkeys.length
+            && settings.hotkeys) ? renderHotkey(hotkeys[asOption]) : ''
         const ticktext:string = `tick=${card.ticks[card.ticks.length-1]}`
         return [`<div class='card' ${ticktext} ${choosetext}>`,
                 `<div class='cardbody'>${hotkeytext}${card}${tokenhtml}${chargehtml}</div>`,
@@ -1109,14 +1113,14 @@ function render_log(msg: string) {
 // make the currently rendered state available in the console for debugging purposes
 var renderedState: State
 
-function renderState(state:State, optionsMap:Map<number,number>|null=null): void {
+function renderState(state:State, settings:RenderSettings, optionsMap:Map<number,number>|null=null): void {
     renderedState = state
     clearChoice()
     function render(card:Card|Shadow) {
         if (optionsMap != null && optionsMap.has(card.id)) {
-            return renderCard(card, state, optionsMap.get(card.id))
+            return renderCard(card, state, settings, optionsMap.get(card.id))
         } else {
-            return renderCard(card, state)
+            return renderCard(card, state, settings)
         }
     }
     $('#time').html(state.time)
@@ -1259,6 +1263,8 @@ function allowNull<T>(options: ChoiceOption<T>[], message:string="None"): Choice
     return (options as ChoiceOption<T|null>[]).concat([{kind:'string', render:message, value:null}])
 }
 
+var globalRenderSettings = {hotkeys:false}
+
 function renderChoice(
     state: State,
     choicePrompt: string,
@@ -1280,10 +1286,13 @@ function renderChoice(
         }
     }
     if (multi) stringOptions.push(['submit', 'Done'])
-    renderState(state, optionsMap)
+    renderState(state, optionsMap, globalRenderSettings)
     $('#choicePrompt').html(choicePrompt)
     $('#options').html(stringOptions.map(renderOption).join(''))
-    $('#undoArea').html(renderUndo(state.undoable()))
+    $('#undoArea').html([
+        renderUndo(state.undoable()),
+        renderHotkeyToggle(state.undoable()),
+    ].join(''))
 }
 
 function renderOption(option:[number|'submit', string]): string {
@@ -1539,7 +1548,7 @@ async function playGame(seed?:number): Promise<void> {
         }
     } catch (error) {
         if (error instanceof Victory) {
-            renderState(error.state)
+            renderState(error.state, {hotkeys:false})
             $('#choicePrompt').html(`You won using ${error.state.time} time!`)
         }
     }
