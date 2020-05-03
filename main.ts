@@ -1038,10 +1038,6 @@ function renderShadow(shadow:Shadow, state:State):string {
             `</div>`].join('')
 }
 
-function renderHotkey(hotkey: string) {
-  return `<span class="hotkey">${hotkey}</span> `
-}
-
 interface RenderSettings {
     hotkeys: boolean
 }
@@ -1054,9 +1050,7 @@ function renderCard(card:Card|Shadow, state:State, settings:RenderSettings, asOp
         const chargehtml:string = card.charge > 0 ? `(${card.charge})` : ''
         const costhtml:string = renderCost(card.cost(state)) || '&nbsp'
         const choosetext:string = asOption !== null ? `choosable chosen='false' option=${asOption}` : ''
-        const hotkeytext:string = (asOption !== null
-            && asOption < hotkeys.length
-            && settings.hotkeys) ? renderHotkey(hotkeys[asOption]) : ''
+        const hotkeytext:string = (asOption !== null && asOption < hotkeys.length) ? renderHotkey(hotkeys[asOption]) : ''
         const ticktext:string = `tick=${card.ticks[card.ticks.length-1]}`
         return [`<div class='card' ${ticktext} ${choosetext}>`,
                 `<div class='cardbody'>${hotkeytext}${card}${tokenhtml}${chargehtml}</div>`,
@@ -1114,6 +1108,7 @@ function render_log(msg: string) {
 var renderedState: State
 
 function renderState(state:State, settings:RenderSettings, optionsMap:Map<number,number>|null=null): void {
+    console.log('!')
     renderedState = state
     clearChoice()
     function render(card:Card|Shadow) {
@@ -1286,22 +1281,61 @@ function renderChoice(
         }
     }
     if (multi) stringOptions.push(['submit', 'Done'])
-    renderState(state, optionsMap, globalRenderSettings)
+    renderState(state, globalRenderSettings, optionsMap)
     $('#choicePrompt').html(choicePrompt)
     $('#options').html(stringOptions.map(renderOption).join(''))
-    $('#undoArea').html([
-        renderUndo(state.undoable()),
-        renderHotkeyToggle(state.undoable()),
-    ].join(''))
+    $('#undoArea').html(renderSpecials(state.undoable()))
 }
 
 function renderOption(option:[number|'submit', string]): string {
     return `<span class='option' option='${option[0]}' choosable chosen='false'>${option[1]}</span>`
 }
 
+function renderHotkey(hotkey: string, forceHotkey:boolean = false) {
+  return globalRenderSettings.hotkeys || forceHotkey ? `<span class="hotkey">${hotkey}</span> ` : ''
+}
+
+
+function renderSpecials(undoable:boolean): string {
+    return renderUndo(undoable) + renderHotkeyToggle()
+}
+
+function renderHotkeyToggle(): string {
+    return `<span class='option', option='hotkeyToggle' choosable chosen='false'>${renderHotkey('?', true)} Hotkeys</span>`
+}
+
 function renderUndo(undoable:boolean): string {
     return `<span class='option', option='undo' ${undoable ? 'choosable' : ''} chosen='false'>${renderHotkey('z')} Undo</span>`
 }
+
+function bindSpecials(state:State, reject: ((x:any) => void), renderer: () => void): void {
+    bindHotkeyToggle(renderer)
+    bindUndo(state, reject)
+}
+
+function bindHotkeyToggle(renderer: () => void) {
+    function pick() {
+        globalRenderSettings = {...globalRenderSettings, hotkeys:!globalRenderSettings.hotkeys}
+        renderer()
+    }
+    keyListeners['?'] = pick
+    $(`[option='hotkeyToggle']`).on('click', pick)
+}
+
+function bindUndo(state:State, reject: ((x:any) => void)): void {
+    function pick() {
+        reject(new Undo(state))
+    }
+    if (globalRenderSettings.hotkeys) {
+        keyListeners['z'] = () => {
+          if (state.undoable()) pick()
+        }
+    }
+    $(`[option='undo']`).on('click', function(e: any){
+        if (state.undoable()) pick()
+    })
+}
+
 
 function clearChoice(): void {
     $('#choicePrompt').html('')
@@ -1326,41 +1360,36 @@ const hotkeys = [
 ]
 
 $(document).keydown((e: any) => {
-  if (e.key in keyListeners) {
-    keyListeners[e.key]();
-  }
-});
-
-function bindUndo(state:State, reject: ((x:any) => void)): void {
-    keyListeners['z'] = () => {
-      if (state.undoable()) reject(new Undo(state))
+    if (e.key in keyListeners) {
+        console.log(e.key)
+        keyListeners[e.key]();
     }
-    $(`[option='undo']`).on('click', function(e: any){
-        if (state.undoable()) reject(new Undo(state))
-    })
-}
+});
 
 function freshChoice<T>(
     state: State,
     choicePrompt: string,
     options: ChoiceOption<T>[],
 ): Promise<number> {
-    renderChoice(state, choicePrompt, options, false)
     return new Promise(function(resolve, reject) {
-        options.forEach((option, i) => {
-            const elem = $(`[option='${i}']`)
-            if (i < hotkeys.length) {
-              keyListeners[hotkeys[i]] = () => {
-                clearChoice()
-                resolve(i)
-              }
+        function pick(i:number) {
+            clearChoice()
+            resolve(i)
+        }
+        function renderer() {
+            renderChoice(state, choicePrompt, options, false)
+            function elem(i:number): any {
+                return $(`[option='${i}']`)
             }
-            elem.on('click', function (e: any) {
-                clearChoice()
-                resolve(i)
+            options.forEach((option, i) => {
+                const elem = $(`[option='${i}']`)
+                if (globalRenderSettings.hotkeys && i < hotkeys.length)
+                    keyListeners[hotkeys[i]] = () => pick(i)
+                elem.on('click', () => pick(i))
             })
-        })
-        bindUndo(state, reject)
+            bindSpecials(state, reject, renderer)
+        }
+        renderer()
     })
 }
 
@@ -1372,45 +1401,54 @@ function freshMultichoice<T>(
     options: ChoiceOption<T>[],
     validator:((xs:T[]) => boolean) = (xs => true)
 ): Promise<number[]> {
-    renderChoice(state, choicePrompt, options, true)
-    const chosen:Set<number> = new Set()
-    function chosenOptions(): T[] {
-        const result = []
-        for (let i of chosen) result.push(options[i].value)
-        return result
-    }
-    function isReady(): boolean {
-        return validator(chosenOptions())
-    }
-    function setReady(): void {
-        if (isReady()) {
-            $(`[option='submit']`).attr('choosable', true)
-        } else {
-            $(`[option='submit']`).removeAttr('choosable')
+    return new Promise(function(resolve, reject){
+        const chosen:Set<number> = new Set()
+        function chosenOptions(): T[] {
+            const result = []
+            for (let i of chosen) result.push(options[i].value)
+            return result
         }
-    }
-    setReady()
-    return new Promise(function(resolve, reject) {
-        for (let i = 0; i < options.length; i++) {
-            const j = i;
-            const elem = $(`[option='${i}']`)
-            elem.on('click', function(e:any) {
-                if (chosen.has(j)) {
-                    chosen.delete(j)
-                    elem.attr('chosen', false)
-                } else {
-                    chosen.add(j)
-                    elem.attr('chosen', true)
-                }
-                setReady()
-            })
+        function isReady(): boolean {
+            return validator(chosenOptions())
         }
-        $(`[option='submit']`).on('click', function(e:any){
+        function setReady(): void {
             if (isReady()) {
-                resolve(Array.from(chosen.values()))
+                $(`[option='submit']`).attr('choosable', true)
+            } else {
+                $(`[option='submit']`).removeAttr('choosable')
             }
-        })
-        bindUndo(state, reject)
+        }
+        function elem(i:number): any {
+            return $(`[option='${i}']`)
+        }
+        function pick(i:number): void {
+            if (chosen.has(i)) {
+                chosen.delete(i)
+                elem(i).attr('chosen', false)
+            } else {
+                chosen.add(i)
+                elem(i).attr('chosen', true)
+            }
+            setReady()
+        }
+        function renderer() {
+            renderChoice(state, choicePrompt, options, true);
+            for (const j of chosen) elem(j).attr('chosen', true)
+            setReady()
+            for (let i = 0; i < options.length; i++) {
+                if (globalRenderSettings && i < hotkeys.length) 
+                    keyListeners[hotkeys[i]] = () => pick(i)
+                elem(i).on('click', () => pick(i))
+            }
+            $(`[option='submit']`).on('click', function(e:any){
+                if (isReady()) {
+                    resolve(Array.from(chosen.values()))
+                }
+            })
+            bindSpecials(state, reject, renderer)
+            chosen.clear()
+        }
+        renderer()
     })
 }
 
@@ -1442,10 +1480,10 @@ async function act(state:State): Promise<State> {
 }
 
 function actChoice(state:State): Promise<[State, Card|null]> {
-    const validSupplies:Card[] = state.supply.filter(x => (x.cost(state).coin <= state.coin))
     const validHand:Card[] = state.hand
+    const validSupplies:Card[] = state.supply.filter(x => (x.cost(state).coin <= state.coin))
     const validPlay:Card[] = state.play.filter(x => (x.abilities().length > 0))
-    const cards:Card[] = validSupplies.concat(validHand).concat(validPlay)
+    const cards:Card[] = validPlay.concat(validHand).concat(validSupplies)
     return choice(state,
         'Play from your hand, use an ability, or buy from a supply.',
         cards.map(asChoice))

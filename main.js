@@ -1,6 +1,4 @@
 "use strict";
-// TODO: the first section of this file isn't 't sorted very well
-// TODO: don't currently get type checking for replacement and triggers; checking types would catch a lot of bugs
 // TODO: make the tooltip nice---should show up immediately, but be impossible to keep it alive by mousing over it
 // TODO: I think the cost framework isn't really appropriate any more, but maybe think a bit before getting rid of it
 // TODO: if a zone gets bigger and then, it's annoying to keep resizing it. As soon as a zone gets big I want to leave it big probably.
@@ -1207,10 +1205,7 @@ function renderShadow(shadow, state) {
         "<span class='tooltip'>" + tooltip + "</span>",
         "</div>"].join('');
 }
-function renderHotkey(hotkey) {
-    return "<span class=\"hotkey\">" + hotkey + "</span> ";
-}
-function renderCard(card, state, asOption) {
+function renderCard(card, state, settings, asOption) {
     if (asOption === void 0) { asOption = null; }
     if (card instanceof Shadow) {
         return renderShadow(card, state);
@@ -1219,8 +1214,8 @@ function renderCard(card, state, asOption) {
         var tokenhtml = card.tokens.length > 0 ? '*' : '';
         var chargehtml = card.charge > 0 ? "(" + card.charge + ")" : '';
         var costhtml = renderCost(card.cost(state)) || '&nbsp';
-        var choosetext = asOption == null ? '' : "choosable chosen='false' option=" + asOption;
-        var hotkeytext = asOption !== null && asOption < hotkeys.length ? renderHotkey(hotkeys[asOption]) : '';
+        var choosetext = asOption !== null ? "choosable chosen='false' option=" + asOption : '';
+        var hotkeytext = (asOption !== null && asOption < hotkeys.length) ? renderHotkey(hotkeys[asOption]) : '';
         var ticktext = "tick=" + card.ticks[card.ticks.length - 1];
         return ["<div class='card' " + ticktext + " " + choosetext + ">",
             "<div class='cardbody'>" + hotkeytext + card + tokenhtml + chargehtml + "</div>",
@@ -1291,16 +1286,17 @@ function render_log(msg) {
 }
 // make the currently rendered state available in the console for debugging purposes
 var renderedState;
-function renderState(state, optionsMap) {
+function renderState(state, settings, optionsMap) {
     if (optionsMap === void 0) { optionsMap = null; }
+    console.log('!');
     renderedState = state;
     clearChoice();
     function render(card) {
         if (optionsMap != null && optionsMap.has(card.id)) {
-            return renderCard(card, state, optionsMap.get(card.id));
+            return renderCard(card, state, settings, optionsMap.get(card.id));
         }
         else {
-            return renderCard(card, state);
+            return renderCard(card, state, settings);
         }
     }
     $('#time').html(state.time);
@@ -1435,6 +1431,7 @@ function allowNull(options, message) {
     if (message === void 0) { message = "None"; }
     return options.concat([{ kind: 'string', render: message, value: null }]);
 }
+var globalRenderSettings = { hotkeys: false };
 function renderChoice(state, choicePrompt, options, multi) {
     var optionsMap = new Map(); //map card ids to their position in the choice list
     var stringOptions = [];
@@ -1452,16 +1449,53 @@ function renderChoice(state, choicePrompt, options, multi) {
     }
     if (multi)
         stringOptions.push(['submit', 'Done']);
-    renderState(state, optionsMap);
+    renderState(state, globalRenderSettings, optionsMap);
     $('#choicePrompt').html(choicePrompt);
     $('#options').html(stringOptions.map(renderOption).join(''));
-    $('#undoArea').html(renderUndo(state.undoable()));
+    $('#undoArea').html(renderSpecials(state.undoable()));
 }
 function renderOption(option) {
     return "<span class='option' option='" + option[0] + "' choosable chosen='false'>" + option[1] + "</span>";
 }
+function renderHotkey(hotkey, forceHotkey) {
+    if (forceHotkey === void 0) { forceHotkey = false; }
+    return globalRenderSettings.hotkeys || forceHotkey ? "<span class=\"hotkey\">" + hotkey + "</span> " : '';
+}
+function renderSpecials(undoable) {
+    return renderUndo(undoable) + renderHotkeyToggle();
+}
+function renderHotkeyToggle() {
+    return "<span class='option', option='hotkeyToggle' choosable chosen='false'>" + renderHotkey('?', true) + " Hotkeys</span>";
+}
 function renderUndo(undoable) {
     return "<span class='option', option='undo' " + (undoable ? 'choosable' : '') + " chosen='false'>" + renderHotkey('z') + " Undo</span>";
+}
+function bindSpecials(state, reject, renderer) {
+    bindHotkeyToggle(renderer);
+    bindUndo(state, reject);
+}
+function bindHotkeyToggle(renderer) {
+    function pick() {
+        globalRenderSettings = __assign(__assign({}, globalRenderSettings), { hotkeys: !globalRenderSettings.hotkeys });
+        renderer();
+    }
+    keyListeners['?'] = pick;
+    $("[option='hotkeyToggle']").on('click', pick);
+}
+function bindUndo(state, reject) {
+    function pick() {
+        reject(new Undo(state));
+    }
+    if (globalRenderSettings.hotkeys) {
+        keyListeners['z'] = function () {
+            if (state.undoable())
+                pick();
+        };
+    }
+    $("[option='undo']").on('click', function (e) {
+        if (state.undoable())
+            pick();
+    });
 }
 function clearChoice() {
     $('#choicePrompt').html('');
@@ -1488,99 +1522,115 @@ var hotkeys = [
 ];
 $(document).keydown(function (e) {
     if (e.key in keyListeners) {
+        console.log(e.key);
         keyListeners[e.key]();
     }
 });
-function bindUndo(state, reject) {
-    keyListeners['z'] = function () {
-        if (state.undoable())
-            reject(new Undo(state));
-    };
-    $("[option='undo']").on('click', function (e) {
-        if (state.undoable())
-            reject(new Undo(state));
-    });
-}
 function freshChoice(state, choicePrompt, options) {
-    renderChoice(state, choicePrompt, options, false);
     return new Promise(function (resolve, reject) {
-        options.forEach(function (option, i) {
-            var elem = $("[option='" + i + "']");
-            if (i < hotkeys.length) {
-                keyListeners[hotkeys[i]] = function () {
-                    clearChoice();
-                    resolve(i);
-                };
+        function pick(i) {
+            clearChoice();
+            resolve(i);
+        }
+        function renderer() {
+            renderChoice(state, choicePrompt, options, false);
+            function elem(i) {
+                return $("[option='" + i + "']");
             }
-            elem.on('click', function (e) {
-                clearChoice();
-                resolve(i);
+            options.forEach(function (option, i) {
+                var elem = $("[option='" + i + "']");
+                if (globalRenderSettings.hotkeys && i < hotkeys.length)
+                    keyListeners[hotkeys[i]] = function () { return pick(i); };
+                elem.on('click', function () { return pick(i); });
             });
-        });
-        bindUndo(state, reject);
+            bindSpecials(state, reject, renderer);
+        }
+        renderer();
     });
 }
 //TODO: order can matter, should we make order visible somehow?
 //TODO: what to do if you can't pick a valid set for the validator?
 function freshMultichoice(state, choicePrompt, options, validator) {
     if (validator === void 0) { validator = (function (xs) { return true; }); }
-    renderChoice(state, choicePrompt, options, true);
-    var chosen = new Set();
-    function chosenOptions() {
-        var e_9, _a;
-        var result = [];
-        try {
-            for (var chosen_1 = __values(chosen), chosen_1_1 = chosen_1.next(); !chosen_1_1.done; chosen_1_1 = chosen_1.next()) {
-                var i = chosen_1_1.value;
-                result.push(options[i].value);
-            }
-        }
-        catch (e_9_1) { e_9 = { error: e_9_1 }; }
-        finally {
-            try {
-                if (chosen_1_1 && !chosen_1_1.done && (_a = chosen_1.return)) _a.call(chosen_1);
-            }
-            finally { if (e_9) throw e_9.error; }
-        }
-        return result;
-    }
-    function isReady() {
-        return validator(chosenOptions());
-    }
-    function setReady() {
-        if (isReady()) {
-            $("[option='submit']").attr('choosable', true);
-        }
-        else {
-            $("[option='submit']").removeAttr('choosable');
-        }
-    }
-    setReady();
     return new Promise(function (resolve, reject) {
-        var _loop_1 = function (i) {
-            var j = i;
-            var elem = $("[option='" + i + "']");
-            elem.on('click', function (e) {
-                if (chosen.has(j)) {
-                    chosen.delete(j);
-                    elem.attr('chosen', false);
+        var chosen = new Set();
+        function chosenOptions() {
+            var e_9, _a;
+            var result = [];
+            try {
+                for (var chosen_1 = __values(chosen), chosen_1_1 = chosen_1.next(); !chosen_1_1.done; chosen_1_1 = chosen_1.next()) {
+                    var i = chosen_1_1.value;
+                    result.push(options[i].value);
                 }
-                else {
-                    chosen.add(j);
-                    elem.attr('chosen', true);
-                }
-                setReady();
-            });
-        };
-        for (var i = 0; i < options.length; i++) {
-            _loop_1(i);
-        }
-        $("[option='submit']").on('click', function (e) {
-            if (isReady()) {
-                resolve(Array.from(chosen.values()));
             }
-        });
-        bindUndo(state, reject);
+            catch (e_9_1) { e_9 = { error: e_9_1 }; }
+            finally {
+                try {
+                    if (chosen_1_1 && !chosen_1_1.done && (_a = chosen_1.return)) _a.call(chosen_1);
+                }
+                finally { if (e_9) throw e_9.error; }
+            }
+            return result;
+        }
+        function isReady() {
+            return validator(chosenOptions());
+        }
+        function setReady() {
+            if (isReady()) {
+                $("[option='submit']").attr('choosable', true);
+            }
+            else {
+                $("[option='submit']").removeAttr('choosable');
+            }
+        }
+        function elem(i) {
+            return $("[option='" + i + "']");
+        }
+        function pick(i) {
+            if (chosen.has(i)) {
+                chosen.delete(i);
+                elem(i).attr('chosen', false);
+            }
+            else {
+                chosen.add(i);
+                elem(i).attr('chosen', true);
+            }
+            setReady();
+        }
+        function renderer() {
+            var e_10, _a;
+            renderChoice(state, choicePrompt, options, true);
+            try {
+                for (var chosen_2 = __values(chosen), chosen_2_1 = chosen_2.next(); !chosen_2_1.done; chosen_2_1 = chosen_2.next()) {
+                    var j = chosen_2_1.value;
+                    elem(j).attr('chosen', true);
+                }
+            }
+            catch (e_10_1) { e_10 = { error: e_10_1 }; }
+            finally {
+                try {
+                    if (chosen_2_1 && !chosen_2_1.done && (_a = chosen_2.return)) _a.call(chosen_2);
+                }
+                finally { if (e_10) throw e_10.error; }
+            }
+            setReady();
+            var _loop_1 = function (i) {
+                if (globalRenderSettings && i < hotkeys.length)
+                    keyListeners[hotkeys[i]] = function () { return pick(i); };
+                elem(i).on('click', function () { return pick(i); });
+            };
+            for (var i = 0; i < options.length; i++) {
+                _loop_1(i);
+            }
+            $("[option='submit']").on('click', function (e) {
+                if (isReady()) {
+                    resolve(Array.from(chosen.values()));
+                }
+            });
+            bindSpecials(state, reject, renderer);
+            chosen.clear();
+        }
+        renderer();
     });
 }
 // --------------------- act
@@ -1618,10 +1668,10 @@ function act(state) {
     });
 }
 function actChoice(state) {
-    var validSupplies = state.supply.filter(function (x) { return (x.cost(state).coin <= state.coin); });
     var validHand = state.hand;
+    var validSupplies = state.supply.filter(function (x) { return (x.cost(state).coin <= state.coin); });
     var validPlay = state.play.filter(function (x) { return (x.abilities().length > 0); });
-    var cards = validSupplies.concat(validHand).concat(validPlay);
+    var cards = validPlay.concat(validHand).concat(validSupplies);
     return choice(state, 'Play from your hand, use an ability, or buy from a supply.', cards.map(asChoice));
 }
 function useCard(card) {
@@ -1761,7 +1811,7 @@ function playGame(seed) {
                 case 8:
                     error_3 = _c.sent();
                     if (error_3 instanceof Victory) {
-                        renderState(error_3.state);
+                        renderState(error_3.state, { hotkeys: false });
                         $('#choicePrompt').html("You won using " + error_3.state.time + " time!");
                     }
                     return [3 /*break*/, 9];
@@ -2773,8 +2823,8 @@ var makeSynergy = { name: 'Synergy',
             (" create a " + synergy.name + " in play, and trash this."),
         effect: function (state) {
             return __awaiter(this, void 0, void 0, function () {
-                var cards, cards_1, cards_1_1, card_2, e_10_1;
-                var _a, e_10, _b;
+                var cards, cards_1, cards_1_1, card_2, e_11_1;
+                var _a, e_11, _b;
                 return __generator(this, function (_c) {
                     switch (_c.label) {
                         case 0: return [4 /*yield*/, multichoiceIfNeeded(state, 'Choose two cards to synergize.', state.supply.map(asChoice), 2, false)];
@@ -2797,14 +2847,14 @@ var makeSynergy = { name: 'Synergy',
                             return [3 /*break*/, 3];
                         case 6: return [3 /*break*/, 9];
                         case 7:
-                            e_10_1 = _c.sent();
-                            e_10 = { error: e_10_1 };
+                            e_11_1 = _c.sent();
+                            e_11 = { error: e_11_1 };
                             return [3 /*break*/, 9];
                         case 8:
                             try {
                                 if (cards_1_1 && !cards_1_1.done && (_b = cards_1.return)) _b.call(cards_1);
                             }
-                            finally { if (e_10) throw e_10.error; }
+                            finally { if (e_11) throw e_11.error; }
                             return [7 /*endfinally*/];
                         case 9: return [4 /*yield*/, create(synergy, 'play')(state)];
                         case 10:
@@ -3326,7 +3376,7 @@ var coppersmith = { name: 'Coppersmith',
 };
 buyable(coppersmith, 3);
 function countDistinct(xs) {
-    var e_11, _a;
+    var e_12, _a;
     var y = new Set();
     var result = 0;
     try {
@@ -3338,12 +3388,12 @@ function countDistinct(xs) {
             }
         }
     }
-    catch (e_11_1) { e_11 = { error: e_11_1 }; }
+    catch (e_12_1) { e_12 = { error: e_12_1 }; }
     finally {
         try {
             if (xs_1_1 && !xs_1_1.done && (_a = xs_1.return)) _a.call(xs_1);
         }
-        finally { if (e_11) throw e_11.error; }
+        finally { if (e_12) throw e_12.error; }
     }
     return result;
 }
