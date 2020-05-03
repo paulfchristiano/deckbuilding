@@ -7,105 +7,7 @@
 // TODO: minimum width for option choices
 // TODO: starting to see performance hiccups in big games
 // TODO: probably just want to stop things moving in/out of resolving, as if they didn't exist...
-
-// returns a copy x of object with x.k = v for all k:v in kvs
-function updates(x:object, y:object): object {
-    const result = Object.assign({}, x)
-    return Object.assign(result, y)
-    return result
-}
-
-type Transform = ((state:State) => Promise<State>) | ((state:State) => State)
-
-interface BuyEvent {kind:'buy'; card:Card; source:Source}
-interface AfterBuyEvent {kind:'afterBuy'; before:Card; after:Card|null; source:Source}
-interface PlayEvent {kind:'play'; card:Card; source:Source}
-interface AfterPlayEvent {kind:'afterPlay'; before:Card; after:Card|null; source:Source}
-interface CreateEvent {kind:'create', card:Card, zone:ZoneName}
-interface MoveEvent {kind:'move', fromZone:PlaceName, toZone:PlaceName, loc:InsertLocation, card:Card}
-interface RecycleEvent {kind:'recycle', cards:Card[]}
-interface DiscardEvent {kind:'discard', cards:Card[]}
-interface DrawEvent {kind:'draw', cards:Card[], drawn:number, triedToDraw:number, source:Source}
-interface GainTimeEvent {kind:'gainTime', amount:number}
-interface GainCoinEvent {kind:'gainCoin', amount:number, cost:boolean}
-interface GainPointsEvent {kind:'gainPoints', amount:number, source:Source}
-interface GainChargeEvent {kind:'gainCharge', card:Card, oldCharge:number, newCharge:number, cost:boolean}
-interface RemoveTokensEvent { kind:'removeTokens', card:Card, token:string, removed:number }
-interface AddTokenEvent {kind: 'addToken', card:Card, token:string}
-interface GameStartEvent {kind:'gameStart' }
-
-type GameEvent = BuyEvent | AfterBuyEvent | PlayEvent | AfterPlayEvent |
-    CreateEvent | MoveEvent | RecycleEvent | DrawEvent | DiscardEvent |
-    GainCoinEvent | GainTimeEvent | GainPointsEvent |
-    GainChargeEvent | RemoveTokensEvent | AddTokenEvent |
-    GameStartEvent
-type TypedTrigger = Trigger<BuyEvent> | Trigger<AfterBuyEvent> | Trigger<PlayEvent> | Trigger<AfterPlayEvent> |
-    Trigger<CreateEvent> | Trigger<MoveEvent> | Trigger<RecycleEvent> | Trigger<DrawEvent> | Trigger<DiscardEvent> |
-    Trigger<GainCoinEvent> | Trigger<GainTimeEvent> | Trigger<GainPointsEvent> |
-    Trigger<GainChargeEvent> | Trigger<RemoveTokensEvent> | Trigger<AddTokenEvent> |
-    Trigger<GameStartEvent>
-
-//e is an event that just happened
-//each card in play and aura can have a followup
-//NOTE: this is slow, we should cache triggers (in a dictionary by event type) if it becomes a problem
-function trigger<T extends GameEvent>(e:T): Transform {
-    return async function(state:State): Promise<State> {
-        const initialState = state;
-        for (const card of state.supply.concat(state.play)) {
-            for (const rawtrigger of card.triggers()) {
-                if (rawtrigger.kind == e.kind) {
-                    const trigger:Trigger<T> = ((rawtrigger as unknown) as Trigger<T>)
-                    if (trigger.handles(e, initialState) && trigger.handles(e, state)) {
-                        state = state.log(`Triggering ${card}`)
-                        state = await withTracking(
-                            trigger.effect(e),
-                            {kind:'trigger', trigger:trigger, card:card}
-                        )(state)
-                    }
-                }
-            }
-        }
-        return state
-    }
-}
-
-interface GainPointsParams {kind:'gainPoints', points:number, effects:Transform[], source:Source}
-interface CostParams {kind:'cost', card:Card, cost:Cost}
-interface DrawParams {kind:'draw', draw:number, source:Source, effects:Transform[]}
-
-type Params = GainPointsParams | CostParams | DrawParams
-type TypedReplacer = Replacer<GainPointsParams> | Replacer<CostParams> | Replacer<DrawParams>
-
-//TODO: this should maybe be async and return a new state?
-//(e.g. the "put it into your hand" should maybe be replacement effects)
-//x is an event that is about to happen
-//each card in play or supply can change properties of x
-function replace<T extends Params>(x: Params, state: State): Params {
-    var replacers = state.supply.concat(state.play).map(x => x.replacers()).flat()
-    for (var i = 0; i < replacers.length; i++) {
-        const replacer = replacers[i]
-        if (replacer.handles(x, state)) {
-            x = replacer.replace(x, state)
-        }
-    }
-    return x
-}
-
-// this updates a state by incrementing the tick on the given card,
-// and ticking its shadow (which we assume is the last thing in resolving)
-function tick(card: Card): ((s: State) => State) {
-    return function(state: State): State {
-        state = state.apply(x => x.tick(), card)
-        const last:(Card|Shadow) = state.resolving[state.resolving.length-1];
-        if (last instanceof Shadow) {
-            state = state.popResolving()
-            state = state.addResolving(last.tickUp())
-        }
-        return state
-    }
-}
-
-type Params = any
+// TODO: accept string seeds
 
 // ----------------------------- Cards
 
@@ -133,8 +35,6 @@ interface Effect {
     effect: Transform;
 }
 
-type Triggers = TypedTrigger[];
-
 interface Trigger <T extends GameEvent = any> {
     description: string;
     kind: T['kind'];
@@ -144,6 +44,7 @@ interface Trigger <T extends GameEvent = any> {
 
 interface Replacer <T extends Params = any> {
     description: string;
+    kind: T['kind'];
     handles: (p:T, s:State) => boolean;
     replace: (p:T, s:State) => T;
 }
@@ -214,7 +115,7 @@ class Card {
     // the cost after replacement effects
     cost(state:State): Cost {
         const card:Card = this
-        const initialCost:Params = {type:'cost', card:card, cost:card.baseCost(state)}
+        const initialCost:CostParams = {kind:'cost', card:card, cost:card.baseCost(state)}
         //TODO: would be nice to type check manipulations of these params, but seems harder
         const newCost:Params = replace(initialCost, state)
         return newCost.cost
@@ -278,7 +179,7 @@ class Card {
             return state
         }
     }
-    triggers(): Triggers {
+    triggers(): TypedTrigger[] {
         if (this.spec.triggers == undefined) return []
         return this.spec.triggers(this)
     }
@@ -286,7 +187,7 @@ class Card {
         if (this.spec.abilities == undefined) return []
         return this.spec.abilities(this)
     }
-    replacers(): Replacer[] {
+    replacers(): TypedReplacer[] {
         if (this.spec.replacers == undefined) return []
         return this.spec.replacers(this)
     }
@@ -296,6 +197,8 @@ class Card {
 }
 
 // ------------------------- State
+
+type Transform = ((state:State) => Promise<State>) | ((state:State) => State)
 
 type ReplayableKind = 'rng' | 'choice' | 'multichoice'
 
@@ -579,7 +482,88 @@ function insertAt(zone:Zone, card:Card, loc:InsertLocation): Zone {
     }
 }
 
-// --------------------- Shadows
+// --------------------- Events and triggers
+
+interface BuyEvent {kind:'buy'; card:Card; source:Source}
+interface AfterBuyEvent {kind:'afterBuy'; before:Card; after:Card|null; source:Source}
+interface PlayEvent {kind:'play'; card:Card; source:Source}
+interface AfterPlayEvent {kind:'afterPlay'; before:Card; after:Card|null; source:Source}
+interface CreateEvent {kind:'create', card:Card, zone:ZoneName}
+interface MoveEvent {kind:'move', fromZone:PlaceName, toZone:PlaceName, loc:InsertLocation, card:Card}
+interface RecycleEvent {kind:'recycle', cards:Card[]}
+interface DiscardEvent {kind:'discard', cards:Card[]}
+interface DrawEvent {kind:'draw', cards:Card[], drawn:number, triedToDraw:number, source:Source}
+interface GainTimeEvent {kind:'gainTime', amount:number}
+interface GainCoinEvent {kind:'gainCoin', amount:number, cost:boolean}
+interface GainPointsEvent {kind:'gainPoints', amount:number, source:Source}
+interface GainChargeEvent {kind:'gainCharge', card:Card, oldCharge:number, newCharge:number, cost:boolean}
+interface RemoveTokensEvent { kind:'removeTokens', card:Card, token:string, removed:number }
+interface AddTokenEvent {kind: 'addToken', card:Card, token:string}
+interface GameStartEvent {kind:'gameStart' }
+
+type GameEvent = BuyEvent | AfterBuyEvent | PlayEvent | AfterPlayEvent |
+    CreateEvent | MoveEvent | RecycleEvent | DrawEvent | DiscardEvent |
+    GainCoinEvent | GainTimeEvent | GainPointsEvent |
+    GainChargeEvent | RemoveTokensEvent | AddTokenEvent |
+    GameStartEvent
+type TypedTrigger = Trigger<BuyEvent> | Trigger<AfterBuyEvent> | Trigger<PlayEvent> | Trigger<AfterPlayEvent> |
+    Trigger<CreateEvent> | Trigger<MoveEvent> | Trigger<RecycleEvent> | Trigger<DrawEvent> | Trigger<DiscardEvent> |
+    Trigger<GainCoinEvent> | Trigger<GainTimeEvent> | Trigger<GainPointsEvent> |
+    Trigger<GainChargeEvent> | Trigger<RemoveTokensEvent> | Trigger<AddTokenEvent> |
+    Trigger<GameStartEvent>
+
+//e is an event that just happened
+//each card in play and aura can have a followup
+//NOTE: this is slow, we should cache triggers (in a dictionary by event type) if it becomes a problem
+function trigger<T extends GameEvent>(e:T): Transform {
+    return async function(state:State): Promise<State> {
+        const initialState = state;
+        for (const card of state.supply.concat(state.play)) {
+            for (const rawtrigger of card.triggers()) {
+                if (rawtrigger.kind == e.kind) {
+                    const trigger:Trigger<T> = ((rawtrigger as unknown) as Trigger<T>)
+                    if (trigger.handles(e, initialState) && trigger.handles(e, state)) {
+                        state = state.log(`Triggering ${card}`)
+                        state = await withTracking(
+                            trigger.effect(e),
+                            {kind:'trigger', trigger:trigger, card:card}
+                        )(state)
+                    }
+                }
+            }
+        }
+        return state
+    }
+}
+
+// ----------------------- Params and replacement
+
+interface GainPointsParams {kind:'gainPoints', points:number, effects:Transform[], source:Source}
+interface CostParams {kind:'cost', card:Card, cost:Cost}
+interface DrawParams {kind:'draw', draw:number, source:Source, effects:Transform[]}
+
+type Params = GainPointsParams | CostParams | DrawParams
+type TypedReplacer = Replacer<GainPointsParams> | Replacer<CostParams> | Replacer<DrawParams>
+
+//TODO: this should maybe be async and return a new state?
+//(e.g. the "put it into your hand" should maybe be replacement effects)
+//x is an event that is about to happen
+//each card in play or supply can change properties of x
+function replace<T extends Params>(x: T, state: State): T {
+    var replacers:TypedReplacer[] = state.supply.concat(state.play).map(x => x.replacers()).flat()
+    for (const rawreplacer of replacers) {
+        if (rawreplacer.kind == x.kind) {
+            const replacer = ((rawreplacer as unknown) as Replacer<T>)
+            if (replacer.handles(x, state)) {
+                x = replacer.replace(x, state)
+            }
+        }
+    }
+    return x
+}
+
+
+// --------------------- Shadows and tracking
 
 // a Shadow is displayed in the resolving area if there is no card to put there
 
@@ -641,6 +625,20 @@ function withTracking(f:Transform, spec:TrackingSpec): Transform {
         state = startTracking(state, spec)
         state = await f(state)
         state = stopTracking(state, spec)
+        return state
+    }
+}
+
+// this updates a state by incrementing the tick on the given card,
+// and ticking its shadow (which we assume is the last thing in resolving)
+function tick(card: Card): ((s: State) => State) {
+    return function(state: State): State {
+        state = state.apply(x => x.tick(), card)
+        const last:(Card|Shadow) = state.resolving[state.resolving.length-1];
+        if (last instanceof Shadow) {
+            state = state.popResolving()
+            state = state.addResolving(last.tickUp())
+        }
         return state
     }
 }
@@ -720,7 +718,7 @@ function recycle(cards:Card[]): Transform {
 
 function draw(n:number, source:Source={name:'?'}):Transform {
     return async function(state:State):Promise<State> {
-        var drawParams:Params = {type:'draw', draw:n, source:source, effects:[]}
+        var drawParams:Params = {kind:'draw', draw:n, source:source, effects:[]}
         drawParams = replace(drawParams, state)
         state = await doAll(drawParams.effects)(state)
         n = drawParams.draw
@@ -806,7 +804,7 @@ function gainTime(n:number): Transform {
 
 function gainPoints(n:number, source:Source={name:'?'}): Transform {
     return async function(state) {
-        let params:Params = {type:'gainPoints', points:n, effects:[], source:source}
+        let params:Params = {kind:'gainPoints', points:n, effects:[], source:source}
         params = replace(params, state)
         state = await doAll(params.effects)(state)
         n = params.points
@@ -1881,7 +1879,7 @@ const youngSmith:CardSpec = {name: 'Young Smith',
         description: 'Whenever you gain time, you may remove up to that many charge tokens from this.' +
             ' Draw a card per token removed, then if there are no charge tokens left discard this.',
         kind: 'gainTime',
-        handles: () => true,
+        handles: e => e.amount > 0,
         effect: e => async function(state) {
             const result = state.find(card)
             if (result.found) {
@@ -2022,7 +2020,8 @@ buyable(coven, 4)
 const canal:CardSpec = {name: 'Canal',
     replacers: card => [{
         description: 'Cards in the supply cost $1 less, unless it would make them cost 0.',
-        handles: p => (p.type == 'cost'),
+        kind: 'cost',
+        handles: () => true,
         replace: p => ({...p, cost: reduceCoinNonzero(p.cost, 1)})
     }]
 }
@@ -2101,8 +2100,9 @@ buyable(feast, 4)
 const mobilization:CardSpec = {name: 'Mobilization',
     replacers: card => [{
         description: 'Reboot costs @ less to play, but not zero.',
-        handles: x => (x.type == 'cost' && x.card == 'Reboot'),
-        replace: x => updates(x, {'cost': reduceTimeNonzero(x.cost, 1)})
+        kind:'cost',
+        handles: x => (x.card.name == 'Reboot'),
+        replace: x => ({...x, cost:reduceTimeNonzero(x.cost, 1)})
     }]
 }
 const gainMobilization:CardSpec = {name: 'Mobilization',
@@ -2629,8 +2629,9 @@ const hireling:CardSpec = {name: 'Hireling',
     fixedCost: time(0),
     replacers: card => [{
         description: "Whenever you draw a card from Reboot, draw an additional card.",
-        handles: x => (x.type == 'draw' && x.source.name == reboot.name),
-        replace: x => updates(x, {draw:x.draw+1})
+        kind:'draw',
+        handles: x => x.source.name == reboot.name,
+        replace: x => ({...x, draw:x.draw+1})
     }]
 }
 register(makeCard(hireling, {coin:6, time:1}))
@@ -3048,12 +3049,9 @@ buyable(duke, 4)
 const inflation:CardSpec = {name: 'Inflation',
     replacers: card => [{
         description: 'Cards in the supply that cost at least $1 cost $1 more.',
-        handles: (p, state) => (
-            p.type == 'cost' &&
-            p.cost.coin >= 1 &&
-            state.find(p.card).place == 'supply'
-        ),
-        replace: p => updates(p, {cost: {coin:p.cost.coin+1, time:p.cost.time}})
+        kind: 'cost',
+        handles: (p, state) => (p.cost.coin >= 1 && state.find(p.card).place == 'supply'),
+        replace: p => ({...p, cost:{coin:p.cost.coin+1, time:p.cost.time}})
     }]
 }
 const makeInflation:CardSpec = {name: 'Inflation',
@@ -3069,8 +3067,9 @@ register(makeInflation)
 const publicWorksReduction:CardSpec = {name: 'Public Works',
     replacers: card => [{
         description:"Cards in the supply cost @ less.",
-        handles: (e, state) => (e.kind == 'cost' && state.find(e.card).place == 'supply'),
-        replace: e => updates(e, {cost:reduceTime(e.cost, 1)})
+        kind: 'cost',
+        handles: (e, state) => state.find(e.card).place == 'supply',
+        replace: e => ({...e, cost:reduceTime(e.cost, 1)})
     }],
     triggers: card => [{
         description:"When you buy a card, trash this.",
@@ -3156,8 +3155,9 @@ const makeFerry:CardSpec = {name: 'Ferry',
     effect: card => gainCard(ferry),
     replacers: card => [{
         description: 'Cards cost $1 less per ferry token on them, unless it would make them cost 0.',
-        handles: p => (p.type == 'cost' && countTokens(p.card, 'ferry') > 0),
-        replace: p => updates(p, {cost: reduceCoinNonzero(p.cost, countTokens(p.card, 'ferry'))})
+        kind: 'cost',
+        handles: p => countTokens(p.card, 'ferry') > 0,
+        replace: p => ({...p, cost: reduceCoinNonzero(p.cost, countTokens(p.card, 'ferry'))})
     }]
 }
 register(makeFerry)
@@ -3166,8 +3166,9 @@ const livery:CardSpec = {name: 'Livery',
     replacers: card => [{
         description: `Whenever you would draw cards other than with ${stables.name},` +
             ` put that many charge tokens on a ${stables.name} in play instead.`,
-        handles: x => (x.type == 'draw' && x.source.name != stables.name),
-        replace: x => updates(x, {'draw':0, 'effects':x.effects.concat([fill(stables, x.draw)])})
+        kind: 'draw',
+        handles: x => (x.source.name != stables.name),
+        replace: x => ({...x, draw:0, effects:x.effects.concat([fill(stables, x.draw)])})
     }]
 }
 const makeLivery:CardSpec = {name: 'Livery',
@@ -3195,9 +3196,10 @@ const slog:CardSpec = {name: 'Slog',
         effect: doAll([charge(card, 1), slogCheck(card)]),
     }),
     replacers: card => [{
+        kind: 'gainPoints',
         description: 'Whenever you would gain points other than with this, instead put that many charge tokens on this.',
-        handles: x => (x.type == 'gainPoints' && x.source.id != card.id),
-        replace: x => updates(x, {points: 0, effects: x.effects.concat([charge(card, x.points), slogCheck(card)])})
+        handles: x => x.source.id != card.id,
+        replace: x => ({...x, points: 0, effects: x.effects.concat([charge(card, x.points), slogCheck(card)])})
     }]
 }
 register(slog)
@@ -3221,9 +3223,10 @@ const burden:CardSpec = {name: 'Burden',
         effect: e => addToken(e.card, 'burden')
     }],
     replacers: card => [{
+        kind: 'cost',
         description: 'Cards cost $1 more for each burden token on them.',
-        handles: x => (x.type == 'cost' && countTokens(x.card, 'burden') > 0),
-        replace: x => updates(x, {cost: {time:x.cost.time, coin: x.cost.coin+countTokens(x.card, 'burden')}})
+        handles: x => countTokens(x.card, 'burden') > 0,
+        replace: x => ({...x, cost: {time:x.cost.time, coin: x.cost.coin+countTokens(x.card, 'burden')}})
     }]
 }
 register(burden)
