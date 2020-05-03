@@ -1531,12 +1531,9 @@ class HotkeyMapper {
     ensureCoverage(m:IMap<number, key>, s:Set<number>, order:'forwards'|'backwards') {
         for (const id of m.keys()) if (!s.has(id)) m.delete(id)
         const freeKeys:key[] = this.freeKeys()
-        console.log(order)
-        console.log(freeKeys)
         let index:number = 0
         for (const id of s) if (!m.has(id) && index < freeKeys.length) {
             const hotkey:key = freeKeys[(order == 'forwards') ? index++ : freeKeys.length - 1 - (index++)]
-            console.log(id, hotkey)
             m.set(id, hotkey)
         }
     }

@@ -1699,15 +1699,12 @@ var HotkeyMapper = /** @class */ (function () {
             finally { if (e_11) throw e_11.error; }
         }
         var freeKeys = this.freeKeys();
-        console.log(order);
-        console.log(freeKeys);
         var index = 0;
         try {
             for (var s_1 = __values(s), s_1_1 = s_1.next(); !s_1_1.done; s_1_1 = s_1.next()) {
                 var id = s_1_1.value;
                 if (!m.has(id) && index < freeKeys.length) {
                     var hotkey = freeKeys[(order == 'forwards') ? index++ : freeKeys.length - 1 - (index++)];
-                    console.log(id, hotkey);
                     m.set(id, hotkey);
                 }
             }
