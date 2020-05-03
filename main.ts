@@ -1470,7 +1470,7 @@ function freshMultichoice<T>(
 
 
 // --------------------- Hotkeys
-//
+
 const keyListeners: Map<Key, () => void> = new Map();
 const numHotkeys = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0']
 const symbolHotkeys = ['!', '@', '#', '$', '%', '^', '&', '*', '(', ')']
@@ -1667,14 +1667,14 @@ function supplySort(card1:CardSpec, card2:CardSpec): number {
     return supplyKey(card1) - supplyKey(card2)
 }
 
-
-async function playGame(seed?:number): Promise<void> {
+async function playGame(seed?:number, fixedKingdom?:CardSpec[]): Promise<void> {
     const startingDeck:CardSpec[] = [copper, copper, copper, copper, copper,
                                  copper, copper, estate, estate, estate]
     let state = emptyState;
     let shuffledDeck; [state, shuffledDeck] = randomChoices(state, startingDeck, startingDeck.length, seed)
     state = await doAll(shuffledDeck.map(x => create(x, 'deck')))(state);
     let variableSupplies; [state, variableSupplies] = randomChoices(state, mixins, 12, seed)
+    if (fixedKingdom != undefined) variableSupplies = fixedKingdom
     variableSupplies.sort(supplySort)
     if (testing.length > 0) for (let i = 0; i < cheats.length; i++) testing.push(cheats[i])
     const kingdom = coreSupplies.concat(variableSupplies).concat(testing)
@@ -1693,6 +1693,10 @@ async function playGame(seed?:number): Promise<void> {
     }
 }
 
+function getKingdom() {
+}
+
+
 
 // Source: https://werxltd.com/wp/2010/05/13/javascript-implementation-of-javas-string-hashcode-method/
 // (definitely not a PRF)
@@ -1709,8 +1713,70 @@ function getSeed(): number|undefined {
     return (seed == null) ? undefined : hash(seed)
 }
 
+function getFixedKingdom(): CardSpec[]|undefined {
+    const kingdomString:string|null = new URLSearchParams(window.location.search).get('kingdom')
+    if (kingdomString==null) return undefined
+    const cardStrings:string[] = kingdomString.split(',')
+    const mixinsByName:Map<string, CardSpec> = new Map()
+    for (const spec of mixins) mixinsByName.set(spec.name, spec)
+    const result:CardSpec[] = []
+    for (const cardString of cardStrings) {
+        const cardSpec = mixinsByName.get(cardString)
+        if (cardSpec == undefined) {
+            alert(`URL specified invalid card ${cardString}`)
+            return undefined
+        }  else {
+            result.push(cardSpec)
+        }
+    }
+    return result
+}
+
 function load(): void {
-    playGame(getSeed())
+    playGame(getSeed(), getFixedKingdom())
+}
+
+// ----------------------------------- Kingdom picker
+
+function loadPicker(): void {
+    let state = emptyState;
+    const sortedSpecs = mixins.slice()
+    sortedSpecs.sort((spec1, spec2) => spec1.name.localeCompare(spec2.name))
+    for (let i = 0; i < sortedSpecs.length; i++) {
+        const spec = sortedSpecs[i]
+        state = state.addToZone(new Card(spec, i), 'supply')
+    }
+    function trivial() {}
+    function elem(i:number): any {
+        return $(`[option='${i}']`)
+    }
+    function prefix(s:string): string {
+        const parts:string[] = s.split('/')
+        return parts.slice(0, parts.length-1).join('/')
+    }
+    function kingdomLink(): string {
+        const result = window.location.toString()
+        const kingdomString = Array.from(chosen.values()).
+            map(i => sortedSpecs[i].name).join(',')
+        return prefix(result) + `/index.html?kingdom=${kingdomString}`
+    }
+    const chosen:Set<number> = new Set()
+    function pick(i:number): void {
+        if (chosen.has(i)) {
+            chosen.delete(i)
+            elem(i).attr('chosen', false)
+        } else {
+            chosen.add(i)
+            elem(i).attr('chosen', true)
+        }
+        $('#kingdomLink').attr('href', kingdomLink())
+    }
+    renderChoice(state,
+        'Choose which cards to include in the supply.',
+        state.supply.map((card, i) => ({
+            render: card.id,
+            value: () => pick(i)
+        })), trivial, trivial)
 }
 
 //

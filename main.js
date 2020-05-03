@@ -1625,7 +1625,6 @@ function freshMultichoice(state, choicePrompt, options, validator) {
     });
 }
 // --------------------- Hotkeys
-//
 var keyListeners = new Map();
 var numHotkeys = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0'];
 var symbolHotkeys = ['!', '@', '#', '$', '%', '^', '&', '*', '(', ')'];
@@ -1891,7 +1890,7 @@ function supplyKey(spec) {
 function supplySort(card1, card2) {
     return supplyKey(card1) - supplyKey(card2);
 }
-function playGame(seed) {
+function playGame(seed, fixedKingdom) {
     return __awaiter(this, void 0, void 0, function () {
         var startingDeck, state, shuffledDeck, variableSupplies, i, kingdom, error_3;
         var _a, _b;
@@ -1906,6 +1905,8 @@ function playGame(seed) {
                 case 1:
                     state = _c.sent();
                     _b = __read(randomChoices(state, mixins, 12, seed), 2), state = _b[0], variableSupplies = _b[1];
+                    if (fixedKingdom != undefined)
+                        variableSupplies = fixedKingdom;
                     variableSupplies.sort(supplySort);
                     if (testing.length > 0)
                         for (i = 0; i < cheats.length; i++)
@@ -1941,6 +1942,8 @@ function playGame(seed) {
         });
     });
 }
+function getKingdom() {
+}
 // Source: https://werxltd.com/wp/2010/05/13/javascript-implementation-of-javas-string-hashcode-method/
 // (definitely not a PRF)
 function hash(s) {
@@ -1954,8 +1957,91 @@ function getSeed() {
     var seed = new URLSearchParams(window.location.search).get('seed');
     return (seed == null) ? undefined : hash(seed);
 }
+function getFixedKingdom() {
+    var e_16, _a, e_17, _b;
+    var kingdomString = new URLSearchParams(window.location.search).get('kingdom');
+    if (kingdomString == null)
+        return undefined;
+    var cardStrings = kingdomString.split(',');
+    var mixinsByName = new Map();
+    try {
+        for (var mixins_1 = __values(mixins), mixins_1_1 = mixins_1.next(); !mixins_1_1.done; mixins_1_1 = mixins_1.next()) {
+            var spec = mixins_1_1.value;
+            mixinsByName.set(spec.name, spec);
+        }
+    }
+    catch (e_16_1) { e_16 = { error: e_16_1 }; }
+    finally {
+        try {
+            if (mixins_1_1 && !mixins_1_1.done && (_a = mixins_1.return)) _a.call(mixins_1);
+        }
+        finally { if (e_16) throw e_16.error; }
+    }
+    var result = [];
+    try {
+        for (var cardStrings_1 = __values(cardStrings), cardStrings_1_1 = cardStrings_1.next(); !cardStrings_1_1.done; cardStrings_1_1 = cardStrings_1.next()) {
+            var cardString = cardStrings_1_1.value;
+            var cardSpec = mixinsByName.get(cardString);
+            if (cardSpec == undefined) {
+                alert("URL specified invalid card " + cardString);
+                return undefined;
+            }
+            else {
+                result.push(cardSpec);
+            }
+        }
+    }
+    catch (e_17_1) { e_17 = { error: e_17_1 }; }
+    finally {
+        try {
+            if (cardStrings_1_1 && !cardStrings_1_1.done && (_b = cardStrings_1.return)) _b.call(cardStrings_1);
+        }
+        finally { if (e_17) throw e_17.error; }
+    }
+    return result;
+}
 function load() {
-    playGame(getSeed());
+    playGame(getSeed(), getFixedKingdom());
+}
+// ----------------------------------- Kingdom picker
+function loadPicker() {
+    var state = emptyState;
+    var sortedSpecs = mixins.slice();
+    sortedSpecs.sort(function (spec1, spec2) { return spec1.name.localeCompare(spec2.name); });
+    for (var i = 0; i < sortedSpecs.length; i++) {
+        var spec = sortedSpecs[i];
+        state = state.addToZone(new Card(spec, i), 'supply');
+    }
+    function trivial() { }
+    function elem(i) {
+        return $("[option='" + i + "']");
+    }
+    function prefix(s) {
+        var parts = s.split('/');
+        return parts.slice(0, parts.length - 1).join('/');
+    }
+    function kingdomLink() {
+        var result = window.location.toString();
+        var kingdomString = Array.from(chosen.values()).
+            map(function (i) { return sortedSpecs[i].name; }).join(',');
+        return prefix(result) + ("/index.html?kingdom=" + kingdomString);
+    }
+    var chosen = new Set();
+    function pick(i) {
+        if (chosen.has(i)) {
+            chosen.delete(i);
+            elem(i).attr('chosen', false);
+        }
+        else {
+            chosen.add(i);
+            elem(i).attr('chosen', true);
+        }
+        $('#kingdomLink').attr('href', kingdomLink());
+    }
+    renderChoice(state, 'Choose which cards to include in the supply.', state.supply.map(function (card, i) { return ({
+        render: card.id,
+        value: function () { return pick(i); }
+    }); }), trivial, trivial);
 }
 //
 // ----------------- CARDS -----------------
@@ -2460,8 +2546,8 @@ var hallOfMirrors = { name: 'Hall of Mirrors',
         text: 'Put a mirror token on each card in your hand.',
         effect: function (state) {
             return __awaiter(this, void 0, void 0, function () {
-                var _a, _b, card_2, e_16_1;
-                var e_16, _c;
+                var _a, _b, card_2, e_18_1;
+                var e_18, _c;
                 return __generator(this, function (_d) {
                     switch (_d.label) {
                         case 0:
@@ -2480,14 +2566,14 @@ var hallOfMirrors = { name: 'Hall of Mirrors',
                             return [3 /*break*/, 1];
                         case 4: return [3 /*break*/, 7];
                         case 5:
-                            e_16_1 = _d.sent();
-                            e_16 = { error: e_16_1 };
+                            e_18_1 = _d.sent();
+                            e_18 = { error: e_18_1 };
                             return [3 /*break*/, 7];
                         case 6:
                             try {
                                 if (_b && !_b.done && (_c = _a.return)) _c.call(_a);
                             }
-                            finally { if (e_16) throw e_16.error; }
+                            finally { if (e_18) throw e_18.error; }
                             return [7 /*endfinally*/];
                         case 7: return [2 /*return*/, state];
                     }
@@ -3021,8 +3107,8 @@ var makeSynergy = { name: 'Synergy',
             (" create a " + synergy.name + " in play, and trash this."),
         effect: function (state) {
             return __awaiter(this, void 0, void 0, function () {
-                var cards, cards_2, cards_2_1, card_3, e_17_1;
-                var _a, e_17, _b;
+                var cards, cards_2, cards_2_1, card_3, e_19_1;
+                var _a, e_19, _b;
                 return __generator(this, function (_c) {
                     switch (_c.label) {
                         case 0: return [4 /*yield*/, multichoiceIfNeeded(state, 'Choose two cards to synergize.', state.supply.map(asChoice), 2, false)];
@@ -3045,14 +3131,14 @@ var makeSynergy = { name: 'Synergy',
                             return [3 /*break*/, 3];
                         case 6: return [3 /*break*/, 9];
                         case 7:
-                            e_17_1 = _c.sent();
-                            e_17 = { error: e_17_1 };
+                            e_19_1 = _c.sent();
+                            e_19 = { error: e_19_1 };
                             return [3 /*break*/, 9];
                         case 8:
                             try {
                                 if (cards_2_1 && !cards_2_1.done && (_b = cards_2.return)) _b.call(cards_2);
                             }
-                            finally { if (e_17) throw e_17.error; }
+                            finally { if (e_19) throw e_19.error; }
                             return [7 /*endfinally*/];
                         case 9: return [4 /*yield*/, create(synergy, 'play')(state)];
                         case 10:
@@ -3574,7 +3660,7 @@ var coppersmith = { name: 'Coppersmith',
 };
 buyable(coppersmith, 3);
 function countDistinct(xs) {
-    var e_18, _a;
+    var e_20, _a;
     var y = new Set();
     var result = 0;
     try {
@@ -3586,12 +3672,12 @@ function countDistinct(xs) {
             }
         }
     }
-    catch (e_18_1) { e_18 = { error: e_18_1 }; }
+    catch (e_20_1) { e_20 = { error: e_20_1 }; }
     finally {
         try {
             if (xs_1_1 && !xs_1_1.done && (_a = xs_1.return)) _a.call(xs_1);
         }
-        finally { if (e_18) throw e_18.error; }
+        finally { if (e_20) throw e_20.error; }
     }
     return result;
 }
