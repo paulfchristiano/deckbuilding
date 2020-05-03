@@ -1843,7 +1843,7 @@ buyable(tradeRoute, 3)
 
 
 const populate:CardSpec = {name: 'Populate',
-    fixedCost: {coin:10, time:3},
+    fixedCost: {coin:12, time:5},
     effect: card => ({
         description: 'Buy any number of cards in the supply other than this.',
         effect: async function(state) {

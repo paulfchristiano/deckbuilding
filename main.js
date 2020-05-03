@@ -6,7 +6,7 @@
 // TODO: minimum width for option choices
 // TODO: starting to see performance hiccups in big games
 // TODO: probably just want to stop things moving in/out of resolving, as if they didn't exist...
-// TODO: accept string seeds
+// TODO: merge in hotkeys, think about how that should work
 var __extends = (this && this.__extends) || (function () {
     var extendStatics = function (d, b) {
         extendStatics = Object.setPrototypeOf ||
@@ -1746,6 +1746,7 @@ function playGame(seed) {
     });
 }
 // Source: https://werxltd.com/wp/2010/05/13/javascript-implementation-of-javas-string-hashcode-method/
+// (definitely not a PRF)
 function hash(s) {
     var hash = 0;
     for (var i = 0; i < s.length; i++) {
@@ -2131,7 +2132,7 @@ var tradeRoute = { name: 'Trade Route',
 };
 buyable(tradeRoute, 3);
 var populate = { name: 'Populate',
-    fixedCost: { coin: 10, time: 3 },
+    fixedCost: { coin: 12, time: 5 },
     effect: function (card) { return ({
         description: 'Buy any number of cards in the supply other than this.',
         effect: function (state) {
