@@ -1409,8 +1409,8 @@ function multichoiceIfNeeded(state, prompt, options, n, upto) {
     });
 }
 var yesOrNo = [
-    { render: 'Yes', value: true },
-    { render: 'No', value: false }
+    { render: 'Yes', value: true, hotkeyHint: 'y' },
+    { render: 'No', value: false, hotkeyHint: 'n' }
 ];
 function range(n) {
     var result = [];
@@ -1419,7 +1419,7 @@ function range(n) {
     return result;
 }
 function chooseNatural(n) {
-    return range(n).map(function (x) { return ({ render: String(x), value: x }); });
+    return range(n).map(function (x) { return ({ render: String(x), value: x, hotkeyHint: String(x) }); });
 }
 function asChoice(x) {
     return { render: x.id, value: x };
@@ -1444,7 +1444,7 @@ function renderChoice(state, choicePrompt, options, reject, renderer) {
     }
     var hotkeyMap;
     if (globalRendererState.hotkeysOn) {
-        hotkeyMap = globalRendererState.hotkeyMapper.map(state, options.map(function (x) { return x.render; }));
+        hotkeyMap = globalRendererState.hotkeyMapper.map(state, options);
     }
     else {
         hotkeyMap = new Map();
@@ -1530,7 +1530,7 @@ function freshChoice(state, choicePrompt, options) {
             resolve(i);
         }
         function renderer() {
-            renderChoice(state, choicePrompt, options.map(function (x, i) { return ({ render: x.render, value: function () { return pick(i); } }); }), reject, renderer);
+            renderChoice(state, choicePrompt, options.map(function (x, i) { return (__assign(__assign({}, x), { value: function () { return pick(i); } })); }), reject, renderer);
         }
         renderer();
     });
@@ -1584,7 +1584,7 @@ function freshMultichoice(state, choicePrompt, options, validator) {
             }
             setReady();
         }
-        var newOptions = options.map(function (x, i) { return ({ render: x.render, value: function () { return pick(i); } }); });
+        var newOptions = options.map(function (x, i) { return (__assign(__assign({}, x), { value: function () { return pick(i); } })); });
         newOptions.push({ render: 'Done', value: function () {
                 if (isReady()) {
                     resolve(Array.from(chosen.values()));
@@ -1672,12 +1672,14 @@ var HotkeyMapper = /** @class */ (function () {
         this.playKeys = new IMap();
         this.handKeys = new IMap();
     }
-    HotkeyMapper.prototype.freeKeys = function () {
+    HotkeyMapper.prototype.freeKeys = function (taken) {
         var _this = this;
+        if (taken === void 0) { taken = new Set(); }
         return hotkeys.filter(function (c) {
             return !(_this.supplyKeys.inv.has(c)
                 || _this.playKeys.inv.has(c)
-                || _this.handKeys.inv.has(c));
+                || _this.handKeys.inv.has(c)
+                || taken.has(c));
         });
     };
     HotkeyMapper.prototype.ensureCoverage = function (m, s, order) {
@@ -1727,55 +1729,58 @@ var HotkeyMapper = /** @class */ (function () {
         this.ensureCoverage(this.handKeys, handIds, 'forwards');
     };
     HotkeyMapper.prototype.map = function (state, options) {
-        var e_13, _a, e_14, _b, e_15, _c, e_16, _d;
+        var e_13, _a, e_14, _b, e_15, _c, e_16, _d, e_17, _e;
         var result = new Map();
         this.update(state);
         try {
-            for (var _e = __values(this.supplyKeys.entries()), _f = _e.next(); !_f.done; _f = _e.next()) {
-                var _g = __read(_f.value, 2), k = _g[0], v = _g[1];
+            for (var _f = __values(this.supplyKeys.entries()), _g = _f.next(); !_g.done; _g = _f.next()) {
+                var _h = __read(_g.value, 2), k = _h[0], v = _h[1];
                 result.set(k, v);
             }
         }
         catch (e_13_1) { e_13 = { error: e_13_1 }; }
         finally {
             try {
-                if (_f && !_f.done && (_a = _e.return)) _a.call(_e);
+                if (_g && !_g.done && (_a = _f.return)) _a.call(_f);
             }
             finally { if (e_13) throw e_13.error; }
         }
         try {
-            for (var _h = __values(this.playKeys.entries()), _j = _h.next(); !_j.done; _j = _h.next()) {
-                var _k = __read(_j.value, 2), k = _k[0], v = _k[1];
+            for (var _j = __values(this.playKeys.entries()), _k = _j.next(); !_k.done; _k = _j.next()) {
+                var _l = __read(_k.value, 2), k = _l[0], v = _l[1];
                 result.set(k, v);
             }
         }
         catch (e_14_1) { e_14 = { error: e_14_1 }; }
         finally {
             try {
-                if (_j && !_j.done && (_b = _h.return)) _b.call(_h);
+                if (_k && !_k.done && (_b = _j.return)) _b.call(_j);
             }
             finally { if (e_14) throw e_14.error; }
         }
         try {
-            for (var _l = __values(this.handKeys.entries()), _m = _l.next(); !_m.done; _m = _l.next()) {
-                var _o = __read(_m.value, 2), k = _o[0], v = _o[1];
+            for (var _m = __values(this.handKeys.entries()), _o = _m.next(); !_o.done; _o = _m.next()) {
+                var _p = __read(_o.value, 2), k = _p[0], v = _p[1];
                 result.set(k, v);
             }
         }
         catch (e_15_1) { e_15 = { error: e_15_1 }; }
         finally {
             try {
-                if (_m && !_m.done && (_c = _l.return)) _c.call(_l);
+                if (_o && !_o.done && (_c = _m.return)) _c.call(_m);
             }
             finally { if (e_15) throw e_15.error; }
         }
-        var freeKeys = this.freeKeys();
-        var index = 0;
+        var taken = new Set();
         try {
             for (var options_1 = __values(options), options_1_1 = options_1.next(); !options_1_1.done; options_1_1 = options_1.next()) {
                 var option = options_1_1.value;
-                if (index < freeKeys.length && !result.has(option)) {
-                    result.set(option, freeKeys[index++]);
+                var hint = option.hotkeyHint;
+                if (hint != undefined) {
+                    if (!result.has(hint)) {
+                        result.set(option.render, hint);
+                        taken.add(hint);
+                    }
                 }
             }
         }
@@ -1785,6 +1790,23 @@ var HotkeyMapper = /** @class */ (function () {
                 if (options_1_1 && !options_1_1.done && (_d = options_1.return)) _d.call(options_1);
             }
             finally { if (e_16) throw e_16.error; }
+        }
+        var freeKeys = this.freeKeys(taken);
+        var index = 0;
+        try {
+            for (var options_2 = __values(options), options_2_1 = options_2.next(); !options_2_1.done; options_2_1 = options_2.next()) {
+                var option = options_2_1.value;
+                if (index < freeKeys.length && !result.has(option.render)) {
+                    result.set(option.render, freeKeys[index++]);
+                }
+            }
+        }
+        catch (e_17_1) { e_17 = { error: e_17_1 }; }
+        finally {
+            try {
+                if (options_2_1 && !options_2_1.done && (_e = options_2.return)) _e.call(options_2);
+            }
+            finally { if (e_17) throw e_17.error; }
         }
         return result;
     };
@@ -2500,8 +2522,8 @@ var hallOfMirrors = { name: 'Hall of Mirrors',
         text: 'Put a mirror token on each card in your hand.',
         effect: function (state) {
             return __awaiter(this, void 0, void 0, function () {
-                var _a, _b, card_2, e_17_1;
-                var e_17, _c;
+                var _a, _b, card_2, e_18_1;
+                var e_18, _c;
                 return __generator(this, function (_d) {
                     switch (_d.label) {
                         case 0:
@@ -2520,14 +2542,14 @@ var hallOfMirrors = { name: 'Hall of Mirrors',
                             return [3 /*break*/, 1];
                         case 4: return [3 /*break*/, 7];
                         case 5:
-                            e_17_1 = _d.sent();
-                            e_17 = { error: e_17_1 };
+                            e_18_1 = _d.sent();
+                            e_18 = { error: e_18_1 };
                             return [3 /*break*/, 7];
                         case 6:
                             try {
                                 if (_b && !_b.done && (_c = _a.return)) _c.call(_a);
                             }
-                            finally { if (e_17) throw e_17.error; }
+                            finally { if (e_18) throw e_18.error; }
                             return [7 /*endfinally*/];
                         case 7: return [2 /*return*/, state];
                     }
@@ -3061,8 +3083,8 @@ var makeSynergy = { name: 'Synergy',
             (" create a " + synergy.name + " in play, and trash this."),
         effect: function (state) {
             return __awaiter(this, void 0, void 0, function () {
-                var cards, cards_1, cards_1_1, card_3, e_18_1;
-                var _a, e_18, _b;
+                var cards, cards_1, cards_1_1, card_3, e_19_1;
+                var _a, e_19, _b;
                 return __generator(this, function (_c) {
                     switch (_c.label) {
                         case 0: return [4 /*yield*/, multichoiceIfNeeded(state, 'Choose two cards to synergize.', state.supply.map(asChoice), 2, false)];
@@ -3085,14 +3107,14 @@ var makeSynergy = { name: 'Synergy',
                             return [3 /*break*/, 3];
                         case 6: return [3 /*break*/, 9];
                         case 7:
-                            e_18_1 = _c.sent();
-                            e_18 = { error: e_18_1 };
+                            e_19_1 = _c.sent();
+                            e_19 = { error: e_19_1 };
                             return [3 /*break*/, 9];
                         case 8:
                             try {
                                 if (cards_1_1 && !cards_1_1.done && (_b = cards_1.return)) _b.call(cards_1);
                             }
-                            finally { if (e_18) throw e_18.error; }
+                            finally { if (e_19) throw e_19.error; }
                             return [7 /*endfinally*/];
                         case 9: return [4 /*yield*/, create(synergy, 'play')(state)];
                         case 10:
@@ -3614,7 +3636,7 @@ var coppersmith = { name: 'Coppersmith',
 };
 buyable(coppersmith, 3);
 function countDistinct(xs) {
-    var e_19, _a;
+    var e_20, _a;
     var y = new Set();
     var result = 0;
     try {
@@ -3626,12 +3648,12 @@ function countDistinct(xs) {
             }
         }
     }
-    catch (e_19_1) { e_19 = { error: e_19_1 }; }
+    catch (e_20_1) { e_20 = { error: e_20_1 }; }
     finally {
         try {
             if (xs_1_1 && !xs_1_1.done && (_a = xs_1.return)) _a.call(xs_1);
         }
-        finally { if (e_19) throw e_19.error; }
+        finally { if (e_20) throw e_20.error; }
     }
     return result;
 }

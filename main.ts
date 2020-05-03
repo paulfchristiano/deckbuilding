@@ -1183,7 +1183,8 @@ type OptionRender = ID | string
 
 interface Option<T> {
     render: OptionRender;
-    value: T
+    hotkeyHint?: key;
+    value: T;
 }
 
 interface StringOption<T> {
@@ -1243,8 +1244,8 @@ async function multichoiceIfNeeded<T>(
 }
 
 const yesOrNo:Option<boolean>[] = [
-    {render:'Yes', value:true},
-    {render:'No', value:false}
+    {render:'Yes', value:true, hotkeyHint:'y'},
+    {render:'No', value:false, hotkeyHint:'n'}
 ]
 
 function range(n:number):number[] {
@@ -1254,7 +1255,7 @@ function range(n:number):number[] {
 }
 
 function chooseNatural(n:number):Option<number>[] {
-    return range(n).map(x => ({render:String(x), value:x}))
+    return range(n).map(x => ({render:String(x), value:x, hotkeyHint:String(x)}))
 }
 
 function asChoice(x:Card): Option<Card> {
@@ -1288,7 +1289,7 @@ function renderChoice(
 
     let hotkeyMap:Map<OptionRender,key>;
     if (globalRendererState.hotkeysOn) {
-        hotkeyMap = globalRendererState.hotkeyMapper.map(state, options.map(x => x.render))
+        hotkeyMap = globalRendererState.hotkeyMapper.map(state, options)
     }
     else {
         hotkeyMap = new Map()
@@ -1390,7 +1391,7 @@ function freshChoice<T>(
         function renderer() {
             renderChoice(state,
                 choicePrompt,
-                options.map((x, i) => ({render:x.render, value:() => pick(i)})),
+                options.map((x, i) => ({...x, value:() => pick(i)})),
                 reject, renderer)
         }
         renderer()
@@ -1436,7 +1437,7 @@ function freshMultichoice<T>(
             setReady()
         }
         const newOptions:Option<() => void>[] = options.map(
-            (x, i) => ({render:x.render, value: () => pick(i)})
+            (x, i) => ({...x, value: () => pick(i)})
         )
         newOptions.push({render:'Done', value: () => {
             if (isReady()) {
@@ -1519,11 +1520,12 @@ class HotkeyMapper {
         this.playKeys= new IMap();
         this.handKeys = new IMap();
     }
-    freeKeys(): key[] {
+    freeKeys(taken:Set<key> = new Set()): key[] {
         return hotkeys.filter(c => 
             !(this.supplyKeys.inv.has(c)
                 || this.playKeys.inv.has(c)
-                || this.handKeys.inv.has(c))
+                || this.handKeys.inv.has(c)
+                || taken.has(c))
         )
     }
     ensureCoverage(m:IMap<number, key>, s:Set<number>, order:'forwards'|'backwards') {
@@ -1546,17 +1548,27 @@ class HotkeyMapper {
         this.ensureCoverage(this.playKeys, playIds, 'backwards')
         this.ensureCoverage(this.handKeys, handIds, 'forwards')
     }
-    map(state:State, options:OptionRender[]): Map<OptionRender, key> {
+    map(state:State, options:Option<any>[]): Map<OptionRender, key> {
         const result:Map<OptionRender, key> = new Map()
         this.update(state)
         for (const [k, v] of this.supplyKeys.entries()) result.set(k, v)
         for (const [k, v] of this.playKeys.entries()) result.set(k, v)
         for (const [k, v] of this.handKeys.entries()) result.set(k, v)
-        const freeKeys:key[] = this.freeKeys()
+        const taken:Set<key> = new Set()
+        for (const option of options) {
+            const hint:key|undefined = option.hotkeyHint;
+            if (hint != undefined) {
+                if (!result.has(hint)) {
+                    result.set(option.render, hint)
+                    taken.add(hint)
+                }
+            }
+        }
+        const freeKeys:key[] = this.freeKeys(taken)
         let index:number = 0
         for (const option of options) {
-            if (index < freeKeys.length && !result.has(option)) {
-                result.set(option, freeKeys[index++])
+            if (index < freeKeys.length && !result.has(option.render)) {
+                result.set(option.render, freeKeys[index++])
             }
         }
         return result
