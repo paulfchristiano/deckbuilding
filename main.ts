@@ -64,6 +64,7 @@ interface CardUpdate {
     charge?: number;
     ticks?: number[];
     tokens?: string[];
+    zoneIndex?: number;
 }
 
 class Card {
@@ -74,6 +75,8 @@ class Card {
         public readonly charge:number = 0,
         public readonly ticks: number[] = [0],
         public readonly tokens: string[] = [],
+        // we assign each card the smallest unused index in its current zone, for consistency of hotkey mappings
+        public readonly zoneIndex = 0,
     ) {
         this.name = spec.name
     }
@@ -87,6 +90,7 @@ class Card {
             read(newValues, 'charge', this.charge),
             read(newValues, 'ticks', this.ticks),
             read(newValues, 'tokens', this.tokens),
+            read(newValues, 'zoneIndex', this.zoneIndex),
         )
     }
     startTicker(): Card {
@@ -312,7 +316,9 @@ class State {
         //if (zone == 'hand') loc = 'handSort'
         if (zone == 'resolving') return this.addResolving(card)
         const newZones:Map<ZoneName,Zone> = new Map(this.zones)
-        newZones.set(zone,  insertAt(this[zone], card, loc))
+        const currentZone = this[zone]
+        card = card.update({zoneIndex: firstFreeIndex(currentZone)})
+        newZones.set(zone,  insertAt(currentZone, card, loc))
         return this.update({zones:newZones})
     }
     remove(card:Card): State {
@@ -459,6 +465,13 @@ function assertNever(x: never): never {
 
 function insertInto<T>(x:T, xs:T[], n:number): T[] {
     return xs.slice(0, n).concat([x]).concat(xs.slice(n))
+}
+
+function firstFreeIndex(cards:Card[]) {
+    const indices = new Set(cards.map(card => card.zoneIndex))
+    for (let i = 0; i < cards.length+1; i++) {
+        if (!indices.has(i)) return i
+    }
 }
 
 function insertAt(zone:Zone, card:Card, loc:InsertLocation): Zone {
@@ -1103,7 +1116,7 @@ var renderedState: State
 
 interface CardRenderOptions {
     option?: number;
-    hotkey?: key;
+    hotkey?: Key;
 }
 
 function getIfDef<S, T>(m:Map<S, T>|undefined, x:S): T|undefined {
@@ -1111,7 +1124,7 @@ function getIfDef<S, T>(m:Map<S, T>|undefined, x:S): T|undefined {
 }
 
 interface RenderSettings {
-    hotkeyMap?: Map<number|string, key>;
+    hotkeyMap?: Map<number|string, Key>;
     optionsMap?: Map<number, number>;
 }
 
@@ -1183,7 +1196,7 @@ type OptionRender = ID | string
 
 interface Option<T> {
     render: OptionRender;
-    hotkeyHint?: key;
+    hotkeyHint?: Key;
     value: T;
 }
 
@@ -1287,7 +1300,7 @@ function renderChoice(
         }
     }
 
-    let hotkeyMap:Map<OptionRender,key>;
+    let hotkeyMap:Map<OptionRender,Key>;
     if (globalRendererState.hotkeysOn) {
         hotkeyMap = globalRendererState.hotkeyMapper.map(state, options)
     }
@@ -1309,7 +1322,7 @@ function renderChoice(
         const option = options[i];
         const f: () => void = option.value;
         elem(i).on('click', f)
-        let hotkey:key|undefined = hotkeyMap.get(option.render)
+        let hotkey:Key|undefined = hotkeyMap.get(option.render)
         if (hotkey != undefined) keyListeners.set(hotkey, f)
     }
 
@@ -1319,12 +1332,12 @@ function renderChoice(
 
 }
 
-function renderStringOption(option:StringOption<number>, hotkey?:key): string {
+function renderStringOption(option:StringOption<number>, hotkey?:Key): string {
     const hotkeyText = (hotkey!==undefined) ? renderHotkey(hotkey) : ''
     return `<span class='option' option='${option.value}' choosable chosen='false'>${hotkeyText}${option.render}</span>`
 }
 
-function renderHotkey(hotkey: string) {
+function renderHotkey(hotkey: Key) {
   return `<span class="hotkey">${hotkey}</span> `
 }
 
@@ -1458,7 +1471,7 @@ function freshMultichoice<T>(
 
 // --------------------- Hotkeys
 //
-const keyListeners: Map<key, () => void> = new Map();
+const keyListeners: Map<Key, () => void> = new Map();
 const numHotkeys = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0']
 const symbolHotkeys = ['!', '@', '#', '$', '%', '^', '&', '*', '(', ')']
 const lowerHotkeys = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm',
@@ -1466,108 +1479,65 @@ const lowerHotkeys = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l'
 ]
 const upperHotkeys = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M',
     'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z']
-const hotkeys:key[] = numHotkeys.concat(symbolHotkeys)
-    .concat(upperHotkeys.slice().reverse())
-    .concat(lowerHotkeys.slice().reverse())
+const hotkeys:Key[] = symbolHotkeys.concat(upperHotkeys).concat(lowerHotkeys).concat(numHotkeys)
+const handHotkeys:Key[] = numHotkeys.concat(symbolHotkeys)
+const playHotkeys:Key[] = upperHotkeys
+const supplyHotkeys:Key[] = lowerHotkeys
 
 $(document).keydown((e: any) => {
     const listener = keyListeners.get(e.key)
     if (listener != undefined) listener()
 });
 
-type key = string
-
-class IMap<S, T> {
-    private readonly f:Map<S, T>;
-    public readonly inv:Map<T, S>;
-    constructor () {
-        this.f = new Map();
-        this.inv = new Map();
-    }
-    public get (x:S): T|undefined {
-        return this.f.get(x)
-    }
-    public set (x:S, y:T): void {
-        if (this.inv.has(y)) throw Error("Trying to assign duplicate values to IMap.")
-        const oldy = this.f.get(x)
-        if (oldy != undefined) this.inv.delete(oldy)
-        this.f.set(x, y)
-        this.inv.set(y, x)
-    }
-    public has (x:S): boolean {
-        return this.f.has(x)
-    }
-    public delete (x:S): void {
-        const y = this.f.get(x)
-        if (y == undefined) return
-        this.f.delete(x)
-        this.inv.delete(y)
-    }
-    //(I don't know type signatures for Map.keys())
-    public keys() {
-        return this.f.keys()
-    }
-    public entries() {
-        return this.f.entries()
-    }
-}
+type Key = string
 
 class HotkeyMapper {
-    public readonly supplyKeys:IMap<number, key>;
-    public readonly playKeys:IMap<number, key>;
-    public readonly handKeys:IMap<number, key>;
     constructor() {
-        this.supplyKeys = new IMap();
-        this.playKeys= new IMap();
-        this.handKeys = new IMap();
     }
-    freeKeys(taken:Set<key> = new Set()): key[] {
-        return hotkeys.filter(c => 
-            !(this.supplyKeys.inv.has(c)
-                || this.playKeys.inv.has(c)
-                || this.handKeys.inv.has(c)
-                || taken.has(c))
-        )
-    }
-    ensureCoverage(m:IMap<number, key>, s:Set<number>, order:'forwards'|'backwards') {
-        for (const id of m.keys()) if (!s.has(id)) m.delete(id)
-        const freeKeys:key[] = this.freeKeys()
-        let index:number = 0
-        for (const id of s) if (!m.has(id) && index < freeKeys.length) {
-            const hotkey:key = freeKeys[(order == 'forwards') ? index++ : freeKeys.length - 1 - (index++)]
-            m.set(id, hotkey)
+    map(state:State, options:Option<any>[]): Map<OptionRender, Key> {
+        const result:Map<OptionRender, Key> = new Map()
+        const taken:Set<Key> = new Set()
+        let index = 0
+        function nextHotkey(): Key|null {
+            while (taken.has(hotkeys[index])) {
+                index++
+                if (index > hotkeys.length) return null // no hotkeys left to assign
+            }
+            return hotkeys[index]
         }
-    }
-    update(state:State) {
-        const supplyIds:Set<number> = new Set(state.supply.map(card => card.id));
-        const handIds:Set<number> = new Set(state.hand.map(card => card.id));
-        const playIds:Set<number> = new Set(state.play.map(card => card.id));
-        this.ensureCoverage(this.supplyKeys, supplyIds, 'backwards')
-        this.ensureCoverage(this.playKeys, playIds, 'backwards')
-        this.ensureCoverage(this.handKeys, handIds, 'forwards')
-    }
-    map(state:State, options:Option<any>[]): Map<OptionRender, key> {
-        const result:Map<OptionRender, key> = new Map()
-        this.update(state)
-        for (const [k, v] of this.supplyKeys.entries()) result.set(k, v)
-        for (const [k, v] of this.playKeys.entries()) result.set(k, v)
-        for (const [k, v] of this.handKeys.entries()) result.set(k, v)
-        const taken:Set<key> = new Set()
-        for (const option of options) {
-            const hint:key|undefined = option.hotkeyHint;
-            if (hint != undefined) {
-                if (!result.has(hint)) {
-                    result.set(option.render, hint)
-                    taken.add(hint)
+        function set(x:OptionRender, k:Key): void {
+            result.set(x, k)
+            taken.add(k)
+        }
+        function assign(x:OptionRender): void {
+            if (result.has(x)) return
+            const hotkey:Key|null = nextHotkey()
+            if (hotkey != null) set(x, hotkey)
+        }
+        function setFrom(cards:Card[], preferredHotkeys:Key[]) {
+            for (const card of cards) {
+                let n = card.zoneIndex
+                if (n < handHotkeys.length && !taken.has(handHotkeys[n])) {
+                    set(card.id, preferredHotkeys[n])
                 }
             }
         }
-        const freeKeys:key[] = this.freeKeys(taken)
-        let index:number = 0
+        setFrom(state.play, playHotkeys)
+        setFrom(state.supply, supplyHotkeys)
+        setFrom(state.hand, handHotkeys)
         for (const option of options) {
-            if (index < freeKeys.length && !result.has(option.render)) {
-                result.set(option.render, freeKeys[index++])
+            const hint:Key|undefined = option.hotkeyHint;
+            if (hint != undefined && !result.has(option.render) && !taken.has(hint)) {
+                set(option.render, hint)
             }
+        }
+        for (const zone of [state.hand, state.supply, state.play]) {
+            for (const card of zone) {
+                assign(card.id)
+            }
+        }
+        for (const option of options) {
+            assign(option.render)
         }
         return result
     }
