@@ -1450,6 +1450,10 @@ function renderChoice(state, choicePrompt, options, reject, renderer) {
         hotkeyMap = new Map();
     }
     renderState(state, { hotkeyMap: hotkeyMap, optionsMap: optionsMap });
+    $('#choicePrompt').html(choicePrompt);
+    $('#options').html(stringOptions.map(localRender).join(''));
+    $('#undoArea').html(renderSpecials(state.undoable()));
+    bindSpecials(state, reject, renderer);
     function elem(i) {
         return $("[option='" + i + "']");
     }
@@ -1464,10 +1468,6 @@ function renderChoice(state, choicePrompt, options, reject, renderer) {
     function localRender(option) {
         return renderStringOption(option, hotkeyMap.get(option.render));
     }
-    $('#choicePrompt').html(choicePrompt);
-    $('#options').html(stringOptions.map(localRender).join(''));
-    $('#undoArea').html(renderSpecials(state.undoable()));
-    bindSpecials(state, reject, renderer);
 }
 function renderStringOption(option, hotkey) {
     var hotkeyText = (hotkey !== undefined) ? renderHotkey(hotkey) : '';
@@ -1665,7 +1665,6 @@ var IMap = /** @class */ (function () {
     };
     return IMap;
 }());
-//TODO: if a card leaves your hand then returns to your hand, reset
 var HotkeyMapper = /** @class */ (function () {
     function HotkeyMapper() {
         this.supplyKeys = new IMap();

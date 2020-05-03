@@ -1296,6 +1296,12 @@ function renderChoice(
     }
 
     renderState(state, {hotkeyMap: hotkeyMap, optionsMap:optionsMap})
+
+    $('#choicePrompt').html(choicePrompt)
+    $('#options').html(stringOptions.map(localRender).join(''))
+    $('#undoArea').html(renderSpecials(state.undoable()))
+    bindSpecials(state, reject, renderer)
+
     function elem(i:number): any {
         return $(`[option='${i}']`)
     }
@@ -1311,10 +1317,6 @@ function renderChoice(
         return renderStringOption(option, hotkeyMap.get(option.render))
     }
 
-    $('#choicePrompt').html(choicePrompt)
-    $('#options').html(stringOptions.map(localRender).join(''))
-    $('#undoArea').html(renderSpecials(state.undoable()))
-    bindSpecials(state, reject, renderer)
 }
 
 function renderStringOption(option:StringOption<number>, hotkey?:key): string {
@@ -1510,7 +1512,6 @@ class IMap<S, T> {
     }
 }
 
-//TODO: if a card leaves your hand then returns to your hand, reset
 class HotkeyMapper {
     public readonly supplyKeys:IMap<number, key>;
     public readonly playKeys:IMap<number, key>;
