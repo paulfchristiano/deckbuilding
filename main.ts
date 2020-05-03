@@ -311,7 +311,7 @@ class State {
         return this.update({resolving: this.resolving.slice(0, this.resolving.length-1)})
     }
     addToZone(card:Card, zone:ZoneName|'resolving', loc:InsertLocation='end'): State {
-        if (zone == 'hand') loc = 'handSort'
+        //if (zone == 'hand') loc = 'handSort'
         if (zone == 'resolving') return this.addResolving(card)
         const newZones:Map<ZoneName,Zone> = new Map(this.zones)
         newZones.set(zone,  insertAt(this[zone], card, loc))
@@ -414,7 +414,7 @@ class State {
     }
     undoable(): boolean {
         const record:Replayable|null = this.lastReplayable()
-        return (record != null && record.kind == 'choice')
+        return (record != null && (record.kind == 'choice' || record.kind == 'multichoice'))
     }
 }
 
@@ -591,7 +591,7 @@ interface NoShadowSpec {
     kind:'none',
     card:Card
 }
-type ShadowSpec = ShadowEffectSpec | ShadowAbilitySpec | 
+type ShadowSpec = ShadowEffectSpec | ShadowAbilitySpec |
     ShadowTriggerSpec | ShadowAbilityChoiceSpec | ShadowCostSpec
 type TrackingSpec = ShadowSpec | NoShadowSpec
 
@@ -725,7 +725,7 @@ function draw(n:number, source:Source={name:'?'}):Transform {
             let nextCard:Card|null, rest:Card[];
             [nextCard, rest] = shiftFirst(state.deck)
             if (nextCard != null) {
-                state = await move(nextCard, 'hand', 'handSort', true)(state)
+                state = await move(nextCard, 'hand', 'end', true)(state)
                 drawn.push(nextCard)
             }
         }
@@ -884,7 +884,7 @@ function charge(card:Card, n:number, cost:boolean=false): Transform {
         const newCharge:number = Math.max(oldCharge+n, 0)
         state = state.apply(card => card.update({charge:newCharge}), card)
         state = logChange(state, 'charge token', newCharge - oldCharge,
-            ['Added ', ` to ${card.name}`], 
+            ['Added ', ` to ${card.name}`],
             ['Removed ', ` from ${card.name}`])
         return trigger({kind:'gainCharge', card:card,
             oldCharge:oldCharge, newCharge:newCharge, cost:cost})(state)
@@ -1038,17 +1038,18 @@ function renderShadow(shadow:Shadow, state:State):string {
             `</div>`].join('')
 }
 
-function renderCard(card:Card|Shadow, state:State, asOption:number|null=null):string {
+function renderCard(card:Card|Shadow, state:State, options:CardRenderOptions):string {
     if (card instanceof Shadow) {
         return renderShadow(card, state)
     } else {
         const tokenhtml:string = card.tokens.length > 0 ? '*' : ''
         const chargehtml:string = card.charge > 0 ? `(${card.charge})` : ''
         const costhtml:string = renderCost(card.cost(state)) || '&nbsp'
-        const choosetext:string = asOption == null ? '' : `choosable chosen='false' option=${asOption}`
+        const choosetext:string = (options.option !== undefined) ? `choosable chosen='false' option=${options.option}` : ''
+        const hotkeytext:string = (options.hotkey !== undefined) ? renderHotkey(options.hotkey) : ''
         const ticktext:string = `tick=${card.ticks[card.ticks.length-1]}`
         return [`<div class='card' ${ticktext} ${choosetext}>`,
-                `<div class='cardbody'>${card}${tokenhtml}${chargehtml}</div>`,
+                `<div class='cardbody'>${hotkeytext}${card}${tokenhtml}${chargehtml}</div>`,
                 `<div class='cardcost'>${costhtml}</div>`,
                 `<span class='tooltip'>${renderTooltip(card, state)}</span>`,
                 `</div>`].join('')
@@ -1102,15 +1103,31 @@ function render_log(msg: string) {
 // make the currently rendered state available in the console for debugging purposes
 var renderedState: State
 
-function renderState(state:State, optionsMap:Map<number,number>|null=null): void {
+interface CardRenderOptions {
+    option?: number;
+    hotkey?: key;
+}
+
+function getIfDef<S, T>(m:Map<S, T>|undefined, x:S): T|undefined {
+    return (m == undefined) ? undefined : m.get(x)
+}
+
+interface RenderSettings {
+    hotkeyMap?: Map<number|string, key>;
+    optionsMap?: Map<number, number>;
+}
+
+function renderState(state:State,
+    settings:RenderSettings = {},
+): void {
     renderedState = state
     clearChoice()
     function render(card:Card|Shadow) {
-        if (optionsMap != null && optionsMap.has(card.id)) {
-            return renderCard(card, state, optionsMap.get(card.id))
-        } else {
-            return renderCard(card, state)
+        const cardRenderOptions:CardRenderOptions = {
+            option: getIfDef(settings.optionsMap, card.id),
+            hotkey: getIfDef(settings.hotkeyMap, card.id),
         }
+        return renderCard(card, state, cardRenderOptions)
     }
     $('#time').html(state.time)
     $('#coin').html(state.coin)
@@ -1162,26 +1179,24 @@ async function asyncDoOrReplay<T extends number|number[]>(
 
 // -------------------------------------- Player choices
 
-type OptionTypes = 'string' | 'card'
+type ID = number
 
-interface StringOption<T> {
-    kind: 'string';
-    render: string;
-    value: T;
-}
+type OptionRender = ID | string
 
-interface CardOption<T> {
-    kind: 'card';
-    render: Card;
+interface Option<T> {
+    render: OptionRender;
     value: T
 }
 
-type ChoiceOption<T> = StringOption<T>|CardOption<T>;
+interface StringOption<T> {
+    render: string,
+    value: T
+}
 
 async function multichoice<T>(
     state:State,
     prompt:string,
-    options:ChoiceOption<T>[],
+    options:Option<T>[],
     validator:(xs:T[]) => boolean = (xs => true),
 ): Promise<[State, T[]]> {
     if (options.length == 0) return [state, []]
@@ -1198,7 +1213,7 @@ async function multichoice<T>(
 async function choice<T>(
     state:State,
     prompt:string,
-    options:ChoiceOption<T>[],
+    options:Option<T>[],
 ): Promise<[State, T|null]> {
     let index:number;
     if (options.length == 0) return [state, null]
@@ -1216,7 +1231,7 @@ async function choice<T>(
 async function multichoiceIfNeeded<T>(
     state:State,
     prompt:string,
-    options:ChoiceOption<T>[],
+    options:Option<T>[],
     n:number,
     upto:boolean,
 ): Promise<[State, T[]]> {
@@ -1229,9 +1244,9 @@ async function multichoiceIfNeeded<T>(
     }
 }
 
-const yesOrNo:ChoiceOption<boolean>[] = [
-    {kind:'string', render:'Yes', value:true},
-    {kind:'string', render:'No', value:false}
+const yesOrNo:Option<boolean>[] = [
+    {render:'Yes', value:true},
+    {render:'No', value:false}
 ]
 
 function range(n:number):number[] {
@@ -1240,54 +1255,117 @@ function range(n:number):number[] {
     return result
 }
 
-function chooseNatural(n:number):ChoiceOption<number>[] {
-    return range(n).map(x => ({kind:'string', render:String(x), value:x}))
+function chooseNatural(n:number):Option<number>[] {
+    return range(n).map(x => ({render:String(x), value:x}))
 }
 
-function asChoice(x:Card): ChoiceOption<Card> {
-    return {kind: 'card', render: x, value:x}
+function asChoice(x:Card): Option<Card> {
+    return {render:x.id, value:x}
 }
 
-function allowNull<T>(options: ChoiceOption<T>[], message:string="None"): ChoiceOption<T|null>[] {
-    return (options as ChoiceOption<T|null>[]).concat([{kind:'string', render:message, value:null}])
+function allowNull<T>(options: Option<T>[], message:string="None"): Option<T|null>[] {
+    const newOptions:Option<T|null>[] = options.slice()
+    newOptions.push({render:message, value:null})
+    return newOptions
 }
 
 function renderChoice(
     state: State,
     choicePrompt: string,
-    options: ChoiceOption<any>[],
-    multi: boolean,
+    options: Option<() => void>[],
+    reject:((x:any) => void),
+    renderer:() => void,
 ): void {
+
     const optionsMap:Map<number,number> = new Map() //map card ids to their position in the choice list
-    const stringOptions:[number|'submit', string][] = []
+    const stringOptions:StringOption<number>[] = [] // values are indices into options
     for (let i = 0; i < options.length; i++) {
-        const option = options[i]
-        switch (option.kind) {
-            case 'card':
-                optionsMap.set(option.render.id, i)
-                break
-            case 'string':
-                stringOptions.push([i, option.render])
-                break
-            default: assertNever(option)
+        const rendered:OptionRender = options[i].render
+        if (typeof rendered == 'string') {
+            stringOptions.push({render:(rendered as string), value:i})
+        } else if (typeof rendered === 'number') {
+            optionsMap.set((rendered as ID), i)
         }
     }
-    if (multi) stringOptions.push(['submit', 'Done'])
-    renderState(state, optionsMap)
+
+    let hotkeyMap:Map<OptionRender,key>;
+    if (globalRendererState.hotkeysOn) {
+        hotkeyMap = globalRendererState.hotkeyMapper.map(state, options.map(x => x.render))
+    }
+    else {
+        hotkeyMap = new Map()
+    }
+
+    renderState(state, {hotkeyMap: hotkeyMap, optionsMap:optionsMap})
+    function elem(i:number): any {
+        return $(`[option='${i}']`)
+    }
+    for (let i = 0; i < options.length; i++) {
+        const option = options[i];
+        const f: () => void = option.value;
+        elem(i).on('click', f)
+        let hotkey:key|undefined = hotkeyMap.get(option.render)
+        if (hotkey != undefined) keyListeners.set(hotkey, f)
+    }
+
+    function localRender(option:StringOption<number>): string {
+        return renderStringOption(option, hotkeyMap.get(option.render))
+    }
+
     $('#choicePrompt').html(choicePrompt)
-    $('#options').html(stringOptions.map(renderOption).join(''))
-    $('#undoArea').html(renderUndo(state.undoable()))
+    $('#options').html(stringOptions.map(localRender).join(''))
+    $('#undoArea').html(renderSpecials(state.undoable()))
+    bindSpecials(state, reject, renderer)
 }
 
-function renderOption(option:[number|'submit', string]): string {
-    return `<span class='option' option='${option[0]}' choosable chosen='false'>${option[1]}</span>`
+function renderStringOption(option:StringOption<number>, hotkey?:key): string {
+    const hotkeyText = (hotkey!==undefined) ? renderHotkey(hotkey) : ''
+    return `<span class='option' option='${option.value}' choosable chosen='false'>${hotkeyText}${option.render}</span>`
+}
+
+function renderHotkey(hotkey: string) {
+  return `<span class="hotkey">${hotkey}</span> `
+}
+
+function renderSpecials(undoable:boolean): string {
+    return renderUndo(undoable) + renderHotkeyToggle()
+}
+
+function renderHotkeyToggle(): string {
+    return `<span class='option', option='hotkeyToggle' choosable chosen='false'>${renderHotkey('?')} Hotkeys</span>`
 }
 
 function renderUndo(undoable:boolean): string {
-    return `<span class='option', option='undo' ${undoable ? 'choosable' : ''} chosen='false'>Undo</span>`
+    const hotkeyText = (globalRendererState.hotkeysOn) ? renderHotkey('z') : ''
+    return `<span class='option', option='undo' ${undoable ? 'choosable' : ''} chosen='false'>${hotkeyText}Undo</span>`
 }
 
+function bindSpecials(state:State, reject: ((x:any) => void), renderer: () => void): void {
+    bindHotkeyToggle(renderer)
+    bindUndo(state, reject)
+}
+
+function bindHotkeyToggle(renderer: () => void) {
+    function pick() {
+        globalRendererState.hotkeysOn = !globalRendererState.hotkeysOn
+        renderer()
+    }
+    keyListeners.set('?', pick)
+    $(`[option='hotkeyToggle']`).on('click', pick)
+}
+
+function bindUndo(state:State, reject: ((x:any) => void)): void {
+    function pick() {
+        if (state.undoable()) reject(new Undo(state))
+    }
+    if (globalRendererState.hotkeysOn)
+        keyListeners.set('z', pick)
+    $(`[option='undo']`).on('click', pick)
+}
+
+
 function clearChoice(): void {
+    keyListeners.clear()
     $('#choicePrompt').html('')
     $('#options').html('')
     $('#undoArea').html('')
@@ -1300,28 +1378,24 @@ class Undo extends Error {
     }
 }
 
-function bindUndo(state:State, reject: ((x:any) => void)): void {
-    $(`[option='undo']`).on('click', function(e: any){
-        if (state.undoable()) reject(new Undo(state))
-    })
-}
 
 function freshChoice<T>(
     state: State,
     choicePrompt: string,
-    options: ChoiceOption<T>[],
+    options: Option<T>[],
 ): Promise<number> {
-    renderChoice(state, choicePrompt, options, false)
     return new Promise(function(resolve, reject) {
-        for (let i = 0; i < options.length; i++) {
-            const j = i;
-            const elem = $(`[option='${i}']`)
-            elem.on('click', function (e: any) {
-                clearChoice()
-                resolve(j)
-            })
+        function pick(i:number) {
+            clearChoice()
+            resolve(i)
         }
-        bindUndo(state, reject)
+        function renderer() {
+            renderChoice(state,
+                choicePrompt,
+                options.map((x, i) => ({render:x.render, value:() => pick(i)})),
+                reject, renderer)
+        }
+        renderer()
     })
 }
 
@@ -1330,49 +1404,175 @@ function freshChoice<T>(
 function freshMultichoice<T>(
     state: State,
     choicePrompt: string,
-    options: ChoiceOption<T>[],
+    options: Option<T>[],
     validator:((xs:T[]) => boolean) = (xs => true)
 ): Promise<number[]> {
-    renderChoice(state, choicePrompt, options, true)
-    const chosen:Set<number> = new Set()
-    function chosenOptions(): T[] {
-        const result = []
-        for (let i of chosen) result.push(options[i].value)
-        return result
-    }
-    function isReady(): boolean {
-        return validator(chosenOptions())
-    }
-    function setReady(): void {
-        if (isReady()) {
-            $(`[option='submit']`).attr('choosable', true)
-        } else {
-            $(`[option='submit']`).removeAttr('choosable')
+    return new Promise(function(resolve, reject){
+        const chosen:Set<number> = new Set()
+        function chosenOptions(): T[] {
+            const result = []
+            for (let i of chosen) result.push(options[i].value)
+            return result
         }
-    }
-    setReady()
-    return new Promise(function(resolve, reject) {
-        for (let i = 0; i < options.length; i++) {
-            const j = i;
-            const elem = $(`[option='${i}']`)
-            elem.on('click', function(e:any) {
-                if (chosen.has(j)) {
-                    chosen.delete(j)
-                    elem.attr('chosen', false)
-                } else {
-                    chosen.add(j)
-                    elem.attr('chosen', true)
-                }
-                setReady()
-            })
+        function isReady(): boolean {
+            return validator(chosenOptions())
         }
-        $(`[option='submit']`).on('click', function(e:any){
+        function setReady(): void {
+            if (isReady()) {
+                $(`[option='submit']`).attr('choosable', true)
+            } else {
+                $(`[option='submit']`).removeAttr('choosable')
+            }
+        }
+        function elem(i:number): any {
+            return $(`[option='${i}']`)
+        }
+        function pick(i:number): void {
+            if (chosen.has(i)) {
+                chosen.delete(i)
+                elem(i).attr('chosen', false)
+            } else {
+                chosen.add(i)
+                elem(i).attr('chosen', true)
+            }
+            setReady()
+        }
+        const newOptions:Option<() => void>[] = options.map(
+            (x, i) => ({render:x.render, value: () => pick(i)})
+        )
+        newOptions.push({render:'Done', value: () => {
             if (isReady()) {
                 resolve(Array.from(chosen.values()))
             }
-        })
-        bindUndo(state, reject)
+        }})
+        chosen.clear()
+        function renderer() {
+            renderChoice(state, choicePrompt, newOptions, reject, renderer)
+            for (const j of chosen) elem(j).attr('chosen', true)
+        }
+        renderer()
     })
+}
+
+
+// --------------------- Hotkeys
+//
+const keyListeners: Map<key, () => void> = new Map();
+const numHotkeys = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0']
+const symbolHotkeys = ['!', '@', '#', '$', '%', '^', '&', '*', '(', ')']
+const lowerHotkeys = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm',
+    'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', // 'z' reserved for undo
+]
+const upperHotkeys = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M',
+    'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z']
+const hotkeys:key[] = numHotkeys.concat(symbolHotkeys)
+    .concat(upperHotkeys.slice().reverse())
+    .concat(lowerHotkeys.slice().reverse())
+
+$(document).keydown((e: any) => {
+    const listener = keyListeners.get(e.key)
+    if (listener != undefined) listener()
+});
+
+type key = string
+
+class IMap<S, T> {
+    private readonly f:Map<S, T>;
+    public readonly inv:Map<T, S>;
+    constructor () {
+        this.f = new Map();
+        this.inv = new Map();
+    }
+    public get (x:S): T|undefined {
+        return this.f.get(x)
+    }
+    public set (x:S, y:T): void {
+        if (this.inv.has(y)) throw Error("Trying to assign duplicate values to IMap.")
+        const oldy = this.f.get(x)
+        if (oldy != undefined) this.inv.delete(oldy)
+        this.f.set(x, y)
+        this.inv.set(y, x)
+    }
+    public has (x:S): boolean {
+        return this.f.has(x)
+    }
+    public delete (x:S): void {
+        const y = this.f.get(x)
+        if (y == undefined) return
+        this.f.delete(x)
+        this.inv.delete(y)
+    }
+    //(I don't know type signatures for Map.keys())
+    public keys() {
+        return this.f.keys()
+    }
+    public entries() {
+        return this.f.entries()
+    }
+}
+
+//TODO: if a card leaves your hand then returns to your hand, reset
+class HotkeyMapper {
+    public readonly supplyKeys:IMap<number, key>;
+    public readonly playKeys:IMap<number, key>;
+    public readonly handKeys:IMap<number, key>;
+    constructor() {
+        this.supplyKeys = new IMap();
+        this.playKeys= new IMap();
+        this.handKeys = new IMap();
+    }
+    freeKeys(): key[] {
+        return hotkeys.filter(c => 
+            !(this.supplyKeys.inv.has(c)
+                || this.playKeys.inv.has(c)
+                || this.handKeys.inv.has(c))
+        )
+    }
+    ensureCoverage(m:IMap<number, key>, s:Set<number>, order:'forwards'|'backwards') {
+        for (const id of m.keys()) if (!s.has(id)) m.delete(id)
+        const freeKeys:key[] = this.freeKeys()
+        console.log(order)
+        console.log(freeKeys)
+        let index:number = 0
+        for (const id of s) if (!m.has(id) && index < freeKeys.length) {
+            const hotkey:key = freeKeys[(order == 'forwards') ? index++ : freeKeys.length - 1 - (index++)]
+            console.log(id, hotkey)
+            m.set(id, hotkey)
+        }
+    }
+    update(state:State) {
+        const supplyIds:Set<number> = new Set(state.supply.map(card => card.id));
+        const handIds:Set<number> = new Set(state.hand.map(card => card.id));
+        const playIds:Set<number> = new Set(state.play.map(card => card.id));
+        this.ensureCoverage(this.supplyKeys, supplyIds, 'backwards')
+        this.ensureCoverage(this.playKeys, playIds, 'backwards')
+        this.ensureCoverage(this.handKeys, handIds, 'forwards')
+    }
+    map(state:State, options:OptionRender[]): Map<OptionRender, key> {
+        const result:Map<OptionRender, key> = new Map()
+        this.update(state)
+        for (const [k, v] of this.supplyKeys.entries()) result.set(k, v)
+        for (const [k, v] of this.playKeys.entries()) result.set(k, v)
+        for (const [k, v] of this.handKeys.entries()) result.set(k, v)
+        const freeKeys:key[] = this.freeKeys()
+        let index:number = 0
+        for (const option of options) {
+            if (index < freeKeys.length && !result.has(option)) {
+                result.set(option, freeKeys[index++])
+            }
+        }
+        return result
+    }
+}
+
+interface RendererState {
+    hotkeysOn:boolean;
+    hotkeyMapper: HotkeyMapper;
+}
+
+const globalRendererState:RendererState = {
+    hotkeysOn:false,
+    hotkeyMapper: new HotkeyMapper()
 }
 
 
@@ -1403,10 +1603,10 @@ async function act(state:State): Promise<State> {
 }
 
 function actChoice(state:State): Promise<[State, Card|null]> {
-    const validSupplies:Card[] = state.supply.filter(x => (x.cost(state).coin <= state.coin))
     const validHand:Card[] = state.hand
+    const validSupplies:Card[] = state.supply.filter(x => (x.cost(state).coin <= state.coin))
     const validPlay:Card[] = state.play.filter(x => (x.abilities().length > 0))
-    const cards:Card[] = validSupplies.concat(validHand).concat(validPlay)
+    const cards:Card[] = validPlay.concat(validHand).concat(validSupplies)
     return choice(state,
         'Play from your hand, use an ability, or buy from a supply.',
         cards.map(asChoice))
@@ -1428,7 +1628,7 @@ function useCard(card: Card): Transform {
         if (ability != null) {
             state = state.log(`Activating ${card.name}`)
             state = await withTracking(
-                payToDo(ability.cost, ability.effect), 
+                payToDo(ability.cost, ability.effect),
                 {card:card, kind:'ability', ability:ability}
             )(state)
         }
@@ -1828,9 +2028,9 @@ buyable(tower, 8)
 
 
 const tradeRoute:CardSpec = {name: 'Trade Route',
-    fixedCost: time(1),
+    fixedCost: time(0),
     effect: card => ({
-        text: 'Add a charge token to this, then +1 vp per charge token on this.',
+        text: 'Add a charge token to this, then +$1 per charge token on this.',
         effect: async function(state) {
             state = await charge(card, 1)(state);
             const result = state.find(card)
@@ -1890,7 +2090,7 @@ const youngSmith:CardSpec = {name: 'Young Smith',
         effect: e => async function(state) {
             const result = state.find(card)
             if (result.found) {
-                const options:ChoiceOption<number>[] = chooseNatural(Math.min(e.amount, result.card.charge) + 1)
+                const options:Option<number>[] = chooseNatural(Math.min(e.amount, result.card.charge) + 1)
                 let m:number|null;
                 [state, m] = await choice(state, 'How many charge counters do you want to remove?', options)
                 const n:number = (m as number)
@@ -2015,7 +2215,7 @@ function freeActions(
         let remainingTime = totalTime;
         while (remainingTime > 0) {
             const options = state.hand.filter(
-                (card:Card) => (card.cost(state).time <= remainingTime) 
+                (card:Card) => (card.cost(state).time <= remainingTime)
                 && constraint(card, state)
             );
             let target;
@@ -2224,8 +2424,6 @@ const twin:CardSpec = {name: 'Twin',
         handles:e => (e.before.tokens.includes('twin') && e.source.id != card.id),
         effect:e => async function(state) {
             const result = state.find(e.before)
-            console.log(card)
-            console.log(e.source)
             return (result.place == 'discard') ? result.card.play(card)(state) : state
         }
     }],
@@ -2343,7 +2541,7 @@ const synergy:CardSpec = {name:'Synergy',
         handles: e => (e.source.id != card.id && countTokens(e.before, 'synergy') > 0),
         effect: e => async function(state) {
             const options:Card[] = state.supply.filter(
-                c => countTokens(c, 'synergy') > 0 
+                c => countTokens(c, 'synergy') > 0
                 && leq(c.cost(state), e.before.cost(state))
                 && c.id != e.before.id
             )
@@ -2916,12 +3114,12 @@ const looter:CardSpec = {name: 'Looter',
             state = await draw(1)(state)
             let index; [state, index] = await choice(state,
                 'Choose a card to discard (along with everything above it).',
-                allowNull(state.deck.map((x, i) => ({kind:'card', render:state.deck[i], value:i}))))
+                allowNull(state.deck.map((x, i) => ({render:state.deck[i].id, value:i}))))
             return (index == null) ? state  : moveMany(state.deck.slice(0, index+1), 'discard')(state)
         }
     })
 }
-buyable(looter, 3)
+buyable(looter, 3, 'test')
 
 const scavenger:CardSpec = {name: 'Scavenger',
     fixedCost: time(1),
@@ -3044,7 +3242,7 @@ const oasis:CardSpec = {name: 'Oasis',
         text: `+1 card. You may discard a card to add a charge counter to a ${coffers.name} in play.`,
         effect: async function(state) {
             state = await draw(1)(state)
-            let target:Card|null; [state, target] = await choice(state, 
+            let target:Card|null; [state, target] = await choice(state,
                 'Choose a card to discard.',
                 allowNull(state.hand.map(asChoice)))
             if (target != null) {
@@ -3169,10 +3367,10 @@ const ferry:CardSpec = {name: 'Ferry',
     })
 }
 function reduceCoin(cost:Cost, n:number): Cost {
-    return {coin:Math.max(cost.coin - n,0), time:cost.time} 
+    return {coin:Math.max(cost.coin - n,0), time:cost.time}
 }
 function reduceTime(cost:Cost, n:number): Cost {
-    return {time:Math.max(cost.time- n,0), coin:cost.coin} 
+    return {time:Math.max(cost.time- n,0), coin:cost.coin}
 }
 function isZeroCost(cost:Cost): boolean {
     return cost.coin == 0 && cost.time == 0
