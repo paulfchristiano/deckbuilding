@@ -2495,7 +2495,7 @@ const lookout:CardSpec = {name: 'Lookout',
         }
     })
 }
-buyable(lookout, 3)
+buyable(lookout, 4)
 
 const lab:CardSpec = {name: 'Lab',
     fixedCost: time(0),

@@ -3055,7 +3055,7 @@ var lookout = { name: 'Lookout',
         }
     }); }
 };
-buyable(lookout, 3);
+buyable(lookout, 4);
 var lab = { name: 'Lab',
     fixedCost: time(0),
     effect: function (card) { return ({
