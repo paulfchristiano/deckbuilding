@@ -5,7 +5,6 @@
 // TODO: minimum width for option choices
 // TODO: starting to see performance hiccups in big games
 // TODO: probably just want to stop things moving in/out of resolving, as if they didn't exist...
-// TODO: merge in hotkeys, think about how that should work
 
 // ----------------------------- Cards
 
@@ -3119,7 +3118,7 @@ const looter:CardSpec = {name: 'Looter',
         }
     })
 }
-buyable(looter, 3, 'test')
+buyable(looter, 3)
 
 const scavenger:CardSpec = {name: 'Scavenger',
     fixedCost: time(1),

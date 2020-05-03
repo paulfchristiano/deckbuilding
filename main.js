@@ -6,7 +6,6 @@
 // TODO: minimum width for option choices
 // TODO: starting to see performance hiccups in big games
 // TODO: probably just want to stop things moving in/out of resolving, as if they didn't exist...
-// TODO: merge in hotkeys, think about how that should work
 var __extends = (this && this.__extends) || (function () {
     var extendStatics = function (d, b) {
         extendStatics = Object.setPrototypeOf ||
@@ -3877,7 +3876,7 @@ var looter = { name: 'Looter',
         }
     }); }
 };
-buyable(looter, 3, 'test');
+buyable(looter, 3);
 var scavenger = { name: 'Scavenger',
     fixedCost: time(1),
     effect: function (card) { return ({

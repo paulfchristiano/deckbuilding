@@ -18,6 +18,7 @@
 }
 .option {
     max-width: 20em;
+    min-width: 3em;
 }
 #resolving {
     display:inline-block;
