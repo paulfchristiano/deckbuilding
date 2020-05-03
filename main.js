@@ -1,6 +1,4 @@
 "use strict";
-// TODO: the first section of this file isn't 't sorted very well
-// TODO: don't currently get type checking for replacement and triggers; checking types would catch a lot of bugs
 // TODO: make the tooltip nice---should show up immediately, but be impossible to keep it alive by mousing over it
 // TODO: I think the cost framework isn't really appropriate any more, but maybe think a bit before getting rid of it
 // TODO: if a zone gets bigger and then, it's annoying to keep resizing it. As soon as a zone gets big I want to leave it big probably.
@@ -1747,10 +1745,17 @@ function playGame(seed) {
         });
     });
 }
+// Source: https://werxltd.com/wp/2010/05/13/javascript-implementation-of-javas-string-hashcode-method/
+function hash(s) {
+    var hash = 0;
+    for (var i = 0; i < s.length; i++) {
+        hash = ((hash << 5) - hash) + s.charCodeAt(i);
+    }
+    return hash;
+}
 function getSeed() {
     var seed = new URLSearchParams(window.location.search).get('seed');
-    var n = Number(seed);
-    return (isNaN(n)) ? undefined : n;
+    return (seed == null) ? undefined : hash(seed);
 }
 function load() {
     playGame(getSeed());
