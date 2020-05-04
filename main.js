@@ -2744,7 +2744,7 @@ var carriageEffect = { name: 'Royal Carriage',
 var royalCarriage = { name: 'Royal Carriage',
     fixedCost: time(0),
     effect: function (card) { return ({
-        text: "Next time you finish playing another card this turn, if it's in your disard pile play it again.",
+        text: "Next time you finish playing a card, if it's in your disard pile play it again.",
         effect: create(carriageEffect, 'play')
     }); }
 };
@@ -4386,10 +4386,10 @@ var makeInflation = { name: 'Inflation',
 register(makeInflation);
 var publicWorksReduction = { name: 'Public Works',
     replacers: function (card) { return [{
-            text: "Cards in the supply cost @ less, but not zero.",
+            text: "Cards in the supply cost @ less.",
             kind: 'cost',
             handles: function (e, state) { return state.find(e.card).place == 'supply'; },
-            replace: function (e) { return (__assign(__assign({}, e), { cost: reduceTimeNonzero(e.cost, 1) })); }
+            replace: function (e) { return (__assign(__assign({}, e), { cost: reduceTime(e.cost, 1) })); }
         }]; },
     triggers: function (card) { return [{
             text: "When you buy a card, trash this.",
@@ -4400,7 +4400,7 @@ var publicWorksReduction = { name: 'Public Works',
 };
 var publicWorks = { name: 'Public Works',
     effect: function (card) { return ({
-        text: "The next card you buy this turn costs @ less, but not 0.",
+        text: "The next card you buy costs @ less.",
         effect: create(publicWorksReduction, 'play')
     }); }
 };

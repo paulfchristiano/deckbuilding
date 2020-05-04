@@ -2300,7 +2300,7 @@ const carriageEffect:CardSpec = {name: 'Royal Carriage',
 const royalCarriage:CardSpec = {name: 'Royal Carriage',
     fixedCost: time(0),
     effect: card => ({
-        text: "Next time you finish playing another card this turn, if it's in your disard pile play it again.",
+        text: "Next time you finish playing a card, if it's in your disard pile play it again.",
         effect: create(carriageEffect, 'play')
     })
 }
@@ -3517,10 +3517,10 @@ register(makeInflation)
 
 const publicWorksReduction:CardSpec = {name: 'Public Works',
     replacers: card => [{
-        text:"Cards in the supply cost @ less, but not zero.",
+        text:"Cards in the supply cost @ less.",
         kind: 'cost',
         handles: (e, state) => state.find(e.card).place == 'supply',
-        replace: e => ({...e, cost:reduceTimeNonzero(e.cost, 1)})
+        replace: e => ({...e, cost:reduceTime(e.cost, 1)})
     }],
     triggers: card => [{
         text:"When you buy a card, trash this.",
@@ -3531,7 +3531,7 @@ const publicWorksReduction:CardSpec = {name: 'Public Works',
 }
 const publicWorks:CardSpec = {name: 'Public Works',
     effect: card => ({
-        text: "The next card you buy this turn costs @ less, but not 0.",
+        text: "The next card you buy costs @ less.",
         effect: create(publicWorksReduction, 'play')
     })
 }
