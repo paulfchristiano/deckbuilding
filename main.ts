@@ -2144,7 +2144,8 @@ buyable(expansion, 8)
 const tower:CardSpec = {name: 'Tower',
     fixedCost: time(1),
     effect: card => ({
-        text: 'Add a charge token to this, then +1 vp per charge token on this.',
+        text: 'Add a charge token to this, then +1 vp per charge token on this. Put it on the bottom of your deck.',
+        toZone:'deck',
         effect: async function(state) {
             state = await charge(card, 1)(state);
             const result = state.find(card)
@@ -2153,7 +2154,7 @@ const tower:CardSpec = {name: 'Tower',
         },
     })
 }
-buyable(tower, 8)
+buyable(tower, 9)
 
 
 const tradeRoute:CardSpec = {name: 'Trade Route',
@@ -2193,16 +2194,6 @@ const populate:CardSpec = {name: 'Populate',
     })
 }
 register(populate)
-
-const populism:CardSpec = {name: 'Populism',
-    triggers: card => [{
-        text: `After playing ${a(estate.name)}, play cards from your hand with total cost up to @.`,
-        kind:'afterPlay',
-        handles: e => (e.before.name == estate.name),
-        effect: e => freeActions(1, card),
-    }]
-}
-//register(makeCard(populism, time(2), true))
 
 const youngSmith:CardSpec = {name: 'Young Smith',
     fixedCost: time(1),
@@ -2330,7 +2321,7 @@ const capital:CardSpec = {name: 'Capital',
         ])
     })
 }
-buyable(capital, 5)
+buyable(capital, 6)
 
 const bridge:CardSpec = {name: 'Bridge',
     fixedCost: time(1),
@@ -2467,7 +2458,7 @@ const village:CardSpec = {name: 'Village',
         effect: doAll([draw(1), freeActions(2, card)]),
     })
 }
-buyable(village, 3)
+buyable(village, 4)
 
 const bazaar:CardSpec = {name: 'Bazaar',
     fixedCost: time(1),
@@ -2624,7 +2615,7 @@ const twin:CardSpec = {name: 'Twin',
 }
 register(twin)
 
-const blacksmith:CardSpec = {name: 'Blacksmith',
+const apprentice:CardSpec = {name: 'Apprentice',
     fixedCost: time(1),
     effect: card => ({
         text: 'Add a charge token to this, then +1 card per charge token on this.',
@@ -2636,7 +2627,7 @@ const blacksmith:CardSpec = {name: 'Blacksmith',
         },
     })
 }
-buyable(blacksmith, 2)
+buyable(apprentice, 1)
 
 function nextTime<T extends GameEvent>(name:string,
     text:string,
@@ -3698,7 +3689,7 @@ const artisan:CardSpec = {name: 'Artisan',
         effect: doAll([draw(2), gainCoin(3)]),
     })
 }
-buyable(artisan, 6)
+buyable(artisan, 7)
 
 const chancellor:CardSpec = {name: 'Chancellor',
     effect: card => ({

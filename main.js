@@ -2469,7 +2469,8 @@ buyable(expansion, 8);
 var tower = { name: 'Tower',
     fixedCost: time(1),
     effect: function (card) { return ({
-        text: 'Add a charge token to this, then +1 vp per charge token on this.',
+        text: 'Add a charge token to this, then +1 vp per charge token on this. Put it on the bottom of your deck.',
+        toZone: 'deck',
         effect: function (state) {
             return __awaiter(this, void 0, void 0, function () {
                 var result;
@@ -2491,7 +2492,7 @@ var tower = { name: 'Tower',
         },
     }); }
 };
-buyable(tower, 8);
+buyable(tower, 9);
 var tradeRoute = { name: 'Trade Route',
     fixedCost: time(0),
     effect: function (card) { return ({
@@ -2569,15 +2570,6 @@ var populate = { name: 'Populate',
     }); }
 };
 register(populate);
-var populism = { name: 'Populism',
-    triggers: function (card) { return [{
-            text: "After playing " + a(estate.name) + ", play cards from your hand with total cost up to @.",
-            kind: 'afterPlay',
-            handles: function (e) { return (e.before.name == estate.name); },
-            effect: function (e) { return freeActions(1, card); },
-        }]; }
-};
-//register(makeCard(populism, time(2), true))
 var youngSmith = { name: 'Young Smith',
     fixedCost: time(1),
     effect: function (card) { return ({
@@ -2782,7 +2774,7 @@ var capital = { name: 'Capital',
         ])
     }); }
 };
-buyable(capital, 5);
+buyable(capital, 6);
 var bridge = { name: 'Bridge',
     fixedCost: time(1),
     effect: function (card) { return ({
@@ -2946,7 +2938,7 @@ var village = { name: 'Village',
         effect: doAll([draw(1), freeActions(2, card)]),
     }); }
 };
-buyable(village, 3);
+buyable(village, 4);
 var bazaar = { name: 'Bazaar',
     fixedCost: time(1),
     effect: function (card) { return ({
@@ -3158,7 +3150,7 @@ var twin = { name: 'Twin',
         }]; },
 };
 register(twin);
-var blacksmith = { name: 'Blacksmith',
+var apprentice = { name: 'Apprentice',
     fixedCost: time(1),
     effect: function (card) { return ({
         text: 'Add a charge token to this, then +1 card per charge token on this.',
@@ -3183,7 +3175,7 @@ var blacksmith = { name: 'Blacksmith',
         },
     }); }
 };
-buyable(blacksmith, 2);
+buyable(apprentice, 1);
 function nextTime(name, text, kind, when, what) {
     function triggers(card) {
         return [{
@@ -4610,7 +4602,7 @@ var artisan = { name: 'Artisan',
         effect: doAll([draw(2), gainCoin(3)]),
     }); }
 };
-buyable(artisan, 6);
+buyable(artisan, 7);
 var chancellor = { name: 'Chancellor',
     effect: function (card) { return ({
         text: '+$2. You may discard your deck.',
