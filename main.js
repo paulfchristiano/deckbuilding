@@ -284,7 +284,17 @@ var Card = /** @class */ (function () {
 }());
 var notFound = { found: false, card: null, place: null };
 var State = /** @class */ (function () {
-    function State(counters, zones, resolving, nextID, history, future, checkpoint, logs, logIndent) {
+    function State(counters, zones, resolving, nextID, history, future, checkpoint, logs, logIndent, info) {
+        if (counters === void 0) { counters = { coin: 0, time: 0, points: 0 }; }
+        if (zones === void 0) { zones = new Map(); }
+        if (resolving === void 0) { resolving = []; }
+        if (nextID === void 0) { nextID = 0; }
+        if (history === void 0) { history = []; }
+        if (future === void 0) { future = []; }
+        if (checkpoint === void 0) { checkpoint = null; }
+        if (logs === void 0) { logs = []; }
+        if (logIndent === void 0) { logIndent = 0; }
+        if (info === void 0) { info = { kingdom: [] }; }
         this.counters = counters;
         this.zones = zones;
         this.resolving = resolving;
@@ -294,6 +304,7 @@ var State = /** @class */ (function () {
         this.checkpoint = checkpoint;
         this.logs = logs;
         this.logIndent = logIndent;
+        this.info = info;
         this.coin = counters.coin;
         this.time = counters.time;
         this.points = counters.points;
@@ -305,7 +316,10 @@ var State = /** @class */ (function () {
         this.aside = zones.get('aside') || [];
     }
     State.prototype.update = function (stateUpdate) {
-        return new State(read(stateUpdate, 'counters', this.counters), read(stateUpdate, 'zones', this.zones), read(stateUpdate, 'resolving', this.resolving), read(stateUpdate, 'nextID', this.nextID), read(stateUpdate, 'history', this.history), read(stateUpdate, 'future', this.future), read(stateUpdate, 'checkpoint', this.checkpoint), read(stateUpdate, 'logs', this.logs), read(stateUpdate, 'logIndent', this.logIndent));
+        return new State(read(stateUpdate, 'counters', this.counters), read(stateUpdate, 'zones', this.zones), read(stateUpdate, 'resolving', this.resolving), read(stateUpdate, 'nextID', this.nextID), read(stateUpdate, 'history', this.history), read(stateUpdate, 'future', this.future), read(stateUpdate, 'checkpoint', this.checkpoint), read(stateUpdate, 'logs', this.logs), read(stateUpdate, 'logIndent', this.logIndent), read(stateUpdate, 'info', this.info));
+    };
+    State.prototype.updateInfo = function (info) {
+        return this.update({ info: info });
     };
     State.prototype.addResolving = function (x) {
         return this.update({ resolving: this.resolving.concat([x]) });
@@ -1490,10 +1504,13 @@ function renderHotkey(hotkey) {
     return "<span class=\"hotkey\">" + hotkey + "</span> ";
 }
 function renderSpecials(undoable) {
-    return renderUndo(undoable) + renderHotkeyToggle();
+    return renderUndo(undoable) + renderHotkeyToggle() + renderHelp();
 }
 function renderHotkeyToggle() {
-    return "<span class='option', option='hotkeyToggle' choosable chosen='false'>" + renderHotkey('?') + " Hotkeys</span>";
+    return "<span class='option', option='hotkeyToggle' choosable chosen='false'>" + renderHotkey('/') + " Hotkeys</span>";
+}
+function renderHelp() {
+    return "<span id='help' class='option', option='help' choosable chosen='false'>" + renderHotkey('?') + " Help</span>";
 }
 function renderUndo(undoable) {
     var hotkeyText = (globalRendererState.hotkeysOn) ? renderHotkey('z') : '';
@@ -1502,13 +1519,14 @@ function renderUndo(undoable) {
 function bindSpecials(state, reject, renderer) {
     bindHotkeyToggle(renderer);
     bindUndo(state, reject);
+    bindHelp(state, renderer);
 }
 function bindHotkeyToggle(renderer) {
     function pick() {
         globalRendererState.hotkeysOn = !globalRendererState.hotkeysOn;
         renderer();
     }
-    keyListeners.set('?', pick);
+    keyListeners.set('/', pick);
     $("[option='hotkeyToggle']").on('click', pick);
 }
 function bindUndo(state, reject) {
@@ -1519,6 +1537,32 @@ function bindUndo(state, reject) {
     if (globalRendererState.hotkeysOn)
         keyListeners.set('z', pick);
     $("[option='undo']").on('click', pick);
+}
+function bindHelp(state, renderer) {
+    function attach(f) {
+        $('#help').on('click', f);
+        keyListeners.set('?', f);
+    }
+    function pick() {
+        attach(renderer);
+        var helpLines = [
+            'The goal of the game is to get to 50 points (vp) using as little time (@) as possible.',
+            "The symbols below a card's name indicate its cost.",
+            "You must pay a card's cost in order to buy it from the supply or play it from your hand.",
+            "When you play or buy a card, follow it's insrtuctions. After playing a card, discard it.",
+            "When a cost is measured in time (@, @@, ...) then you use that much time to play it.",
+            "When a cost is measured in $ then you can only buy it if you have enough coin.",
+            "You can activate card's abilities, marked with (ability), any time you could play a card.",
+            "Effects marked with (static) apply whenever the card is in play or in the supply.",
+            "The game is played with a randomized supply.",
+            "You can visit <a href='" + kingdomURL(state.info.kingdom) + "'>this link</a> to replay this kingdom anytime.",
+            "Or play the <a href='" + dateSeedPath() + "'>daily kingdom</a>, using today's date as a seed.",
+            "Or visit the <a href='" + basePlus("picker.html") + "'>kingdom picker<a> to pick a kingdom.",
+        ];
+        $('#choicePrompt').html('');
+        $('#resolving').html(helpLines.map(function (x) { return "<div class='helpLine'>" + x + "</div class='helpline'>"; }).join(''));
+    }
+    attach(pick);
 }
 function clearChoice() {
     keyListeners.clear();
@@ -1792,7 +1836,7 @@ function actChoice(state) {
     var validSupplies = state.supply.filter(function (x) { return (x.cost(state).coin <= state.coin); });
     var validPlay = state.play.filter(function (x) { return (x.abilities().length > 0); });
     var cards = validPlay.concat(validHand).concat(validSupplies);
-    return choice(state, 'Play from your hand, use an ability, or buy from a supply.', cards.map(asChoice));
+    return choice(state, 'Play a card from your hand, use an ability of a card in play, or buy a card from the supply.', cards.map(asChoice));
 }
 function useCard(card) {
     return function (state) {
@@ -1908,6 +1952,7 @@ function playGame(seed, fixedKingdom) {
                     if (fixedKingdom != undefined)
                         variableSupplies = fixedKingdom;
                     variableSupplies.sort(supplySort);
+                    state = state.updateInfo(__assign(__assign({}, state.info), { kingdom: variableSupplies }));
                     if (testing.length > 0)
                         for (i = 0; i < cheats.length; i++)
                             testing.push(cheats[i]);
@@ -2004,12 +2049,28 @@ function load() {
     playGame(getSeed(), getFixedKingdom());
 }
 // ----------------------------------- Kingdom picker
+function basePlus(s) {
+    var urlParts = window.location.toString().split('/');
+    urlParts[urlParts.length - 1] = s;
+    return urlParts.join('/');
+}
+function dateString() {
+    var date = new Date();
+    return String(date.getDate()).padStart(2, '0') + (String(date.getMonth() + 1).padStart(2, '0')) + date.getFullYear();
+}
+function dateSeedPath() {
+    var s = dateString();
+    return basePlus("index.html?seed=" + s);
+}
+function kingdomURL(specs) {
+    return basePlus("index.html?kingdom=" + specs.map(function (spec) { return spec.name; }).join(','));
+}
 function loadPicker() {
     var state = emptyState;
-    var sortedSpecs = mixins.slice();
-    sortedSpecs.sort(function (spec1, spec2) { return spec1.name.localeCompare(spec2.name); });
-    for (var i = 0; i < sortedSpecs.length; i++) {
-        var spec = sortedSpecs[i];
+    var specs = mixins.slice();
+    specs.sort(function (spec1, spec2) { return spec1.name.localeCompare(spec2.name); });
+    for (var i = 0; i < specs.length; i++) {
+        var spec = specs[i];
         state = state.addToZone(new Card(spec, i), 'supply');
     }
     function trivial() { }
@@ -2021,10 +2082,7 @@ function loadPicker() {
         return parts.slice(0, parts.length - 1).join('/');
     }
     function kingdomLink() {
-        var result = window.location.toString();
-        var kingdomString = Array.from(chosen.values()).
-            map(function (i) { return sortedSpecs[i].name; }).join(',');
-        return prefix(result) + ("/index.html?kingdom=" + kingdomString);
+        return kingdomURL(Array.from(chosen.values()).map(function (i) { return specs[i]; }));
     }
     var chosen = new Set();
     function pick(i) {
@@ -2036,7 +2094,12 @@ function loadPicker() {
             chosen.add(i);
             elem(i).attr('chosen', true);
         }
-        $('#kingdomLink').attr('href', kingdomLink());
+        if (chosen.size > 0) {
+            $('#kingdomLink').attr('href', kingdomLink());
+        }
+        else {
+            $('#kingdomLink').removeAttr('href');
+        }
     }
     renderChoice(state, 'Choose which cards to include in the supply.', state.supply.map(function (card, i) { return ({
         render: card.id,

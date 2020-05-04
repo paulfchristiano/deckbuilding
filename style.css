@@ -1,4 +1,4 @@
-#resources, #choicePrompt, .header, #kingdomLink {
+#resources, #choicePrompt, .header, #kingdomLink, .helpLine {
     font-size: 1.25em;
 }
 .card, .option {

@@ -243,6 +243,11 @@ interface StateUpdate {
     logIndent?:number;
     checkpoint?:State;
     nextID?:number;
+    info?:StateInfo;
+}
+
+interface StateInfo {
+    kingdom: CardSpec[]
 }
 
 interface FoundResult {
@@ -272,15 +277,16 @@ class State {
     public readonly play:Zone;
     public readonly aside:Zone;
     constructor(
-        private readonly counters:Counters,
-        private readonly zones:Map<ZoneName,Zone>,
-        public readonly resolving:Resolving,
-        private readonly nextID:number,
-        private readonly history: Replayable[],
-        private readonly future: Replayable[],
-        private readonly checkpoint: State|null,
-        public readonly logs: string[],
-        private readonly logIndent: number,
+        private readonly counters:Counters = {coin:0, time:0, points:0},
+        private readonly zones:Map<ZoneName,Zone> = new Map(),
+        public readonly resolving:Resolving = [],
+        private readonly nextID:number = 0,
+        private readonly history: Replayable[] = [],
+        private readonly future: Replayable[] = [],
+        private readonly checkpoint: State|null = null,
+        public readonly logs: string[] = [],
+        private readonly logIndent: number = 0,
+        public readonly info: StateInfo = {kingdom: []},
     ) {
         this.coin = counters.coin
         this.time = counters.time
@@ -304,7 +310,11 @@ class State {
             read(stateUpdate, 'checkpoint', this.checkpoint),
             read(stateUpdate, 'logs', this.logs),
             read(stateUpdate, 'logIndent', this.logIndent),
+            read(stateUpdate, 'info', this.info),
         )
+    }
+    updateInfo(info:StateInfo): State {
+        return this.update({info: info})
     }
     addResolving(x:Card|Shadow): State {
         return this.update({resolving: this.resolving.concat([x])})
@@ -1342,11 +1352,14 @@ function renderHotkey(hotkey: Key) {
 }
 
 function renderSpecials(undoable:boolean): string {
-    return renderUndo(undoable) + renderHotkeyToggle()
+    return renderUndo(undoable) + renderHotkeyToggle() + renderHelp()
 }
 
 function renderHotkeyToggle(): string {
-    return `<span class='option', option='hotkeyToggle' choosable chosen='false'>${renderHotkey('?')} Hotkeys</span>`
+    return `<span class='option', option='hotkeyToggle' choosable chosen='false'>${renderHotkey('/')} Hotkeys</span>`
+}
+function renderHelp(): string {
+    return `<span id='help' class='option', option='help' choosable chosen='false'>${renderHotkey('?')} Help</span>`
 }
 
 function renderUndo(undoable:boolean): string {
@@ -1357,6 +1370,7 @@ function renderUndo(undoable:boolean): string {
 function bindSpecials(state:State, reject: ((x:any) => void), renderer: () => void): void {
     bindHotkeyToggle(renderer)
     bindUndo(state, reject)
+    bindHelp(state, renderer)
 }
 
 function bindHotkeyToggle(renderer: () => void) {
@@ -1364,7 +1378,7 @@ function bindHotkeyToggle(renderer: () => void) {
         globalRendererState.hotkeysOn = !globalRendererState.hotkeysOn
         renderer()
     }
-    keyListeners.set('?', pick)
+    keyListeners.set('/', pick)
     $(`[option='hotkeyToggle']`).on('click', pick)
 }
 
@@ -1375,6 +1389,33 @@ function bindUndo(state:State, reject: ((x:any) => void)): void {
     if (globalRendererState.hotkeysOn)
         keyListeners.set('z', pick)
     $(`[option='undo']`).on('click', pick)
+}
+
+function bindHelp(state:State, renderer: () => void) {
+    function attach(f: () => void) {
+        $('#help').on('click', f)
+        keyListeners.set('?', f)
+    }
+    function pick() {
+        attach(renderer)
+        const helpLines:string[] = [
+            'The goal of the game is to get to 50 points (vp) using as little time (@) as possible.',
+            "The symbols below a card's name indicate its cost.",
+            "You must pay a card's cost in order to buy it from the supply or play it from your hand.",
+            "When you play or buy a card, follow it's insrtuctions. After playing a card, discard it.",
+            "When a cost is measured in time (@, @@, ...) then you use that much time to play it.",
+            "When a cost is measured in $ then you can only buy it if you have enough coin.",
+            "You can activate card's abilities, marked with (ability), any time you could play a card.",
+            "Effects marked with (static) apply whenever the card is in play or in the supply.",
+            "The game is played with a randomized supply.",
+            `You can visit <a href='${kingdomURL(state.info.kingdom)}'>this link</a> to replay this kingdom anytime.`,
+            `Or play the <a href='${dateSeedPath()}'>daily kingdom</a>, using today's date as a seed.`,
+            `Or visit the <a href='${basePlus("picker.html")}'>kingdom picker<a> to pick a kingdom.`,
+        ]
+        $('#choicePrompt').html('')
+        $('#resolving').html(helpLines.map(x => `<div class='helpLine'>${x}</div class='helpline'>`).join(''))
+    }
+    attach(pick)
 }
 
 
@@ -1586,7 +1627,7 @@ function actChoice(state:State): Promise<[State, Card|null]> {
     const validPlay:Card[] = state.play.filter(x => (x.abilities().length > 0))
     const cards:Card[] = validPlay.concat(validHand).concat(validSupplies)
     return choice(state,
-        'Play from your hand, use an ability, or buy from a supply.',
+        'Play a card from your hand, use an ability of a card in play, or buy a card from the supply.',
         cards.map(asChoice))
 }
 
@@ -1676,6 +1717,7 @@ async function playGame(seed?:number, fixedKingdom?:CardSpec[]): Promise<void> {
     let variableSupplies; [state, variableSupplies] = randomChoices(state, mixins, 12, seed)
     if (fixedKingdom != undefined) variableSupplies = fixedKingdom
     variableSupplies.sort(supplySort)
+    state = state.updateInfo({...state.info, kingdom:variableSupplies})
     if (testing.length > 0) for (let i = 0; i < cheats.length; i++) testing.push(cheats[i])
     const kingdom = coreSupplies.concat(variableSupplies).concat(testing)
     state = await doAll(kingdom.map(x => create(x, 'supply')))(state)
@@ -1738,12 +1780,32 @@ function load(): void {
 
 // ----------------------------------- Kingdom picker
 
+function basePlus(s:string): string {
+    const urlParts:string[] = window.location.toString().split('/')
+    urlParts[urlParts.length-1] = s
+    return urlParts.join('/')
+}
+
+function dateString() {
+    const date = new Date()
+    return String(date.getDate()).padStart(2, '0') + (String(date.getMonth() + 1).padStart(2, '0')) + date.getFullYear()
+}
+
+function dateSeedPath() {
+    const s:string = dateString()
+    return basePlus(`index.html?seed=${s}`)
+}
+
+function kingdomURL(specs:CardSpec[]) {
+    return basePlus(`index.html?kingdom=${specs.map(spec => spec.name).join(',')}`)
+}
+
 function loadPicker(): void {
     let state = emptyState;
-    const sortedSpecs = mixins.slice()
-    sortedSpecs.sort((spec1, spec2) => spec1.name.localeCompare(spec2.name))
-    for (let i = 0; i < sortedSpecs.length; i++) {
-        const spec = sortedSpecs[i]
+    const specs = mixins.slice()
+    specs.sort((spec1, spec2) => spec1.name.localeCompare(spec2.name))
+    for (let i = 0; i < specs.length; i++) {
+        const spec = specs[i]
         state = state.addToZone(new Card(spec, i), 'supply')
     }
     function trivial() {}
@@ -1755,10 +1817,7 @@ function loadPicker(): void {
         return parts.slice(0, parts.length-1).join('/')
     }
     function kingdomLink(): string {
-        const result = window.location.toString()
-        const kingdomString = Array.from(chosen.values()).
-            map(i => sortedSpecs[i].name).join(',')
-        return prefix(result) + `/index.html?kingdom=${kingdomString}`
+        return kingdomURL(Array.from(chosen.values()).map(i => specs[i]))
     }
     const chosen:Set<number> = new Set()
     function pick(i:number): void {
@@ -1769,7 +1828,11 @@ function loadPicker(): void {
             chosen.add(i)
             elem(i).attr('chosen', true)
         }
-        $('#kingdomLink').attr('href', kingdomLink())
+        if (chosen.size > 0) {
+            $('#kingdomLink').attr('href', kingdomLink())
+        } else {
+            $('#kingdomLink').removeAttr('href')
+        }
     }
     renderChoice(state,
         'Choose which cards to include in the supply.',
