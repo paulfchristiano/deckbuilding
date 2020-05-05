@@ -1687,10 +1687,11 @@ var lowerHotkeys = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 
 ];
 var upperHotkeys = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M',
     'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z'];
-var hotkeys = symbolHotkeys.concat(upperHotkeys).concat(lowerHotkeys).concat(numHotkeys);
 var handHotkeys = numHotkeys.concat(symbolHotkeys);
 var playHotkeys = upperHotkeys;
 var supplyHotkeys = lowerHotkeys;
+// want to put zones that are least likely to change earlier, to not distrupt assignment
+var hotkeys = supplyHotkeys.concat(playHotkeys).concat(handHotkeys);
 $(document).keydown(function (e) {
     var listener = keyListeners.get(e.key);
     if (listener != undefined)
@@ -1739,12 +1740,15 @@ var HotkeyMapper = /** @class */ (function () {
         }
         function setFrom(cards, preferredHotkeys) {
             var e_16, _a;
+            var preferredSet = new Set(preferredHotkeys);
+            var otherHotkeys = hotkeys.filter(function (x) { return !preferredSet.has(x); });
+            var toAssign = (preferredHotkeys.concat(otherHotkeys)).filter(function (x) { return !taken.has(x); });
             try {
                 for (var cards_1 = __values(cards), cards_1_1 = cards_1.next(); !cards_1_1.done; cards_1_1 = cards_1.next()) {
                     var card = cards_1_1.value;
                     var n = card.zoneIndex;
-                    if (n < preferredHotkeys.length && !taken.has(preferredHotkeys[n])) {
-                        set(card.id, preferredHotkeys[n]);
+                    if (n < toAssign.length) {
+                        set(card.id, toAssign[n]);
                     }
                 }
             }
@@ -1756,9 +1760,10 @@ var HotkeyMapper = /** @class */ (function () {
                 finally { if (e_16) throw e_16.error; }
             }
         }
-        setFrom(state.play, playHotkeys);
+        //want to put zones that are most important not to change earlier
         setFrom(state.supply, supplyHotkeys);
         setFrom(state.hand, handHotkeys);
+        setFrom(state.play, playHotkeys);
         try {
             for (var options_2 = __values(options), options_2_1 = options_2.next(); !options_2_1.done; options_2_1 = options_2.next()) {
                 var option = options_2_1.value;
@@ -2080,7 +2085,7 @@ function basePlus(s) {
 }
 function dateString() {
     var date = new Date();
-    return (String(date.getMonth() + 1).padStart(2, '0')) + String(date.getDate()).padStart(2, '0') + date.getFullYear();
+    return (String(date.getMonth() + 1)) + String(date.getDate()).padStart(2, '0') + date.getFullYear();
 }
 function dateSeedPath() {
     var s = dateString();
@@ -2441,7 +2446,7 @@ var crafts = { name: 'Crafts',
             effect: function (e) { return gainCoin(1); },
         }]; }
 };
-register(makeCard(crafts, time(2), true));
+register(makeCard(crafts, time(1), true));
 var homestead = { name: 'Homesteading',
     triggers: function (card) { return [{
             text: "After playing " + a(estate.name) + ", +1 card",
@@ -3569,8 +3574,8 @@ register(makeCard(formation, { time: 0, coin: 6 }));
 var forge = { name: 'Forge',
     fixedCost: time(2),
     effect: function (card) { return ({
-        text: '+6 cards',
-        effect: draw(6),
+        text: '+5 cards',
+        effect: draw(5),
     }); }
 };
 buyable(forge, 5);
@@ -4386,10 +4391,10 @@ var makeInflation = { name: 'Inflation',
 register(makeInflation);
 var publicWorksReduction = { name: 'Public Works',
     replacers: function (card) { return [{
-            text: "Cards in the supply cost @ less.",
+            text: "Cards in the supply cost @ less, but not 0.",
             kind: 'cost',
             handles: function (e, state) { return state.find(e.card).place == 'supply'; },
-            replace: function (e) { return (__assign(__assign({}, e), { cost: reduceTime(e.cost, 1) })); }
+            replace: function (e) { return (__assign(__assign({}, e), { cost: reduceTimeNonzero(e.cost, 1) })); }
         }]; },
     triggers: function (card) { return [{
             text: "When you buy a card, trash this.",
@@ -4400,7 +4405,7 @@ var publicWorksReduction = { name: 'Public Works',
 };
 var publicWorks = { name: 'Public Works',
     effect: function (card) { return ({
-        text: "The next card you buy costs @ less.",
+        text: "The next card you buy costs @ less, but not 0.",
         effect: create(publicWorksReduction, 'play')
     }); }
 };

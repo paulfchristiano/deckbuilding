@@ -1530,10 +1530,11 @@ const lowerHotkeys = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l'
 ]
 const upperHotkeys = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M',
     'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z']
-const hotkeys:Key[] = symbolHotkeys.concat(upperHotkeys).concat(lowerHotkeys).concat(numHotkeys)
 const handHotkeys:Key[] = numHotkeys.concat(symbolHotkeys)
 const playHotkeys:Key[] = upperHotkeys
 const supplyHotkeys:Key[] = lowerHotkeys
+// want to put zones that are least likely to change earlier, to not distrupt assignment
+const hotkeys:Key[] = supplyHotkeys.concat(playHotkeys).concat(handHotkeys)
 
 $(document).keydown((e: any) => {
     const listener = keyListeners.get(e.key)
@@ -1568,16 +1569,20 @@ class HotkeyMapper {
             if (hotkey != null) set(x, hotkey)
         }
         function setFrom(cards:Card[], preferredHotkeys:Key[]) {
+            const preferredSet:Set<Key> = new Set(preferredHotkeys)
+            const otherHotkeys:Key[] = hotkeys.filter(x => !preferredSet.has(x))
+            const toAssign:Key[] = (preferredHotkeys.concat(otherHotkeys)).filter(x => !taken.has(x))
             for (const card of cards) {
                 let n = card.zoneIndex
-                if (n < preferredHotkeys.length && !taken.has(preferredHotkeys[n])) {
-                    set(card.id, preferredHotkeys[n])
+                if (n < toAssign.length) {
+                    set(card.id, toAssign[n])
                 }
             }
         }
-        setFrom(state.play, playHotkeys)
+        //want to put zones that are most important not to change earlier
         setFrom(state.supply, supplyHotkeys)
         setFrom(state.hand, handHotkeys)
+        setFrom(state.play, playHotkeys)
         for (const option of options) {
             const hint:Key|undefined = option.hotkeyHint;
             if (hint != undefined && !result.has(option.render)) {
@@ -1799,7 +1804,7 @@ function basePlus(s:string): string {
 
 function dateString() {
     const date = new Date()
-    return (String(date.getMonth() + 1).padStart(2, '0')) + String(date.getDate()).padStart(2, '0') + date.getFullYear()
+    return (String(date.getMonth() + 1)) + String(date.getDate()).padStart(2, '0') + date.getFullYear()
 }
 
 function dateSeedPath() {
@@ -2112,7 +2117,7 @@ const crafts:CardSpec = {name: 'Crafts',
         effect: e => gainCoin(1),
     }]
 }
-register(makeCard(crafts, time(2), true))
+register(makeCard(crafts, time(1), true))
 
 const homestead:CardSpec = {name: 'Homesteading',
     triggers: card => [{
@@ -2922,8 +2927,8 @@ register(makeCard(formation, {time:0, coin:6}))
 const forge:CardSpec = {name: 'Forge',
     fixedCost: time(2),
     effect: card => ({
-        text: '+6 cards',
-        effect: draw(6),
+        text: '+5 cards',
+        effect: draw(5),
     })
 }
 buyable(forge, 5)
@@ -3517,10 +3522,10 @@ register(makeInflation)
 
 const publicWorksReduction:CardSpec = {name: 'Public Works',
     replacers: card => [{
-        text:"Cards in the supply cost @ less.",
+        text:"Cards in the supply cost @ less, but not 0.",
         kind: 'cost',
         handles: (e, state) => state.find(e.card).place == 'supply',
-        replace: e => ({...e, cost:reduceTime(e.cost, 1)})
+        replace: e => ({...e, cost:reduceTimeNonzero(e.cost, 1)})
     }],
     triggers: card => [{
         text:"When you buy a card, trash this.",
@@ -3531,7 +3536,7 @@ const publicWorksReduction:CardSpec = {name: 'Public Works',
 }
 const publicWorks:CardSpec = {name: 'Public Works',
     effect: card => ({
-        text: "The next card you buy costs @ less.",
+        text: "The next card you buy costs @ less, but not 0.",
         effect: create(publicWorksReduction, 'play')
     })
 }
