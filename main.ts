@@ -1482,11 +1482,12 @@ function freshMultichoice<T>(
         function isReady(): boolean {
             return validator(chosenOptions())
         }
+        const submitIndex = options.length
         function setReady(): void {
             if (isReady()) {
-                $(`[option='submit']`).attr('choosable', true)
+                $(`[option='${submitIndex}']`).attr('choosable', true)
             } else {
-                $(`[option='submit']`).removeAttr('choosable')
+                $(`[option='${submitIndex}']`).removeAttr('choosable')
             }
         }
         function elem(i:number): any {

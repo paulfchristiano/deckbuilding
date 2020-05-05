@@ -1629,12 +1629,13 @@ function freshMultichoice(state, choicePrompt, options, validator) {
         function isReady() {
             return validator(chosenOptions());
         }
+        var submitIndex = options.length;
         function setReady() {
             if (isReady()) {
-                $("[option='submit']").attr('choosable', true);
+                $("[option='" + submitIndex + "']").attr('choosable', true);
             }
             else {
-                $("[option='submit']").removeAttr('choosable');
+                $("[option='" + submitIndex + "']").removeAttr('choosable');
             }
         }
         function elem(i) {
