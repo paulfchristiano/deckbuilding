@@ -2687,6 +2687,7 @@ var hallOfMirrors = { name: 'Hall of Mirrors',
 var makeHallOfMirrors = { name: 'Hall of Mirrors',
     fixedCost: coin(6),
     effect: function (card) { return gainCard(hallOfMirrors); },
+    relatedCards: [hallOfMirrors],
     triggers: function (card) { return [{
             text: "Whenever you finish playing a card with a mirror token other than with this," +
                 " if it's in your discard pile remove a mirror token from it and play it again.",

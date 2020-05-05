@@ -2266,6 +2266,7 @@ const hallOfMirrors:CardSpec = {name: 'Hall of Mirrors',
 const makeHallOfMirrors:CardSpec = {name: 'Hall of Mirrors',
     fixedCost: coin(6),
     effect: card => gainCard(hallOfMirrors),
+    relatedCards: [hallOfMirrors],
     triggers: card => [{
         text: `Whenever you finish playing a card with a mirror token other than with this,` + 
         ` if it's in your discard pile remove a mirror token from it and play it again.`,
