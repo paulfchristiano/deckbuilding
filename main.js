@@ -4530,6 +4530,22 @@ var makeLivery = { name: 'Livery',
     triggers: function (card) { return [ensureInPlay(stables)]; },
 };
 register(makeLivery);
+var wasteland = { name: 'Wasteland',
+    fixedCost: time(1),
+    effect: function (card) { return ({
+        text: '+1 card.',
+        effect: draw(1)
+    }); }
+};
+var stripMine = { name: 'Strip Mine',
+    fixedCost: time(0),
+    effect: function (card) { return ({
+        text: "+$6. Create a " + wasteland.name + " in your discard pile.",
+        effect: doAll([gainCoin(6), create(wasteland, 'discard')])
+    }); },
+    relatedCards: [wasteland],
+};
+buyable(stripMine, 4);
 function slogCheck(card) {
     return function (state) {
         return __awaiter(this, void 0, void 0, function () {
@@ -4562,7 +4578,67 @@ var slog = { name: 'Slog',
             replace: function (x) { return (__assign(__assign({}, x), { points: 0, effects: x.effects.concat([charge(card, x.points), slogCheck(card)]) })); }
         }]; }
 };
-register(slog);
+//register(slog)
+var stockpile = { name: 'Stockpile',
+    abilities: function (card) { return [{
+            text: "Remove a charge counter from this, then +$1 per charge counter on it." +
+                (" Trash each card named " + prepare.name + " in the supply."),
+            cost: discharge(card, 1),
+            effect: function (state) {
+                return __awaiter(this, void 0, void 0, function () {
+                    var result, _a, _b, c, e_22_1;
+                    var e_22, _c;
+                    return __generator(this, function (_d) {
+                        switch (_d.label) {
+                            case 0:
+                                result = state.find(card);
+                                if (!result.found) return [3 /*break*/, 2];
+                                return [4 /*yield*/, gainCoin(result.card.charge)(state)];
+                            case 1:
+                                state = _d.sent();
+                                _d.label = 2;
+                            case 2:
+                                _d.trys.push([2, 7, 8, 9]);
+                                _a = __values(state.supply), _b = _a.next();
+                                _d.label = 3;
+                            case 3:
+                                if (!!_b.done) return [3 /*break*/, 6];
+                                c = _b.value;
+                                if (!(c.name == prepare.name)) return [3 /*break*/, 5];
+                                return [4 /*yield*/, trash(c)(state)];
+                            case 4:
+                                state = _d.sent();
+                                _d.label = 5;
+                            case 5:
+                                _b = _a.next();
+                                return [3 /*break*/, 3];
+                            case 6: return [3 /*break*/, 9];
+                            case 7:
+                                e_22_1 = _d.sent();
+                                e_22 = { error: e_22_1 };
+                                return [3 /*break*/, 9];
+                            case 8:
+                                try {
+                                    if (_b && !_b.done && (_c = _a.return)) _c.call(_a);
+                                }
+                                finally { if (e_22) throw e_22.error; }
+                                return [7 /*endfinally*/];
+                            case 9: return [2 /*return*/, state];
+                        }
+                    });
+                });
+            }
+        }]; }
+};
+var prepare = { name: 'Prepare',
+    fixedCost: coin(2),
+    effect: function (card) { return ({
+        text: "Add a charge counter to a " + stockpile.name + " in play.",
+        effect: fill(stockpile, 1),
+    }); },
+    triggers: function (card) { return [ensureInPlay(stockpile)]; }
+};
+//register(prepare, 'test')
 var burden = { name: 'Burden',
     fixedCost: time(1),
     effect: function (card) { return ({

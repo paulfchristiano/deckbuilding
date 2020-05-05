@@ -3638,6 +3638,23 @@ const makeLivery:CardSpec = {name: 'Livery',
 }
 register(makeLivery)
 
+const wasteland:CardSpec = {name: 'Wasteland',
+    fixedCost: time(1),
+    effect: card => ({
+        text: '+1 card.',
+        effect: draw(1)
+    })
+}
+const stripMine:CardSpec = {name: 'Strip Mine',
+    fixedCost: time(0),
+    effect: card => ({
+        text: `+$6. Create a ${wasteland.name} in your discard pile.`,
+        effect: doAll([gainCoin(6), create(wasteland, 'discard')])
+    }),
+    relatedCards:[wasteland],
+}
+buyable(stripMine, 4)
+
 function slogCheck(card: Card): (state: State) => Promise<State> {
     return async function(state) {
         const result = state.find(card)
@@ -3658,7 +3675,33 @@ const slog:CardSpec = {name: 'Slog',
         replace: x => ({...x, points: 0, effects: x.effects.concat([charge(card, x.points), slogCheck(card)])})
     }]
 }
-register(slog)
+//register(slog)
+
+const stockpile:CardSpec = {name: 'Stockpile',
+    abilities: card => [{
+        text: `Remove a charge counter from this, then +$1 per charge counter on it.` +
+            ` Trash each card named ${prepare.name} in the supply.`,
+        cost: discharge(card, 1),
+        effect: async function(state) {
+            const result = state.find(card)
+            if (result.found)
+                state = await gainCoin(result.card.charge)(state)
+            for (const c of state.supply)
+                if (c.name == prepare.name)
+                    state = await trash(c)(state)
+            return state
+        }
+    }]
+}
+const prepare:CardSpec = {name: 'Prepare',
+    fixedCost: coin(2),
+    effect: card => ({
+        text: `Add a charge counter to a ${stockpile.name} in play.`,
+        effect: fill(stockpile, 1),
+    }),
+    triggers: card => [ensureInPlay(stockpile)]
+}
+//register(prepare, 'test')
 
 const burden:CardSpec = {name: 'Burden',
     fixedCost: time(1),
