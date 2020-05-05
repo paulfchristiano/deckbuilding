@@ -1409,12 +1409,12 @@ function bindHelp(state:State, renderer: () => void) {
         attach(renderer)
         const helpLines:string[] = [
             'The goal of the game is to get to 50 points (vp) using as little time (@) as possible.',
-            "The symbols below a card's name indicate its cost.",
+            "When you play or buy a card, follow its instructions. After playing a card, discard it.",
             "You must pay a card's cost in order to buy it from the supply or play it from your hand.",
-            "When you play or buy a card, follow it's insrtuctions. After playing a card, discard it.",
+            "The symbols below a card's name indicate its cost.",
             "When a cost is measured in time (@, @@, ...) then you use that much time to play it.",
             "When a cost is measured in $ then you can only buy it if you have enough coin.",
-            "You can activate card's abilities, marked with (ability), any time you could play a card.",
+            "You can activate the abilities of cards in play, marked with (ability).",
             "Effects marked with (static) apply whenever the card is in play or in the supply.",
             "The game is played with a kingdom of 7 core cards and 12 randomized cards.",
             `You can visit <a href="${kingdomURL(state.info.kingdom)}">this link</a> to replay this kingdom anytime.`,
@@ -3411,7 +3411,7 @@ const cotr:CardSpec = {name: 'Coin of the Realm',
     effect: card => ({
         text: '+$1. Put this in play.',
         toZone: 'play',
-        effect: doAll([gainCoin(1), move(card, 'play')])
+        effect: doAll([gainCoin(1)])
     }),
     abilities: card => [{
         text: `${villagestr(2)} Discard this.`,
