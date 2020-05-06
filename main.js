@@ -1,4 +1,5 @@
 "use strict";
+// TODO: make calculated costs render as "(cost) X"
 // TODO: make the tooltip nice---should show up immediately, but be impossible to keep it alive by mousing over it
 // TODO: I think the cost framework isn't really appropriate any more, but maybe think a bit before getting rid of it
 // TODO: if a zone gets bigger and then smaller, it's annoying to keep resizing it. As soon as a zone gets big I want to leave it big probably.
@@ -3432,7 +3433,7 @@ var colony = { name: 'Colony',
     }); }
 };
 var buyColony = { name: 'Colony',
-    fixedCost: coin(14),
+    fixedCost: coin(16),
     effect: function (card) { return gainCard(colony); },
     triggers: function (card) { return [ensureInSupply(buyPlatinum)]; },
     relatedCards: [colony],
@@ -3692,24 +3693,22 @@ var research = { name: 'Research',
 mixins.push(research);
 var innovation = { name: "Innovation",
     triggers: function (card) { return [{
-            text: "Whenever you create a card, if it's in your discard pile and this has an innovate token on it:" +
-                " remove an innovate token from this, discard your hand, lose all $, and play the card.",
+            text: "Whenever you create a card, if it's in your discard pile and this has innovate tokens on it," +
+                " remove those tokens and play the card.",
             kind: 'create',
             handles: function (e, state) { return (countTokens(card, 'innovate') > 0 && state.find(e.card).place == 'discard'); },
             effect: function (e) { return doAll([
-                removeOneToken(card, 'innovate'),
-                moveWholeZone('hand', 'discard'),
-                setCoin(0),
+                removeTokens(card, 'innovate'),
                 e.card.play(card)
             ]); },
-        }]; },
-    abilities: function (card) { return [{
-            text: "Put an innovate token on this.",
-            cost: noop,
-            effect: addToken(card, 'innovate')
+        }, {
+            text: "Whenever you draw 5 or more cards, put an innovate token on this.",
+            kind: 'draw',
+            handles: function (e) { return e.cards.length >= 5; },
+            effect: function (e) { return addToken(card, 'innovate'); }
         }]; }
 };
-register(makeCard(innovation, { coin: 7, time: 0 }, true));
+register(makeCard(innovation, { coin: 9, time: 2 }, true));
 var citadel = { name: "Citadel",
     triggers: function (card) { return [{
             text: "After playing a card the normal way, if it's the only card in your discard pile, play it again.",
@@ -3974,21 +3973,23 @@ var kingsCourt = { name: "King's Court",
 };
 buyable(kingsCourt, 10);
 var gardens = { name: "Gardens",
-    fixedCost: { time: 1, coin: 4 },
+    fixedCost: { time: 1, coin: 0 },
     effect: function (card) { return ({
-        text: "+1 vp per 10 cards in your deck, hand, and discard pile.",
+        text: "+1 vp per 5 cards in your deck.",
         effect: function (state) {
             return __awaiter(this, void 0, void 0, function () {
                 var n;
                 return __generator(this, function (_a) {
-                    n = state.hand.length + state.deck.length + state.discard.length;
-                    return [2 /*return*/, gainPoints(Math.floor(n / 10))(state)];
+                    n = state.deck.length;
+                    console.log(state.deck);
+                    console.log(n);
+                    return [2 /*return*/, gainPoints(Math.floor(n / 5))(state)];
                 });
             });
         }
     }); }
 };
-mixins.push(gardens);
+buyable(gardens, 7);
 var pathfinding = { name: 'Pathfinding',
     fixedCost: { coin: 5, time: 1 },
     effect: function (card) { return ({
@@ -4721,9 +4722,9 @@ var chancellor = { name: 'Chancellor',
 buyable(chancellor, 4);
 var barracks = { name: 'Barracks',
     triggers: function (card) { return [{
-            text: 'Whenever you draw 4 or more cards, play cards from your hand with total cost up to @.',
+            text: 'Whenever you draw 5 or more cards, play cards from your hand with total cost up to @.',
             kind: 'draw',
-            handles: function (e) { return e.drawn >= 4; },
+            handles: function (e) { return e.drawn >= 5; },
             effect: function (e) { return freeActions(1, card); }
         }]; }
 };
