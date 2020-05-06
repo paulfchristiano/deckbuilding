@@ -1461,6 +1461,9 @@ function chooseNatural(n) {
 function asChoice(x) {
     return { render: x.id, value: x };
 }
+function asNumberedChoices(xs) {
+    return xs.map(function (card, i) { return ({ render: card.id, value: card, hotkeyHint: String(i + 1) }); });
+}
 function allowNull(options, message) {
     if (message === void 0) { message = "None"; }
     var newOptions = options.slice();
@@ -3495,13 +3498,13 @@ var lookout = { name: 'Lookout',
                         var _a;
                         return __generator(this, function (_b) {
                             switch (_b.label) {
-                                case 0: return [4 /*yield*/, choice(state, "Pick a card to " + descriptor + ".", picks.map(asChoice))];
+                                case 0: return [4 /*yield*/, choice(state, "Pick a card to " + descriptor + ".", picks)];
                                 case 1:
                                     _a = __read.apply(void 0, [_b.sent(), 2]), state = _a[0], pick = _a[1];
                                     if (pick == null)
                                         return [2 /*return*/, state]; // shouldn't be possible
                                     id = pick.id;
-                                    picks = picks.filter(function (card) { return card.id != id; });
+                                    picks = picks.filter(function (pick) { return pick.value.id != id; });
                                     return [2 /*return*/, move(pick, zone)(state)];
                             }
                         });
@@ -3511,7 +3514,7 @@ var lookout = { name: 'Lookout',
                 return __generator(this, function (_a) {
                     switch (_a.label) {
                         case 0:
-                            picks = state.deck.slice(0, 3);
+                            picks = asNumberedChoices(state.deck.slice(0, 3));
                             if (!(picks.length > 0)) return [3 /*break*/, 2];
                             return [4 /*yield*/, pickOne('trash', null, state)];
                         case 1:
@@ -4644,7 +4647,7 @@ var prepare = { name: 'Prepare',
     }); },
     triggers: function (card) { return [ensureInPlay(stockpile)]; }
 };
-//register(prepare, 'test')
+//register(prepare)
 var burden = { name: 'Burden',
     fixedCost: time(1),
     effect: function (card) { return ({

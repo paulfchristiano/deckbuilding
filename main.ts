@@ -1295,6 +1295,10 @@ function asChoice(x:Card): Option<Card> {
     return {render:x.id, value:x}
 }
 
+function asNumberedChoices(xs:Card[]): Option<Card>[] {
+    return xs.map((card, i) => ({render:card.id, value:card, hotkeyHint:String(i+1)}))
+}
+
 function allowNull<T>(options: Option<T>[], message:string="None"): Option<T|null>[] {
     const newOptions:Option<T|null>[] = options.slice()
     newOptions.push({render:message, value:null})
@@ -2871,14 +2875,13 @@ const lookout:CardSpec = {name: 'Lookout',
     effect: card => ({
         text: 'Look at the top 3 cards from your deck. Trash one then discard one.',
         effect: async function(state) {
-            let picks = state.deck.slice(0, 3)
+            let picks = asNumberedChoices(state.deck.slice(0, 3))
             async function pickOne(descriptor: string, zone: PlaceName, state: State) {
                 let pick:Card|null; [state, pick] = await choice(state,
-                    `Pick a card to ${descriptor}.`,
-                    picks.map(asChoice))
+                    `Pick a card to ${descriptor}.`, picks)
                 if (pick==null) return state // shouldn't be possible
                 const id = pick.id
-                picks = picks.filter(card => card.id != id)
+                picks = picks.filter(pick => pick.value.id != id)
                 return move(pick, zone)(state)
             }
             if (picks.length > 0)
@@ -3707,7 +3710,7 @@ const prepare:CardSpec = {name: 'Prepare',
     }),
     triggers: card => [ensureInPlay(stockpile)]
 }
-//register(prepare, 'test')
+//register(prepare)
 
 const burden:CardSpec = {name: 'Burden',
     fixedCost: time(1),
