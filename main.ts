@@ -1414,6 +1414,7 @@ function bindHelp(state:State, renderer: () => void) {
             "The symbols below a card's name indicate its cost.",
             "When a cost is measured in time (@, @@, ...) then you use that much time to play it.",
             "When a cost is measured in $ then you can only buy it if you have enough coin.",
+            "When you recycle cards, shuffle them and put them on the bottom of your deck.",
             "You can activate the abilities of cards in play, marked with (ability).",
             "Effects marked with (static) apply whenever the card is in play or in the supply.",
             "The game is played with a kingdom of 7 core cards and 12 randomized cards.",
@@ -2435,7 +2436,7 @@ function villagestr(n:number): string {
 const coven:CardSpec = {name: 'Coven',
     fixedCost: time(1),
     effect: card => ({
-        text: villagestr(2) + ' None of them may have the same name as a card in yor discard pile.',
+        text: `+$2. ${villagestr(2)} None of them may have the same name as a card in yor discard pile.`,
         effect: async function(state) {
             state = await gainCoin(2)(state)
             function constraint(cardInHand:Card, s:State):boolean {
@@ -2815,6 +2816,7 @@ const buyColony:CardSpec = {name: 'Colony',
     fixedCost: coin(14),
     effect: card => gainCard(colony),
     triggers: card => [ensureInSupply(buyPlatinum)],
+    relatedCards: [colony],
 }
 register(buyColony)
 
@@ -2829,6 +2831,7 @@ const buyPlatinum:CardSpec = {name: 'Platinum',
     fixedCost: coin(10),
     effect: card => gainCard(colony),
     triggers: card => [ensureInSupply(buyColony)],
+    relatedCards: [platinum],
 }
 register(buyPlatinum)
 

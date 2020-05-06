@@ -1561,6 +1561,7 @@ function bindHelp(state, renderer) {
             "The symbols below a card's name indicate its cost.",
             "When a cost is measured in time (@, @@, ...) then you use that much time to play it.",
             "When a cost is measured in $ then you can only buy it if you have enough coin.",
+            "When you recycle cards, shuffle them and put them on the bottom of your deck.",
             "You can activate the abilities of cards in play, marked with (ability).",
             "Effects marked with (static) apply whenever the card is in play or in the supply.",
             "The game is played with a kingdom of 7 core cards and 12 randomized cards.",
@@ -2910,7 +2911,7 @@ function villagestr(n) {
 var coven = { name: 'Coven',
     fixedCost: time(1),
     effect: function (card) { return ({
-        text: villagestr(2) + ' None of them may have the same name as a card in yor discard pile.',
+        text: "+$2. " + villagestr(2) + " None of them may have the same name as a card in yor discard pile.",
         effect: function (state) {
             return __awaiter(this, void 0, void 0, function () {
                 function constraint(cardInHand, s) {
@@ -3434,6 +3435,7 @@ var buyColony = { name: 'Colony',
     fixedCost: coin(14),
     effect: function (card) { return gainCard(colony); },
     triggers: function (card) { return [ensureInSupply(buyPlatinum)]; },
+    relatedCards: [colony],
 };
 register(buyColony);
 var platinum = { name: "Platinum",
@@ -3447,6 +3449,7 @@ var buyPlatinum = { name: 'Platinum',
     fixedCost: coin(10),
     effect: function (card) { return gainCard(colony); },
     triggers: function (card) { return [ensureInSupply(buyColony)]; },
+    relatedCards: [platinum],
 };
 register(buyPlatinum);
 var windfall = { name: 'Windfall',
