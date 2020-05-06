@@ -1939,19 +1939,19 @@ function makeCard(card:CardSpec, cost:Cost, selfdestruct:boolean=false):CardSpec
 //
 
 
-const reboot:CardSpec = {name: 'Reboot',
+const regroup:CardSpec = {name: 'Regroup',
     fixedCost: time(3),
     effect: card => ({
         text: 'Recycle your hand and discard pile, lose all $, and +5 cards.',
         effect: async function(state) {
             state = await setCoin(0)(state)
             state = await recycle(state.hand.concat(state.discard))(state)
-            state = await draw(5, reboot)(state)
+            state = await draw(5, regroup)(state)
             return state
         }
     })
 }
-coreSupplies.push(reboot)
+coreSupplies.push(regroup)
 
 const copper:CardSpec = {name: 'Copper',
     fixedCost: time(0),
@@ -2102,7 +2102,7 @@ const philanthropy:CardSpec = {name: 'Philanthropy',
 }
 register(philanthropy)
 
-const relearn:CardSpec = {name: 'Relearn',
+const repurpose:CardSpec = {name: 'Repurpose',
     fixedCost: time(2),
     effect: card => ({
         text: 'Recycle your hand and discard pile, lose all $, and +1 card per coin lost.',
@@ -2114,7 +2114,7 @@ const relearn:CardSpec = {name: 'Relearn',
         }
     })
 }
-register(relearn)
+register(repurpose)
 
 const crafts:CardSpec = {name: 'Crafts',
     triggers: card => [{
@@ -2533,9 +2533,9 @@ buyable(feast, 4)
 
 const mobilization:CardSpec = {name: 'Mobilization',
     replacers: card => [{
-        text: 'Reboot costs @ less to play, but not zero.',
+        text: 'Regroup costs @ less to play, but not zero.',
         kind:'cost',
-        handles: x => (x.card.name == 'Reboot'),
+        handles: x => (x.card.name == 'Regroup'),
         replace: x => ({...x, cost:reduceTimeNonzero(x.cost, 1)})
     }]
 }
@@ -2957,7 +2957,7 @@ const reuse:CardSpec = {name: 'Reuse',
 }
 mixins.push(reuse)
 
-const regroup:CardSpec = {name: 'Regroup',
+const remake :CardSpec = {name: 'Remake',
     fixedCost: time(1),
     effect: card => ({
         text: 'Recycle your hand and discard pile, lose all $, and +1 card per card that was in your hand.',
@@ -2969,7 +2969,7 @@ const regroup:CardSpec = {name: 'Regroup',
         }
     })
 }
-mixins.push(regroup)
+mixins.push(remake)
 
 const bootstrap:CardSpec = {name: 'Bootstrap',
     fixedCost: time(1),
@@ -3059,9 +3059,9 @@ buyable(foolsGold, 2)
 const hireling:CardSpec = {name: 'Hireling',
     fixedCost: time(0),
     replacers: card => [{
-        text: "Whenever you draw a card from Reboot, draw an additional card.",
+        text: "Whenever you draw a card from Regroup, draw an additional card.",
         kind:'draw',
-        handles: x => x.source.name == reboot.name,
+        handles: x => x.source.name == regroup.name,
         replace: x => ({...x, draw:x.draw+1})
     }]
 }

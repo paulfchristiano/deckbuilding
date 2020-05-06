@@ -2209,7 +2209,7 @@ function makeCard(card, cost, selfdestruct) {
 //
 // ------ CORE ------
 //
-var reboot = { name: 'Reboot',
+var regroup = { name: 'Regroup',
     fixedCost: time(3),
     effect: function (card) { return ({
         text: 'Recycle your hand and discard pile, lose all $, and +5 cards.',
@@ -2223,7 +2223,7 @@ var reboot = { name: 'Reboot',
                             return [4 /*yield*/, recycle(state.hand.concat(state.discard))(state)];
                         case 2:
                             state = _a.sent();
-                            return [4 /*yield*/, draw(5, reboot)(state)];
+                            return [4 /*yield*/, draw(5, regroup)(state)];
                         case 3:
                             state = _a.sent();
                             return [2 /*return*/, state];
@@ -2233,7 +2233,7 @@ var reboot = { name: 'Reboot',
         }
     }); }
 };
-coreSupplies.push(reboot);
+coreSupplies.push(regroup);
 var copper = { name: 'Copper',
     fixedCost: time(0),
     effect: function (card) { return ({
@@ -2419,7 +2419,7 @@ var philanthropy = { name: 'Philanthropy',
     }); }
 };
 register(philanthropy);
-var relearn = { name: 'Relearn',
+var repurpose = { name: 'Repurpose',
     fixedCost: time(2),
     effect: function (card) { return ({
         text: 'Recycle your hand and discard pile, lose all $, and +1 card per coin lost.',
@@ -2443,7 +2443,7 @@ var relearn = { name: 'Relearn',
         }
     }); }
 };
-register(relearn);
+register(repurpose);
 var crafts = { name: 'Crafts',
     triggers: function (card) { return [{
             text: "After playing " + a(estate.name) + ", +$1.",
@@ -3025,9 +3025,9 @@ var feast = { name: 'Feast',
 buyable(feast, 4);
 var mobilization = { name: 'Mobilization',
     replacers: function (card) { return [{
-            text: 'Reboot costs @ less to play, but not zero.',
+            text: 'Regroup costs @ less to play, but not zero.',
             kind: 'cost',
-            handles: function (x) { return (x.card.name == 'Reboot'); },
+            handles: function (x) { return (x.card.name == 'Regroup'); },
             replace: function (x) { return (__assign(__assign({}, x), { cost: reduceTimeNonzero(x.cost, 1) })); }
         }]; }
 };
@@ -3612,7 +3612,7 @@ var reuse = { name: 'Reuse',
     }); }
 };
 mixins.push(reuse);
-var regroup = { name: 'Regroup',
+var remake = { name: 'Remake',
     fixedCost: time(1),
     effect: function (card) { return ({
         text: 'Recycle your hand and discard pile, lose all $, and +1 card per card that was in your hand.',
@@ -3635,7 +3635,7 @@ var regroup = { name: 'Regroup',
         }
     }); }
 };
-mixins.push(regroup);
+mixins.push(remake);
 var bootstrap = { name: 'Bootstrap',
     fixedCost: time(1),
     effect: function (card) { return ({
@@ -3754,9 +3754,9 @@ buyable(foolsGold, 2);
 var hireling = { name: 'Hireling',
     fixedCost: time(0),
     replacers: function (card) { return [{
-            text: "Whenever you draw a card from Reboot, draw an additional card.",
+            text: "Whenever you draw a card from Regroup, draw an additional card.",
             kind: 'draw',
-            handles: function (x) { return x.source.name == reboot.name; },
+            handles: function (x) { return x.source.name == regroup.name; },
             replace: function (x) { return (__assign(__assign({}, x), { draw: x.draw + 1 })); }
         }]; }
 };
