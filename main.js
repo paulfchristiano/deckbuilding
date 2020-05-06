@@ -3451,7 +3451,7 @@ var platinum = { name: "Platinum",
 };
 var buyPlatinum = { name: 'Platinum',
     fixedCost: coin(10),
-    effect: function (card) { return gainCard(colony); },
+    effect: function (card) { return gainCard(platinum); },
     triggers: function (card) { return [ensureInSupply(buyColony)]; },
     relatedCards: [platinum],
 };
@@ -4756,7 +4756,7 @@ var composting = { name: 'Composting',
             }; }
         }]; }
 };
-register(makeCard(composting, coin(6)));
+register(makeCard(composting, coin(4)));
 // ------------------ Testing -------------------
 var freeMoney = { name: 'Free money',
     fixedCost: time(0),

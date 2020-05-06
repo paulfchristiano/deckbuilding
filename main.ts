@@ -2834,7 +2834,7 @@ const platinum:CardSpec = {name: "Platinum",
 }
 const buyPlatinum:CardSpec = {name: 'Platinum',
     fixedCost: coin(10),
-    effect: card => gainCard(colony),
+    effect: card => gainCard(platinum),
     triggers: card => [ensureInSupply(buyColony)],
     relatedCards: [platinum],
 }
@@ -3787,7 +3787,7 @@ const composting:CardSpec = {name: 'Composting',
         }
     }]
 }
-register(makeCard(composting, coin(6)))
+register(makeCard(composting, coin(4)))
 
 
 // ------------------ Testing -------------------
