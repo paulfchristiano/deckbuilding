@@ -1565,7 +1565,7 @@ function bindHelp(state, renderer) {
             "The symbols below a card's name indicate its cost.",
             "When a cost is measured in time (@, @@, ...) then you use that much time to play it.",
             "When a cost is measured in $ then you can only buy it if you have enough coin.",
-            "When you recycle cards, shuffle them and put them on the bottom of your deck.",
+            "'Recycling' cards means to shuffle them and put them on the bottom of your deck.",
             "You can activate the abilities of cards in play, marked with (ability).",
             "Effects marked with (static) apply whenever the card is in play or in the supply.",
             "The game is played with a kingdom of 7 core cards and 12 randomized cards.",
@@ -2548,7 +2548,7 @@ var populate = { name: 'Populate',
                                     switch (_b.label) {
                                         case 0:
                                             picked = void 0;
-                                            return [4 /*yield*/, choice(state, 'Pick a card to play next.', allowNull(options.map(asChoice)))];
+                                            return [4 /*yield*/, choice(state, 'Pick a card to buy next.', allowNull(options.map(asChoice)))];
                                         case 1:
                                             _a = __read.apply(void 0, [_b.sent(), 2]), state = _a[0], picked = _a[1];
                                             if (!(picked == null)) return [3 /*break*/, 2];
@@ -2984,10 +2984,27 @@ buyable(workshop, 3);
 var shippingLane = { name: 'Shipping Lane',
     fixedCost: time(1),
     effect: function (card) { return ({
-        text: "+$2. Next time you finish buying a card, buy it again if it still exists.",
+        text: "+$2. Next time you finish buying a card the normal way, buy it again if it still exists.",
         effect: doAll([
             gainCoin(2),
-            nextTime('Shipping Lane', 'When you finish buying a card, discard this and buy it again if it still exists.', 'afterBuy', function (e) { return true; }, function (e) { return (e.after == null) ? noop : e.after.buy(card); })
+            nextTime('Shipping Lane', "When you finish buying a card the normal way,"
+                + " discard this and buy it again if it's still in the supply.", 'afterBuy', function (e) { return (e.source.name == 'act'); }, function (e) { return function (state) {
+                return __awaiter(this, void 0, void 0, function () {
+                    var result;
+                    return __generator(this, function (_a) {
+                        switch (_a.label) {
+                            case 0:
+                                result = state.find(e.before);
+                                if (!(result.found && result.place == 'supply')) return [3 /*break*/, 2];
+                                return [4 /*yield*/, result.card.buy(card)(state)];
+                            case 1:
+                                state = _a.sent();
+                                _a.label = 2;
+                            case 2: return [2 /*return*/, state];
+                        }
+                    });
+                });
+            }; })
         ])
     }); }
 };
@@ -3714,20 +3731,33 @@ var innovation = { name: "Innovation",
 register(makeCard(innovation, { coin: 9, time: 2 }, true));
 var citadel = { name: "Citadel",
     triggers: function (card) { return [{
-            text: "After playing a card the normal way, if it's the only card in your discard pile, play it again.",
+            text: "Wheneve you draw 5 or more cards, put a citadel counter on this.",
+            kind: 'draw',
+            handles: function (e) { return e.cards.length >= 5; },
+            effect: function (e) { return addToken(card, 'citadel'); }
+        }, {
+            text: "After playing a card other the normal way, if there's a citadel counter on this," +
+                " remove all citadel counters and play the card again if it's in your discard pile.",
             kind: 'afterPlay',
-            handles: function (e, state) { return (e.source.name == 'act' && state.discard.length == 1); },
+            handles: function (e, state) { return (e.source.name == 'act'); },
             effect: function (e) { return function (state) {
                 return __awaiter(this, void 0, void 0, function () {
+                    var result;
                     return __generator(this, function (_a) {
                         switch (_a.label) {
                             case 0:
-                                if (!(e.after != null && state.find(e.after).place == 'discard')) return [3 /*break*/, 2];
-                                return [4 /*yield*/, e.after.play(card)(state)];
+                                result = state.find(card);
+                                if (!(result.found && countTokens(result.card, 'citadel') > 0)) return [3 /*break*/, 3];
+                                card = result.card;
+                                return [4 /*yield*/, removeTokens(card, 'citadel')(state)];
                             case 1:
                                 state = _a.sent();
-                                _a.label = 2;
-                            case 2: return [2 /*return*/, state];
+                                if (!(e.after != null && state.find(e.after).place == 'discard')) return [3 /*break*/, 3];
+                                return [4 /*yield*/, e.after.play(card)(state)];
+                            case 2:
+                                state = _a.sent();
+                                _a.label = 3;
+                            case 3: return [2 /*return*/, state];
                         }
                     });
                 });
