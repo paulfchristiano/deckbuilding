@@ -3453,12 +3453,19 @@ const mountainVillage:CardSpec = {name: 'Mountain Village',
         text: "You may play a card in your hand or discard pile costing up to @." +
             " You may play a card in your hand costing up to @.",
         effect: async function(state) {
-            const options = state.hand.concat(state.discard).filter(card => (card.cost(state).time <= 1)).map(asChoice);
-            let target;
-            [state, target] = await choice(state, 'Choose a card costing up to @ to play',allowNull(options))
-            if (target != null) state = await target.play()(state)
+            function playOne(cards:Card[]): Transform {
+                return async function(state) {
+                    const options = cards.filter(card => (card.cost(state).time <= 1)).map(asChoice);
+                    let target;
+                    [state, target] = await choice(state, 'Choose a card costing up to @ to play',allowNull(options))
+                    if (target != null) state = await target.play()(state)
+                    return state
+                }
+            }
+            state = await playOne(state.hand.concat(state.discard))(state)
             state = tick(card)(state)
-            return freeActions(1, card)(state)
+            state = await playOne(state.hand)(state)
+            return state
         }
     })
 }

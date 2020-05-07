@@ -4312,23 +4312,39 @@ var mountainVillage = { name: 'Mountain Village',
             " You may play a card in your hand costing up to @.",
         effect: function (state) {
             return __awaiter(this, void 0, void 0, function () {
-                var options, target;
-                var _a;
-                return __generator(this, function (_b) {
-                    switch (_b.label) {
-                        case 0:
-                            options = state.hand.concat(state.discard).filter(function (card) { return (card.cost(state).time <= 1); }).map(asChoice);
-                            return [4 /*yield*/, choice(state, 'Choose a card costing up to @ to play', allowNull(options))];
+                function playOne(cards) {
+                    return function (state) {
+                        return __awaiter(this, void 0, void 0, function () {
+                            var options, target;
+                            var _a;
+                            return __generator(this, function (_b) {
+                                switch (_b.label) {
+                                    case 0:
+                                        options = cards.filter(function (card) { return (card.cost(state).time <= 1); }).map(asChoice);
+                                        return [4 /*yield*/, choice(state, 'Choose a card costing up to @ to play', allowNull(options))];
+                                    case 1:
+                                        _a = __read.apply(void 0, [_b.sent(), 2]), state = _a[0], target = _a[1];
+                                        if (!(target != null)) return [3 /*break*/, 3];
+                                        return [4 /*yield*/, target.play()(state)];
+                                    case 2:
+                                        state = _b.sent();
+                                        _b.label = 3;
+                                    case 3: return [2 /*return*/, state];
+                                }
+                            });
+                        });
+                    };
+                }
+                return __generator(this, function (_a) {
+                    switch (_a.label) {
+                        case 0: return [4 /*yield*/, playOne(state.hand.concat(state.discard))(state)];
                         case 1:
-                            _a = __read.apply(void 0, [_b.sent(), 2]), state = _a[0], target = _a[1];
-                            if (!(target != null)) return [3 /*break*/, 3];
-                            return [4 /*yield*/, target.play()(state)];
-                        case 2:
-                            state = _b.sent();
-                            _b.label = 3;
-                        case 3:
+                            state = _a.sent();
                             state = tick(card)(state);
-                            return [2 /*return*/, freeActions(1, card)(state)];
+                            return [4 /*yield*/, playOne(state.hand)(state)];
+                        case 2:
+                            state = _a.sent();
+                            return [2 /*return*/, state];
                     }
                 });
             });
