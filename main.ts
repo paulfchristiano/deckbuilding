@@ -2335,7 +2335,7 @@ const carriageEffect:CardSpec = {name: 'Royal Carriage',
 const royalCarriage:CardSpec = {name: 'Royal Carriage',
     fixedCost: energy(0),
     effect: card => ({
-        text: "Next energy you finish playing a card, if it's in your disard pile play it again.",
+        text: "Next time you finish playing a card, if it's in your disard pile play it again.",
         effect: create(carriageEffect, 'play')
     })
 }
@@ -2343,7 +2343,7 @@ buyable(royalCarriage, 5)
 
 const royalSeal:CardSpec = {name: 'Royal Seal',
     effect: card => ({
-        text: '+$2. Next energy you create a card in your discard pile, put it into your hand.',
+        text: '+$2. Next time you create a card in your discard pile, put it into your hand.',
         effect: doAll([
             gainCoin(2),
             nextEnergy('Capital', "When you create a card in your discard pile, trash this"
@@ -2519,7 +2519,7 @@ buyable(workshop, 3)
 const shippingLane:CardSpec = {name: 'Shipping Lane',
     fixedCost: energy(1),
     effect: card => ({
-        text: "+$2. Next energy you finish buying a card the normal way, buy it again if it still exists.",
+        text: "+$2. Next time you finish buying a card the normal way, buy it again if it still exists.",
         effect: doAll([
             gainCoin(2),
             nextEnergy('Shipping Lane', "When you finish buying a card the normal way,"

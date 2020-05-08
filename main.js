@@ -2776,14 +2776,14 @@ var carriageEffect = { name: 'Royal Carriage',
 var royalCarriage = { name: 'Royal Carriage',
     fixedCost: energy(0),
     effect: function (card) { return ({
-        text: "Next energy you finish playing a card, if it's in your disard pile play it again.",
+        text: "Next time you finish playing a card, if it's in your disard pile play it again.",
         effect: create(carriageEffect, 'play')
     }); }
 };
 buyable(royalCarriage, 5);
 var royalSeal = { name: 'Royal Seal',
     effect: function (card) { return ({
-        text: '+$2. Next energy you create a card in your discard pile, put it into your hand.',
+        text: '+$2. Next time you create a card in your discard pile, put it into your hand.',
         effect: doAll([
             gainCoin(2),
             nextEnergy('Capital', "When you create a card in your discard pile, trash this"
@@ -3003,7 +3003,7 @@ buyable(workshop, 3);
 var shippingLane = { name: 'Shipping Lane',
     fixedCost: energy(1),
     effect: function (card) { return ({
-        text: "+$2. Next energy you finish buying a card the normal way, buy it again if it still exists.",
+        text: "+$2. Next time you finish buying a card the normal way, buy it again if it still exists.",
         effect: doAll([
             gainCoin(2),
             nextEnergy('Shipping Lane', "When you finish buying a card the normal way,"
