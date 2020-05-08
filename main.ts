@@ -1072,13 +1072,15 @@ function renderCard(card:Card|Shadow, state:State, options:CardRenderOptions):st
     if (card instanceof Shadow) {
         return renderShadow(card, state)
     } else {
+        console.log(options)
         const tokenhtml:string = card.tokens.length > 0 ? '*' : ''
         const chargehtml:string = card.charge > 0 ? `(${card.charge})` : ''
         const costhtml:string = renderCost(card.cost(state)) || '&nbsp'
+        const picktext:string = (options.pick !== undefined) ? `<div class='pickorder'>${options.pick}</div>` : ''
         const choosetext:string = (options.option !== undefined) ? `choosable chosen='false' option=${options.option}` : ''
         const hotkeytext:string = (options.hotkey !== undefined) ? renderHotkey(options.hotkey) : ''
         const ticktext:string = `tick=${card.ticks[card.ticks.length-1]}`
-        return [`<div class='card' ${ticktext} ${choosetext}>`,
+        return [`<div class='card' ${ticktext} ${choosetext}> ${picktext}`,
                 `<div class='cardbody'>${hotkeytext}${card}${tokenhtml}${chargehtml}</div>`,
                 `<div class='cardcost'>${costhtml}</div>`,
                 `<span class='tooltip'>${renderTooltip(card, state)}</span>`,
@@ -1135,6 +1137,7 @@ var renderedState: State
 
 interface CardRenderOptions {
     option?: number;
+    pick?: number;
     hotkey?: Key;
 }
 
@@ -1145,6 +1148,7 @@ function getIfDef<S, T>(m:Map<S, T>|undefined, x:S): T|undefined {
 interface RenderSettings {
     hotkeyMap?: Map<number|string, Key>;
     optionsMap?: Map<number, number>;
+    pickMap?: Map<number|string, number>;
 }
 
 function renderState(state:State,
@@ -1156,6 +1160,7 @@ function renderState(state:State,
         const cardRenderOptions:CardRenderOptions = {
             option: getIfDef(settings.optionsMap, card.id),
             hotkey: getIfDef(settings.hotkeyMap, card.id),
+            pick: getIfDef(settings.pickMap, card.id),
         }
         return renderCard(card, state, cardRenderOptions)
     }
@@ -1311,6 +1316,7 @@ function renderChoice(
     options: Option<() => void>[],
     reject:((x:any) => void),
     renderer:() => void,
+    picks?: () => Map<ID|string, number>,
 ): void {
 
     const optionsMap:Map<number,number> = new Map() //map card ids to their position in the choice list
@@ -1325,14 +1331,20 @@ function renderChoice(
     }
 
     let hotkeyMap:Map<OptionRender,Key>;
+    let pickMap:Map<OptionRender,number>;
     if (globalRendererState.hotkeysOn) {
         hotkeyMap = globalRendererState.hotkeyMapper.map(state, options)
     }
     else {
         hotkeyMap = new Map()
     }
+    if (picks != undefined) {
+        pickMap = picks()
+    } else {
+        pickMap = new Map()
+    }
 
-    renderState(state, {hotkeyMap: hotkeyMap, optionsMap:optionsMap})
+    renderState(state, {hotkeyMap: hotkeyMap, optionsMap:optionsMap, pickMap:pickMap})
 
     $('#choicePrompt').html(choicePrompt)
     $('#options').html(stringOptions.map(localRender).join(''))
@@ -1351,14 +1363,15 @@ function renderChoice(
     }
 
     function localRender(option:StringOption<number>): string {
-        return renderStringOption(option, hotkeyMap.get(option.render))
+        return renderStringOption(option, hotkeyMap.get(option.render), pickMap.get(option.render))
     }
 
 }
 
-function renderStringOption(option:StringOption<number>, hotkey?:Key): string {
+function renderStringOption(option:StringOption<number>, hotkey?:Key, pick?:number): string {
     const hotkeyText = (hotkey!==undefined) ? renderHotkey(hotkey) : ''
-    return `<span class='option' option='${option.value}' choosable chosen='false'>${hotkeyText}${option.render}</span>`
+    const picktext:string = (pick !== undefined) ? `<div class='pickorder'>${pick}</div>` : ''
+    return `<span class='option' option='${option.value}' choosable chosen='false'>${picktext}${hotkeyText}${option.render}</span>`
 }
 
 function renderHotkey(hotkey: Key) {
@@ -1499,6 +1512,14 @@ function freshMultichoice<T>(
         function elem(i:number): any {
             return $(`[option='${i}']`)
         }
+        function picks(): Map<ID|string, number> {
+            const result = new Map<ID|string, number>()
+            var i = 0;
+            for (const k of chosen) {
+                result.set(options[k].render, i++)
+            }
+            return result
+        }
         function pick(i:number): void {
             if (chosen.has(i)) {
                 chosen.delete(i)
@@ -1507,6 +1528,7 @@ function freshMultichoice<T>(
                 chosen.add(i)
                 elem(i).attr('chosen', true)
             }
+            renderer()
             setReady()
         }
         const newOptions:Option<() => void>[] = options.map(
@@ -1519,7 +1541,7 @@ function freshMultichoice<T>(
         }})
         chosen.clear()
         function renderer() {
-            renderChoice(state, choicePrompt, newOptions, reject, renderer)
+            renderChoice(state, choicePrompt, newOptions, reject, renderer, picks)
             for (const j of chosen) elem(j).attr('chosen', true)
         }
         renderer()
@@ -1939,16 +1961,21 @@ function makeCard(card:CardSpec, cost:Cost, selfdestruct:boolean=false):CardSpec
 //
 
 
+function reboot(card:Card, n:number): Transform {
+    return async function(state) {
+        state = await setCoin(0)(state)
+        state = await recycle(state.hand)(state)
+        state = await recycle(state.discard)(state)
+        state = await draw(n, regroup)(state)
+        return state
+    }
+}
+
 const regroup:CardSpec = {name: 'Regroup',
     fixedCost: energy(3),
     effect: card => ({
-        text: 'Recycle your hand and discard pile, lose all $, and +5 cards.',
-        effect: async function(state) {
-            state = await setCoin(0)(state)
-            state = await recycle(state.hand.concat(state.discard))(state)
-            state = await draw(5, regroup)(state)
-            return state
-        }
+        text: 'Recycle your hand, recycle your discard pile, lose all $, and +5 cards.',
+        effect: reboot(card, 5),
     })
 }
 coreSupplies.push(regroup)
@@ -2105,12 +2132,10 @@ register(philanthropy)
 const repurpose:CardSpec = {name: 'Repurpose',
     fixedCost: energy(2),
     effect: card => ({
-        text: 'Recycle your hand and discard pile, lose all $, and +1 card per coin lost.',
+        text: 'Recycle your hand, recycle your discard pile, lose all $, and +1 card per coin lost.',
         effect: async function(state) {
             const n = state.coin
-            state = await setCoin(0)(state)
-            state = await recycle(state.hand.concat(state.discard))(state)
-            return draw(n, card)(state)
+            return reboot(card, n)(state)
         }
     })
 }
@@ -2967,12 +2992,10 @@ mixins.push(reuse)
 const remake :CardSpec = {name: 'Remake',
     fixedCost: energy(1),
     effect: card => ({
-        text: 'Recycle your hand and discard pile, lose all $, and +1 card per card that was in your hand.',
+        text: 'Recycle your hand, recycle your discard pile, lose all $, and +1 card per card that was in your hand.',
         effect: async function(state) {
-            state = await setCoin(0)(state)
             const n = state.hand.length
-            state = await recycle(state.hand.concat(state.discard))(state)
-            return draw(n, card)(state)
+            return reboot(card, n)(state)
         }
     })
 }
@@ -2981,12 +3004,8 @@ mixins.push(remake)
 const bootstrap:CardSpec = {name: 'Bootstrap',
     fixedCost: energy(1),
     effect: card => ({
-        text: 'Recycle your hand and discard pile, lose all $, and +2 cards.',
-        effect: async function(state) {
-            state = await setCoin(0)(state)
-            state = await recycle(state.hand.concat(state.discard))(state)
-            return draw(2, bootstrap)(state)
-        }
+        text: 'Recycle your hand, recycle your discard pile, lose all $, and +2 cards.',
+        effect: reboot(card, 2)
     })
 }
 mixins.push(bootstrap)
