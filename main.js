@@ -4149,7 +4149,7 @@ var looter = { name: 'Looter',
         }
     }); }
 };
-buyable(looter, 3);
+buyable(looter, 2);
 var scavenger = { name: 'Scavenger',
     fixedCost: time(1),
     effect: function (card) { return ({

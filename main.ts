@@ -3336,7 +3336,7 @@ const looter:CardSpec = {name: 'Looter',
         }
     })
 }
-buyable(looter, 3)
+buyable(looter, 2)
 
 const scavenger:CardSpec = {name: 'Scavenger',
     fixedCost: time(1),
