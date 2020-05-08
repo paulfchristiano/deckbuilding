@@ -2719,29 +2719,37 @@ var makeHallOfMirrors = { name: 'Hall of Mirrors',
         }]; }
 };
 register(makeHallOfMirrors);
-var carriageEffect = { name: 'Royal Carriage',
+var royalCarriage = { name: 'Royal Carriage',
+    fixedCost: energy(0),
+    effect: function (card) { return ({
+        text: "Put this in play.",
+        toZone: 'play',
+        effect: noop,
+    }); },
     triggers: function (card) { return [{
-            text: "When you finish playing a card, you may trash this"
-                + " and play that card again if it's in your discard pile.",
+            text: "When you finish playing a card, you may discard this"
+                + " to play that card again if it's in your discard pile.",
             kind: 'afterPlay',
             handles: function (e) { return true; },
             effect: function (e) { return function (state) {
                 return __awaiter(this, void 0, void 0, function () {
-                    var doit;
+                    var findCarriage, findCard, doit;
                     var _a;
                     return __generator(this, function (_b) {
                         switch (_b.label) {
                             case 0:
-                                if (!(e.after != null)) return [3 /*break*/, 4];
+                                findCarriage = state.find(card);
+                                findCard = state.find(e.after);
+                                if (!(findCarriage.found && findCarriage.place == 'play')) return [3 /*break*/, 4];
                                 doit = void 0;
-                                return [4 /*yield*/, choice(state, "Use " + card.name + " to play " + e.after.name + " again?", yesOrNo)];
+                                return [4 /*yield*/, choice(state, "Use " + card.name + " to play " + e.before.name + " again?", yesOrNo)];
                             case 1:
                                 _a = __read.apply(void 0, [_b.sent(), 2]), state = _a[0], doit = _a[1];
                                 if (!doit) return [3 /*break*/, 4];
-                                return [4 /*yield*/, trash(card)(state)];
+                                return [4 /*yield*/, move(card, 'discard')(state)];
                             case 2:
                                 state = _b.sent();
-                                return [4 /*yield*/, playAgain(e.after)(state)];
+                                return [4 /*yield*/, playAgain(findCard.card)(state)];
                             case 3:
                                 state = _b.sent();
                                 _b.label = 4;
@@ -2751,13 +2759,6 @@ var carriageEffect = { name: 'Royal Carriage',
                 });
             }; }
         }]; }
-};
-var royalCarriage = { name: 'Royal Carriage',
-    fixedCost: energy(0),
-    effect: function (card) { return ({
-        text: "Next time you finish playing a card, if it's in your disard pile play it again.",
-        effect: create(carriageEffect, 'play')
-    }); }
 };
 buyable(royalCarriage, 5);
 var royalSeal = { name: 'Royal Seal',

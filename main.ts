@@ -2312,32 +2312,33 @@ const makeHallOfMirrors:CardSpec = {name: 'Hall of Mirrors',
 }
 register(makeHallOfMirrors)
 
-const carriageEffect:CardSpec = {name: 'Royal Carriage',
+const royalCarriage:CardSpec = {name: 'Royal Carriage',
+    fixedCost: energy(0),
+    effect: card => ({
+        text: "Put this in play.",
+        toZone: 'play',
+        effect: noop,
+    }),
     triggers: card => [{
-        text: "When you finish playing a card, you may trash this"
-            + " and play that card again if it's in your discard pile.",
+        text: "When you finish playing a card, you may discard this"
+            + " to play that card again if it's in your discard pile.",
         kind: 'afterPlay',
         handles: e => true,
         effect: e => async function(state) {
-            if (e.after != null) {
+            const findCarriage = state.find(card)
+            const findCard = state.find(e.after)
+            if (findCarriage.found && findCarriage.place == 'play') {
                 let doit:boolean|null; [state, doit] = await choice(state,
-                    `Use ${card.name} to play ${e.after.name} again?`,
+                    `Use ${card.name} to play ${e.before.name} again?`,
                     yesOrNo)
                 if (doit) {
-                    state = await trash(card)(state)
-                    state = await playAgain(e.after)(state)
+                    state = await move(card, 'discard')(state)
+                    state = await playAgain(findCard.card)(state)
                 }
             }
             return state
         }
     }]
-}
-const royalCarriage:CardSpec = {name: 'Royal Carriage',
-    fixedCost: energy(0),
-    effect: card => ({
-        text: "Next time you finish playing a card, if it's in your disard pile play it again.",
-        effect: create(carriageEffect, 'play')
-    })
 }
 buyable(royalCarriage, 5)
 
