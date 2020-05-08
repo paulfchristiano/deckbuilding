@@ -1723,10 +1723,9 @@ var lowerHotkeys = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 
 var upperHotkeys = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M',
     'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z'];
 var handHotkeys = numHotkeys.concat(symbolHotkeys);
-var playHotkeys = upperHotkeys;
-var supplyHotkeys = lowerHotkeys;
+var supplyAndPlayHotkeys = lowerHotkeys.concat(upperHotkeys);
 // want to put zones that are least likely to change earlier, to not distrupt assignment
-var hotkeys = supplyHotkeys.concat(playHotkeys).concat(handHotkeys);
+var hotkeys = supplyAndPlayHotkeys.concat(handHotkeys);
 $(document).keydown(function (e) {
     var listener = keyListeners.get(e.key);
     if (listener != undefined)
@@ -1736,7 +1735,7 @@ var HotkeyMapper = /** @class */ (function () {
     function HotkeyMapper() {
     }
     HotkeyMapper.prototype.map = function (state, options) {
-        var e_12, _a, e_13, _b, e_14, _c, e_15, _d, e_16, _e;
+        var e_12, _a, e_13, _b, e_14, _c;
         var result = new Map();
         var taken = new Map();
         var pickable = new Set();
@@ -1754,11 +1753,15 @@ var HotkeyMapper = /** @class */ (function () {
             finally { if (e_12) throw e_12.error; }
         }
         var index = 0;
+        // reuse: do we use hotkeys that are assigned to unpickable things?
         function nextHotkey() {
-            while (taken.has(hotkeys[index])) {
+            while (true) {
+                var key = hotkeys[index];
+                var takenBy = taken.get(key);
+                if (takenBy == undefined || !pickable.has(takenBy)) {
+                    return key;
+                }
                 index++;
-                if (index > hotkeys.length)
-                    return null; // no hotkeys left to assign
             }
             return hotkeys[index];
         }
@@ -1774,7 +1777,7 @@ var HotkeyMapper = /** @class */ (function () {
                 set(x, hotkey);
         }
         function setFrom(cards, preferredHotkeys) {
-            var e_17, _a;
+            var e_15, _a;
             var preferredSet = new Set(preferredHotkeys);
             var otherHotkeys = hotkeys.filter(function (x) { return !preferredSet.has(x); });
             var toAssign = (preferredHotkeys.concat(otherHotkeys)).filter(function (x) { return !taken.has(x); });
@@ -1787,18 +1790,18 @@ var HotkeyMapper = /** @class */ (function () {
                     }
                 }
             }
-            catch (e_17_1) { e_17 = { error: e_17_1 }; }
+            catch (e_15_1) { e_15 = { error: e_15_1 }; }
             finally {
                 try {
                     if (cards_1_1 && !cards_1_1.done && (_a = cards_1.return)) _a.call(cards_1);
                 }
-                finally { if (e_17) throw e_17.error; }
+                finally { if (e_15) throw e_15.error; }
             }
         }
         //want to put zones that are most important not to change earlier
-        setFrom(state.supply, supplyHotkeys);
+        setFrom(state.supply, supplyAndPlayHotkeys);
         setFrom(state.hand, handHotkeys);
-        setFrom(state.play, playHotkeys);
+        setFrom(state.play, supplyAndPlayHotkeys);
         try {
             for (var options_2 = __values(options), options_2_1 = options_2.next(); !options_2_1.done; options_2_1 = options_2.next()) {
                 var option = options_2_1.value;
@@ -1817,43 +1820,19 @@ var HotkeyMapper = /** @class */ (function () {
             }
             finally { if (e_13) throw e_13.error; }
         }
-        try {
-            for (var _f = __values([state.hand, state.supply, state.play]), _g = _f.next(); !_g.done; _g = _f.next()) {
-                var zone = _g.value;
-                try {
-                    for (var zone_2 = (e_15 = void 0, __values(zone)), zone_2_1 = zone_2.next(); !zone_2_1.done; zone_2_1 = zone_2.next()) {
-                        var card = zone_2_1.value;
-                        assign(card.id);
-                    }
-                }
-                catch (e_15_1) { e_15 = { error: e_15_1 }; }
-                finally {
-                    try {
-                        if (zone_2_1 && !zone_2_1.done && (_d = zone_2.return)) _d.call(zone_2);
-                    }
-                    finally { if (e_15) throw e_15.error; }
-                }
-            }
-        }
-        catch (e_14_1) { e_14 = { error: e_14_1 }; }
-        finally {
-            try {
-                if (_g && !_g.done && (_c = _f.return)) _c.call(_f);
-            }
-            finally { if (e_14) throw e_14.error; }
-        }
+        index = 0;
         try {
             for (var options_3 = __values(options), options_3_1 = options_3.next(); !options_3_1.done; options_3_1 = options_3.next()) {
                 var option = options_3_1.value;
                 assign(option.render);
             }
         }
-        catch (e_16_1) { e_16 = { error: e_16_1 }; }
+        catch (e_14_1) { e_14 = { error: e_14_1 }; }
         finally {
             try {
-                if (options_3_1 && !options_3_1.done && (_e = options_3.return)) _e.call(options_3);
+                if (options_3_1 && !options_3_1.done && (_c = options_3.return)) _c.call(options_3);
             }
-            finally { if (e_16) throw e_16.error; }
+            finally { if (e_14) throw e_14.error; }
         }
         return result;
     };
@@ -2061,7 +2040,7 @@ function getSeed() {
     return (seed == null) ? undefined : hash(seed);
 }
 function getFixedKingdom() {
-    var e_18, _a, e_19, _b;
+    var e_16, _a, e_17, _b;
     var kingdomString = new URLSearchParams(window.location.search).get('kingdom');
     if (kingdomString == null)
         return undefined;
@@ -2073,12 +2052,12 @@ function getFixedKingdom() {
             mixinsByName.set(spec.name, spec);
         }
     }
-    catch (e_18_1) { e_18 = { error: e_18_1 }; }
+    catch (e_16_1) { e_16 = { error: e_16_1 }; }
     finally {
         try {
             if (mixins_1_1 && !mixins_1_1.done && (_a = mixins_1.return)) _a.call(mixins_1);
         }
-        finally { if (e_18) throw e_18.error; }
+        finally { if (e_16) throw e_16.error; }
     }
     var result = [];
     try {
@@ -2094,12 +2073,12 @@ function getFixedKingdom() {
             }
         }
     }
-    catch (e_19_1) { e_19 = { error: e_19_1 }; }
+    catch (e_17_1) { e_17 = { error: e_17_1 }; }
     finally {
         try {
             if (cardStrings_1_1 && !cardStrings_1_1.done && (_b = cardStrings_1.return)) _b.call(cardStrings_1);
         }
-        finally { if (e_19) throw e_19.error; }
+        finally { if (e_17) throw e_17.error; }
     }
     return result;
 }
@@ -2674,8 +2653,8 @@ var hallOfMirrors = { name: 'Hall of Mirrors',
         text: 'Put a mirror token on each card in your hand.',
         effect: function (state) {
             return __awaiter(this, void 0, void 0, function () {
-                var _a, _b, card_2, e_20_1;
-                var e_20, _c;
+                var _a, _b, card_2, e_18_1;
+                var e_18, _c;
                 return __generator(this, function (_d) {
                     switch (_d.label) {
                         case 0:
@@ -2694,14 +2673,14 @@ var hallOfMirrors = { name: 'Hall of Mirrors',
                             return [3 /*break*/, 1];
                         case 4: return [3 /*break*/, 7];
                         case 5:
-                            e_20_1 = _d.sent();
-                            e_20 = { error: e_20_1 };
+                            e_18_1 = _d.sent();
+                            e_18 = { error: e_18_1 };
                             return [3 /*break*/, 7];
                         case 6:
                             try {
                                 if (_b && !_b.done && (_c = _a.return)) _c.call(_a);
                             }
-                            finally { if (e_20) throw e_20.error; }
+                            finally { if (e_18) throw e_18.error; }
                             return [7 /*endfinally*/];
                         case 7: return [2 /*return*/, state];
                     }
@@ -3299,7 +3278,78 @@ var junkyard = { name: 'Junkyard',
 function leq(cost1, cost2) {
     return cost1.coin <= cost2.coin && cost1.energy <= cost2.energy;
 }
-var synergy = { name: 'Synergy',
+var makeSynergy = { name: 'Synergy',
+    fixedCost: { coin: 5, energy: 1 },
+    effect: function (card) { return ({
+        text: 'Remove all synergy tokens from cards in the supply,' +
+            " then put synergy tokens on two cards in the supply.",
+        effect: function (state) {
+            return __awaiter(this, void 0, void 0, function () {
+                var _a, _b, card_3, e_19_1, cards, cards_2, cards_2_1, card_4, e_20_1;
+                var e_19, _c, _d, e_20, _e;
+                return __generator(this, function (_f) {
+                    switch (_f.label) {
+                        case 0:
+                            _f.trys.push([0, 5, 6, 7]);
+                            _a = __values(state.supply), _b = _a.next();
+                            _f.label = 1;
+                        case 1:
+                            if (!!_b.done) return [3 /*break*/, 4];
+                            card_3 = _b.value;
+                            if (!(countTokens(card_3, 'synergy') > 0)) return [3 /*break*/, 3];
+                            return [4 /*yield*/, removeTokens(card_3, 'synergy')(state)];
+                        case 2:
+                            state = _f.sent();
+                            _f.label = 3;
+                        case 3:
+                            _b = _a.next();
+                            return [3 /*break*/, 1];
+                        case 4: return [3 /*break*/, 7];
+                        case 5:
+                            e_19_1 = _f.sent();
+                            e_19 = { error: e_19_1 };
+                            return [3 /*break*/, 7];
+                        case 6:
+                            try {
+                                if (_b && !_b.done && (_c = _a.return)) _c.call(_a);
+                            }
+                            finally { if (e_19) throw e_19.error; }
+                            return [7 /*endfinally*/];
+                        case 7: return [4 /*yield*/, multichoiceIfNeeded(state, 'Choose two cards to synergize.', state.supply.map(asChoice), 2, false)];
+                        case 8:
+                            _d = __read.apply(void 0, [_f.sent(), 2]), state = _d[0], cards = _d[1];
+                            _f.label = 9;
+                        case 9:
+                            _f.trys.push([9, 14, 15, 16]);
+                            cards_2 = __values(cards), cards_2_1 = cards_2.next();
+                            _f.label = 10;
+                        case 10:
+                            if (!!cards_2_1.done) return [3 /*break*/, 13];
+                            card_4 = cards_2_1.value;
+                            return [4 /*yield*/, addToken(card_4, 'synergy')(state)];
+                        case 11:
+                            state = _f.sent();
+                            _f.label = 12;
+                        case 12:
+                            cards_2_1 = cards_2.next();
+                            return [3 /*break*/, 10];
+                        case 13: return [3 /*break*/, 16];
+                        case 14:
+                            e_20_1 = _f.sent();
+                            e_20 = { error: e_20_1 };
+                            return [3 /*break*/, 16];
+                        case 15:
+                            try {
+                                if (cards_2_1 && !cards_2_1.done && (_e = cards_2.return)) _e.call(cards_2);
+                            }
+                            finally { if (e_20) throw e_20.error; }
+                            return [7 /*endfinally*/];
+                        case 16: return [2 /*return*/, state];
+                    }
+                });
+            });
+        }
+    }); },
     triggers: function (card) { return [{
             text: 'Whenever you buy a card with a synergy token other than with this,'
                 + ' afterwards buy a different card with a synergy token with equal or lesser cost.',
@@ -3330,60 +3380,6 @@ var synergy = { name: 'Synergy',
                 });
             }; }
         }]; }
-};
-var makeSynergy = { name: 'Synergy',
-    relatedCards: [synergy],
-    fixedCost: { coin: 5, energy: 1 },
-    effect: function (card) { return ({
-        text: 'Put a synergy token on two cards in the supply,' +
-            (" create a " + synergy.name + " in play, and trash this."),
-        effect: function (state) {
-            return __awaiter(this, void 0, void 0, function () {
-                var cards, cards_2, cards_2_1, card_3, e_21_1;
-                var _a, e_21, _b;
-                return __generator(this, function (_c) {
-                    switch (_c.label) {
-                        case 0: return [4 /*yield*/, multichoiceIfNeeded(state, 'Choose two cards to synergize.', state.supply.map(asChoice), 2, false)];
-                        case 1:
-                            _a = __read.apply(void 0, [_c.sent(), 2]), state = _a[0], cards = _a[1];
-                            _c.label = 2;
-                        case 2:
-                            _c.trys.push([2, 7, 8, 9]);
-                            cards_2 = __values(cards), cards_2_1 = cards_2.next();
-                            _c.label = 3;
-                        case 3:
-                            if (!!cards_2_1.done) return [3 /*break*/, 6];
-                            card_3 = cards_2_1.value;
-                            return [4 /*yield*/, addToken(card_3, 'synergy')(state)];
-                        case 4:
-                            state = _c.sent();
-                            _c.label = 5;
-                        case 5:
-                            cards_2_1 = cards_2.next();
-                            return [3 /*break*/, 3];
-                        case 6: return [3 /*break*/, 9];
-                        case 7:
-                            e_21_1 = _c.sent();
-                            e_21 = { error: e_21_1 };
-                            return [3 /*break*/, 9];
-                        case 8:
-                            try {
-                                if (cards_2_1 && !cards_2_1.done && (_b = cards_2.return)) _b.call(cards_2);
-                            }
-                            finally { if (e_21) throw e_21.error; }
-                            return [7 /*endfinally*/];
-                        case 9: return [4 /*yield*/, create(synergy, 'play')(state)];
-                        case 10:
-                            state = _c.sent();
-                            return [4 /*yield*/, trash(card)(state)];
-                        case 11:
-                            state = _c.sent();
-                            return [2 /*return*/, state];
-                    }
-                });
-            });
-        }
-    }); }
 };
 register(makeSynergy);
 var bustlingSquare = { name: 'Bustling Square',
@@ -3883,7 +3879,7 @@ var coppersmith = { name: 'Coppersmith',
 };
 buyable(coppersmith, 3);
 function countDistinct(xs) {
-    var e_22, _a;
+    var e_21, _a;
     var y = new Set();
     var result = 0;
     try {
@@ -3895,12 +3891,12 @@ function countDistinct(xs) {
             }
         }
     }
-    catch (e_22_1) { e_22 = { error: e_22_1 }; }
+    catch (e_21_1) { e_21 = { error: e_21_1 }; }
     finally {
         try {
             if (xs_1_1 && !xs_1_1.done && (_a = xs_1.return)) _a.call(xs_1);
         }
-        finally { if (e_22) throw e_22.error; }
+        finally { if (e_21) throw e_21.error; }
     }
     return result;
 }

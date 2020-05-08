@@ -1559,10 +1559,9 @@ const lowerHotkeys = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l'
 const upperHotkeys = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M',
     'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z']
 const handHotkeys:Key[] = numHotkeys.concat(symbolHotkeys)
-const playHotkeys:Key[] = upperHotkeys
-const supplyHotkeys:Key[] = lowerHotkeys
+const supplyAndPlayHotkeys:Key[] = lowerHotkeys.concat(upperHotkeys)
 // want to put zones that are least likely to change earlier, to not distrupt assignment
-const hotkeys:Key[] = supplyHotkeys.concat(playHotkeys).concat(handHotkeys)
+const hotkeys:Key[] = supplyAndPlayHotkeys.concat(handHotkeys)
 
 $(document).keydown((e: any) => {
     const listener = keyListeners.get(e.key)
@@ -1580,10 +1579,15 @@ class HotkeyMapper {
         const pickable:Set<OptionRender> = new Set()
         for (const option of options) pickable.add(option.render)
         let index = 0
+        // reuse: do we use hotkeys that are assigned to unpickable things?
         function nextHotkey(): Key|null {
-            while (taken.has(hotkeys[index])) {
+            while (true) {
+                const key:Key = hotkeys[index]
+                const takenBy:OptionRender|undefined = taken.get(key)
+                if (takenBy == undefined || !pickable.has(takenBy)) {
+                    return key
+                }
                 index++
-                if (index > hotkeys.length) return null // no hotkeys left to assign
             }
             return hotkeys[index]
         }
@@ -1608,9 +1612,9 @@ class HotkeyMapper {
             }
         }
         //want to put zones that are most important not to change earlier
-        setFrom(state.supply, supplyHotkeys)
+        setFrom(state.supply, supplyAndPlayHotkeys)
         setFrom(state.hand, handHotkeys)
-        setFrom(state.play, playHotkeys)
+        setFrom(state.play, supplyAndPlayHotkeys)
         for (const option of options) {
             const hint:Key|undefined = option.hotkeyHint;
             if (hint != undefined && !result.has(option.render)) {
@@ -1619,11 +1623,7 @@ class HotkeyMapper {
                     set(option.render, hint)
             }
         }
-        for (const zone of [state.hand, state.supply, state.play]) {
-            for (const card of zone) {
-                assign(card.id)
-            }
-        }
+        index = 0
         for (const option of options) {
             assign(option.render)
         }
@@ -2759,7 +2759,22 @@ const junkyard:CardSpec = {name: 'Junkyard',
 function leq(cost1:Cost, cost2:Cost) {
     return cost1.coin <= cost2.coin && cost1.energy <= cost2.energy
 }
-const synergy:CardSpec = {name:'Synergy',
+const makeSynergy:CardSpec = {name: 'Synergy',
+    fixedCost: {coin:5, energy:1},
+    effect: card => ({
+        text: 'Remove all synergy tokens from cards in the supply,'+
+        ` then put synergy tokens on two cards in the supply.`,
+        effect: async function(state) {
+            for (const card of state.supply) 
+                if (countTokens(card, 'synergy') > 0)
+                    state = await removeTokens(card, 'synergy')(state)
+            let cards:Card[]; [state, cards] = await multichoiceIfNeeded(state,
+                'Choose two cards to synergize.',
+                state.supply.map(asChoice), 2, false)
+            for (const card of cards) state = await addToken(card, 'synergy')(state)
+            return state
+        }
+    }),
     triggers: card => [{
         text: 'Whenever you buy a card with a synergy token other than with this,'
         + ' afterwards buy a different card with a synergy token with equal or lesser cost.',
@@ -2780,23 +2795,6 @@ const synergy:CardSpec = {name:'Synergy',
             }
         }
     }]
-}
-const makeSynergy:CardSpec = {name: 'Synergy',
-    relatedCards: [synergy],
-    fixedCost: {coin:5, energy:1},
-    effect: card => ({
-        text: 'Put a synergy token on two cards in the supply,' +
-        ` create a ${synergy.name} in play, and trash this.`,
-        effect: async function(state) {
-            let cards:Card[]; [state, cards] = await multichoiceIfNeeded(state,
-                'Choose two cards to synergize.',
-                state.supply.map(asChoice), 2, false)
-            for (const card of cards) state = await addToken(card, 'synergy')(state)
-            state = await create(synergy, 'play')(state)
-            state = await trash(card)(state)
-            return state
-        }
-    })
 }
 register(makeSynergy)
 
