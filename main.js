@@ -790,23 +790,22 @@ function recycle(cards) {
     return function (state) {
         return __awaiter(this, void 0, void 0, function () {
             var params;
-            var _a;
-            return __generator(this, function (_b) {
-                switch (_b.label) {
+            return __generator(this, function (_a) {
+                switch (_a.label) {
                     case 0:
                         params = { cards: cards, kind: 'recycle' };
                         params = replace(params, state);
                         cards = params.cards;
-                        _a = __read(randomChoices(state, cards, cards.length), 2), state = _a[0], cards = _a[1];
+                        //[state, cards] = randomChoices(state, cards, cards.length);
                         if (cards.length > 0) {
                             state = state.log("Recycled " + showCards(cards) + " to bottom of deck");
                         }
                         return [4 /*yield*/, moveMany(cards, 'deck', 'bottom', true)(state)];
                     case 1:
-                        state = _b.sent();
+                        state = _a.sent();
                         return [4 /*yield*/, trigger({ kind: 'recycle', cards: cards })(state)];
                     case 2:
-                        state = _b.sent();
+                        state = _a.sent();
                         return [2 /*return*/, state];
                 }
             });

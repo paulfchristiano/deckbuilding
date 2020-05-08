@@ -733,7 +733,7 @@ function recycle(cards:Card[]): Transform {
         let params:RecycleParams = {cards:cards, kind:'recycle'}
         params = replace(params, state);
         cards = params.cards;
-        [state, cards] = randomChoices(state, cards, cards.length);
+        //[state, cards] = randomChoices(state, cards, cards.length);
         if (cards.length > 0) {
           state = state.log(`Recycled ${showCards(cards)} to bottom of deck`)
         }
