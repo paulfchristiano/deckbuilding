@@ -1242,7 +1242,6 @@ function renderCard(card, state, options) {
         return renderShadow(card, state);
     }
     else {
-        console.log(options);
         var tokenhtml = card.tokens.length > 0 ? '*' : '';
         var chargehtml = card.charge > 0 ? "(" + card.charge + ")" : '';
         var costhtml = renderCost(card.cost(state)) || '&nbsp';
@@ -1985,6 +1984,11 @@ function mainLoop(state) {
                     if (error_2 instanceof Undo) {
                         return [2 /*return*/, undo(error_2.state)];
                     }
+                    else if (error_2 instanceof Victory) {
+                        return [2 /*return*/, new Promise(function (resolve, reject) {
+                                renderChoice(error_2.state, "You won using " + error_2.state.energy + " energy!", [], function () { return resolve(undo(error_2.state)); }, function () { });
+                            })];
+                    }
                     else {
                         throw error_2;
                     }
@@ -2003,7 +2007,7 @@ function supplySort(card1, card2) {
 }
 function playGame(seed, fixedKingdom) {
     return __awaiter(this, void 0, void 0, function () {
-        var startingDeck, state, shuffledDeck, variableSupplies, i, kingdom, error_3;
+        var startingDeck, state, shuffledDeck, variableSupplies, i, kingdom;
         var _a, _b;
         return __generator(this, function (_c) {
             switch (_c.label) {
@@ -2033,23 +2037,12 @@ function playGame(seed, fixedKingdom) {
                     state = state.log("Setup done, game starting");
                     _c.label = 4;
                 case 4:
-                    _c.trys.push([4, 8, , 9]);
-                    _c.label = 5;
-                case 5:
-                    if (!true) return [3 /*break*/, 7];
+                    if (!true) return [3 /*break*/, 6];
                     return [4 /*yield*/, mainLoop(state)];
-                case 6:
+                case 5:
                     state = _c.sent();
-                    return [3 /*break*/, 5];
-                case 7: return [3 /*break*/, 9];
-                case 8:
-                    error_3 = _c.sent();
-                    if (error_3 instanceof Victory) {
-                        renderState(error_3.state);
-                        $('#choicePrompt').html("You won using " + error_3.state.energy + " energy!");
-                    }
-                    return [3 /*break*/, 9];
-                case 9: return [2 /*return*/];
+                    return [3 /*break*/, 4];
+                case 6: return [2 /*return*/];
             }
         });
     });
@@ -2799,7 +2792,6 @@ var royalSeal = { name: 'Royal Seal',
                     return __generator(this, function (_a) {
                         switch (_a.label) {
                             case 0:
-                                console.log(e);
                                 if (!(state.find(e.card).place == 'discard')) return [3 /*break*/, 2];
                                 return [4 /*yield*/, move(e.card, 'hand')(state)];
                             case 1:
@@ -4019,8 +4011,6 @@ var gardens = { name: "Gardens",
                 var n;
                 return __generator(this, function (_a) {
                     n = state.deck.length;
-                    console.log(state.deck);
-                    console.log(n);
                     return [2 /*return*/, gainPoints(Math.floor(n / 5))(state)];
                 });
             });
@@ -4778,6 +4768,14 @@ var freeTrash = { name: 'Free trash',
     }); }
 };
 cheats.push(freeTrash);
+var freePoints = { name: 'Free points',
+    fixedCost: energy(0),
+    effect: function (card) { return ({
+        text: '+10vp',
+        effect: gainPoints(10),
+    }); }
+};
+cheats.push(freePoints);
 var drawAll = { name: 'Draw all',
     fixedCost: energy(0),
     effect: function (card) { return ({

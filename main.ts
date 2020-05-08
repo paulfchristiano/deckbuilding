@@ -1072,7 +1072,6 @@ function renderCard(card:Card|Shadow, state:State, options:CardRenderOptions):st
     if (card instanceof Shadow) {
         return renderShadow(card, state)
     } else {
-        console.log(options)
         const tokenhtml:string = card.tokens.length > 0 ? '*' : ''
         const chargehtml:string = card.charge > 0 ? `(${card.charge})` : ''
         const costhtml:string = renderCost(card.cost(state)) || '&nbsp'
@@ -1741,6 +1740,11 @@ async function mainLoop(state: State): Promise<State> {
     } catch (error) {
         if (error instanceof Undo) {
             return undo(error.state)
+        } else if (error instanceof Victory) {
+            return new Promise(function (resolve, reject) {
+                renderChoice(error.state, `You won using ${error.state.energy} energy!`,
+                    [], () => resolve(undo(error.state)), () => {})
+            })
         } else {
             throw error
         }
@@ -1771,15 +1775,8 @@ async function playGame(seed?:number, fixedKingdom?:CardSpec[]): Promise<void> {
     state = await doAll(kingdom.map(x => create(x, 'supply')))(state)
     state = await trigger({kind:'gameStart'})(state)
     state = state.log(`Setup done, game starting`)
-    try {
-        while (true) {
-            state = await mainLoop(state)
-        }
-    } catch (error) {
-        if (error instanceof Victory) {
-            renderState(error.state)
-            $('#choicePrompt').html(`You won using ${error.state.energy} energy!`)
-        }
+    while (true) {
+        state = await mainLoop(state)
     }
 }
 
@@ -2352,7 +2349,6 @@ const royalSeal:CardSpec = {name: 'Royal Seal',
             nextEnergy('Capital', "When you create a card in your discard pile, trash this"
             + " and put that card into your hand.",
             'create', (e:CreateEvent) => (e.zone == 'discard'), (e:CreateEvent) => async function(state) {
-                console.log(e)
                 if (state.find(e.card).place == 'discard') state = await move(e.card, 'hand')(state)
                 return state
             })
@@ -3263,8 +3259,6 @@ const gardens:CardSpec = {name: "Gardens",
         text: "+1 vp per 5 cards in your deck.",
         effect: async function(state) {
             const n = state.deck.length;
-            console.log(state.deck)
-            console.log(n)
             return gainPoints(Math.floor(n/5))(state)
         }
     })
@@ -3837,6 +3831,15 @@ const freeTrash:CardSpec = {name: 'Free trash',
     })
 }
 cheats.push(freeTrash)
+
+const freePoints:CardSpec = {name: 'Free points',
+    fixedCost: energy(0),
+    effect: card => ({
+        text: '+10vp',
+        effect: gainPoints(10),
+    })
+}
+cheats.push(freePoints)
 
 const drawAll:CardSpec = {name: 'Draw all',
     fixedCost: energy(0),
