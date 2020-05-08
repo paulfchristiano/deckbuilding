@@ -1961,9 +1961,9 @@ function makeCard(card:CardSpec, cost:Cost, selfdestruct:boolean=false):CardSpec
 function reboot(card:Card, n:number): Transform {
     return async function(state) {
         state = await setCoin(0)(state)
-        state = await recycle(state.hand)(state)
         state = await recycle(state.discard)(state)
-        state = await draw(n, regroup)(state)
+        state = await recycle(state.hand)(state)
+        state = await draw(n, card)(state)
         return state
     }
 }
@@ -1971,7 +1971,7 @@ function reboot(card:Card, n:number): Transform {
 const regroup:CardSpec = {name: 'Regroup',
     fixedCost: energy(3),
     effect: card => ({
-        text: 'Recycle your hand, recycle your discard pile, lose all $, and +5 cards.',
+        text: 'Recycle your discard pile, recycle your hand, lose all $, and +5 cards.',
         effect: reboot(card, 5),
     })
 }
@@ -2129,7 +2129,7 @@ register(philanthropy)
 const repurpose:CardSpec = {name: 'Repurpose',
     fixedCost: energy(2),
     effect: card => ({
-        text: 'Recycle your hand, recycle your discard pile, lose all $, and +1 card per coin lost.',
+        text: 'Recycle your discard pile, recycle your hand, lose all $, and +1 card per coin lost.',
         effect: async function(state) {
             const n = state.coin
             return reboot(card, n)(state)
@@ -2988,7 +2988,7 @@ mixins.push(reuse)
 const remake :CardSpec = {name: 'Remake',
     fixedCost: energy(1),
     effect: card => ({
-        text: 'Recycle your hand, recycle your discard pile, lose all $, and +1 card per card that was in your hand.',
+        text: 'Recycle your discard pile, recycle your hand, lose all $, and +1 card per card that was in your hand.',
         effect: async function(state) {
             const n = state.hand.length
             return reboot(card, n)(state)
@@ -3000,7 +3000,7 @@ mixins.push(remake)
 const bootstrap:CardSpec = {name: 'Bootstrap',
     fixedCost: energy(1),
     effect: card => ({
-        text: 'Recycle your hand, recycle your discard pile, lose all $, and +2 cards.',
+        text: 'Recycle your discard pile, recycle your hand, lose all $, and +2 cards.',
         effect: reboot(card, 2)
     })
 }

@@ -2240,13 +2240,13 @@ function reboot(card, n) {
                     case 0: return [4 /*yield*/, setCoin(0)(state)];
                     case 1:
                         state = _a.sent();
-                        return [4 /*yield*/, recycle(state.hand)(state)];
+                        return [4 /*yield*/, recycle(state.discard)(state)];
                     case 2:
                         state = _a.sent();
-                        return [4 /*yield*/, recycle(state.discard)(state)];
+                        return [4 /*yield*/, recycle(state.hand)(state)];
                     case 3:
                         state = _a.sent();
-                        return [4 /*yield*/, draw(n, regroup)(state)];
+                        return [4 /*yield*/, draw(n, card)(state)];
                     case 4:
                         state = _a.sent();
                         return [2 /*return*/, state];
@@ -2258,7 +2258,7 @@ function reboot(card, n) {
 var regroup = { name: 'Regroup',
     fixedCost: energy(3),
     effect: function (card) { return ({
-        text: 'Recycle your hand, recycle your discard pile, lose all $, and +5 cards.',
+        text: 'Recycle your discard pile, recycle your hand, lose all $, and +5 cards.',
         effect: reboot(card, 5),
     }); }
 };
@@ -2451,7 +2451,7 @@ register(philanthropy);
 var repurpose = { name: 'Repurpose',
     fixedCost: energy(2),
     effect: function (card) { return ({
-        text: 'Recycle your hand, recycle your discard pile, lose all $, and +1 card per coin lost.',
+        text: 'Recycle your discard pile, recycle your hand, lose all $, and +1 card per coin lost.',
         effect: function (state) {
             return __awaiter(this, void 0, void 0, function () {
                 var n;
@@ -3651,7 +3651,7 @@ mixins.push(reuse);
 var remake = { name: 'Remake',
     fixedCost: energy(1),
     effect: function (card) { return ({
-        text: 'Recycle your hand, recycle your discard pile, lose all $, and +1 card per card that was in your hand.',
+        text: 'Recycle your discard pile, recycle your hand, lose all $, and +1 card per card that was in your hand.',
         effect: function (state) {
             return __awaiter(this, void 0, void 0, function () {
                 var n;
@@ -3667,7 +3667,7 @@ mixins.push(remake);
 var bootstrap = { name: 'Bootstrap',
     fixedCost: energy(1),
     effect: function (card) { return ({
-        text: 'Recycle your hand, recycle your discard pile, lose all $, and +2 cards.',
+        text: 'Recycle your discard pile, recycle your hand, lose all $, and +2 cards.',
         effect: reboot(card, 2)
     }); }
 };
