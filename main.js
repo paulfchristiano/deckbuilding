@@ -2335,14 +2335,14 @@ var throneRoom = { name: 'Throne Room',
     }); }
 };
 buyable(throneRoom, 4);
-var mule = { name: 'Mule',
+var hound = { name: 'Hound',
     fixedCost: time(1),
     effect: function (card) { return ({
         text: '+2 cards',
         effect: draw(2)
     }); }
 };
-buyable(mule, 1);
+buyable(hound, 1);
 var smithy = { name: 'Smithy',
     fixedCost: time(1),
     effect: function (card) { return ({
@@ -2373,7 +2373,7 @@ var tutor = { name: 'Tutor',
     }); }
 };
 buyable(tutor, 3);
-var teacher = { name: 'Teacher',
+var education = { name: 'Education',
     fixedCost: time(2),
     effect: function (card) { return ({
         text: 'Put up to three cards from your deck into your hand.',
@@ -2393,7 +2393,7 @@ var teacher = { name: 'Teacher',
         }
     }); }
 };
-buyable(teacher, 4);
+buyable(education, 4);
 var philanthropy = { name: 'Philanthropy',
     fixedCost: { coin: 10, time: 2 },
     effect: function (card) { return ({
@@ -2444,7 +2444,7 @@ var repurpose = { name: 'Repurpose',
     }); }
 };
 register(repurpose);
-var crafts = { name: 'Crafts',
+var crafting = { name: 'Crafting',
     triggers: function (card) { return [{
             text: "After playing " + a(estate.name) + ", +$1.",
             kind: 'afterPlay',
@@ -2452,7 +2452,7 @@ var crafts = { name: 'Crafts',
             effect: function (e) { return gainCoin(1); },
         }]; }
 };
-register(makeCard(crafts, time(1), true));
+register(makeCard(crafting, time(1), true));
 var homestead = { name: 'Homesteading',
     triggers: function (card) { return [{
             text: "After playing " + a(estate.name) + ", +1 card",
@@ -2470,14 +2470,14 @@ var monument = { name: 'Monument',
     }); }
 };
 buyable(monument, 2);
-var expansion = { name: 'Expansion',
+var vibrantCity = { name: 'Vibrant City',
     effect: function (card) { return ({
         text: '+1vp, +1 card.',
         effect: doAll([gainPoints(1), draw(1)])
     }); }
 };
-buyable(expansion, 8);
-var tower = { name: 'Tower',
+buyable(vibrantCity, 8);
+var frontier = { name: 'Frontier',
     fixedCost: time(1),
     effect: function (card) { return ({
         text: 'Add a charge token to this, then +1 vp per charge token on this. Put it on the bottom of your deck.',
@@ -2503,8 +2503,8 @@ var tower = { name: 'Tower',
         },
     }); }
 };
-buyable(tower, 9);
-var tradeRoute = { name: 'Trade Route',
+buyable(frontier, 9);
+var investment = { name: 'Investment',
     fixedCost: time(0),
     effect: function (card) { return ({
         text: 'Add a charge token to this, then +$1 per charge token on this.',
@@ -2529,7 +2529,7 @@ var tradeRoute = { name: 'Trade Route',
         },
     }); }
 };
-buyable(tradeRoute, 3);
+buyable(investment, 3);
 var populate = { name: 'Populate',
     fixedCost: { coin: 12, time: 5 },
     effect: function (card) { return ({
@@ -2581,7 +2581,7 @@ var populate = { name: 'Populate',
     }); }
 };
 register(populate);
-var youngSmith = { name: 'Young Smith',
+var oldSmith = { name: 'Old Smith',
     fixedCost: time(1),
     effect: function (card) { return ({
         text: 'Put this in play with 4 charge tokens on it.',
@@ -2627,7 +2627,7 @@ var youngSmith = { name: 'Young Smith',
             }; }
         }]; }
 };
-buyable(youngSmith, 3);
+buyable(oldSmith, 3);
 var duplicate = { name: 'Duplicate',
     fixedCost: { coin: 5, time: 1 },
     effect: function (card) { return ({
@@ -2761,7 +2761,7 @@ var royalCarriage = { name: 'Royal Carriage',
     }); }
 };
 buyable(royalCarriage, 5);
-var capital = { name: 'Capital',
+var royalSeal = { name: 'Royal Seal',
     effect: function (card) { return ({
         text: '+$2. Next time you create a card in your discard pile, put it into your hand.',
         effect: doAll([
@@ -2786,7 +2786,7 @@ var capital = { name: 'Capital',
         ])
     }); }
 };
-buyable(capital, 6);
+buyable(royalSeal, 6);
 var bridge = { name: 'Bridge',
     fixedCost: time(1),
     effect: function (card) { return ({
@@ -2795,7 +2795,7 @@ var bridge = { name: 'Bridge',
         effect: gainCoin(2),
     }); },
     replacers: function (card) { return [{
-            text: 'Cards cost $1 less, but not less than $1.',
+            text: 'Cards cost $1 less, unless it would make them cost 0.',
             kind: 'cost',
             handles: function (p) { return true; },
             replace: function (p) { return (__assign(__assign({}, p), { cost: reduceCoinNonzero(p.cost, 1) })); }
@@ -3042,7 +3042,7 @@ var feast = { name: 'Feast',
 buyable(feast, 4);
 var mobilization = { name: 'Mobilization',
     replacers: function (card) { return [{
-            text: 'Regroup costs @ less to play, but not zero.',
+            text: "{regroup.name} costs @ less to play, but not zero.",
             kind: 'cost',
             handles: function (x) { return (x.card.name == 'Regroup'); },
             replace: function (x) { return (__assign(__assign({}, x), { cost: reduceTimeNonzero(x.cost, 1) })); }
@@ -3179,7 +3179,7 @@ var twin = { name: 'Twin',
         }]; },
 };
 register(twin);
-var apprentice = { name: 'Apprentice',
+var youngSmith = { name: 'Young Smith',
     fixedCost: time(1),
     effect: function (card) { return ({
         text: 'Add a charge token to this, then +1 card per charge token on this.',
@@ -3204,7 +3204,7 @@ var apprentice = { name: 'Apprentice',
         },
     }); }
 };
-buyable(apprentice, 1);
+buyable(youngSmith, 1);
 function nextTime(name, text, kind, when, what) {
     function triggers(card) {
         return [{
@@ -3559,7 +3559,7 @@ var lab = { name: 'Lab',
     }); }
 };
 buyable(lab, 5);
-var roadNetwork = { name: 'Road Network',
+var expressway = { name: 'Expressway',
     fixedCost: time(0),
     triggers: function (_) { return [{
             text: "Whenever you create a card," +
@@ -3569,7 +3569,7 @@ var roadNetwork = { name: 'Road Network',
             effect: function (e) { return move(e.card, 'deck', 'top'); }
         }]; }
 };
-register(makeCard(roadNetwork, coin(5), true));
+register(makeCard(expressway, coin(5), true));
 var formation = { name: 'Formation',
     fixedCost: time(0),
     triggers: function (card) { return [{
@@ -3597,14 +3597,14 @@ var formation = { name: 'Formation',
         }]; }
 };
 register(makeCard(formation, { time: 0, coin: 6 }));
-var forge = { name: 'Forge',
+var greatSmithy = { name: 'Great Smithy',
     fixedCost: time(2),
     effect: function (card) { return ({
         text: '+5 cards',
         effect: draw(5),
     }); }
 };
-buyable(forge, 5);
+buyable(greatSmithy, 5);
 var reuse = { name: 'Reuse',
     calculatedCost: function (card, state) { return ({ time: 1, coin: card.charge }); },
     effect: function (card) { return ({
@@ -3675,19 +3675,19 @@ var bootstrap = { name: 'Bootstrap',
     }); }
 };
 mixins.push(bootstrap);
-var retry = { name: 'Resume',
+var pressOn = { name: 'Press On',
     fixedCost: time(2),
     effect: function (card) { return ({
         text: 'Discard your hand, lose all $, and +5 cards.',
         effect: doAll([
             setCoin(0),
             moveWholeZone('hand', 'discard'),
-            draw(5, retry)
+            draw(5, pressOn)
         ])
     }); }
 };
-mixins.push(retry);
-var research = { name: 'Research',
+mixins.push(pressOn);
+var seek = { name: 'Seek',
     calculatedCost: function (card, state) { return ({ time: 1, coin: card.charge }); },
     effect: function (card) { return ({
         text: 'Put a card from your deck into your hand. Put a charge token on this. This costs +$1 per charge token on it.',
@@ -3710,7 +3710,7 @@ var research = { name: 'Research',
         }
     }); }
 };
-mixins.push(research);
+mixins.push(seek);
 var innovation = { name: "Innovation",
     triggers: function (card) { return [{
             text: "Whenever you create a card, if it's in your discard pile and this has innovate tokens on it," +
@@ -4052,7 +4052,7 @@ var pathfinding = { name: 'Pathfinding',
         }]; },
 };
 register(pathfinding);
-var counterfeit = { name: 'Counterfeit',
+var offering = { name: 'Offering',
     effect: function (card) { return ({
         text: 'Play a card from your deck, then trash it.',
         effect: function (state) {
@@ -4079,7 +4079,7 @@ var counterfeit = { name: 'Counterfeit',
         }
     }); }
 };
-buyable(counterfeit, 5);
+buyable(offering, 5);
 var decay = { name: 'Decay',
     fixedCost: coin(2),
     effect: function (card) { return ({
@@ -4182,11 +4182,12 @@ var reflect = { name: 'Reflect',
     }); }
 };
 register(reflect);
-var reduce = { name: 'Reduce',
+//TODO: add
+var cleanse = { name: 'Offering',
     calculatedCost: function (card, state) { return ({ time: 1, coin: card.charge }); },
     effect: function (card) { return ({
-        text: "Trash a card in your hand. Put a charge count on this."
-            + "It costs $1 more for each charge counter on it.",
+        text: "Trash a card in your hand. Put a charge token on this."
+            + "It costs $1 more for each charge token on it.",
         effect: function (state) {
             return __awaiter(this, void 0, void 0, function () {
                 var target;
@@ -4211,10 +4212,11 @@ var reduce = { name: 'Reduce',
         }
     }); }
 };
+//TODO: add
 var replicate = { name: 'Replicate',
     calculatedCost: function (card, state) { return ({ time: 1, coin: card.charge }); },
     effect: function (card) { return ({
-        text: "Trash a card in your hand. Put a charge count on this."
+        text: "Create a copy of a card in your hand in your discard pile. Put a charge count on this."
             + "It costs $1 more for each charge counter on it.",
         effect: function (state) {
             return __awaiter(this, void 0, void 0, function () {
@@ -4361,14 +4363,14 @@ var fillStables = { name: 'Fill Stables',
     triggers: function (card) { return [ensureInPlay(stables)]; },
 };
 //register(fillStables)
-var treasury = { name: 'Treasury',
+var savings = { name: 'Savings',
     fixedCost: time(1),
     effect: function (card) { return ({
         text: "Put three charge tokens on a " + coffers.name + " in play.",
         effect: fill(coffers, 3),
     }); }
 };
-buyableAnd(treasury, 3, [ensureInPlay(coffers)]);
+buyableAnd(savings, 3, [ensureInPlay(coffers)]);
 var duchess = { name: 'Duchess',
     calculatedCost: function (card, state) { return time(state.hand.some(function (c) { return c.name == duchy.name; }) ? 0 : 1); },
     effect: function (card) { return ({
@@ -4566,7 +4568,8 @@ var makeFerry = { name: 'Ferry',
         }]; }
 };
 register(makeFerry);
-var livery = { name: 'Livery',
+//TODO: keep updating names
+var horsemanship = { name: 'Horsemanship',
     replacers: function (card) { return [{
             text: "Whenever you would draw cards other than with " + stables.name + "," +
                 (" put that many charge tokens on a " + stables.name + " in play instead."),
@@ -4575,16 +4578,16 @@ var livery = { name: 'Livery',
             replace: function (x) { return (__assign(__assign({}, x), { draw: 0, effects: x.effects.concat([fill(stables, x.draw)]) })); }
         }]; }
 };
-var makeLivery = { name: 'Livery',
+var makeHorsemanship = { name: 'Horsemanship',
     fixedCost: time(4),
-    relatedCards: [livery, stables],
+    relatedCards: [horsemanship, stables],
     effect: function (card) { return ({
-        text: "Create " + a(livery.name) + " in play. Trsh this.",
-        effect: doAll([create(livery, 'play'), trash(card)])
+        text: "Create " + a(horsemanship.name) + " in play. Trsh this.",
+        effect: doAll([create(horsemanship, 'play'), trash(card)])
     }); },
     triggers: function (card) { return [ensureInPlay(stables)]; },
 };
-register(makeLivery);
+register(makeHorsemanship);
 var wasteland = { name: 'Wasteland',
     fixedCost: time(1),
     effect: function (card) { return ({
@@ -4601,99 +4604,6 @@ var stripMine = { name: 'Strip Mine',
     relatedCards: [wasteland],
 };
 buyable(stripMine, 4);
-function slogCheck(card) {
-    return function (state) {
-        return __awaiter(this, void 0, void 0, function () {
-            var result;
-            return __generator(this, function (_a) {
-                switch (_a.label) {
-                    case 0:
-                        result = state.find(card);
-                        if (!(result.found && result.card.charge >= 100)) return [3 /*break*/, 2];
-                        return [4 /*yield*/, gainPoints(100, card)(state)];
-                    case 1:
-                        state = _a.sent();
-                        _a.label = 2;
-                    case 2: return [2 /*return*/, state];
-                }
-            });
-        });
-    };
-}
-var slog = { name: 'Slog',
-    fixedCost: coin(4),
-    effect: function (card) { return ({
-        text: 'Add a charge token to this. Whenever this has 100 or more charge tokens, +100 points.',
-        effect: doAll([charge(card, 1), slogCheck(card)]),
-    }); },
-    replacers: function (card) { return [{
-            kind: 'gainPoints',
-            text: 'Whenever you would gain points other than with this, instead put that many charge tokens on this.',
-            handles: function (x) { return x.source.id != card.id; },
-            replace: function (x) { return (__assign(__assign({}, x), { points: 0, effects: x.effects.concat([charge(card, x.points), slogCheck(card)]) })); }
-        }]; }
-};
-//register(slog)
-var stockpile = { name: 'Stockpile',
-    abilities: function (card) { return [{
-            text: "Remove a charge counter from this, then +$1 per charge counter on it." +
-                (" Trash each card named " + prepare.name + " in the supply."),
-            cost: discharge(card, 1),
-            effect: function (state) {
-                return __awaiter(this, void 0, void 0, function () {
-                    var result, _a, _b, c, e_22_1;
-                    var e_22, _c;
-                    return __generator(this, function (_d) {
-                        switch (_d.label) {
-                            case 0:
-                                result = state.find(card);
-                                if (!result.found) return [3 /*break*/, 2];
-                                return [4 /*yield*/, gainCoin(result.card.charge)(state)];
-                            case 1:
-                                state = _d.sent();
-                                _d.label = 2;
-                            case 2:
-                                _d.trys.push([2, 7, 8, 9]);
-                                _a = __values(state.supply), _b = _a.next();
-                                _d.label = 3;
-                            case 3:
-                                if (!!_b.done) return [3 /*break*/, 6];
-                                c = _b.value;
-                                if (!(c.name == prepare.name)) return [3 /*break*/, 5];
-                                return [4 /*yield*/, trash(c)(state)];
-                            case 4:
-                                state = _d.sent();
-                                _d.label = 5;
-                            case 5:
-                                _b = _a.next();
-                                return [3 /*break*/, 3];
-                            case 6: return [3 /*break*/, 9];
-                            case 7:
-                                e_22_1 = _d.sent();
-                                e_22 = { error: e_22_1 };
-                                return [3 /*break*/, 9];
-                            case 8:
-                                try {
-                                    if (_b && !_b.done && (_c = _a.return)) _c.call(_a);
-                                }
-                                finally { if (e_22) throw e_22.error; }
-                                return [7 /*endfinally*/];
-                            case 9: return [2 /*return*/, state];
-                        }
-                    });
-                });
-            }
-        }]; }
-};
-var prepare = { name: 'Prepare',
-    fixedCost: coin(2),
-    effect: function (card) { return ({
-        text: "Add a charge counter to a " + stockpile.name + " in play.",
-        effect: fill(stockpile, 1),
-    }); },
-    triggers: function (card) { return [ensureInPlay(stockpile)]; }
-};
-//register(prepare)
 var burden = { name: 'Burden',
     fixedCost: time(1),
     effect: function (card) { return ({
@@ -4731,14 +4641,14 @@ var burden = { name: 'Burden',
         }]; }
 };
 register(burden);
-var artisan = { name: 'Artisan',
+var goldsmith = { name: 'Goldsmith',
     fixedCost: time(1),
     effect: function (card) { return ({
         text: '+2 cards. +$3.',
         effect: doAll([draw(2), gainCoin(3)]),
     }); }
 };
-buyable(artisan, 7);
+buyable(goldsmith, 7);
 var chancellor = { name: 'Chancellor',
     effect: function (card) { return ({
         text: '+$2. You may discard your deck.',

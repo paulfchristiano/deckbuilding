@@ -2040,14 +2040,14 @@ const throneRoom:CardSpec = {name: 'Throne Room',
 }
 buyable(throneRoom, 4)
 
-const mule:CardSpec = {name: 'Mule',
+const hound:CardSpec = {name: 'Hound',
     fixedCost: time(1),
     effect: card => ({
         text: '+2 cards',
         effect: draw(2)
     })
 }
-buyable(mule, 1)
+buyable(hound, 1)
 
 
 const smithy:CardSpec = {name: 'Smithy',
@@ -2074,7 +2074,7 @@ const tutor:CardSpec = {name: 'Tutor',
 }
 buyable(tutor, 3)
 
-const teacher:CardSpec = {name: 'Teacher',
+const education:CardSpec = {name: 'Education',
     fixedCost: time(2),
     effect: card => ({
         text: 'Put up to three cards from your deck into your hand.',
@@ -2086,7 +2086,7 @@ const teacher:CardSpec = {name: 'Teacher',
         }
     })
 }
-buyable(teacher, 4)
+buyable(education, 4)
 
 const philanthropy:CardSpec = {name: 'Philanthropy',
     fixedCost: {coin:10, time:2},
@@ -2116,7 +2116,7 @@ const repurpose:CardSpec = {name: 'Repurpose',
 }
 register(repurpose)
 
-const crafts:CardSpec = {name: 'Crafts',
+const crafting:CardSpec = {name: 'Crafting',
     triggers: card => [{
         text: `After playing ${a(estate.name)}, +$1.`,
         kind: 'afterPlay',
@@ -2124,7 +2124,7 @@ const crafts:CardSpec = {name: 'Crafts',
         effect: e => gainCoin(1),
     }]
 }
-register(makeCard(crafts, time(1), true))
+register(makeCard(crafting, time(1), true))
 
 const homestead:CardSpec = {name: 'Homesteading',
     triggers: card => [{
@@ -2145,15 +2145,15 @@ const monument:CardSpec = {name: 'Monument',
 }
 buyable(monument, 2)
 
-const expansion:CardSpec = {name: 'Expansion',
+const vibrantCity:CardSpec = {name: 'Vibrant City',
     effect: card => ({
         text: '+1vp, +1 card.',
         effect: doAll([gainPoints(1), draw(1)])
     })
 }
-buyable(expansion, 8)
+buyable(vibrantCity, 8)
 
-const tower:CardSpec = {name: 'Tower',
+const frontier:CardSpec = {name: 'Frontier',
     fixedCost: time(1),
     effect: card => ({
         text: 'Add a charge token to this, then +1 vp per charge token on this. Put it on the bottom of your deck.',
@@ -2166,10 +2166,10 @@ const tower:CardSpec = {name: 'Tower',
         },
     })
 }
-buyable(tower, 9)
+buyable(frontier, 9)
 
 
-const tradeRoute:CardSpec = {name: 'Trade Route',
+const investment:CardSpec = {name: 'Investment',
     fixedCost: time(0),
     effect: card => ({
         text: 'Add a charge token to this, then +$1 per charge token on this.',
@@ -2181,7 +2181,7 @@ const tradeRoute:CardSpec = {name: 'Trade Route',
         },
     })
 }
-buyable(tradeRoute, 3)
+buyable(investment, 3)
 
 
 const populate:CardSpec = {name: 'Populate',
@@ -2207,7 +2207,7 @@ const populate:CardSpec = {name: 'Populate',
 }
 register(populate)
 
-const youngSmith:CardSpec = {name: 'Young Smith',
+const oldSmith:CardSpec = {name: 'Old Smith',
     fixedCost: time(1),
     effect: card => ({
         text: 'Put this in play with 4 charge tokens on it.',
@@ -2237,7 +2237,7 @@ const youngSmith:CardSpec = {name: 'Young Smith',
         }
     }]
 }
-buyable(youngSmith, 3)
+buyable(oldSmith, 3)
 
 const duplicate:CardSpec = {name: 'Duplicate',
     fixedCost: {coin:5, time:1},
@@ -2319,7 +2319,7 @@ const royalCarriage:CardSpec = {name: 'Royal Carriage',
 }
 buyable(royalCarriage, 5)
 
-const capital:CardSpec = {name: 'Capital',
+const royalSeal:CardSpec = {name: 'Royal Seal',
     effect: card => ({
         text: '+$2. Next time you create a card in your discard pile, put it into your hand.',
         effect: doAll([
@@ -2334,7 +2334,7 @@ const capital:CardSpec = {name: 'Capital',
         ])
     })
 }
-buyable(capital, 6)
+buyable(royalSeal, 6)
 
 const bridge:CardSpec = {name: 'Bridge',
     fixedCost: time(1),
@@ -2344,7 +2344,7 @@ const bridge:CardSpec = {name: 'Bridge',
         effect: gainCoin(2),
     }),
     replacers: card => [{
-        text: 'Cards cost $1 less, but not less than $1.',
+        text: 'Cards cost $1 less, unless it would make them cost 0.',
         kind: 'cost',
         handles: p => true,
         replace: p => ({...p, cost:reduceCoinNonzero(p.cost, 1)})
@@ -2540,7 +2540,7 @@ buyable(feast, 4)
 
 const mobilization:CardSpec = {name: 'Mobilization',
     replacers: card => [{
-        text: 'Regroup costs @ less to play, but not zero.',
+        text: `{regroup.name} costs @ less to play, but not zero.`,
         kind:'cost',
         handles: x => (x.card.name == 'Regroup'),
         replace: x => ({...x, cost:reduceTimeNonzero(x.cost, 1)})
@@ -2635,7 +2635,7 @@ const twin:CardSpec = {name: 'Twin',
 }
 register(twin)
 
-const apprentice:CardSpec = {name: 'Apprentice',
+const youngSmith:CardSpec = {name: 'Young Smith',
     fixedCost: time(1),
     effect: card => ({
         text: 'Add a charge token to this, then +1 card per charge token on this.',
@@ -2647,7 +2647,7 @@ const apprentice:CardSpec = {name: 'Apprentice',
         },
     })
 }
-buyable(apprentice, 1)
+buyable(youngSmith, 1)
 
 function nextTime<T extends GameEvent>(name:string,
     text:string,
@@ -2910,7 +2910,7 @@ const lab:CardSpec = {name: 'Lab',
 }
 buyable(lab, 5)
 
-const roadNetwork:CardSpec = {name: 'Road Network',
+const expressway:CardSpec = {name: 'Expressway',
     fixedCost: time(0),
     triggers: _ => [{
         text: "Whenever you create a card," +
@@ -2920,7 +2920,7 @@ const roadNetwork:CardSpec = {name: 'Road Network',
         effect: e => move(e.card, 'deck', 'top')
     }]
 }
-register(makeCard(roadNetwork, coin(5), true))
+register(makeCard(expressway, coin(5), true))
 
 const formation:CardSpec = {name: 'Formation',
     fixedCost: time(0),
@@ -2940,14 +2940,14 @@ const formation:CardSpec = {name: 'Formation',
 }
 register(makeCard(formation, {time:0, coin:6}))
 
-const forge:CardSpec = {name: 'Forge',
+const greatSmithy:CardSpec = {name: 'Great Smithy',
     fixedCost: time(2),
     effect: card => ({
         text: '+5 cards',
         effect: draw(5),
     })
 }
-buyable(forge, 5)
+buyable(greatSmithy, 5)
 
 const reuse:CardSpec = {name: 'Reuse',
     calculatedCost: (card, state) => ({time:1, coin:card.charge}),
@@ -2991,20 +2991,20 @@ const bootstrap:CardSpec = {name: 'Bootstrap',
 }
 mixins.push(bootstrap)
 
-const retry:CardSpec = {name: 'Resume',
+const pressOn:CardSpec = {name: 'Press On',
     fixedCost: time(2),
     effect: card => ({
         text: 'Discard your hand, lose all $, and +5 cards.',
         effect: doAll([
             setCoin(0),
             moveWholeZone('hand', 'discard'),
-            draw(5, retry)
+            draw(5, pressOn)
         ])
     })
 }
-mixins.push(retry)
+mixins.push(pressOn)
 
-const research:CardSpec = {name: 'Research',
+const seek:CardSpec = {name: 'Seek',
     calculatedCost: (card, state) => ({time:1, coin:card.charge}),
     effect: card => ({
         text: 'Put a card from your deck into your hand. Put a charge token on this. This costs +$1 per charge token on it.',
@@ -3017,7 +3017,7 @@ const research:CardSpec = {name: 'Research',
         }
     })
 }
-mixins.push(research)
+mixins.push(seek)
 
 const innovation:CardSpec = {name: "Innovation",
     triggers: card => [{
@@ -3274,7 +3274,7 @@ const pathfinding:CardSpec = {name: 'Pathfinding',
 }
 register(pathfinding)
 
-const counterfeit:CardSpec = {name: 'Counterfeit',
+const offering:CardSpec = {name: 'Offering',
     effect: card => ({
         text: 'Play a card from your deck, then trash it.',
         effect: async function(state) {
@@ -3288,7 +3288,7 @@ const counterfeit:CardSpec = {name: 'Counterfeit',
         }
     })
 }
-buyable(counterfeit, 5)
+buyable(offering, 5)
 
 const decay:CardSpec = {name: 'Decay',
     fixedCost: coin(2),
@@ -3362,11 +3362,12 @@ const reflect:CardSpec = {name: 'Reflect',
 }
 register(reflect)
 
-const reduce:CardSpec = {name: 'Reduce',
+//TODO: add
+const cleanse:CardSpec = {name: 'Offering',
     calculatedCost: (card, state) => ({time:1, coin:card.charge}),
     effect: card => ({
-        text: `Trash a card in your hand. Put a charge count on this.`
-        + `It costs $1 more for each charge counter on it.`,
+        text: `Trash a card in your hand. Put a charge token on this.`
+        + `It costs $1 more for each charge token on it.`,
         effect: async function(state) {
             state = await charge(card, 1)(state)
             let target:Card|null; [state, target] = await choice(state,
@@ -3377,10 +3378,11 @@ const reduce:CardSpec = {name: 'Reduce',
     })
 }
 
+//TODO: add
 const replicate:CardSpec = {name: 'Replicate',
     calculatedCost: (card, state) => ({time:1, coin:card.charge}),
     effect: card => ({
-        text: `Trash a card in your hand. Put a charge count on this.`
+        text: `Create a copy of a card in your hand in your discard pile. Put a charge count on this.`
         + `It costs $1 more for each charge counter on it.`,
         effect: async function(state) {
             state = await charge(card, 1)(state)
@@ -3481,14 +3483,14 @@ const fillStables:CardSpec = {name: 'Fill Stables',
 }
 //register(fillStables)
 
-const treasury:CardSpec = {name: 'Treasury',
+const savings:CardSpec = {name: 'Savings',
     fixedCost: time(1),
     effect: card => ({
         text: `Put three charge tokens on a ${coffers.name} in play.`,
         effect: fill(coffers, 3),
     })
 }
-buyableAnd(treasury, 3, [ensureInPlay(coffers)])
+buyableAnd(savings, 3, [ensureInPlay(coffers)])
 
 const duchess:CardSpec = {name: 'Duchess',
     calculatedCost: (card, state) => time(state.hand.some(c => c.name == duchy.name) ? 0 : 1),
@@ -3652,7 +3654,8 @@ const makeFerry:CardSpec = {name: 'Ferry',
 }
 register(makeFerry)
 
-const livery:CardSpec = {name: 'Livery',
+//TODO: keep updating names
+const horsemanship:CardSpec = {name: 'Horsemanship',
     replacers: card => [{
         text: `Whenever you would draw cards other than with ${stables.name},` +
             ` put that many charge tokens on a ${stables.name} in play instead.`,
@@ -3661,16 +3664,16 @@ const livery:CardSpec = {name: 'Livery',
         replace: x => ({...x, draw:0, effects:x.effects.concat([fill(stables, x.draw)])})
     }]
 }
-const makeLivery:CardSpec = {name: 'Livery',
+const makeHorsemanship:CardSpec = {name: 'Horsemanship',
     fixedCost: time(4),
-    relatedCards: [livery, stables],
+    relatedCards: [horsemanship, stables],
     effect: card => ({
-        text: `Create ${a(livery.name)} in play. Trsh this.`,
-        effect: doAll([create(livery, 'play'), trash(card)])
+        text: `Create ${a(horsemanship.name)} in play. Trsh this.`,
+        effect: doAll([create(horsemanship, 'play'), trash(card)])
     }),
     triggers: card => [ensureInPlay(stables)],
 }
-register(makeLivery)
+register(makeHorsemanship)
 
 const wasteland:CardSpec = {name: 'Wasteland',
     fixedCost: time(1),
@@ -3688,54 +3691,6 @@ const stripMine:CardSpec = {name: 'Strip Mine',
     relatedCards:[wasteland],
 }
 buyable(stripMine, 4)
-
-function slogCheck(card: Card): (state: State) => Promise<State> {
-    return async function(state) {
-        const result = state.find(card)
-        if (result.found && result.card.charge >= 100) state = await gainPoints(100, card)(state)
-        return state
-    }
-}
-const slog:CardSpec = {name: 'Slog',
-    fixedCost: coin(4),
-    effect: card => ({
-        text: 'Add a charge token to this. Whenever this has 100 or more charge tokens, +100 points.',
-        effect: doAll([charge(card, 1), slogCheck(card)]),
-    }),
-    replacers: card => [{
-        kind: 'gainPoints',
-        text: 'Whenever you would gain points other than with this, instead put that many charge tokens on this.',
-        handles: x => x.source.id != card.id,
-        replace: x => ({...x, points: 0, effects: x.effects.concat([charge(card, x.points), slogCheck(card)])})
-    }]
-}
-//register(slog)
-
-const stockpile:CardSpec = {name: 'Stockpile',
-    abilities: card => [{
-        text: `Remove a charge counter from this, then +$1 per charge counter on it.` +
-            ` Trash each card named ${prepare.name} in the supply.`,
-        cost: discharge(card, 1),
-        effect: async function(state) {
-            const result = state.find(card)
-            if (result.found)
-                state = await gainCoin(result.card.charge)(state)
-            for (const c of state.supply)
-                if (c.name == prepare.name)
-                    state = await trash(c)(state)
-            return state
-        }
-    }]
-}
-const prepare:CardSpec = {name: 'Prepare',
-    fixedCost: coin(2),
-    effect: card => ({
-        text: `Add a charge counter to a ${stockpile.name} in play.`,
-        effect: fill(stockpile, 1),
-    }),
-    triggers: card => [ensureInPlay(stockpile)]
-}
-//register(prepare)
 
 const burden:CardSpec = {name: 'Burden',
     fixedCost: time(1),
@@ -3764,14 +3719,14 @@ const burden:CardSpec = {name: 'Burden',
 }
 register(burden)
 
-const artisan:CardSpec = {name: 'Artisan',
+const goldsmith:CardSpec = {name: 'Goldsmith',
     fixedCost: time(1),
     effect: card => ({
         text: '+2 cards. +$3.',
         effect: doAll([draw(2), gainCoin(3)]),
     })
 }
-buyable(artisan, 7)
+buyable(goldsmith, 7)
 
 const chancellor:CardSpec = {name: 'Chancellor',
     effect: card => ({
