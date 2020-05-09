@@ -2766,7 +2766,7 @@ var royalSeal = { name: 'Royal Seal',
         text: '+$2. Next time you create a card in your discard pile, put it into your hand.',
         effect: doAll([
             gainCoin(2),
-            nextEnergy('Capital', "When you create a card in your discard pile, trash this"
+            nextTime('Capital', "When you create a card in your discard pile, trash this"
                 + " and put that card into your hand.", 'create', function (e) { return (e.zone == 'discard'); }, function (e) { return function (state) {
                 return __awaiter(this, void 0, void 0, function () {
                     return __generator(this, function (_a) {
@@ -2986,7 +2986,7 @@ var shippingLane = { name: 'Shipping Lane',
         text: "+$2. Next time you finish buying a card the normal way, buy it again if it still exists.",
         effect: doAll([
             gainCoin(2),
-            nextEnergy('Shipping Lane', "When you finish buying a card the normal way,"
+            nextTime('Shipping Lane', "When you finish buying a card the normal way,"
                 + " discard this and buy it again if it's still in the supply.", 'afterBuy', function (e) { return (e.source.name == 'act'); }, function (e) { return function (state) {
                 return __awaiter(this, void 0, void 0, function () {
                     var result;
@@ -3204,7 +3204,7 @@ var youngSmith = { name: 'Young Smith',
     }); }
 };
 buyable(youngSmith, 1);
-function nextEnergy(name, text, kind, when, what) {
+function nextTime(name, text, kind, when, what) {
     function triggers(card) {
         return [{
                 text: text,
@@ -3222,7 +3222,7 @@ var expedite = { name: 'Expedite',
         text: "The next energy you create a card, if it's in your discard pile put it into your hand." +
             ' Put a charge token on this. It costs $1 more per charge token on it.',
         effect: doAll([
-            nextEnergy('Expedite', "When you create a card, if it's in your discard pile" +
+            nextTime('Expedite', "When you create a card, if it's in your discard pile" +
                 " then trash this and put it into your hand.", 'create', function (e, state) { return (state.find(e.card).place == 'discard'); }, function (e) { return move(e.card, 'hand'); }),
             charge(card, 1),
         ])

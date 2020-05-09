@@ -2348,7 +2348,7 @@ const royalSeal:CardSpec = {name: 'Royal Seal',
         text: '+$2. Next time you create a card in your discard pile, put it into your hand.',
         effect: doAll([
             gainCoin(2),
-            nextEnergy('Capital', "When you create a card in your discard pile, trash this"
+            nextTime('Capital', "When you create a card in your discard pile, trash this"
             + " and put that card into your hand.",
             'create', (e:CreateEvent) => (e.zone == 'discard'), (e:CreateEvent) => async function(state) {
                 if (state.find(e.card).place == 'discard') state = await move(e.card, 'hand')(state)
@@ -2524,7 +2524,7 @@ const shippingLane:CardSpec = {name: 'Shipping Lane',
         text: "+$2. Next time you finish buying a card the normal way, buy it again if it still exists.",
         effect: doAll([
             gainCoin(2),
-            nextEnergy('Shipping Lane', "When you finish buying a card the normal way,"
+            nextTime('Shipping Lane', "When you finish buying a card the normal way,"
                 + " discard this and buy it again if it's still in the supply.",
                 'afterBuy',
                 (e:AfterBuyEvent) => (e.source.name == 'act'),
@@ -2672,7 +2672,7 @@ const youngSmith:CardSpec = {name: 'Young Smith',
 }
 buyable(youngSmith, 1)
 
-function nextEnergy<T extends GameEvent>(name:string,
+function nextTime<T extends GameEvent>(name:string,
     text:string,
     kind: T['kind'],
     when: (e:T, state:State) => boolean,
@@ -2696,7 +2696,7 @@ const expedite:CardSpec = {name: 'Expedite',
         text: "The next energy you create a card, if it's in your discard pile put it into your hand."+
             ' Put a charge token on this. It costs $1 more per charge token on it.',
         effect: doAll([
-            nextEnergy('Expedite', "When you create a card, if it's in your discard pile" +
+            nextTime('Expedite', "When you create a card, if it's in your discard pile" +
                 " then trash this and put it into your hand.",
                 'create',
                  (e:CreateEvent, state) => (state.find(e.card).place == 'discard'),
@@ -2825,7 +2825,6 @@ const bustlingSquare:CardSpec = {name: 'Bustling Square',
     })
 }
 buyable(bustlingSquare, 6)
-
 
 function ensureInSupply(spec:CardSpec): Trigger {
     return {
