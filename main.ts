@@ -1393,7 +1393,7 @@ function renderHelp(): string {
 }
 
 function renderUndo(undoable:boolean): string {
-    const hotkeyText = (globalRendererState.hotkeysOn) ? renderHotkey('z') : ''
+    const hotkeyText = renderHotkey('z')
     return `<span class='option', option='undo' ${undoable ? 'choosable' : ''} chosen='false'>${hotkeyText}Undo</span>`
 }
 
@@ -1416,8 +1416,7 @@ function bindUndo(state:State, reject: ((x:any) => void)): void {
     function pick() {
         if (state.undoable()) reject(new Undo(state))
     }
-    if (globalRendererState.hotkeysOn)
-        keyListeners.set('z', pick)
+    keyListeners.set('z', pick)
     $(`[option='undo']`).on('click', pick)
 }
 

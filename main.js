@@ -1537,7 +1537,7 @@ function renderHelp() {
     return "<span id='help' class='option', option='help' choosable chosen='false'>" + renderHotkey('?') + " Help</span>";
 }
 function renderUndo(undoable) {
-    var hotkeyText = (globalRendererState.hotkeysOn) ? renderHotkey('z') : '';
+    var hotkeyText = renderHotkey('z');
     return "<span class='option', option='undo' " + (undoable ? 'choosable' : '') + " chosen='false'>" + hotkeyText + "Undo</span>";
 }
 function bindSpecials(state, reject, renderer) {
@@ -1558,8 +1558,7 @@ function bindUndo(state, reject) {
         if (state.undoable())
             reject(new Undo(state));
     }
-    if (globalRendererState.hotkeysOn)
-        keyListeners.set('z', pick);
+    keyListeners.set('z', pick);
     $("[option='undo']").on('click', pick);
 }
 function bindHelp(state, renderer) {
