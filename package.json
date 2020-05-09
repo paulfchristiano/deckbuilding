@@ -14,8 +14,7 @@
     "express": "^4.15.2",
     "pg": "^7.18.2"
   },
-  "devDependencies": {
-  },
+  "devDependencies": {},
   "repository": {
     "type": "git",
     "url": "https://github.com/paulfchristiano/deckbuilding"
