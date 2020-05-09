@@ -2824,7 +2824,7 @@ const bustlingSquare:CardSpec = {name: 'Bustling Square',
         }
     })
 }
-buyable(bustlingSquare, 6, 'test')
+buyable(bustlingSquare, 6)
 
 
 function ensureInSupply(spec:CardSpec): Trigger {
@@ -3082,14 +3082,14 @@ register(makeCard(citadel, {coin:8, energy:0}, true))
 const foolsGold:CardSpec = {name: "Fool's Gold",
     fixedCost: energy(0),
     effect: card => ({
-        text: "+$1. +$1 per Fool's Gold in your discard pile.",
+        text: `+$4 if there is ${a(foolsGold.name)} in your discard pile, otherwise +$1.`,
         effect: async function(state) {
             const n = state.discard.filter(x => x.name == card.name).length
-            return gainCoin(n+1)(state)
+            return gainCoin(n > 0 ? 4 : 1)(state)
         }
     })
 }
-buyable(foolsGold, 2)
+buyable(foolsGold, 3)
 
 const hireling:CardSpec = {name: 'Hireling',
     fixedCost: energy(0),

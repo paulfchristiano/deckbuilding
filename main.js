@@ -3439,7 +3439,7 @@ var bustlingSquare = { name: 'Bustling Square',
         }
     }); }
 };
-buyable(bustlingSquare, 6, 'test');
+buyable(bustlingSquare, 6);
 function ensureInSupply(spec) {
     return {
         text: "At the beginning of the game, add " + spec.name + " to the supply" +
@@ -3764,19 +3764,19 @@ register(makeCard(citadel, { coin: 8, energy: 0 }, true));
 var foolsGold = { name: "Fool's Gold",
     fixedCost: energy(0),
     effect: function (card) { return ({
-        text: "+$1. +$1 per Fool's Gold in your discard pile.",
+        text: "+$4 if there is " + a(foolsGold.name) + " in your discard pile, otherwise +$1.",
         effect: function (state) {
             return __awaiter(this, void 0, void 0, function () {
                 var n;
                 return __generator(this, function (_a) {
                     n = state.discard.filter(function (x) { return x.name == card.name; }).length;
-                    return [2 /*return*/, gainCoin(n + 1)(state)];
+                    return [2 /*return*/, gainCoin(n > 0 ? 4 : 1)(state)];
                 });
             });
         }
     }); }
 };
-buyable(foolsGold, 2);
+buyable(foolsGold, 3);
 var hireling = { name: 'Hireling',
     fixedCost: energy(0),
     replacers: function (card) { return [{
