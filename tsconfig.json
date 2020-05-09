@@ -21,8 +21,8 @@
     "jsx": "react"
   },
   "include": [
-    "main.ts",
-    "jquery.d.ts"
+    "public/main.ts",
+    "public/jquery.d.ts"
   ],
   "outFile": "main.js"
 }
