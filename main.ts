@@ -1300,7 +1300,11 @@ function asChoice(x:Card): Option<Card> {
 }
 
 function asNumberedChoices(xs:Card[]): Option<Card>[] {
-    return xs.map((card, i) => ({render:card.id, value:card, hotkeyHint:String(i+1)}))
+    return xs.map((card, i) => (
+        ( i < choiceHotkeys.length) ? 
+        {render:card.id, value:card, hotkeyHint:choiceHotkeys[i]} :
+        {render:card.id, value:card}
+    ))
 }
 
 function allowNull<T>(options: Option<T>[], message:string="None"): Option<T|null>[] {
@@ -1562,6 +1566,7 @@ const handHotkeys:Key[] = numHotkeys.concat(symbolHotkeys)
 const supplyAndPlayHotkeys:Key[] = lowerHotkeys.concat(upperHotkeys)
 // want to put zones that are least likely to change earlier, to not distrupt assignment
 const hotkeys:Key[] = supplyAndPlayHotkeys.concat(handHotkeys)
+const choiceHotkeys:Key[] = handHotkeys.concat(supplyAndPlayHotkeys)
 
 $(document).keydown((e: any) => {
     const listener = keyListeners.get(e.key)
@@ -1578,27 +1583,13 @@ class HotkeyMapper {
         const taken:Map<Key, OptionRender> = new Map()
         const pickable:Set<OptionRender> = new Set()
         for (const option of options) pickable.add(option.render)
-        let index = 0
-        // reuse: do we use hotkeys that are assigned to unpickable things?
-        function nextHotkey(): Key|null {
-            while (true) {
-                const key:Key = hotkeys[index]
-                const takenBy:OptionRender|undefined = taken.get(key)
-                if (takenBy == undefined || !pickable.has(takenBy)) {
-                    return key
-                }
-                index++
-            }
-            return hotkeys[index]
+        function takenByPickable(key:Key): boolean {
+            const takenBy:OptionRender|undefined = taken.get(key)
+            return (takenBy != undefined && pickable.has(takenBy))
         }
         function set(x:OptionRender, k:Key): void {
             result.set(x, k)
             taken.set(k, x)
-        }
-        function assign(x:OptionRender): void {
-            if (result.has(x)) return
-            const hotkey:Key|null = nextHotkey()
-            if (hotkey != null) set(x, hotkey)
         }
         function setFrom(cards:Card[], preferredHotkeys:Key[]) {
             const preferredSet:Set<Key> = new Set(preferredHotkeys)
@@ -1618,14 +1609,24 @@ class HotkeyMapper {
         for (const option of options) {
             const hint:Key|undefined = option.hotkeyHint;
             if (hint != undefined && !result.has(option.render)) {
-                const takenBy:OptionRender|undefined = taken.get(hint)
-                if (takenBy == undefined || !pickable.has(takenBy))
+                if (!takenByPickable(hint))
                     set(option.render, hint)
             }
         }
-        index = 0
+        let index = 0
+        function nextHotkey(): Key|null {
+            while (true) {
+                const key:Key = hotkeys[index]
+                if (!takenByPickable(key)) return key
+                else index++
+            }
+            return hotkeys[index]
+        }
         for (const option of options) {
-            assign(option.render)
+            if (!result.has(option.render)) {
+                const key = nextHotkey()
+                if (key != null) set(option.render, key)
+            }
         }
         return result
     }
@@ -2802,26 +2803,28 @@ register(makeSynergy)
 const bustlingSquare:CardSpec = {name: 'Bustling Square',
     fixedCost: energy(1),
     effect: card => ({
-        text: `+1 card. Set aside all cards in your hand. Play them in any order.`,
+        text: `+1 card. Set aside all cards in your hand. Play any number of them,`+
+        ` then discard the rest.`,
         effect: async function(state) {
             state = await draw(1)(state)
-            let hand:Card[]= state.hand;
+            let hand:Option<Card>[] = asNumberedChoices(state.hand);
             state = await moveWholeZone('hand', 'aside')(state)
             while (true) {
+                console.log(hand)
                 let target:Card|null; [state, target] = await choice(state,
-                    'Choose which card to play next.', hand.map(asChoice))
+                    'Choose which card to play next.', allowNull(hand))
                 if (target == null) {
-                    return state
+                    return moveMany(hand.map(option => option.value), 'discard')(state)
                 } else {
                     state = await target.play(card)(state)
                     const id = target.id
-                    hand = hand.filter((c:Card) => c.id != id)
+                    hand = hand.filter((option:Option<Card>) => option.value.id != id)
                 }
             }
         }
     })
 }
-buyable(bustlingSquare, 6)
+buyable(bustlingSquare, 6, 'test')
 
 
 function ensureInSupply(spec:CardSpec): Trigger {
@@ -3234,7 +3237,7 @@ const kingsCourt:CardSpec = {name: "King's Court",
             "then if it's in your discard pile play it again.",
         effect: async function(state) {
             let target:Card, targetNullable; [state, targetNullable] = await choice(state,
-                'Choose a card to play three energys.',
+                'Choose a card to play three times.',
                 state.hand.map(asChoice))
             if (targetNullable == null) return state
             else target = targetNullable

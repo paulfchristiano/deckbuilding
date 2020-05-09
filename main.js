@@ -1463,7 +1463,9 @@ function asChoice(x) {
     return { render: x.id, value: x };
 }
 function asNumberedChoices(xs) {
-    return xs.map(function (card, i) { return ({ render: card.id, value: card, hotkeyHint: String(i + 1) }); });
+    return xs.map(function (card, i) { return ((i < choiceHotkeys.length) ?
+        { render: card.id, value: card, hotkeyHint: choiceHotkeys[i] } :
+        { render: card.id, value: card }); });
 }
 function allowNull(options, message) {
     if (message === void 0) { message = "None"; }
@@ -1726,6 +1728,7 @@ var handHotkeys = numHotkeys.concat(symbolHotkeys);
 var supplyAndPlayHotkeys = lowerHotkeys.concat(upperHotkeys);
 // want to put zones that are least likely to change earlier, to not distrupt assignment
 var hotkeys = supplyAndPlayHotkeys.concat(handHotkeys);
+var choiceHotkeys = handHotkeys.concat(supplyAndPlayHotkeys);
 $(document).keydown(function (e) {
     var listener = keyListeners.get(e.key);
     if (listener != undefined)
@@ -1752,29 +1755,13 @@ var HotkeyMapper = /** @class */ (function () {
             }
             finally { if (e_12) throw e_12.error; }
         }
-        var index = 0;
-        // reuse: do we use hotkeys that are assigned to unpickable things?
-        function nextHotkey() {
-            while (true) {
-                var key = hotkeys[index];
-                var takenBy = taken.get(key);
-                if (takenBy == undefined || !pickable.has(takenBy)) {
-                    return key;
-                }
-                index++;
-            }
-            return hotkeys[index];
+        function takenByPickable(key) {
+            var takenBy = taken.get(key);
+            return (takenBy != undefined && pickable.has(takenBy));
         }
         function set(x, k) {
             result.set(x, k);
             taken.set(k, x);
-        }
-        function assign(x) {
-            if (result.has(x))
-                return;
-            var hotkey = nextHotkey();
-            if (hotkey != null)
-                set(x, hotkey);
         }
         function setFrom(cards, preferredHotkeys) {
             var e_15, _a;
@@ -1807,8 +1794,7 @@ var HotkeyMapper = /** @class */ (function () {
                 var option = options_2_1.value;
                 var hint = option.hotkeyHint;
                 if (hint != undefined && !result.has(option.render)) {
-                    var takenBy = taken.get(hint);
-                    if (takenBy == undefined || !pickable.has(takenBy))
+                    if (!takenByPickable(hint))
                         set(option.render, hint);
                 }
             }
@@ -1820,11 +1806,25 @@ var HotkeyMapper = /** @class */ (function () {
             }
             finally { if (e_13) throw e_13.error; }
         }
-        index = 0;
+        var index = 0;
+        function nextHotkey() {
+            while (true) {
+                var key = hotkeys[index];
+                if (!takenByPickable(key))
+                    return key;
+                else
+                    index++;
+            }
+            return hotkeys[index];
+        }
         try {
             for (var options_3 = __values(options), options_3_1 = options_3.next(); !options_3_1.done; options_3_1 = options_3.next()) {
                 var option = options_3_1.value;
-                assign(option.render);
+                if (!result.has(option.render)) {
+                    var key = nextHotkey();
+                    if (key != null)
+                        set(option.render, key);
+                }
             }
         }
         catch (e_14_1) { e_14 = { error: e_14_1 }; }
@@ -3386,7 +3386,8 @@ register(makeSynergy);
 var bustlingSquare = { name: 'Bustling Square',
     fixedCost: energy(1),
     effect: function (card) { return ({
-        text: "+1 card. Set aside all cards in your hand. Play them in any order.",
+        text: "+1 card. Set aside all cards in your hand. Play any number of them," +
+            " then discard the rest.",
         effect: function (state) {
             return __awaiter(this, void 0, void 0, function () {
                 var hand, _loop_2, state_2;
@@ -3395,7 +3396,7 @@ var bustlingSquare = { name: 'Bustling Square',
                         case 0: return [4 /*yield*/, draw(1)(state)];
                         case 1:
                             state = _a.sent();
-                            hand = state.hand;
+                            hand = asNumberedChoices(state.hand);
                             return [4 /*yield*/, moveWholeZone('hand', 'aside')(state)];
                         case 2:
                             state = _a.sent();
@@ -3405,17 +3406,18 @@ var bustlingSquare = { name: 'Bustling Square',
                                 return __generator(this, function (_b) {
                                     switch (_b.label) {
                                         case 0:
+                                            console.log(hand);
                                             target = void 0;
-                                            return [4 /*yield*/, choice(state, 'Choose which card to play next.', hand.map(asChoice))];
+                                            return [4 /*yield*/, choice(state, 'Choose which card to play next.', allowNull(hand))];
                                         case 1:
                                             _a = __read.apply(void 0, [_b.sent(), 2]), state = _a[0], target = _a[1];
                                             if (!(target == null)) return [3 /*break*/, 2];
-                                            return [2 /*return*/, { value: state }];
+                                            return [2 /*return*/, { value: moveMany(hand.map(function (option) { return option.value; }), 'discard')(state) }];
                                         case 2: return [4 /*yield*/, target.play(card)(state)];
                                         case 3:
                                             state = _b.sent();
                                             id_2 = target.id;
-                                            hand = hand.filter(function (c) { return c.id != id_2; });
+                                            hand = hand.filter(function (option) { return option.value.id != id_2; });
                                             _b.label = 4;
                                         case 4: return [2 /*return*/];
                                     }
@@ -3437,7 +3439,7 @@ var bustlingSquare = { name: 'Bustling Square',
         }
     }); }
 };
-buyable(bustlingSquare, 6);
+buyable(bustlingSquare, 6, 'test');
 function ensureInSupply(spec) {
     return {
         text: "At the beginning of the game, add " + spec.name + " to the supply" +
@@ -3964,7 +3966,7 @@ var kingsCourt = { name: "King's Court",
                 var _a;
                 return __generator(this, function (_b) {
                     switch (_b.label) {
-                        case 0: return [4 /*yield*/, choice(state, 'Choose a card to play three energys.', state.hand.map(asChoice))];
+                        case 0: return [4 /*yield*/, choice(state, 'Choose a card to play three times.', state.hand.map(asChoice))];
                         case 1:
                             _a = __read.apply(void 0, [_b.sent(), 2]), state = _a[0], targetNullable = _a[1];
                             if (targetNullable == null)
