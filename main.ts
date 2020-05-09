@@ -3369,7 +3369,8 @@ buyable(scavenger, 4)
 const reflect:CardSpec = {name: 'Reflect',
     calculatedCost: (card, state) => ({energy:1, coin:card.charge}),
     effect: card => ({
-        text: `Play a card in your hand. Then if it's in your discard pile, play it again.`,
+        text: `Play a card in your hand. Then if it's in your discard pile, play it again.` +
+        ` Put a charge counter on this. It costs $1 more to buy for each charge counter on it.`,
         effect: doAll([charge(card, 1), playTwice(card)])
     })
 }

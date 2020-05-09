@@ -4170,7 +4170,8 @@ buyable(scavenger, 4);
 var reflect = { name: 'Reflect',
     calculatedCost: function (card, state) { return ({ energy: 1, coin: card.charge }); },
     effect: function (card) { return ({
-        text: "Play a card in your hand. Then if it's in your discard pile, play it again.",
+        text: "Play a card in your hand. Then if it's in your discard pile, play it again." +
+            " Put a charge counter on this. It costs $1 more to buy for each charge counter on it.",
         effect: doAll([charge(card, 1), playTwice(card)])
     }); }
 };
