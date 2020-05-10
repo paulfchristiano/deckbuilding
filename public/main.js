@@ -1,4 +1,5 @@
 "use strict";
+// TODO: would be nice to have 'space' as the default done hint
 // TODO: make calculated costs render as "(cost) X"
 // TODO: make the tooltip nice---should show up immediately, but be impossible to keep it alive by mousing over it
 // TODO: I think the cost framework isn't really appropriate any more, but maybe think a bit before getting rid of it
@@ -287,7 +288,7 @@ var Card = /** @class */ (function () {
 }());
 var notFound = { found: false, card: null, place: null };
 var State = /** @class */ (function () {
-    function State(counters, zones, resolving, nextID, history, future, checkpoint, logs, logIndent, info) {
+    function State(spec, counters, zones, resolving, nextID, history, future, checkpoint, logs, logIndent) {
         if (counters === void 0) { counters = { coin: 0, energy: 0, points: 0 }; }
         if (zones === void 0) { zones = new Map(); }
         if (resolving === void 0) { resolving = []; }
@@ -297,7 +298,7 @@ var State = /** @class */ (function () {
         if (checkpoint === void 0) { checkpoint = null; }
         if (logs === void 0) { logs = []; }
         if (logIndent === void 0) { logIndent = 0; }
-        if (info === void 0) { info = { kingdom: [] }; }
+        this.spec = spec;
         this.counters = counters;
         this.zones = zones;
         this.resolving = resolving;
@@ -307,7 +308,6 @@ var State = /** @class */ (function () {
         this.checkpoint = checkpoint;
         this.logs = logs;
         this.logIndent = logIndent;
-        this.info = info;
         this.coin = counters.coin;
         this.energy = counters.energy;
         this.points = counters.points;
@@ -319,10 +319,7 @@ var State = /** @class */ (function () {
         this.aside = zones.get('aside') || [];
     }
     State.prototype.update = function (stateUpdate) {
-        return new State(read(stateUpdate, 'counters', this.counters), read(stateUpdate, 'zones', this.zones), read(stateUpdate, 'resolving', this.resolving), read(stateUpdate, 'nextID', this.nextID), read(stateUpdate, 'history', this.history), read(stateUpdate, 'future', this.future), read(stateUpdate, 'checkpoint', this.checkpoint), read(stateUpdate, 'logs', this.logs), read(stateUpdate, 'logIndent', this.logIndent), read(stateUpdate, 'info', this.info));
-    };
-    State.prototype.updateInfo = function (info) {
-        return this.update({ info: info });
+        return new State(this.spec, read(stateUpdate, 'counters', this.counters), read(stateUpdate, 'zones', this.zones), read(stateUpdate, 'resolving', this.resolving), read(stateUpdate, 'nextID', this.nextID), read(stateUpdate, 'history', this.history), read(stateUpdate, 'future', this.future), read(stateUpdate, 'checkpoint', this.checkpoint), read(stateUpdate, 'logs', this.logs), read(stateUpdate, 'logIndent', this.logIndent));
     };
     State.prototype.addResolving = function (x) {
         return this.update({ resolving: this.resolving.concat([x]) });
@@ -505,7 +502,7 @@ function shiftFirst(xs) {
         return [null, xs];
     return [xs[0], xs.slice(1)];
 }
-var emptyState = new State({ coin: 0, energy: 0, points: 0 }, new Map([['supply', []], ['hand', []], ['deck', []], ['discard', []], ['play', []], ['aside', []]]), [], 0, [], [], null, [], 0 // resolving, nextID, history, future, checkpoint, logs, logIndent
+var emptyState = new State({ seed: '', kingdom: null, testing: false }, { coin: 0, energy: 0, points: 0 }, new Map([['supply', []], ['hand', []], ['deck', []], ['discard', []], ['play', []], ['aside', []]]), [], 0, [], [], null, [], 0 // resolving, nextID, history, future, checkpoint, logs, logIndent
 );
 // ---------- Methods for inserting cards into zones
 // tests whether card1 should appear before card2 in sorted order
@@ -1087,8 +1084,12 @@ function logTokenChange(state, card, token, n) {
 function addToken(card, token) {
     return function (state) {
         return __awaiter(this, void 0, void 0, function () {
-            var newCard;
+            var result, newCard;
             return __generator(this, function (_a) {
+                result = state.find(card);
+                if (!result.found)
+                    return [2 /*return*/, state];
+                card = result.card;
                 newCard = card.update({ tokens: card.tokens.concat([token]) });
                 state = state.replace(card, newCard);
                 state = logTokenChange(state, card, token, 1);
@@ -1110,8 +1111,12 @@ function countTokens(card, token) {
 function removeTokens(card, token) {
     return function (state) {
         return __awaiter(this, void 0, void 0, function () {
-            var removed, newCard;
+            var result, removed, newCard;
             return __generator(this, function (_a) {
+                result = state.find(card);
+                if (!result.found)
+                    return [2 /*return*/, state];
+                card = result.card;
                 removed = countTokens(card, token);
                 newCard = card.update({ tokens: card.tokens.filter(function (x) { return (x != token); }) });
                 state = state.replace(card, newCard);
@@ -1133,9 +1138,13 @@ function removeOneToken(card, token) {
                 }
                 return tokens;
             }
-            var removed, newCard;
+            var removed, result, newCard;
             return __generator(this, function (_a) {
                 removed = 0;
+                result = state.find(card);
+                if (!result.found)
+                    return [2 /*return*/, state];
+                card = result.card;
                 newCard = card.update({ tokens: removeOneToken(card.tokens) });
                 state = state.replace(card, newCard);
                 state = logTokenChange(state, card, token, -removed);
@@ -1320,6 +1329,9 @@ function render_log(msg) {
 var renderedState;
 function getIfDef(m, x) {
     return (m == undefined) ? undefined : m.get(x);
+}
+function renderBest(best, seed) {
+    $('#best').html("Fastest win on this seed: " + best + " (<a href='scoreboard?seed=" + seed + "'>scoreboard</a>)");
 }
 function renderState(state, settings) {
     if (settings === void 0) { settings = {}; }
@@ -1579,7 +1591,8 @@ function bindHelp(state, renderer) {
             "You can activate the abilities of cards in play, marked with (ability).",
             "Effects marked with (static) apply whenever the card is in play or in the supply.",
             "The game is played with a kingdom of 7 core cards and 12 randomized cards.",
-            "You can visit <a href=\"" + kingdomURL(state.info.kingdom) + "\">this link</a> to replay this kingdom anyenergy.",
+            //TODO: link to replay this kingdom?
+            //`You can visit <a href="${kingdomURL(state.info.kingdom)}">this link</a> to replay this kingdom anyenergy.`,
             "Or play the <a href='" + dateSeedPath() + "'>daily kingdom</a>, using today's date as a seed.",
             "Or visit the <a href='" + basePlus("picker.html") + "'>kingdom picker<a> to pick a kingdom.",
         ];
@@ -1730,8 +1743,10 @@ var hotkeys = supplyAndPlayHotkeys.concat(handHotkeys);
 var choiceHotkeys = handHotkeys.concat(supplyAndPlayHotkeys);
 $(document).keydown(function (e) {
     var listener = keyListeners.get(e.key);
-    if (listener != undefined)
+    if (listener != undefined) {
+        e.preventDefault();
         listener();
+    }
 });
 var HotkeyMapper = /** @class */ (function () {
     function HotkeyMapper() {
@@ -1943,9 +1958,13 @@ function undo(startState) {
         }
     }
 }
+//TODO: allow submitting custom kingdoms
+function submittable(spec) {
+    return (spec.kingdom == null) && !spec.testing;
+}
 function mainLoop(state) {
     return __awaiter(this, void 0, void 0, function () {
-        var error_2;
+        var error_2, submitOrUndo_1;
         return __generator(this, function (_a) {
             switch (_a.label) {
                 case 0:
@@ -1963,9 +1982,25 @@ function mainLoop(state) {
                         return [2 /*return*/, undo(error_2.state)];
                     }
                     else if (error_2 instanceof Victory) {
-                        return [2 /*return*/, new Promise(function (resolve, reject) {
-                                renderChoice(error_2.state, "You won using " + error_2.state.energy + " energy!", [], function () { return resolve(undo(error_2.state)); }, function () { });
-                            })];
+                        submitOrUndo_1 = function () {
+                            return new Promise(function (resolve, reject) {
+                                heartbeat(state.spec);
+                                state = error_2.state;
+                                function submitDialog(seed) {
+                                    return function () {
+                                        keyListeners.clear();
+                                        renderScoreSubmission(state.energy, seed, function () { return submitOrUndo_1().then(resolve, reject); });
+                                    };
+                                }
+                                var options = (!submittable(state.spec)) ? [] : [{
+                                        render: 'Submit',
+                                        value: submitDialog(state.spec.seed),
+                                        hotkeyHint: '!',
+                                    }];
+                                renderChoice(state, "You won using " + state.energy + " energy!", options, function () { return resolve(undo(state)); }, function () { });
+                            });
+                        };
+                        return [2 /*return*/, submitOrUndo_1()];
                     }
                     else {
                         throw error_2;
@@ -1976,35 +2011,118 @@ function mainLoop(state) {
         });
     });
 }
-// ------------------------------ Start the game
+// ------------------------------ High score submission
+function setCookie(name, value) {
+    document.cookie = name + "=" + value + "; max-age=315360000; path=/";
+}
+function getCookie(name) {
+    var e_16, _a;
+    var nameEQ = name + "=";
+    var ca = document.cookie.split(';');
+    try {
+        for (var _b = __values(document.cookie.split(';')), _c = _b.next(); !_c.done; _c = _b.next()) {
+            var c = _c.value;
+            while (c.charAt(0) == ' ')
+                c = c.substring(1, c.length);
+            if (c.indexOf(nameEQ) == 0)
+                return c.substring(nameEQ.length, c.length);
+        }
+    }
+    catch (e_16_1) { e_16 = { error: e_16_1 }; }
+    finally {
+        try {
+            if (_c && !_c.done && (_a = _b.return)) _a.call(_b);
+        }
+        finally { if (e_16) throw e_16.error; }
+    }
+    return null;
+}
+function rememberUsername(username) {
+    setCookie('username', username);
+}
+function getUsername() {
+    return getCookie('username');
+}
+function renderScoreSubmission(score, seed, done) {
+    $('#scoreSubmitter').attr('active', true);
+    var pattern = "[a-ZA-Z0-9]";
+    $('#scoreSubmitter').html("<label for=\"username\">Name:</label>" +
+        "<textarea id=\"username\"></textarea>" +
+        "<div>" +
+        ("<span class=\"option\" choosable id=\"submitScore\">" + renderHotkey('⏎') + "Submit</span>") +
+        ("<span class=\"option\" choosable id=\"cancelSubmit\">" + renderHotkey('Esc') + "Cancel</span>") +
+        "</div>");
+    var username = getUsername();
+    if (username != null)
+        $('#username').val(username);
+    $('#username').focus();
+    function exit() {
+        $('#scoreSubmitter').attr('active', false);
+        done();
+    }
+    function submit() {
+        var username = $('#username').val();
+        if (username.length > 0) {
+            rememberUsername(username);
+            $.post("submit?seed=" + seed + "&score=" + score + "&username=" + username).done(function (x) {
+                console.log(x);
+            });
+            exit();
+        }
+    }
+    $('#username').on('keydown', function (e) {
+        if (e.keyCode == 13) {
+            submit();
+            e.preventDefault();
+        }
+        else if (e.keyCode == 8) {
+        }
+        else if (e.keyCode == 189) {
+        }
+        else if (e.keyCode == 27) {
+            exit();
+            e.preventDefault();
+        }
+        else if (e.keyCode < 48 || e.keyCode > 90) {
+            e.preventDefault();
+        }
+    });
+    $('#submitScore').on('click', submit);
+    $('#cancelSubmit').on('click', exit);
+}
 function supplyKey(spec) {
     return new Card(spec, -1).cost(emptyState).coin;
 }
 function supplySort(card1, card2) {
     return supplyKey(card1) - supplyKey(card2);
 }
-function playGame(seed, fixedKingdom) {
+//TODO: the implementation of randomness is now pretty janky
+//if the game is deterministic, it doesn't have to actually consume state
+//(and then can get rid of the non-async choice...)
+function playGame(spec) {
     return __awaiter(this, void 0, void 0, function () {
-        var startingDeck, state, shuffledDeck, variableSupplies, i, kingdom;
+        var state, startingDeck, intSeed, shuffledDeck, variableSupplies, fixedKingdom, i, kingdom;
         var _a, _b;
         return __generator(this, function (_c) {
             switch (_c.label) {
                 case 0:
+                    state = new State(spec);
                     startingDeck = [copper, copper, copper, copper, copper,
                         copper, copper, estate, estate, estate];
-                    state = emptyState;
-                    _a = __read(randomChoices(state, startingDeck, startingDeck.length, seed), 2), state = _a[0], shuffledDeck = _a[1];
+                    intSeed = hash(spec.seed);
+                    _a = __read(randomChoices(state, startingDeck, startingDeck.length, intSeed), 2), state = _a[0], shuffledDeck = _a[1];
                     return [4 /*yield*/, doAll(shuffledDeck.map(function (x) { return create(x, 'deck'); }))(state)];
                 case 1:
                     state = _c.sent();
-                    _b = __read(randomChoices(state, mixins, 12, seed), 2), state = _b[0], variableSupplies = _b[1];
-                    if (fixedKingdom != undefined)
+                    _b = __read(randomChoices(state, mixins, 12, intSeed + 1), 2), state = _b[0], variableSupplies = _b[1];
+                    fixedKingdom = getFixedKingdom(spec.kingdom);
+                    if (fixedKingdom != null)
                         variableSupplies = fixedKingdom;
                     variableSupplies.sort(supplySort);
-                    state = state.updateInfo(__assign(__assign({}, state.info), { kingdom: variableSupplies }));
-                    if (testing.length > 0)
+                    if (spec.testing) {
                         for (i = 0; i < cheats.length; i++)
                             testing.push(cheats[i]);
+                    }
                     kingdom = coreSupplies.concat(variableSupplies).concat(testing);
                     return [4 /*yield*/, doAll(kingdom.map(function (x) { return create(x, 'supply'); }))(state)];
                 case 2:
@@ -2034,15 +2152,20 @@ function hash(s) {
     }
     return hash;
 }
+function getGameSpec() {
+    return { seed: getSeed(), kingdom: getKingdom(), testing: testing.length > 0 };
+}
+function getKingdom() {
+    return new URLSearchParams(window.location.search).get('kingdom');
+}
 function getSeed() {
     var seed = new URLSearchParams(window.location.search).get('seed');
-    return (seed == null) ? undefined : hash(seed);
+    return (seed == null) ? Math.random().toString(36).substring(2, 7) : seed;
 }
-function getFixedKingdom() {
-    var e_16, _a, e_17, _b;
-    var kingdomString = new URLSearchParams(window.location.search).get('kingdom');
+function getFixedKingdom(kingdomString) {
+    var e_17, _a, e_18, _b;
     if (kingdomString == null)
-        return undefined;
+        return null;
     var cardStrings = kingdomString.split(',');
     var mixinsByName = new Map();
     try {
@@ -2051,12 +2174,12 @@ function getFixedKingdom() {
             mixinsByName.set(spec.name, spec);
         }
     }
-    catch (e_16_1) { e_16 = { error: e_16_1 }; }
+    catch (e_17_1) { e_17 = { error: e_17_1 }; }
     finally {
         try {
             if (mixins_1_1 && !mixins_1_1.done && (_a = mixins_1.return)) _a.call(mixins_1);
         }
-        finally { if (e_16) throw e_16.error; }
+        finally { if (e_17) throw e_17.error; }
     }
     var result = [];
     try {
@@ -2065,26 +2188,40 @@ function getFixedKingdom() {
             var cardSpec = mixinsByName.get(cardString);
             if (cardSpec == undefined) {
                 alert("URL specified invalid card " + cardString);
-                return undefined;
+                return null;
             }
             else {
                 result.push(cardSpec);
             }
         }
     }
-    catch (e_17_1) { e_17 = { error: e_17_1 }; }
+    catch (e_18_1) { e_18 = { error: e_18_1 }; }
     finally {
         try {
             if (cardStrings_1_1 && !cardStrings_1_1.done && (_b = cardStrings_1.return)) _b.call(cardStrings_1);
         }
-        finally { if (e_17) throw e_17.error; }
+        finally { if (e_18) throw e_18.error; }
     }
     return result;
 }
+function heartbeat(spec) {
+    if (spec.kingdom == null) {
+        $.get("topScore?seed=" + spec.seed).done(function (x) {
+            var n = parseInt(x, 10);
+            if (!isNaN(n))
+                renderBest(n, spec.seed);
+        });
+    }
+}
+//TODO: live updates?
 function load() {
-    playGame(getSeed(), getFixedKingdom());
+    var spec = getGameSpec();
+    heartbeat(spec);
+    setInterval(function () { return heartbeat(spec); }, 30000);
+    playGame(spec);
 }
 // ----------------------------------- Kingdom picker
+//TODO: I think these can just be relative links, we don't have to do it ourselves...
 function basePlus(s) {
     var urlParts = window.location.toString().split('/');
     urlParts[urlParts.length - 1] = s;
@@ -2652,8 +2789,8 @@ var hallOfMirrors = { name: 'Hall of Mirrors',
         text: 'Put a mirror token on each card in your hand.',
         effect: function (state) {
             return __awaiter(this, void 0, void 0, function () {
-                var _a, _b, card_2, e_18_1;
-                var e_18, _c;
+                var _a, _b, card_2, e_19_1;
+                var e_19, _c;
                 return __generator(this, function (_d) {
                     switch (_d.label) {
                         case 0:
@@ -2672,14 +2809,14 @@ var hallOfMirrors = { name: 'Hall of Mirrors',
                             return [3 /*break*/, 1];
                         case 4: return [3 /*break*/, 7];
                         case 5:
-                            e_18_1 = _d.sent();
-                            e_18 = { error: e_18_1 };
+                            e_19_1 = _d.sent();
+                            e_19 = { error: e_19_1 };
                             return [3 /*break*/, 7];
                         case 6:
                             try {
                                 if (_b && !_b.done && (_c = _a.return)) _c.call(_a);
                             }
-                            finally { if (e_18) throw e_18.error; }
+                            finally { if (e_19) throw e_19.error; }
                             return [7 /*endfinally*/];
                         case 7: return [2 /*return*/, state];
                     }
@@ -2725,33 +2862,42 @@ var royalCarriage = { name: 'Royal Carriage',
         toZone: 'play',
         effect: noop,
     }); },
+    abilities: function (card) { return [{
+            text: "Put a royalty token on this.",
+            cost: noop,
+            effect: addToken(card, 'royalty')
+        }]; },
     triggers: function (card) { return [{
-            text: "When you finish playing a card, you may discard this"
-                + " to play that card again if it's in your discard pile.",
+            text: "When you finish playing a card the normal way, if this has a royalty token on it then"
+                + " remove the token, discard this, and play the card again if it's in your discard pile.",
             kind: 'afterPlay',
-            handles: function (e) { return true; },
+            handles: function (e) { return (e.source.name == 'act'); },
             effect: function (e) { return function (state) {
                 return __awaiter(this, void 0, void 0, function () {
-                    var findCarriage, findCard, doit;
-                    var _a;
-                    return __generator(this, function (_b) {
-                        switch (_b.label) {
+                    var findCarriage, findCard, findagain;
+                    return __generator(this, function (_a) {
+                        switch (_a.label) {
                             case 0:
                                 findCarriage = state.find(card);
                                 findCard = state.find(e.after);
-                                if (!(findCarriage.found && findCarriage.place == 'play')) return [3 /*break*/, 4];
-                                doit = void 0;
-                                return [4 /*yield*/, choice(state, "Use " + card.name + " to play " + e.before.name + " again?", yesOrNo)];
+                                if (!(findCarriage.found && countTokens(findCarriage.card, 'royalty') > 0
+                                    && findCard.place == 'discard')) return [3 /*break*/, 4];
+                                findagain = state.find(card);
+                                if (findagain.found)
+                                    console.log(findagain.card.ticks);
+                                return [4 /*yield*/, removeTokens(card, 'royalty')(state)];
                             case 1:
-                                _a = __read.apply(void 0, [_b.sent(), 2]), state = _a[0], doit = _a[1];
-                                if (!doit) return [3 /*break*/, 4];
+                                state = _a.sent();
+                                findagain = state.find(card);
+                                if (findagain.found)
+                                    console.log(findagain.card.ticks);
                                 return [4 /*yield*/, move(card, 'discard')(state)];
                             case 2:
-                                state = _b.sent();
-                                return [4 /*yield*/, playAgain(findCard.card)(state)];
+                                state = _a.sent();
+                                return [4 /*yield*/, playAgain(e.after)(state)];
                             case 3:
-                                state = _b.sent();
-                                _b.label = 4;
+                                state = _a.sent();
+                                _a.label = 4;
                             case 4: return [2 /*return*/, state];
                         }
                     });
@@ -3040,7 +3186,7 @@ var feast = { name: 'Feast',
 buyable(feast, 4);
 var mobilization = { name: 'Mobilization',
     replacers: function (card) { return [{
-            text: "{regroup.name} costs @ less to play, but not zero.",
+            text: regroup.name + " costs @ less to play, unless that would make it cost 0.",
             kind: 'cost',
             handles: function (x) { return (x.card.name == 'Regroup'); },
             replace: function (x) { return (__assign(__assign({}, x), { cost: reduceEnergyNonzero(x.cost, 1) })); }
@@ -3285,8 +3431,8 @@ var makeSynergy = { name: 'Synergy',
             " then put synergy tokens on two cards in the supply.",
         effect: function (state) {
             return __awaiter(this, void 0, void 0, function () {
-                var _a, _b, card_3, e_19_1, cards, cards_2, cards_2_1, card_4, e_20_1;
-                var e_19, _c, _d, e_20, _e;
+                var _a, _b, card_3, e_20_1, cards, cards_2, cards_2_1, card_4, e_21_1;
+                var e_20, _c, _d, e_21, _e;
                 return __generator(this, function (_f) {
                     switch (_f.label) {
                         case 0:
@@ -3306,14 +3452,14 @@ var makeSynergy = { name: 'Synergy',
                             return [3 /*break*/, 1];
                         case 4: return [3 /*break*/, 7];
                         case 5:
-                            e_19_1 = _f.sent();
-                            e_19 = { error: e_19_1 };
+                            e_20_1 = _f.sent();
+                            e_20 = { error: e_20_1 };
                             return [3 /*break*/, 7];
                         case 6:
                             try {
                                 if (_b && !_b.done && (_c = _a.return)) _c.call(_a);
                             }
-                            finally { if (e_19) throw e_19.error; }
+                            finally { if (e_20) throw e_20.error; }
                             return [7 /*endfinally*/];
                         case 7: return [4 /*yield*/, multichoiceIfNeeded(state, 'Choose two cards to synergize.', state.supply.map(asChoice), 2, false)];
                         case 8:
@@ -3335,14 +3481,14 @@ var makeSynergy = { name: 'Synergy',
                             return [3 /*break*/, 10];
                         case 13: return [3 /*break*/, 16];
                         case 14:
-                            e_20_1 = _f.sent();
-                            e_20 = { error: e_20_1 };
+                            e_21_1 = _f.sent();
+                            e_21 = { error: e_21_1 };
                             return [3 /*break*/, 16];
                         case 15:
                             try {
                                 if (cards_2_1 && !cards_2_1.done && (_e = cards_2.return)) _e.call(cards_2);
                             }
-                            finally { if (e_20) throw e_20.error; }
+                            finally { if (e_21) throw e_21.error; }
                             return [7 /*endfinally*/];
                         case 16: return [2 /*return*/, state];
                     }
@@ -3881,7 +4027,7 @@ var coppersmith = { name: 'Coppersmith',
 };
 buyable(coppersmith, 3);
 function countDistinct(xs) {
-    var e_21, _a;
+    var e_22, _a;
     var y = new Set();
     var result = 0;
     try {
@@ -3893,12 +4039,12 @@ function countDistinct(xs) {
             }
         }
     }
-    catch (e_21_1) { e_21 = { error: e_21_1 }; }
+    catch (e_22_1) { e_22 = { error: e_22_1 }; }
     finally {
         try {
             if (xs_1_1 && !xs_1_1.done && (_a = xs_1.return)) _a.call(xs_1);
         }
-        finally { if (e_21) throw e_21.error; }
+        finally { if (e_22) throw e_22.error; }
     }
     return result;
 }
