@@ -1781,7 +1781,27 @@ async function mainLoop(state: State): Promise<State> {
     }
 }
 
-//TODO: will make the seed into a string soon, and overhaul GameSpec
+// ------------------------------ High score submission
+
+function setCookie(name:string,value:string) {
+    document.cookie = `${name}=${value}; max-age=315360000; path=/`
+}
+function getCookie(name:string): string|null {
+    let nameEQ:string = name + "=";
+    let ca:string[] = document.cookie.split(';');
+    for(let c of document.cookie.split(';')) {
+        while (c.charAt(0)==' ') c = c.substring(1,c.length);
+        if (c.indexOf(nameEQ) == 0) return c.substring(nameEQ.length,c.length);
+    }
+    return null;
+}
+function rememberUsername(username:string) {
+    setCookie('username', username)
+}
+function getUsername():string|null {
+    return getCookie('username')
+}
+
 function renderScoreSubmission(score:number, seed:string, done:() => void) {
     $('#scoreSubmitter').attr('active', true)
     const pattern = "[a-ZA-Z0-9]"
@@ -1793,6 +1813,8 @@ function renderScoreSubmission(score:number, seed:string, done:() => void) {
         `<span class="option" choosable id="cancelSubmit">${renderHotkey('Esc')}Cancel</span>` +
         `</div>`
     )
+    const username = getUsername()
+    if (username != null) $('#username').val(username)
     $('#username').focus()
     function exit() {
         $('#scoreSubmitter').attr('active', false)
@@ -1824,6 +1846,7 @@ function renderScoreSubmission(score:number, seed:string, done:() => void) {
     $('#cancelSubmit').on('click', exit)
 }
 
+
 // ------------------------------ Start the game
 
 interface GameSpec {
@@ -1840,6 +1863,8 @@ function supplySort(card1:CardSpec, card2:CardSpec): number {
 }
 
 //TODO: the implementation of randomness is now pretty janky
+//if the game is deterministic, it doesn't have to actually consume state
+//(and then can get rid of the non-async choice...)
 async function playGame(spec:GameSpec): Promise<void> {
     let state = new State(spec)
     const startingDeck:CardSpec[] = [copper, copper, copper, copper, copper,
@@ -2452,7 +2477,7 @@ const royalCarriage:CardSpec = {name: 'Royal Carriage',
         }
     }]
 }
-buyable(royalCarriage, 5, 'test')
+buyable(royalCarriage, 5)
 
 const royalSeal:CardSpec = {name: 'Royal Seal',
     effect: card => ({

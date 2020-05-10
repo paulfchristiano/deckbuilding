@@ -2010,7 +2010,38 @@ function mainLoop(state) {
         });
     });
 }
-//TODO: will make the seed into a string soon, and overhaul GameSpec
+// ------------------------------ High score submission
+function setCookie(name, value) {
+    document.cookie = name + "=" + value + "; max-age=315360000; path=/";
+}
+function getCookie(name) {
+    var e_16, _a;
+    var nameEQ = name + "=";
+    var ca = document.cookie.split(';');
+    try {
+        for (var _b = __values(document.cookie.split(';')), _c = _b.next(); !_c.done; _c = _b.next()) {
+            var c = _c.value;
+            while (c.charAt(0) == ' ')
+                c = c.substring(1, c.length);
+            if (c.indexOf(nameEQ) == 0)
+                return c.substring(nameEQ.length, c.length);
+        }
+    }
+    catch (e_16_1) { e_16 = { error: e_16_1 }; }
+    finally {
+        try {
+            if (_c && !_c.done && (_a = _b.return)) _a.call(_b);
+        }
+        finally { if (e_16) throw e_16.error; }
+    }
+    return null;
+}
+function rememberUsername(username) {
+    setCookie('username', username);
+}
+function getUsername() {
+    return getCookie('username');
+}
 function renderScoreSubmission(score, seed, done) {
     $('#scoreSubmitter').attr('active', true);
     var pattern = "[a-ZA-Z0-9]";
@@ -2020,6 +2051,9 @@ function renderScoreSubmission(score, seed, done) {
         ("<span class=\"option\" choosable id=\"submitScore\">" + renderHotkey('⏎') + "Submit</span>") +
         ("<span class=\"option\" choosable id=\"cancelSubmit\">" + renderHotkey('Esc') + "Cancel</span>") +
         "</div>");
+    var username = getUsername();
+    if (username != null)
+        $('#username').val(username);
     $('#username').focus();
     function exit() {
         $('#scoreSubmitter').attr('active', false);
@@ -2061,6 +2095,8 @@ function supplySort(card1, card2) {
     return supplyKey(card1) - supplyKey(card2);
 }
 //TODO: the implementation of randomness is now pretty janky
+//if the game is deterministic, it doesn't have to actually consume state
+//(and then can get rid of the non-async choice...)
 function playGame(spec) {
     return __awaiter(this, void 0, void 0, function () {
         var state, startingDeck, intSeed, shuffledDeck, variableSupplies, fixedKingdom, i, kingdom;
@@ -2125,7 +2161,7 @@ function getSeed() {
     return (seed == null) ? Math.random().toString(36).substring(2, 7) : seed;
 }
 function getFixedKingdom(kingdomString) {
-    var e_16, _a, e_17, _b;
+    var e_17, _a, e_18, _b;
     if (kingdomString == null)
         return null;
     var cardStrings = kingdomString.split(',');
@@ -2136,12 +2172,12 @@ function getFixedKingdom(kingdomString) {
             mixinsByName.set(spec.name, spec);
         }
     }
-    catch (e_16_1) { e_16 = { error: e_16_1 }; }
+    catch (e_17_1) { e_17 = { error: e_17_1 }; }
     finally {
         try {
             if (mixins_1_1 && !mixins_1_1.done && (_a = mixins_1.return)) _a.call(mixins_1);
         }
-        finally { if (e_16) throw e_16.error; }
+        finally { if (e_17) throw e_17.error; }
     }
     var result = [];
     try {
@@ -2157,12 +2193,12 @@ function getFixedKingdom(kingdomString) {
             }
         }
     }
-    catch (e_17_1) { e_17 = { error: e_17_1 }; }
+    catch (e_18_1) { e_18 = { error: e_18_1 }; }
     finally {
         try {
             if (cardStrings_1_1 && !cardStrings_1_1.done && (_b = cardStrings_1.return)) _b.call(cardStrings_1);
         }
-        finally { if (e_17) throw e_17.error; }
+        finally { if (e_18) throw e_18.error; }
     }
     return result;
 }
@@ -2752,8 +2788,8 @@ var hallOfMirrors = { name: 'Hall of Mirrors',
         text: 'Put a mirror token on each card in your hand.',
         effect: function (state) {
             return __awaiter(this, void 0, void 0, function () {
-                var _a, _b, card_2, e_18_1;
-                var e_18, _c;
+                var _a, _b, card_2, e_19_1;
+                var e_19, _c;
                 return __generator(this, function (_d) {
                     switch (_d.label) {
                         case 0:
@@ -2772,14 +2808,14 @@ var hallOfMirrors = { name: 'Hall of Mirrors',
                             return [3 /*break*/, 1];
                         case 4: return [3 /*break*/, 7];
                         case 5:
-                            e_18_1 = _d.sent();
-                            e_18 = { error: e_18_1 };
+                            e_19_1 = _d.sent();
+                            e_19 = { error: e_19_1 };
                             return [3 /*break*/, 7];
                         case 6:
                             try {
                                 if (_b && !_b.done && (_c = _a.return)) _c.call(_a);
                             }
-                            finally { if (e_18) throw e_18.error; }
+                            finally { if (e_19) throw e_19.error; }
                             return [7 /*endfinally*/];
                         case 7: return [2 /*return*/, state];
                     }
@@ -2868,7 +2904,7 @@ var royalCarriage = { name: 'Royal Carriage',
             }; }
         }]; }
 };
-buyable(royalCarriage, 5, 'test');
+buyable(royalCarriage, 5);
 var royalSeal = { name: 'Royal Seal',
     effect: function (card) { return ({
         text: '+$2. Next time you create a card in your discard pile, put it into your hand.',
@@ -3394,8 +3430,8 @@ var makeSynergy = { name: 'Synergy',
             " then put synergy tokens on two cards in the supply.",
         effect: function (state) {
             return __awaiter(this, void 0, void 0, function () {
-                var _a, _b, card_3, e_19_1, cards, cards_2, cards_2_1, card_4, e_20_1;
-                var e_19, _c, _d, e_20, _e;
+                var _a, _b, card_3, e_20_1, cards, cards_2, cards_2_1, card_4, e_21_1;
+                var e_20, _c, _d, e_21, _e;
                 return __generator(this, function (_f) {
                     switch (_f.label) {
                         case 0:
@@ -3415,14 +3451,14 @@ var makeSynergy = { name: 'Synergy',
                             return [3 /*break*/, 1];
                         case 4: return [3 /*break*/, 7];
                         case 5:
-                            e_19_1 = _f.sent();
-                            e_19 = { error: e_19_1 };
+                            e_20_1 = _f.sent();
+                            e_20 = { error: e_20_1 };
                             return [3 /*break*/, 7];
                         case 6:
                             try {
                                 if (_b && !_b.done && (_c = _a.return)) _c.call(_a);
                             }
-                            finally { if (e_19) throw e_19.error; }
+                            finally { if (e_20) throw e_20.error; }
                             return [7 /*endfinally*/];
                         case 7: return [4 /*yield*/, multichoiceIfNeeded(state, 'Choose two cards to synergize.', state.supply.map(asChoice), 2, false)];
                         case 8:
@@ -3444,14 +3480,14 @@ var makeSynergy = { name: 'Synergy',
                             return [3 /*break*/, 10];
                         case 13: return [3 /*break*/, 16];
                         case 14:
-                            e_20_1 = _f.sent();
-                            e_20 = { error: e_20_1 };
+                            e_21_1 = _f.sent();
+                            e_21 = { error: e_21_1 };
                             return [3 /*break*/, 16];
                         case 15:
                             try {
                                 if (cards_2_1 && !cards_2_1.done && (_e = cards_2.return)) _e.call(cards_2);
                             }
-                            finally { if (e_20) throw e_20.error; }
+                            finally { if (e_21) throw e_21.error; }
                             return [7 /*endfinally*/];
                         case 16: return [2 /*return*/, state];
                     }
@@ -3990,7 +4026,7 @@ var coppersmith = { name: 'Coppersmith',
 };
 buyable(coppersmith, 3);
 function countDistinct(xs) {
-    var e_21, _a;
+    var e_22, _a;
     var y = new Set();
     var result = 0;
     try {
@@ -4002,12 +4038,12 @@ function countDistinct(xs) {
             }
         }
     }
-    catch (e_21_1) { e_21 = { error: e_21_1 }; }
+    catch (e_22_1) { e_22 = { error: e_22_1 }; }
     finally {
         try {
             if (xs_1_1 && !xs_1_1.done && (_a = xs_1.return)) _a.call(xs_1);
         }
-        finally { if (e_21) throw e_21.error; }
+        finally { if (e_22) throw e_22.error; }
     }
     return result;
 }
