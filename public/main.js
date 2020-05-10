@@ -1984,6 +1984,7 @@ function mainLoop(state) {
                     else if (error_2 instanceof Victory) {
                         submitOrUndo_1 = function () {
                             return new Promise(function (resolve, reject) {
+                                heartbeat(state.spec);
                                 state = error_2.state;
                                 function submitDialog(seed) {
                                     return function () {
@@ -2062,6 +2063,7 @@ function renderScoreSubmission(score, seed, done) {
     function submit() {
         var username = $('#username').val();
         if (username.length > 0) {
+            rememberUsername(username);
             $.post("submit?seed=" + seed + "&score=" + score + "&username=" + username).done(function (x) {
                 console.log(x);
             });
@@ -2203,7 +2205,6 @@ function getFixedKingdom(kingdomString) {
     return result;
 }
 function heartbeat(spec) {
-    console.log('!');
     if (spec.kingdom == null) {
         $.get("topScore?seed=" + spec.seed).done(function (x) {
             var n = parseInt(x, 10);

@@ -1759,6 +1759,7 @@ async function mainLoop(state: State): Promise<State> {
         } else if (error instanceof Victory) {
             const submitOrUndo: () => Promise<State> = () => 
                 new Promise(function (resolve, reject) {
+                    heartbeat(state.spec)
                     state = error.state
                     function submitDialog(seed:string) {
                         return () => {
@@ -1823,6 +1824,7 @@ function renderScoreSubmission(score:number, seed:string, done:() => void) {
     function submit() {
         const username:string = $('#username').val()
         if (username.length > 0) {
+            rememberUsername(username)
             $.post(`submit?seed=${seed}&score=${score}&username=${username}`).done(function(x:any) {
                 console.log(x)
             })
@@ -1931,7 +1933,6 @@ function getFixedKingdom(kingdomString:string|null): CardSpec[]|null {
 }
 
 function heartbeat(spec:GameSpec): void {
-    console.log('!')
     if (spec.kingdom == null) {
         $.get(`topScore?seed=${spec.seed}`).done(function(x:string) {
             const n:number = parseInt(x, 10)
