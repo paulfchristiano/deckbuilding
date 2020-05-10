@@ -1537,6 +1537,8 @@ function renderStringOption(option, hotkey, pick) {
     return "<span class='option' option='" + option.value + "' choosable chosen='false'>" + picktext + hotkeyText + option.render + "</span>";
 }
 function renderHotkey(hotkey) {
+    if (hotkey == ' ')
+        hotkey = '&#x23B5;';
     return "<span class=\"hotkey\">" + hotkey + "</span> ";
 }
 function renderSpecials(undoable) {
@@ -1701,7 +1703,7 @@ function freshMultichoice(state, choicePrompt, options, validator) {
             setReady();
         }
         var newOptions = options.map(function (x, i) { return (__assign(__assign({}, x), { value: function () { return pick(i); } })); });
-        newOptions.push({ render: 'Done', value: function () {
+        newOptions.push({ render: 'Done', hotkeyHint: ' ', value: function () {
                 if (isReady()) {
                     resolve(Array.from(chosen.values()));
                 }
@@ -1739,7 +1741,7 @@ var upperHotkeys = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 
 var handHotkeys = numHotkeys.concat(symbolHotkeys);
 var supplyAndPlayHotkeys = lowerHotkeys.concat(upperHotkeys);
 // want to put zones that are least likely to change earlier, to not distrupt assignment
-var hotkeys = supplyAndPlayHotkeys.concat(handHotkeys);
+var hotkeys = supplyAndPlayHotkeys.concat(handHotkeys).concat([' ']);
 var choiceHotkeys = handHotkeys.concat(supplyAndPlayHotkeys);
 $(document).keydown(function (e) {
     var listener = keyListeners.get(e.key);

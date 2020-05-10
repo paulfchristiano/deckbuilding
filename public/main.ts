@@ -1385,7 +1385,8 @@ function renderStringOption(option:StringOption<number>, hotkey?:Key, pick?:numb
 }
 
 function renderHotkey(hotkey: Key) {
-  return `<span class="hotkey">${hotkey}</span> `
+    if (hotkey == ' ') hotkey = '&#x23B5;'
+    return `<span class="hotkey">${hotkey}</span> `
 }
 
 function renderSpecials(undoable:boolean): string {
@@ -1544,7 +1545,7 @@ function freshMultichoice<T>(
         const newOptions:Option<() => void>[] = options.map(
             (x, i) => ({...x, value: () => pick(i)})
         )
-        newOptions.push({render:'Done', value: () => {
+        newOptions.push({render:'Done', hotkeyHint: ' ', value: () => {
             if (isReady()) {
                 resolve(Array.from(chosen.values()))
             }
@@ -1572,7 +1573,7 @@ const upperHotkeys = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L'
 const handHotkeys:Key[] = numHotkeys.concat(symbolHotkeys)
 const supplyAndPlayHotkeys:Key[] = lowerHotkeys.concat(upperHotkeys)
 // want to put zones that are least likely to change earlier, to not distrupt assignment
-const hotkeys:Key[] = supplyAndPlayHotkeys.concat(handHotkeys)
+const hotkeys:Key[] = supplyAndPlayHotkeys.concat(handHotkeys).concat([' '])
 const choiceHotkeys:Key[] = handHotkeys.concat(supplyAndPlayHotkeys)
 
 $(document).keydown((e: any) => {
