@@ -1153,10 +1153,6 @@ interface RenderSettings {
     pickMap?: Map<number|string, number>;
 }
 
-function renderBest(best:number, seed:string): void {
-    $('#best').html(`Fastest win on this seed: ${best} (<a href='scoreboard?seed=${seed}'>scoreboard</a>)`)
-}
-
 function renderState(state:State,
     settings:RenderSettings = {},
 ): void {
@@ -1316,7 +1312,7 @@ function asNumberedChoices(xs:Card[]): Option<Card>[] {
 
 function allowNull<T>(options: Option<T>[], message:string="None"): Option<T|null>[] {
     const newOptions:Option<T|null>[] = options.slice()
-    newOptions.push({render:message, value:null})
+    newOptions.push({render:message, value:null, hotkeyHint:' '})
     return newOptions
 }
 
@@ -1442,15 +1438,18 @@ function bindHelp(state:State, renderer: () => void) {
             "The symbols below a card's name indicate its cost.",
             "When a cost is measured in energy (@, @@, ...) then you use that much energy to play it.",
             "When a cost is measured in coin ($) then you can only buy it if you have enough coin.",
-            "'Recycling' cards means to shuffle them and put them on the bottom of your deck.",
+            "'Recycling' cards means to put them on the bottom of your deck (preserving their order).",
             "You can activate the abilities of cards in play, marked with (ability).",
             "Effects marked with (static) apply whenever the card is in play or in the supply.",
             "The game is played with a kingdom of 7 core cards and 12 randomized cards.",
-            //TODO: link to replay this kingdom?
-            //`You can visit <a href="${kingdomURL(state.info.kingdom)}">this link</a> to replay this kingdom anyenergy.`,
+            `You can visit <a href="${replayURL(state.spec)}">this link</a> to replay this kingdom anytime.`,
             `Or play the <a href='${dateSeedPath()}'>daily kingdom</a>, using today's date as a seed.`,
-            `Or visit the <a href='${basePlus("picker.html")}'>kingdom picker<a> to pick a kingdom.`,
+            `Or visit the <a href="picker.html">kingdom picker<a> to pick a kingdom.`,
         ]
+        if (submittable(state.spec))
+            helpLines.push(`Check out the scoreboard <a href=${scoreboardURL(state.spec)}>here</a>.`)
+        else 
+            helpLines.push(`There is no scoreboard when you specify a kingdom manually.`)
         $('#choicePrompt').html('')
         $('#resolvingHeader').html('')
         $('#resolving').html(helpLines.map(x => `<div class='helpLine'>${x}</div class='helpline'>`).join(''))
@@ -1804,6 +1803,7 @@ function getUsername():string|null {
     return getCookie('username')
 }
 
+
 function renderScoreSubmission(score:number, seed:string, done:() => void) {
     $('#scoreSubmitter').attr('active', true)
     const pattern = "[a-ZA-Z0-9]"
@@ -1848,6 +1848,15 @@ function renderScoreSubmission(score:number, seed:string, done:() => void) {
     $('#submitScore').on('click', submit)
     $('#cancelSubmit').on('click', exit)
 }
+
+function renderBest(best:number, spec:GameSpec): void {
+    $('#best').html(`Fastest win on this seed: ${best} (<a href='${scoreboardURL(spec)}'>scoreboard</a>)`)
+}
+
+function scoreboardURL(spec:GameSpec) {
+    return `scoreboard?seed=${spec.seed}`
+}
+
 
 
 // ------------------------------ Start the game
@@ -1937,7 +1946,7 @@ function heartbeat(spec:GameSpec): void {
     if (spec.kingdom == null) {
         $.get(`topScore?seed=${spec.seed}`).done(function(x:string) {
             const n:number = parseInt(x, 10)
-            if (!isNaN(n)) renderBest(n, spec.seed)
+            if (!isNaN(n)) renderBest(n, spec)
         })
     }
 }
@@ -1952,25 +1961,23 @@ function load(): void {
 
 // ----------------------------------- Kingdom picker
 
-//TODO: I think these can just be relative links, we don't have to do it ourselves...
-function basePlus(s:string): string {
-    const urlParts:string[] = window.location.toString().split('/')
-    urlParts[urlParts.length-1] = s
-    return urlParts.join('/')
-}
-
 function dateString() {
     const date = new Date()
     return (String(date.getMonth() + 1)) + String(date.getDate()).padStart(2, '0') + date.getFullYear()
 }
 
 function dateSeedPath() {
-    const s:string = dateString()
-    return basePlus(`index.html?seed=${s}`)
+    return `index.html?seed=${dateString()}`
+}
+
+function replayURL(spec:GameSpec) {
+    const args:string[] = [`seed=${spec.seed}`]
+    if (spec.kingdom != null) args.push(`kingdom=${spec.kingdom}`)
+    return `index.html?${args.join('&')}`
 }
 
 function kingdomURL(specs:CardSpec[]) {
-    return basePlus(`index.html?kingdom=${specs.map(spec => spec.name).join(',')}`)
+    return `index.html?kingdom=${specs.map(card => card.name).join(',')}`
 }
 
 function loadPicker(): void {

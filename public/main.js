@@ -1330,9 +1330,6 @@ var renderedState;
 function getIfDef(m, x) {
     return (m == undefined) ? undefined : m.get(x);
 }
-function renderBest(best, seed) {
-    $('#best').html("Fastest win on this seed: " + best + " (<a href='scoreboard?seed=" + seed + "'>scoreboard</a>)");
-}
 function renderState(state, settings) {
     if (settings === void 0) { settings = {}; }
     renderedState = state;
@@ -1482,7 +1479,7 @@ function asNumberedChoices(xs) {
 function allowNull(options, message) {
     if (message === void 0) { message = "None"; }
     var newOptions = options.slice();
-    newOptions.push({ render: message, value: null });
+    newOptions.push({ render: message, value: null, hotkeyHint: ' ' });
     return newOptions;
 }
 function renderChoice(state, choicePrompt, options, reject, renderer, picks) {
@@ -1589,15 +1586,18 @@ function bindHelp(state, renderer) {
             "The symbols below a card's name indicate its cost.",
             "When a cost is measured in energy (@, @@, ...) then you use that much energy to play it.",
             "When a cost is measured in coin ($) then you can only buy it if you have enough coin.",
-            "'Recycling' cards means to shuffle them and put them on the bottom of your deck.",
+            "'Recycling' cards means to put them on the bottom of your deck (preserving their order).",
             "You can activate the abilities of cards in play, marked with (ability).",
             "Effects marked with (static) apply whenever the card is in play or in the supply.",
             "The game is played with a kingdom of 7 core cards and 12 randomized cards.",
-            //TODO: link to replay this kingdom?
-            //`You can visit <a href="${kingdomURL(state.info.kingdom)}">this link</a> to replay this kingdom anyenergy.`,
+            "You can visit <a href=\"" + replayURL(state.spec) + "\">this link</a> to replay this kingdom anytime.",
             "Or play the <a href='" + dateSeedPath() + "'>daily kingdom</a>, using today's date as a seed.",
-            "Or visit the <a href='" + basePlus("picker.html") + "'>kingdom picker<a> to pick a kingdom.",
+            "Or visit the <a href=\"picker.html\">kingdom picker<a> to pick a kingdom.",
         ];
+        if (submittable(state.spec))
+            helpLines.push("Check out the scoreboard <a href=" + scoreboardURL(state.spec) + ">here</a>.");
+        else
+            helpLines.push("There is no scoreboard when you specify a kingdom manually.");
         $('#choicePrompt').html('');
         $('#resolvingHeader').html('');
         $('#resolving').html(helpLines.map(function (x) { return "<div class='helpLine'>" + x + "</div class='helpline'>"; }).join(''));
@@ -2092,6 +2092,12 @@ function renderScoreSubmission(score, seed, done) {
     $('#submitScore').on('click', submit);
     $('#cancelSubmit').on('click', exit);
 }
+function renderBest(best, spec) {
+    $('#best').html("Fastest win on this seed: " + best + " (<a href='" + scoreboardURL(spec) + "'>scoreboard</a>)");
+}
+function scoreboardURL(spec) {
+    return "scoreboard?seed=" + spec.seed;
+}
 function supplyKey(spec) {
     return new Card(spec, -1).cost(emptyState).coin;
 }
@@ -2211,7 +2217,7 @@ function heartbeat(spec) {
         $.get("topScore?seed=" + spec.seed).done(function (x) {
             var n = parseInt(x, 10);
             if (!isNaN(n))
-                renderBest(n, spec.seed);
+                renderBest(n, spec);
         });
     }
 }
@@ -2223,22 +2229,21 @@ function load() {
     playGame(spec);
 }
 // ----------------------------------- Kingdom picker
-//TODO: I think these can just be relative links, we don't have to do it ourselves...
-function basePlus(s) {
-    var urlParts = window.location.toString().split('/');
-    urlParts[urlParts.length - 1] = s;
-    return urlParts.join('/');
-}
 function dateString() {
     var date = new Date();
     return (String(date.getMonth() + 1)) + String(date.getDate()).padStart(2, '0') + date.getFullYear();
 }
 function dateSeedPath() {
-    var s = dateString();
-    return basePlus("index.html?seed=" + s);
+    return "index.html?seed=" + dateString();
+}
+function replayURL(spec) {
+    var args = ["seed=" + spec.seed];
+    if (spec.kingdom != null)
+        args.push("kingdom=" + spec.kingdom);
+    return "index.html?" + args.join('&');
 }
 function kingdomURL(specs) {
-    return basePlus("index.html?kingdom=" + specs.map(function (spec) { return spec.name; }).join(','));
+    return "index.html?kingdom=" + specs.map(function (card) { return card.name; }).join(',');
 }
 function loadPicker() {
     var state = emptyState;
