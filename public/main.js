@@ -1730,8 +1730,10 @@ var hotkeys = supplyAndPlayHotkeys.concat(handHotkeys);
 var choiceHotkeys = handHotkeys.concat(supplyAndPlayHotkeys);
 $(document).keydown(function (e) {
     var listener = keyListeners.get(e.key);
-    if (listener != undefined)
+    if (listener != undefined) {
+        e.preventDefault();
         listener();
+    }
 });
 var HotkeyMapper = /** @class */ (function () {
     function HotkeyMapper() {
@@ -1945,7 +1947,7 @@ function undo(startState) {
 }
 function mainLoop(state) {
     return __awaiter(this, void 0, void 0, function () {
-        var error_2;
+        var error_2, submitOrUndo_1;
         return __generator(this, function (_a) {
             switch (_a.label) {
                 case 0:
@@ -1963,9 +1965,25 @@ function mainLoop(state) {
                         return [2 /*return*/, undo(error_2.state)];
                     }
                     else if (error_2 instanceof Victory) {
-                        return [2 /*return*/, new Promise(function (resolve, reject) {
-                                renderChoice(error_2.state, "You won using " + error_2.state.energy + " energy!", [], function () { return resolve(undo(error_2.state)); }, function () { });
-                            })];
+                        submitOrUndo_1 = function () {
+                            return new Promise(function (resolve, reject) {
+                                state = error_2.state;
+                                function submitDialog(seed) {
+                                    return function () {
+                                        clearChoice();
+                                        renderScoreSubmission(state.energy, seed, function () { return submitOrUndo_1().then(resolve, reject); });
+                                    };
+                                }
+                                var options = (state.info.seed == undefined) ?
+                                    [] : [{
+                                        render: 'Submit',
+                                        value: submitDialog(state.info.seed),
+                                        hotkeyHint: '!',
+                                    }];
+                                renderChoice(state, "You won using " + state.energy + " energy!", options, function () { return resolve(undo(state)); }, function () { });
+                            });
+                        };
+                        return [2 /*return*/, submitOrUndo_1()];
                     }
                     else {
                         throw error_2;
@@ -1975,6 +1993,50 @@ function mainLoop(state) {
             }
         });
     });
+}
+//TODO: will make the seed into a string soon, and overhaul GameSpec
+function renderScoreSubmission(score, seed, done) {
+    $('#scoreSubmitter').attr('active', true);
+    var pattern = "[a-ZA-Z0-9]";
+    $('#scoreSubmitter').html("<label for=\"username\">Name:</label>" +
+        "<textarea id=\"username\"></textarea>" +
+        "<div>" +
+        ("<span class=\"option\" choosable id=\"submitScore\">" + renderHotkey('⏎') + "Submit</span>") +
+        ("<span class=\"option\" choosable id=\"cancelSubmit\">" + renderHotkey('Esc') + "Cancel</span>") +
+        "</div>");
+    $('#username').focus();
+    function exit() {
+        $('#scoreSubmitter').attr('active', false);
+        done();
+    }
+    function submit() {
+        var username = $('#username').val();
+        if (username.length > 0) {
+            $.post("submit?seed=" + seed + "&score=" + score + "&username=" + username).done(function (x) {
+                console.log(x);
+            });
+            exit();
+        }
+    }
+    $('#username').on('keydown', function (e) {
+        if (e.keyCode == 13) {
+            submit();
+            e.preventDefault();
+        }
+        else if (e.keyCode == 8) {
+        }
+        else if (e.keyCode == 189) {
+        }
+        else if (e.keyCode == 27) {
+            exit();
+            e.preventDefault();
+        }
+        else if (e.keyCode < 48 || e.keyCode > 90) {
+            e.preventDefault();
+        }
+    });
+    $('#submitScore').on('click', submit);
+    $('#cancelSubmit').on('click', exit);
 }
 // ------------------------------ Start the game
 function supplyKey(spec) {
@@ -2001,7 +2063,7 @@ function playGame(seed, fixedKingdom) {
                     if (fixedKingdom != undefined)
                         variableSupplies = fixedKingdom;
                     variableSupplies.sort(supplySort);
-                    state = state.updateInfo(__assign(__assign({}, state.info), { kingdom: variableSupplies }));
+                    state = state.updateInfo({ kingdom: variableSupplies, seed: seed });
                     if (testing.length > 0)
                         for (i = 0; i < cheats.length; i++)
                             testing.push(cheats[i]);

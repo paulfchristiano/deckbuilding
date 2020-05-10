@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+#scoreboard {
+    border-collapse: collapse;
+}
+#scoreboard td {
+    border: 1px black solid;
+    text-align: center;
+}
+#scoreboard thead td {
+    border-bottom: 3px black solid;
+    text-align: center;
+}
+#userhead {
+    width: 15em;
+}
+#scorehead {
+    width: 5em;
+}
+#timehead {
+    width: 10em;
+}
+</style>
+</head>
+
+<body>
+
+<h2>Scoreboard for seed "<%= seed %>"</h2>
+
+<table id='scoreboard'>
+    <thead>
+        <tr>
+            <td id='userhead'> Username </td>
+            <td id='scorehead'> Score </td>
+            <td id='timehead'> Time </td>
+        </tr>
+    </thead>
+    <tbody>
+        <% entries.forEach(function(r) { %>
+        <tr> 
+            <td><%= r.username %></td>
+            <td><%= r.score %></td>
+            <td><%= r.timesince %></td>
+        </tr>
+        <% }); %>
+    </tbody>
+</table>
+
+</body>
+</html>

@@ -250,7 +250,8 @@ interface StateUpdate {
 }
 
 interface StateInfo {
-    kingdom: CardSpec[]
+    kingdom: CardSpec[];
+    seed?: number
 }
 
 interface FoundResult {
@@ -1569,7 +1570,10 @@ const choiceHotkeys:Key[] = handHotkeys.concat(supplyAndPlayHotkeys)
 
 $(document).keydown((e: any) => {
     const listener = keyListeners.get(e.key)
-    if (listener != undefined) listener()
+    if (listener != undefined) {
+        e.preventDefault()
+        listener()
+    }
 });
 
 type Key = string
@@ -1741,14 +1745,72 @@ async function mainLoop(state: State): Promise<State> {
         if (error instanceof Undo) {
             return undo(error.state)
         } else if (error instanceof Victory) {
-            return new Promise(function (resolve, reject) {
-                renderChoice(error.state, `You won using ${error.state.energy} energy!`,
-                    [], () => resolve(undo(error.state)), () => {})
-            })
+            const submitOrUndo: () => Promise<State> = () => 
+                new Promise(function (resolve, reject) {
+                    state = error.state
+                    function submitDialog(seed:number) {
+                        return () => {
+                            clearChoice();
+                            renderScoreSubmission(state.energy, seed, () => submitOrUndo().then(resolve, reject))
+                        }
+                    }
+                    const options:Option<() => void>[] = (state.info.seed == undefined) ?
+                        [] : [{
+                            render: 'Submit', 
+                            value: submitDialog(state.info.seed)
+                            hotkeyHint: '!',
+                        }]
+                    renderChoice(state, `You won using ${state.energy} energy!`,
+                        options, () => resolve(undo(state)), () => {})
+                })
+            return submitOrUndo()
         } else {
             throw error
         }
     }
+}
+
+//TODO: will make the seed into a string soon, and overhaul GameSpec
+function renderScoreSubmission(score:number, seed:number, done:() => void) {
+    $('#scoreSubmitter').attr('active', true)
+    const pattern = "[a-ZA-Z0-9]"
+    $('#scoreSubmitter').html(
+        `<label for="username">Name:</label>` +
+        `<textarea id="username"></textarea>` +
+        `<div>` +
+        `<span class="option" choosable id="submitScore">${renderHotkey('⏎')}Submit</span>` +
+        `<span class="option" choosable id="cancelSubmit">${renderHotkey('Esc')}Cancel</span>` +
+        `</div>`
+    )
+    $('#username').focus()
+    function exit() {
+        $('#scoreSubmitter').attr('active', false)
+        done()
+    }
+    function submit() {
+        const username:string = $('#username').val()
+        if (username.length > 0) {
+            $.post(`submit?seed=${seed}&score=${score}&username=${username}`).done(function(x:any) {
+                console.log(x)
+            })
+            exit()
+        }
+    }
+    $('#username').on('keydown', (e:KeyboardEvent) => {
+        if (e.keyCode == 13) {
+            submit()
+            e.preventDefault()
+        } else if (e.keyCode == 8) {
+        } else if (e.keyCode == 189) {
+        } else if (e.keyCode == 27) {
+            exit()
+            e.preventDefault()
+        } else if (e.keyCode < 48 || e.keyCode > 90) {
+            e.preventDefault()
+        }
+    })
+    $('#submitScore').on('click', submit)
+    $('#cancelSubmit').on('click', exit)
 }
 
 // ------------------------------ Start the game
@@ -1769,7 +1831,7 @@ async function playGame(seed?:number, fixedKingdom?:CardSpec[]): Promise<void> {
     let variableSupplies; [state, variableSupplies] = randomChoices(state, mixins, 12, seed)
     if (fixedKingdom != undefined) variableSupplies = fixedKingdom
     variableSupplies.sort(supplySort)
-    state = state.updateInfo({...state.info, kingdom:variableSupplies})
+    state = state.updateInfo({kingdom:variableSupplies, seed:seed})
     if (testing.length > 0) for (let i = 0; i < cheats.length; i++) testing.push(cheats[i])
     const kingdom = coreSupplies.concat(variableSupplies).concat(testing)
     state = await doAll(kingdom.map(x => create(x, 'supply')))(state)
