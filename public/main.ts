@@ -2700,7 +2700,7 @@ buyable(feast, 4)
 
 const mobilization:CardSpec = {name: 'Mobilization',
     replacers: card => [{
-        text: `{regroup.name} costs @ less to play, but not zero.`,
+        text: `${regroup.name} costs @ less to play, unless that would make it cost 0.`,
         kind:'cost',
         handles: x => (x.card.name == 'Regroup'),
         replace: x => ({...x, cost:reduceEnergyNonzero(x.cost, 1)})

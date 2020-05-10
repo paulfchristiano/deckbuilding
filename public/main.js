@@ -3186,7 +3186,7 @@ var feast = { name: 'Feast',
 buyable(feast, 4);
 var mobilization = { name: 'Mobilization',
     replacers: function (card) { return [{
-            text: "{regroup.name} costs @ less to play, but not zero.",
+            text: regroup.name + " costs @ less to play, unless that would make it cost 0.",
             kind: 'cost',
             handles: function (x) { return (x.card.name == 'Regroup'); },
             replace: function (x) { return (__assign(__assign({}, x), { cost: reduceEnergyNonzero(x.cost, 1) })); }
