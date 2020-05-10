@@ -2501,7 +2501,7 @@ var frontier = { name: 'Frontier',
         },
     }); }
 };
-buyable(frontier, 9);
+buyable(frontier, 6);
 var investment = { name: 'Investment',
     fixedCost: energy(0),
     effect: function (card) { return ({

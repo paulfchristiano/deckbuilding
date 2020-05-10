@@ -2188,7 +2188,7 @@ const frontier:CardSpec = {name: 'Frontier',
         },
     })
 }
-buyable(frontier, 9)
+buyable(frontier, 6)
 
 
 const investment:CardSpec = {name: 'Investment',
