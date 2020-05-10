@@ -204,22 +204,6 @@ class Card {
 
 type Transform = ((state:State) => Promise<State>) | ((state:State) => State)
 
-type ReplayableKind = 'rng' | 'choice' | 'multichoice'
-
-interface RNGReplayable {
-    kind: 'rng';
-    value: number;
-}
-interface ChoiceReplayable {
-    kind: 'choice';
-    value: number;
-}
-interface MultichoiceReplayable {
-    kind: 'multichoice';
-    value: [number];
-}
-type Replayable = RNGReplayable | ChoiceReplayable | MultichoiceReplayable
-
 type InsertLocation = 'bottom' | 'top' | 'start' | 'end' | 'handSort'
 
 type ZoneName = 'supply' | 'hand' | 'deck' | 'discard' | 'play' | 'aside'
@@ -228,6 +212,8 @@ type PlaceName = ZoneName | null | 'resolving'
 type Zone = Card[]
 
 type Resolving = (Card|Shadow)[]
+
+type Replayable = number[]
 
 interface Counters {
     coin:number;
@@ -424,8 +410,7 @@ class State {
             return this.checkpoint.lastReplayable()
     }
     undoable(): boolean {
-        const record:Replayable|null = this.lastReplayable()
-        return (record != null && (record.kind == 'choice' || record.kind == 'multichoice'))
+        return (this.lastReplayable() != null)
     }
 }
 
@@ -727,7 +712,6 @@ function recycle(cards:Card[]): Transform {
         let params:RecycleParams = {cards:cards, kind:'recycle'}
         params = replace(params, state);
         cards = params.cards;
-        //[state, cards] = randomChoices(state, cards, cards.length);
         if (cards.length > 0) {
           state = state.log(`Recycled ${showCards(cards)} to bottom of deck`)
         }
@@ -988,26 +972,19 @@ function PRF(a: number, b: number) {
         ((b*b+1) / (a*a+1)) * 392901666676)  % N) / N
 }
 
-function randomChoice<T>(state:State, xs:T[], seed?:number): [State, T|null] {
-    if (xs.length == 0) return [state, null];
-    [state, xs] = randomChoices(state, xs, 1, seed)
-    return [state, xs[0]]
-}
-
-function randomChoices<T>(state:State, xs:T[], n:number, seed?:number): [State, T[]] {
+function randomChoices<T>(xs:T[], n:number, seed?:number): T[] {
     const result = []
     xs = xs.slice()
     while (result.length < n) {
-        if (xs.length == 0) return [state, result];
-        if (xs.length == 1) return [state, result.concat(xs)]
-        let rand;
-        [state, rand] = doOrReplay(state, () => (seed == null) ? Math.random() : PRF(seed, result.length), 'rng')
+        if (xs.length == 0) return result
+        if (xs.length == 1) return result.concat(xs)
+        const rand = (seed == null) ? Math.random() : PRF(seed, result.length)
         const k = Math.floor(rand * xs.length)
         result.push(xs[k])
         xs[k] = xs[xs.length-1]
         xs = xs.slice(0, xs.length-1)
     }
-    return [state, result]
+    return result
 }
 
 // ------------------ Rendering
@@ -1180,41 +1157,6 @@ function renderState(state:State,
     $('#log').html(state.logs.slice().reverse().map(render_log).join(''))
 }
 
-// ------------------------------ History replay
-
-function doOrReplay<T extends number|[number]>(
-    state: State,
-    f: () => T,
-    kind: ReplayableKind
-): [State, T] {
-    let x: T, k: ReplayableKind, record: Replayable|null;
-    [state, record] = state.shiftFuture()
-    if (record == null) {
-        x = f()
-    } else {
-        if (record.kind != kind) throw Error(`replaying history we found ${record} where expecting kind ${kind}`)
-        x = (record.value as T)
-    }
-    return [state.addHistory(({kind:kind, value:x} as Replayable)), x]
-}
-
-//TODO: surely there is some way to unify these?
-async function asyncDoOrReplay<T extends number|number[]>(
-    state: State,
-    f: () => Promise<T>,
-    kind: ReplayableKind
-): Promise<[State, T]> {
-    let x: T, k: ReplayableKind, record: Replayable|null;
-    [state, record] = state.shiftFuture()
-    if (record == null) {
-        x = await f()
-    } else {
-        if (record.kind != kind) throw Error(`replaying history we found ${record} where expecting kind ${kind}`)
-        x = (record.value as T)
-    }
-    return [state.addHistory(({kind:kind, value:x} as Replayable)), x]
-}
-
 // -------------------------------------- Player choices
 
 type ID = number
@@ -1232,6 +1174,16 @@ interface StringOption<T> {
     value: T
 }
 
+async function doOrReplay(
+    state: State,
+    f: () => Promise<Replayable>,
+): Promise<[State, Replayable]> {
+    let record:Replayable | null; [state, record] = state.shiftFuture()
+    const x: Replayable = (record == null) ? await f() : record
+    return [state.addHistory(x), x]
+}
+
+
 async function multichoice<T>(
     state:State,
     prompt:string,
@@ -1240,14 +1192,21 @@ async function multichoice<T>(
 ): Promise<[State, T[]]> {
     if (options.length == 0) return [state, []]
     else {
-        let indices:number[]; [state, indices] = await asyncDoOrReplay(
+        let indices:number[]; [state, indices] = await doOrReplay(
             state,
             () => freshMultichoice(state, prompt, options, validator),
-            'multichoice',
         )
         return [state, indices.map(i => options[i].value)]
     }
 }
+
+class HistoryMismatch extends Error {
+    constructor(public indices:Replayable, public msg:string) {
+        super('HistoryMismatch')
+        Object.setPrototypeOf(this, HistoryMismatch.prototype)
+    }
+}
+
 
 async function choice<T>(
     state:State,
@@ -1258,12 +1217,12 @@ async function choice<T>(
     if (options.length == 0) return [state, null]
     else if (options.length == 1) return [state, options[0].value]
     else {
-        let index:number; [state, index] = await asyncDoOrReplay(
+        let indices:number[]; [state, indices] = await doOrReplay(
             state,
-            () => freshChoice(state, prompt, options),
-            'choice'
+            async function() {const x = await freshChoice(state, prompt, options); return [x]},
         )
-        return [state, options[index].value]
+        if (indices.length != 1) throw new HistoryMismatch(indices, 'expected a choice not a multichoice')
+        return [state, options[indices[0]].value]
     }
 }
 
@@ -1729,16 +1688,9 @@ function undo(startState: State): State {
         let last:Replayable|null; [state, last] = state.popFuture()
         if (last == null) {
             state = state.backup()
-            if (state == null) throw Error("tried to undo past beginning of energy")
+            if (state == null) throw Error("tried to undo past beginning of the game")
         } else {
-            switch (last.kind) {
-                case 'choice':
-                case 'multichoice':
-                    return state
-                case 'rng':
-                    throw Error("tried to undo past randomness")
-                default: assertNever(last)
-            }
+            return state
         }
     }
 }
@@ -1874,17 +1826,14 @@ function supplySort(card1:CardSpec, card2:CardSpec): number {
     return supplyKey(card1) - supplyKey(card2)
 }
 
-//TODO: the implementation of randomness is now pretty janky
-//if the game is deterministic, it doesn't have to actually consume state
-//(and then can get rid of the non-async choice...)
 async function playGame(spec:GameSpec): Promise<void> {
     let state = new State(spec)
     const startingDeck:CardSpec[] = [copper, copper, copper, copper, copper,
                                  copper, copper, estate, estate, estate]
     const intSeed:number = hash(spec.seed)
-    let shuffledDeck; [state, shuffledDeck] = randomChoices(state, startingDeck, startingDeck.length, intSeed)
+    let shuffledDeck = randomChoices(startingDeck, startingDeck.length, intSeed)
     state = await doAll(shuffledDeck.map(x => create(x, 'deck')))(state);
-    let variableSupplies; [state, variableSupplies] = randomChoices(state, mixins, 12, intSeed+1)
+    let variableSupplies = randomChoices(mixins, 12, intSeed+1)
     const fixedKingdom:CardSpec[]|null = getFixedKingdom(spec.kingdom)
     if (fixedKingdom != null) variableSupplies = fixedKingdom
     variableSupplies.sort(supplySort)

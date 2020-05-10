@@ -478,8 +478,7 @@ var State = /** @class */ (function () {
             return this.checkpoint.lastReplayable();
     };
     State.prototype.undoable = function () {
-        var record = this.lastReplayable();
-        return (record != null && (record.kind == 'choice' || record.kind == 'multichoice'));
+        return (this.lastReplayable() != null);
     };
     return State;
 }());
@@ -793,7 +792,6 @@ function recycle(cards) {
                         params = { cards: cards, kind: 'recycle' };
                         params = replace(params, state);
                         cards = params.cards;
-                        //[state, cards] = randomChoices(state, cards, cards.length);
                         if (cards.length > 0) {
                             state = state.log("Recycled " + showCards(cards) + " to bottom of deck");
                         }
@@ -1162,30 +1160,21 @@ function PRF(a, b) {
         a * a * 99202618 + ((a * a + 1) / (b * b + 1)) * 399220 +
         ((b * b + 1) / (a * a + 1)) * 392901666676) % N) / N;
 }
-function randomChoice(state, xs, seed) {
-    var _a;
-    if (xs.length == 0)
-        return [state, null];
-    _a = __read(randomChoices(state, xs, 1, seed), 2), state = _a[0], xs = _a[1];
-    return [state, xs[0]];
-}
-function randomChoices(state, xs, n, seed) {
-    var _a;
+function randomChoices(xs, n, seed) {
     var result = [];
     xs = xs.slice();
     while (result.length < n) {
         if (xs.length == 0)
-            return [state, result];
+            return result;
         if (xs.length == 1)
-            return [state, result.concat(xs)];
-        var rand = void 0;
-        _a = __read(doOrReplay(state, function () { return (seed == null) ? Math.random() : PRF(seed, result.length); }, 'rng'), 2), state = _a[0], rand = _a[1];
+            return result.concat(xs);
+        var rand = (seed == null) ? Math.random() : PRF(seed, result.length);
         var k = Math.floor(rand * xs.length);
         result.push(xs[k]);
         xs[k] = xs[xs.length - 1];
         xs = xs.slice(0, xs.length - 1);
     }
-    return [state, result];
+    return result;
 }
 // ------------------ Rendering
 function renderCost(cost) {
@@ -1355,41 +1344,25 @@ function renderState(state, settings) {
     $('#discard').html(state.discard.map(render).join(''));
     $('#log').html(state.logs.slice().reverse().map(render_log).join(''));
 }
-// ------------------------------ History replay
-function doOrReplay(state, f, kind) {
-    var _a;
-    var x, k, record;
-    _a = __read(state.shiftFuture(), 2), state = _a[0], record = _a[1];
-    if (record == null) {
-        x = f();
-    }
-    else {
-        if (record.kind != kind)
-            throw Error("replaying history we found " + record + " where expecting kind " + kind);
-        x = record.value;
-    }
-    return [state.addHistory({ kind: kind, value: x }), x];
-}
-//TODO: surely there is some way to unify these?
-function asyncDoOrReplay(state, f, kind) {
+function doOrReplay(state, f) {
     return __awaiter(this, void 0, void 0, function () {
-        var x, k, record;
-        var _a;
-        return __generator(this, function (_b) {
-            switch (_b.label) {
+        var record, x, _a;
+        var _b;
+        return __generator(this, function (_c) {
+            switch (_c.label) {
                 case 0:
-                    _a = __read(state.shiftFuture(), 2), state = _a[0], record = _a[1];
+                    _b = __read(state.shiftFuture(), 2), state = _b[0], record = _b[1];
                     if (!(record == null)) return [3 /*break*/, 2];
                     return [4 /*yield*/, f()];
                 case 1:
-                    x = _b.sent();
+                    _a = _c.sent();
                     return [3 /*break*/, 3];
                 case 2:
-                    if (record.kind != kind)
-                        throw Error("replaying history we found " + record + " where expecting kind " + kind);
-                    x = record.value;
-                    _b.label = 3;
-                case 3: return [2 /*return*/, [state.addHistory({ kind: kind, value: x }), x]];
+                    _a = record;
+                    _c.label = 3;
+                case 3:
+                    x = _a;
+                    return [2 /*return*/, [state.addHistory(x), x]];
             }
         });
     });
@@ -1406,7 +1379,7 @@ function multichoice(state, prompt, options, validator) {
                     return [2 /*return*/, [state, []]];
                 case 1:
                     indices = void 0;
-                    return [4 /*yield*/, asyncDoOrReplay(state, function () { return freshMultichoice(state, prompt, options, validator); }, 'multichoice')];
+                    return [4 /*yield*/, doOrReplay(state, function () { return freshMultichoice(state, prompt, options, validator); })];
                 case 2:
                     _a = __read.apply(void 0, [_b.sent(), 2]), state = _a[0], indices = _a[1];
                     return [2 /*return*/, [state, indices.map(function (i) { return options[i].value; })]];
@@ -1414,9 +1387,20 @@ function multichoice(state, prompt, options, validator) {
         });
     });
 }
+var HistoryMismatch = /** @class */ (function (_super) {
+    __extends(HistoryMismatch, _super);
+    function HistoryMismatch(indices, msg) {
+        var _this = _super.call(this, 'HistoryMismatch') || this;
+        _this.indices = indices;
+        _this.msg = msg;
+        Object.setPrototypeOf(_this, HistoryMismatch.prototype);
+        return _this;
+    }
+    return HistoryMismatch;
+}(Error));
 function choice(state, prompt, options) {
     return __awaiter(this, void 0, void 0, function () {
-        var index, index_1;
+        var index, indices;
         var _a;
         return __generator(this, function (_b) {
             switch (_b.label) {
@@ -1426,10 +1410,23 @@ function choice(state, prompt, options) {
                 case 1:
                     if (!(options.length == 1)) return [3 /*break*/, 2];
                     return [2 /*return*/, [state, options[0].value]];
-                case 2: return [4 /*yield*/, asyncDoOrReplay(state, function () { return freshChoice(state, prompt, options); }, 'choice')];
+                case 2:
+                    indices = void 0;
+                    return [4 /*yield*/, doOrReplay(state, function () {
+                            return __awaiter(this, void 0, void 0, function () { var x; return __generator(this, function (_a) {
+                                switch (_a.label) {
+                                    case 0: return [4 /*yield*/, freshChoice(state, prompt, options)];
+                                    case 1:
+                                        x = _a.sent();
+                                        return [2 /*return*/, [x]];
+                                }
+                            }); });
+                        })];
                 case 3:
-                    _a = __read.apply(void 0, [_b.sent(), 2]), state = _a[0], index_1 = _a[1];
-                    return [2 /*return*/, [state, options[index_1].value]];
+                    _a = __read.apply(void 0, [_b.sent(), 2]), state = _a[0], indices = _a[1];
+                    if (indices.length != 1)
+                        throw new HistoryMismatch(indices, 'expected a choice not a multichoice');
+                    return [2 /*return*/, [state, options[indices[0]].value]];
             }
         });
     });
@@ -1946,17 +1943,10 @@ function undo(startState) {
         if (last == null) {
             state = state.backup();
             if (state == null)
-                throw Error("tried to undo past beginning of energy");
+                throw Error("tried to undo past beginning of the game");
         }
         else {
-            switch (last.kind) {
-                case 'choice':
-                case 'multichoice':
-                    return state;
-                case 'rng':
-                    throw Error("tried to undo past randomness");
-                default: assertNever(last);
-            }
+            return state;
         }
     }
 }
@@ -2104,25 +2094,21 @@ function supplyKey(spec) {
 function supplySort(card1, card2) {
     return supplyKey(card1) - supplyKey(card2);
 }
-//TODO: the implementation of randomness is now pretty janky
-//if the game is deterministic, it doesn't have to actually consume state
-//(and then can get rid of the non-async choice...)
 function playGame(spec) {
     return __awaiter(this, void 0, void 0, function () {
         var state, startingDeck, intSeed, shuffledDeck, variableSupplies, fixedKingdom, i, kingdom;
-        var _a, _b;
-        return __generator(this, function (_c) {
-            switch (_c.label) {
+        return __generator(this, function (_a) {
+            switch (_a.label) {
                 case 0:
                     state = new State(spec);
                     startingDeck = [copper, copper, copper, copper, copper,
                         copper, copper, estate, estate, estate];
                     intSeed = hash(spec.seed);
-                    _a = __read(randomChoices(state, startingDeck, startingDeck.length, intSeed), 2), state = _a[0], shuffledDeck = _a[1];
+                    shuffledDeck = randomChoices(startingDeck, startingDeck.length, intSeed);
                     return [4 /*yield*/, doAll(shuffledDeck.map(function (x) { return create(x, 'deck'); }))(state)];
                 case 1:
-                    state = _c.sent();
-                    _b = __read(randomChoices(state, mixins, 12, intSeed + 1), 2), state = _b[0], variableSupplies = _b[1];
+                    state = _a.sent();
+                    variableSupplies = randomChoices(mixins, 12, intSeed + 1);
                     fixedKingdom = getFixedKingdom(spec.kingdom);
                     if (fixedKingdom != null)
                         variableSupplies = fixedKingdom;
@@ -2134,17 +2120,17 @@ function playGame(spec) {
                     kingdom = coreSupplies.concat(variableSupplies).concat(testing);
                     return [4 /*yield*/, doAll(kingdom.map(function (x) { return create(x, 'supply'); }))(state)];
                 case 2:
-                    state = _c.sent();
+                    state = _a.sent();
                     return [4 /*yield*/, trigger({ kind: 'gameStart' })(state)];
                 case 3:
-                    state = _c.sent();
+                    state = _a.sent();
                     state = state.log("Setup done, game starting");
-                    _c.label = 4;
+                    _a.label = 4;
                 case 4:
                     if (!true) return [3 /*break*/, 6];
                     return [4 /*yield*/, mainLoop(state)];
                 case 5:
-                    state = _c.sent();
+                    state = _a.sent();
                     return [3 /*break*/, 4];
                 case 6: return [2 /*return*/];
             }
