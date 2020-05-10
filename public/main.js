@@ -144,7 +144,6 @@ var Card = /** @class */ (function () {
     Card.prototype.cost = function (state) {
         var card = this;
         var initialCost = { kind: 'cost', card: card, cost: card.baseCost(state) };
-        //TODO: would be nice to type check manipulations of these params, but seems harder
         var newCost = replace(initialCost, state);
         return newCost.cost;
     };
@@ -289,6 +288,7 @@ var Card = /** @class */ (function () {
 var notFound = { found: false, card: null, place: null };
 var State = /** @class */ (function () {
     function State(spec, counters, zones, resolving, nextID, history, future, checkpoint, logs, logIndent) {
+        if (spec === void 0) { spec = { seed: '', kingdom: null }; }
         if (counters === void 0) { counters = { coin: 0, energy: 0, points: 0 }; }
         if (zones === void 0) { zones = new Map(); }
         if (resolving === void 0) { resolving = []; }
@@ -465,6 +465,18 @@ var State = /** @class */ (function () {
         var last = this.checkpoint;
         return (last == null) ? null : last.update({ future: this.history.concat(this.future) });
     };
+    //TODO: serialize the full history
+    //TODO: make a version of state that raises an exception if player choice is required
+    //TODO: write a routine that creates dummy state and a proposed score, and tells if it's valid
+    State.prototype.serializeHistory = function () {
+        var state = this;
+        var prev = state;
+        while (prev != null) {
+            state = prev;
+            prev = state.backup();
+        }
+        return state.future.map(function (xs) { return xs.join(','); }).join(';');
+    };
     State.prototype.makeID = function () {
         var id = this.nextID;
         return [this.update({ nextID: id + 1 }), id];
@@ -479,6 +491,11 @@ var State = /** @class */ (function () {
     };
     State.prototype.undoable = function () {
         return (this.lastReplayable() != null);
+    };
+    State.fromHistory = function (s, spec) {
+        var pieces = s.split(';');
+        var future = pieces.map(function (piece) { return piece.split(',').map(function (x) { return parseInt(x); }); });
+        return initialState(spec).update({ future: future });
     };
     return State;
 }());
@@ -501,10 +518,8 @@ function shiftFirst(xs) {
         return [null, xs];
     return [xs[0], xs.slice(1)];
 }
-var emptyState = new State({ seed: '', kingdom: null, testing: false }, { coin: 0, energy: 0, points: 0 }, new Map([['supply', []], ['hand', []], ['deck', []], ['discard', []], ['play', []], ['aside', []]]), [], 0, [], [], null, [], 0 // resolving, nextID, history, future, checkpoint, logs, logIndent
-);
-// ---------- Methods for inserting cards into zones
-// tests whether card1 should appear before card2 in sorted order
+var emptyState = new State();
+// tests whether card1 should appear before card2 in sorted order (not currently used)
 function comesBefore(card1, card2) {
     var key = function (card) { return card.name + card.charge + card.tokens.join(''); };
     return key(card1) < (key(card2));
@@ -539,14 +554,44 @@ function insertAt(zone, card, loc) {
         default: return assertNever(loc);
     }
 }
+function createRaw(state, spec, zone, loc) {
+    var _a;
+    if (zone === void 0) { zone = 'discard'; }
+    if (loc === void 0) { loc = 'bottom'; }
+    var id;
+    _a = __read(state.makeID(), 2), state = _a[0], id = _a[1];
+    var card = new Card(spec, id);
+    state = state.addToZone(card, zone, loc);
+    return [state, card];
+}
+function createRawMulti(state, specs, zone, loc) {
+    var e_4, _a, _b;
+    if (zone === void 0) { zone = 'discard'; }
+    if (loc === void 0) { loc = 'bottom'; }
+    try {
+        for (var specs_1 = __values(specs), specs_1_1 = specs_1.next(); !specs_1_1.done; specs_1_1 = specs_1.next()) {
+            var spec = specs_1_1.value;
+            var card = void 0;
+            _b = __read(createRaw(state, spec, zone, loc), 2), state = _b[0], card = _b[1];
+        }
+    }
+    catch (e_4_1) { e_4 = { error: e_4_1 }; }
+    finally {
+        try {
+            if (specs_1_1 && !specs_1_1.done && (_a = specs_1.return)) _a.call(specs_1);
+        }
+        finally { if (e_4) throw e_4.error; }
+    }
+    return state;
+}
 //e is an event that just happened
 //each card in play and aura can have a followup
 //NOTE: this is slow, we should cache triggers (in a dictionary by event type) if it becomes a problem
 function trigger(e) {
     return function (state) {
         return __awaiter(this, void 0, void 0, function () {
-            var initialState, _a, _b, card, _c, _d, rawtrigger, trigger_1, e_4_1, e_5_1;
-            var e_5, _e, e_4, _f;
+            var initialState, _a, _b, card, _c, _d, rawtrigger, trigger_1, e_5_1, e_6_1;
+            var e_6, _e, e_5, _f;
             return __generator(this, function (_g) {
                 switch (_g.label) {
                     case 0:
@@ -562,7 +607,7 @@ function trigger(e) {
                         _g.label = 3;
                     case 3:
                         _g.trys.push([3, 8, 9, 10]);
-                        _c = (e_4 = void 0, __values(card.triggers())), _d = _c.next();
+                        _c = (e_5 = void 0, __values(card.triggers())), _d = _c.next();
                         _g.label = 4;
                     case 4:
                         if (!!_d.done) return [3 /*break*/, 7];
@@ -580,28 +625,28 @@ function trigger(e) {
                         return [3 /*break*/, 4];
                     case 7: return [3 /*break*/, 10];
                     case 8:
-                        e_4_1 = _g.sent();
-                        e_4 = { error: e_4_1 };
+                        e_5_1 = _g.sent();
+                        e_5 = { error: e_5_1 };
                         return [3 /*break*/, 10];
                     case 9:
                         try {
                             if (_d && !_d.done && (_f = _c.return)) _f.call(_c);
                         }
-                        finally { if (e_4) throw e_4.error; }
+                        finally { if (e_5) throw e_5.error; }
                         return [7 /*endfinally*/];
                     case 10:
                         _b = _a.next();
                         return [3 /*break*/, 2];
                     case 11: return [3 /*break*/, 14];
                     case 12:
-                        e_5_1 = _g.sent();
-                        e_5 = { error: e_5_1 };
+                        e_6_1 = _g.sent();
+                        e_6 = { error: e_6_1 };
                         return [3 /*break*/, 14];
                     case 13:
                         try {
                             if (_b && !_b.done && (_e = _a.return)) _e.call(_a);
                         }
-                        finally { if (e_5) throw e_5.error; }
+                        finally { if (e_6) throw e_6.error; }
                         return [7 /*endfinally*/];
                     case 14: return [2 /*return*/, state];
                 }
@@ -614,7 +659,7 @@ function trigger(e) {
 //x is an event that is about to happen
 //each card in play or supply can change properties of x
 function replace(x, state) {
-    var e_6, _a;
+    var e_7, _a;
     var replacers = state.supply.concat(state.play).map(function (x) { return x.replacers(); }).flat();
     try {
         for (var replacers_1 = __values(replacers), replacers_1_1 = replacers_1.next(); !replacers_1_1.done; replacers_1_1 = replacers_1.next()) {
@@ -627,12 +672,12 @@ function replace(x, state) {
             }
         }
     }
-    catch (e_6_1) { e_6 = { error: e_6_1 }; }
+    catch (e_7_1) { e_7 = { error: e_7_1 }; }
     finally {
         try {
             if (replacers_1_1 && !replacers_1_1.done && (_a = replacers_1.return)) _a.call(replacers_1);
         }
-        finally { if (e_6) throw e_6.error; }
+        finally { if (e_7) throw e_7.error; }
     }
     return x;
 }
@@ -696,12 +741,10 @@ function create(spec, zone, loc) {
     if (loc === void 0) { loc = 'bottom'; }
     return function (state) {
         return __awaiter(this, void 0, void 0, function () {
-            var id, card;
+            var card;
             var _a;
             return __generator(this, function (_b) {
-                _a = __read(state.makeID(), 2), state = _a[0], id = _a[1];
-                card = new Card(spec, id);
-                state = state.addToZone(card, zone, loc);
+                _a = __read(createRaw(state, spec, zone, loc), 2), state = _a[0], card = _a[1];
                 state = state.log("Created " + a(card.name) + " in " + zone);
                 return [2 /*return*/, trigger({ kind: 'create', card: card, zone: zone })(state)];
             });
@@ -1261,7 +1304,7 @@ function renderAbility(x) {
     return "<div>(ability) " + x.text + "</div>";
 }
 function renderTokens(tokens) {
-    var e_7, _a, e_8, _b;
+    var e_8, _a, e_9, _b;
     var counter = new Map();
     try {
         for (var tokens_1 = __values(tokens), tokens_1_1 = tokens_1.next(); !tokens_1_1.done; tokens_1_1 = tokens_1.next()) {
@@ -1269,12 +1312,12 @@ function renderTokens(tokens) {
             counter.set(token, (counter.get(token) || 0) + 1);
         }
     }
-    catch (e_7_1) { e_7 = { error: e_7_1 }; }
+    catch (e_8_1) { e_8 = { error: e_8_1 }; }
     finally {
         try {
             if (tokens_1_1 && !tokens_1_1.done && (_a = tokens_1.return)) _a.call(tokens_1);
         }
-        finally { if (e_7) throw e_7.error; }
+        finally { if (e_8) throw e_8.error; }
     }
     var parts = [];
     try {
@@ -1283,12 +1326,12 @@ function renderTokens(tokens) {
             parts.push((count == 1) ? token : token + "(" + count + ")");
         }
     }
-    catch (e_8_1) { e_8 = { error: e_8_1 }; }
+    catch (e_9_1) { e_9 = { error: e_9_1 }; }
     finally {
         try {
             if (counter_1_1 && !counter_1_1.done && (_b = counter_1.return)) _b.call(counter_1);
         }
-        finally { if (e_8) throw e_8.error; }
+        finally { if (e_9) throw e_9.error; }
     }
     return parts.join(', ');
 }
@@ -1344,6 +1387,16 @@ function renderState(state, settings) {
     $('#discard').html(state.discard.map(render).join(''));
     $('#log').html(state.logs.slice().reverse().map(render_log).join(''));
 }
+var ReplayEnded = /** @class */ (function (_super) {
+    __extends(ReplayEnded, _super);
+    function ReplayEnded(state) {
+        var _this = _super.call(this, 'ReplayEnded') || this;
+        _this.state = state;
+        Object.setPrototypeOf(_this, ReplayEnded.prototype);
+        return _this;
+    }
+    return ReplayEnded;
+}(Error));
 function doOrReplay(state, f) {
     return __awaiter(this, void 0, void 0, function () {
         var record, x, _a;
@@ -1352,6 +1405,8 @@ function doOrReplay(state, f) {
             switch (_c.label) {
                 case 0:
                     _b = __read(state.shiftFuture(), 2), state = _b[0], record = _b[1];
+                    if (record == null && state.spec.replay == true)
+                        throw new ReplayEnded(state);
                     if (!(record == null)) return [3 /*break*/, 2];
                     return [4 /*yield*/, f()];
                 case 1:
@@ -1367,21 +1422,24 @@ function doOrReplay(state, f) {
         });
     });
 }
-function multichoice(state, prompt, options, validator) {
+function multichoice(state, prompt, options, validator, automateTrivial) {
     if (validator === void 0) { validator = (function (xs) { return true; }); }
+    if (automateTrivial === void 0) { automateTrivial = true; }
     return __awaiter(this, void 0, void 0, function () {
         var indices;
         var _a;
         return __generator(this, function (_b) {
             switch (_b.label) {
                 case 0:
-                    if (!(options.length == 0)) return [3 /*break*/, 1];
+                    if (!(automateTrivial && options.length == 0)) return [3 /*break*/, 1];
                     return [2 /*return*/, [state, []]];
                 case 1:
                     indices = void 0;
                     return [4 /*yield*/, doOrReplay(state, function () { return freshMultichoice(state, prompt, options, validator); })];
                 case 2:
                     _a = __read.apply(void 0, [_b.sent(), 2]), state = _a[0], indices = _a[1];
+                    if (indices.some(function (x) { return x > options.length; }))
+                        throw new HistoryMismatch(indices, state);
                     return [2 /*return*/, [state, indices.map(function (i) { return options[i].value; })]];
             }
         });
@@ -1389,16 +1447,17 @@ function multichoice(state, prompt, options, validator) {
 }
 var HistoryMismatch = /** @class */ (function (_super) {
     __extends(HistoryMismatch, _super);
-    function HistoryMismatch(indices, msg) {
+    function HistoryMismatch(indices, state) {
         var _this = _super.call(this, 'HistoryMismatch') || this;
         _this.indices = indices;
-        _this.msg = msg;
+        _this.state = state;
         Object.setPrototypeOf(_this, HistoryMismatch.prototype);
         return _this;
     }
     return HistoryMismatch;
 }(Error));
-function choice(state, prompt, options) {
+function choice(state, prompt, options, automateTrivial) {
+    if (automateTrivial === void 0) { automateTrivial = true; }
     return __awaiter(this, void 0, void 0, function () {
         var index, indices;
         var _a;
@@ -1408,7 +1467,7 @@ function choice(state, prompt, options) {
                     if (!(options.length == 0)) return [3 /*break*/, 1];
                     return [2 /*return*/, [state, null]];
                 case 1:
-                    if (!(options.length == 1)) return [3 /*break*/, 2];
+                    if (!(automateTrivial && options.length == 1)) return [3 /*break*/, 2];
                     return [2 /*return*/, [state, options[0].value]];
                 case 2:
                     indices = void 0;
@@ -1424,8 +1483,8 @@ function choice(state, prompt, options) {
                         })];
                 case 3:
                     _a = __read.apply(void 0, [_b.sent(), 2]), state = _a[0], indices = _a[1];
-                    if (indices.length != 1)
-                        throw new HistoryMismatch(indices, 'expected a choice not a multichoice');
+                    if (indices.length != 1 || indices[0] >= options.length)
+                        throw new HistoryMismatch(indices, state);
                     return [2 /*return*/, [state, options[indices[0]].value]];
             }
         });
@@ -1636,7 +1695,7 @@ function freshMultichoice(state, choicePrompt, options, validator) {
     return new Promise(function (resolve, reject) {
         var chosen = new Set();
         function chosenOptions() {
-            var e_9, _a;
+            var e_10, _a;
             var result = [];
             try {
                 for (var chosen_1 = __values(chosen), chosen_1_1 = chosen_1.next(); !chosen_1_1.done; chosen_1_1 = chosen_1.next()) {
@@ -1644,12 +1703,12 @@ function freshMultichoice(state, choicePrompt, options, validator) {
                     result.push(options[i].value);
                 }
             }
-            catch (e_9_1) { e_9 = { error: e_9_1 }; }
+            catch (e_10_1) { e_10 = { error: e_10_1 }; }
             finally {
                 try {
                     if (chosen_1_1 && !chosen_1_1.done && (_a = chosen_1.return)) _a.call(chosen_1);
                 }
-                finally { if (e_9) throw e_9.error; }
+                finally { if (e_10) throw e_10.error; }
             }
             return result;
         }
@@ -1669,7 +1728,7 @@ function freshMultichoice(state, choicePrompt, options, validator) {
             return $("[option='" + i + "']");
         }
         function picks() {
-            var e_10, _a;
+            var e_11, _a;
             var result = new Map();
             var i = 0;
             try {
@@ -1678,12 +1737,12 @@ function freshMultichoice(state, choicePrompt, options, validator) {
                     result.set(options[k].render, i++);
                 }
             }
-            catch (e_10_1) { e_10 = { error: e_10_1 }; }
+            catch (e_11_1) { e_11 = { error: e_11_1 }; }
             finally {
                 try {
                     if (chosen_2_1 && !chosen_2_1.done && (_a = chosen_2.return)) _a.call(chosen_2);
                 }
-                finally { if (e_10) throw e_10.error; }
+                finally { if (e_11) throw e_11.error; }
             }
             return result;
         }
@@ -1707,7 +1766,7 @@ function freshMultichoice(state, choicePrompt, options, validator) {
             } });
         chosen.clear();
         function renderer() {
-            var e_11, _a;
+            var e_12, _a;
             renderChoice(state, choicePrompt, newOptions, reject, renderer, picks);
             try {
                 for (var chosen_3 = __values(chosen), chosen_3_1 = chosen_3.next(); !chosen_3_1.done; chosen_3_1 = chosen_3.next()) {
@@ -1715,12 +1774,12 @@ function freshMultichoice(state, choicePrompt, options, validator) {
                     elem(j).attr('chosen', true);
                 }
             }
-            catch (e_11_1) { e_11 = { error: e_11_1 }; }
+            catch (e_12_1) { e_12 = { error: e_12_1 }; }
             finally {
                 try {
                     if (chosen_3_1 && !chosen_3_1.done && (_a = chosen_3.return)) _a.call(chosen_3);
                 }
-                finally { if (e_11) throw e_11.error; }
+                finally { if (e_12) throw e_12.error; }
             }
         }
         renderer();
@@ -1751,7 +1810,7 @@ var HotkeyMapper = /** @class */ (function () {
     function HotkeyMapper() {
     }
     HotkeyMapper.prototype.map = function (state, options) {
-        var e_12, _a, e_13, _b, e_14, _c;
+        var e_13, _a, e_14, _b, e_15, _c;
         var result = new Map();
         var taken = new Map();
         var pickable = new Set();
@@ -1761,12 +1820,12 @@ var HotkeyMapper = /** @class */ (function () {
                 pickable.add(option.render);
             }
         }
-        catch (e_12_1) { e_12 = { error: e_12_1 }; }
+        catch (e_13_1) { e_13 = { error: e_13_1 }; }
         finally {
             try {
                 if (options_1_1 && !options_1_1.done && (_a = options_1.return)) _a.call(options_1);
             }
-            finally { if (e_12) throw e_12.error; }
+            finally { if (e_13) throw e_13.error; }
         }
         function takenByPickable(key) {
             var takenBy = taken.get(key);
@@ -1777,7 +1836,7 @@ var HotkeyMapper = /** @class */ (function () {
             taken.set(k, x);
         }
         function setFrom(cards, preferredHotkeys) {
-            var e_15, _a;
+            var e_16, _a;
             var preferredSet = new Set(preferredHotkeys);
             var otherHotkeys = hotkeys.filter(function (x) { return !preferredSet.has(x); });
             var toAssign = (preferredHotkeys.concat(otherHotkeys)).filter(function (x) { return !taken.has(x); });
@@ -1790,12 +1849,12 @@ var HotkeyMapper = /** @class */ (function () {
                     }
                 }
             }
-            catch (e_15_1) { e_15 = { error: e_15_1 }; }
+            catch (e_16_1) { e_16 = { error: e_16_1 }; }
             finally {
                 try {
                     if (cards_1_1 && !cards_1_1.done && (_a = cards_1.return)) _a.call(cards_1);
                 }
-                finally { if (e_15) throw e_15.error; }
+                finally { if (e_16) throw e_16.error; }
             }
         }
         //want to put zones that are most important not to change earlier
@@ -1812,12 +1871,12 @@ var HotkeyMapper = /** @class */ (function () {
                 }
             }
         }
-        catch (e_13_1) { e_13 = { error: e_13_1 }; }
+        catch (e_14_1) { e_14 = { error: e_14_1 }; }
         finally {
             try {
                 if (options_2_1 && !options_2_1.done && (_b = options_2.return)) _b.call(options_2);
             }
-            finally { if (e_13) throw e_13.error; }
+            finally { if (e_14) throw e_14.error; }
         }
         var index = 0;
         function nextHotkey() {
@@ -1840,12 +1899,12 @@ var HotkeyMapper = /** @class */ (function () {
                 }
             }
         }
-        catch (e_14_1) { e_14 = { error: e_14_1 }; }
+        catch (e_15_1) { e_15 = { error: e_15_1 }; }
         finally {
             try {
                 if (options_3_1 && !options_3_1.done && (_c = options_3.return)) _c.call(options_3);
             }
-            finally { if (e_14) throw e_14.error; }
+            finally { if (e_15) throw e_15.error; }
         }
         return result;
     };
@@ -1893,8 +1952,8 @@ function actChoice(state) {
     var validHand = state.hand;
     var validSupplies = state.supply.filter(function (x) { return (x.cost(state).coin <= state.coin); });
     var validPlay = state.play.filter(function (x) { return (x.abilities().length > 0); });
-    var cards = validPlay.concat(validHand).concat(validSupplies);
-    return choice(state, 'Play a card from your hand, use an ability of a card in play, or buy a card from the supply.', cards.map(asChoice));
+    var cards = validHand.concat(validSupplies).concat(validPlay);
+    return choice(state, 'Play a card from your hand, use an ability of a card in play, or buy a card from the supply.', cards.map(asChoice), false);
 }
 function useCard(card) {
     return function (state) {
@@ -1952,7 +2011,7 @@ function undo(startState) {
 }
 //TODO: allow submitting custom kingdoms
 function submittable(spec) {
-    return (spec.kingdom == null) && !spec.testing;
+    return (spec.kingdom == null) && (spec.testing != true);
 }
 function mainLoop(state) {
     return __awaiter(this, void 0, void 0, function () {
@@ -2008,7 +2067,7 @@ function setCookie(name, value) {
     document.cookie = name + "=" + value + "; max-age=315360000; path=/";
 }
 function getCookie(name) {
-    var e_16, _a;
+    var e_17, _a;
     var nameEQ = name + "=";
     var ca = document.cookie.split(';');
     try {
@@ -2020,12 +2079,12 @@ function getCookie(name) {
                 return c.substring(nameEQ.length, c.length);
         }
     }
-    catch (e_16_1) { e_16 = { error: e_16_1 }; }
+    catch (e_17_1) { e_17 = { error: e_17_1 }; }
     finally {
         try {
             if (_c && !_c.done && (_a = _b.return)) _a.call(_b);
         }
-        finally { if (e_16) throw e_16.error; }
+        finally { if (e_17) throw e_17.error; }
     }
     return null;
 }
@@ -2088,51 +2147,97 @@ function renderBest(best, spec) {
 function scoreboardURL(spec) {
     return "scoreboard?seed=" + spec.seed;
 }
+function replayGame(spec, history) {
+    return __awaiter(this, void 0, void 0, function () {
+        var state;
+        return __generator(this, function (_a) {
+            switch (_a.label) {
+                case 0:
+                    state = State.fromHistory(history, __assign(__assign({}, spec), { replay: true }));
+                    return [4 /*yield*/, trigger({ kind: 'gameStart' })(state)];
+                case 1:
+                    state = _a.sent();
+                    _a.label = 2;
+                case 2:
+                    if (!true) return [3 /*break*/, 4];
+                    return [4 /*yield*/, act(state)];
+                case 3:
+                    state = _a.sent();
+                    return [3 /*break*/, 2];
+                case 4: return [2 /*return*/];
+            }
+        });
+    });
+}
+function verifyScore(seed, history, score) {
+    return __awaiter(this, void 0, void 0, function () {
+        return __generator(this, function (_a) {
+            return [2 /*return*/, replayGame({ seed: seed, kingdom: null }, history).catch(function (e) {
+                    if (e instanceof Victory) {
+                        if (e.state.energy == score)
+                            return [true, ""];
+                        else
+                            return [false, "Computed score was " + e.state.energy];
+                    }
+                    else if (e instanceof HistoryMismatch) {
+                        return [false, "" + e];
+                    }
+                    else if (e instanceof ReplayEnded) {
+                        return [false, "" + e];
+                    }
+                    else {
+                        throw e;
+                    }
+                })];
+        });
+    });
+}
+// ------------------------------ Start the game
 function supplyKey(spec) {
     return new Card(spec, -1).cost(emptyState).coin;
 }
 function supplySort(card1, card2) {
     return supplyKey(card1) - supplyKey(card2);
 }
+function initialState(spec) {
+    var startingDeck = [copper, copper, copper, copper, copper,
+        copper, copper, estate, estate, estate];
+    var intSeed = hash(spec.seed);
+    var shuffledDeck = randomChoices(startingDeck, startingDeck.length, intSeed);
+    var variableSupplies = randomChoices(mixins, 12, intSeed + 1);
+    var fixedKingdom = getFixedKingdom(spec.kingdom);
+    if (fixedKingdom != null)
+        variableSupplies = fixedKingdom;
+    variableSupplies.sort(supplySort);
+    if (spec.testing) {
+        for (var i = 0; i < cheats.length; i++)
+            testing.push(cheats[i]);
+        variableSupplies = variableSupplies.concat(testing);
+    }
+    var kingdom = coreSupplies.concat(variableSupplies);
+    var state = new State(spec);
+    state = createRawMulti(state, kingdom, 'supply');
+    state = createRawMulti(state, shuffledDeck, 'deck');
+    return state;
+}
 function playGame(spec) {
     return __awaiter(this, void 0, void 0, function () {
-        var state, startingDeck, intSeed, shuffledDeck, variableSupplies, fixedKingdom, i, kingdom;
+        var state;
         return __generator(this, function (_a) {
             switch (_a.label) {
                 case 0:
-                    state = new State(spec);
-                    startingDeck = [copper, copper, copper, copper, copper,
-                        copper, copper, estate, estate, estate];
-                    intSeed = hash(spec.seed);
-                    shuffledDeck = randomChoices(startingDeck, startingDeck.length, intSeed);
-                    return [4 /*yield*/, doAll(shuffledDeck.map(function (x) { return create(x, 'deck'); }))(state)];
+                    state = initialState(spec);
+                    return [4 /*yield*/, trigger({ kind: 'gameStart' })(state)];
                 case 1:
                     state = _a.sent();
-                    variableSupplies = randomChoices(mixins, 12, intSeed + 1);
-                    fixedKingdom = getFixedKingdom(spec.kingdom);
-                    if (fixedKingdom != null)
-                        variableSupplies = fixedKingdom;
-                    variableSupplies.sort(supplySort);
-                    if (spec.testing) {
-                        for (i = 0; i < cheats.length; i++)
-                            testing.push(cheats[i]);
-                    }
-                    kingdom = coreSupplies.concat(variableSupplies).concat(testing);
-                    return [4 /*yield*/, doAll(kingdom.map(function (x) { return create(x, 'supply'); }))(state)];
+                    _a.label = 2;
                 case 2:
-                    state = _a.sent();
-                    return [4 /*yield*/, trigger({ kind: 'gameStart' })(state)];
+                    if (!true) return [3 /*break*/, 4];
+                    return [4 /*yield*/, mainLoop(state)];
                 case 3:
                     state = _a.sent();
-                    state = state.log("Setup done, game starting");
-                    _a.label = 4;
-                case 4:
-                    if (!true) return [3 /*break*/, 6];
-                    return [4 /*yield*/, mainLoop(state)];
-                case 5:
-                    state = _a.sent();
-                    return [3 /*break*/, 4];
-                case 6: return [2 /*return*/];
+                    return [3 /*break*/, 2];
+                case 4: return [2 /*return*/];
             }
         });
     });
@@ -2146,7 +2251,7 @@ function hash(s) {
     }
     return hash;
 }
-function getGameSpec() {
+function makeGameSpec() {
     return { seed: getSeed(), kingdom: getKingdom(), testing: testing.length > 0 };
 }
 function getKingdom() {
@@ -2157,7 +2262,7 @@ function getSeed() {
     return (seed == null) ? Math.random().toString(36).substring(2, 7) : seed;
 }
 function getFixedKingdom(kingdomString) {
-    var e_17, _a, e_18, _b;
+    var e_18, _a, e_19, _b;
     if (kingdomString == null)
         return null;
     var cardStrings = kingdomString.split(',');
@@ -2168,12 +2273,12 @@ function getFixedKingdom(kingdomString) {
             mixinsByName.set(spec.name, spec);
         }
     }
-    catch (e_17_1) { e_17 = { error: e_17_1 }; }
+    catch (e_18_1) { e_18 = { error: e_18_1 }; }
     finally {
         try {
             if (mixins_1_1 && !mixins_1_1.done && (_a = mixins_1.return)) _a.call(mixins_1);
         }
-        finally { if (e_17) throw e_17.error; }
+        finally { if (e_18) throw e_18.error; }
     }
     var result = [];
     try {
@@ -2189,12 +2294,12 @@ function getFixedKingdom(kingdomString) {
             }
         }
     }
-    catch (e_18_1) { e_18 = { error: e_18_1 }; }
+    catch (e_19_1) { e_19 = { error: e_19_1 }; }
     finally {
         try {
             if (cardStrings_1_1 && !cardStrings_1_1.done && (_b = cardStrings_1.return)) _b.call(cardStrings_1);
         }
-        finally { if (e_18) throw e_18.error; }
+        finally { if (e_19) throw e_19.error; }
     }
     return result;
 }
@@ -2209,7 +2314,7 @@ function heartbeat(spec) {
 }
 //TODO: live updates?
 function load() {
-    var spec = getGameSpec();
+    var spec = makeGameSpec();
     heartbeat(spec);
     setInterval(function () { return heartbeat(spec); }, 30000);
     playGame(spec);
@@ -2782,8 +2887,8 @@ var hallOfMirrors = { name: 'Hall of Mirrors',
         text: 'Put a mirror token on each card in your hand.',
         effect: function (state) {
             return __awaiter(this, void 0, void 0, function () {
-                var _a, _b, card_2, e_19_1;
-                var e_19, _c;
+                var _a, _b, card_2, e_20_1;
+                var e_20, _c;
                 return __generator(this, function (_d) {
                     switch (_d.label) {
                         case 0:
@@ -2802,14 +2907,14 @@ var hallOfMirrors = { name: 'Hall of Mirrors',
                             return [3 /*break*/, 1];
                         case 4: return [3 /*break*/, 7];
                         case 5:
-                            e_19_1 = _d.sent();
-                            e_19 = { error: e_19_1 };
+                            e_20_1 = _d.sent();
+                            e_20 = { error: e_20_1 };
                             return [3 /*break*/, 7];
                         case 6:
                             try {
                                 if (_b && !_b.done && (_c = _a.return)) _c.call(_a);
                             }
-                            finally { if (e_19) throw e_19.error; }
+                            finally { if (e_20) throw e_20.error; }
                             return [7 /*endfinally*/];
                         case 7: return [2 /*return*/, state];
                     }
@@ -2867,7 +2972,7 @@ var royalCarriage = { name: 'Royal Carriage',
             handles: function (e) { return (e.source.name == 'act'); },
             effect: function (e) { return function (state) {
                 return __awaiter(this, void 0, void 0, function () {
-                    var findCarriage, findCard, findagain;
+                    var findCarriage, findCard;
                     return __generator(this, function (_a) {
                         switch (_a.label) {
                             case 0:
@@ -2875,15 +2980,9 @@ var royalCarriage = { name: 'Royal Carriage',
                                 findCard = state.find(e.after);
                                 if (!(findCarriage.found && countTokens(findCarriage.card, 'royalty') > 0
                                     && findCard.place == 'discard')) return [3 /*break*/, 4];
-                                findagain = state.find(card);
-                                if (findagain.found)
-                                    console.log(findagain.card.ticks);
                                 return [4 /*yield*/, removeTokens(card, 'royalty')(state)];
                             case 1:
                                 state = _a.sent();
-                                findagain = state.find(card);
-                                if (findagain.found)
-                                    console.log(findagain.card.ticks);
                                 return [4 /*yield*/, move(card, 'discard')(state)];
                             case 2:
                                 state = _a.sent();
@@ -3424,8 +3523,8 @@ var makeSynergy = { name: 'Synergy',
             " then put synergy tokens on two cards in the supply.",
         effect: function (state) {
             return __awaiter(this, void 0, void 0, function () {
-                var _a, _b, card_3, e_20_1, cards, cards_2, cards_2_1, card_4, e_21_1;
-                var e_20, _c, _d, e_21, _e;
+                var _a, _b, card_3, e_21_1, cards, cards_2, cards_2_1, card_4, e_22_1;
+                var e_21, _c, _d, e_22, _e;
                 return __generator(this, function (_f) {
                     switch (_f.label) {
                         case 0:
@@ -3445,14 +3544,14 @@ var makeSynergy = { name: 'Synergy',
                             return [3 /*break*/, 1];
                         case 4: return [3 /*break*/, 7];
                         case 5:
-                            e_20_1 = _f.sent();
-                            e_20 = { error: e_20_1 };
+                            e_21_1 = _f.sent();
+                            e_21 = { error: e_21_1 };
                             return [3 /*break*/, 7];
                         case 6:
                             try {
                                 if (_b && !_b.done && (_c = _a.return)) _c.call(_a);
                             }
-                            finally { if (e_20) throw e_20.error; }
+                            finally { if (e_21) throw e_21.error; }
                             return [7 /*endfinally*/];
                         case 7: return [4 /*yield*/, multichoiceIfNeeded(state, 'Choose two cards to synergize.', state.supply.map(asChoice), 2, false)];
                         case 8:
@@ -3474,14 +3573,14 @@ var makeSynergy = { name: 'Synergy',
                             return [3 /*break*/, 10];
                         case 13: return [3 /*break*/, 16];
                         case 14:
-                            e_21_1 = _f.sent();
-                            e_21 = { error: e_21_1 };
+                            e_22_1 = _f.sent();
+                            e_22 = { error: e_22_1 };
                             return [3 /*break*/, 16];
                         case 15:
                             try {
                                 if (cards_2_1 && !cards_2_1.done && (_e = cards_2.return)) _e.call(cards_2);
                             }
-                            finally { if (e_21) throw e_21.error; }
+                            finally { if (e_22) throw e_22.error; }
                             return [7 /*endfinally*/];
                         case 16: return [2 /*return*/, state];
                     }
@@ -3544,7 +3643,6 @@ var bustlingSquare = { name: 'Bustling Square',
                                 return __generator(this, function (_b) {
                                     switch (_b.label) {
                                         case 0:
-                                            console.log(hand);
                                             target = void 0;
                                             return [4 /*yield*/, choice(state, 'Choose which card to play next.', allowNull(hand))];
                                         case 1:
@@ -4020,7 +4118,7 @@ var coppersmith = { name: 'Coppersmith',
 };
 buyable(coppersmith, 3);
 function countDistinct(xs) {
-    var e_22, _a;
+    var e_23, _a;
     var y = new Set();
     var result = 0;
     try {
@@ -4032,12 +4130,12 @@ function countDistinct(xs) {
             }
         }
     }
-    catch (e_22_1) { e_22 = { error: e_22_1 }; }
+    catch (e_23_1) { e_23 = { error: e_23_1 }; }
     finally {
         try {
             if (xs_1_1 && !xs_1_1.done && (_a = xs_1.return)) _a.call(xs_1);
         }
-        finally { if (e_22) throw e_22.error; }
+        finally { if (e_23) throw e_23.error; }
     }
     return result;
 }

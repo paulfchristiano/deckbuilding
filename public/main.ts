@@ -120,7 +120,6 @@ class Card {
     cost(state:State): Cost {
         const card:Card = this
         const initialCost:CostParams = {kind:'cost', card:card, cost:card.baseCost(state)}
-        //TODO: would be nice to type check manipulations of these params, but seems harder
         const newCost:Params = replace(initialCost, state)
         return newCost.cost
     }
@@ -201,10 +200,15 @@ class Card {
 }
 
 // ------------------------- State
+//
+interface GameSpec {
+    seed: string;
+    kingdom: string|null;
+    testing?: boolean;
+    replay?: boolean;
+}
 
 type Transform = ((state:State) => Promise<State>) | ((state:State) => State)
-
-type InsertLocation = 'bottom' | 'top' | 'start' | 'end' | 'handSort'
 
 type ZoneName = 'supply' | 'hand' | 'deck' | 'discard' | 'play' | 'aside'
 type PlaceName = ZoneName | null | 'resolving'
@@ -262,13 +266,13 @@ class State {
     public readonly play:Zone;
     public readonly aside:Zone;
     constructor(
-        public readonly spec: GameSpec,
+        public readonly spec: GameSpec = {seed:'', kingdom:null},
         private readonly counters:Counters = {coin:0, energy:0, points:0},
         private readonly zones:Map<ZoneName,Zone> = new Map(),
         public readonly resolving:Resolving = [],
         private readonly nextID:number = 0,
         private readonly history: Replayable[] = [],
-        private readonly future: Replayable[] = [],
+        public readonly future: Replayable[] = [],
         private readonly checkpoint: State|null = null,
         public readonly logs: string[] = [],
         private readonly logIndent: number = 0,
@@ -397,6 +401,18 @@ class State {
         const last:State|null = this.checkpoint
         return (last==null) ? null : last.update({future:this.history.concat(this.future)})
     }
+    //TODO: serialize the full history
+    //TODO: make a version of state that raises an exception if player choice is required
+    //TODO: write a routine that creates dummy state and a proposed score, and tells if it's valid
+    serializeHistory(): string {
+        let state:State = this;
+        let prev:State|null = state;
+        while (prev != null) {
+            state = prev;
+            prev = state.backup()
+        }
+        return state.future.map(xs => xs.join(',')).join(';')
+    }
     makeID(): [State, number] {
         const id:number = this.nextID
         return [this.update({nextID: id+1}), id]
@@ -412,7 +428,13 @@ class State {
     undoable(): boolean {
         return (this.lastReplayable() != null)
     }
+    static fromHistory(s:string, spec:GameSpec): State {
+        const pieces:string[] = s.split(';')
+        const future = pieces.map(piece => piece.split(',').map(x => parseInt(x)))
+        return initialState(spec).update({future: future})
+    }
 }
+
 
 function indent(n:number, s:string) {
     const parts:string[] = []
@@ -434,18 +456,14 @@ function shiftFirst<T>(xs:T[]): [T|null, T[]] {
     return [xs[0], xs.slice(1)]
 }
 
-
-const emptyState:State = new State(
-    {seed:'', kingdom:null, testing:false},
-    {coin:0, energy:0, points:0},
-    new Map([ ['supply', []], ['hand', []], ['deck', []], ['discard', []], ['play', []], ['aside', []] ]),
-    [], 0, [], [], null, [], 0 // resolving, nextID, history, future, checkpoint, logs, logIndent
-)
+const emptyState:State = new State()
 
 
 // ---------- Methods for inserting cards into zones
 
-// tests whether card1 should appear before card2 in sorted order
+type InsertLocation = 'bottom' | 'top' | 'start' | 'end' | 'handSort'
+
+// tests whether card1 should appear before card2 in sorted order (not currently used)
 
 function comesBefore(card1:Card, card2:Card): boolean  {
     const key = (card:Card) => card.name + card.charge + card.tokens.join('')
@@ -482,6 +500,20 @@ function insertAt(zone:Zone, card:Card, loc:InsertLocation): Zone {
             return zone.concat([card])
         default: return assertNever(loc)
     }
+}
+
+function createRaw(state:State, spec:CardSpec, zone:ZoneName='discard', loc:InsertLocation='bottom'): [State, Card] {
+    let id:number; [state, id] = state.makeID()
+    const card:Card = new Card(spec, id)
+    state = state.addToZone(card, zone, loc)
+    return [state, card]
+}
+
+function createRawMulti(state:State, specs:CardSpec[], zone:ZoneName='discard', loc:InsertLocation='bottom'): State {
+    for (const spec of specs) {
+        let card; [state, card] = createRaw(state, spec, zone, loc)
+    }
+    return state
 }
 
 // --------------------- Events and triggers
@@ -653,9 +685,7 @@ function tick(card: Card): ((s: State) => State) {
 
 function create(spec:CardSpec, zone:ZoneName='discard', loc:InsertLocation='bottom'): Transform {
     return async function(state: State): Promise<State> {
-        let id:number; [state, id] = state.makeID()
-        const card:Card = new Card(spec, id)
-        state = state.addToZone(card, zone, loc)
+        let card:Card; [state, card] = createRaw(state, spec, zone, loc)
         state = state.log(`Created ${a(card.name)} in ${zone}`)
         return trigger({kind:'create', card:card, zone:zone})(state)
     }
@@ -1174,11 +1204,21 @@ interface StringOption<T> {
     value: T
 }
 
+class ReplayEnded extends Error {
+    constructor(public state:State) {
+        super('ReplayEnded')
+        Object.setPrototypeOf(this, ReplayEnded.prototype)
+    }
+}
+
+
 async function doOrReplay(
     state: State,
     f: () => Promise<Replayable>,
 ): Promise<[State, Replayable]> {
     let record:Replayable | null; [state, record] = state.shiftFuture()
+    if (record == null && state.spec.replay == true) 
+        throw new ReplayEnded(state)
     const x: Replayable = (record == null) ? await f() : record
     return [state.addHistory(x), x]
 }
@@ -1189,19 +1229,22 @@ async function multichoice<T>(
     prompt:string,
     options:Option<T>[],
     validator:(xs:T[]) => boolean = (xs => true),
+    automateTrivial:boolean=true,
 ): Promise<[State, T[]]> {
-    if (options.length == 0) return [state, []]
+    if (automateTrivial && options.length == 0) return [state, []]
     else {
         let indices:number[]; [state, indices] = await doOrReplay(
             state,
             () => freshMultichoice(state, prompt, options, validator),
         )
+        if (indices.some(x => x > options.length))
+            throw new HistoryMismatch(indices, state)
         return [state, indices.map(i => options[i].value)]
     }
 }
 
 class HistoryMismatch extends Error {
-    constructor(public indices:Replayable, public msg:string) {
+    constructor(public indices:Replayable, public state:State) {
         super('HistoryMismatch')
         Object.setPrototypeOf(this, HistoryMismatch.prototype)
     }
@@ -1212,16 +1255,18 @@ async function choice<T>(
     state:State,
     prompt:string,
     options:Option<T>[],
+    automateTrivial:boolean=true,
 ): Promise<[State, T|null]> {
     let index:number;
     if (options.length == 0) return [state, null]
-    else if (options.length == 1) return [state, options[0].value]
+    else if (automateTrivial && options.length == 1) return [state, options[0].value]
     else {
         let indices:number[]; [state, indices] = await doOrReplay(
             state,
             async function() {const x = await freshChoice(state, prompt, options); return [x]},
         )
-        if (indices.length != 1) throw new HistoryMismatch(indices, 'expected a choice not a multichoice')
+        if (indices.length != 1 || indices[0] >= options.length)
+            throw new HistoryMismatch(indices, state)
         return [state, options[indices[0]].value]
     }
 }
@@ -1642,10 +1687,10 @@ function actChoice(state:State): Promise<[State, Card|null]> {
     const validHand:Card[] = state.hand
     const validSupplies:Card[] = state.supply.filter(x => (x.cost(state).coin <= state.coin))
     const validPlay:Card[] = state.play.filter(x => (x.abilities().length > 0))
-    const cards:Card[] = validPlay.concat(validHand).concat(validSupplies)
+    const cards:Card[] = validHand.concat(validSupplies).concat(validPlay)
     return choice(state,
         'Play a card from your hand, use an ability of a card in play, or buy a card from the supply.',
-        cards.map(asChoice))
+        cards.map(asChoice), false)
 }
 
 function useCard(card: Card): Transform {
@@ -1697,7 +1742,7 @@ function undo(startState: State): State {
 
 //TODO: allow submitting custom kingdoms
 function submittable(spec:GameSpec): boolean {
-    return (spec.kingdom == null) && !spec.testing
+    return (spec.kingdom == null) && (spec.testing != true)
 }
 
 async function mainLoop(state: State): Promise<State> {
@@ -1809,15 +1854,33 @@ function scoreboardURL(spec:GameSpec) {
     return `scoreboard?seed=${spec.seed}`
 }
 
+async function replayGame(spec:GameSpec, history:string): Promise<[boolean, string]> {
+    let state = State.fromHistory(history, {...spec, replay:true})
+    state = await trigger({kind:'gameStart'})(state)
+    while (true) {
+        state = await act(state)
+    }
+}
+
+async function verifyScore(seed:string, history:string, score:number): Promise<[boolean, string]> {
+    return replayGame({seed:seed, kingdom:null}, history).catch(function (e:Error) {
+        if (e instanceof Victory) {
+            if (e.state.energy == score)
+                return [true, ""]
+            else
+                return [false, `Computed score was ${e.state.energy}`]
+        } else if (e instanceof HistoryMismatch) {
+            return [false, `${e}`]
+        } else if (e instanceof ReplayEnded) {
+            return [false, `${e}`]
+        } else {
+            throw e
+        }
+    })
+}
 
 
 // ------------------------------ Start the game
-
-interface GameSpec {
-    seed: string;
-    kingdom: string|null;
-    testing: boolean
-}
 
 function supplyKey(spec:CardSpec): number {
     return new Card(spec, -1).cost(emptyState).coin
@@ -1826,24 +1889,29 @@ function supplySort(card1:CardSpec, card2:CardSpec): number {
     return supplyKey(card1) - supplyKey(card2)
 }
 
-async function playGame(spec:GameSpec): Promise<void> {
-    let state = new State(spec)
+function initialState(spec:GameSpec): State {
     const startingDeck:CardSpec[] = [copper, copper, copper, copper, copper,
                                  copper, copper, estate, estate, estate]
     const intSeed:number = hash(spec.seed)
     let shuffledDeck = randomChoices(startingDeck, startingDeck.length, intSeed)
-    state = await doAll(shuffledDeck.map(x => create(x, 'deck')))(state);
     let variableSupplies = randomChoices(mixins, 12, intSeed+1)
     const fixedKingdom:CardSpec[]|null = getFixedKingdom(spec.kingdom)
     if (fixedKingdom != null) variableSupplies = fixedKingdom
     variableSupplies.sort(supplySort)
     if (spec.testing) {
         for (let i = 0; i < cheats.length; i++) testing.push(cheats[i])
+        variableSupplies = variableSupplies.concat(testing)
     }
-    const kingdom = coreSupplies.concat(variableSupplies).concat(testing)
-    state = await doAll(kingdom.map(x => create(x, 'supply')))(state)
+    const kingdom = coreSupplies.concat(variableSupplies)
+    let state = new State(spec)
+    state = createRawMulti(state, kingdom, 'supply')
+    state = createRawMulti(state, shuffledDeck, 'deck')
+    return state
+}
+
+async function playGame(spec:GameSpec): Promise<void> {
+    let state = initialState(spec)
     state = await trigger({kind:'gameStart'})(state)
-    state = state.log(`Setup done, game starting`)
     while (true) {
         state = await mainLoop(state)
     }
@@ -1860,7 +1928,7 @@ function hash(s:string):number{
     return hash
 }
 
-function getGameSpec(): GameSpec {
+function makeGameSpec(): GameSpec {
     return {seed:getSeed(), kingdom:getKingdom(), testing:testing.length > 0}
 }
 
@@ -1902,7 +1970,7 @@ function heartbeat(spec:GameSpec): void {
 
 //TODO: live updates?
 function load(): void {
-    const spec:GameSpec = getGameSpec()
+    const spec:GameSpec = makeGameSpec()
     heartbeat(spec)
     setInterval(() => heartbeat(spec), 30000)
     playGame(spec)
@@ -2421,13 +2489,7 @@ const royalCarriage:CardSpec = {name: 'Royal Carriage',
             const findCard = state.find(e.after)
             if (findCarriage.found && countTokens(findCarriage.card, 'royalty') > 0
                     && findCard.place == 'discard') {
-                let findagain = state.find(card)
-                if (findagain.found)
-                    console.log(findagain.card.ticks)
                 state = await removeTokens(card, 'royalty')(state)
-                findagain = state.find(card)
-                if (findagain.found)
-                    console.log(findagain.card.ticks)
                 state = await move(card, 'discard')(state)
                 state = await playAgain(e.after)(state)
             }
@@ -2904,7 +2966,6 @@ const bustlingSquare:CardSpec = {name: 'Bustling Square',
             let hand:Option<Card>[] = asNumberedChoices(state.hand);
             state = await moveWholeZone('hand', 'aside')(state)
             while (true) {
-                console.log(hand)
                 let target:Card|null; [state, target] = await choice(state,
                     'Choose which card to play next.', allowNull(hand))
                 if (target == null) {
