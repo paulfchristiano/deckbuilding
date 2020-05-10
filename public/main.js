@@ -1,4 +1,5 @@
 "use strict";
+// TODO: would be nice to have 'space' as the default done hint
 // TODO: make calculated costs render as "(cost) X"
 // TODO: make the tooltip nice---should show up immediately, but be impossible to keep it alive by mousing over it
 // TODO: I think the cost framework isn't really appropriate any more, but maybe think a bit before getting rid of it
@@ -287,7 +288,7 @@ var Card = /** @class */ (function () {
 }());
 var notFound = { found: false, card: null, place: null };
 var State = /** @class */ (function () {
-    function State(counters, zones, resolving, nextID, history, future, checkpoint, logs, logIndent, info) {
+    function State(spec, counters, zones, resolving, nextID, history, future, checkpoint, logs, logIndent) {
         if (counters === void 0) { counters = { coin: 0, energy: 0, points: 0 }; }
         if (zones === void 0) { zones = new Map(); }
         if (resolving === void 0) { resolving = []; }
@@ -297,7 +298,7 @@ var State = /** @class */ (function () {
         if (checkpoint === void 0) { checkpoint = null; }
         if (logs === void 0) { logs = []; }
         if (logIndent === void 0) { logIndent = 0; }
-        if (info === void 0) { info = { kingdom: [] }; }
+        this.spec = spec;
         this.counters = counters;
         this.zones = zones;
         this.resolving = resolving;
@@ -307,7 +308,6 @@ var State = /** @class */ (function () {
         this.checkpoint = checkpoint;
         this.logs = logs;
         this.logIndent = logIndent;
-        this.info = info;
         this.coin = counters.coin;
         this.energy = counters.energy;
         this.points = counters.points;
@@ -319,10 +319,7 @@ var State = /** @class */ (function () {
         this.aside = zones.get('aside') || [];
     }
     State.prototype.update = function (stateUpdate) {
-        return new State(read(stateUpdate, 'counters', this.counters), read(stateUpdate, 'zones', this.zones), read(stateUpdate, 'resolving', this.resolving), read(stateUpdate, 'nextID', this.nextID), read(stateUpdate, 'history', this.history), read(stateUpdate, 'future', this.future), read(stateUpdate, 'checkpoint', this.checkpoint), read(stateUpdate, 'logs', this.logs), read(stateUpdate, 'logIndent', this.logIndent), read(stateUpdate, 'info', this.info));
-    };
-    State.prototype.updateInfo = function (info) {
-        return this.update({ info: info });
+        return new State(this.spec, read(stateUpdate, 'counters', this.counters), read(stateUpdate, 'zones', this.zones), read(stateUpdate, 'resolving', this.resolving), read(stateUpdate, 'nextID', this.nextID), read(stateUpdate, 'history', this.history), read(stateUpdate, 'future', this.future), read(stateUpdate, 'checkpoint', this.checkpoint), read(stateUpdate, 'logs', this.logs), read(stateUpdate, 'logIndent', this.logIndent));
     };
     State.prototype.addResolving = function (x) {
         return this.update({ resolving: this.resolving.concat([x]) });
@@ -505,7 +502,7 @@ function shiftFirst(xs) {
         return [null, xs];
     return [xs[0], xs.slice(1)];
 }
-var emptyState = new State({ coin: 0, energy: 0, points: 0 }, new Map([['supply', []], ['hand', []], ['deck', []], ['discard', []], ['play', []], ['aside', []]]), [], 0, [], [], null, [], 0 // resolving, nextID, history, future, checkpoint, logs, logIndent
+var emptyState = new State({ seed: '', kingdom: null, testing: false }, { coin: 0, energy: 0, points: 0 }, new Map([['supply', []], ['hand', []], ['deck', []], ['discard', []], ['play', []], ['aside', []]]), [], 0, [], [], null, [], 0 // resolving, nextID, history, future, checkpoint, logs, logIndent
 );
 // ---------- Methods for inserting cards into zones
 // tests whether card1 should appear before card2 in sorted order
@@ -1087,8 +1084,12 @@ function logTokenChange(state, card, token, n) {
 function addToken(card, token) {
     return function (state) {
         return __awaiter(this, void 0, void 0, function () {
-            var newCard;
+            var result, newCard;
             return __generator(this, function (_a) {
+                result = state.find(card);
+                if (!result.found)
+                    return [2 /*return*/, state];
+                card = result.card;
                 newCard = card.update({ tokens: card.tokens.concat([token]) });
                 state = state.replace(card, newCard);
                 state = logTokenChange(state, card, token, 1);
@@ -1110,8 +1111,12 @@ function countTokens(card, token) {
 function removeTokens(card, token) {
     return function (state) {
         return __awaiter(this, void 0, void 0, function () {
-            var removed, newCard;
+            var result, removed, newCard;
             return __generator(this, function (_a) {
+                result = state.find(card);
+                if (!result.found)
+                    return [2 /*return*/, state];
+                card = result.card;
                 removed = countTokens(card, token);
                 newCard = card.update({ tokens: card.tokens.filter(function (x) { return (x != token); }) });
                 state = state.replace(card, newCard);
@@ -1133,9 +1138,13 @@ function removeOneToken(card, token) {
                 }
                 return tokens;
             }
-            var removed, newCard;
+            var removed, result, newCard;
             return __generator(this, function (_a) {
                 removed = 0;
+                result = state.find(card);
+                if (!result.found)
+                    return [2 /*return*/, state];
+                card = result.card;
                 newCard = card.update({ tokens: removeOneToken(card.tokens) });
                 state = state.replace(card, newCard);
                 state = logTokenChange(state, card, token, -removed);
@@ -1320,6 +1329,9 @@ function render_log(msg) {
 var renderedState;
 function getIfDef(m, x) {
     return (m == undefined) ? undefined : m.get(x);
+}
+function renderBest(best, seed) {
+    $('#best').html("Fastest win on this seed: " + best + " (<a href='scoreboard?seed=" + seed + "'>scoreboard</a>)");
 }
 function renderState(state, settings) {
     if (settings === void 0) { settings = {}; }
@@ -1579,7 +1591,8 @@ function bindHelp(state, renderer) {
             "You can activate the abilities of cards in play, marked with (ability).",
             "Effects marked with (static) apply whenever the card is in play or in the supply.",
             "The game is played with a kingdom of 7 core cards and 12 randomized cards.",
-            "You can visit <a href=\"" + kingdomURL(state.info.kingdom) + "\">this link</a> to replay this kingdom anyenergy.",
+            //TODO: link to replay this kingdom?
+            //`You can visit <a href="${kingdomURL(state.info.kingdom)}">this link</a> to replay this kingdom anyenergy.`,
             "Or play the <a href='" + dateSeedPath() + "'>daily kingdom</a>, using today's date as a seed.",
             "Or visit the <a href='" + basePlus("picker.html") + "'>kingdom picker<a> to pick a kingdom.",
         ];
@@ -1945,6 +1958,10 @@ function undo(startState) {
         }
     }
 }
+//TODO: allow submitting custom kingdoms
+function submittable(spec) {
+    return (spec.kingdom == null) && !spec.testing;
+}
 function mainLoop(state) {
     return __awaiter(this, void 0, void 0, function () {
         var error_2, submitOrUndo_1;
@@ -1970,14 +1987,13 @@ function mainLoop(state) {
                                 state = error_2.state;
                                 function submitDialog(seed) {
                                     return function () {
-                                        clearChoice();
+                                        keyListeners.clear();
                                         renderScoreSubmission(state.energy, seed, function () { return submitOrUndo_1().then(resolve, reject); });
                                     };
                                 }
-                                var options = (state.info.seed == undefined) ?
-                                    [] : [{
+                                var options = (!submittable(state.spec)) ? [] : [{
                                         render: 'Submit',
-                                        value: submitDialog(state.info.seed),
+                                        value: submitDialog(state.spec.seed),
                                         hotkeyHint: '!',
                                     }];
                                 renderChoice(state, "You won using " + state.energy + " energy!", options, function () { return resolve(undo(state)); }, function () { });
@@ -2038,35 +2054,37 @@ function renderScoreSubmission(score, seed, done) {
     $('#submitScore').on('click', submit);
     $('#cancelSubmit').on('click', exit);
 }
-// ------------------------------ Start the game
 function supplyKey(spec) {
     return new Card(spec, -1).cost(emptyState).coin;
 }
 function supplySort(card1, card2) {
     return supplyKey(card1) - supplyKey(card2);
 }
-function playGame(seed, fixedKingdom) {
+//TODO: the implementation of randomness is now pretty janky
+function playGame(spec) {
     return __awaiter(this, void 0, void 0, function () {
-        var startingDeck, state, shuffledDeck, variableSupplies, i, kingdom;
+        var state, startingDeck, intSeed, shuffledDeck, variableSupplies, fixedKingdom, i, kingdom;
         var _a, _b;
         return __generator(this, function (_c) {
             switch (_c.label) {
                 case 0:
+                    state = new State(spec);
                     startingDeck = [copper, copper, copper, copper, copper,
                         copper, copper, estate, estate, estate];
-                    state = emptyState;
-                    _a = __read(randomChoices(state, startingDeck, startingDeck.length, seed), 2), state = _a[0], shuffledDeck = _a[1];
+                    intSeed = hash(spec.seed);
+                    _a = __read(randomChoices(state, startingDeck, startingDeck.length, intSeed), 2), state = _a[0], shuffledDeck = _a[1];
                     return [4 /*yield*/, doAll(shuffledDeck.map(function (x) { return create(x, 'deck'); }))(state)];
                 case 1:
                     state = _c.sent();
-                    _b = __read(randomChoices(state, mixins, 12, seed), 2), state = _b[0], variableSupplies = _b[1];
-                    if (fixedKingdom != undefined)
+                    _b = __read(randomChoices(state, mixins, 12, intSeed + 1), 2), state = _b[0], variableSupplies = _b[1];
+                    fixedKingdom = getFixedKingdom(spec.kingdom);
+                    if (fixedKingdom != null)
                         variableSupplies = fixedKingdom;
                     variableSupplies.sort(supplySort);
-                    state = state.updateInfo({ kingdom: variableSupplies, seed: seed });
-                    if (testing.length > 0)
+                    if (spec.testing) {
                         for (i = 0; i < cheats.length; i++)
                             testing.push(cheats[i]);
+                    }
                     kingdom = coreSupplies.concat(variableSupplies).concat(testing);
                     return [4 /*yield*/, doAll(kingdom.map(function (x) { return create(x, 'supply'); }))(state)];
                 case 2:
@@ -2096,15 +2114,20 @@ function hash(s) {
     }
     return hash;
 }
+function getGameSpec() {
+    return { seed: getSeed(), kingdom: getKingdom(), testing: testing.length > 0 };
+}
+function getKingdom() {
+    return new URLSearchParams(window.location.search).get('kingdom');
+}
 function getSeed() {
     var seed = new URLSearchParams(window.location.search).get('seed');
-    return (seed == null) ? undefined : hash(seed);
+    return (seed == null) ? Math.random().toString(36).substring(2, 7) : seed;
 }
-function getFixedKingdom() {
+function getFixedKingdom(kingdomString) {
     var e_16, _a, e_17, _b;
-    var kingdomString = new URLSearchParams(window.location.search).get('kingdom');
     if (kingdomString == null)
-        return undefined;
+        return null;
     var cardStrings = kingdomString.split(',');
     var mixinsByName = new Map();
     try {
@@ -2127,7 +2150,7 @@ function getFixedKingdom() {
             var cardSpec = mixinsByName.get(cardString);
             if (cardSpec == undefined) {
                 alert("URL specified invalid card " + cardString);
-                return undefined;
+                return null;
             }
             else {
                 result.push(cardSpec);
@@ -2143,10 +2166,25 @@ function getFixedKingdom() {
     }
     return result;
 }
+function heartbeat(spec) {
+    console.log('!');
+    if (spec.kingdom == null) {
+        $.get("topScore?seed=" + spec.seed).done(function (x) {
+            var n = parseInt(x, 10);
+            if (!isNaN(n))
+                renderBest(n, spec.seed);
+        });
+    }
+}
+//TODO: live updates?
 function load() {
-    playGame(getSeed(), getFixedKingdom());
+    var spec = getGameSpec();
+    heartbeat(spec);
+    setInterval(function () { return heartbeat(spec); }, 30000);
+    playGame(spec);
 }
 // ----------------------------------- Kingdom picker
+//TODO: I think these can just be relative links, we don't have to do it ourselves...
 function basePlus(s) {
     var urlParts = window.location.toString().split('/');
     urlParts[urlParts.length - 1] = s;
@@ -2787,33 +2825,42 @@ var royalCarriage = { name: 'Royal Carriage',
         toZone: 'play',
         effect: noop,
     }); },
+    abilities: function (card) { return [{
+            text: "Put a royalty token on this.",
+            cost: noop,
+            effect: addToken(card, 'royalty')
+        }]; },
     triggers: function (card) { return [{
-            text: "When you finish playing a card, you may discard this"
-                + " to play that card again if it's in your discard pile.",
+            text: "When you finish playing a card the normal way, if this has a royalty token on it then"
+                + " remove the token, discard this, and play the card again if it's in your discard pile.",
             kind: 'afterPlay',
-            handles: function (e) { return true; },
+            handles: function (e) { return (e.source.name == 'act'); },
             effect: function (e) { return function (state) {
                 return __awaiter(this, void 0, void 0, function () {
-                    var findCarriage, findCard, doit;
-                    var _a;
-                    return __generator(this, function (_b) {
-                        switch (_b.label) {
+                    var findCarriage, findCard, findagain;
+                    return __generator(this, function (_a) {
+                        switch (_a.label) {
                             case 0:
                                 findCarriage = state.find(card);
                                 findCard = state.find(e.after);
-                                if (!(findCarriage.found && findCarriage.place == 'play')) return [3 /*break*/, 4];
-                                doit = void 0;
-                                return [4 /*yield*/, choice(state, "Use " + card.name + " to play " + e.before.name + " again?", yesOrNo)];
+                                if (!(findCarriage.found && countTokens(findCarriage.card, 'royalty') > 0
+                                    && findCard.place == 'discard')) return [3 /*break*/, 4];
+                                findagain = state.find(card);
+                                if (findagain.found)
+                                    console.log(findagain.card.ticks);
+                                return [4 /*yield*/, removeTokens(card, 'royalty')(state)];
                             case 1:
-                                _a = __read.apply(void 0, [_b.sent(), 2]), state = _a[0], doit = _a[1];
-                                if (!doit) return [3 /*break*/, 4];
+                                state = _a.sent();
+                                findagain = state.find(card);
+                                if (findagain.found)
+                                    console.log(findagain.card.ticks);
                                 return [4 /*yield*/, move(card, 'discard')(state)];
                             case 2:
-                                state = _b.sent();
-                                return [4 /*yield*/, playAgain(findCard.card)(state)];
+                                state = _a.sent();
+                                return [4 /*yield*/, playAgain(e.after)(state)];
                             case 3:
-                                state = _b.sent();
-                                _b.label = 4;
+                                state = _a.sent();
+                                _a.label = 4;
                             case 4: return [2 /*return*/, state];
                         }
                     });
@@ -2821,7 +2868,7 @@ var royalCarriage = { name: 'Royal Carriage',
             }; }
         }]; }
 };
-buyable(royalCarriage, 5);
+buyable(royalCarriage, 5, 'test');
 var royalSeal = { name: 'Royal Seal',
     effect: function (card) { return ({
         text: '+$2. Next time you create a card in your discard pile, put it into your hand.',

@@ -26,7 +26,24 @@ express()
     .use(express.static(path.join(__dirname, 'public')))
     .set('view engine', 'ejs')
     .set('views', path.join(__dirname, 'views'))
-    .get('/db', async (req, res) => {
+    .get('/topScore', async (req, res) => {
+      try {
+          const seed = req.query.seed
+          const results = await sql`
+              SELECT username, score, submitted FROM scoreboard
+              WHERE seed=${seed}
+              ORDER BY score ASC, submitted ASC
+          `
+          if (results.length == 0)
+              res.send('null')
+          else
+              res.send(results[0].score.toString())
+      } catch(err) {
+          console.error(err);
+          res.send('Error: ' + err);
+      }
+    })
+    .get('/scoreboard', async (req, res) => {
       try {
           const seed = req.query.seed
           const results = await sql`
@@ -43,7 +60,6 @@ express()
     })
     .post('/submit', async (req, res) => {
         try {
-            console.log(req.query)
             const seed = req.query.seed
             const score = req.query.score
             const username = req.query.username

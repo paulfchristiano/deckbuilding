@@ -1,3 +1,4 @@
+// TODO: would be nice to have 'space' as the default done hint
 // TODO: make calculated costs render as "(cost) X"
 // TODO: make the tooltip nice---should show up immediately, but be impossible to keep it alive by mousing over it
 // TODO: I think the cost framework isn't really appropriate any more, but maybe think a bit before getting rid of it
@@ -246,12 +247,6 @@ interface StateUpdate {
     logIndent?:number;
     checkpoint?:State;
     nextID?:number;
-    info?:StateInfo;
-}
-
-interface StateInfo {
-    kingdom: CardSpec[];
-    seed?: number
 }
 
 interface FoundResult {
@@ -281,6 +276,7 @@ class State {
     public readonly play:Zone;
     public readonly aside:Zone;
     constructor(
+        public readonly spec: GameSpec,
         private readonly counters:Counters = {coin:0, energy:0, points:0},
         private readonly zones:Map<ZoneName,Zone> = new Map(),
         public readonly resolving:Resolving = [],
@@ -290,7 +286,6 @@ class State {
         private readonly checkpoint: State|null = null,
         public readonly logs: string[] = [],
         private readonly logIndent: number = 0,
-        public readonly info: StateInfo = {kingdom: []},
     ) {
         this.coin = counters.coin
         this.energy = counters.energy
@@ -305,6 +300,7 @@ class State {
     }
     private update(stateUpdate:StateUpdate) {
         return new State(
+            this.spec,
             read(stateUpdate, 'counters', this.counters),
             read(stateUpdate, 'zones', this.zones),
             read(stateUpdate, 'resolving', this.resolving),
@@ -314,11 +310,7 @@ class State {
             read(stateUpdate, 'checkpoint', this.checkpoint),
             read(stateUpdate, 'logs', this.logs),
             read(stateUpdate, 'logIndent', this.logIndent),
-            read(stateUpdate, 'info', this.info),
         )
-    }
-    updateInfo(info:StateInfo): State {
-        return this.update({info: info})
     }
     addResolving(x:Card|Shadow): State {
         return this.update({resolving: this.resolving.concat([x])})
@@ -459,6 +451,7 @@ function shiftFirst<T>(xs:T[]): [T|null, T[]] {
 
 
 const emptyState:State = new State(
+    {seed:'', kingdom:null, testing:false},
     {coin:0, energy:0, points:0},
     new Map([ ['supply', []], ['hand', []], ['deck', []], ['discard', []], ['play', []], ['aside', []] ]),
     [], 0, [], [], null, [], 0 // resolving, nextID, history, future, checkpoint, logs, logIndent
@@ -930,6 +923,9 @@ function logTokenChange(state:State, card:Card, token:string, n:number): State {
 
 function addToken(card:Card, token:string): Transform {
     return async function(state) {
+        const result = state.find(card)
+        if (!result.found) return state
+        card = result.card
         const newCard = card.update({tokens: card.tokens.concat([token])})
         state = state.replace(card, newCard)
         state = logTokenChange(state, card, token, 1)
@@ -950,6 +946,9 @@ function countTokens(card:Card, token:string): number {
 
 function removeTokens(card:Card, token:string): Transform {
     return async function(state)  {
+        const result = state.find(card)
+        if (!result.found) return state
+        card = result.card
         const removed: number = countTokens(card, token)
         const newCard = card.update({tokens: card.tokens.filter(x => (x != token))})
         state = state.replace(card, newCard)
@@ -969,6 +968,9 @@ function removeOneToken(card:Card, token:string): Transform {
             }
             return tokens
         }
+        const result = state.find(card)
+        if (!result.found) return state
+        card = result.card
         const newCard:Card = card.update({tokens: removeOneToken(card.tokens)})
         state = state.replace(card, newCard)
         state = logTokenChange(state, card, token, -removed)
@@ -1149,6 +1151,10 @@ interface RenderSettings {
     hotkeyMap?: Map<number|string, Key>;
     optionsMap?: Map<number, number>;
     pickMap?: Map<number|string, number>;
+}
+
+function renderBest(best:number, seed:string): void {
+    $('#best').html(`Fastest win on this seed: ${best} (<a href='scoreboard?seed=${seed}'>scoreboard</a>)`)
 }
 
 function renderState(state:State,
@@ -1439,7 +1445,8 @@ function bindHelp(state:State, renderer: () => void) {
             "You can activate the abilities of cards in play, marked with (ability).",
             "Effects marked with (static) apply whenever the card is in play or in the supply.",
             "The game is played with a kingdom of 7 core cards and 12 randomized cards.",
-            `You can visit <a href="${kingdomURL(state.info.kingdom)}">this link</a> to replay this kingdom anyenergy.`,
+            //TODO: link to replay this kingdom?
+            //`You can visit <a href="${kingdomURL(state.info.kingdom)}">this link</a> to replay this kingdom anyenergy.`,
             `Or play the <a href='${dateSeedPath()}'>daily kingdom</a>, using today's date as a seed.`,
             `Or visit the <a href='${basePlus("picker.html")}'>kingdom picker<a> to pick a kingdom.`,
         ]
@@ -1736,6 +1743,11 @@ function undo(startState: State): State {
     }
 }
 
+//TODO: allow submitting custom kingdoms
+function submittable(spec:GameSpec): boolean {
+    return (spec.kingdom == null) && !spec.testing
+}
+
 async function mainLoop(state: State): Promise<State> {
     state = state.setCheckpoint()
     try {
@@ -1748,16 +1760,15 @@ async function mainLoop(state: State): Promise<State> {
             const submitOrUndo: () => Promise<State> = () => 
                 new Promise(function (resolve, reject) {
                     state = error.state
-                    function submitDialog(seed:number) {
+                    function submitDialog(seed:string) {
                         return () => {
-                            clearChoice();
+                            keyListeners.clear()
                             renderScoreSubmission(state.energy, seed, () => submitOrUndo().then(resolve, reject))
                         }
                     }
-                    const options:Option<() => void>[] = (state.info.seed == undefined) ?
-                        [] : [{
+                    const options:Option<() => void>[] = (!submittable(state.spec)) ? [] : [{
                             render: 'Submit', 
-                            value: submitDialog(state.info.seed)
+                            value: submitDialog(state.spec.seed),
                             hotkeyHint: '!',
                         }]
                     renderChoice(state, `You won using ${state.energy} energy!`,
@@ -1771,7 +1782,7 @@ async function mainLoop(state: State): Promise<State> {
 }
 
 //TODO: will make the seed into a string soon, and overhaul GameSpec
-function renderScoreSubmission(score:number, seed:number, done:() => void) {
+function renderScoreSubmission(score:number, seed:string, done:() => void) {
     $('#scoreSubmitter').attr('active', true)
     const pattern = "[a-ZA-Z0-9]"
     $('#scoreSubmitter').html(
@@ -1815,6 +1826,12 @@ function renderScoreSubmission(score:number, seed:number, done:() => void) {
 
 // ------------------------------ Start the game
 
+interface GameSpec {
+    seed: string;
+    kingdom: string|null;
+    testing: boolean
+}
+
 function supplyKey(spec:CardSpec): number {
     return new Card(spec, -1).cost(emptyState).coin
 }
@@ -1822,17 +1839,21 @@ function supplySort(card1:CardSpec, card2:CardSpec): number {
     return supplyKey(card1) - supplyKey(card2)
 }
 
-async function playGame(seed?:number, fixedKingdom?:CardSpec[]): Promise<void> {
+//TODO: the implementation of randomness is now pretty janky
+async function playGame(spec:GameSpec): Promise<void> {
+    let state = new State(spec)
     const startingDeck:CardSpec[] = [copper, copper, copper, copper, copper,
                                  copper, copper, estate, estate, estate]
-    let state = emptyState;
-    let shuffledDeck; [state, shuffledDeck] = randomChoices(state, startingDeck, startingDeck.length, seed)
+    const intSeed:number = hash(spec.seed)
+    let shuffledDeck; [state, shuffledDeck] = randomChoices(state, startingDeck, startingDeck.length, intSeed)
     state = await doAll(shuffledDeck.map(x => create(x, 'deck')))(state);
-    let variableSupplies; [state, variableSupplies] = randomChoices(state, mixins, 12, seed)
-    if (fixedKingdom != undefined) variableSupplies = fixedKingdom
+    let variableSupplies; [state, variableSupplies] = randomChoices(state, mixins, 12, intSeed+1)
+    const fixedKingdom:CardSpec[]|null = getFixedKingdom(spec.kingdom)
+    if (fixedKingdom != null) variableSupplies = fixedKingdom
     variableSupplies.sort(supplySort)
-    state = state.updateInfo({kingdom:variableSupplies, seed:seed})
-    if (testing.length > 0) for (let i = 0; i < cheats.length; i++) testing.push(cheats[i])
+    if (spec.testing) {
+        for (let i = 0; i < cheats.length; i++) testing.push(cheats[i])
+    }
     const kingdom = coreSupplies.concat(variableSupplies).concat(testing)
     state = await doAll(kingdom.map(x => create(x, 'supply')))(state)
     state = await trigger({kind:'gameStart'})(state)
@@ -1841,7 +1862,6 @@ async function playGame(seed?:number, fixedKingdom?:CardSpec[]): Promise<void> {
         state = await mainLoop(state)
     }
 }
-
 
 
 // Source: https://werxltd.com/wp/2010/05/13/javascript-implementation-of-javas-string-hashcode-method/
@@ -1854,23 +1874,30 @@ function hash(s:string):number{
     return hash
 }
 
-function getSeed(): number|undefined {
-    const seed:string|null = new URLSearchParams(window.location.search).get('seed')
-    return (seed == null) ? undefined : hash(seed)
+function getGameSpec(): GameSpec {
+    return {seed:getSeed(), kingdom:getKingdom(), testing:testing.length > 0}
 }
 
-function getFixedKingdom(): CardSpec[]|undefined {
-    const kingdomString:string|null = new URLSearchParams(window.location.search).get('kingdom')
-    if (kingdomString==null) return undefined
+function getKingdom(): string|null {
+    return new URLSearchParams(window.location.search).get('kingdom')
+}
+
+function getSeed(): string {
+    const seed:string|null = new URLSearchParams(window.location.search).get('seed')
+    return (seed == null) ? Math.random().toString(36).substring(2, 7) : seed
+}
+
+function getFixedKingdom(kingdomString:string|null): CardSpec[]|null {
+    if (kingdomString==null) return null
     const cardStrings:string[] = kingdomString.split(',')
     const mixinsByName:Map<string, CardSpec> = new Map()
     for (const spec of mixins) mixinsByName.set(spec.name, spec)
     const result:CardSpec[] = []
     for (const cardString of cardStrings) {
-        const cardSpec = mixinsByName.get(cardString)
+        const cardSpec:CardSpec|undefined = mixinsByName.get(cardString)
         if (cardSpec == undefined) {
             alert(`URL specified invalid card ${cardString}`)
-            return undefined
+            return null
         }  else {
             result.push(cardSpec)
         }
@@ -1878,12 +1905,27 @@ function getFixedKingdom(): CardSpec[]|undefined {
     return result
 }
 
+function heartbeat(spec:GameSpec): void {
+    console.log('!')
+    if (spec.kingdom == null) {
+        $.get(`topScore?seed=${spec.seed}`).done(function(x:string) {
+            const n:number = parseInt(x, 10)
+            if (!isNaN(n)) renderBest(n, spec.seed)
+        })
+    }
+}
+
+//TODO: live updates?
 function load(): void {
-    playGame(getSeed(), getFixedKingdom())
+    const spec:GameSpec = getGameSpec()
+    heartbeat(spec)
+    setInterval(() => heartbeat(spec), 30000)
+    playGame(spec)
 }
 
 // ----------------------------------- Kingdom picker
 
+//TODO: I think these can just be relative links, we don't have to do it ourselves...
 function basePlus(s:string): string {
     const urlParts:string[] = window.location.toString().split('/')
     urlParts[urlParts.length-1] = s
@@ -2381,28 +2423,36 @@ const royalCarriage:CardSpec = {name: 'Royal Carriage',
         toZone: 'play',
         effect: noop,
     }),
+    abilities: card => [{
+        text: "Put a royalty token on this.",
+        cost: noop,
+        effect: addToken(card, 'royalty')
+    }],
     triggers: card => [{
-        text: "When you finish playing a card, you may discard this"
-            + " to play that card again if it's in your discard pile.",
+        text: "When you finish playing a card the normal way, if this has a royalty token on it then"
+            + " remove the token, discard this, and play the card again if it's in your discard pile.",
         kind: 'afterPlay',
-        handles: e => true,
+        handles: e => (e.source.name == 'act'),
         effect: e => async function(state) {
             const findCarriage = state.find(card)
             const findCard = state.find(e.after)
-            if (findCarriage.found && findCarriage.place == 'play') {
-                let doit:boolean|null; [state, doit] = await choice(state,
-                    `Use ${card.name} to play ${e.before.name} again?`,
-                    yesOrNo)
-                if (doit) {
-                    state = await move(card, 'discard')(state)
-                    state = await playAgain(findCard.card)(state)
-                }
+            if (findCarriage.found && countTokens(findCarriage.card, 'royalty') > 0
+                    && findCard.place == 'discard') {
+                let findagain = state.find(card)
+                if (findagain.found)
+                    console.log(findagain.card.ticks)
+                state = await removeTokens(card, 'royalty')(state)
+                findagain = state.find(card)
+                if (findagain.found)
+                    console.log(findagain.card.ticks)
+                state = await move(card, 'discard')(state)
+                state = await playAgain(e.after)(state)
             }
             return state
         }
     }]
 }
-buyable(royalCarriage, 5)
+buyable(royalCarriage, 5, 'test')
 
 const royalSeal:CardSpec = {name: 'Royal Seal',
     effect: card => ({

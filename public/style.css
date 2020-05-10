@@ -28,7 +28,7 @@
     font-size: 1.5em;
     border: 3px solid;
     border-radius: 6px;
-    width: 30%;
+    width: 15em;
     height: 3em;
     padding: 1em;
     background: white;
@@ -43,6 +43,7 @@
     padding: 0.1em;
     padding-top: 0.3em;
     padding-bottom: 0.3em;
+    width: 10em;
     font-size: 1em;
     height: 1.2em;
     border:none;
@@ -85,13 +86,13 @@
 [chosen=true] {
     background-color: rgba(254, 216, 177, 1.0);
 }
-[tick='1'][chosen] {
+[tick='1'][chosen='true'] {
     background: linear-gradient(45deg, rgba(254, 216, 177, 1.0) 0%, rgba(0, 128, 255, 0.1) 100%);
 }
-[tick='2'][chosen] {
+[tick='2'][chosen='true'] {
     background: linear-gradient(45deg, rgba(254, 216, 177, 1.0) 0%, rgba(0, 255, 128, 0.1) 100%);
 }
-[tick='3'][chosen] {
+[tick='3'][chosen='true'] {
     background: linear-gradient(45deg, rgba(254, 216, 177, 1.0) 0%, rgba(0, 255, 128, 0.1) 100%);
 }
 .pickorder {
@@ -116,6 +117,9 @@
 }
 #undoArea {
     min-height: 1em;
+}
+#best {
+    float:right;
 }
 #toparea {
     position: relative;
