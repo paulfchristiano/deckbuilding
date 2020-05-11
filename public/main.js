@@ -636,7 +636,7 @@ function bindHelp(state, renderer) {
             "Effects marked with (static) apply whenever the card is in play or in the supply.",
             "The game is played with a kingdom of 7 core cards and 12 randomized cards.",
             "You can visit <a href=\"" + replayURL(state.spec) + "\">this link</a> to replay this kingdom anytime.",
-            "Or play the <a href='" + dateSeedURL() + "'>daily kingdom</a>, using today's date as a seed.",
+            "Or play the <a href='daily'>daily kingdom</a>, using today's date as a seed.",
             "Or visit the <a href=\"picker.html\">kingdom picker<a> to pick a kingdom.",
         ];
         if (submittable(state.spec))

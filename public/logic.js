@@ -2445,7 +2445,7 @@ function villagestr(n) {
 var coven = { name: 'Coven',
     fixedCost: energy(1),
     effect: function (card) { return ({
-        text: "+$2. " + villagestr(2) + " None of them may have the same name as a card in yor discard pile.",
+        text: "+$2. " + villagestr(2) + " None of them may have the same name as a card in your discard pile.",
         effect: function (state) {
             return __awaiter(this, void 0, void 0, function () {
                 function constraint(cardInHand, s) {

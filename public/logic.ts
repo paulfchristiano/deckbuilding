@@ -1970,7 +1970,7 @@ function villagestr(n:number): string {
 const coven:CardSpec = {name: 'Coven',
     fixedCost: energy(1),
     effect: card => ({
-        text: `+$2. ${villagestr(2)} None of them may have the same name as a card in yor discard pile.`,
+        text: `+$2. ${villagestr(2)} None of them may have the same name as a card in your discard pile.`,
         effect: async function(state) {
             state = await gainCoin(2)(state)
             function constraint(cardInHand:Card, s:State):boolean {
