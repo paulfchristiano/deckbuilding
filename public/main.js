@@ -215,6 +215,7 @@ function getIfDef(m, x) {
 function renderState(state, settings) {
     if (settings === void 0) { settings = {}; }
     window.renderedState = state;
+    console.log(window.serverSeed);
     //TODO: where to handle this?
     //clearChoice()
     function render(card) {
@@ -781,6 +782,8 @@ function getKingdom() {
 }
 function getSeed() {
     var seed = new URLSearchParams(window.location.search).get('seed');
+    if (seed == null && window.serverSeed != undefined)
+        seed = window.serverSeed;
     return (seed == null) ? Math.random().toString(36).substring(2, 7) : seed;
 }
 function load() {

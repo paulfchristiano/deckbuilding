@@ -148,13 +148,14 @@ interface RenderSettings {
 }
 
 declare global {
-    interface Window { renderedState: State; }
+    interface Window { renderedState: State; serverSeed?: string; }
 }
 
 function renderState(state:State,
     settings:RenderSettings = {},
 ): void {
     window.renderedState = state
+    console.log(window.serverSeed)
     //TODO: where to handle this?
     //clearChoice()
     function render(card:Card|Shadow) {
@@ -685,6 +686,8 @@ function getKingdom(): string|null {
 
 function getSeed(): string {
     const seed:string|null = new URLSearchParams(window.location.search).get('seed')
+    if (seed == null && window.serverSeed != undefined)
+        seed = window.serverSeed
     return (seed == null) ? Math.random().toString(36).substring(2, 7) : seed
 }
 

@@ -26,6 +26,26 @@ function renderTimeSince(date:Date) {
     return 'Just now'
 }
 
+function renderEastCoastTime(): string {
+    const d:Date = new Date()
+    d.setMinutes(d.getMinutes() + d.getTimezoneOffset() - 240)
+    return d.toLocaleDateString().split('/').join('.')
+}
+
+async function dailySeed(): Promise<string> {
+    const datestring = renderEastCoastTime()
+    const results = await sql`
+      SELECT secret FROM dailies
+      WHERE datestring=${datestring}
+    `
+    if (results.length == 1) {
+        return `${datestring}.${results[0].secret}`
+    }
+    else {
+        return datestring
+    }
+}
+
 express()
     .use(express.static('./public'))
     .set('view engine', 'ejs')
@@ -61,6 +81,23 @@ express()
           console.error(err);
           res.send('Error: ' + err);
       }
+    })
+    .get('/play', async (req:any, res:any) => {
+        try {
+            res.render('pages/main', {seed:undefined})
+        } catch(err) {
+            console.error(err);
+            res.send('Error: ' + err);
+        }
+    })
+    .get('/daily', async (req:any, res:any) => {
+        try {
+            const seed = await dailySeed()
+            res.render('pages/main', {seed:seed})
+        } catch(err) {
+            console.error(err);
+            res.send('Error: ' + err);
+        }
     })
     .post('/submit', async (req:any, res:any) => {
         try {
