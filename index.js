@@ -153,16 +153,20 @@ function dailySeed() {
             switch (_a.label) {
                 case 0:
                     datestring = renderEastCoastDate();
-                    return [4 /*yield*/, sql(templateObject_2 || (templateObject_2 = __makeTemplateObject(["\n      SELECT secret FROM dailies\n      WHERE datestring=", "\n    "], ["\n      SELECT secret FROM dailies\n      WHERE datestring=", "\n    "])), datestring)];
+                    _a.label = 1;
                 case 1:
+                    if (!true) return [3 /*break*/, 6];
+                    return [4 /*yield*/, sql(templateObject_2 || (templateObject_2 = __makeTemplateObject(["\n          SELECT secret FROM dailies\n          WHERE datestring=", "\n        "], ["\n          SELECT secret FROM dailies\n          WHERE datestring=", "\n        "])), datestring)];
+                case 2:
                     results = _a.sent();
-                    if (results.length > 0) {
-                        return [2 /*return*/, datestring + "." + results[0].secret];
-                    }
-                    else {
-                        return [2 /*return*/, datestring];
-                    }
-                    return [2 /*return*/];
+                    if (!(results.length == 0)) return [3 /*break*/, 4];
+                    return [4 /*yield*/, ensureNextMonth()];
+                case 3:
+                    _a.sent();
+                    return [3 /*break*/, 5];
+                case 4: return [2 /*return*/, datestring + "." + results[0].secret];
+                case 5: return [3 /*break*/, 1];
+                case 6: return [2 /*return*/];
             }
         });
     });
@@ -195,28 +199,8 @@ express()
         }
     });
 }); })
-    .post('/ensure', function (req, res) { return __awaiter(void 0, void 0, void 0, function () {
-    var err_2;
-    return __generator(this, function (_a) {
-        switch (_a.label) {
-            case 0:
-                _a.trys.push([0, 2, , 3]);
-                return [4 /*yield*/, ensureNextMonth()];
-            case 1:
-                _a.sent();
-                res.send('OK');
-                return [3 /*break*/, 3];
-            case 2:
-                err_2 = _a.sent();
-                console.error(err_2);
-                res.send('Error: ' + err_2);
-                return [3 /*break*/, 3];
-            case 3: return [2 /*return*/];
-        }
-    });
-}); })
     .get('/scoreboard', function (req, res) { return __awaiter(void 0, void 0, void 0, function () {
-    var seed, results, entries, err_3;
+    var seed, results, entries, err_2;
     return __generator(this, function (_a) {
         switch (_a.label) {
             case 0:
@@ -229,9 +213,9 @@ express()
                 res.render('pages/scoreboard', { entries: entries, seed: seed });
                 return [3 /*break*/, 3];
             case 2:
-                err_3 = _a.sent();
-                console.error(err_3);
-                res.send('Error: ' + err_3);
+                err_2 = _a.sent();
+                console.error(err_2);
+                res.send('Error: ' + err_2);
                 return [3 /*break*/, 3];
             case 3: return [2 /*return*/];
         }
@@ -262,7 +246,7 @@ express()
     });
 }); })
     .get('/daily', function (req, res) { return __awaiter(void 0, void 0, void 0, function () {
-    var seed, err_4;
+    var seed, err_3;
     return __generator(this, function (_a) {
         switch (_a.label) {
             case 0:
@@ -273,16 +257,16 @@ express()
                 res.render('pages/main', { seed: seed });
                 return [3 /*break*/, 3];
             case 2:
-                err_4 = _a.sent();
-                console.error(err_4);
-                res.send('Error: ' + err_4);
+                err_3 = _a.sent();
+                console.error(err_3);
+                res.send('Error: ' + err_3);
                 return [3 /*break*/, 3];
             case 3: return [2 /*return*/];
         }
     });
 }); })
     .post('/submit', function (req, res) { return __awaiter(void 0, void 0, void 0, function () {
-    var seed, score, username, history_1, _a, valid, explanation, results, err_5;
+    var seed, score, username, history_1, _a, valid, explanation, results, err_4;
     return __generator(this, function (_b) {
         switch (_b.label) {
             case 0:
@@ -305,9 +289,9 @@ express()
                 _b.label = 4;
             case 4: return [3 /*break*/, 6];
             case 5:
-                err_5 = _b.sent();
-                console.error(err_5);
-                res.send('Error: ' + err_5);
+                err_4 = _b.sent();
+                console.error(err_4);
+                res.send('Error: ' + err_4);
                 return [3 /*break*/, 6];
             case 6: return [2 /*return*/];
         }

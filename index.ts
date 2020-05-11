@@ -50,16 +50,18 @@ function renderEastCoastDate(inputDate:Date|null = null): string {
 }
 
 async function dailySeed(): Promise<string> {
-    const datestring = renderEastCoastDate()
-    const results = await sql`
-      SELECT secret FROM dailies
-      WHERE datestring=${datestring}
-    `
-    if (results.length > 0) {
-        return `${datestring}.${results[0].secret}`
-    }
-    else {
-        return datestring
+    const datestring:string = renderEastCoastDate()
+    while (true) {
+        const results = await sql`
+          SELECT secret FROM dailies
+          WHERE datestring=${datestring}
+        `
+        if (results.length == 0) {
+            await ensureNextMonth()
+        }
+        else {
+            return `${datestring}.${results[0].secret}`
+        }
     }
 }
 
@@ -83,15 +85,6 @@ express()
           console.error(err);
           res.send('Error: ' + err);
       }
-    })
-    .post('/ensure', async (req:any, res:any) => {
-        try {
-            await ensureNextMonth()
-            res.send('OK')
-        } catch(err) {
-          console.error(err);
-          res.send('Error: ' + err);
-        }
     })
     .get('/scoreboard', async (req:any, res:any) => {
       try {
