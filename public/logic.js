@@ -1676,7 +1676,7 @@ export function playGame(state) {
 // ----------------- CARDS -----------------
 //
 var coreSupplies = [];
-var mixins = [];
+export var mixins = [];
 var testing = [];
 var cheats = [];
 //

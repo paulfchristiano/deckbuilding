@@ -1395,7 +1395,7 @@ export async function playGame(state:State): Promise<void> {
 //
 
 const coreSupplies:CardSpec[] = []
-const mixins:CardSpec[] = []
+export const mixins:CardSpec[] = []
 const testing:CardSpec[] = []
 const cheats:CardSpec[] = []
 

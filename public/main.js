@@ -1,4 +1,3 @@
-// TODO: would be nice to have 'space' as the default done hint
 // TODO: make calculated costs render as "(cost) X"
 // TODO: make the tooltip nice---should show up immediately, but be impossible to keep it alive by mousing over it
 // TODO: I think the cost framework isn't really appropriate any more, but maybe think a bit before getting rid of it
@@ -87,6 +86,7 @@ import { renderCost, renderEnergy } from './logic.js';
 import { emptyState } from './logic.js';
 import { Undo } from './logic.js';
 import { playGame, initialState } from './logic.js';
+import { mixins } from './logic.js';
 // ------------------ Rendering State
 function assertNever(x) {
     throw new Error("Unexpected: " + x);
@@ -215,9 +215,7 @@ function getIfDef(m, x) {
 function renderState(state, settings) {
     if (settings === void 0) { settings = {}; }
     window.renderedState = state;
-    console.log(window.serverSeed);
-    //TODO: where to handle this?
-    //clearChoice()
+    clearChoice();
     function render(card) {
         var cardRenderOptions = {
             option: getIfDef(settings.optionsMap, card.id),
@@ -635,8 +633,8 @@ function bindHelp(state, renderer) {
             "You can activate the abilities of cards in play, marked with (ability).",
             "Effects marked with (static) apply whenever the card is in play or in the supply.",
             "The game is played with a kingdom of 7 core cards and 12 randomized cards.",
-            "You can visit <a href=\"" + replayURL(state.spec) + "\">this link</a> to replay this kingdom anytime.",
-            "Or play the <a href='daily'>daily kingdom</a>, using today's date as a seed.",
+            "You can play today's <a href='daily'>daily kingdom</a>, which refreshes midnight EDT.",
+            "Or you can visit <a href=\"" + replayURL(state.spec) + "\">this link</a> to replay this kingdom anytime.",
             "Or visit the <a href=\"picker.html\">kingdom picker<a> to pick a kingdom.",
         ];
         if (submittable(state.spec))
@@ -649,18 +647,21 @@ function bindHelp(state, renderer) {
     }
     attach(pick);
 }
+//TODO: many of the URLs seem wrong
+//TODO: play is not successfuly defaulting to a random seed
+//TODO: make it so that you combine the daily seed
 function dateString() {
     var date = new Date();
     return (String(date.getMonth() + 1)) + String(date.getDate()).padStart(2, '0') + date.getFullYear();
 }
 function dateSeedURL() {
-    return "index.html?seed=" + dateString();
+    return "play?seed=" + dateString();
 }
 function replayURL(spec) {
     var args = ["seed=" + spec.seed];
     if (spec.kingdom != null)
         args.push("kingdom=" + spec.kingdom);
-    return "index.html?" + args.join('&');
+    return "play?" + args.join('&');
 }
 // ------------------------------ High score submission
 //TODO: allow submitting custom kingdoms
@@ -782,66 +783,63 @@ function getKingdom() {
 }
 function getSeed() {
     var seed = new URLSearchParams(window.location.search).get('seed');
-    if (seed == null && window.serverSeed != undefined)
-        seed = window.serverSeed;
-    return (seed == null) ? Math.random().toString(36).substring(2, 7) : seed;
+    var urlSeed = (seed == null || seed.length == 0) ? [] : [seed];
+    var windowSeed = (window.serverSeed == undefined || window.serverSeed.length == 0) ? [] : [window.serverSeed];
+    var seeds = windowSeed.concat(urlSeed);
+    return (seeds.length == 0) ? Math.random().toString(36).substring(2, 7) : seeds.join('.');
 }
-function load() {
+export function load() {
     var spec = makeGameSpec();
     heartbeat(spec);
     setInterval(function () { return heartbeat(spec); }, 30000);
     playGame(initialState(spec).attachUI(webUI));
 }
-load();
-/*
-
 // ----------------------------------- Kingdom picker
-
-function kingdomURL(specs:CardSpec[]) {
-return `index.html?kingdom=${specs.map(card => card.name).join(',')}`
+//
+function kingdomURL(specs) {
+    return "play?kingdom=" + specs.map(function (card) { return card.name; }).join(',');
 }
-
-function loadPicker(): void {
-let state = emptyState;
-const specs = mixins.slice()
-specs.sort((spec1, spec2) => spec1.name.localeCompare(spec2.name))
-for (let i = 0; i < specs.length; i++) {
-    const spec = specs[i]
-    state = state.addToZone(new Card(spec, i), 'supply')
-}
-function trivial() {}
-function elem(i:number): any {
-    return $(`[option='${i}']`)
-}
-function prefix(s:string): string {
-    const parts:string[] = s.split('/')
-    return parts.slice(0, parts.length-1).join('/')
-}
-function kingdomLink(): string {
-    return kingdomURL(Array.from(chosen.values()).map(i => specs[i]))
-}
-const chosen:Set<number> = new Set()
-function pick(i:number): void {
-    if (chosen.has(i)) {
-        chosen.delete(i)
-        elem(i).attr('chosen', false)
-    } else {
-        chosen.add(i)
-        elem(i).attr('chosen', true)
+//TODO: refactor the logic into logic.ts, probably just state initialization
+export function loadPicker() {
+    var state = emptyState;
+    var specs = mixins.slice();
+    specs.sort(function (spec1, spec2) { return spec1.name.localeCompare(spec2.name); });
+    for (var i = 0; i < specs.length; i++) {
+        var spec = specs[i];
+        state = state.addToZone(new Card(spec, i), 'supply');
     }
-    $('#count').html(String(chosen.size))
-    if (chosen.size > 0) {
-        $('#kingdomLink').attr('href', kingdomLink())
-    } else {
-        $('#kingdomLink').removeAttr('href')
+    function trivial() { }
+    function elem(i) {
+        return $("[option='" + i + "']");
     }
-}
-renderChoice(state,
-    'Choose which cards to include in the supply.',
-    state.supply.map((card, i) => ({
+    function prefix(s) {
+        var parts = s.split('/');
+        return parts.slice(0, parts.length - 1).join('/');
+    }
+    function kingdomLink() {
+        return kingdomURL(Array.from(chosen.values()).map(function (i) { return specs[i]; }));
+    }
+    var chosen = new Set();
+    function pick(i) {
+        if (chosen.has(i)) {
+            chosen.delete(i);
+            elem(i).attr('chosen', false);
+        }
+        else {
+            chosen.add(i);
+            elem(i).attr('chosen', true);
+        }
+        $('#count').html(String(chosen.size));
+        if (chosen.size > 0) {
+            $('#kingdomLink').attr('href', kingdomLink());
+        }
+        else {
+            $('#kingdomLink').removeAttr('href');
+        }
+    }
+    renderChoice(state, 'Choose which cards to include in the supply.', state.supply.map(function (card, i) { return ({
         render: card.id,
-        value: () => pick(i)
-    })), trivial, trivial)
+        value: function () { return pick(i); }
+    }); }), trivial, trivial);
 }
-*/
 //# sourceMappingURL=main.js.map

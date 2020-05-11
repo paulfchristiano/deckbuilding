@@ -83,6 +83,9 @@ import postgres from 'postgres';
 var sql = postgres(process.env.DATABASE_URL);
 //TODO: get rid of these any's
 //TODO: this is probably horribly insecure
+function randomString() {
+    return Math.random().toString(36).substring(2, 7);
+}
 function renderTimeSince(date) {
     var e_1, _a;
     var secondsAgo = ((new Date()).getTime() - date.getTime()) / 1000;
@@ -111,8 +114,35 @@ function renderTimeSince(date) {
     }
     return 'Just now';
 }
-function renderEastCoastTime() {
-    var d = new Date();
+function ensureNextMonth() {
+    return __awaiter(this, void 0, void 0, function () {
+        var d, i, secret, datestring, results;
+        return __generator(this, function (_a) {
+            switch (_a.label) {
+                case 0:
+                    d = new Date();
+                    i = 0;
+                    _a.label = 1;
+                case 1:
+                    if (!(i < 30)) return [3 /*break*/, 4];
+                    secret = randomString();
+                    datestring = renderEastCoastDate(d);
+                    return [4 /*yield*/, sql(templateObject_1 || (templateObject_1 = __makeTemplateObject(["\n            INSERT INTO dailies (datestring, secret) values (", ", ", ")\n            ON CONFLICT DO NOTHING\n        "], ["\n            INSERT INTO dailies (datestring, secret) values (", ", ", ")\n            ON CONFLICT DO NOTHING\n        "])), datestring, secret)];
+                case 2:
+                    results = _a.sent();
+                    d.setDate(d.getDate() + 1);
+                    _a.label = 3;
+                case 3:
+                    i++;
+                    return [3 /*break*/, 1];
+                case 4: return [2 /*return*/];
+            }
+        });
+    });
+}
+function renderEastCoastDate(inputDate) {
+    if (inputDate === void 0) { inputDate = null; }
+    var d = (inputDate == null) ? new Date() : new Date(inputDate);
     d.setMinutes(d.getMinutes() + d.getTimezoneOffset() - 240);
     return d.toLocaleDateString().split('/').join('.');
 }
@@ -122,11 +152,11 @@ function dailySeed() {
         return __generator(this, function (_a) {
             switch (_a.label) {
                 case 0:
-                    datestring = renderEastCoastTime();
-                    return [4 /*yield*/, sql(templateObject_1 || (templateObject_1 = __makeTemplateObject(["\n      SELECT secret FROM dailies\n      WHERE datestring=", "\n    "], ["\n      SELECT secret FROM dailies\n      WHERE datestring=", "\n    "])), datestring)];
+                    datestring = renderEastCoastDate();
+                    return [4 /*yield*/, sql(templateObject_2 || (templateObject_2 = __makeTemplateObject(["\n      SELECT secret FROM dailies\n      WHERE datestring=", "\n    "], ["\n      SELECT secret FROM dailies\n      WHERE datestring=", "\n    "])), datestring)];
                 case 1:
                     results = _a.sent();
-                    if (results.length == 1) {
+                    if (results.length > 0) {
                         return [2 /*return*/, datestring + "." + results[0].secret];
                     }
                     else {
@@ -148,7 +178,7 @@ express()
             case 0:
                 _a.trys.push([0, 2, , 3]);
                 seed = req.query.seed;
-                return [4 /*yield*/, sql(templateObject_2 || (templateObject_2 = __makeTemplateObject(["\n              SELECT username, score, submitted FROM scoreboard\n              WHERE seed=", "\n              ORDER BY score ASC, submitted ASC\n          "], ["\n              SELECT username, score, submitted FROM scoreboard\n              WHERE seed=", "\n              ORDER BY score ASC, submitted ASC\n          "])), seed)];
+                return [4 /*yield*/, sql(templateObject_3 || (templateObject_3 = __makeTemplateObject(["\n              SELECT username, score, submitted FROM scoreboard\n              WHERE seed=", "\n              ORDER BY score ASC, submitted ASC\n          "], ["\n              SELECT username, score, submitted FROM scoreboard\n              WHERE seed=", "\n              ORDER BY score ASC, submitted ASC\n          "])), seed)];
             case 1:
                 results = _a.sent();
                 if (results.length == 0)
@@ -165,23 +195,43 @@ express()
         }
     });
 }); })
+    .post('/ensure', function (req, res) { return __awaiter(void 0, void 0, void 0, function () {
+    var err_2;
+    return __generator(this, function (_a) {
+        switch (_a.label) {
+            case 0:
+                _a.trys.push([0, 2, , 3]);
+                return [4 /*yield*/, ensureNextMonth()];
+            case 1:
+                _a.sent();
+                res.send('OK');
+                return [3 /*break*/, 3];
+            case 2:
+                err_2 = _a.sent();
+                console.error(err_2);
+                res.send('Error: ' + err_2);
+                return [3 /*break*/, 3];
+            case 3: return [2 /*return*/];
+        }
+    });
+}); })
     .get('/scoreboard', function (req, res) { return __awaiter(void 0, void 0, void 0, function () {
-    var seed, results, entries, err_2;
+    var seed, results, entries, err_3;
     return __generator(this, function (_a) {
         switch (_a.label) {
             case 0:
                 _a.trys.push([0, 2, , 3]);
                 seed = req.query.seed;
-                return [4 /*yield*/, sql(templateObject_3 || (templateObject_3 = __makeTemplateObject(["\n              SELECT username, score, submitted FROM scoreboard\n              WHERE seed=", "\n              ORDER BY score ASC, submitted ASC\n          "], ["\n              SELECT username, score, submitted FROM scoreboard\n              WHERE seed=", "\n              ORDER BY score ASC, submitted ASC\n          "])), seed)];
+                return [4 /*yield*/, sql(templateObject_4 || (templateObject_4 = __makeTemplateObject(["\n              SELECT username, score, submitted FROM scoreboard\n              WHERE seed=", "\n              ORDER BY score ASC, submitted ASC\n          "], ["\n              SELECT username, score, submitted FROM scoreboard\n              WHERE seed=", "\n              ORDER BY score ASC, submitted ASC\n          "])), seed)];
             case 1:
                 results = _a.sent();
                 entries = results.map(function (x) { return (__assign(__assign({}, x), { timesince: renderTimeSince(x.submitted) })); });
                 res.render('pages/scoreboard', { entries: entries, seed: seed });
                 return [3 /*break*/, 3];
             case 2:
-                err_2 = _a.sent();
-                console.error(err_2);
-                res.send('Error: ' + err_2);
+                err_3 = _a.sent();
+                console.error(err_3);
+                res.send('Error: ' + err_3);
                 return [3 /*break*/, 3];
             case 3: return [2 /*return*/];
         }
@@ -199,8 +249,20 @@ express()
         return [2 /*return*/];
     });
 }); })
+    .get('/', function (req, res) { return __awaiter(void 0, void 0, void 0, function () {
+    return __generator(this, function (_a) {
+        try {
+            res.render('pages/main', { seed: undefined });
+        }
+        catch (err) {
+            console.error(err);
+            res.send('Error: ' + err);
+        }
+        return [2 /*return*/];
+    });
+}); })
     .get('/daily', function (req, res) { return __awaiter(void 0, void 0, void 0, function () {
-    var seed, err_3;
+    var seed, err_4;
     return __generator(this, function (_a) {
         switch (_a.label) {
             case 0:
@@ -211,16 +273,16 @@ express()
                 res.render('pages/main', { seed: seed });
                 return [3 /*break*/, 3];
             case 2:
-                err_3 = _a.sent();
-                console.error(err_3);
-                res.send('Error: ' + err_3);
+                err_4 = _a.sent();
+                console.error(err_4);
+                res.send('Error: ' + err_4);
                 return [3 /*break*/, 3];
             case 3: return [2 /*return*/];
         }
     });
 }); })
     .post('/submit', function (req, res) { return __awaiter(void 0, void 0, void 0, function () {
-    var seed, score, username, history_1, _a, valid, explanation, results, err_4;
+    var seed, score, username, history_1, _a, valid, explanation, results, err_5;
     return __generator(this, function (_b) {
         switch (_b.label) {
             case 0:
@@ -233,7 +295,7 @@ express()
             case 1:
                 _a = __read.apply(void 0, [_b.sent(), 2]), valid = _a[0], explanation = _a[1];
                 if (!valid) return [3 /*break*/, 3];
-                return [4 /*yield*/, sql(templateObject_4 || (templateObject_4 = __makeTemplateObject(["\n                  INSERT INTO scoreboard (username, score, seed)\n                  VALUES (", ", ", ", ", ")\n                "], ["\n                  INSERT INTO scoreboard (username, score, seed)\n                  VALUES (", ", ", ", ", ")\n                "])), username, score, seed)];
+                return [4 /*yield*/, sql(templateObject_5 || (templateObject_5 = __makeTemplateObject(["\n                  INSERT INTO scoreboard (username, score, seed)\n                  VALUES (", ", ", ", ", ")\n                "], ["\n                  INSERT INTO scoreboard (username, score, seed)\n                  VALUES (", ", ", ", ", ")\n                "])), username, score, seed)];
             case 2:
                 results = _b.sent();
                 res.send("Score logged!");
@@ -243,14 +305,14 @@ express()
                 _b.label = 4;
             case 4: return [3 /*break*/, 6];
             case 5:
-                err_4 = _b.sent();
-                console.error(err_4);
-                res.send('Error: ' + err_4);
+                err_5 = _b.sent();
+                console.error(err_5);
+                res.send('Error: ' + err_5);
                 return [3 /*break*/, 6];
             case 6: return [2 /*return*/];
         }
     });
 }); })
     .listen(PORT, function () { return console.log("Listening on " + PORT); });
-var templateObject_1, templateObject_2, templateObject_3, templateObject_4;
+var templateObject_1, templateObject_2, templateObject_3, templateObject_4, templateObject_5;
 //# sourceMappingURL=index.js.map

@@ -1,4 +1,3 @@
-// TODO: would be nice to have 'space' as the default done hint
 // TODO: make calculated costs render as "(cost) X"
 // TODO: make the tooltip nice---should show up immediately, but be impossible to keep it alive by mousing over it
 // TODO: I think the cost framework isn't really appropriate any more, but maybe think a bit before getting rid of it
@@ -17,6 +16,7 @@ import { emptyState } from './logic.js'
 import { Option, OptionRender, HotkeyHint } from './logic.js'
 import { UI, Undo, Victory, HistoryMismatch, ReplayEnded } from './logic.js'
 import { playGame, initialState, verifyScore } from './logic.js'
+import { mixins } from './logic.js'
 
 // ------------------ Rendering State
 
@@ -155,9 +155,7 @@ function renderState(state:State,
     settings:RenderSettings = {},
 ): void {
     window.renderedState = state
-    console.log(window.serverSeed)
-    //TODO: where to handle this?
-    //clearChoice()
+    clearChoice()
     function render(card:Card|Shadow) {
         const cardRenderOptions:CardRenderOptions = {
             option: getIfDef(settings.optionsMap, card.id),
@@ -538,8 +536,8 @@ function bindHelp(state:State, renderer: () => void) {
             "You can activate the abilities of cards in play, marked with (ability).",
             "Effects marked with (static) apply whenever the card is in play or in the supply.",
             "The game is played with a kingdom of 7 core cards and 12 randomized cards.",
-            `You can visit <a href="${replayURL(state.spec)}">this link</a> to replay this kingdom anytime.`,
-            `Or play the <a href='daily'>daily kingdom</a>, using today's date as a seed.`,
+            `You can play today's <a href='daily'>daily kingdom</a>, which refreshes midnight EDT.`,
+            `Or you can visit <a href="${replayURL(state.spec)}">this link</a> to replay this kingdom anytime.`,
             `Or visit the <a href="picker.html">kingdom picker<a> to pick a kingdom.`,
         ]
         if (submittable(state.spec))
@@ -553,20 +551,24 @@ function bindHelp(state:State, renderer: () => void) {
     attach(pick)
 }
 
+//TODO: many of the URLs seem wrong
+//TODO: play is not successfuly defaulting to a random seed
+//TODO: make it so that you combine the daily seed
+
 function dateString() {
     const date = new Date()
     return (String(date.getMonth() + 1)) + String(date.getDate()).padStart(2, '0') + date.getFullYear()
 }
 
 function dateSeedURL() {
-    return `index.html?seed=${dateString()}`
+    return `play?seed=${dateString()}`
 }
 
 
 function replayURL(spec:GameSpec) {
     const args:string[] = [`seed=${spec.seed}`]
     if (spec.kingdom != null) args.push(`kingdom=${spec.kingdom}`)
-    return `index.html?${args.join('&')}`
+    return `play?${args.join('&')}`
 }
 
 // ------------------------------ High score submission
@@ -686,28 +688,28 @@ function getKingdom(): string|null {
 
 function getSeed(): string {
     const seed:string|null = new URLSearchParams(window.location.search).get('seed')
-    if (seed == null && window.serverSeed != undefined)
-        seed = window.serverSeed
-    return (seed == null) ? Math.random().toString(36).substring(2, 7) : seed
+    const urlSeed:string[] = (seed == null || seed.length == 0) ? [] : [seed]
+    const windowSeed:string[] = (window.serverSeed == undefined || window.serverSeed.length == 0) ? [] : [window.serverSeed]
+    const seeds:string[] = windowSeed.concat(urlSeed)
+    return (seeds.length == 0) ? Math.random().toString(36).substring(2, 7) : seeds.join('.')
 }
 
-function load(): void {
+export function load(): void {
     const spec:GameSpec = makeGameSpec()
     heartbeat(spec)
     setInterval(() => heartbeat(spec), 30000)
     playGame(initialState(spec).attachUI(webUI))
 }
 
-load()
-    /*
-
 // ----------------------------------- Kingdom picker
+//
 
 function kingdomURL(specs:CardSpec[]) {
-    return `index.html?kingdom=${specs.map(card => card.name).join(',')}`
+    return `play?kingdom=${specs.map(card => card.name).join(',')}`
 }
 
-function loadPicker(): void {
+//TODO: refactor the logic into logic.ts, probably just state initialization
+export function loadPicker(): void {
     let state = emptyState;
     const specs = mixins.slice()
     specs.sort((spec1, spec2) => spec1.name.localeCompare(spec2.name))
@@ -749,4 +751,3 @@ function loadPicker(): void {
             value: () => pick(i)
         })), trivial, trivial)
 }
-*/

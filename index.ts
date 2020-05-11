@@ -9,6 +9,10 @@ const sql = postgres(process.env.DATABASE_URL)
 //TODO: get rid of these any's
 //TODO: this is probably horribly insecure
 
+function randomString(): string {
+    return Math.random().toString(36).substring(2, 7)
+}
+
 function renderTimeSince(date:Date) {
     let secondsAgo:number = ((new Date()).getTime() - date.getTime()) / 1000;
     const units:[string, number][] = [
@@ -26,19 +30,32 @@ function renderTimeSince(date:Date) {
     return 'Just now'
 }
 
-function renderEastCoastTime(): string {
+async function ensureNextMonth(): Promise<void> {
     const d:Date = new Date()
+    for (let i = 0; i < 30; i++) {
+        const secret = randomString()
+        const datestring = renderEastCoastDate(d)
+        const results = await sql`
+            INSERT INTO dailies (datestring, secret) values (${datestring}, ${secret})
+            ON CONFLICT DO NOTHING
+        `
+        d.setDate(d.getDate() + 1)
+    }
+}
+
+function renderEastCoastDate(inputDate:Date|null = null): string {
+    const d:Date = (inputDate == null) ? new Date() : new Date(inputDate)
     d.setMinutes(d.getMinutes() + d.getTimezoneOffset() - 240)
     return d.toLocaleDateString().split('/').join('.')
 }
 
 async function dailySeed(): Promise<string> {
-    const datestring = renderEastCoastTime()
+    const datestring = renderEastCoastDate()
     const results = await sql`
       SELECT secret FROM dailies
       WHERE datestring=${datestring}
     `
-    if (results.length == 1) {
+    if (results.length > 0) {
         return `${datestring}.${results[0].secret}`
     }
     else {
@@ -67,6 +84,15 @@ express()
           res.send('Error: ' + err);
       }
     })
+    .post('/ensure', async (req:any, res:any) => {
+        try {
+            await ensureNextMonth()
+            res.send('OK')
+        } catch(err) {
+          console.error(err);
+          res.send('Error: ' + err);
+        }
+    })
     .get('/scoreboard', async (req:any, res:any) => {
       try {
           const seed = req.query.seed
@@ -83,6 +109,14 @@ express()
       }
     })
     .get('/play', async (req:any, res:any) => {
+        try {
+            res.render('pages/main', {seed:undefined})
+        } catch(err) {
+            console.error(err);
+            res.send('Error: ' + err);
+        }
+    })
+    .get('/', async (req:any, res:any) => {
         try {
             res.render('pages/main', {seed:undefined})
         } catch(err) {
