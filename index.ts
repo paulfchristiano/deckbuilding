@@ -1,9 +1,9 @@
-import {Express} from 'express'
-import {Path} from 'path'
+import express from 'express'
+import path from 'path'
 const PORT = process.env.PORT || 5000
 import {verifyScore} from './public/logic.js'
 
-const postgres = require('postgres')
+import postgres from 'postgres'
 const sql = postgres(process.env.DATABASE_URL)
 
 //TODO: get rid of these any's
@@ -26,10 +26,10 @@ function renderTimeSince(date:Date) {
     return 'Just now'
 }
 
-Express()
-    .use(Express.static(path.join(__dirname, 'public')))
+express()
+    .use(express.static('./public'))
     .set('view engine', 'ejs')
-    .set('views', path.join(__dirname, 'views'))
+    .set('views', './views')
     .get('/topScore', async (req:any, res:any) => {
       try {
           const seed = req.query.seed

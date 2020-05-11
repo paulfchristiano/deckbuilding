@@ -22,6 +22,7 @@
   },
   "include": [
     "public/main.ts",
+    "index.ts",
     "public/logic.ts",
     "public/jquery.d.ts"
   ]

@@ -147,14 +147,14 @@ interface RenderSettings {
     pickMap?: Map<number|string, number>;
 }
 
-// make the currently rendered state available in the console for debugging purposes
-var renderedState: State
-
+declare global {
+    interface Window { renderedState: State; }
+}
 
 function renderState(state:State,
     settings:RenderSettings = {},
 ): void {
-    renderedState = state
+    window.renderedState = state
     //TODO: where to handle this?
     //clearChoice()
     function render(card:Card|Shadow) {
@@ -383,17 +383,14 @@ const webUI:UI = {
     async victory(state:State): Promise<void> {
         const submitOrUndo: () => Promise<void> = () => 
             new Promise(function (resolve, reject) {
-                //TODO: add it back in
-                //heartbeat(state.spec)
-                function submitDialog(seed:string) {
-                    return () => {
-                        keyListeners.clear()
-                        renderScoreSubmission(state.energy, seed, () => submitOrUndo().then(resolve, reject))
-                    }
+                heartbeat(state.spec)
+                const submitDialog = () => {
+                    keyListeners.clear()
+                    renderScoreSubmission(state, () => submitOrUndo().then(resolve, reject))
                 }
                 const options:Option<() => void>[] = (!submittable(state.spec)) ? [] : [{
                         render: 'Submit', 
-                        value: submitDialog(state.spec.seed),
+                        value: submitDialog,
                         hotkeyHint: {kind:'key', val:'!'}
                     }]
                 renderChoice(state, `You won using ${state.energy} energy!`,
@@ -599,7 +596,9 @@ function getUsername():string|null {
 }
 
 
-function renderScoreSubmission(score:number, seed:string, done:() => void) {
+function renderScoreSubmission(state:State, done:() => void) {
+    const score = state.energy
+    const seed = state.spec.seed
     $('#scoreSubmitter').attr('active', true)
     const pattern = "[a-ZA-Z0-9]"
     $('#scoreSubmitter').html(
@@ -621,7 +620,14 @@ function renderScoreSubmission(score:number, seed:string, done:() => void) {
         const username:string = $('#username').val()
         if (username.length > 0) {
             rememberUsername(username)
-            $.post(`submit?seed=${seed}&score=${score}&username=${username}`).done(function(x:any) {
+            const query = [
+                `seed=${seed}`,
+                `score=${score}`,
+                `username=${username}`,
+                `history=${state.serializeHistory()}`
+            ].join('&')
+            $.post(`submit?${query}`).done(function(x:any) {
+                heartbeat(state.spec)
                 console.log(x)
             })
             exit()

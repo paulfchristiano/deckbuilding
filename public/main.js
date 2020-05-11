@@ -212,11 +212,9 @@ function render_log(msg) {
 function getIfDef(m, x) {
     return (m == undefined) ? undefined : m.get(x);
 }
-// make the currently rendered state available in the console for debugging purposes
-var renderedState;
 function renderState(state, settings) {
     if (settings === void 0) { settings = {}; }
-    renderedState = state;
+    window.renderedState = state;
     //TODO: where to handle this?
     //clearChoice()
     function render(card) {
@@ -508,17 +506,14 @@ var webUI = {
             return __generator(this, function (_a) {
                 submitOrUndo = function () {
                     return new Promise(function (resolve, reject) {
-                        //TODO: add it back in
-                        //heartbeat(state.spec)
-                        function submitDialog(seed) {
-                            return function () {
-                                keyListeners.clear();
-                                renderScoreSubmission(state.energy, seed, function () { return submitOrUndo().then(resolve, reject); });
-                            };
-                        }
+                        heartbeat(state.spec);
+                        var submitDialog = function () {
+                            keyListeners.clear();
+                            renderScoreSubmission(state, function () { return submitOrUndo().then(resolve, reject); });
+                        };
                         var options = (!submittable(state.spec)) ? [] : [{
                                 render: 'Submit',
-                                value: submitDialog(state.spec.seed),
+                                value: submitDialog,
                                 hotkeyHint: { kind: 'key', val: '!' }
                             }];
                         renderChoice(state, "You won using " + state.energy + " energy!", options, function () { return resolve(); }, function () { });
@@ -702,7 +697,9 @@ function rememberUsername(username) {
 function getUsername() {
     return getCookie('username');
 }
-function renderScoreSubmission(score, seed, done) {
+function renderScoreSubmission(state, done) {
+    var score = state.energy;
+    var seed = state.spec.seed;
     $('#scoreSubmitter').attr('active', true);
     var pattern = "[a-ZA-Z0-9]";
     $('#scoreSubmitter').html("<label for=\"username\">Name:</label>" +
@@ -723,7 +720,14 @@ function renderScoreSubmission(score, seed, done) {
         var username = $('#username').val();
         if (username.length > 0) {
             rememberUsername(username);
-            $.post("submit?seed=" + seed + "&score=" + score + "&username=" + username).done(function (x) {
+            var query = [
+                "seed=" + seed,
+                "score=" + score,
+                "username=" + username,
+                "history=" + state.serializeHistory()
+            ].join('&');
+            $.post("submit?" + query).done(function (x) {
+                heartbeat(state.spec);
                 console.log(x);
             });
             exit();
