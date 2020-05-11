@@ -15,14 +15,14 @@
     "allowSyntheticDefaultImports": true,
     "strict": true,
     "forceConsistentCasingInFileNames": true,
-    "module": "esnext",
+    "module": "es6",
     "moduleResolution": "node",
     "resolveJsonModule": true,
     "jsx": "react"
   },
   "include": [
     "public/main.ts",
+    "public/logic.ts",
     "public/jquery.d.ts"
-  ],
-  "outFile": "main.js"
+  ]
 }

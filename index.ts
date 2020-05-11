@@ -1,5 +1,5 @@
-import { express } from 'express'
-import { path } from 'path'
+import {Express} from 'express'
+import {Path} from 'path'
 const PORT = process.env.PORT || 5000
 import {verifyScore} from './public/logic.js'
 
@@ -26,8 +26,8 @@ function renderTimeSince(date:Date) {
     return 'Just now'
 }
 
-express()
-    .use(express.static(path.join(__dirname, 'public')))
+Express()
+    .use(Express.static(path.join(__dirname, 'public')))
     .set('view engine', 'ejs')
     .set('views', path.join(__dirname, 'views'))
     .get('/topScore', async (req:any, res:any) => {
