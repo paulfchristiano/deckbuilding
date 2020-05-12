@@ -82,160 +82,6 @@ import { emptyState } from './logic.js';
 import { Undo } from './logic.js';
 import { playGame, initialState } from './logic.js';
 import { mixins } from './logic.js';
-// ------------------ Rendering State
-function assertNever(x) {
-    throw new Error("Unexpected: " + x);
-}
-function describeCost(cost) {
-    var coinCost = (cost.coin > 0) ? ["lose $" + cost.coin] : [];
-    var energyCost = (cost.energy > 0) ? ["gain " + renderEnergy(cost.energy)] : [];
-    var costs = coinCost.concat(energyCost);
-    var costStr = (costs.length > 0) ? costs.join(' and ') : 'do nothing';
-    return "Cost: " + costStr + ".";
-}
-function renderShadow(shadow, state) {
-    var card = shadow.spec.card;
-    var tokenhtml = card.tokens.length > 0 ? '*' : '';
-    var chargehtml = card.charge > 0 ? "(" + card.charge + ")" : '';
-    var costhtml = renderCost(card.cost(state)) || '&nbsp';
-    var ticktext = "tick=" + shadow.tick;
-    var shadowtext = "shadow='true'";
-    var tooltip;
-    switch (shadow.spec.kind) {
-        case 'ability':
-            tooltip = renderAbility(shadow.spec.ability);
-            break;
-        case 'trigger':
-            tooltip = renderStatic(shadow.spec.trigger);
-            break;
-        case 'effect':
-            tooltip = card.effect().text;
-            break;
-        case 'abilities':
-            tooltip = card.abilities().map(renderAbility).join('');
-            break;
-        case 'cost':
-            tooltip = describeCost(card.cost(state));
-            break;
-        default: assertNever(shadow.spec);
-    }
-    return ["<div class='card' " + ticktext + " " + shadowtext + ">",
-        "<div class='cardbody'>" + card + tokenhtml + chargehtml + "</div>",
-        "<div class='cardcost'>" + costhtml + "</div>",
-        "<span class='tooltip'>" + tooltip + "</span>",
-        "</div>"].join('');
-}
-function renderCard(card, state, options) {
-    if (card instanceof Shadow) {
-        return renderShadow(card, state);
-    }
-    else {
-        var tokenhtml = card.tokens.length > 0 ? '*' : '';
-        var chargehtml = card.charge > 0 ? "(" + card.charge + ")" : '';
-        var costhtml = renderCost(card.cost(state)) || '&nbsp';
-        var picktext = (options.pick !== undefined) ? "<div class='pickorder'>" + options.pick + "</div>" : '';
-        var choosetext = (options.option !== undefined) ? "choosable chosen='false' option=" + options.option : '';
-        var hotkeytext = (options.hotkey !== undefined) ? renderHotkey(options.hotkey) : '';
-        var ticktext = "tick=" + card.ticks[card.ticks.length - 1];
-        return ["<div class='card' " + ticktext + " " + choosetext + "> " + picktext,
-            "<div class='cardbody'>" + hotkeytext + card + tokenhtml + chargehtml + "</div>",
-            "<div class='cardcost'>" + costhtml + "</div>",
-            "<span class='tooltip'>" + renderTooltip(card, state) + "</span>",
-            "</div>"].join('');
-    }
-}
-function renderStatic(x) {
-    return "<div>(static) " + x.text + "</div>";
-}
-function renderAbility(x) {
-    return "<div>(ability) " + x.text + "</div>";
-}
-function renderTokens(tokens) {
-    var e_1, _a, e_2, _b;
-    var counter = new Map();
-    try {
-        for (var tokens_1 = __values(tokens), tokens_1_1 = tokens_1.next(); !tokens_1_1.done; tokens_1_1 = tokens_1.next()) {
-            var token = tokens_1_1.value;
-            counter.set(token, (counter.get(token) || 0) + 1);
-        }
-    }
-    catch (e_1_1) { e_1 = { error: e_1_1 }; }
-    finally {
-        try {
-            if (tokens_1_1 && !tokens_1_1.done && (_a = tokens_1.return)) _a.call(tokens_1);
-        }
-        finally { if (e_1) throw e_1.error; }
-    }
-    var parts = [];
-    try {
-        for (var counter_1 = __values(counter), counter_1_1 = counter_1.next(); !counter_1_1.done; counter_1_1 = counter_1.next()) {
-            var _c = __read(counter_1_1.value, 2), token = _c[0], count = _c[1];
-            parts.push((count == 1) ? token : token + "(" + count + ")");
-        }
-    }
-    catch (e_2_1) { e_2 = { error: e_2_1 }; }
-    finally {
-        try {
-            if (counter_1_1 && !counter_1_1.done && (_b = counter_1.return)) _b.call(counter_1);
-        }
-        finally { if (e_2) throw e_2.error; }
-    }
-    return parts.join(', ');
-}
-function renderCalculatedCost(c) {
-    return "<div>(cost) " + c.text + "</div>";
-}
-function renderTooltip(card, state) {
-    var effectHtml = "<div>" + card.effect().text + "</div>";
-    var costHtml = (card.spec.calculatedCost != undefined) ? renderCalculatedCost(card.spec.calculatedCost) : '';
-    var abilitiesHtml = card.abilities().map(function (x) { return renderAbility(x); }).join('');
-    var triggerHtml = card.triggers().map(function (x) { return renderStatic(x); }).join('');
-    var replacerHtml = card.replacers().map(function (x) { return renderStatic(x); }).join('');
-    var staticHtml = triggerHtml + replacerHtml;
-    var tokensHtml = card.tokens.length > 0 ? "Tokens: " + renderTokens(card.tokens) : '';
-    var baseFilling = [costHtml, effectHtml, abilitiesHtml, staticHtml, tokensHtml].join('');
-    function renderRelated(spec) {
-        var card = new Card(spec, -1);
-        var costStr = renderCost(card.cost(emptyState));
-        var header = (costStr.length > 0) ?
-            "<div>---" + card.toString() + " (" + costStr + ")---</div>" :
-            "<div>-----" + card.toString() + "----</div>";
-        return header + renderTooltip(card, state);
-    }
-    var relatedFilling = card.relatedCards().map(renderRelated).join('');
-    return "" + baseFilling + relatedFilling;
-}
-function render_log(msg) {
-    return "<div class=\".log\">" + msg + "</div>";
-}
-function getIfDef(m, x) {
-    return (m == undefined) ? undefined : m.get(x);
-}
-function renderState(state, settings) {
-    if (settings === void 0) { settings = {}; }
-    window.renderedState = state;
-    clearChoice();
-    function render(card) {
-        var cardRenderOptions = {
-            option: getIfDef(settings.optionsMap, card.id),
-            hotkey: getIfDef(settings.hotkeyMap, card.id),
-            pick: getIfDef(settings.pickMap, card.id),
-        };
-        return renderCard(card, state, cardRenderOptions);
-    }
-    $('#resolvingHeader').html('Resolving:');
-    $('#energy').html(state.energy);
-    $('#coin').html(state.coin);
-    $('#points').html(state.points);
-    $('#aside').html(state.aside.map(render).join(''));
-    $('#resolving').html(state.resolving.map(render).join(''));
-    $('#play').html(state.play.map(render).join(''));
-    $('#supply').html(state.supply.map(render).join(''));
-    $('#hand').html(state.hand.map(render).join(''));
-    $('#deck').html(state.deck.map(render).join(''));
-    $('#discard').html(state.discard.map(render).join(''));
-    $('#log').html(state.logs.slice().reverse().map(render_log).join(''));
-}
 var keyListeners = new Map();
 var handHotkeys = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0',
     '!', '#', '$', '%', '^', '&', '*', '(', ')', '-', '+', '=', '{', '}', '[', ']']; // '@' is confusing
@@ -284,7 +130,7 @@ var HotkeyMapper = /** @class */ (function () {
     function HotkeyMapper() {
     }
     HotkeyMapper.prototype.map = function (state, options) {
-        var e_3, _a, e_4, _b, e_5, _c;
+        var e_1, _a, e_2, _b, e_3, _c;
         var result = new Map();
         var taken = new Map();
         var pickable = new Set();
@@ -294,12 +140,12 @@ var HotkeyMapper = /** @class */ (function () {
                 pickable.add(option.render);
             }
         }
-        catch (e_3_1) { e_3 = { error: e_3_1 }; }
+        catch (e_1_1) { e_1 = { error: e_1_1 }; }
         finally {
             try {
                 if (options_1_1 && !options_1_1.done && (_a = options_1.return)) _a.call(options_1);
             }
-            finally { if (e_3) throw e_3.error; }
+            finally { if (e_1) throw e_1.error; }
         }
         function takenByPickable(key) {
             var takenBy = taken.get(key);
@@ -310,7 +156,7 @@ var HotkeyMapper = /** @class */ (function () {
             taken.set(k, x);
         }
         function setFrom(cards, preferredHotkeys) {
-            var e_6, _a;
+            var e_4, _a;
             var preferredSet = new Set(preferredHotkeys);
             var otherHotkeys = hotkeys.filter(function (x) { return !preferredSet.has(x); });
             var toAssign = (preferredHotkeys.concat(otherHotkeys)).filter(function (x) { return !taken.has(x); });
@@ -323,12 +169,12 @@ var HotkeyMapper = /** @class */ (function () {
                     }
                 }
             }
-            catch (e_6_1) { e_6 = { error: e_6_1 }; }
+            catch (e_4_1) { e_4 = { error: e_4_1 }; }
             finally {
                 try {
                     if (cards_1_1 && !cards_1_1.done && (_a = cards_1.return)) _a.call(cards_1);
                 }
-                finally { if (e_6) throw e_6.error; }
+                finally { if (e_4) throw e_4.error; }
             }
         }
         //want to put zones that are most important not to change earlier
@@ -345,12 +191,12 @@ var HotkeyMapper = /** @class */ (function () {
                 }
             }
         }
-        catch (e_4_1) { e_4 = { error: e_4_1 }; }
+        catch (e_2_1) { e_2 = { error: e_2_1 }; }
         finally {
             try {
                 if (options_2_1 && !options_2_1.done && (_b = options_2.return)) _b.call(options_2);
             }
-            finally { if (e_4) throw e_4.error; }
+            finally { if (e_2) throw e_2.error; }
         }
         var index = 0;
         function nextHotkey() {
@@ -373,21 +219,229 @@ var HotkeyMapper = /** @class */ (function () {
                 }
             }
         }
-        catch (e_5_1) { e_5 = { error: e_5_1 }; }
+        catch (e_3_1) { e_3 = { error: e_3_1 }; }
         finally {
             try {
                 if (options_3_1 && !options_3_1.done && (_c = options_3.return)) _c.call(options_3);
             }
-            finally { if (e_5) throw e_5.error; }
+            finally { if (e_3) throw e_3.error; }
         }
         return result;
     };
     return HotkeyMapper;
 }());
+// ------------------ Rendering State
+function assertNever(x) {
+    throw new Error("Unexpected: " + x);
+}
+var TokenRenderer = /** @class */ (function () {
+    function TokenRenderer() {
+        this.tokenTypes = ['charge'];
+    }
+    TokenRenderer.prototype.tokenColor = function (token) {
+        var tokenColors = [
+            'red', 'orange', 'green', 'fuchsia', 'blue'
+        ];
+        return tokenColors[this.tokenType(token) % tokenColors.length];
+    };
+    TokenRenderer.prototype.tokenType = function (token) {
+        var n = this.tokenTypes.indexOf(token);
+        if (n >= 0)
+            return n;
+        this.tokenTypes.push(token);
+        return this.tokenTypes.length - 1;
+    };
+    TokenRenderer.prototype.render = function (tokens, charge) {
+        var e_5, _a;
+        var tokenHtmls = [];
+        if (charge > 0) {
+            tokenHtmls.push("<span id='token'>" + charge + "</span>");
+        }
+        var counter = new Map();
+        try {
+            for (var tokens_1 = __values(tokens), tokens_1_1 = tokens_1.next(); !tokens_1_1.done; tokens_1_1 = tokens_1.next()) {
+                var token = tokens_1_1.value;
+                counter.set(token, (counter.get(token) || 0) + 1);
+                this.tokenType(token);
+            }
+        }
+        catch (e_5_1) { e_5 = { error: e_5_1 }; }
+        finally {
+            try {
+                if (tokens_1_1 && !tokens_1_1.done && (_a = tokens_1.return)) _a.call(tokens_1);
+            }
+            finally { if (e_5) throw e_5.error; }
+        }
+        for (var i = 0; i < this.tokenTypes.length; i++) {
+            var token = this.tokenTypes[i];
+            if (counter.has(token)) {
+                tokenHtmls.push("<span id='token' style='color:" + this.tokenColor(token) + "'>" +
+                    ("" + counter.get(token)) +
+                    "</span>");
+            }
+        }
+        return (tokenHtmls.length > 0) ? "(" + tokenHtmls.join('') + ")" : '';
+    };
+    return TokenRenderer;
+}());
+function describeCost(cost) {
+    var coinCost = (cost.coin > 0) ? ["lose $" + cost.coin] : [];
+    var energyCost = (cost.energy > 0) ? ["gain " + renderEnergy(cost.energy)] : [];
+    var costs = coinCost.concat(energyCost);
+    var costStr = (costs.length > 0) ? costs.join(' and ') : 'do nothing';
+    return "Cost: " + costStr + ".";
+}
+function renderShadow(shadow, state, tokenRenderer) {
+    var card = shadow.spec.card;
+    var tokenhtml = tokenRenderer.render(card.tokens, card.charge);
+    var costhtml = renderCost(card.cost(state)) || '&nbsp';
+    var ticktext = "tick=" + shadow.tick;
+    var shadowtext = "shadow='true'";
+    var tooltip;
+    switch (shadow.spec.kind) {
+        case 'ability':
+            tooltip = renderAbility(shadow.spec.ability);
+            break;
+        case 'trigger':
+            tooltip = renderStatic(shadow.spec.trigger);
+            break;
+        case 'effect':
+            tooltip = card.effect().text;
+            break;
+        case 'abilities':
+            tooltip = card.abilities().map(renderAbility).join('');
+            break;
+        case 'cost':
+            tooltip = describeCost(card.cost(state));
+            break;
+        default: assertNever(shadow.spec);
+    }
+    return ["<div class='card' " + ticktext + " " + shadowtext + ">",
+        "<div class='cardbody'>" + card + tokenhtml + "</div>",
+        "<div class='cardcost'>" + costhtml + "</div>",
+        "<span class='tooltip'>" + tooltip + "</span>",
+        "</div>"].join('');
+}
+function renderCard(card, state, options, tokenRenderer) {
+    if (card instanceof Shadow) {
+        return renderShadow(card, state, tokenRenderer);
+    }
+    else {
+        //const tokenhtml:string = card.tokens.length > 0 ? '*' : ''
+        var tokenhtml = tokenRenderer.render(card.tokens, card.charge);
+        var costhtml = renderCost(card.cost(state)) || '&nbsp';
+        var picktext = (options.pick !== undefined) ? "<div class='pickorder'>" + options.pick + "</div>" : '';
+        var choosetext = (options.option !== undefined) ? "choosable chosen='false' option=" + options.option : '';
+        var hotkeytext = (options.hotkey !== undefined) ? renderHotkey(options.hotkey) : '';
+        var ticktext = "tick=" + card.ticks[card.ticks.length - 1];
+        return ["<div class='card' " + ticktext + " " + choosetext + "> " + picktext,
+            "<div class='cardbody'>" + hotkeytext + card + tokenhtml + "</div>",
+            "<div class='cardcost'>" + costhtml + "</div>",
+            "<span class='tooltip'>" + renderTooltip(card, state) + "</span>",
+            "</div>"].join('');
+    }
+}
+function renderStatic(x) {
+    return "<div>(static) " + x.text + "</div>";
+}
+function renderAbility(x) {
+    return "<div>(ability) " + x.text + "</div>";
+}
+function renderTokenTooltip(tokens) {
+    var e_6, _a, e_7, _b;
+    var counter = new Map();
+    try {
+        for (var tokens_2 = __values(tokens), tokens_2_1 = tokens_2.next(); !tokens_2_1.done; tokens_2_1 = tokens_2.next()) {
+            var token = tokens_2_1.value;
+            counter.set(token, (counter.get(token) || 0) + 1);
+        }
+    }
+    catch (e_6_1) { e_6 = { error: e_6_1 }; }
+    finally {
+        try {
+            if (tokens_2_1 && !tokens_2_1.done && (_a = tokens_2.return)) _a.call(tokens_2);
+        }
+        finally { if (e_6) throw e_6.error; }
+    }
+    var parts = [];
+    try {
+        for (var counter_1 = __values(counter), counter_1_1 = counter_1.next(); !counter_1_1.done; counter_1_1 = counter_1.next()) {
+            var _c = __read(counter_1_1.value, 2), token = _c[0], count = _c[1];
+            parts.push((count == 1) ? token : token + "(" + count + ")");
+        }
+    }
+    catch (e_7_1) { e_7 = { error: e_7_1 }; }
+    finally {
+        try {
+            if (counter_1_1 && !counter_1_1.done && (_b = counter_1.return)) _b.call(counter_1);
+        }
+        finally { if (e_7) throw e_7.error; }
+    }
+    return parts.join(', ');
+}
+function renderCalculatedCost(c) {
+    return "<div>(cost) " + c.text + "</div>";
+}
+function renderTooltip(card, state) {
+    var effectHtml = "<div>" + card.effect().text + "</div>";
+    var costHtml = (card.spec.calculatedCost != undefined) ? renderCalculatedCost(card.spec.calculatedCost) : '';
+    var abilitiesHtml = card.abilities().map(function (x) { return renderAbility(x); }).join('');
+    var triggerHtml = card.triggers().map(function (x) { return renderStatic(x); }).join('');
+    var replacerHtml = card.replacers().map(function (x) { return renderStatic(x); }).join('');
+    var staticHtml = triggerHtml + replacerHtml;
+    var tokensHtml = card.tokens.length > 0 ? "Tokens: " + renderTokenTooltip(card.tokens) : '';
+    var baseFilling = [costHtml, effectHtml, abilitiesHtml, staticHtml, tokensHtml].join('');
+    function renderRelated(spec) {
+        var card = new Card(spec, -1);
+        var costStr = renderCost(card.cost(emptyState));
+        var header = (costStr.length > 0) ?
+            "<div>---" + card.toString() + " (" + costStr + ")---</div>" :
+            "<div>-----" + card.toString() + "----</div>";
+        return header + renderTooltip(card, state);
+    }
+    var relatedFilling = card.relatedCards().map(renderRelated).join('');
+    return "" + baseFilling + relatedFilling;
+}
+function render_log(msg) {
+    return "<div class=\".log\">" + msg + "</div>";
+}
+function getIfDef(m, x) {
+    return (m == undefined) ? undefined : m.get(x);
+}
 var globalRendererState = {
     hotkeysOn: false,
-    hotkeyMapper: new HotkeyMapper()
+    hotkeyMapper: new HotkeyMapper(),
+    tokenRenderer: new TokenRenderer(),
 };
+function resetGlobalRenderer() {
+    globalRendererState.hotkeyMapper = new HotkeyMapper();
+    globalRendererState.tokenRenderer = new TokenRenderer();
+}
+function renderState(state, settings) {
+    if (settings === void 0) { settings = {}; }
+    window.renderedState = state;
+    clearChoice();
+    function render(card) {
+        var cardRenderOptions = {
+            option: getIfDef(settings.optionsMap, card.id),
+            hotkey: getIfDef(settings.hotkeyMap, card.id),
+            pick: getIfDef(settings.pickMap, card.id),
+        };
+        return renderCard(card, state, cardRenderOptions, globalRendererState.tokenRenderer);
+    }
+    $('#resolvingHeader').html('Resolving:');
+    $('#energy').html(state.energy);
+    $('#coin').html(state.coin);
+    $('#points').html(state.points);
+    $('#aside').html(state.aside.map(render).join(''));
+    $('#resolving').html(state.resolving.map(render).join(''));
+    $('#play').html(state.play.map(render).join(''));
+    $('#supply').html(state.supply.map(render).join(''));
+    $('#hand').html(state.hand.map(render).join(''));
+    $('#deck').html(state.deck.map(render).join(''));
+    $('#discard').html(state.discard.map(render).join(''));
+    $('#log').html(state.logs.slice().reverse().map(render_log).join(''));
+}
 // ------------------------------- Rendering choices
 var webUI = {
     choice: function (state, choicePrompt, options) {
@@ -407,7 +461,7 @@ var webUI = {
         return new Promise(function (resolve, reject) {
             var chosen = new Set();
             function chosenOptions() {
-                var e_7, _a;
+                var e_8, _a;
                 var result = [];
                 try {
                     for (var chosen_1 = __values(chosen), chosen_1_1 = chosen_1.next(); !chosen_1_1.done; chosen_1_1 = chosen_1.next()) {
@@ -415,12 +469,12 @@ var webUI = {
                         result.push(options[i].value);
                     }
                 }
-                catch (e_7_1) { e_7 = { error: e_7_1 }; }
+                catch (e_8_1) { e_8 = { error: e_8_1 }; }
                 finally {
                     try {
                         if (chosen_1_1 && !chosen_1_1.done && (_a = chosen_1.return)) _a.call(chosen_1);
                     }
-                    finally { if (e_7) throw e_7.error; }
+                    finally { if (e_8) throw e_8.error; }
                 }
                 return result;
             }
@@ -440,7 +494,7 @@ var webUI = {
                 return $("[option='" + i + "']");
             }
             function picks() {
-                var e_8, _a;
+                var e_9, _a;
                 var result = new Map();
                 var i = 0;
                 try {
@@ -449,12 +503,12 @@ var webUI = {
                         result.set(options[k].render, i++);
                     }
                 }
-                catch (e_8_1) { e_8 = { error: e_8_1 }; }
+                catch (e_9_1) { e_9 = { error: e_9_1 }; }
                 finally {
                     try {
                         if (chosen_2_1 && !chosen_2_1.done && (_a = chosen_2.return)) _a.call(chosen_2);
                     }
-                    finally { if (e_8) throw e_8.error; }
+                    finally { if (e_9) throw e_9.error; }
                 }
                 return result;
             }
@@ -479,7 +533,7 @@ var webUI = {
                 } });
             chosen.clear();
             function renderer() {
-                var e_9, _a;
+                var e_10, _a;
                 renderChoice(state, choicePrompt, newOptions, reject, renderer, picks);
                 try {
                     for (var chosen_3 = __values(chosen), chosen_3_1 = chosen_3.next(); !chosen_3_1.done; chosen_3_1 = chosen_3.next()) {
@@ -487,12 +541,12 @@ var webUI = {
                         elem(j).attr('chosen', true);
                     }
                 }
-                catch (e_9_1) { e_9 = { error: e_9_1 }; }
+                catch (e_10_1) { e_10 = { error: e_10_1 }; }
                 finally {
                     try {
                         if (chosen_3_1 && !chosen_3_1.done && (_a = chosen_3.return)) _a.call(chosen_3);
                     }
-                    finally { if (e_9) throw e_9.error; }
+                    finally { if (e_10) throw e_10.error; }
                 }
             }
             renderer();
@@ -671,7 +725,7 @@ function setCookie(name, value) {
     document.cookie = name + "=" + value + "; max-age=315360000; path=/";
 }
 function getCookie(name) {
-    var e_10, _a;
+    var e_11, _a;
     var nameEQ = name + "=";
     var ca = document.cookie.split(';');
     try {
@@ -683,12 +737,12 @@ function getCookie(name) {
                 return c.substring(nameEQ.length, c.length);
         }
     }
-    catch (e_10_1) { e_10 = { error: e_10_1 }; }
+    catch (e_11_1) { e_11 = { error: e_11_1 }; }
     finally {
         try {
             if (_c && !_c.done && (_a = _b.return)) _a.call(_b);
         }
-        finally { if (e_10) throw e_10.error; }
+        finally { if (e_11) throw e_11.error; }
     }
     return null;
 }

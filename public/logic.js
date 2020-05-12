@@ -1137,6 +1137,25 @@ function noop(state) {
 function discharge(card, n) {
     return charge(card, -n, true);
 }
+function uncharge(card) {
+    return function (state) {
+        return __awaiter(this, void 0, void 0, function () {
+            var find;
+            return __generator(this, function (_a) {
+                switch (_a.label) {
+                    case 0:
+                        find = state.find(card);
+                        if (!find.found) return [3 /*break*/, 2];
+                        return [4 /*yield*/, charge(find.card, -find.card.charge)(state)];
+                    case 1:
+                        state = _a.sent();
+                        _a.label = 2;
+                    case 2: return [2 /*return*/, state];
+                }
+            });
+        });
+    };
+}
 function charge(card, n, cost) {
     if (cost === void 0) { cost = false; }
     return function (state) {
@@ -2255,13 +2274,13 @@ var royalCarriage = { name: 'Royal Carriage',
         effect: noop,
     }); },
     abilities: function (card) { return [{
-            text: "Put a royalty token on this.",
+            text: "Put a charge token on this.",
             cost: noop,
-            effect: addToken(card, 'royalty')
+            effect: charge(card, 1),
         }]; },
     triggers: function (card) { return [{
-            text: "When you finish playing a card the normal way, if this has a royalty token on it then"
-                + " remove the token, discard this, and play the card again if it's in your discard pile.",
+            text: "When you finish playing a card the normal way, if this has a charge token on it then"
+                + " remove all charge tokens, discard this, and play the card again if it's in your discard pile.",
             kind: 'afterPlay',
             handles: function (e) { return (e.source.name == 'act'); },
             effect: function (e) { return function (state) {
@@ -2272,9 +2291,10 @@ var royalCarriage = { name: 'Royal Carriage',
                             case 0:
                                 findCarriage = state.find(card);
                                 findCard = state.find(e.after);
-                                if (!(findCarriage.found && countTokens(findCarriage.card, 'royalty') > 0
+                                if (!(findCarriage.found && findCarriage.card.charge > 0
                                     && findCard.place == 'discard')) return [3 /*break*/, 4];
-                                return [4 /*yield*/, removeTokens(card, 'royalty')(state)];
+                                card = findCarriage.card;
+                                return [4 /*yield*/, uncharge(card)(state)];
                             case 1:
                                 state = _a.sent();
                                 return [4 /*yield*/, move(card, 'discard')(state)];
@@ -3247,31 +3267,31 @@ var seek = { name: 'Seek',
 mixins.push(seek);
 var innovation = { name: "Innovation",
     triggers: function (card) { return [{
-            text: "Whenever you create a card, if it's in your discard pile and this has innovate tokens on it," +
-                " remove those tokens and play the card.",
+            text: "Whenever you create a card, if it's in your discard pile and this has a charge token on it," +
+                " remove all charge tokens and play the card.",
             kind: 'create',
-            handles: function (e, state) { return (countTokens(card, 'innovate') > 0 && state.find(e.card).place == 'discard'); },
+            handles: function (e, state) { return (card.charge > 0 && state.find(e.card).place == 'discard'); },
             effect: function (e) { return doAll([
-                removeTokens(card, 'innovate'),
+                uncharge(card),
                 e.card.play(card)
             ]); },
         }, {
-            text: "Whenever you draw 5 or more cards, put an innovate token on this.",
+            text: "Whenever you draw 5 or more cards, put a charge token on this.",
             kind: 'draw',
             handles: function (e) { return e.cards.length >= 5; },
-            effect: function (e) { return addToken(card, 'innovate'); }
+            effect: function (e) { return charge(card, 1); },
         }]; }
 };
 register(makeCard(innovation, { coin: 9, energy: 2 }, true));
 var citadel = { name: "Citadel",
     triggers: function (card) { return [{
-            text: "Wheneve you draw 5 or more cards, put a citadel token on this.",
+            text: "Wheneve you draw 5 or more cards, put a charge token on this.",
             kind: 'draw',
             handles: function (e) { return e.cards.length >= 5; },
-            effect: function (e) { return addToken(card, 'citadel'); }
+            effect: function (e) { return charge(card, 1); }
         }, {
-            text: "After playing a card other the normal way, if there's a citadel token on this," +
-                " remove all citadel tokens and play the card again if it's in your discard pile.",
+            text: "After playing a card other the normal way, if there's a charge token on this," +
+                " remove all charge tokens and play the card again if it's in your discard pile.",
             kind: 'afterPlay',
             handles: function (e, state) { return (e.source.name == 'act'); },
             effect: function (e) { return function (state) {
@@ -3281,9 +3301,9 @@ var citadel = { name: "Citadel",
                         switch (_a.label) {
                             case 0:
                                 result = state.find(card);
-                                if (!(result.found && countTokens(result.card, 'citadel') > 0)) return [3 /*break*/, 3];
+                                if (!(result.found && result.card.charge > 0)) return [3 /*break*/, 3];
                                 card = result.card;
-                                return [4 /*yield*/, removeTokens(card, 'citadel')(state)];
+                                return [4 /*yield*/, uncharge(card)(state)];
                             case 1:
                                 state = _a.sent();
                                 if (!(e.after != null && state.find(e.after).place == 'discard')) return [3 /*break*/, 3];

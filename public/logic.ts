@@ -961,6 +961,14 @@ function discharge(card:Card, n:number): Transform {
     return charge(card, -n, true)
 }
 
+function uncharge(card:Card): Transform {
+    return async function(state:State): Promise<State> {
+        const find = state.find(card)
+        if (find.found) state = await charge(find.card, -find.card.charge)(state)
+        return state
+    }
+}
+
 function charge(card:Card, n:number, cost:boolean=false): Transform {
     return async function(state:State): Promise<State> {
         let result = state.find(card)
@@ -1829,21 +1837,22 @@ const royalCarriage:CardSpec = {name: 'Royal Carriage',
         effect: noop,
     }),
     abilities: card => [{
-        text: "Put a royalty token on this.",
+        text: "Put a charge token on this.",
         cost: noop,
-        effect: addToken(card, 'royalty')
+        effect: charge(card, 1),
     }],
     triggers: card => [{
-        text: "When you finish playing a card the normal way, if this has a royalty token on it then"
-            + " remove the token, discard this, and play the card again if it's in your discard pile.",
+        text: "When you finish playing a card the normal way, if this has a charge token on it then"
+            + " remove all charge tokens, discard this, and play the card again if it's in your discard pile.",
         kind: 'afterPlay',
         handles: e => (e.source.name == 'act'),
         effect: e => async function(state) {
             const findCarriage = state.find(card)
             const findCard = state.find(e.after)
-            if (findCarriage.found && countTokens(findCarriage.card, 'royalty') > 0
+            if (findCarriage.found && findCarriage.card.charge > 0
                     && findCard.place == 'discard') {
-                state = await removeTokens(card, 'royalty')(state)
+                card = findCarriage.card;
+                state = await uncharge(card)(state)
                 state = await move(card, 'discard')(state)
                 state = await playAgain(e.after)(state)
             }
@@ -2555,39 +2564,39 @@ mixins.push(seek)
 
 const innovation:CardSpec = {name: "Innovation",
     triggers: card => [{
-        text: "Whenever you create a card, if it's in your discard pile and this has innovate tokens on it," +
-        " remove those tokens and play the card.",
+        text: "Whenever you create a card, if it's in your discard pile and this has a charge token on it," +
+        " remove all charge tokens and play the card.",
         kind:'create',
-        handles: (e, state) => (countTokens(card, 'innovate') > 0 && state.find(e.card).place == 'discard'),
+        handles: (e, state) => (card.charge > 0 && state.find(e.card).place == 'discard'),
         effect: e => doAll([
-            removeTokens(card, 'innovate'),
+            uncharge(card),
             e.card.play(card)
         ]),
     }, {
-        text: "Whenever you draw 5 or more cards, put an innovate token on this.",
+        text: "Whenever you draw 5 or more cards, put a charge token on this.",
         kind: 'draw',
         handles: e => e.cards.length >= 5,
-        effect: e => addToken(card, 'innovate')
+        effect: e => charge(card, 1),
     }]
 }
 register(makeCard(innovation, {coin:9, energy:2}, true))
 
 const citadel:CardSpec = {name: "Citadel",
     triggers: card => [{
-        text: `Wheneve you draw 5 or more cards, put a citadel token on this.`,
+        text: `Wheneve you draw 5 or more cards, put a charge token on this.`,
         kind: 'draw',
         handles: e => e.cards.length >= 5,
-        effect: e => addToken(card, 'citadel')
+        effect: e => charge(card, 1)
     }, {
-        text: `After playing a card other the normal way, if there's a citadel token on this,`+
-            ` remove all citadel tokens and play the card again if it's in your discard pile.`,
+        text: `After playing a card other the normal way, if there's a charge token on this,`+
+            ` remove all charge tokens and play the card again if it's in your discard pile.`,
         kind:'afterPlay',
         handles: (e, state) => (e.source.name == 'act'),
         effect: e => async function(state) {
             const result = state.find(card)
-            if (result.found && countTokens(result.card, 'citadel') > 0) {
+            if (result.found && result.card.charge > 0) {
                 card = result.card
-                state = await removeTokens(card, 'citadel')(state)
+                state = await uncharge(card)(state)
                 if (e.after != null && state.find(e.after).place == 'discard') state = await e.after.play(card)(state)
             }
             return state

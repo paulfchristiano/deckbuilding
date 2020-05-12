@@ -13,172 +13,6 @@ import { UI, Undo, Victory, HistoryMismatch, ReplayEnded } from './logic.js'
 import { playGame, initialState, verifyScore } from './logic.js'
 import { mixins } from './logic.js'
 
-// ------------------ Rendering State
-
-function assertNever(x: never): never {
-    throw new Error(`Unexpected: ${x}`)
-}
-
-
-function describeCost(cost:Cost): string {
-    const coinCost = (cost.coin > 0) ? [`lose $${cost.coin}`] : []
-    const energyCost = (cost.energy > 0) ? [`gain ${renderEnergy(cost.energy)}`] : []
-    const costs = coinCost.concat(energyCost)
-    const costStr = (costs.length > 0) ? costs.join(' and ') : 'do nothing'
-    return `Cost: ${costStr}.`
-}
-
-
-function renderShadow(shadow:Shadow, state:State):string {
-    const card:Card = shadow.spec.card
-    const tokenhtml:string = card.tokens.length > 0 ? '*' : ''
-    const chargehtml:string = card.charge > 0 ? `(${card.charge})` : ''
-    const costhtml:string = renderCost(card.cost(state)) || '&nbsp'
-    const ticktext:string = `tick=${shadow.tick}`
-    const shadowtext:string = `shadow='true'`
-    let tooltip:string;
-    switch (shadow.spec.kind) {
-        case 'ability':
-            tooltip = renderAbility(shadow.spec.ability)
-            break
-        case 'trigger':
-            tooltip = renderStatic(shadow.spec.trigger)
-            break
-        case 'effect':
-            tooltip = card.effect().text
-            break
-        case 'abilities':
-            tooltip = card.abilities().map(renderAbility).join('')
-            break
-        case 'cost':
-            tooltip = describeCost(card.cost(state))
-            break
-        default: assertNever(shadow.spec)
-    }
-    return [`<div class='card' ${ticktext} ${shadowtext}>`,
-            `<div class='cardbody'>${card}${tokenhtml}${chargehtml}</div>`,
-            `<div class='cardcost'>${costhtml}</div>`,
-            `<span class='tooltip'>${tooltip}</span>`,
-            `</div>`].join('')
-}
-
-function renderCard(card:Card|Shadow, state:State, options:CardRenderOptions):string {
-    if (card instanceof Shadow) {
-        return renderShadow(card, state)
-    } else {
-        const tokenhtml:string = card.tokens.length > 0 ? '*' : ''
-        const chargehtml:string = card.charge > 0 ? `(${card.charge})` : ''
-        const costhtml:string = renderCost(card.cost(state)) || '&nbsp'
-        const picktext:string = (options.pick !== undefined) ? `<div class='pickorder'>${options.pick}</div>` : ''
-        const choosetext:string = (options.option !== undefined) ? `choosable chosen='false' option=${options.option}` : ''
-        const hotkeytext:string = (options.hotkey !== undefined) ? renderHotkey(options.hotkey) : ''
-        const ticktext:string = `tick=${card.ticks[card.ticks.length-1]}`
-        return [`<div class='card' ${ticktext} ${choosetext}> ${picktext}`,
-                `<div class='cardbody'>${hotkeytext}${card}${tokenhtml}${chargehtml}</div>`,
-                `<div class='cardcost'>${costhtml}</div>`,
-                `<span class='tooltip'>${renderTooltip(card, state)}</span>`,
-                `</div>`].join('')
-    }
-}
-
-function renderStatic(x:Trigger|Replacer): string {
-    return `<div>(static) ${x.text}</div>`
-}
-
-function renderAbility(x:Ability): string {
-    return `<div>(ability) ${x.text}</div>`
-}
-
-function renderTokens(tokens:string[]): string {
-    const counter:Map<string,number> = new Map()
-    for (const token of tokens) {
-        counter.set(token, (counter.get(token) || 0) + 1)
-    }
-    const parts:string[] = []
-    for (const [token, count] of counter) {
-        parts.push((count == 1) ? token : `${token}(${count})`)
-    }
-    return parts.join(', ')
-}
-
-function renderCalculatedCost(c:CalculatedCost): string {
-    return `<div>(cost) ${c.text}</div>`
-}
-
-function renderTooltip(card:Card, state:State): string {
-    const effectHtml:string = `<div>${card.effect().text}</div>`
-    const costHtml:string = (card.spec.calculatedCost != undefined) ? renderCalculatedCost(card.spec.calculatedCost) : ''
-    const abilitiesHtml:string = card.abilities().map(x => renderAbility(x)).join('')
-    const triggerHtml:string = card.triggers().map(x => renderStatic(x)).join('')
-    const replacerHtml:string = card.replacers().map(x => renderStatic(x)).join('')
-    const staticHtml:string = triggerHtml + replacerHtml
-    const tokensHtml:string = card.tokens.length > 0 ? `Tokens: ${renderTokens(card.tokens)}` : ''
-    const baseFilling:string = [costHtml, effectHtml, abilitiesHtml, staticHtml, tokensHtml].join('')
-    function renderRelated(spec:CardSpec) {
-        const card:Card = new Card(spec, -1)
-        const costStr = renderCost(card.cost(emptyState))
-        const header = (costStr.length > 0) ?
-            `<div>---${card.toString()} (${costStr})---</div>` :
-            `<div>-----${card.toString() }----</div>`
-        return header + renderTooltip(card, state)
-    }
-    const relatedFilling:string = card.relatedCards().map(renderRelated).join('')
-    return `${baseFilling}${relatedFilling}`
-}
-
-
-function render_log(msg: string) {
-  return `<div class=".log">${msg}</div>`
-}
-
-interface CardRenderOptions {
-    option?: number;
-    pick?: number;
-    hotkey?: Key;
-}
-
-function getIfDef<S, T>(m:Map<S, T>|undefined, x:S): T|undefined {
-    return (m == undefined) ? undefined : m.get(x)
-}
-
-interface RenderSettings {
-    hotkeyMap?: Map<number|string, Key>;
-    optionsMap?: Map<number, number>;
-    pickMap?: Map<number|string, number>;
-}
-
-declare global {
-    interface Window { renderedState: State; serverSeed?: string; }
-}
-
-function renderState(state:State,
-    settings:RenderSettings = {},
-): void {
-    window.renderedState = state
-    clearChoice()
-    function render(card:Card|Shadow) {
-        const cardRenderOptions:CardRenderOptions = {
-            option: getIfDef(settings.optionsMap, card.id),
-            hotkey: getIfDef(settings.hotkeyMap, card.id),
-            pick: getIfDef(settings.pickMap, card.id),
-        }
-        return renderCard(card, state, cardRenderOptions)
-    }
-    $('#resolvingHeader').html('Resolving:')
-    $('#energy').html(state.energy)
-    $('#coin').html(state.coin)
-    $('#points').html(state.points)
-    $('#aside').html(state.aside.map(render).join(''))
-    $('#resolving').html(state.resolving.map(render).join(''))
-    $('#play').html(state.play.map(render).join(''))
-    $('#supply').html(state.supply.map(render).join(''))
-    $('#hand').html(state.hand.map(render).join(''))
-    $('#deck').html(state.deck.map(render).join(''))
-    $('#discard').html(state.discard.map(render).join(''))
-    $('#log').html(state.logs.slice().reverse().map(render_log).join(''))
-}
-
-
 // --------------------- Hotkeys
 
 type Key = string
@@ -284,15 +118,232 @@ class HotkeyMapper {
     }
 }
 
+// ------------------ Rendering State
+
+function assertNever(x: never): never {
+    throw new Error(`Unexpected: ${x}`)
+}
+
+class TokenRenderer {
+    private readonly tokenTypes:string[];
+    constructor() {
+        this.tokenTypes = ['charge'];
+    }
+    tokenColor(token:string): string {
+        const tokenColors:string[] = [
+            'red', 'orange', 'green', 'fuchsia', 'blue'
+        ] 
+        return tokenColors[this.tokenType(token) % tokenColors.length]
+    }
+    tokenType(token:string): number {
+        const n:number = this.tokenTypes.indexOf(token)
+        if (n >= 0) return n
+        this.tokenTypes.push(token)
+        return this.tokenTypes.length - 1
+    }
+    render(tokens:string[], charge:number): string {
+        const tokenHtmls:string[] = [];
+        if (charge > 0) {
+            tokenHtmls.push(`<span id='token'>${charge}</span>`)
+        }
+        const counter:Map<string,number> = new Map()
+        for (const token of tokens) {
+            counter.set(token, (counter.get(token) || 0) + 1)
+            this.tokenType(token)
+        }
+        for (let i = 0; i < this.tokenTypes.length; i++) {
+            const token = this.tokenTypes[i]
+            if (counter.has(token)) {
+                tokenHtmls.push(
+                    `<span id='token' style='color:${this.tokenColor(token)}'>` +
+                    `${counter.get(token)}` +
+                    `</span>`
+                )
+            }
+        }
+        return (tokenHtmls.length > 0) ? `(${tokenHtmls.join('')})` : ''
+    }
+}
+
+function describeCost(cost:Cost): string {
+    const coinCost = (cost.coin > 0) ? [`lose $${cost.coin}`] : []
+    const energyCost = (cost.energy > 0) ? [`gain ${renderEnergy(cost.energy)}`] : []
+    const costs = coinCost.concat(energyCost)
+    const costStr = (costs.length > 0) ? costs.join(' and ') : 'do nothing'
+    return `Cost: ${costStr}.`
+}
+
+
+function renderShadow(shadow:Shadow, state:State, tokenRenderer:TokenRenderer):string {
+    const card:Card = shadow.spec.card
+    const tokenhtml:string = tokenRenderer.render(card.tokens, card.charge)
+    const costhtml:string = renderCost(card.cost(state)) || '&nbsp'
+    const ticktext:string = `tick=${shadow.tick}`
+    const shadowtext:string = `shadow='true'`
+    let tooltip:string;
+    switch (shadow.spec.kind) {
+        case 'ability':
+            tooltip = renderAbility(shadow.spec.ability)
+            break
+        case 'trigger':
+            tooltip = renderStatic(shadow.spec.trigger)
+            break
+        case 'effect':
+            tooltip = card.effect().text
+            break
+        case 'abilities':
+            tooltip = card.abilities().map(renderAbility).join('')
+            break
+        case 'cost':
+            tooltip = describeCost(card.cost(state))
+            break
+        default: assertNever(shadow.spec)
+    }
+    return [`<div class='card' ${ticktext} ${shadowtext}>`,
+            `<div class='cardbody'>${card}${tokenhtml}</div>`,
+            `<div class='cardcost'>${costhtml}</div>`,
+            `<span class='tooltip'>${tooltip}</span>`,
+            `</div>`].join('')
+}
+
+function renderCard(
+    card:Card|Shadow,
+    state:State,
+    options:CardRenderOptions,
+    tokenRenderer:TokenRenderer
+):string {
+    if (card instanceof Shadow) {
+        return renderShadow(card, state, tokenRenderer)
+    } else {
+        //const tokenhtml:string = card.tokens.length > 0 ? '*' : ''
+        const tokenhtml:string = tokenRenderer.render(card.tokens, card.charge)
+        const costhtml:string = renderCost(card.cost(state)) || '&nbsp'
+        const picktext:string = (options.pick !== undefined) ? `<div class='pickorder'>${options.pick}</div>` : ''
+        const choosetext:string = (options.option !== undefined) ? `choosable chosen='false' option=${options.option}` : ''
+        const hotkeytext:string = (options.hotkey !== undefined) ? renderHotkey(options.hotkey) : ''
+        const ticktext:string = `tick=${card.ticks[card.ticks.length-1]}`
+        return [`<div class='card' ${ticktext} ${choosetext}> ${picktext}`,
+                `<div class='cardbody'>${hotkeytext}${card}${tokenhtml}</div>`,
+                `<div class='cardcost'>${costhtml}</div>`,
+                `<span class='tooltip'>${renderTooltip(card, state)}</span>`,
+                `</div>`].join('')
+    }
+}
+
+function renderStatic(x:Trigger|Replacer): string {
+    return `<div>(static) ${x.text}</div>`
+}
+
+function renderAbility(x:Ability): string {
+    return `<div>(ability) ${x.text}</div>`
+}
+
+function renderTokenTooltip(tokens:string[]): string {
+    const counter:Map<string,number> = new Map()
+    for (const token of tokens) {
+        counter.set(token, (counter.get(token) || 0) + 1)
+    }
+    const parts:string[] = []
+    for (const [token, count] of counter) {
+        parts.push((count == 1) ? token : `${token}(${count})`)
+    }
+    return parts.join(', ')
+}
+
+function renderCalculatedCost(c:CalculatedCost): string {
+    return `<div>(cost) ${c.text}</div>`
+}
+
+function renderTooltip(card:Card, state:State): string {
+    const effectHtml:string = `<div>${card.effect().text}</div>`
+    const costHtml:string = (card.spec.calculatedCost != undefined) ? renderCalculatedCost(card.spec.calculatedCost) : ''
+    const abilitiesHtml:string = card.abilities().map(x => renderAbility(x)).join('')
+    const triggerHtml:string = card.triggers().map(x => renderStatic(x)).join('')
+    const replacerHtml:string = card.replacers().map(x => renderStatic(x)).join('')
+    const staticHtml:string = triggerHtml + replacerHtml
+    const tokensHtml:string = card.tokens.length > 0 ? `Tokens: ${renderTokenTooltip(card.tokens)}` : ''
+    const baseFilling:string = [costHtml, effectHtml, abilitiesHtml, staticHtml, tokensHtml].join('')
+    function renderRelated(spec:CardSpec) {
+        const card:Card = new Card(spec, -1)
+        const costStr = renderCost(card.cost(emptyState))
+        const header = (costStr.length > 0) ?
+            `<div>---${card.toString()} (${costStr})---</div>` :
+            `<div>-----${card.toString() }----</div>`
+        return header + renderTooltip(card, state)
+    }
+    const relatedFilling:string = card.relatedCards().map(renderRelated).join('')
+    return `${baseFilling}${relatedFilling}`
+}
+
+
+function render_log(msg: string) {
+  return `<div class=".log">${msg}</div>`
+}
+
+interface CardRenderOptions {
+    option?: number;
+    pick?: number;
+    hotkey?: Key;
+}
+
+function getIfDef<S, T>(m:Map<S, T>|undefined, x:S): T|undefined {
+    return (m == undefined) ? undefined : m.get(x)
+}
+
+interface RenderSettings {
+    hotkeyMap?: Map<number|string, Key>;
+    optionsMap?: Map<number, number>;
+    pickMap?: Map<number|string, number>;
+}
+
+declare global {
+    interface Window { renderedState: State; serverSeed?: string; }
+}
+
 interface RendererState {
     hotkeysOn:boolean;
     hotkeyMapper: HotkeyMapper;
+    tokenRenderer: TokenRenderer;
 }
 
 const globalRendererState:RendererState = {
     hotkeysOn:false,
-    hotkeyMapper: new HotkeyMapper()
+    hotkeyMapper: new HotkeyMapper(),
+    tokenRenderer: new TokenRenderer(),
 }
+
+function resetGlobalRenderer() {
+    globalRendererState.hotkeyMapper = new HotkeyMapper()
+    globalRendererState.tokenRenderer = new TokenRenderer()
+}
+
+function renderState(state:State,
+    settings:RenderSettings = {},
+): void {
+    window.renderedState = state
+    clearChoice()
+    function render(card:Card|Shadow) {
+        const cardRenderOptions:CardRenderOptions = {
+            option: getIfDef(settings.optionsMap, card.id),
+            hotkey: getIfDef(settings.hotkeyMap, card.id),
+            pick: getIfDef(settings.pickMap, card.id),
+        }
+        return renderCard(card, state, cardRenderOptions, globalRendererState.tokenRenderer)
+    }
+    $('#resolvingHeader').html('Resolving:')
+    $('#energy').html(state.energy)
+    $('#coin').html(state.coin)
+    $('#points').html(state.points)
+    $('#aside').html(state.aside.map(render).join(''))
+    $('#resolving').html(state.resolving.map(render).join(''))
+    $('#play').html(state.play.map(render).join(''))
+    $('#supply').html(state.supply.map(render).join(''))
+    $('#hand').html(state.hand.map(render).join(''))
+    $('#deck').html(state.deck.map(render).join(''))
+    $('#discard').html(state.discard.map(render).join(''))
+    $('#log').html(state.logs.slice().reverse().map(render_log).join(''))
+}
+
 
 // ------------------------------- Rendering choices
 

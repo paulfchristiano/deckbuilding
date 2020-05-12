@@ -152,3 +152,12 @@
   font-family: "Lucida Console", Courier, monospace;
   color: gray;
 }
+.token[type="1"] {
+    color: orange;
+}
+.token[type="2"] {
+    color: red;
+}
+.token[type="3"] {
+    color: lightblue;
+}
