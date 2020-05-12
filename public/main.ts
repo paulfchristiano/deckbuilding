@@ -1,6 +1,4 @@
-// TODO: there is now visual hiccup on startup, diagnose and then fix
 // TODO: make calculated costs render as "(cost) X"
-// TODO: make the tooltip nice---should show up immediately, but be impossible to keep it alive by mousing over it
 // TODO: I think the cost framework isn't really appropriate any more, but maybe think a bit before getting rid of it
 // TODO: if a zone gets bigger and then smaller, it's annoying to keep resizing it. As soon as a zone gets big I want to leave it big probably.
 // TODO: lay out the zones a bit more nicely
