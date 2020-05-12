@@ -2893,7 +2893,7 @@ const reflect:CardSpec = {name: 'Reflect',
         effect: doAll([charge(card, 1), playTwice(card)])
     })
 }
-register(reflect, 'test')
+register(reflect)
 
 //TODO: add
 const cleanse:CardSpec = {name: 'Offering',

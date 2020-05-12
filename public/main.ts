@@ -1,11 +1,7 @@
-// TODO: make calculated costs render as "(cost) X"
-// TODO: I think the cost framework isn't really appropriate any more, but maybe think a bit before getting rid of it
 // TODO: if a zone gets bigger and then smaller, it's annoying to keep resizing it. As soon as a zone gets big I want to leave it big probably.
 // TODO: lay out the zones a bit more nicely
 // TODO: starting to see performance hiccups in big games
-// TODO: probably just want to stop things moving in/out of resolving, as if they didn't exist...
-// TODO: it basically breaks the game if you move stuff from set aside or play without putting them there,
-// I could probably enforce that through type system
+// TODO: probably don't want the public move method to allow moves into or out of resolving.
 
 import { Cost, Shadow, State, Card, CardSpec, GameSpec } from './logic.js'
 import { Trigger, Replacer, Ability, CalculatedCost } from './logic.js'

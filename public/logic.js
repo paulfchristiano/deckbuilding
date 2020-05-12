@@ -3714,7 +3714,7 @@ var reflect = { name: 'Reflect',
         effect: doAll([charge(card, 1), playTwice(card)])
     }); }
 };
-register(reflect, 'test');
+register(reflect);
 //TODO: add
 var cleanse = { name: 'Offering',
     calculatedCost: costPlus(energy(1), coin(1)),
