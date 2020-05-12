@@ -60,22 +60,6 @@ var __values = (this && this.__values) || function(o) {
     };
     throw new TypeError(s ? "Object is not iterable." : "Symbol.iterator is not defined.");
 };
-var __read = (this && this.__read) || function (o, n) {
-    var m = typeof Symbol === "function" && o[Symbol.iterator];
-    if (!m) return o;
-    var i = m.call(o), r, ar = [], e;
-    try {
-        while ((n === void 0 || n-- > 0) && !(r = i.next()).done) ar.push(r.value);
-    }
-    catch (error) { e = { error: error }; }
-    finally {
-        try {
-            if (r && !r.done && (m = i["return"])) m.call(i);
-        }
-        finally { if (e) throw e.error; }
-    }
-    return ar;
-};
 import { Shadow, Card } from './logic.js';
 import { renderCost, renderEnergy } from './logic.js';
 import { emptyState } from './logic.js';
@@ -239,9 +223,7 @@ var TokenRenderer = /** @class */ (function () {
         this.tokenTypes = ['charge'];
     }
     TokenRenderer.prototype.tokenColor = function (token) {
-        var tokenColors = [
-            'red', 'orange', 'green', 'fuchsia', 'blue'
-        ];
+        var tokenColors = ['black', 'red', 'orange', 'green', 'fuchsia', 'blue'];
         return tokenColors[this.tokenType(token) % tokenColors.length];
     };
     TokenRenderer.prototype.tokenType = function (token) {
@@ -251,36 +233,69 @@ var TokenRenderer = /** @class */ (function () {
         this.tokenTypes.push(token);
         return this.tokenTypes.length - 1;
     };
-    TokenRenderer.prototype.render = function (tokens, charge) {
+    TokenRenderer.prototype.render = function (tokens) {
         var e_5, _a;
-        var tokenHtmls = [];
-        if (charge > 0) {
-            tokenHtmls.push("<span id='token'>" + charge + "</span>");
+        function f(n) {
+            return (n == 1) ? '*' : n.toString();
         }
-        var counter = new Map();
+        var tokenHtmls = [];
         try {
-            for (var tokens_1 = __values(tokens), tokens_1_1 = tokens_1.next(); !tokens_1_1.done; tokens_1_1 = tokens_1.next()) {
-                var token = tokens_1_1.value;
-                counter.set(token, (counter.get(token) || 0) + 1);
+            for (var _b = __values(tokens.keys()), _c = _b.next(); !_c.done; _c = _b.next()) {
+                var token = _c.value;
                 this.tokenType(token);
             }
         }
         catch (e_5_1) { e_5 = { error: e_5_1 }; }
         finally {
             try {
-                if (tokens_1_1 && !tokens_1_1.done && (_a = tokens_1.return)) _a.call(tokens_1);
+                if (_c && !_c.done && (_a = _b.return)) _a.call(_b);
             }
             finally { if (e_5) throw e_5.error; }
         }
         for (var i = 0; i < this.tokenTypes.length; i++) {
             var token = this.tokenTypes[i];
-            if (counter.has(token)) {
-                tokenHtmls.push("<span id='token' style='color:" + this.tokenColor(token) + "'>" +
-                    ("" + counter.get(token)) +
-                    "</span>");
+            var n = tokens.get(token) || 0;
+            if (n > 0) {
+                tokenHtmls.push("<span id='token' style='color:" + this.tokenColor(token) + "'>" + f(n) + "</span>");
             }
         }
         return (tokenHtmls.length > 0) ? "(" + tokenHtmls.join('') + ")" : '';
+    };
+    TokenRenderer.prototype.renderTooltip = function (tokens) {
+        var e_6, _a, e_7, _b;
+        function f(n, s) {
+            return (n == 1) ? s : s + " (" + n + ")";
+        }
+        var tokenHtmls = [];
+        try {
+            for (var _c = __values(tokens.keys()), _d = _c.next(); !_d.done; _d = _c.next()) {
+                var token = _d.value;
+                this.tokenType(token);
+            }
+        }
+        catch (e_6_1) { e_6 = { error: e_6_1 }; }
+        finally {
+            try {
+                if (_d && !_d.done && (_a = _c.return)) _a.call(_c);
+            }
+            finally { if (e_6) throw e_6.error; }
+        }
+        try {
+            for (var _e = __values(this.tokenTypes), _f = _e.next(); !_f.done; _f = _e.next()) {
+                var token = _f.value;
+                var n = tokens.get(token) || 0;
+                if (n > 0)
+                    tokenHtmls.push(f(n, token));
+            }
+        }
+        catch (e_7_1) { e_7 = { error: e_7_1 }; }
+        finally {
+            try {
+                if (_f && !_f.done && (_b = _e.return)) _b.call(_e);
+            }
+            finally { if (e_7) throw e_7.error; }
+        }
+        return (tokenHtmls.length > 0) ? "Tokens: " + tokenHtmls.join(',') : '';
     };
     return TokenRenderer;
 }());
@@ -293,7 +308,7 @@ function describeCost(cost) {
 }
 function renderShadow(shadow, state, tokenRenderer) {
     var card = shadow.spec.card;
-    var tokenhtml = tokenRenderer.render(card.tokens, card.charge);
+    var tokenhtml = tokenRenderer.render(card.tokens);
     var costhtml = renderCost(card.cost(state)) || '&nbsp';
     var ticktext = "tick=" + shadow.tick;
     var shadowtext = "shadow='true'";
@@ -327,8 +342,7 @@ function renderCard(card, state, options, tokenRenderer) {
         return renderShadow(card, state, tokenRenderer);
     }
     else {
-        //const tokenhtml:string = card.tokens.length > 0 ? '*' : ''
-        var tokenhtml = tokenRenderer.render(card.tokens, card.charge);
+        var tokenhtml = tokenRenderer.render(card.tokens);
         var costhtml = renderCost(card.cost(state)) || '&nbsp';
         var picktext = (options.pick !== undefined) ? "<div class='pickorder'>" + options.pick + "</div>" : '';
         var choosetext = (options.option !== undefined) ? "choosable chosen='false' option=" + options.option : '';
@@ -337,7 +351,7 @@ function renderCard(card, state, options, tokenRenderer) {
         return ["<div class='card' " + ticktext + " " + choosetext + "> " + picktext,
             "<div class='cardbody'>" + hotkeytext + card + tokenhtml + "</div>",
             "<div class='cardcost'>" + costhtml + "</div>",
-            "<span class='tooltip'>" + renderTooltip(card, state) + "</span>",
+            "<span class='tooltip'>" + renderTooltip(card, state, tokenRenderer) + "</span>",
             "</div>"].join('');
     }
 }
@@ -347,49 +361,17 @@ function renderStatic(x) {
 function renderAbility(x) {
     return "<div>(ability) " + x.text + "</div>";
 }
-function renderTokenTooltip(tokens) {
-    var e_6, _a, e_7, _b;
-    var counter = new Map();
-    try {
-        for (var tokens_2 = __values(tokens), tokens_2_1 = tokens_2.next(); !tokens_2_1.done; tokens_2_1 = tokens_2.next()) {
-            var token = tokens_2_1.value;
-            counter.set(token, (counter.get(token) || 0) + 1);
-        }
-    }
-    catch (e_6_1) { e_6 = { error: e_6_1 }; }
-    finally {
-        try {
-            if (tokens_2_1 && !tokens_2_1.done && (_a = tokens_2.return)) _a.call(tokens_2);
-        }
-        finally { if (e_6) throw e_6.error; }
-    }
-    var parts = [];
-    try {
-        for (var counter_1 = __values(counter), counter_1_1 = counter_1.next(); !counter_1_1.done; counter_1_1 = counter_1.next()) {
-            var _c = __read(counter_1_1.value, 2), token = _c[0], count = _c[1];
-            parts.push((count == 1) ? token : token + "(" + count + ")");
-        }
-    }
-    catch (e_7_1) { e_7 = { error: e_7_1 }; }
-    finally {
-        try {
-            if (counter_1_1 && !counter_1_1.done && (_b = counter_1.return)) _b.call(counter_1);
-        }
-        finally { if (e_7) throw e_7.error; }
-    }
-    return parts.join(', ');
-}
 function renderCalculatedCost(c) {
     return "<div>(cost) " + c.text + "</div>";
 }
-function renderTooltip(card, state) {
+function renderTooltip(card, state, tokenRenderer) {
     var effectHtml = "<div>" + card.effect().text + "</div>";
     var costHtml = (card.spec.calculatedCost != undefined) ? renderCalculatedCost(card.spec.calculatedCost) : '';
     var abilitiesHtml = card.abilities().map(function (x) { return renderAbility(x); }).join('');
     var triggerHtml = card.triggers().map(function (x) { return renderStatic(x); }).join('');
     var replacerHtml = card.replacers().map(function (x) { return renderStatic(x); }).join('');
     var staticHtml = triggerHtml + replacerHtml;
-    var tokensHtml = card.tokens.length > 0 ? "Tokens: " + renderTokenTooltip(card.tokens) : '';
+    var tokensHtml = tokenRenderer.renderTooltip(card.tokens);
     var baseFilling = [costHtml, effectHtml, abilitiesHtml, staticHtml, tokensHtml].join('');
     function renderRelated(spec) {
         var card = new Card(spec, -1);
@@ -397,7 +379,7 @@ function renderTooltip(card, state) {
         var header = (costStr.length > 0) ?
             "<div>---" + card.toString() + " (" + costStr + ")---</div>" :
             "<div>-----" + card.toString() + "----</div>";
-        return header + renderTooltip(card, state);
+        return header + renderTooltip(card, state, tokenRenderer);
     }
     var relatedFilling = card.relatedCards().map(renderRelated).join('');
     return "" + baseFilling + relatedFilling;

@@ -130,9 +130,7 @@ class TokenRenderer {
         this.tokenTypes = ['charge'];
     }
     tokenColor(token:string): string {
-        const tokenColors:string[] = [
-            'red', 'orange', 'green', 'fuchsia', 'blue'
-        ] 
+        const tokenColors:string[] = ['black', 'red', 'orange', 'green', 'fuchsia', 'blue'] 
         return tokenColors[this.tokenType(token) % tokenColors.length]
     }
     tokenType(token:string): number {
@@ -141,27 +139,36 @@ class TokenRenderer {
         this.tokenTypes.push(token)
         return this.tokenTypes.length - 1
     }
-    render(tokens:string[], charge:number): string {
-        const tokenHtmls:string[] = [];
-        if (charge > 0) {
-            tokenHtmls.push(`<span id='token'>${charge}</span>`)
+    render(tokens:Map<string, number>): string {
+        function f(n:number): string {
+            return (n == 1) ? '*' : n.toString()
         }
-        const counter:Map<string,number> = new Map()
-        for (const token of tokens) {
-            counter.set(token, (counter.get(token) || 0) + 1)
+        const tokenHtmls:string[] = [];
+        for (const token of tokens.keys()) {
             this.tokenType(token)
         }
         for (let i = 0; i < this.tokenTypes.length; i++) {
             const token = this.tokenTypes[i]
-            if (counter.has(token)) {
-                tokenHtmls.push(
-                    `<span id='token' style='color:${this.tokenColor(token)}'>` +
-                    `${counter.get(token)}` +
-                    `</span>`
-                )
+            const n = tokens.get(token) || 0
+            if (n > 0) {
+                tokenHtmls.push(`<span id='token' style='color:${this.tokenColor(token)}'>${f(n)}</span>`)
             }
         }
         return (tokenHtmls.length > 0) ? `(${tokenHtmls.join('')})` : ''
+    }
+    renderTooltip(tokens:Map<string, number>): string {
+        function f(n:number, s:string): string {
+            return (n == 1) ? s : `${s} (${n})`
+        }
+        const tokenHtmls:string[] = [];
+        for (const token of tokens.keys()) {
+            this.tokenType(token)
+        }
+        for (const token of this.tokenTypes) {
+            const n = tokens.get(token) || 0
+            if (n > 0) tokenHtmls.push(f(n, token))
+        }
+        return (tokenHtmls.length > 0) ? `Tokens: ${tokenHtmls.join(',')}` : ''
     }
 }
 
@@ -176,7 +183,7 @@ function describeCost(cost:Cost): string {
 
 function renderShadow(shadow:Shadow, state:State, tokenRenderer:TokenRenderer):string {
     const card:Card = shadow.spec.card
-    const tokenhtml:string = tokenRenderer.render(card.tokens, card.charge)
+    const tokenhtml:string = tokenRenderer.render(card.tokens)
     const costhtml:string = renderCost(card.cost(state)) || '&nbsp'
     const ticktext:string = `tick=${shadow.tick}`
     const shadowtext:string = `shadow='true'`
@@ -215,8 +222,7 @@ function renderCard(
     if (card instanceof Shadow) {
         return renderShadow(card, state, tokenRenderer)
     } else {
-        //const tokenhtml:string = card.tokens.length > 0 ? '*' : ''
-        const tokenhtml:string = tokenRenderer.render(card.tokens, card.charge)
+        const tokenhtml:string = tokenRenderer.render(card.tokens)
         const costhtml:string = renderCost(card.cost(state)) || '&nbsp'
         const picktext:string = (options.pick !== undefined) ? `<div class='pickorder'>${options.pick}</div>` : ''
         const choosetext:string = (options.option !== undefined) ? `choosable chosen='false' option=${options.option}` : ''
@@ -225,7 +231,7 @@ function renderCard(
         return [`<div class='card' ${ticktext} ${choosetext}> ${picktext}`,
                 `<div class='cardbody'>${hotkeytext}${card}${tokenhtml}</div>`,
                 `<div class='cardcost'>${costhtml}</div>`,
-                `<span class='tooltip'>${renderTooltip(card, state)}</span>`,
+                `<span class='tooltip'>${renderTooltip(card, state, tokenRenderer)}</span>`,
                 `</div>`].join('')
     }
 }
@@ -238,30 +244,18 @@ function renderAbility(x:Ability): string {
     return `<div>(ability) ${x.text}</div>`
 }
 
-function renderTokenTooltip(tokens:string[]): string {
-    const counter:Map<string,number> = new Map()
-    for (const token of tokens) {
-        counter.set(token, (counter.get(token) || 0) + 1)
-    }
-    const parts:string[] = []
-    for (const [token, count] of counter) {
-        parts.push((count == 1) ? token : `${token}(${count})`)
-    }
-    return parts.join(', ')
-}
-
 function renderCalculatedCost(c:CalculatedCost): string {
     return `<div>(cost) ${c.text}</div>`
 }
 
-function renderTooltip(card:Card, state:State): string {
+function renderTooltip(card:Card, state:State, tokenRenderer:TokenRenderer): string {
     const effectHtml:string = `<div>${card.effect().text}</div>`
     const costHtml:string = (card.spec.calculatedCost != undefined) ? renderCalculatedCost(card.spec.calculatedCost) : ''
     const abilitiesHtml:string = card.abilities().map(x => renderAbility(x)).join('')
     const triggerHtml:string = card.triggers().map(x => renderStatic(x)).join('')
     const replacerHtml:string = card.replacers().map(x => renderStatic(x)).join('')
     const staticHtml:string = triggerHtml + replacerHtml
-    const tokensHtml:string = card.tokens.length > 0 ? `Tokens: ${renderTokenTooltip(card.tokens)}` : ''
+    const tokensHtml:string = tokenRenderer.renderTooltip(card.tokens)
     const baseFilling:string = [costHtml, effectHtml, abilitiesHtml, staticHtml, tokensHtml].join('')
     function renderRelated(spec:CardSpec) {
         const card:Card = new Card(spec, -1)
@@ -269,7 +263,7 @@ function renderTooltip(card:Card, state:State): string {
         const header = (costStr.length > 0) ?
             `<div>---${card.toString()} (${costStr})---</div>` :
             `<div>-----${card.toString() }----</div>`
-        return header + renderTooltip(card, state)
+        return header + renderTooltip(card, state, tokenRenderer)
     }
     const relatedFilling:string = card.relatedCards().map(renderRelated).join('')
     return `${baseFilling}${relatedFilling}`

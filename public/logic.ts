@@ -77,24 +77,25 @@ function read<T>(x:any, k:string, fallback:T) {
 }
 
 interface CardUpdate {
-    charge?: number;
     ticks?: number[];
-    tokens?: string[];
+    tokens?: Map<string, number>;
     zoneIndex?: number;
 }
 
+//TODO: should Token be a type? can avoid token name typos...
 export class Card {
     readonly name: string;
+    readonly charge: number;
     constructor(
         public readonly spec:CardSpec,
         public readonly id:number,
-        public readonly charge:number = 0,
         public readonly ticks: number[] = [0],
-        public readonly tokens: string[] = [],
+        public readonly tokens: Map<string, number> = new Map(),
         // we assign each card the smallest unused index in its current zone, for consistency of hotkey mappings
         public readonly zoneIndex = 0,
     ) {
         this.name = spec.name
+        this.charge = this.count('charge')
     }
     toString():string {
         return this.name
@@ -103,11 +104,21 @@ export class Card {
         return new Card(
             this.spec,
             this.id,
-            read(newValues, 'charge', this.charge),
             read(newValues, 'ticks', this.ticks),
             read(newValues, 'tokens', this.tokens),
             read(newValues, 'zoneIndex', this.zoneIndex),
         )
+    }
+    setTokens(token:string, n:number): Card {
+        const tokens: Map<string, number> = new Map(this.tokens)
+        tokens.set(token, n)
+        return this.update({tokens:tokens})
+    }
+    addTokens(token:string, n:number): Card {
+        return this.setTokens(token, this.count(token) + n)
+    }
+    count(token:string): number {
+        return this.tokens.get(token) || 0
     }
     startTicker(): Card {
         return this.update({ticks: this.ticks.concat([1])})
@@ -514,14 +525,7 @@ export const emptyState:State = new State()
 
 // ---------- Methods for inserting cards into zones
 
-type InsertLocation = 'bottom' | 'top' | 'start' | 'end' | 'handSort'
-
-// tests whether card1 should appear before card2 in sorted order (not currently used)
-
-function comesBefore(card1:Card, card2:Card): boolean  {
-    const key = (card:Card) => card.name + card.charge + card.tokens.join('')
-    return key(card1) < (key(card2))
-}
+type InsertLocation = 'bottom' | 'top' | 'start' | 'end'
 
 function assertNever(x: never): never {
     throw new Error(`Unexpected: ${x}`)
@@ -545,11 +549,6 @@ function insertAt(zone:Zone, card:Card, loc:InsertLocation): Zone {
             return [card].concat(zone)
         case 'bottom':
         case 'end':
-            return zone.concat([card])
-        case 'handSort':
-            for (var i = 0; i < zone.length; i++) {
-                if (comesBefore(card, zone[i])) return insertInto(card, zone, i)
-            }
             return zone.concat([card])
         default: return assertNever(loc)
     }
@@ -981,7 +980,7 @@ function charge(card:Card, n:number, cost:boolean=false): Transform {
             throw new CostNotPaid(`not enough charge`)
         const oldCharge:number = card.charge
         const newCharge:number = Math.max(oldCharge+n, 0)
-        state = state.apply(card => card.update({charge:newCharge}), card)
+        state = state.apply(card => card.setTokens('charge', newCharge), card)
         state = logChange(state, 'charge token', newCharge - oldCharge,
             ['Added ', ` to ${card.name}`],
             ['Removed ', ` from ${card.name}`])
@@ -1001,22 +1000,11 @@ function addToken(card:Card, token:string): Transform {
         const result = state.find(card)
         if (!result.found) return state
         card = result.card
-        const newCard = card.update({tokens: card.tokens.concat([token])})
+        const newCard = card.addTokens(token, 1)
         state = state.replace(card, newCard)
         state = logTokenChange(state, card, token, 1)
         return trigger({kind:'addToken', card:newCard, token:token})(state)
     }
-}
-
-function countTokens(card:Card, token:string): number {
-    var count = 0
-    const tokens = card.tokens
-    for (var i = 0; i < tokens.length; i++) {
-        if (tokens[i]  == token) {
-            count += 1
-        }
-    }
-    return count
 }
 
 function removeTokens(card:Card, token:string): Transform {
@@ -1024,8 +1012,8 @@ function removeTokens(card:Card, token:string): Transform {
         const result = state.find(card)
         if (!result.found) return state
         card = result.card
-        const removed: number = countTokens(card, token)
-        const newCard = card.update({tokens: card.tokens.filter(x => (x != token))})
+        const removed: number = card.count(token)
+        const newCard = card.setTokens(token, 0)
         state = state.replace(card, newCard)
         state = logTokenChange(state, card, token, -removed)
         return trigger({kind:'removeTokens', card:newCard, token:token, removed:removed})(state)
@@ -1034,19 +1022,11 @@ function removeTokens(card:Card, token:string): Transform {
 function removeOneToken(card:Card, token:string): Transform {
     return async function(state) {
         let removed:number = 0
-        function removeOneToken(tokens: string[]) {
-            for (var i = 0; i < tokens.length; i++) {
-                if (tokens[i] == token) {
-                    removed = 1
-                    return tokens.slice(0, i).concat(tokens.slice(i+1))
-                }
-            }
-            return tokens
-        }
         const result = state.find(card)
         if (!result.found) return state
         card = result.card
-        const newCard:Card = card.update({tokens: removeOneToken(card.tokens)})
+        if (card.count(token) == 0) return state
+        const newCard:Card = card.addTokens(token, -1)
         state = state.replace(card, newCard)
         state = logTokenChange(state, card, token, -removed)
         return trigger({kind:'removeTokens', card:newCard, token:token, removed:removed})(state)
@@ -1791,7 +1771,7 @@ const duplicate:CardSpec = {name: 'Duplicate',
     triggers: card => [{
         text: `After buying a card with a duplicate token on it, remove all duplicate tokens from it and buy it again.`,
         kind:'afterBuy',
-        handles: e => (e.after != null && countTokens(e.after, 'duplicate') > 0),
+        handles: e => (e.after != null && e.after.count('duplicate') > 0),
         effect: e => (e.after != null) ? doAll([removeTokens(e.after, 'duplicate'), e.after.buy(card)]) : noop,
     }]
 }
@@ -1817,7 +1797,7 @@ const makeHallOfMirrors:CardSpec = {name: 'Hall of Mirrors',
         text: `Whenever you finish playing a card with a mirror token other than with this,` + 
         ` if it's in your discard pile remove a mirror token from it and play it again.`,
         kind: 'afterPlay',
-        handles: e => (e.after != null && countTokens(e.after, 'mirror') > 0 && e.source.id != card.id),
+        handles: e => (e.after != null && e.after.count('mirror') > 0 && e.source.id != card.id),
         effect: e => async function(state) {
             if (e.after != null && state.find(e.after).place == 'discard') {
                 state = await removeOneToken(e.after, 'mirror')(state)
@@ -2177,7 +2157,7 @@ const twin:CardSpec = {name: 'Twin',
     triggers: card => [{
         text: `After playing a card with a twin token other than with this, if it's in your discard pile play it again.`,
         kind: 'afterPlay',
-        handles:e => (e.before.tokens.includes('twin') && e.source.id != card.id),
+        handles:e => (e.before.count('twin') > 0 && e.source.id != card.id),
         effect:e => async function(state) {
             const result = state.find(e.before)
             return (result.place == 'discard') ? result.card.play(card)(state) : state
@@ -2296,7 +2276,7 @@ const makeSynergy:CardSpec = {name: 'Synergy',
         ` then put synergy tokens on two cards in the supply.`,
         effect: async function(state) {
             for (const card of state.supply) 
-                if (countTokens(card, 'synergy') > 0)
+                if (card.count('synergy') > 0)
                     state = await removeTokens(card, 'synergy')(state)
             let cards:Card[]; [state, cards] = await multichoiceIfNeeded(state,
                 'Choose two cards to synergize.',
@@ -2309,10 +2289,10 @@ const makeSynergy:CardSpec = {name: 'Synergy',
         text: 'Whenever you buy a card with a synergy token other than with this,'
         + ' afterwards buy a different card with a synergy token with equal or lesser cost.',
         kind:'afterBuy',
-        handles: e => (e.source.id != card.id && countTokens(e.before, 'synergy') > 0),
+        handles: e => (e.source.id != card.id && e.before.count('synergy') > 0),
         effect: e => async function(state) {
             const options:Card[] = state.supply.filter(
-                c => countTokens(c, 'synergy') > 0
+                c => c.count('synergy') > 0
                 && leq(c.cost(state), e.before.cost(state))
                 && c.id != e.before.id
             )
@@ -2809,8 +2789,8 @@ const pathfinding:CardSpec = {name: 'Pathfinding',
     triggers: card => [{
         text: 'Whenever you play a card, draw a card per path token on it.',
         kind:'play',
-        handles:e => e.card.tokens.includes('path'),
-        effect:e => draw(countTokens(e.card, 'path'))
+        handles:e => e.card.count('path') > 0,
+        effect:e => draw(e.card.count('path'))
     }],
 }
 register(pathfinding)
@@ -2847,7 +2827,7 @@ const decay:CardSpec = {name: 'Decay',
     }, {
         text: 'After you play a card, if it has 3 or more decay tokens on it trash it.',
         kind: 'afterPlay',
-        handles: e => (e.after != null && countTokens(e.after, 'decay') >= 3),
+        handles: e => (e.after != null && e.after.count('decay') >= 3),
         effect: e => trash(e.after),
     }]
 }
@@ -3191,8 +3171,8 @@ const makeFerry:CardSpec = {name: 'Ferry',
     replacers: card => [{
         text: 'Cards cost $1 less per ferry token on them, unless it would make them cost 0.',
         kind: 'cost',
-        handles: p => countTokens(p.card, 'ferry') > 0,
-        replace: p => ({...p, cost: reduceCoinNonzero(p.cost, countTokens(p.card, 'ferry'))})
+        handles: p => p.card.count('ferry') > 0,
+        replace: p => ({...p, cost: reduceCoinNonzero(p.cost, p.card.count('ferry'))})
     }]
 }
 register(makeFerry)
@@ -3240,7 +3220,7 @@ const burden:CardSpec = {name: 'Burden',
     effect: card => ({
         text: 'Remove a burden token from a card in the supply',
         effect: async function(state) {
-            const options = state.supply.filter(x => countTokens(x, 'burden') > 0)
+            const options = state.supply.filter(x => x.count('burden') > 0)
             let target; [state, target] = await choice(state, 'Choose a supply to unburden.',
                 allowNull(options.map(asChoice)))
             if (target == null) return state
@@ -3256,8 +3236,8 @@ const burden:CardSpec = {name: 'Burden',
     replacers: card => [{
         kind: 'cost',
         text: 'Cards cost $1 more for each burden token on them.',
-        handles: x => countTokens(x.card, 'burden') > 0,
-        replace: x => ({...x, cost: {energy:x.cost.energy, coin: x.cost.coin+countTokens(x.card, 'burden')}})
+        handles: x => x.card.count('burden') > 0,
+        replace: x => ({...x, cost: {energy:x.cost.energy, coin: x.cost.coin+x.card.count('burden')}})
     }]
 }
 register(burden)

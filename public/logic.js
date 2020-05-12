@@ -108,27 +108,38 @@ export function renderEnergy(n) {
 function read(x, k, fallback) {
     return (x[k] == undefined) ? fallback : x[k];
 }
+//TODO: should Token be a type? can avoid token name typos...
 var Card = /** @class */ (function () {
-    function Card(spec, id, charge, ticks, tokens, 
+    function Card(spec, id, ticks, tokens, 
     // we assign each card the smallest unused index in its current zone, for consistency of hotkey mappings
     zoneIndex) {
-        if (charge === void 0) { charge = 0; }
         if (ticks === void 0) { ticks = [0]; }
-        if (tokens === void 0) { tokens = []; }
+        if (tokens === void 0) { tokens = new Map(); }
         if (zoneIndex === void 0) { zoneIndex = 0; }
         this.spec = spec;
         this.id = id;
-        this.charge = charge;
         this.ticks = ticks;
         this.tokens = tokens;
         this.zoneIndex = zoneIndex;
         this.name = spec.name;
+        this.charge = this.count('charge');
     }
     Card.prototype.toString = function () {
         return this.name;
     };
     Card.prototype.update = function (newValues) {
-        return new Card(this.spec, this.id, read(newValues, 'charge', this.charge), read(newValues, 'ticks', this.ticks), read(newValues, 'tokens', this.tokens), read(newValues, 'zoneIndex', this.zoneIndex));
+        return new Card(this.spec, this.id, read(newValues, 'ticks', this.ticks), read(newValues, 'tokens', this.tokens), read(newValues, 'zoneIndex', this.zoneIndex));
+    };
+    Card.prototype.setTokens = function (token, n) {
+        var tokens = new Map(this.tokens);
+        tokens.set(token, n);
+        return this.update({ tokens: tokens });
+    };
+    Card.prototype.addTokens = function (token, n) {
+        return this.setTokens(token, this.count(token) + n);
+    };
+    Card.prototype.count = function (token) {
+        return this.tokens.get(token) || 0;
     };
     Card.prototype.startTicker = function () {
         return this.update({ ticks: this.ticks.concat([1]) });
@@ -560,11 +571,6 @@ function shiftFirst(xs) {
     return [xs[0], xs.slice(1)];
 }
 export var emptyState = new State();
-// tests whether card1 should appear before card2 in sorted order (not currently used)
-function comesBefore(card1, card2) {
-    var key = function (card) { return card.name + card.charge + card.tokens.join(''); };
-    return key(card1) < (key(card2));
-}
 function assertNever(x) {
     throw new Error("Unexpected: " + x);
 }
@@ -585,12 +591,6 @@ function insertAt(zone, card, loc) {
             return [card].concat(zone);
         case 'bottom':
         case 'end':
-            return zone.concat([card]);
-        case 'handSort':
-            for (var i = 0; i < zone.length; i++) {
-                if (comesBefore(card, zone[i]))
-                    return insertInto(card, zone, i);
-            }
             return zone.concat([card]);
         default: return assertNever(loc);
     }
@@ -1173,7 +1173,7 @@ function charge(card, n, cost) {
                     throw new CostNotPaid("not enough charge");
                 oldCharge = card.charge;
                 newCharge = Math.max(oldCharge + n, 0);
-                state = state.apply(function (card) { return card.update({ charge: newCharge }); }, card);
+                state = state.apply(function (card) { return card.setTokens('charge', newCharge); }, card);
                 state = logChange(state, 'charge token', newCharge - oldCharge, ['Added ', " to " + card.name], ['Removed ', " from " + card.name]);
                 return [2 /*return*/, trigger({ kind: 'gainCharge', card: card,
                         oldCharge: oldCharge, newCharge: newCharge, cost: cost })(state)];
@@ -1193,23 +1193,13 @@ function addToken(card, token) {
                 if (!result.found)
                     return [2 /*return*/, state];
                 card = result.card;
-                newCard = card.update({ tokens: card.tokens.concat([token]) });
+                newCard = card.addTokens(token, 1);
                 state = state.replace(card, newCard);
                 state = logTokenChange(state, card, token, 1);
                 return [2 /*return*/, trigger({ kind: 'addToken', card: newCard, token: token })(state)];
             });
         });
     };
-}
-function countTokens(card, token) {
-    var count = 0;
-    var tokens = card.tokens;
-    for (var i = 0; i < tokens.length; i++) {
-        if (tokens[i] == token) {
-            count += 1;
-        }
-    }
-    return count;
 }
 function removeTokens(card, token) {
     return function (state) {
@@ -1220,8 +1210,8 @@ function removeTokens(card, token) {
                 if (!result.found)
                     return [2 /*return*/, state];
                 card = result.card;
-                removed = countTokens(card, token);
-                newCard = card.update({ tokens: card.tokens.filter(function (x) { return (x != token); }) });
+                removed = card.count(token);
+                newCard = card.setTokens(token, 0);
                 state = state.replace(card, newCard);
                 state = logTokenChange(state, card, token, -removed);
                 return [2 /*return*/, trigger({ kind: 'removeTokens', card: newCard, token: token, removed: removed })(state)];
@@ -1232,15 +1222,6 @@ function removeTokens(card, token) {
 function removeOneToken(card, token) {
     return function (state) {
         return __awaiter(this, void 0, void 0, function () {
-            function removeOneToken(tokens) {
-                for (var i = 0; i < tokens.length; i++) {
-                    if (tokens[i] == token) {
-                        removed = 1;
-                        return tokens.slice(0, i).concat(tokens.slice(i + 1));
-                    }
-                }
-                return tokens;
-            }
             var removed, result, newCard;
             return __generator(this, function (_a) {
                 removed = 0;
@@ -1248,7 +1229,9 @@ function removeOneToken(card, token) {
                 if (!result.found)
                     return [2 /*return*/, state];
                 card = result.card;
-                newCard = card.update({ tokens: removeOneToken(card.tokens) });
+                if (card.count(token) == 0)
+                    return [2 /*return*/, state];
+                newCard = card.addTokens(token, -1);
                 state = state.replace(card, newCard);
                 state = logTokenChange(state, card, token, -removed);
                 return [2 /*return*/, trigger({ kind: 'removeTokens', card: newCard, token: token, removed: removed })(state)];
@@ -2189,7 +2172,7 @@ var duplicate = { name: 'Duplicate',
     triggers: function (card) { return [{
             text: "After buying a card with a duplicate token on it, remove all duplicate tokens from it and buy it again.",
             kind: 'afterBuy',
-            handles: function (e) { return (e.after != null && countTokens(e.after, 'duplicate') > 0); },
+            handles: function (e) { return (e.after != null && e.after.count('duplicate') > 0); },
             effect: function (e) { return (e.after != null) ? doAll([removeTokens(e.after, 'duplicate'), e.after.buy(card)]) : noop; },
         }]; }
 };
@@ -2244,7 +2227,7 @@ var makeHallOfMirrors = { name: 'Hall of Mirrors',
             text: "Whenever you finish playing a card with a mirror token other than with this," +
                 " if it's in your discard pile remove a mirror token from it and play it again.",
             kind: 'afterPlay',
-            handles: function (e) { return (e.after != null && countTokens(e.after, 'mirror') > 0 && e.source.id != card.id); },
+            handles: function (e) { return (e.after != null && e.after.count('mirror') > 0 && e.source.id != card.id); },
             effect: function (e) { return function (state) {
                 return __awaiter(this, void 0, void 0, function () {
                     return __generator(this, function (_a) {
@@ -2724,7 +2707,7 @@ var twin = { name: 'Twin',
     triggers: function (card) { return [{
             text: "After playing a card with a twin token other than with this, if it's in your discard pile play it again.",
             kind: 'afterPlay',
-            handles: function (e) { return (e.before.tokens.includes('twin') && e.source.id != card.id); },
+            handles: function (e) { return (e.before.count('twin') > 0 && e.source.id != card.id); },
             effect: function (e) { return function (state) {
                 return __awaiter(this, void 0, void 0, function () {
                     var result;
@@ -2856,7 +2839,7 @@ var makeSynergy = { name: 'Synergy',
                         case 1:
                             if (!!_b.done) return [3 /*break*/, 4];
                             card_3 = _b.value;
-                            if (!(countTokens(card_3, 'synergy') > 0)) return [3 /*break*/, 3];
+                            if (!(card_3.count('synergy') > 0)) return [3 /*break*/, 3];
                             return [4 /*yield*/, removeTokens(card_3, 'synergy')(state)];
                         case 2:
                             state = _f.sent();
@@ -2914,7 +2897,7 @@ var makeSynergy = { name: 'Synergy',
             text: 'Whenever you buy a card with a synergy token other than with this,'
                 + ' afterwards buy a different card with a synergy token with equal or lesser cost.',
             kind: 'afterBuy',
-            handles: function (e) { return (e.source.id != card.id && countTokens(e.before, 'synergy') > 0); },
+            handles: function (e) { return (e.source.id != card.id && e.before.count('synergy') > 0); },
             effect: function (e) { return function (state) {
                 return __awaiter(this, void 0, void 0, function () {
                     var options, target;
@@ -2922,7 +2905,7 @@ var makeSynergy = { name: 'Synergy',
                     return __generator(this, function (_b) {
                         switch (_b.label) {
                             case 0:
-                                options = state.supply.filter(function (c) { return countTokens(c, 'synergy') > 0
+                                options = state.supply.filter(function (c) { return c.count('synergy') > 0
                                     && leq(c.cost(state), e.before.cost(state))
                                     && c.id != e.before.id; });
                                 return [4 /*yield*/, choice(state, 'Choose a card to buy.', options.map(asChoice))];
@@ -3599,8 +3582,8 @@ var pathfinding = { name: 'Pathfinding',
     triggers: function (card) { return [{
             text: 'Whenever you play a card, draw a card per path token on it.',
             kind: 'play',
-            handles: function (e) { return e.card.tokens.includes('path'); },
-            effect: function (e) { return draw(countTokens(e.card, 'path')); }
+            handles: function (e) { return e.card.count('path') > 0; },
+            effect: function (e) { return draw(e.card.count('path')); }
         }]; },
 };
 register(pathfinding);
@@ -3652,7 +3635,7 @@ var decay = { name: 'Decay',
         }, {
             text: 'After you play a card, if it has 3 or more decay tokens on it trash it.',
             kind: 'afterPlay',
-            handles: function (e) { return (e.after != null && countTokens(e.after, 'decay') >= 3); },
+            handles: function (e) { return (e.after != null && e.after.count('decay') >= 3); },
             effect: function (e) { return trash(e.after); },
         }]; }
 };
@@ -4117,8 +4100,8 @@ var makeFerry = { name: 'Ferry',
     replacers: function (card) { return [{
             text: 'Cards cost $1 less per ferry token on them, unless it would make them cost 0.',
             kind: 'cost',
-            handles: function (p) { return countTokens(p.card, 'ferry') > 0; },
-            replace: function (p) { return (__assign(__assign({}, p), { cost: reduceCoinNonzero(p.cost, countTokens(p.card, 'ferry')) })); }
+            handles: function (p) { return p.card.count('ferry') > 0; },
+            replace: function (p) { return (__assign(__assign({}, p), { cost: reduceCoinNonzero(p.cost, p.card.count('ferry')) })); }
         }]; }
 };
 register(makeFerry);
@@ -4169,7 +4152,7 @@ var burden = { name: 'Burden',
                 return __generator(this, function (_b) {
                     switch (_b.label) {
                         case 0:
-                            options = state.supply.filter(function (x) { return countTokens(x, 'burden') > 0; });
+                            options = state.supply.filter(function (x) { return x.count('burden') > 0; });
                             return [4 /*yield*/, choice(state, 'Choose a supply to unburden.', allowNull(options.map(asChoice)))];
                         case 1:
                             _a = __read.apply(void 0, [_b.sent(), 2]), state = _a[0], target = _a[1];
@@ -4190,8 +4173,8 @@ var burden = { name: 'Burden',
     replacers: function (card) { return [{
             kind: 'cost',
             text: 'Cards cost $1 more for each burden token on them.',
-            handles: function (x) { return countTokens(x.card, 'burden') > 0; },
-            replace: function (x) { return (__assign(__assign({}, x), { cost: { energy: x.cost.energy, coin: x.cost.coin + countTokens(x.card, 'burden') } })); }
+            handles: function (x) { return x.card.count('burden') > 0; },
+            replace: function (x) { return (__assign(__assign({}, x), { cost: { energy: x.cost.energy, coin: x.cost.coin + x.card.count('burden') } })); }
         }]; }
 };
 register(burden);
