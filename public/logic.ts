@@ -22,7 +22,7 @@ export function renderEnergy(n:number): string {
 export interface CardSpec {
     name: string;
     fixedCost?: Cost;
-    calculatedCost?: (card:Card, state:State) => Cost;
+    calculatedCost?: CalculatedCost;
     relatedCards?: CardSpec[];
     effect?: (card:Card) => Effect;
     triggers?: (card:Card) => TypedTrigger[];
@@ -31,10 +31,14 @@ export interface CardSpec {
 }
 
 export interface Cost {
-    coin: number
-    energy: number
+    coin: number;
+    energy: number;
 }
 
+export interface CalculatedCost {
+    calculate: (card:Card, state:State) => Cost;
+    text: string;
+}
 
 interface Effect {
     text: string;
@@ -120,7 +124,7 @@ export class Card {
         if (this.spec.fixedCost != undefined)
             return this.spec.fixedCost
         else if (this.spec.calculatedCost != undefined)
-            return this.spec.calculatedCost(this, state)
+            return this.spec.calculatedCost.calculate(this, state)
         else
             return {coin:0, energy:0}
     }
@@ -1751,7 +1755,7 @@ const oldSmith:CardSpec = {name: 'Old Smith',
             if (result.found) {
                 const options:Option<number>[] = chooseNatural(Math.min(e.amount, result.card.charge) + 1)
                 let m:number|null;
-                [state, m] = await choice(state, 'How many charge counters do you want to remove?', options)
+                [state, m] = await choice(state, 'How many charge tokens do you want to remove?', options)
                 const n:number = (m as number)
                 state = await charge(card, -n)(state)
                 state = await draw(n)(state)
@@ -2067,6 +2071,16 @@ const feast:CardSpec = {name: 'Feast',
 }
 buyable(feast, 4)
 
+function costPlus(base:Cost, addition:Cost): CalculatedCost {
+    return {
+        text: `This costs ${renderCost(addition)} more per charge token on it.`,
+        calculate: (c:Card, s:State) => ({
+            coin:base.coin + c.charge * addition.coin,
+            energy:base.energy + c.charge * addition.energy
+        })
+    }
+}
+
 const mobilization:CardSpec = {name: 'Mobilization',
     replacers: card => [{
         text: `${regroup.name} costs @ less to play, unless that would make it cost 0.`,
@@ -2076,10 +2090,9 @@ const mobilization:CardSpec = {name: 'Mobilization',
     }]
 }
 const gainMobilization:CardSpec = {name: 'Mobilization',
-    calculatedCost: (card, state) => ({energy:0, coin:15+10*card.charge}),
+    calculatedCost: costPlus(coin(15), coin(10)),
     effect: card => ({
-        text: `Create a ${mobilization.name} in play.` +
-            ' Put a charge token on this. It costs $10 more per charge token on it.',
+        text: `Create a ${mobilization.name} in play. Put a charge token on this.`,
         effect: doAll([create(mobilization, 'play'), charge(card, 1)])
     }),
     relatedCards: [mobilization],
@@ -2197,10 +2210,10 @@ function nextTime<T extends GameEvent>(name:string,
 }
 
 const expedite:CardSpec = {name: 'Expedite',
-    calculatedCost: (card, state) => ({energy:1, coin:card.charge}),
+    calculatedCost: costPlus(energy(1), coin(1)),
     effect: card => ({
         text: "The next energy you create a card, if it's in your discard pile put it into your hand."+
-            ' Put a charge token on this. It costs $1 more per charge token on it.',
+            ' Put a charge token on this.',
         effect: doAll([
             nextTime('Expedite', "When you create a card, if it's in your discard pile" +
                 " then trash this and put it into your hand.",
@@ -2477,9 +2490,9 @@ const greatSmithy:CardSpec = {name: 'Great Smithy',
 buyable(greatSmithy, 5)
 
 const reuse:CardSpec = {name: 'Reuse',
-    calculatedCost: (card, state) => ({energy:1, coin:card.charge}),
+    calculatedCost: costPlus(energy(1), coin(1)),
     effect: card => ({
-        text: 'Put a card from your discard into your hand. Put a charge token on this. This costs +$1 per charge token on it.',
+        text: 'Put a card from your discard into your hand. Put a charge token on this.',
         effect: async function(state) {
             let target;
             [state, target] = await choice(state, 'Choose a card to put into your hand.',
@@ -2526,9 +2539,9 @@ const pressOn:CardSpec = {name: 'Press On',
 mixins.push(pressOn)
 
 const seek:CardSpec = {name: 'Seek',
-    calculatedCost: (card, state) => ({energy:1, coin:card.charge}),
+    calculatedCost: costPlus(energy(1), coin(1)),
     effect: card => ({
-        text: 'Put a card from your deck into your hand. Put a charge token on this. This costs +$1 per charge token on it.',
+        text: 'Put a card from your deck into your hand. Put a charge token on this.',
         effect: async function(state) {
             let target;
             [state, target] = await choice(state, 'Choose a card to put into your hand.',
@@ -2561,13 +2574,13 @@ register(makeCard(innovation, {coin:9, energy:2}, true))
 
 const citadel:CardSpec = {name: "Citadel",
     triggers: card => [{
-        text: `Wheneve you draw 5 or more cards, put a citadel counter on this.`,
+        text: `Wheneve you draw 5 or more cards, put a citadel token on this.`,
         kind: 'draw',
         handles: e => e.cards.length >= 5,
         effect: e => addToken(card, 'citadel')
     }, {
-        text: `After playing a card other the normal way, if there's a citadel counter on this,`+
-            ` remove all citadel counters and play the card again if it's in your discard pile.`,
+        text: `After playing a card other the normal way, if there's a citadel token on this,`+
+            ` remove all citadel tokens and play the card again if it's in your discard pile.`,
         kind:'afterPlay',
         handles: (e, state) => (e.source.name == 'act'),
         effect: e => async function(state) {
@@ -2873,21 +2886,20 @@ const scavenger:CardSpec = {name: 'Scavenger',
 buyable(scavenger, 4)
 
 const reflect:CardSpec = {name: 'Reflect',
-    calculatedCost: (card, state) => ({energy:1, coin:card.charge}),
+    calculatedCost: costPlus(energy(1), coin(1)),
     effect: card => ({
         text: `Play a card in your hand. Then if it's in your discard pile, play it again.` +
-        ` Put a charge counter on this. It costs $1 more to buy for each charge counter on it.`,
+        ` Put a charge token on this.`,
         effect: doAll([charge(card, 1), playTwice(card)])
     })
 }
-register(reflect)
+register(reflect, 'test')
 
 //TODO: add
 const cleanse:CardSpec = {name: 'Offering',
-    calculatedCost: (card, state) => ({energy:1, coin:card.charge}),
+    calculatedCost: costPlus(energy(1), coin(1)),
     effect: card => ({
-        text: `Trash a card in your hand. Put a charge token on this.`
-        + `It costs $1 more for each charge token on it.`,
+        text: `Trash a card in your hand. Put a charge token on this.`,
         effect: async function(state) {
             state = await charge(card, 1)(state)
             let target:Card|null; [state, target] = await choice(state,
@@ -2900,10 +2912,9 @@ const cleanse:CardSpec = {name: 'Offering',
 
 //TODO: add
 const replicate:CardSpec = {name: 'Replicate',
-    calculatedCost: (card, state) => ({energy:1, coin:card.charge}),
+    calculatedCost: costPlus(energy(1), coin(1)),
     effect: card => ({
-        text: `Create a copy of a card in your hand in your discard pile. Put a charge count on this.`
-        + `It costs $1 more for each charge counter on it.`,
+        text: `Create a copy of a card in your hand in your discard pile. Put a charge count on this.`,
         effect: async function(state) {
             state = await charge(card, 1)(state)
             let target:Card|null; [state, target] = await choice(state,
@@ -3013,9 +3024,12 @@ const savings:CardSpec = {name: 'Savings',
 buyableAnd(savings, 3, [ensureInPlay(coffers)])
 
 const duchess:CardSpec = {name: 'Duchess',
-    calculatedCost: (card, state) => energy(state.hand.some(c => c.name == duchy.name) ? 0 : 1),
+    calculatedCost: {
+        calculate: (card:Card, state:State) => energy(state.hand.some(c => c.name == duchy.name) ? 0 : 1),
+        text: `This costs @ less if you have a ${duchy.name} in your hand.`,
+    },
     effect: card => ({
-        text: `Draw two cards. This costs @ less to play if you have a ${duchy.name} in your hand.`,
+        text: `Draw two cards.`,
         effect: draw(2)
     })
 }
@@ -3023,7 +3037,7 @@ buyable(duchess, 3)
 
 const oasis:CardSpec = {name: 'Oasis',
     effect: card => ({
-        text: `+1 card. You may discard a card to add a charge counter to a ${coffers.name} in play.`,
+        text: `+1 card. You may discard a card to add a charge token to a ${coffers.name} in play.`,
         effect: async function(state) {
             state = await draw(1)(state)
             let target:Card|null; [state, target] = await choice(state,

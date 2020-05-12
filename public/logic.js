@@ -145,7 +145,7 @@ var Card = /** @class */ (function () {
         if (this.spec.fixedCost != undefined)
             return this.spec.fixedCost;
         else if (this.spec.calculatedCost != undefined)
-            return this.spec.calculatedCost(this, state);
+            return this.spec.calculatedCost.calculate(this, state);
         else
             return { coin: 0, energy: 0 };
     };
@@ -2131,7 +2131,7 @@ var oldSmith = { name: 'Old Smith',
                                 if (!result.found) return [3 /*break*/, 5];
                                 options = chooseNatural(Math.min(e.amount, result.card.charge) + 1);
                                 m = void 0;
-                                return [4 /*yield*/, choice(state, 'How many charge counters do you want to remove?', options)];
+                                return [4 /*yield*/, choice(state, 'How many charge tokens do you want to remove?', options)];
                             case 1:
                                 _a = __read.apply(void 0, [_b.sent(), 2]), state = _a[0], m = _a[1];
                                 n = m;
@@ -2570,6 +2570,15 @@ var feast = { name: 'Feast',
     }); }
 };
 buyable(feast, 4);
+function costPlus(base, addition) {
+    return {
+        text: "This costs " + renderCost(addition) + " more per charge token on it.",
+        calculate: function (c, s) { return ({
+            coin: base.coin + c.charge * addition.coin,
+            energy: base.energy + c.charge * addition.energy
+        }); }
+    };
+}
 var mobilization = { name: 'Mobilization',
     replacers: function (card) { return [{
             text: regroup.name + " costs @ less to play, unless that would make it cost 0.",
@@ -2579,10 +2588,9 @@ var mobilization = { name: 'Mobilization',
         }]; }
 };
 var gainMobilization = { name: 'Mobilization',
-    calculatedCost: function (card, state) { return ({ energy: 0, coin: 15 + 10 * card.charge }); },
+    calculatedCost: costPlus(coin(15), coin(10)),
     effect: function (card) { return ({
-        text: "Create a " + mobilization.name + " in play." +
-            ' Put a charge token on this. It costs $10 more per charge token on it.',
+        text: "Create a " + mobilization.name + " in play. Put a charge token on this.",
         effect: doAll([create(mobilization, 'play'), charge(card, 1)])
     }); },
     relatedCards: [mobilization],
@@ -2748,10 +2756,10 @@ function nextTime(name, text, kind, when, what) {
     return create(spec, 'play');
 }
 var expedite = { name: 'Expedite',
-    calculatedCost: function (card, state) { return ({ energy: 1, coin: card.charge }); },
+    calculatedCost: costPlus(energy(1), coin(1)),
     effect: function (card) { return ({
         text: "The next energy you create a card, if it's in your discard pile put it into your hand." +
-            ' Put a charge token on this. It costs $1 more per charge token on it.',
+            ' Put a charge token on this.',
         effect: doAll([
             nextTime('Expedite', "When you create a card, if it's in your discard pile" +
                 " then trash this and put it into your hand.", 'create', function (e, state) { return (state.find(e.card).place == 'discard'); }, function (e) { return move(e.card, 'hand'); }),
@@ -3154,9 +3162,9 @@ var greatSmithy = { name: 'Great Smithy',
 };
 buyable(greatSmithy, 5);
 var reuse = { name: 'Reuse',
-    calculatedCost: function (card, state) { return ({ energy: 1, coin: card.charge }); },
+    calculatedCost: costPlus(energy(1), coin(1)),
     effect: function (card) { return ({
-        text: 'Put a card from your discard into your hand. Put a charge token on this. This costs +$1 per charge token on it.',
+        text: 'Put a card from your discard into your hand. Put a charge token on this.',
         effect: function (state) {
             return __awaiter(this, void 0, void 0, function () {
                 var target;
@@ -3214,9 +3222,9 @@ var pressOn = { name: 'Press On',
 };
 mixins.push(pressOn);
 var seek = { name: 'Seek',
-    calculatedCost: function (card, state) { return ({ energy: 1, coin: card.charge }); },
+    calculatedCost: costPlus(energy(1), coin(1)),
     effect: function (card) { return ({
-        text: 'Put a card from your deck into your hand. Put a charge token on this. This costs +$1 per charge token on it.',
+        text: 'Put a card from your deck into your hand. Put a charge token on this.',
         effect: function (state) {
             return __awaiter(this, void 0, void 0, function () {
                 var target;
@@ -3257,13 +3265,13 @@ var innovation = { name: "Innovation",
 register(makeCard(innovation, { coin: 9, energy: 2 }, true));
 var citadel = { name: "Citadel",
     triggers: function (card) { return [{
-            text: "Wheneve you draw 5 or more cards, put a citadel counter on this.",
+            text: "Wheneve you draw 5 or more cards, put a citadel token on this.",
             kind: 'draw',
             handles: function (e) { return e.cards.length >= 5; },
             effect: function (e) { return addToken(card, 'citadel'); }
         }, {
-            text: "After playing a card other the normal way, if there's a citadel counter on this," +
-                " remove all citadel counters and play the card again if it's in your discard pile.",
+            text: "After playing a card other the normal way, if there's a citadel token on this," +
+                " remove all citadel tokens and play the card again if it's in your discard pile.",
             kind: 'afterPlay',
             handles: function (e, state) { return (e.source.name == 'act'); },
             effect: function (e) { return function (state) {
@@ -3699,20 +3707,19 @@ var scavenger = { name: 'Scavenger',
 };
 buyable(scavenger, 4);
 var reflect = { name: 'Reflect',
-    calculatedCost: function (card, state) { return ({ energy: 1, coin: card.charge }); },
+    calculatedCost: costPlus(energy(1), coin(1)),
     effect: function (card) { return ({
         text: "Play a card in your hand. Then if it's in your discard pile, play it again." +
-            " Put a charge counter on this. It costs $1 more to buy for each charge counter on it.",
+            " Put a charge token on this.",
         effect: doAll([charge(card, 1), playTwice(card)])
     }); }
 };
-register(reflect);
+register(reflect, 'test');
 //TODO: add
 var cleanse = { name: 'Offering',
-    calculatedCost: function (card, state) { return ({ energy: 1, coin: card.charge }); },
+    calculatedCost: costPlus(energy(1), coin(1)),
     effect: function (card) { return ({
-        text: "Trash a card in your hand. Put a charge token on this."
-            + "It costs $1 more for each charge token on it.",
+        text: "Trash a card in your hand. Put a charge token on this.",
         effect: function (state) {
             return __awaiter(this, void 0, void 0, function () {
                 var target;
@@ -3739,10 +3746,9 @@ var cleanse = { name: 'Offering',
 };
 //TODO: add
 var replicate = { name: 'Replicate',
-    calculatedCost: function (card, state) { return ({ energy: 1, coin: card.charge }); },
+    calculatedCost: costPlus(energy(1), coin(1)),
     effect: function (card) { return ({
-        text: "Create a copy of a card in your hand in your discard pile. Put a charge count on this."
-            + "It costs $1 more for each charge counter on it.",
+        text: "Create a copy of a card in your hand in your discard pile. Put a charge count on this.",
         effect: function (state) {
             return __awaiter(this, void 0, void 0, function () {
                 var target;
@@ -3897,16 +3903,19 @@ var savings = { name: 'Savings',
 };
 buyableAnd(savings, 3, [ensureInPlay(coffers)]);
 var duchess = { name: 'Duchess',
-    calculatedCost: function (card, state) { return energy(state.hand.some(function (c) { return c.name == duchy.name; }) ? 0 : 1); },
+    calculatedCost: {
+        calculate: function (card, state) { return energy(state.hand.some(function (c) { return c.name == duchy.name; }) ? 0 : 1); },
+        text: "This costs @ less if you have a " + duchy.name + " in your hand.",
+    },
     effect: function (card) { return ({
-        text: "Draw two cards. This costs @ less to play if you have a " + duchy.name + " in your hand.",
+        text: "Draw two cards.",
         effect: draw(2)
     }); }
 };
 buyable(duchess, 3);
 var oasis = { name: 'Oasis',
     effect: function (card) { return ({
-        text: "+1 card. You may discard a card to add a charge counter to a " + coffers.name + " in play.",
+        text: "+1 card. You may discard a card to add a charge token to a " + coffers.name + " in play.",
         effect: function (state) {
             return __awaiter(this, void 0, void 0, function () {
                 var target;

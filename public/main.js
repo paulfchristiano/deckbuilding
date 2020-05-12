@@ -1,6 +1,4 @@
-// TODO: there is now visual hiccup on startup, diagnose and then fix
 // TODO: make calculated costs render as "(cost) X"
-// TODO: make the tooltip nice---should show up immediately, but be impossible to keep it alive by mousing over it
 // TODO: I think the cost framework isn't really appropriate any more, but maybe think a bit before getting rid of it
 // TODO: if a zone gets bigger and then smaller, it's annoying to keep resizing it. As soon as a zone gets big I want to leave it big probably.
 // TODO: lay out the zones a bit more nicely
@@ -188,14 +186,18 @@ function renderTokens(tokens) {
     }
     return parts.join(', ');
 }
+function renderCalculatedCost(c) {
+    return "<div>(cost) " + c.text + "</div>";
+}
 function renderTooltip(card, state) {
     var effectHtml = "<div>" + card.effect().text + "</div>";
+    var costHtml = (card.spec.calculatedCost != undefined) ? renderCalculatedCost(card.spec.calculatedCost) : '';
     var abilitiesHtml = card.abilities().map(function (x) { return renderAbility(x); }).join('');
     var triggerHtml = card.triggers().map(function (x) { return renderStatic(x); }).join('');
     var replacerHtml = card.replacers().map(function (x) { return renderStatic(x); }).join('');
     var staticHtml = triggerHtml + replacerHtml;
     var tokensHtml = card.tokens.length > 0 ? "Tokens: " + renderTokens(card.tokens) : '';
-    var baseFilling = [effectHtml, abilitiesHtml, staticHtml, tokensHtml].join('');
+    var baseFilling = [costHtml, effectHtml, abilitiesHtml, staticHtml, tokensHtml].join('');
     function renderRelated(spec) {
         var card = new Card(spec, -1);
         var costStr = renderCost(card.cost(emptyState));

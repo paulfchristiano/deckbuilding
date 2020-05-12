@@ -8,7 +8,7 @@
 // I could probably enforce that through type system
 
 import { Cost, Shadow, State, Card, CardSpec, GameSpec } from './logic.js'
-import { Trigger, Replacer, Ability } from './logic.js'
+import { Trigger, Replacer, Ability, CalculatedCost } from './logic.js'
 import { ID } from './logic.js'
 import { renderCost, renderEnergy } from './logic.js'
 import { emptyState } from './logic.js'
@@ -105,14 +105,19 @@ function renderTokens(tokens:string[]): string {
     return parts.join(', ')
 }
 
+function renderCalculatedCost(c:CalculatedCost): string {
+    return `<div>(cost) ${c.text}</div>`
+}
+
 function renderTooltip(card:Card, state:State): string {
     const effectHtml:string = `<div>${card.effect().text}</div>`
+    const costHtml:string = (card.spec.calculatedCost != undefined) ? renderCalculatedCost(card.spec.calculatedCost) : ''
     const abilitiesHtml:string = card.abilities().map(x => renderAbility(x)).join('')
     const triggerHtml:string = card.triggers().map(x => renderStatic(x)).join('')
     const replacerHtml:string = card.replacers().map(x => renderStatic(x)).join('')
     const staticHtml:string = triggerHtml + replacerHtml
     const tokensHtml:string = card.tokens.length > 0 ? `Tokens: ${renderTokens(card.tokens)}` : ''
-    const baseFilling:string = [effectHtml, abilitiesHtml, staticHtml, tokensHtml].join('')
+    const baseFilling:string = [costHtml, effectHtml, abilitiesHtml, staticHtml, tokensHtml].join('')
     function renderRelated(spec:CardSpec) {
         const card:Card = new Card(spec, -1)
         const costStr = renderCost(card.cost(emptyState))
