@@ -1,3 +1,4 @@
+// TODO: there is now visual hiccup on startup, diagnose and then fix
 // TODO: make calculated costs render as "(cost) X"
 // TODO: make the tooltip nice---should show up immediately, but be impossible to keep it alive by mousing over it
 // TODO: I think the cost framework isn't really appropriate any more, but maybe think a bit before getting rid of it
