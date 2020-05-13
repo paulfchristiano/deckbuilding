@@ -66,6 +66,7 @@ import { emptyState } from './logic.js';
 import { Undo } from './logic.js';
 import { playGame, initialState } from './logic.js';
 import { mixins } from './logic.js';
+import { VERSION } from './logic.js';
 var keyListeners = new Map();
 var handHotkeys = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0',
     '!', '#', '$', '%', '^', '&', '*', '(', ')', '-', '+', '=', '{', '}', '[', ']']; // '@' is confusing
@@ -412,9 +413,9 @@ function renderState(state, settings) {
         return renderCard(card, state, cardRenderOptions, globalRendererState.tokenRenderer);
     }
     $('#resolvingHeader').html('Resolving:');
-    $('#energy').html(state.energy);
-    $('#coin').html(state.coin);
-    $('#points').html(state.points);
+    $('#energy').html(state.energy.toString());
+    $('#coin').html(state.coin.toString());
+    $('#points').html(state.points.toString());
     $('#aside').html(state.aside.map(render).join(''));
     $('#resolving').html(state.resolving.map(render).join(''));
     $('#play').html(state.play.map(render).join(''));
@@ -466,7 +467,7 @@ var webUI = {
             var submitIndex = options.length;
             function setReady() {
                 if (isReady()) {
-                    $("[option='" + submitIndex + "']").attr('choosable', true);
+                    $("[option='" + submitIndex + "']").attr('choosable', 'true');
                 }
                 else {
                     $("[option='" + submitIndex + "']").removeAttr('choosable');
@@ -701,7 +702,7 @@ function replayURL(spec) {
 // ------------------------------ High score submission
 //TODO: allow submitting custom kingdoms
 function submittable(spec) {
-    return (spec.kingdom == null) && (spec.testing != true);
+    return (spec.kingdom == null);
 }
 function setCookie(name, value) {
     document.cookie = name + "=" + value + "; max-age=315360000; path=/";
@@ -737,7 +738,7 @@ function getUsername() {
 function renderScoreSubmission(state, done) {
     var score = state.energy;
     var seed = state.spec.seed;
-    $('#scoreSubmitter').attr('active', true);
+    $('#scoreSubmitter').attr('active', 'true');
     var pattern = "[a-ZA-Z0-9]";
     $('#scoreSubmitter').html("<label for=\"username\">Name:</label>" +
         "<textarea id=\"username\"></textarea>" +
@@ -750,7 +751,7 @@ function renderScoreSubmission(state, done) {
         $('#username').val(username);
     $('#username').focus();
     function exit() {
-        $('#scoreSubmitter').attr('active', false);
+        $('#scoreSubmitter').attr('active', 'false');
         done();
     }
     function submit() {
@@ -763,14 +764,18 @@ function renderScoreSubmission(state, done) {
                 "username=" + username,
                 "history=" + state.serializeHistory()
             ].join('&');
-            $.post("submit?" + query).done(function (x) {
-                heartbeat(state.spec);
-                console.log(x);
+            $.post("submit?" + query).done(function (resp) {
+                if (resp == 'OK') {
+                    heartbeat(state.spec);
+                }
+                else {
+                    alert(resp);
+                }
             });
             exit();
         }
     }
-    $('#username').on('keydown', function (e) {
+    $('#username').keydown(function (e) {
         if (e.keyCode == 13) {
             submit();
             e.preventDefault();
@@ -794,9 +799,14 @@ function scoreboardURL(spec) {
     return "scoreboard?seed=" + spec.seed;
 }
 //TODO: live updates?
-function heartbeat(spec) {
+function heartbeat(spec, interval) {
     if (spec.kingdom == null) {
-        $.get("topScore?seed=" + spec.seed).done(function (x) {
+        $.get("topScore?seed=" + spec.seed + "&version=" + VERSION).done(function (x) {
+            if (x == 'version mismatch') {
+                clearInterval(interval);
+                alert("The server has updated to a new version, please refresh.");
+            }
+            console.log(x);
             var n = parseInt(x, 10);
             if (!isNaN(n))
                 renderBest(n, spec);
@@ -826,7 +836,7 @@ function getSeed() {
 export function load() {
     var spec = makeGameSpec();
     heartbeat(spec);
-    setInterval(function () { return heartbeat(spec); }, 30000);
+    var interval = setInterval(function () { return heartbeat(spec, interval); }, 10000);
     playGame(initialState(spec).attachUI(webUI));
 }
 // ----------------------------------- Kingdom picker

@@ -1,3 +1,5 @@
+export const VERSION = "0.1"
+
 // ----------------------------- Formatting
 
 export function renderCost(cost:Cost): string {
@@ -475,7 +477,7 @@ export class State {
             state = prev;
             prev = state.backup()
         }
-        return state.future.map(xs => xs.join(',')).join(';')
+        return [VERSION].concat(state.future.map(xs => xs.join(','))).join(';')
     }
     makeID(): [State, number] {
         const id:number = this.nextID
@@ -493,12 +495,24 @@ export class State {
         return (this.lastReplayable() != null)
     }
     static fromHistory(s:string, spec:GameSpec): State {
-        const pieces:string[] = s.split(';')
+        let historyVersion:string|null;
+        let pieces:string[];
+        [historyVersion, pieces] = shiftFirst(s.split(';'))
+        if (VERSION != historyVersion) {
+            throw new VersionMismatch(historyVersion || 'null')
+        }
         const future = pieces.map(piece => piece.split(',').map(x => parseInt(x)))
         return initialState(spec).update({future: future})
     }
 }
 
+
+export class VersionMismatch extends Error {
+    constructor(public historyVersion:string) {
+        super(`Current version ${VERSION} does not match replay version ${historyVersion}`)
+        Object.setPrototypeOf(this, VersionMismatch.prototype)
+    }
+}
 
 function indent(n:number, s:string) {
     const parts:string[] = []
@@ -1227,9 +1241,11 @@ async function mainLoop(state: State): Promise<State> {
 }
 
 export async function verifyScore(seed:string, history:string, score:number): Promise<[boolean, string]> {
-    return playGame(State.fromHistory(history, {seed:seed, kingdom:null}))
-    .then(function (x:void): [boolean, string] { return [true, ""] }) //won't ever fire
-    .catch(function (e:Error) {
+    try {
+        await playGame(State.fromHistory(history, {seed:seed, kingdom:null}))
+        console.log("Uh oh!!!")
+        return [true, ""] //unreachable
+    } catch(e) {
         if (e instanceof Victory) {
             if (e.state.energy == score)
                 return [true, ""]
@@ -1237,12 +1253,14 @@ export async function verifyScore(seed:string, history:string, score:number): Pr
                 return [false, `Computed score was ${e.state.energy}`]
         } else if (e instanceof HistoryMismatch) {
             return [false, `${e}`]
+        } else if (e instanceof VersionMismatch) {
+            return [false, `${e}`]
         } else if (e instanceof ReplayEnded) {
             return [false, `${e}`]
         } else {
             throw e
         }
-    })
+    }
 }
 
 
@@ -2812,23 +2830,21 @@ const offering:CardSpec = {name: 'Offering',
 buyable(offering, 5)
 
 const decay:CardSpec = {name: 'Decay',
-    fixedCost: coin(2),
+    fixedCost: coin(3),
     effect: card => ({
-        text: 'Remove a decay token from each card in your hand.',
+        text: 'Remove a decay token from each card in your discard pile.',
         effect: async function(state) {
-            return doAll(state.hand.map(x => removeOneToken(x, 'decay')))(state)
+            return doAll(state.discard.map(x => removeOneToken(x, 'decay')))(state)
         }
     }),
     triggers: card => [{
-        text: 'Whenever you recycle a card, put a decay token on it.',
+        text: 'Whenever you recycle a card, if it has 3 or more decay tokens on it trash it,'+
+            ' otherwise put a decay token on it.',
         kind: 'recycle',
         handles: () => true,
-        effect: e => doAll(e.cards.map((c:Card) => addToken(c, 'decay')))
-    }, {
-        text: 'After you play a card, if it has 3 or more decay tokens on it trash it.',
-        kind: 'afterPlay',
-        handles: e => (e.after != null && e.after.count('decay') >= 3),
-        effect: e => trash(e.after),
+        effect: e => doAll(e.cards.map(
+            (c:Card) => (c.count('decay') >= 3) ? trash(c) : addToken(c, 'decay'))
+        )
     }]
 }
 register(decay)

@@ -1,7 +1,7 @@
 import express from 'express'
 import path from 'path'
 const PORT = process.env.PORT || 5000
-import {verifyScore} from './public/logic.js'
+import {verifyScore, VERSION } from './public/logic.js'
 
 import postgres from 'postgres'
 const sql = postgres(process.env.DATABASE_URL)
@@ -72,13 +72,19 @@ express()
     .get('/topScore', async (req:any, res:any) => {
       try {
           const seed = req.query.seed
+          const version = req.query.version
+          if (version != VERSION) {
+              res.send('version mismatch')
+              return
+          }
+          //TODO: include only scores for the current version
           const results = await sql`
               SELECT username, score, submitted FROM scoreboard
-              WHERE seed=${seed}
+              WHERE seed=${seed} AND version=${version}
               ORDER BY score ASC, submitted ASC
           `
           if (results.length == 0)
-              res.send('null')
+              res.send('none')
           else
               res.send(results[0].score.toString())
       } catch(err) {
@@ -90,12 +96,25 @@ express()
       try {
           const seed = req.query.seed
           const results = await sql`
-              SELECT username, score, submitted FROM scoreboard
+              SELECT username, score, submitted, version FROM scoreboard
               WHERE seed=${seed}
-              ORDER BY score ASC, submitted ASC
+              ORDER BY version DESC, score ASC, submitted ASC
           `
           const entries = results.map((x:any) => ({...x, timesince:renderTimeSince(x.submitted)}))
-          res.render('pages/scoreboard', {entries:entries, seed:seed});
+          const entriesByVersion: [string, object[]][] = [];
+          for (const entry of entries) {
+              if (entriesByVersion.length == 0) {
+                  entriesByVersion.push([entry.version, [entry]] as [string, object[]])
+              } else {
+                  let lastVersion:[string, object[]] = entriesByVersion[entriesByVersion.length-1]
+                  if (lastVersion[0] != entry.version) {
+                      lastVersion = [entry.version, []]
+                      entriesByVersion.push(lastVersion)
+                  }
+                  lastVersion[1].push(entry)
+              }
+          }
+          res.render('pages/scoreboard', {entriesByVersion:entriesByVersion, seed:seed, currentVersion:VERSION});
       } catch(err) {
           console.error(err);
           res.send('Error: ' + err);
@@ -106,7 +125,7 @@ express()
             res.render('pages/main', {seed:undefined})
         } catch(err) {
             console.error(err);
-            res.send('Error: ' + err);
+            res.send(err)
         }
     })
     .get('/', async (req:any, res:any) => {
@@ -135,10 +154,10 @@ express()
             const [valid, explanation] = await verifyScore(seed, history, score)
             if (valid) {
                 const results = await sql`
-                  INSERT INTO scoreboard (username, score, seed)
-                  VALUES (${username}, ${score}, ${seed})
+                  INSERT INTO scoreboard (username, score, seed, version)
+                  VALUES (${username}, ${score}, ${seed}, ${VERSION})
                 `
-                res.send(`Score logged!`)
+                res.send(`OK`)
             } else {
                 res.send(`Score did not validate: ${explanation}`)
             }
