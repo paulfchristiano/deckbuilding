@@ -1,7 +1,7 @@
 import express from 'express'
 import path from 'path'
 const PORT = process.env.PORT || 5000
-import {verifyScore} from './public/logic.js'
+import {verifyScore, VERSION } from './public/logic.js'
 
 import postgres from 'postgres'
 const sql = postgres(process.env.DATABASE_URL)
@@ -72,6 +72,12 @@ express()
     .get('/topScore', async (req:any, res:any) => {
       try {
           const seed = req.query.seed
+          const version = req.query.version
+          if (version != VERSION) {
+              res.send('version mismatch')
+              return
+          }
+          //TODO: include only scores for the current version
           const results = await sql`
               SELECT username, score, submitted FROM scoreboard
               WHERE seed=${seed}
@@ -106,7 +112,7 @@ express()
             res.render('pages/main', {seed:undefined})
         } catch(err) {
             console.error(err);
-            res.send('Error: ' + err);
+            res.send(err)
         }
     })
     .get('/', async (req:any, res:any) => {
@@ -132,13 +138,14 @@ express()
             const score = req.query.score
             const username = req.query.username
             const history = req.query.history
+            console.log(history)
             const [valid, explanation] = await verifyScore(seed, history, score)
             if (valid) {
                 const results = await sql`
-                  INSERT INTO scoreboard (username, score, seed)
-                  VALUES (${username}, ${score}, ${seed})
+                  INSERT INTO scoreboard (username, score, seed, version)
+                  VALUES (${username}, ${score}, ${seed}, ${VERSION})
                 `
-                res.send(`Score logged!`)
+                res.send(`OK`)
             } else {
                 res.send(`Score did not validate: ${explanation}`)
             }

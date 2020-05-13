@@ -12,6 +12,7 @@ import { Option, OptionRender, HotkeyHint } from './logic.js'
 import { UI, Undo, Victory, HistoryMismatch, ReplayEnded } from './logic.js'
 import { playGame, initialState, verifyScore } from './logic.js'
 import { mixins } from './logic.js'
+import { VERSION } from './logic.js'
 
 // --------------------- Hotkeys
 
@@ -325,9 +326,9 @@ function renderState(state:State,
         return renderCard(card, state, cardRenderOptions, globalRendererState.tokenRenderer)
     }
     $('#resolvingHeader').html('Resolving:')
-    $('#energy').html(state.energy)
-    $('#coin').html(state.coin)
-    $('#points').html(state.points)
+    $('#energy').html(state.energy.toString())
+    $('#coin').html(state.coin.toString())
+    $('#points').html(state.points.toString())
     $('#aside').html(state.aside.map(render).join(''))
     $('#resolving').html(state.resolving.map(render).join(''))
     $('#play').html(state.play.map(render).join(''))
@@ -380,7 +381,7 @@ const webUI:UI = {
             const submitIndex = options.length
             function setReady(): void {
                 if (isReady()) {
-                    $(`[option='${submitIndex}']`).attr('choosable', true)
+                    $(`[option='${submitIndex}']`).attr('choosable', 'true')
                 } else {
                     $(`[option='${submitIndex}']`).removeAttr('choosable')
                 }
@@ -620,7 +621,7 @@ function replayURL(spec:GameSpec) {
 
 //TODO: allow submitting custom kingdoms
 function submittable(spec:GameSpec): boolean {
-    return (spec.kingdom == null) && (spec.testing != true)
+    return (spec.kingdom == null)
 }
 
 
@@ -647,7 +648,7 @@ function getUsername():string|null {
 function renderScoreSubmission(state:State, done:() => void) {
     const score = state.energy
     const seed = state.spec.seed
-    $('#scoreSubmitter').attr('active', true)
+    $('#scoreSubmitter').attr('active', 'true')
     const pattern = "[a-ZA-Z0-9]"
     $('#scoreSubmitter').html(
         `<label for="username">Name:</label>` +
@@ -661,11 +662,11 @@ function renderScoreSubmission(state:State, done:() => void) {
     if (username != null) $('#username').val(username)
     $('#username').focus()
     function exit() {
-        $('#scoreSubmitter').attr('active', false)
+        $('#scoreSubmitter').attr('active', 'false')
         done()
     }
     function submit() {
-        const username:string = $('#username').val()
+        const username:string = $('#username').val() as string
         if (username.length > 0) {
             rememberUsername(username)
             const query = [
@@ -674,14 +675,17 @@ function renderScoreSubmission(state:State, done:() => void) {
                 `username=${username}`,
                 `history=${state.serializeHistory()}`
             ].join('&')
-            $.post(`submit?${query}`).done(function(x:any) {
-                heartbeat(state.spec)
-                console.log(x)
+            $.post(`submit?${query}`).done(function(resp:string) {
+                if (resp == 'OK') {
+                    heartbeat(state.spec)
+                } else {
+                    alert(resp)
+                }
             })
             exit()
         }
     }
-    $('#username').on('keydown', (e:KeyboardEvent) => {
+    $('#username').keydown((e:any) => {
         if (e.keyCode == 13) {
             submit()
             e.preventDefault()
@@ -703,9 +707,14 @@ function scoreboardURL(spec:GameSpec) {
 }
 
 //TODO: live updates?
-function heartbeat(spec:GameSpec): void {
+function heartbeat(spec:GameSpec, interval?:any): void {
     if (spec.kingdom == null) {
-        $.get(`topScore?seed=${spec.seed}`).done(function(x:string) {
+        $.get(`topScore?seed=${spec.seed}&version=${VERSION}`).done(function(x:string) {
+            if (x == 'version mismatch') {
+                clearInterval(interval)
+                alert("The server has updated to a new version, please refresh.")
+            }
+            console.log(x)
             const n:number = parseInt(x, 10)
             if (!isNaN(n)) renderBest(n, spec)
         })
@@ -742,7 +751,7 @@ function getSeed(): string {
 export function load(): void {
     const spec:GameSpec = makeGameSpec()
     heartbeat(spec)
-    setInterval(() => heartbeat(spec), 30000)
+    const interval:any = setInterval(() => heartbeat(spec, interval), 10000)
     playGame(initialState(spec).attachUI(webUI))
 }
 

@@ -78,7 +78,7 @@ var __read = (this && this.__read) || function (o, n) {
 };
 import express from 'express';
 var PORT = process.env.PORT || 5000;
-import { verifyScore } from './public/logic.js';
+import { verifyScore, VERSION } from './public/logic.js';
 import postgres from 'postgres';
 var sql = postgres(process.env.DATABASE_URL);
 //TODO: get rid of these any's
@@ -176,12 +176,17 @@ express()
     .set('view engine', 'ejs')
     .set('views', './views')
     .get('/topScore', function (req, res) { return __awaiter(void 0, void 0, void 0, function () {
-    var seed, results, err_1;
+    var seed, version, results, err_1;
     return __generator(this, function (_a) {
         switch (_a.label) {
             case 0:
                 _a.trys.push([0, 2, , 3]);
                 seed = req.query.seed;
+                version = req.query.version;
+                if (version != VERSION) {
+                    res.send('version mismatch');
+                    return [2 /*return*/];
+                }
                 return [4 /*yield*/, sql(templateObject_3 || (templateObject_3 = __makeTemplateObject(["\n              SELECT username, score, submitted FROM scoreboard\n              WHERE seed=", "\n              ORDER BY score ASC, submitted ASC\n          "], ["\n              SELECT username, score, submitted FROM scoreboard\n              WHERE seed=", "\n              ORDER BY score ASC, submitted ASC\n          "])), seed)];
             case 1:
                 results = _a.sent();
@@ -228,7 +233,7 @@ express()
         }
         catch (err) {
             console.error(err);
-            res.send('Error: ' + err);
+            res.send(err);
         }
         return [2 /*return*/];
     });
@@ -275,14 +280,15 @@ express()
                 score = req.query.score;
                 username = req.query.username;
                 history_1 = req.query.history;
+                console.log(history_1);
                 return [4 /*yield*/, verifyScore(seed, history_1, score)];
             case 1:
                 _a = __read.apply(void 0, [_b.sent(), 2]), valid = _a[0], explanation = _a[1];
                 if (!valid) return [3 /*break*/, 3];
-                return [4 /*yield*/, sql(templateObject_5 || (templateObject_5 = __makeTemplateObject(["\n                  INSERT INTO scoreboard (username, score, seed)\n                  VALUES (", ", ", ", ", ")\n                "], ["\n                  INSERT INTO scoreboard (username, score, seed)\n                  VALUES (", ", ", ", ", ")\n                "])), username, score, seed)];
+                return [4 /*yield*/, sql(templateObject_5 || (templateObject_5 = __makeTemplateObject(["\n                  INSERT INTO scoreboard (username, score, seed, version)\n                  VALUES (", ", ", ", ", ", ", ")\n                "], ["\n                  INSERT INTO scoreboard (username, score, seed, version)\n                  VALUES (", ", ", ", ", ", ", ")\n                "])), username, score, seed, VERSION)];
             case 2:
                 results = _b.sent();
-                res.send("Score logged!");
+                res.send("OK");
                 return [3 /*break*/, 4];
             case 3:
                 res.send("Score did not validate: " + explanation);
