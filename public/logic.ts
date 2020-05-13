@@ -1,9 +1,4 @@
-//TODO: separate the scoreboard based on version (new headers for each previous version)
-//TODO: do some testing and make sure that works too
-//TODO: push to prod, re-update VERSION to 0 on prod scoreboard, and make VERSION mandatory
-//(I think all of that will probably take 1-2 hours)
-
-export const VERSION = "0.0.1.3"
+export const VERSION = "0.1"
 
 // ----------------------------- Formatting
 
@@ -23,8 +18,6 @@ export function renderEnergy(n:number): string {
     }
     return result.join('')
 }
-
-(minutes < 10) ? `0${minutes}` : `${minutes}`
 
 // ----------------------------- Cards
 

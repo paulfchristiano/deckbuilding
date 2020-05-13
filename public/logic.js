@@ -1,7 +1,3 @@
-//TODO: separate the scoreboard based on version (new headers for each previous version)
-//TODO: do some testing and make sure that works too
-//TODO: push to prod, re-update VERSION to 0 on prod scoreboard, and make VERSION mandatory
-//(I think all of that will probably take 1-2 hours)
 var __extends = (this && this.__extends) || (function () {
     var extendStatics = function (d, b) {
         extendStatics = Object.setPrototypeOf ||
@@ -89,7 +85,7 @@ var __read = (this && this.__read) || function (o, n) {
     }
     return ar;
 };
-export var VERSION = "0.0.1.3";
+export var VERSION = "0.1";
 // ----------------------------- Formatting
 export function renderCost(cost) {
     var coinHtml = cost.coin > 0 ? "$" + cost.coin : '';
@@ -110,7 +106,6 @@ export function renderEnergy(n) {
     }
     return result.join('');
 }
-(minutes < 10) ? "0" + minutes : "" + minutes;
 function read(x, k, fallback) {
     return (x[k] == undefined) ? fallback : x[k];
 }

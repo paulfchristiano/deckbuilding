@@ -187,11 +187,11 @@ express()
                     res.send('version mismatch');
                     return [2 /*return*/];
                 }
-                return [4 /*yield*/, sql(templateObject_3 || (templateObject_3 = __makeTemplateObject(["\n              SELECT username, score, submitted FROM scoreboard\n              WHERE seed=", "\n              ORDER BY score ASC, submitted ASC\n          "], ["\n              SELECT username, score, submitted FROM scoreboard\n              WHERE seed=", "\n              ORDER BY score ASC, submitted ASC\n          "])), seed)];
+                return [4 /*yield*/, sql(templateObject_3 || (templateObject_3 = __makeTemplateObject(["\n              SELECT username, score, submitted FROM scoreboard\n              WHERE seed=", " AND version=", "\n              ORDER BY score ASC, submitted ASC\n          "], ["\n              SELECT username, score, submitted FROM scoreboard\n              WHERE seed=", " AND version=", "\n              ORDER BY score ASC, submitted ASC\n          "])), seed, version)];
             case 1:
                 results = _a.sent();
                 if (results.length == 0)
-                    res.send('null');
+                    res.send('none');
                 else
                     res.send(results[0].score.toString());
                 return [3 /*break*/, 3];
@@ -205,20 +205,45 @@ express()
     });
 }); })
     .get('/scoreboard', function (req, res) { return __awaiter(void 0, void 0, void 0, function () {
-    var seed, results, entries, err_2;
-    return __generator(this, function (_a) {
-        switch (_a.label) {
+    var seed, results, entries, entriesByVersion, entries_1, entries_1_1, entry, lastVersion, err_2;
+    var e_2, _a;
+    return __generator(this, function (_b) {
+        switch (_b.label) {
             case 0:
-                _a.trys.push([0, 2, , 3]);
+                _b.trys.push([0, 2, , 3]);
                 seed = req.query.seed;
-                return [4 /*yield*/, sql(templateObject_4 || (templateObject_4 = __makeTemplateObject(["\n              SELECT username, score, submitted FROM scoreboard\n              WHERE seed=", "\n              ORDER BY score ASC, submitted ASC\n          "], ["\n              SELECT username, score, submitted FROM scoreboard\n              WHERE seed=", "\n              ORDER BY score ASC, submitted ASC\n          "])), seed)];
+                return [4 /*yield*/, sql(templateObject_4 || (templateObject_4 = __makeTemplateObject(["\n              SELECT username, score, submitted, version FROM scoreboard\n              WHERE seed=", "\n              ORDER BY version DESC, score ASC, submitted ASC\n          "], ["\n              SELECT username, score, submitted, version FROM scoreboard\n              WHERE seed=", "\n              ORDER BY version DESC, score ASC, submitted ASC\n          "])), seed)];
             case 1:
-                results = _a.sent();
+                results = _b.sent();
                 entries = results.map(function (x) { return (__assign(__assign({}, x), { timesince: renderTimeSince(x.submitted) })); });
-                res.render('pages/scoreboard', { entries: entries, seed: seed });
+                entriesByVersion = [];
+                try {
+                    for (entries_1 = __values(entries), entries_1_1 = entries_1.next(); !entries_1_1.done; entries_1_1 = entries_1.next()) {
+                        entry = entries_1_1.value;
+                        if (entriesByVersion.length == 0) {
+                            entriesByVersion.push([entry.version, [entry]]);
+                        }
+                        else {
+                            lastVersion = entriesByVersion[entriesByVersion.length - 1];
+                            if (lastVersion[0] != entry.version) {
+                                lastVersion = [entry.version, []];
+                                entriesByVersion.push(lastVersion);
+                            }
+                            lastVersion[1].push(entry);
+                        }
+                    }
+                }
+                catch (e_2_1) { e_2 = { error: e_2_1 }; }
+                finally {
+                    try {
+                        if (entries_1_1 && !entries_1_1.done && (_a = entries_1.return)) _a.call(entries_1);
+                    }
+                    finally { if (e_2) throw e_2.error; }
+                }
+                res.render('pages/scoreboard', { entriesByVersion: entriesByVersion, seed: seed, currentVersion: VERSION });
                 return [3 /*break*/, 3];
             case 2:
-                err_2 = _a.sent();
+                err_2 = _b.sent();
                 console.error(err_2);
                 res.send('Error: ' + err_2);
                 return [3 /*break*/, 3];
@@ -280,7 +305,6 @@ express()
                 score = req.query.score;
                 username = req.query.username;
                 history_1 = req.query.history;
-                console.log(history_1);
                 return [4 /*yield*/, verifyScore(seed, history_1, score)];
             case 1:
                 _a = __read.apply(void 0, [_b.sent(), 2]), valid = _a[0], explanation = _a[1];

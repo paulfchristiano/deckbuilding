@@ -2,24 +2,24 @@
 <html>
 <head>
 <style>
-#scoreboard {
+.scoreboard {
     border-collapse: collapse;
 }
-#scoreboard td {
+.scoreboard td {
     border: 1px black solid;
     text-align: center;
 }
-#scoreboard thead td {
+.scoreboard thead td {
     border-bottom: 3px black solid;
     text-align: center;
 }
-#userhead {
+.userhead {
     width: 15em;
 }
-#scorehead {
+.scorehead {
     width: 5em;
 }
-#timehead {
+.timehead {
     width: 10em;
 }
 </style>
@@ -29,12 +29,17 @@
 
 <h2>Scoreboard for seed "<%= seed %>"</h2>
 
-<table id='scoreboard'>
+    <% entriesByVersion.forEach(function([version, entries]) { %>
+    <% if (version != currentVersion) { %>
+    <h3> For older version <%= version %> </h3>
+    <% }; %>
+    
+<table class='scoreboard'>
     <thead>
         <tr>
-            <td id='userhead'> Username </td>
-            <td id='scorehead'> Score </td>
-            <td id='timehead'> Time </td>
+            <td class='userhead'> Username </td>
+            <td class='scorehead'> Score </td>
+            <td class='timehead'> Time </td>
         </tr>
     </thead>
     <tbody>
@@ -47,6 +52,7 @@
         <% }); %>
     </tbody>
 </table>
+    <% }); %>
 
 </body>
 </html>
