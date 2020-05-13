@@ -1866,7 +1866,7 @@ const bridge:CardSpec = {name: 'Bridge',
         effect: gainCoin(2),
     }),
     replacers: card => [{
-        text: 'Cards cost $1 less, unless it would make them cost 0.',
+        text: 'Cards cost $1 less but not 0.',
         kind: 'cost',
         handles: p => true,
         replace: p => ({...p, cost:reduceCoinNonzero(p.cost, 1)})
@@ -1977,7 +1977,7 @@ buyable(coven, 4)
 
 const canal:CardSpec = {name: 'Canal',
     replacers: card => [{
-        text: 'Cards in the supply cost $1 less, unless it would make them cost 0.',
+        text: 'Cards in the supply cost $1 less but not 0.',
         kind: 'cost',
         handles: () => true,
         replace: p => ({...p, cost: reduceCoinNonzero(p.cost, 1)})
@@ -2072,7 +2072,7 @@ function costPlus(base:Cost, addition:Cost): CalculatedCost {
 
 const mobilization:CardSpec = {name: 'Mobilization',
     replacers: card => [{
-        text: `${regroup.name} costs @ less to play, unless that would make it cost 0.`,
+        text: `${regroup.name} costs @ less to play but not 0.`,
         kind:'cost',
         handles: x => (x.card.name == 'Regroup'),
         replace: x => ({...x, cost:reduceEnergyNonzero(x.cost, 1)})
@@ -3158,18 +3158,18 @@ function isZeroCost(cost:Cost): boolean {
 }
 function reduceCoinNonzero(cost:Cost, n:number): Cost {
     const newCost:Cost = reduceCoin(cost, n)
-    return (isZeroCost(newCost)) ? cost : newCost
+    return (isZeroCost(newCost)) ? coin(1) : newCost
 }
 function reduceEnergyNonzero(cost:Cost, n:number): Cost {
     const newCost:Cost = reduceEnergy(cost, n)
-    return (isZeroCost(newCost)) ? cost : newCost
+    return (isZeroCost(newCost)) ? energy(1) : newCost
 }
 const makeFerry:CardSpec = {name: 'Ferry',
     fixedCost: coin(3),
     relatedCards: [ferry],
     effect: card => gainCard(ferry),
     replacers: card => [{
-        text: 'Cards cost $1 less per ferry token on them, unless it would make them cost 0.',
+        text: 'Cards cost $1 less per ferry token on them, but not 0.',
         kind: 'cost',
         handles: p => p.card.count('ferry') > 0,
         replace: p => ({...p, cost: reduceCoinNonzero(p.cost, p.card.count('ferry'))})

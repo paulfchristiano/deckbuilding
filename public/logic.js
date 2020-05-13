@@ -2328,7 +2328,7 @@ var bridge = { name: 'Bridge',
         effect: gainCoin(2),
     }); },
     replacers: function (card) { return [{
-            text: 'Cards cost $1 less, unless it would make them cost 0.',
+            text: 'Cards cost $1 less but not 0.',
             kind: 'cost',
             handles: function (p) { return true; },
             replace: function (p) { return (__assign(__assign({}, p), { cost: reduceCoinNonzero(p.cost, 1) })); }
@@ -2469,7 +2469,7 @@ var coven = { name: 'Coven',
 buyable(coven, 4);
 var canal = { name: 'Canal',
     replacers: function (card) { return [{
-            text: 'Cards in the supply cost $1 less, unless it would make them cost 0.',
+            text: 'Cards in the supply cost $1 less but not 0.',
             kind: 'cost',
             handles: function () { return true; },
             replace: function (p) { return (__assign(__assign({}, p), { cost: reduceCoinNonzero(p.cost, 1) })); }
@@ -2584,7 +2584,7 @@ function costPlus(base, addition) {
 }
 var mobilization = { name: 'Mobilization',
     replacers: function (card) { return [{
-            text: regroup.name + " costs @ less to play, unless that would make it cost 0.",
+            text: regroup.name + " costs @ less to play but not 0.",
             kind: 'cost',
             handles: function (x) { return (x.card.name == 'Regroup'); },
             replace: function (x) { return (__assign(__assign({}, x), { cost: reduceEnergyNonzero(x.cost, 1) })); }
@@ -4087,18 +4087,18 @@ function isZeroCost(cost) {
 }
 function reduceCoinNonzero(cost, n) {
     var newCost = reduceCoin(cost, n);
-    return (isZeroCost(newCost)) ? cost : newCost;
+    return (isZeroCost(newCost)) ? coin(1) : newCost;
 }
 function reduceEnergyNonzero(cost, n) {
     var newCost = reduceEnergy(cost, n);
-    return (isZeroCost(newCost)) ? cost : newCost;
+    return (isZeroCost(newCost)) ? energy(1) : newCost;
 }
 var makeFerry = { name: 'Ferry',
     fixedCost: coin(3),
     relatedCards: [ferry],
     effect: function (card) { return gainCard(ferry); },
     replacers: function (card) { return [{
-            text: 'Cards cost $1 less per ferry token on them, unless it would make them cost 0.',
+            text: 'Cards cost $1 less per ferry token on them, but not 0.',
             kind: 'cost',
             handles: function (p) { return p.card.count('ferry') > 0; },
             replace: function (p) { return (__assign(__assign({}, p), { cost: reduceCoinNonzero(p.cost, p.card.count('ferry')) })); }
