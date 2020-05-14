@@ -808,12 +808,32 @@ function recycle(cards:Card[]): Transform {
         let params:RecycleParams = {cards:cards, kind:'recycle'}
         params = replace(params, state);
         cards = params.cards;
-        if (cards.length > 0) {
-          state = state.log(`Recycled ${showCards(cards)} to bottom of deck`)
+        let cardChoices:Option<Card>[] = asNumberedChoices(cards)
+        const movedCards:Card[] = [];
+        while (true) {
+            let card:Card|null; [state, card] = await choice(state,
+                "Choose the next card to put on the bottom of your deck",
+                cardChoices, false)
+            if (card == null) break
+            else {
+                const id = card.id;
+                movedCards.push(card)
+                cardChoices = cardChoices.filter(c => c.value.id != id)
+                state = await move(card, 'deck', 'bottom')(state)
+            }
         }
-        state = await moveMany(cards, 'deck', 'bottom', true)(state)
-        state = await trigger({kind:'recycle', cards:cards})(state)
+        state = await trigger({kind:'recycle', cards:movedCards})(state)
         return state
+        //[state, cards] = await chooseOrder(state,
+        //    "Choose the order to put cards on the bottom of your deck.",
+        //    cards.map(asChoice)
+        //)
+        //if (cards.length > 0) {
+        //  state = state.log(`Recycled ${showCards(cards)} to bottom of deck`)
+        //}
+        //state = await moveMany(cards, 'deck', 'bottom', true)(state)
+        //state = await trigger({kind:'recycle', cards:cards})(state)
+        //return state
     }
 }
 
@@ -1176,6 +1196,14 @@ async function multichoiceIfNeeded<T>(
     }
 }
 
+async function chooseOrder<T>(
+    state:State,
+    prompt:string,
+    options:Option<T>[],
+): Promise<[State, T[]]> {
+    return multichoice(state, prompt, options, ((xs) => xs.length == options.length))
+}
+
 const yesOrNo:Option<boolean>[] = [
     {render:'Yes', value:true, hotkeyHint:{kind:'boolean', val:true}},
     {render:'No', value:false, hotkeyHint:{kind:'boolean', val:false}}
@@ -1476,17 +1504,19 @@ function makeCard(card:CardSpec, cost:Cost, selfdestruct:boolean=false):CardSpec
 function reboot(card:Card, n:number): Transform {
     return async function(state) {
         state = await setCoin(0)(state)
-        state = await recycle(state.discard)(state)
-        state = await recycle(state.hand)(state)
+        state = await recycle(state.discard.concat(state.hand))(state)
         state = await draw(n, card)(state)
         return state
     }
 }
 
+const Rebootstr:string = "Recycle your discard pile and hand"
+const rebootstr:string = "recycle your discard pile and hand"
+
 const regroup:CardSpec = {name: 'Regroup',
     fixedCost: energy(3),
     effect: card => ({
-        text: 'Recycle your discard pile, recycle your hand, lose all $, and +5 cards.',
+        text: `${Rebootstr}, lose all $, and +5 cards.`,
         effect: reboot(card, 5),
     })
 }
@@ -1644,7 +1674,7 @@ register(philanthropy)
 const repurpose:CardSpec = {name: 'Repurpose',
     fixedCost: energy(2),
     effect: card => ({
-        text: 'Recycle your discard pile, recycle your hand, lose all $, and +1 card per coin lost.',
+        text: `${Rebootstr}, lose all $, and +1 card per coin lost.`,
         effect: async function(state) {
             const n = state.coin
             return reboot(card, n)(state)
@@ -2514,7 +2544,7 @@ mixins.push(reuse)
 const remake :CardSpec = {name: 'Remake',
     fixedCost: energy(1),
     effect: card => ({
-        text: 'Recycle your discard pile, recycle your hand, lose all $, and +1 card per card that was in your hand.',
+        text: `${Rebootstr}, lose all $, and +1 card per card that was in your hand.`,
         effect: async function(state) {
             const n = state.hand.length
             return reboot(card, n)(state)
@@ -2526,7 +2556,7 @@ mixins.push(remake)
 const bootstrap:CardSpec = {name: 'Bootstrap',
     fixedCost: energy(1),
     effect: card => ({
-        text: 'Recycle your discard pile, recycle your hand, lose all $, and +2 cards.',
+        text: `${Rebootstr}, lose all $, and +2 cards.`,
         effect: reboot(card, 2)
     })
 }
