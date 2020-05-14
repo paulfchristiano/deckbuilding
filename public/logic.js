@@ -1987,49 +1987,6 @@ var smithy = { name: 'Smithy',
     }); }
 };
 buyable(smithy, 4);
-var tutor = { name: 'Tutor',
-    effect: function (card) { return ({
-        text: 'Put any card from your deck into your hand.',
-        effect: function (state) {
-            return __awaiter(this, void 0, void 0, function () {
-                var toDraw;
-                var _a;
-                return __generator(this, function (_b) {
-                    switch (_b.label) {
-                        case 0: return [4 /*yield*/, choice(state, 'Choose a card to put in your hand.', state.deck.map(asChoice))];
-                        case 1:
-                            _a = __read.apply(void 0, [_b.sent(), 2]), state = _a[0], toDraw = _a[1];
-                            if (toDraw == null)
-                                return [2 /*return*/, state];
-                            return [2 /*return*/, move(toDraw, 'hand')(state)];
-                    }
-                });
-            });
-        }
-    }); }
-};
-buyable(tutor, 3);
-var education = { name: 'Education',
-    fixedCost: energy(2),
-    effect: function (card) { return ({
-        text: 'Put up to three cards from your deck into your hand.',
-        effect: function (state) {
-            return __awaiter(this, void 0, void 0, function () {
-                var toDraw;
-                var _a;
-                return __generator(this, function (_b) {
-                    switch (_b.label) {
-                        case 0: return [4 /*yield*/, multichoiceIfNeeded(state, 'Choose up to three cards to put in your hand.', state.deck.map(asChoice), 3, true)];
-                        case 1:
-                            _a = __read.apply(void 0, [_b.sent(), 2]), state = _a[0], toDraw = _a[1];
-                            return [2 /*return*/, moveMany(toDraw, 'hand')(state)];
-                    }
-                });
-            });
-        }
-    }); }
-};
-buyable(education, 4);
 var philanthropy = { name: 'Philanthropy',
     fixedCost: { coin: 10, energy: 2 },
     effect: function (card) { return ({
@@ -2055,22 +2012,31 @@ var philanthropy = { name: 'Philanthropy',
     }); }
 };
 register(philanthropy);
-var repurpose = { name: 'Repurpose',
-    fixedCost: energy(2),
+var storytelling = { name: 'Storytelling',
+    fixedCost: energy(1),
     effect: function (card) { return ({
-        text: Rebootstr + ", lose all $, and +1 card per coin lost.",
+        text: "Lose all $, and +1 card per coin lost.",
         effect: function (state) {
             return __awaiter(this, void 0, void 0, function () {
                 var n;
                 return __generator(this, function (_a) {
-                    n = state.coin;
-                    return [2 /*return*/, reboot(card, n)(state)];
+                    switch (_a.label) {
+                        case 0:
+                            n = state.coin;
+                            return [4 /*yield*/, state.setCoin(0)];
+                        case 1:
+                            state = _a.sent();
+                            return [4 /*yield*/, draw(n)(state)];
+                        case 2:
+                            state = _a.sent();
+                            return [2 /*return*/, state];
+                    }
                 });
             });
         }
     }); }
 };
-register(repurpose);
+register(storytelling);
 var crafting = { name: 'Crafting',
     triggers: function (card) { return [{
             text: "After playing " + a(estate.name) + ", +$1.",
@@ -2103,12 +2069,11 @@ var vibrantCity = { name: 'Vibrant City',
         effect: doAll([gainPoints(1), draw(1)])
     }); }
 };
-buyable(vibrantCity, 8);
+buyable(vibrantCity, 7);
 var frontier = { name: 'Frontier',
     fixedCost: energy(1),
     effect: function (card) { return ({
-        text: 'Add a charge token to this, then +1 vp per charge token on this. Put it on the bottom of your deck.',
-        toZone: 'deck',
+        text: 'Add a charge token to this, then +1 vp per charge token on this.',
         effect: function (state) {
             return __awaiter(this, void 0, void 0, function () {
                 var result;
@@ -2130,7 +2095,7 @@ var frontier = { name: 'Frontier',
         },
     }); }
 };
-buyable(frontier, 6);
+buyable(frontier, 7);
 var investment = { name: 'Investment',
     fixedCost: energy(0),
     effect: function (card) { return ({
@@ -2462,33 +2427,6 @@ var cellar = { name: 'Cellar',
     }); }
 };
 buyable(cellar, 1);
-var pearlDiver = { name: 'Pearl Diver',
-    fixedCost: energy(0),
-    effect: function (_) { return ({
-        text: '+1 card. You may put the bottom card of your deck on top of your deck.',
-        effect: function (state) {
-            return __awaiter(this, void 0, void 0, function () {
-                var target, moveIt;
-                var _a;
-                return __generator(this, function (_b) {
-                    switch (_b.label) {
-                        case 0: return [4 /*yield*/, draw(1)(state)];
-                        case 1:
-                            state = _b.sent();
-                            if (state.deck.length == 0)
-                                return [2 /*return*/, state];
-                            target = state.deck[state.deck.length - 1];
-                            return [4 /*yield*/, choice(state, "Move " + target.name + " to the top of your deck?", yesOrNo)];
-                        case 2:
-                            _a = __read.apply(void 0, [_b.sent(), 2]), state = _a[0], moveIt = _a[1];
-                            return [2 /*return*/, moveIt ? move(target, 'deck', 'top')(state) : state];
-                    }
-                });
-            });
-        }
-    }); }
-};
-buyable(pearlDiver, 2);
 var peddler = { name: 'Peddler',
     fixedCost: energy(0),
     effect: function (card) { return ({
@@ -2499,8 +2437,8 @@ var peddler = { name: 'Peddler',
 var makePeddler = { name: 'Peddler',
     fixedCost: coin(5),
     effect: function (card) { return ({
-        text: 'Create a peddler on top of your deck',
-        effect: create(peddler, 'deck', 'top')
+        text: 'Create a peddler in your deck',
+        effect: create(peddler, 'deck')
     }); },
     relatedCards: [peddler]
 };
@@ -2725,7 +2663,7 @@ var junkDealer = { name: 'Junk Dealer',
 };
 buyable(junkDealer, 5);
 var refresh = { name: 'Refresh',
-    fixedCost: energy(1),
+    fixedCost: energy(2),
     effect: function (card) { return ({
         text: 'Recycle your discard pile.',
         effect: function (state) {
@@ -2739,20 +2677,15 @@ mixins.push(refresh);
 var plough = { name: 'Plough',
     fixedCost: energy(2),
     effect: function (card) { return ({
-        text: 'Recycle any number of cards from your discard pile. +2 cards.',
+        text: 'Recycle your discard pile.',
         effect: function (state) {
             return __awaiter(this, void 0, void 0, function () {
-                var cards;
-                var _a;
-                return __generator(this, function (_b) {
-                    switch (_b.label) {
-                        case 0: return [4 /*yield*/, multichoice(state, 'Choose any number of cards to recycle.', state.discard.map(asChoice), function (xs) { return true; })];
+                return __generator(this, function (_a) {
+                    switch (_a.label) {
+                        case 0: return [4 /*yield*/, recycle(state.discard)(state)];
                         case 1:
-                            _a = __read.apply(void 0, [_b.sent(), 2]), state = _a[0], cards = _a[1];
-                            return [4 /*yield*/, recycle(cards)(state)];
-                        case 2:
-                            state = _b.sent();
-                            return [2 /*return*/, draw(3)(state)];
+                            state = _a.sent();
+                            return [2 /*return*/, state];
                     }
                 });
             });
@@ -2760,27 +2693,6 @@ var plough = { name: 'Plough',
     }); }
 };
 buyable(plough, 4);
-var vassal = { name: 'Vassal',
-    fixedCost: energy(1),
-    effect: function (card) { return ({
-        text: "+$2. Play the top card of your deck.",
-        effect: function (state) {
-            return __awaiter(this, void 0, void 0, function () {
-                return __generator(this, function (_a) {
-                    switch (_a.label) {
-                        case 0: return [4 /*yield*/, gainCoin(2)(state)];
-                        case 1:
-                            state = _a.sent();
-                            if (state.deck.length == 0)
-                                return [2 /*return*/, state];
-                            return [2 /*return*/, state.deck[0].play(card)(state)];
-                    }
-                });
-            });
-        }
-    }); }
-};
-buyable(vassal, 3);
 var twin = { name: 'Twin',
     fixedCost: { energy: 1, coin: 8 },
     effect: function (card) { return ({
@@ -3130,20 +3042,6 @@ var buyPlatinum = { name: 'Platinum',
     relatedCards: [platinum],
 };
 register(buyPlatinum);
-var windfall = { name: 'Windfall',
-    fixedCost: { energy: 0, coin: 6 },
-    effect: function (card) { return ({
-        text: 'If there are no cards in your deck, create two golds in your discard pile.',
-        effect: function (state) {
-            return __awaiter(this, void 0, void 0, function () {
-                return __generator(this, function (_a) {
-                    return [2 /*return*/, (state.deck.length == 0) ? doAll([create(gold), create(gold)])(state) : state];
-                });
-            });
-        }
-    }); }
-};
-register(windfall);
 var stables = { name: 'Stables',
     abilities: function (card) { return [{
             text: 'Remove a charge token from this. If you do, +1 card.',
@@ -3160,54 +3058,30 @@ var horse = { name: 'Horse',
     triggers: function (card) { return [ensureInPlay(stables)]; },
 };
 register(horse);
-var lookout = { name: 'Lookout',
-    fixedCost: energy(0),
-    effect: function (card) { return ({
-        text: 'Look at the top 3 cards from your deck. Trash one then discard one.',
-        effect: function (state) {
-            return __awaiter(this, void 0, void 0, function () {
-                function pickOne(descriptor, zone, state) {
-                    return __awaiter(this, void 0, void 0, function () {
-                        var pick, id;
-                        var _a;
-                        return __generator(this, function (_b) {
-                            switch (_b.label) {
-                                case 0: return [4 /*yield*/, choice(state, "Pick a card to " + descriptor + ".", picks)];
-                                case 1:
-                                    _a = __read.apply(void 0, [_b.sent(), 2]), state = _a[0], pick = _a[1];
-                                    if (pick == null)
-                                        return [2 /*return*/, state]; // shouldn't be possible
-                                    id = pick.id;
-                                    picks = picks.filter(function (pick) { return pick.value.id != id; });
-                                    return [2 /*return*/, move(pick, zone)(state)];
-                            }
-                        });
-                    });
-                }
-                var picks;
-                return __generator(this, function (_a) {
-                    switch (_a.label) {
-                        case 0:
-                            picks = asNumberedChoices(state.deck.slice(0, 3));
-                            if (!(picks.length > 0)) return [3 /*break*/, 2];
-                            return [4 /*yield*/, pickOne('trash', null, state)];
-                        case 1:
-                            state = _a.sent();
-                            _a.label = 2;
-                        case 2:
-                            if (!(picks.length > 0)) return [3 /*break*/, 4];
-                            return [4 /*yield*/, pickOne('discard', 'discard', state)];
-                        case 3:
-                            state = _a.sent();
-                            _a.label = 4;
-                        case 4: return [2 /*return*/, state];
-                    }
-                });
-            });
-        }
-    }); }
-};
-buyable(lookout, 4);
+//const lookout:CardSpec = {name: 'Lookout',
+//    fixedCost: energy(0),
+//    effect: card => ({
+//        text: 'Look at the top 3 cards from your deck. Trash one then discard one.',
+//        effect: async function(state) {
+//            let picks = asNumberedChoices(state.deck.slice(0, 3))
+//            async function pickOne(descriptor: string, zone: PlaceName, state: State) {
+//                let pick:Card|null; [state, pick] = await choice(state,
+//                    `Pick a card to ${descriptor}.`, picks)
+//                if (pick==null) return state // shouldn't be possible
+//                const id = pick.id
+//                picks = picks.filter(pick => pick.value.id != id)
+//                return move(pick, zone)(state)
+//            }
+//            if (picks.length > 0)
+//                state = await pickOne('trash', null, state)
+//            if (picks.length > 0)
+//                state = await pickOne('discard', 'discard', state)
+//            return state
+//        }
+//    })
+//}
+//buyable(lookout, 4)
+//
 var lab = { name: 'Lab',
     fixedCost: energy(0),
     effect: function (card) { return ({
@@ -3226,7 +3100,7 @@ var expressway = { name: 'Expressway',
             effect: function (e) { return move(e.card, 'deck', 'top'); }
         }]; }
 };
-register(makeCard(expressway, coin(5), true));
+register(makeCard(expressway, coin(4), true));
 var formation = { name: 'Formation',
     fixedCost: energy(0),
     triggers: function (card) { return [{
@@ -3310,18 +3184,6 @@ var bootstrap = { name: 'Bootstrap',
     }); }
 };
 mixins.push(bootstrap);
-var pressOn = { name: 'Press On',
-    fixedCost: energy(2),
-    effect: function (card) { return ({
-        text: 'Discard your hand, lose all $, and +5 cards.',
-        effect: doAll([
-            setCoin(0),
-            moveWholeZone('hand', 'discard'),
-            draw(5, pressOn)
-        ])
-    }); }
-};
-mixins.push(pressOn);
 var seek = { name: 'Seek',
     calculatedCost: costPlus(energy(1), coin(1)),
     effect: function (card) { return ({
@@ -3505,7 +3367,7 @@ var chapel = { name: 'Chapel',
         }
     }); }
 };
-buyable(chapel, 3);
+buyable(chapel, 4);
 var coppersmith = { name: 'Coppersmith',
     fixedCost: energy(1),
     effect: function (card) { return ({
@@ -3519,7 +3381,7 @@ var coppersmith = { name: 'Coppersmith',
         }
     }); }
 };
-buyable(coppersmith, 3);
+buyable(coppersmith, 5);
 function countDistinct(xs) {
     var e_14, _a;
     var y = new Set();
@@ -3685,6 +3547,7 @@ var pathfinding = { name: 'Pathfinding',
         }]; },
 };
 register(pathfinding);
+//Replace with lookout?
 var offering = { name: 'Offering',
     effect: function (card) { return ({
         text: 'Play a card from your deck, then trash it.',
@@ -3758,20 +3621,20 @@ var perpetualMotion = { name: 'Perpetual Motion',
 register(perpetualMotion);
 var looter = { name: 'Looter',
     effect: function (card) { return ({
-        text: '+1 card. Discard any number of cards from the top of your deck.',
+        text: '+1 card. Discard up to three cards from your deck.',
         effect: function (state) {
             return __awaiter(this, void 0, void 0, function () {
-                var index;
+                var cards;
                 var _a;
                 return __generator(this, function (_b) {
                     switch (_b.label) {
                         case 0: return [4 /*yield*/, draw(1)(state)];
                         case 1:
                             state = _b.sent();
-                            return [4 /*yield*/, choice(state, 'Choose a card to discard (along with everything above it).', allowNull(state.deck.map(function (x, i) { return ({ render: state.deck[i].id, value: i }); })))];
+                            return [4 /*yield*/, multichoiceIfNeeded(state, "Choose up to three cards to discard.", state.deck.map(asChoice), 3, true)];
                         case 2:
-                            _a = __read.apply(void 0, [_b.sent(), 2]), state = _a[0], index = _a[1];
-                            return [2 /*return*/, (index == null) ? state : moveMany(state.deck.slice(0, index + 1), 'discard')(state)];
+                            _a = __read.apply(void 0, [_b.sent(), 2]), state = _a[0], cards = _a[1];
+                            return [2 /*return*/, moveMany(cards, 'discard')(state)];
                     }
                 });
             });
@@ -3813,7 +3676,7 @@ var reflect = { name: 'Reflect',
 };
 register(reflect);
 //TODO: add
-var cleanse = { name: 'Offering',
+var cleanse = { name: 'Cleanse',
     calculatedCost: costPlus(energy(1), coin(1)),
     effect: function (card) { return ({
         text: "Trash a card in your hand. Put a charge token on this.",
@@ -3981,7 +3844,7 @@ var mountainVillage = { name: 'Mountain Village',
         }
     }); }
 };
-buyable(mountainVillage, 3);
+buyable(mountainVillage, 5);
 var fillStables = { name: 'Fill Stables',
     fixedCost: coin(4),
     effect: function (card) { return ({
@@ -4097,7 +3960,7 @@ var publicWorks = { name: 'Public Works',
         effect: create(publicWorksReduction, 'play')
     }); }
 };
-buyable(publicWorks, 5);
+buyable(publicWorks, 4);
 var sleigh = { name: 'Sleigh',
     fixedCost: energy(1),
     effect: function (card) { return ({
@@ -4281,6 +4144,7 @@ var goldsmith = { name: 'Goldsmith',
 };
 buyable(goldsmith, 7);
 var chancellor = { name: 'Chancellor',
+    fixedCost: coin(1),
     effect: function (card) { return ({
         text: '+$2. You may discard your deck.',
         effect: function (state) {

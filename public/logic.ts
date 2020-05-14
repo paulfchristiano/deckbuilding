@@ -1646,35 +1646,6 @@ const smithy:CardSpec = {name: 'Smithy',
 }
 buyable(smithy, 4)
 
-const tutor:CardSpec = {name: 'Tutor',
-    effect: card => ({
-        text: 'Put any card from your deck into your hand.',
-        effect: async function(state) {
-            let toDraw;
-            [state, toDraw] = await choice(state,
-                'Choose a card to put in your hand.',
-                state.deck.map(asChoice))
-            if (toDraw == null) return state
-            return move(toDraw, 'hand')(state)
-        }
-    })
-}
-buyable(tutor, 3)
-
-const education:CardSpec = {name: 'Education',
-    fixedCost: energy(2),
-    effect: card => ({
-        text: 'Put up to three cards from your deck into your hand.',
-        effect: async function(state) {
-            let toDraw:Card[]; [state, toDraw] = await multichoiceIfNeeded(state,
-                'Choose up to three cards to put in your hand.',
-                state.deck.map(asChoice), 3, true)
-            return moveMany(toDraw, 'hand')(state)
-        }
-    })
-}
-buyable(education, 4)
-
 const philanthropy:CardSpec = {name: 'Philanthropy',
     fixedCost: {coin:10, energy:2},
     effect: card => ({
@@ -1689,17 +1660,19 @@ const philanthropy:CardSpec = {name: 'Philanthropy',
 }
 register(philanthropy)
 
-const repurpose:CardSpec = {name: 'Repurpose',
-    fixedCost: energy(2),
+const storytelling:CardSpec = {name: 'Storytelling',
+    fixedCost: energy(1),
     effect: card => ({
-        text: `${Rebootstr}, lose all $, and +1 card per coin lost.`,
+        text: `Lose all $, and +1 card per coin lost.`,
         effect: async function(state) {
             const n = state.coin
-            return reboot(card, n)(state)
+            state = await state.setCoin(0)
+            state = await draw(n)(state)
+            return state
         }
     })
 }
-register(repurpose)
+register(storytelling)
 
 const crafting:CardSpec = {name: 'Crafting',
     triggers: card => [{
@@ -1736,13 +1709,12 @@ const vibrantCity:CardSpec = {name: 'Vibrant City',
         effect: doAll([gainPoints(1), draw(1)])
     })
 }
-buyable(vibrantCity, 8)
+buyable(vibrantCity, 7)
 
 const frontier:CardSpec = {name: 'Frontier',
     fixedCost: energy(1),
     effect: card => ({
-        text: 'Add a charge token to this, then +1 vp per charge token on this. Put it on the bottom of your deck.',
-        toZone:'deck',
+        text: 'Add a charge token to this, then +1 vp per charge token on this.',
         effect: async function(state) {
             state = await charge(card, 1)(state);
             const result = state.find(card)
@@ -1751,7 +1723,7 @@ const frontier:CardSpec = {name: 'Frontier',
         },
     })
 }
-buyable(frontier, 6)
+buyable(frontier, 7)
 
 
 const investment:CardSpec = {name: 'Investment',
@@ -1961,22 +1933,6 @@ const cellar:CardSpec = {name: 'Cellar',
 }
 buyable(cellar, 1)
 
-const pearlDiver:CardSpec = {name: 'Pearl Diver',
-    fixedCost: energy(0),
-    effect: _ => ({
-        text: '+1 card. You may put the bottom card of your deck on top of your deck.',
-        effect: async function(state) {
-            state = await draw(1)(state)
-            if (state.deck.length == 0) return state
-            const target = state.deck[state.deck.length - 1]
-            let moveIt; [state, moveIt] = await choice(state,
-                `Move ${target.name} to the top of your deck?`, yesOrNo)
-            return moveIt ? move(target, 'deck', 'top')(state) : state
-        }
-    })
-}
-buyable(pearlDiver, 2)
-
 const peddler:CardSpec = {name: 'Peddler',
     fixedCost: energy(0),
     effect: card => ({
@@ -1987,8 +1943,8 @@ const peddler:CardSpec = {name: 'Peddler',
 const makePeddler:CardSpec = {name: 'Peddler',
     fixedCost: coin(5),
     effect: card => ({
-        text: 'Create a peddler on top of your deck',
-        effect: create(peddler, 'deck', 'top')
+        text: 'Create a peddler in your deck',
+        effect: create(peddler, 'deck')
     }),
     relatedCards: [peddler]
 }
@@ -2170,7 +2126,7 @@ const junkDealer:CardSpec = {name: 'Junk Dealer',
 buyable(junkDealer, 5)
 
 const refresh:CardSpec = {name: 'Refresh',
-    fixedCost: energy(1),
+    fixedCost: energy(2),
     effect: card => ({
         text: 'Recycle your discard pile.',
         effect: async function(state) { return recycle(state.discard)(state) }
@@ -2181,32 +2137,14 @@ mixins.push(refresh)
 const plough:CardSpec = {name: 'Plough',
     fixedCost: energy(2),
     effect: card => ({
-        text: 'Recycle any number of cards from your discard pile. +2 cards.',
+        text: 'Recycle your discard pile.',
         effect: async function(state) {
-            let cards
-            [state, cards] = await multichoice(state,
-                'Choose any number of cards to recycle.',
-                state.discard.map(asChoice),
-                xs => true)
-            state = await recycle(cards)(state)
-            return draw(3)(state)
+            state = await recycle(state.discard)(state)
+            return state
         }
     })
 }
 buyable(plough, 4)
-
-const vassal:CardSpec = {name: 'Vassal',
-    fixedCost: energy(1),
-    effect: card => ({
-        text: "+$2. Play the top card of your deck.",
-        effect: async function(state) {
-            state = await gainCoin(2)(state);
-            if (state.deck.length == 0) return state
-            return state.deck[0].play(card)(state)
-        }
-    })
-}
-buyable(vassal, 3)
 
 const twin:CardSpec = {name: 'Twin',
     fixedCost: {energy:1, coin:8},
@@ -2443,17 +2381,6 @@ const buyPlatinum:CardSpec = {name: 'Platinum',
 register(buyPlatinum)
 
 
-const windfall:CardSpec = {name: 'Windfall',
-    fixedCost: {energy:0, coin:6},
-    effect: card => ({
-        text: 'If there are no cards in your deck, create two golds in your discard pile.',
-        effect: async function(state) {
-            return (state.deck.length == 0) ? doAll([create(gold), create(gold)])(state) : state
-        }
-    })
-}
-register(windfall)
-
 const stables:CardSpec = {name: 'Stables',
     abilities: card => [{
         text: 'Remove a charge token from this. If you do, +1 card.',
@@ -2472,30 +2399,30 @@ const horse:CardSpec = {name: 'Horse',
 register(horse)
 
 
-const lookout:CardSpec = {name: 'Lookout',
-    fixedCost: energy(0),
-    effect: card => ({
-        text: 'Look at the top 3 cards from your deck. Trash one then discard one.',
-        effect: async function(state) {
-            let picks = asNumberedChoices(state.deck.slice(0, 3))
-            async function pickOne(descriptor: string, zone: PlaceName, state: State) {
-                let pick:Card|null; [state, pick] = await choice(state,
-                    `Pick a card to ${descriptor}.`, picks)
-                if (pick==null) return state // shouldn't be possible
-                const id = pick.id
-                picks = picks.filter(pick => pick.value.id != id)
-                return move(pick, zone)(state)
-            }
-            if (picks.length > 0)
-                state = await pickOne('trash', null, state)
-            if (picks.length > 0)
-                state = await pickOne('discard', 'discard', state)
-            return state
-        }
-    })
-}
-buyable(lookout, 4)
-
+//const lookout:CardSpec = {name: 'Lookout',
+//    fixedCost: energy(0),
+//    effect: card => ({
+//        text: 'Look at the top 3 cards from your deck. Trash one then discard one.',
+//        effect: async function(state) {
+//            let picks = asNumberedChoices(state.deck.slice(0, 3))
+//            async function pickOne(descriptor: string, zone: PlaceName, state: State) {
+//                let pick:Card|null; [state, pick] = await choice(state,
+//                    `Pick a card to ${descriptor}.`, picks)
+//                if (pick==null) return state // shouldn't be possible
+//                const id = pick.id
+//                picks = picks.filter(pick => pick.value.id != id)
+//                return move(pick, zone)(state)
+//            }
+//            if (picks.length > 0)
+//                state = await pickOne('trash', null, state)
+//            if (picks.length > 0)
+//                state = await pickOne('discard', 'discard', state)
+//            return state
+//        }
+//    })
+//}
+//buyable(lookout, 4)
+//
 const lab:CardSpec = {name: 'Lab',
     fixedCost: energy(0),
     effect: card => ({
@@ -2515,7 +2442,7 @@ const expressway:CardSpec = {name: 'Expressway',
         effect: e => move(e.card, 'deck', 'top')
     }]
 }
-register(makeCard(expressway, coin(5), true))
+register(makeCard(expressway, coin(4), true))
 
 const formation:CardSpec = {name: 'Formation',
     fixedCost: energy(0),
@@ -2579,19 +2506,6 @@ const bootstrap:CardSpec = {name: 'Bootstrap',
     })
 }
 mixins.push(bootstrap)
-
-const pressOn:CardSpec = {name: 'Press On',
-    fixedCost: energy(2),
-    effect: card => ({
-        text: 'Discard your hand, lose all $, and +5 cards.',
-        effect: doAll([
-            setCoin(0),
-            moveWholeZone('hand', 'discard'),
-            draw(5, pressOn)
-        ])
-    })
-}
-mixins.push(pressOn)
 
 const seek:CardSpec = {name: 'Seek',
     calculatedCost: costPlus(energy(1), coin(1)),
@@ -2731,7 +2645,7 @@ const chapel:CardSpec = {name: 'Chapel',
         }
     })
 }
-buyable(chapel, 3)
+buyable(chapel, 4)
 
 const coppersmith:CardSpec = {name: 'Coppersmith',
     fixedCost: energy(1),
@@ -2742,7 +2656,7 @@ const coppersmith:CardSpec = {name: 'Coppersmith',
         }
     })
 }
-buyable(coppersmith, 3)
+buyable(coppersmith, 5)
 
 function countDistinct<T>(xs: T[]): number {
     const y: Set<T> = new Set()
@@ -2861,6 +2775,7 @@ const pathfinding:CardSpec = {name: 'Pathfinding',
 }
 register(pathfinding)
 
+//Replace with lookout?
 const offering:CardSpec = {name: 'Offering',
     effect: card => ({
         text: 'Play a card from your deck, then trash it.',
@@ -2911,13 +2826,13 @@ register(perpetualMotion)
 
 const looter:CardSpec = {name: 'Looter',
     effect: card => ({
-        text: '+1 card. Discard any number of cards from the top of your deck.',
+        text: '+1 card. Discard up to three cards from your deck.',
         effect: async function(state) {
             state = await draw(1)(state)
-            let index; [state, index] = await choice(state,
-                'Choose a card to discard (along with everything above it).',
-                allowNull(state.deck.map((x, i) => ({render:state.deck[i].id, value:i}))))
-            return (index == null) ? state  : moveMany(state.deck.slice(0, index+1), 'discard')(state)
+            let cards; [state, cards] = await multichoiceIfNeeded(state,
+                "Choose up to three cards to discard.",
+                state.deck.map(asChoice), 3, true)
+            return moveMany(cards, 'discard')(state)
         }
     })
 }
@@ -2949,7 +2864,7 @@ const reflect:CardSpec = {name: 'Reflect',
 register(reflect)
 
 //TODO: add
-const cleanse:CardSpec = {name: 'Offering',
+const cleanse:CardSpec = {name: 'Cleanse',
     calculatedCost: costPlus(energy(1), coin(1)),
     effect: card => ({
         text: `Trash a card in your hand. Put a charge token on this.`,
@@ -3055,7 +2970,7 @@ const mountainVillage:CardSpec = {name: 'Mountain Village',
         }
     })
 }
-buyable(mountainVillage, 3)
+buyable(mountainVillage, 5)
 
 const fillStables:CardSpec = {name: 'Fill Stables',
     fixedCost: coin(4),
@@ -3163,7 +3078,7 @@ const publicWorks:CardSpec = {name: 'Public Works',
         effect: create(publicWorksReduction, 'play')
     })
 }
-buyable(publicWorks, 5)
+buyable(publicWorks, 4)
 
 const sleigh:CardSpec = {name: 'Sleigh',
     fixedCost: energy(1),
@@ -3316,6 +3231,7 @@ const goldsmith:CardSpec = {name: 'Goldsmith',
 buyable(goldsmith, 7)
 
 const chancellor:CardSpec = {name: 'Chancellor',
+    fixedCost: coin(1),
     effect: card => ({
         text: '+$2. You may discard your deck.',
         effect: async function(state) {
