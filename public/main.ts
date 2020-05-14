@@ -34,9 +34,13 @@ const choiceHotkeys:Key[] = handHotkeys.concat(supplyAndPlayHotkeys)
 
 $(document).keydown((e: any) => {
     const listener = keyListeners.get(e.key)
+    if (e.altKey || e.ctrlKey || e.metaKey) return
     if (listener != undefined) {
         e.preventDefault()
         listener()
+    }
+    if (e.key == ' ') { //It's easy and annoying to accidentally hit space
+        e.preventDefault()
     }
 });
 
