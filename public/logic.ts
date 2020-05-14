@@ -1,4 +1,4 @@
-export const VERSION = "0.1"
+export const VERSION = "0.1.1"
 
 // ----------------------------- Formatting
 
@@ -3173,10 +3173,12 @@ function isZeroCost(cost:Cost): boolean {
     return cost.coin == 0 && cost.energy == 0
 }
 function reduceCoinNonzero(cost:Cost, n:number): Cost {
+    if (isZeroCost(cost)) return coin(0)
     const newCost:Cost = reduceCoin(cost, n)
     return (isZeroCost(newCost)) ? coin(1) : newCost
 }
 function reduceEnergyNonzero(cost:Cost, n:number): Cost {
+    if (isZeroCost(cost)) return coin(0)
     const newCost:Cost = reduceEnergy(cost, n)
     return (isZeroCost(newCost)) ? energy(1) : newCost
 }
