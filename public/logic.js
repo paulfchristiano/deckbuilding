@@ -947,7 +947,7 @@ function draw(n, source) {
                         return [3 /*break*/, 9];
                     case 8: return [3 /*break*/, 10];
                     case 9: return [3 /*break*/, 2];
-                    case 10: return [4 /*yield*/, multichoiceIfNeeded(state, "Choose " + n + " cards to draw.", state.deck.map(asChoice), n, false)];
+                    case 10: return [4 /*yield*/, multichoiceIfNeeded(state, "Choose " + a('card', n) + " to draw.", state.deck.map(asChoice), n, false)];
                     case 11:
                         _a = __read.apply(void 0, [_b.sent(), 2]), state = _a[0], cards = _a[1];
                         drawn = drawn.concat(cards);
@@ -1770,11 +1770,17 @@ function coin(n) {
     return { energy: 0, coin: n };
 }
 //renders either "a" or "an" as appropriate
-function a(s) {
-    var c = s[0].toLowerCase();
-    if (c == 'a' || c == 'e' || c == 'i' || c == 'o' || c == 'u')
-        return 'an ' + s;
-    return 'a ' + s;
+function a(s, n) {
+    if (n === void 0) { n = 1; }
+    if (n == 1) {
+        var c = s[0].toLowerCase();
+        if (c == 'a' || c == 'e' || c == 'i' || c == 'o' || c == 'u')
+            return "an " + s;
+        return "a " + s;
+    }
+    else {
+        return n + " " + s + "s";
+    }
 }
 function makeCard(card, cost, selfdestruct) {
     if (selfdestruct === void 0) { selfdestruct = false; }
@@ -4071,7 +4077,7 @@ var goldsmith = { name: 'Goldsmith',
 };
 buyable(goldsmith, 7);
 var chancellor = { name: 'Chancellor',
-    fixedCost: coin(1),
+    fixedCost: energy(1),
     effect: function (card) { return ({
         text: '+$2. You may discard your deck.',
         effect: function (state) {

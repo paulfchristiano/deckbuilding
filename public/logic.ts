@@ -838,7 +838,7 @@ function draw(n:number, source:Source={name:'?'}):Transform {
         }
         let cards:Card[]; 
         [state, cards] = await multichoiceIfNeeded(state,
-            `Choose ${n} cards to draw.`,
+            `Choose ${a('card', n)} to draw.`,
             state.deck.map(asChoice), n, false)
         drawn = drawn.concat(cards)
         state = await moveMany(cards, 'hand')(state)
@@ -1463,11 +1463,15 @@ function coin(n:number):Cost {
 }
 
 //renders either "a" or "an" as appropriate
-function a(s:string): string {
-    const c = s[0].toLowerCase()
-    if (c == 'a' || c == 'e' || c == 'i' || c == 'o' || c == 'u')
-        return 'an ' + s
-    return 'a ' + s
+function a(s:string, n:number=1): string {
+    if (n == 1) {
+        const c = s[0].toLowerCase()
+        if (c == 'a' || c == 'e' || c == 'i' || c == 'o' || c == 'u')
+            return `an ${s}`
+        return `a ${s}`
+    } else {
+        return `${n} ${s}s`
+    }
 }
 
 
@@ -3188,7 +3192,7 @@ const goldsmith:CardSpec = {name: 'Goldsmith',
 buyable(goldsmith, 7)
 
 const chancellor:CardSpec = {name: 'Chancellor',
-    fixedCost: coin(1),
+    fixedCost: energy(1),
     effect: card => ({
         text: '+$2. You may discard your deck.',
         effect: async function(state) {
