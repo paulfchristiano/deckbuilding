@@ -808,32 +808,10 @@ function recycle(cards:Card[]): Transform {
         let params:RecycleParams = {cards:cards, kind:'recycle'}
         params = replace(params, state);
         cards = params.cards;
-        let cardChoices:Option<Card>[] = asNumberedChoices(cards)
-        const movedCards:Card[] = [];
-        while (true) {
-            let card:Card|null; [state, card] = await choice(state,
-                "Choose the next card to put on the bottom of your deck",
-                cardChoices, false)
-            if (card == null) break
-            else {
-                const id = card.id;
-                movedCards.push(card)
-                cardChoices = cardChoices.filter(c => c.value.id != id)
-                state = await move(card, 'deck', 'bottom')(state)
-            }
-        }
-        state = await trigger({kind:'recycle', cards:movedCards})(state)
+        state = state.log(`Recycled ${showCards(cards)} to bottom of deck`)
+        state = await moveMany(cards, 'deck', 'bottom', true)(state)
+        state = await trigger({kind:'recycle', cards:cards})(state)
         return state
-        //[state, cards] = await chooseOrder(state,
-        //    "Choose the order to put cards on the bottom of your deck.",
-        //    cards.map(asChoice)
-        //)
-        //if (cards.length > 0) {
-        //  state = state.log(`Recycled ${showCards(cards)} to bottom of deck`)
-        //}
-        //state = await moveMany(cards, 'deck', 'bottom', true)(state)
-        //state = await trigger({kind:'recycle', cards:cards})(state)
-        //return state
     }
 }
 
@@ -2228,14 +2206,6 @@ const goldMine:CardSpec = {name: 'Gold Mine',
 }
 buyable(goldMine, 6)
 
-const warehouse:CardSpec = {name: 'Warehouse',
-    effect: card => ({
-        text: 'Draw 3 cards, then discard 3 cards.',
-        effect: doAll([draw(3), discard(3)]),
-    })
-}
-buyable(warehouse, 3)
-
 const cursedKingdom:CardSpec = {name: 'Cursed Kingdom',
     fixedCost: energy(0),
     effect: card => ({
@@ -2506,21 +2476,6 @@ const bootstrap:CardSpec = {name: 'Bootstrap',
     })
 }
 mixins.push(bootstrap)
-
-const seek:CardSpec = {name: 'Seek',
-    calculatedCost: costPlus(energy(1), coin(1)),
-    effect: card => ({
-        text: 'Put a card from your deck into your hand. Put a charge token on this.',
-        effect: async function(state) {
-            let target;
-            [state, target] = await choice(state, 'Choose a card to put into your hand.',
-                state.deck.map(asChoice))
-            state = await charge(card, 1)(state)
-            return (target == null) ? state : move(target, 'hand')(state)
-        }
-    })
-}
-mixins.push(seek)
 
 const innovation:CardSpec = {name: "Innovation",
     triggers: card => [{

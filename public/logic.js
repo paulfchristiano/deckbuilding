@@ -888,63 +888,21 @@ function trash(card, logged) {
 function recycle(cards) {
     return function (state) {
         return __awaiter(this, void 0, void 0, function () {
-            var params, cardChoices, movedCards, _loop_1, state_1;
+            var params;
             return __generator(this, function (_a) {
                 switch (_a.label) {
                     case 0:
                         params = { cards: cards, kind: 'recycle' };
                         params = replace(params, state);
                         cards = params.cards;
-                        cardChoices = asNumberedChoices(cards);
-                        movedCards = [];
-                        _loop_1 = function () {
-                            var card, id_1;
-                            var _a;
-                            return __generator(this, function (_b) {
-                                switch (_b.label) {
-                                    case 0:
-                                        card = void 0;
-                                        return [4 /*yield*/, choice(state, "Choose the next card to put on the bottom of your deck", cardChoices, false)];
-                                    case 1:
-                                        _a = __read.apply(void 0, [_b.sent(), 2]), state = _a[0], card = _a[1];
-                                        if (!(card == null)) return [3 /*break*/, 2];
-                                        return [2 /*return*/, "break"];
-                                    case 2:
-                                        id_1 = card.id;
-                                        movedCards.push(card);
-                                        cardChoices = cardChoices.filter(function (c) { return c.value.id != id_1; });
-                                        return [4 /*yield*/, move(card, 'deck', 'bottom')(state)];
-                                    case 3:
-                                        state = _b.sent();
-                                        _b.label = 4;
-                                    case 4: return [2 /*return*/];
-                                }
-                            });
-                        };
-                        _a.label = 1;
+                        state = state.log("Recycled " + showCards(cards) + " to bottom of deck");
+                        return [4 /*yield*/, moveMany(cards, 'deck', 'bottom', true)(state)];
                     case 1:
-                        if (!true) return [3 /*break*/, 3];
-                        return [5 /*yield**/, _loop_1()];
-                    case 2:
-                        state_1 = _a.sent();
-                        if (state_1 === "break")
-                            return [3 /*break*/, 3];
-                        return [3 /*break*/, 1];
-                    case 3: return [4 /*yield*/, trigger({ kind: 'recycle', cards: movedCards })(state)];
-                    case 4:
                         state = _a.sent();
-                        return [2 /*return*/, state
-                            //[state, cards] = await chooseOrder(state,
-                            //    "Choose the order to put cards on the bottom of your deck.",
-                            //    cards.map(asChoice)
-                            //)
-                            //if (cards.length > 0) {
-                            //  state = state.log(`Recycled ${showCards(cards)} to bottom of deck`)
-                            //}
-                            //state = await moveMany(cards, 'deck', 'bottom', true)(state)
-                            //state = await trigger({kind:'recycle', cards:cards})(state)
-                            //return state
-                        ];
+                        return [4 /*yield*/, trigger({ kind: 'recycle', cards: cards })(state)];
+                    case 2:
+                        state = _a.sent();
+                        return [2 /*return*/, state];
                 }
             });
         });
@@ -2128,13 +2086,13 @@ var populate = { name: 'Populate',
         text: 'Buy any number of cards in the supply other than this.',
         effect: function (state) {
             return __awaiter(this, void 0, void 0, function () {
-                var options, _loop_2, state_2;
+                var options, _loop_1, state_1;
                 return __generator(this, function (_a) {
                     switch (_a.label) {
                         case 0:
                             options = state.supply.filter(function (c) { return c.id != card.id; });
-                            _loop_2 = function () {
-                                var picked, id_2;
+                            _loop_1 = function () {
+                                var picked, id_1;
                                 var _a;
                                 return __generator(this, function (_b) {
                                     switch (_b.label) {
@@ -2146,8 +2104,8 @@ var populate = { name: 'Populate',
                                             if (!(picked == null)) return [3 /*break*/, 2];
                                             return [2 /*return*/, { value: state }];
                                         case 2:
-                                            id_2 = picked.id;
-                                            options = options.filter(function (c) { return c.id != id_2; });
+                                            id_1 = picked.id;
+                                            options = options.filter(function (c) { return c.id != id_1; });
                                             return [4 /*yield*/, picked.buy(card)(state)];
                                         case 3:
                                             state = _b.sent();
@@ -2159,11 +2117,11 @@ var populate = { name: 'Populate',
                             _a.label = 1;
                         case 1:
                             if (!true) return [3 /*break*/, 3];
-                            return [5 /*yield**/, _loop_2()];
+                            return [5 /*yield**/, _loop_1()];
                         case 2:
-                            state_2 = _a.sent();
-                            if (typeof state_2 === "object")
-                                return [2 /*return*/, state_2.value];
+                            state_1 = _a.sent();
+                            if (typeof state_1 === "object")
+                                return [2 /*return*/, state_1.value];
                             return [3 /*break*/, 1];
                         case 3: return [2 /*return*/];
                     }
@@ -2789,13 +2747,6 @@ var goldMine = { name: 'Gold Mine',
     }); }
 };
 buyable(goldMine, 6);
-var warehouse = { name: 'Warehouse',
-    effect: function (card) { return ({
-        text: 'Draw 3 cards, then discard 3 cards.',
-        effect: doAll([draw(3), discard(3)]),
-    }); }
-};
-buyable(warehouse, 3);
 var cursedKingdom = { name: 'Cursed Kingdom',
     fixedCost: energy(0),
     effect: function (card) { return ({
@@ -2942,7 +2893,7 @@ var bustlingSquare = { name: 'Bustling Square',
             " then discard the rest.",
         effect: function (state) {
             return __awaiter(this, void 0, void 0, function () {
-                var hand, _loop_3, state_3;
+                var hand, _loop_2, state_2;
                 return __generator(this, function (_a) {
                     switch (_a.label) {
                         case 0: return [4 /*yield*/, draw(1)(state)];
@@ -2952,8 +2903,8 @@ var bustlingSquare = { name: 'Bustling Square',
                             return [4 /*yield*/, moveWholeZone('hand', 'aside')(state)];
                         case 2:
                             state = _a.sent();
-                            _loop_3 = function () {
-                                var target, id_3;
+                            _loop_2 = function () {
+                                var target, id_2;
                                 var _a;
                                 return __generator(this, function (_b) {
                                     switch (_b.label) {
@@ -2967,8 +2918,8 @@ var bustlingSquare = { name: 'Bustling Square',
                                         case 2: return [4 /*yield*/, target.play(card)(state)];
                                         case 3:
                                             state = _b.sent();
-                                            id_3 = target.id;
-                                            hand = hand.filter(function (option) { return option.value.id != id_3; });
+                                            id_2 = target.id;
+                                            hand = hand.filter(function (option) { return option.value.id != id_2; });
                                             _b.label = 4;
                                         case 4: return [2 /*return*/];
                                     }
@@ -2977,11 +2928,11 @@ var bustlingSquare = { name: 'Bustling Square',
                             _a.label = 3;
                         case 3:
                             if (!true) return [3 /*break*/, 5];
-                            return [5 /*yield**/, _loop_3()];
+                            return [5 /*yield**/, _loop_2()];
                         case 4:
-                            state_3 = _a.sent();
-                            if (typeof state_3 === "object")
-                                return [2 /*return*/, state_3.value];
+                            state_2 = _a.sent();
+                            if (typeof state_2 === "object")
+                                return [2 /*return*/, state_2.value];
                             return [3 /*break*/, 3];
                         case 5: return [2 /*return*/];
                     }
@@ -3184,30 +3135,6 @@ var bootstrap = { name: 'Bootstrap',
     }); }
 };
 mixins.push(bootstrap);
-var seek = { name: 'Seek',
-    calculatedCost: costPlus(energy(1), coin(1)),
-    effect: function (card) { return ({
-        text: 'Put a card from your deck into your hand. Put a charge token on this.',
-        effect: function (state) {
-            return __awaiter(this, void 0, void 0, function () {
-                var target;
-                var _a;
-                return __generator(this, function (_b) {
-                    switch (_b.label) {
-                        case 0: return [4 /*yield*/, choice(state, 'Choose a card to put into your hand.', state.deck.map(asChoice))];
-                        case 1:
-                            _a = __read.apply(void 0, [_b.sent(), 2]), state = _a[0], target = _a[1];
-                            return [4 /*yield*/, charge(card, 1)(state)];
-                        case 2:
-                            state = _b.sent();
-                            return [2 /*return*/, (target == null) ? state : move(target, 'hand')(state)];
-                    }
-                });
-            });
-        }
-    }); }
-};
-mixins.push(seek);
 var innovation = { name: "Innovation",
     triggers: function (card) { return [{
             text: "Whenever you create a card, if it's in your discard pile and this has a charge token on it," +
