@@ -954,38 +954,52 @@ function draw(n, source) {
     if (source === void 0) { source = { name: '?' }; }
     return function (state) {
         return __awaiter(this, void 0, void 0, function () {
-            var drawParams, drawn, i, nextCard, rest;
+            var drawParams, drawn, cards;
             var _a;
             return __generator(this, function (_b) {
                 switch (_b.label) {
                     case 0:
                         drawParams = { kind: 'draw', draw: n, source: source, effects: [] };
                         drawParams = replace(drawParams, state);
+                        drawn = [];
                         return [4 /*yield*/, doAll(drawParams.effects)(state)];
                     case 1:
                         state = _b.sent();
                         n = drawParams.draw;
-                        drawn = [];
-                        i = 0;
                         _b.label = 2;
                     case 2:
-                        if (!(i < n)) return [3 /*break*/, 5];
-                        nextCard = void 0, rest = void 0;
-                        _a = __read(shiftFirst(state.deck), 2), nextCard = _a[0], rest = _a[1];
-                        if (!(nextCard != null)) return [3 /*break*/, 4];
-                        return [4 /*yield*/, move(nextCard, 'hand', 'end', true)(state)];
+                        if (!true) return [3 /*break*/, 10];
+                        _b.label = 3;
                     case 3:
-                        state = _b.sent();
-                        drawn.push(nextCard);
-                        _b.label = 4;
+                        if (!(n >= state.deck.length && state.deck.length > 0)) return [3 /*break*/, 5];
+                        n -= state.deck.length;
+                        drawn = drawn.concat(state.deck);
+                        return [4 /*yield*/, moveWholeZone('deck', 'hand')(state)];
                     case 4:
-                        i++;
-                        return [3 /*break*/, 2];
+                        state = _b.sent();
+                        return [3 /*break*/, 3];
                     case 5:
+                        if (!(n > 0 && state.deck.length == 0 && state.discard.length > 0)) return [3 /*break*/, 8];
+                        return [4 /*yield*/, gainEnergy(2)(state)];
+                    case 6:
+                        state = _b.sent();
+                        return [4 /*yield*/, moveWholeZone('discard', 'deck')(state)];
+                    case 7:
+                        state = _b.sent();
+                        return [3 /*break*/, 9];
+                    case 8: return [3 /*break*/, 10];
+                    case 9: return [3 /*break*/, 2];
+                    case 10: return [4 /*yield*/, multichoiceIfNeeded(state, "Choose " + n + " cards to draw.", state.deck.map(asChoice), n, false)];
+                    case 11:
+                        _a = __read.apply(void 0, [_b.sent(), 2]), state = _a[0], cards = _a[1];
+                        drawn = drawn.concat(cards);
+                        return [4 /*yield*/, moveMany(cards, 'hand')(state)];
+                    case 12:
+                        state = _b.sent();
                         if (drawn.length > 0) {
                             state = state.log("Drew " + showCards(drawn));
                         }
-                        return [2 /*return*/, trigger({ kind: 'draw', drawn: drawn.length, cards: drawn, triedToDraw: n, source: source })(state)];
+                        return [2 /*return*/, trigger({ kind: 'draw', drawn: drawn.length, cards: drawn, source: source })(state)];
                 }
             });
         });
@@ -1827,7 +1841,7 @@ function reboot(card, n) {
                     case 0: return [4 /*yield*/, setCoin(0)(state)];
                     case 1:
                         state = _a.sent();
-                        return [4 /*yield*/, recycle(state.discard.concat(state.hand))(state)];
+                        return [4 /*yield*/, moveWholeZone('hand', 'discard')(state)];
                     case 2:
                         state = _a.sent();
                         return [4 /*yield*/, draw(n, card)(state)];
@@ -1839,10 +1853,17 @@ function reboot(card, n) {
         });
     };
 }
-var Rebootstr = "Recycle your discard pile and hand";
-var rebootstr = "recycle your discard pile and hand";
+var Rebootstr = "Discard your hand";
+var rebootstr = "discard your hand";
 var regroup = { name: 'Regroup',
     fixedCost: energy(3),
+    triggers: function (card) { return [{
+            kind: 'gameStart',
+            text: 'Whenever you would draw more cards than are in your deck,' +
+                ' put your discard pile into your deck, gain @@, and keep drawing.',
+            handles: function () { return false; },
+            effect: function () { return noop; }
+        }]; },
     effect: function (card) { return ({
         text: Rebootstr + ", lose all $, and +5 cards.",
         effect: reboot(card, 5),

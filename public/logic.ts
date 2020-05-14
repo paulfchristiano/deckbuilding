@@ -592,7 +592,7 @@ interface CreateEvent {kind:'create', card:Card, zone:ZoneName}
 interface MoveEvent {kind:'move', fromZone:PlaceName, toZone:PlaceName, loc:InsertLocation, card:Card}
 interface RecycleEvent {kind:'recycle', cards:Card[]}
 interface DiscardEvent {kind:'discard', cards:Card[]}
-interface DrawEvent {kind:'draw', cards:Card[], drawn:number, triedToDraw:number, source:Source}
+interface DrawEvent {kind:'draw', cards:Card[], drawn:number, source:Source}
 interface GainEnergyEvent {kind:'gainEnergy', amount:number}
 interface GainCoinEvent {kind:'gainCoin', amount:number, cost:boolean}
 interface GainPointsEvent {kind:'gainPoints', amount:number, source:Source}
@@ -842,21 +842,32 @@ function draw(n:number, source:Source={name:'?'}):Transform {
     return async function(state:State):Promise<State> {
         var drawParams:Params = {kind:'draw', draw:n, source:source, effects:[]}
         drawParams = replace(drawParams, state)
+        let drawn:Card[] = [];
         state = await doAll(drawParams.effects)(state)
         n = drawParams.draw
-        const drawn:Card[] = []
-        for (let i = 0; i < n; i++) {
-            let nextCard:Card|null, rest:Card[];
-            [nextCard, rest] = shiftFirst(state.deck)
-            if (nextCard != null) {
-                state = await move(nextCard, 'hand', 'end', true)(state)
-                drawn.push(nextCard)
+        while (true) {
+            while (n >= state.deck.length && state.deck.length > 0) {
+                n -= state.deck.length
+                drawn = drawn.concat(state.deck)
+                state = await moveWholeZone('deck', 'hand')(state)
+            }
+            if (n > 0 && state.deck.length == 0 && state.discard.length > 0) {
+                state = await gainEnergy(2)(state)
+                state = await moveWholeZone('discard', 'deck')(state)
+            } else {
+                break
             }
         }
+        let cards:Card[]; 
+        [state, cards] = await multichoiceIfNeeded(state,
+            `Choose ${n} cards to draw.`,
+            state.deck.map(asChoice), n, false)
+        drawn = drawn.concat(cards)
+        state = await moveMany(cards, 'hand')(state)
         if (drawn.length > 0) {
             state = state.log(`Drew ${showCards(drawn)}`)
         }
-        return trigger({kind:'draw', drawn:drawn.length, cards:drawn, triedToDraw:n, source:source})(state)
+        return trigger({kind:'draw', drawn:drawn.length, cards:drawn, source:source})(state)
     }
 }
 
@@ -1504,17 +1515,24 @@ function makeCard(card:CardSpec, cost:Cost, selfdestruct:boolean=false):CardSpec
 function reboot(card:Card, n:number): Transform {
     return async function(state) {
         state = await setCoin(0)(state)
-        state = await recycle(state.discard.concat(state.hand))(state)
+        state = await moveWholeZone('hand', 'discard')(state)
         state = await draw(n, card)(state)
         return state
     }
 }
 
-const Rebootstr:string = "Recycle your discard pile and hand"
-const rebootstr:string = "recycle your discard pile and hand"
+const Rebootstr:string = "Discard your hand"
+const rebootstr:string = "discard your hand"
 
 const regroup:CardSpec = {name: 'Regroup',
     fixedCost: energy(3),
+    triggers: card => [{
+        kind: 'gameStart',
+        text: 'Whenever you would draw more cards than are in your deck,' +
+            ' put your discard pile into your deck, gain @@, and keep drawing.',
+        handles: () => false,
+        effect: () => noop
+    }],
     effect: card => ({
         text: `${Rebootstr}, lose all $, and +5 cards.`,
         effect: reboot(card, 5),
