@@ -82,9 +82,14 @@ var hotkeys = supplyAndPlayHotkeys.concat(handHotkeys).concat([' ']);
 var choiceHotkeys = handHotkeys.concat(supplyAndPlayHotkeys);
 $(document).keydown(function (e) {
     var listener = keyListeners.get(e.key);
+    if (e.altKey || e.ctrlKey || e.metaKey)
+        return;
     if (listener != undefined) {
         e.preventDefault();
         listener();
+    }
+    if (e.key == ' ') { //It's easy and annoying to accidentally hit space
+        e.preventDefault();
     }
 });
 function renderHotkey(hotkey) {

@@ -85,7 +85,7 @@ var __read = (this && this.__read) || function (o, n) {
     }
     return ar;
 };
-export var VERSION = "0.1";
+export var VERSION = "0.1.1";
 // ----------------------------- Formatting
 export function renderCost(cost) {
     var coinHtml = cost.coin > 0 ? "$" + cost.coin : '';
@@ -3970,10 +3970,14 @@ function isZeroCost(cost) {
     return cost.coin == 0 && cost.energy == 0;
 }
 function reduceCoinNonzero(cost, n) {
+    if (isZeroCost(cost))
+        return coin(0);
     var newCost = reduceCoin(cost, n);
     return (isZeroCost(newCost)) ? coin(1) : newCost;
 }
 function reduceEnergyNonzero(cost, n) {
+    if (isZeroCost(cost))
+        return coin(0);
     var newCost = reduceEnergy(cost, n);
     return (isZeroCost(newCost)) ? energy(1) : newCost;
 }
