@@ -2177,7 +2177,7 @@ var oldSmith = { name: 'Old Smith',
             }; }
         }]; }
 };
-buyable(oldSmith, 3);
+buyable(oldSmith, 4);
 var duplicate = { name: 'Duplicate',
     fixedCost: { coin: 5, energy: 1 },
     effect: function (card) { return ({
@@ -2621,14 +2621,10 @@ var junkDealer = { name: 'Junk Dealer',
 };
 buyable(junkDealer, 5);
 var refresh = { name: 'Refresh',
-    fixedCost: energy(2),
+    fixedCost: energy(1),
     effect: function (card) { return ({
-        text: 'Recycle your discard pile.',
-        effect: function (state) {
-            return __awaiter(this, void 0, void 0, function () { return __generator(this, function (_a) {
-                return [2 /*return*/, recycle(state.discard)(state)];
-            }); });
-        }
+        text: 'Discard your deck.',
+        effect: moveWholeZone('deck', 'discard'),
     }); }
 };
 mixins.push(refresh);
@@ -4113,32 +4109,7 @@ var barracks = { name: 'Barracks',
             effect: function (e) { return freeActions(1, card); }
         }]; }
 };
-register(makeCard(barracks, coin(5)));
-var composting = { name: 'Composting',
-    triggers: function (card) { return [{
-            text: 'Whenever you gain energy, you may recycle that many cards from your discard pile.',
-            kind: 'gainEnergy',
-            handles: function (e) { return e.amount > 0; },
-            effect: function (e) { return function (state) {
-                return __awaiter(this, void 0, void 0, function () {
-                    var n, prompt, cards;
-                    var _a;
-                    return __generator(this, function (_b) {
-                        switch (_b.label) {
-                            case 0:
-                                n = e.amount;
-                                prompt = (n == 1) ? 'Choose a card to recycle.' : "Choose up to " + n + " cards to recycle";
-                                return [4 /*yield*/, multichoiceIfNeeded(state, prompt, state.discard.map(asChoice), n, true)];
-                            case 1:
-                                _a = __read.apply(void 0, [_b.sent(), 2]), state = _a[0], cards = _a[1];
-                                return [2 /*return*/, recycle(cards)(state)];
-                        }
-                    });
-                });
-            }; }
-        }]; }
-};
-register(makeCard(composting, coin(4)));
+register(makeCard(barracks, { coin: 6, energy: 1 }, true));
 // ------------------ Testing -------------------
 var freeMoney = { name: 'Free money',
     fixedCost: energy(0),

@@ -1772,7 +1772,7 @@ const oldSmith:CardSpec = {name: 'Old Smith',
         }
     }]
 }
-buyable(oldSmith, 3)
+buyable(oldSmith, 4)
 
 const duplicate:CardSpec = {name: 'Duplicate',
     fixedCost: {coin:5, energy:1},
@@ -2104,10 +2104,10 @@ const junkDealer:CardSpec = {name: 'Junk Dealer',
 buyable(junkDealer, 5)
 
 const refresh:CardSpec = {name: 'Refresh',
-    fixedCost: energy(2),
+    fixedCost: energy(1),
     effect: card => ({
-        text: 'Recycle your discard pile.',
-        effect: async function(state) { return recycle(state.discard)(state) }
+        text: 'Discard your deck.',
+        effect: moveWholeZone('deck', 'discard'),
     })
 }
 mixins.push(refresh)
@@ -3211,23 +3211,7 @@ const barracks:CardSpec = {name: 'Barracks',
         effect: e => freeActions(1, card)
     }]
 }
-register(makeCard(barracks, coin(5)))
-
-const composting:CardSpec = {name: 'Composting',
-    triggers: card => [{
-        text: 'Whenever you gain energy, you may recycle that many cards from your discard pile.',
-        kind: 'gainEnergy',
-        handles: e => e.amount > 0,
-        effect: e => async function(state) {
-            const n = e.amount;
-            const prompt = (n == 1) ? 'Choose a card to recycle.' : `Choose up to ${n} cards to recycle`
-            let cards:Card[]; [state, cards] = await multichoiceIfNeeded(state,
-                prompt, state.discard.map(asChoice), n, true)
-            return recycle(cards)(state)
-        }
-    }]
-}
-register(makeCard(composting, coin(4)))
+register(makeCard(barracks, {coin:6, energy:1}, true))
 
 
 // ------------------ Testing -------------------
