@@ -4,7 +4,7 @@ const PORT = process.env.PORT || 5000
 import {verifyScore, VERSION } from './public/logic.js'
 
 import postgres from 'postgres'
-const sql = postgres(process.env.DATABASE_URL)
+const sql = (process.env.DATABASE_URL == undefined) ? null : postgres(process.env.DATABASE_URL)
 
 //TODO: get rid of these any's
 //TODO: this is probably horribly insecure
@@ -31,6 +31,7 @@ function renderTimeSince(date:Date) {
 }
 
 async function ensureNextMonth(): Promise<void> {
+    if (sql == null) return
     const d:Date = new Date()
     for (let i = 0; i < 30; i++) {
         const secret = randomString()
@@ -51,6 +52,7 @@ function renderEastCoastDate(inputDate:Date|null = null): string {
 
 async function dailySeed(): Promise<string> {
     const datestring:string = renderEastCoastDate()
+    if (sql == null) return datestring
     while (true) {
         const results = await sql`
           SELECT secret FROM dailies
@@ -71,6 +73,10 @@ express()
     .set('views', './views')
     .get('/topScore', async (req:any, res:any) => {
       try {
+          if (sql == null) {
+              res.send('none')
+              return
+          }
           const seed = req.query.seed
           const version = req.query.version
           if (version != VERSION) {
@@ -95,6 +101,10 @@ express()
     .get('/scoreboard', async (req:any, res:any) => {
       try {
           const seed = req.query.seed
+          if (sql == null) {
+              res.send('Not connected to a database.')
+              return
+          }
           const results = await sql`
               SELECT username, score, submitted, version FROM scoreboard
               WHERE seed=${seed}
@@ -147,6 +157,10 @@ express()
     })
     .post('/submit', async (req:any, res:any) => {
         try {
+            if (sql == null) {
+                res.send('Not connected to db.')
+                return
+            }
             const seed = req.query.seed
             const score = req.query.score
             const username = req.query.username

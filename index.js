@@ -80,7 +80,7 @@ import express from 'express';
 var PORT = process.env.PORT || 5000;
 import { verifyScore, VERSION } from './public/logic.js';
 import postgres from 'postgres';
-var sql = postgres(process.env.DATABASE_URL);
+var sql = (process.env.DATABASE_URL == undefined) ? null : postgres(process.env.DATABASE_URL);
 //TODO: get rid of these any's
 //TODO: this is probably horribly insecure
 function randomString() {
@@ -120,6 +120,8 @@ function ensureNextMonth() {
         return __generator(this, function (_a) {
             switch (_a.label) {
                 case 0:
+                    if (sql == null)
+                        return [2 /*return*/];
                     d = new Date();
                     i = 0;
                     _a.label = 1;
@@ -153,6 +155,8 @@ function dailySeed() {
             switch (_a.label) {
                 case 0:
                     datestring = renderEastCoastDate();
+                    if (sql == null)
+                        return [2 /*return*/, datestring];
                     _a.label = 1;
                 case 1:
                     if (!true) return [3 /*break*/, 6];
@@ -181,6 +185,10 @@ express()
         switch (_a.label) {
             case 0:
                 _a.trys.push([0, 2, , 3]);
+                if (sql == null) {
+                    res.send('none');
+                    return [2 /*return*/];
+                }
                 seed = req.query.seed;
                 version = req.query.version;
                 if (version != VERSION) {
@@ -212,6 +220,10 @@ express()
             case 0:
                 _b.trys.push([0, 2, , 3]);
                 seed = req.query.seed;
+                if (sql == null) {
+                    res.send('Not connected to a database.');
+                    return [2 /*return*/];
+                }
                 return [4 /*yield*/, sql(templateObject_4 || (templateObject_4 = __makeTemplateObject(["\n              SELECT username, score, submitted, version FROM scoreboard\n              WHERE seed=", "\n              ORDER BY version DESC, score ASC, submitted ASC\n          "], ["\n              SELECT username, score, submitted, version FROM scoreboard\n              WHERE seed=", "\n              ORDER BY version DESC, score ASC, submitted ASC\n          "])), seed)];
             case 1:
                 results = _b.sent();
@@ -301,6 +313,10 @@ express()
         switch (_b.label) {
             case 0:
                 _b.trys.push([0, 5, , 6]);
+                if (sql == null) {
+                    res.send('Not connected to db.');
+                    return [2 /*return*/];
+                }
                 seed = req.query.seed;
                 score = req.query.score;
                 username = req.query.username;
