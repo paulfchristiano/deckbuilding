@@ -477,7 +477,7 @@ export class State {
             state = prev;
             prev = state.backup()
         }
-        return [VERSION].concat(state.future.map(xs => xs.join(','))).join(';')
+        return [VERSION].concat(state.future.map(xs => xs.map(x => `,${x}`).join(','))).join(';')
     }
     makeID(): [State, number] {
         const id:number = this.nextID
@@ -501,7 +501,7 @@ export class State {
         if (VERSION != historyVersion) {
             throw new VersionMismatch(historyVersion || 'null')
         }
-        const future = pieces.map(piece => piece.split(',').map(x => parseInt(x)))
+        const future = pieces.map(piece => piece.split(',').slice(1).map(x => parseInt(x)))
         return initialState(spec).update({future: future})
     }
 }
@@ -1120,7 +1120,7 @@ async function multichoice<T>(
             state,
             () => state.ui.multichoice(state, prompt, options, validator),
         )
-        if (indices.some(x => x > options.length))
+        if (indices.some(x => x >= options.length))
             throw new HistoryMismatch(indices, state)
         return [state, indices.map(i => options[i].value)]
     }

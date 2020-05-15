@@ -527,7 +527,7 @@ var State = /** @class */ (function () {
             state = prev;
             prev = state.backup();
         }
-        return [VERSION].concat(state.future.map(function (xs) { return xs.join(','); })).join(';');
+        return [VERSION].concat(state.future.map(function (xs) { return xs.map(function (x) { return "," + x; }).join(','); })).join(';');
     };
     State.prototype.makeID = function () {
         var id = this.nextID;
@@ -552,7 +552,7 @@ var State = /** @class */ (function () {
         if (VERSION != historyVersion) {
             throw new VersionMismatch(historyVersion || 'null');
         }
-        var future = pieces.map(function (piece) { return piece.split(',').map(function (x) { return parseInt(x); }); });
+        var future = pieces.map(function (piece) { return piece.split(',').slice(1).map(function (x) { return parseInt(x); }); });
         return initialState(spec).update({ future: future });
     };
     return State;
@@ -1332,7 +1332,7 @@ function multichoice(state, prompt, options, validator, automateTrivial) {
                     return [4 /*yield*/, doOrReplay(state, function () { return state.ui.multichoice(state, prompt, options, validator); })];
                 case 2:
                     _a = __read.apply(void 0, [_b.sent(), 2]), state = _a[0], indices = _a[1];
-                    if (indices.some(function (x) { return x > options.length; }))
+                    if (indices.some(function (x) { return x >= options.length; }))
                         throw new HistoryMismatch(indices, state);
                     return [2 /*return*/, [state, indices.map(function (i) { return options[i].value; })]];
             }
