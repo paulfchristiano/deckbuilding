@@ -145,7 +145,7 @@ function ensureNextMonth() {
 function renderEastCoastDate(inputDate) {
     if (inputDate === void 0) { inputDate = null; }
     var d = (inputDate == null) ? new Date() : new Date(inputDate);
-    d.setMinutes(d.getMinutes() + d.getTimezoneOffset() - 240);
+    d.setMinutes(d.getMinutes() + d.getTimezoneOffset() - 180);
     return d.toLocaleDateString().split('/').join('.');
 }
 function dailySeed() {

@@ -46,7 +46,7 @@ async function ensureNextMonth(): Promise<void> {
 
 function renderEastCoastDate(inputDate:Date|null = null): string {
     const d:Date = (inputDate == null) ? new Date() : new Date(inputDate)
-    d.setMinutes(d.getMinutes() + d.getTimezoneOffset() - 240)
+    d.setMinutes(d.getMinutes() + d.getTimezoneOffset() - 180)
     return d.toLocaleDateString().split('/').join('.')
 }
 
