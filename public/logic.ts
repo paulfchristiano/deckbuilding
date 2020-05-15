@@ -477,7 +477,7 @@ export class State {
             state = prev;
             prev = state.backup()
         }
-        return [VERSION].concat(state.future.map(xs => xs.map(x => `,${x}`).join(','))).join(';')
+        return [VERSION].concat(state.future.map(xs => xs.map(x => `${x}`).join(','))).join(';')
     }
     makeID(): [State, number] {
         const id:number = this.nextID
@@ -501,7 +501,12 @@ export class State {
         if (VERSION != historyVersion) {
             throw new VersionMismatch(historyVersion || 'null')
         }
-        const future = pieces.map(piece => piece.split(',').slice(1).map(x => parseInt(x)))
+        function renderPiece(piece:string): number[] {
+            if (piece == '') return []
+            return piece.split(',').map(x => parseInt(x))
+        }
+        const future = pieces.map(renderPiece)
+        console.log(future.slice(16))
         return initialState(spec).update({future: future})
     }
 }

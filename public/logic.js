@@ -527,7 +527,7 @@ var State = /** @class */ (function () {
             state = prev;
             prev = state.backup();
         }
-        return [VERSION].concat(state.future.map(function (xs) { return xs.map(function (x) { return "," + x; }).join(','); })).join(';');
+        return [VERSION].concat(state.future.map(function (xs) { return xs.map(function (x) { return "" + x; }).join(','); })).join(';');
     };
     State.prototype.makeID = function () {
         var id = this.nextID;
@@ -552,7 +552,13 @@ var State = /** @class */ (function () {
         if (VERSION != historyVersion) {
             throw new VersionMismatch(historyVersion || 'null');
         }
-        var future = pieces.map(function (piece) { return piece.split(',').slice(1).map(function (x) { return parseInt(x); }); });
+        function renderPiece(piece) {
+            if (piece == '')
+                return [];
+            return piece.split(',').map(function (x) { return parseInt(x); });
+        }
+        var future = pieces.map(renderPiece);
+        console.log(future.slice(16));
         return initialState(spec).update({ future: future });
     };
     return State;
