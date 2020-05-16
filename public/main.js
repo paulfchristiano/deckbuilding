@@ -419,6 +419,7 @@ function renderState(state, settings) {
     }
     $('#resolvingHeader').html('Resolving:');
     $('#energy').html(state.energy.toString());
+    $('#action').html(state.action.toString());
     $('#coin').html(state.coin.toString());
     $('#points').html(state.points.toString());
     $('#aside').html(state.aside.map(render).join(''));
@@ -426,7 +427,6 @@ function renderState(state, settings) {
     $('#play').html(state.play.map(render).join(''));
     $('#supply').html(state.supply.map(render).join(''));
     $('#hand').html(state.hand.map(render).join(''));
-    $('#deck').html(state.deck.map(render).join(''));
     $('#discard').html(state.discard.map(render).join(''));
     $('#log').html(state.logs.slice().reverse().map(render_log).join(''));
 }
