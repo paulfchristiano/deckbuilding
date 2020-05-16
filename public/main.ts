@@ -185,7 +185,6 @@ function describeCost(cost:Cost): string {
     return `Cost: ${costStr}.`
 }
 
-
 function renderShadow(shadow:Shadow, state:State, tokenRenderer:TokenRenderer):string {
     const card:Card = shadow.spec.card
     const tokenhtml:string = tokenRenderer.render(card.tokens)

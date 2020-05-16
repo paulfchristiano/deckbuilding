@@ -3,20 +3,34 @@ export const VERSION = "0.1.1"
 // ----------------------------- Formatting
 
 export function renderCost(cost:Cost): string {
-    const coinHtml: string = cost.coin > 0 ? `$${cost.coin}` : ''
-    const energyHtml: string = renderEnergy(cost.energy)
-    if (coinHtml == '' && energyHtml == '') return ''
-    else if (coinHtml == '') return energyHtml
-    else return [coinHtml, energyHtml].join(' ')
+    const parts:string[] = []
+    for (const name of allCostResources) {
+        if (cost[name] > 0) parts.push(renderResource(name, cost[name]))
+    }
+    return parts.join(' ')
 }
 
-export function renderEnergy(n:number): string {
-    const result: string[] = []
-    if (n < 0) return '-' + renderEnergy(-n)
-    for (var i = 0; i < n; i++) {
-        result.push('@')
+function renderResource(resource:ResourceName, amount:number): string {
+    if (amount < 0) return '-' + renderResource(resource, -amount)
+    switch(resource) {
+        case 'coin': return `$${amount}`
+        case 'energy': return repeatSymbol('@', amount)
+        case 'points': return `${amount} vp`
+        case 'action': return repeatSymbol('#', amount)
+        default: assertNever(resource)
     }
-    return result.join('')
+}
+
+export function renderEnergy(amount:number): string {
+    return renderResource('energy', amount)
+}
+
+function repeatSymbol(s:string, n:number): string {
+    const parts: string[] = []
+    for (var i = 0; i < n; i++) {
+        parts.push(s)
+    }
+    return parts.join('')
 }
 
 // ----------------------------- Cards
@@ -35,7 +49,9 @@ export interface CardSpec {
 export interface Cost {
     coin: number;
     energy: number;
+    action: number;
 }
+const free:Cost = {coin:0, energy:0, action:0}
 
 export interface CalculatedCost {
     calculate: (card:Card, state:State) => Cost;
@@ -73,6 +89,7 @@ interface Source {
     id?: number;
     name: string;
 }
+const unk:Source = {name:'?'} //Used as a default when we don't know the source
 
 function read<T>(x:any, k:string, fallback:T) {
     return (x[k] == undefined) ? fallback : x[k]
@@ -80,11 +97,13 @@ function read<T>(x:any, k:string, fallback:T) {
 
 interface CardUpdate {
     ticks?: number[];
+    place?: PlaceName;
     tokens?: Map<string, number>;
     zoneIndex?: number;
 }
 
 //TODO: should Token be a type? can avoid token name typos...
+//(could also have token rendering hints...)
 export class Card {
     readonly name: string;
     readonly charge: number;
@@ -93,6 +112,7 @@ export class Card {
         public readonly id:number,
         public readonly ticks: number[] = [0],
         public readonly tokens: Map<string, number> = new Map(),
+        public readonly place:PlaceName = null,
         // we assign each card the smallest unused index in its current zone, for consistency of hotkey mappings
         public readonly zoneIndex = 0,
     ) {
@@ -106,9 +126,10 @@ export class Card {
         return new Card(
             this.spec,
             this.id,
-            read(newValues, 'ticks', this.ticks),
-            read(newValues, 'tokens', this.tokens),
-            read(newValues, 'zoneIndex', this.zoneIndex),
+            (newValues.ticks == undefined) ? this.ticks : newValues.ticks,
+            (newValues.tokens == undefined) ? this.tokens : newValues.tokens,
+            (newValues.place == undefined) ? this.place : newValues.place,
+            (newValues.zoneIndex == undefined) ? this.zoneIndex : newValues.zoneIndex,
         )
     }
     setTokens(token:string, n:number): Card {
@@ -139,7 +160,7 @@ export class Card {
         else if (this.spec.calculatedCost != undefined)
             return this.spec.calculatedCost.calculate(this, state)
         else
-            return {coin:0, energy:0}
+            return free
     }
     // the cost after replacement effects
     cost(state:State): Cost {
@@ -153,46 +174,33 @@ export class Card {
         const card = this
         return async function(state:State): Promise<State> {
             state = state.log(`Paying for ${card.name}`)
-            return withTracking(async function(state:State): Promise<State> {
-                const cost:Cost = card.cost(state)
-                state = await gainEnergy(cost.energy)(state)
-                state = await payCoin(cost.coin)(state)
-                return state
-            }, {kind:'effect', card:card})(state)
+            return withTracking(payCost(card.cost(state), card), {kind:'effect', card:card})(state)
         }
     }
     effect(): Effect {
         if (this.spec.effect == undefined) return {text: '', effect: noop}
         return this.spec.effect(this)
     }
-    buy(source:Source={name:'?'}): Transform {
+    buy(source:Source=unk): Transform {
         let card:Card = this
         return async function(state:State): Promise<State> {
-            const result:FindResult = state.find(card)
-            if (!result.found)
-                return state
-            card = result.card
-            state = await (state)
+            card = state.find(card)
+            if (card.place == null) return state
             state = state.log(`Buying ${card.name}`)
             state = await withTracking(doAll([
                 trigger({kind:'buy', card:card, source:source}),
                 card.effect().effect,
              ]), {kind:'effect', card:card})(state)
-             state = await trigger({kind:'afterBuy', before:card, after:state.find(card).card, source:source})(state)
+             state = await trigger({kind:'afterBuy', before:card, after:state.find(card), source:source})(state)
             return state
         }
     }
-    play(source:Source={name:'?'}): Transform {
+    play(source:Source=unk): Transform {
         const effect:Effect = this.effect()
         let card:Card = this
         return async function(state:State):Promise<State> {
-            const result = state.find(card)
-            switch (result.found) {
-                case false:
-                    return state
-                case true:
-                    card = result.card
-            }
+            card = state.find(card)
+            if (card.place == null) return state
             state = await move(card, 'resolving', 'end', true)(state)
             state = state.log(`Playing ${card.name}`)
             state = await withTracking(async function(state) {
@@ -203,7 +211,7 @@ export class Card {
             const toZone:ZoneName|null = (effect['toZone'] == undefined) ? 'discard' : effect['toZone']
             const toLoc:InsertLocation = effect['toLoc'] || 'end'
             state = await move(card, toZone, toLoc, toZone == 'discard')(state)
-            state = await trigger({kind:'afterPlay', before:card, after:state.find(card).card, source:source})(state)
+            state = await trigger({kind:'afterPlay', before:card, after:state.find(card), source:source})(state)
             return state
         }
     }
@@ -243,16 +251,20 @@ type Resolving = (Card|Shadow)[]
 
 export type Replayable = number[]
 
-interface Counters {
+interface Resources {
     coin:number;
     energy:number;
+    action:number;
     points:number
 }
 
-type CounterName = 'coin' | 'energy' | 'points'
+type CostResourceName = 'coin' | 'energy' | 'action'
+const allCostResources:CostResourceName[] = ['coin', 'energy', 'action']
+type ResourceName = CostResourceName | 'points'
+const allResources:ResourceName[] = (allCostResources as ResourceName[]).concat(['points'])
 
 interface StateUpdate {
-    counters?:Counters;
+    resources?:Resources;
     ui?:UI;
     zones?:Map<ZoneName,Zone>;
     resolving?:Resolving;
@@ -319,6 +331,7 @@ export class State {
     public readonly coin:number;
     public readonly energy:number;
     public readonly points:number;
+    public readonly action:number;
 
     public readonly supply:Zone;
     public readonly hand:Zone;
@@ -329,7 +342,7 @@ export class State {
     constructor(
         public readonly spec: GameSpec = {seed:'', kingdom:null},
         public readonly ui: UI = noUI,
-        private readonly counters:Counters = {coin:0, energy:0, points:0},
+        private readonly resources:Resources = {coin:0, energy:0, points:0, action:0},
         private readonly zones:Map<ZoneName,Zone> = new Map(),
         public readonly resolving:Resolving = [],
         private readonly nextID:number = 0,
@@ -339,9 +352,10 @@ export class State {
         public readonly logs: string[] = [],
         private readonly logIndent: number = 0,
     ) {
-        this.coin = counters.coin
-        this.energy = counters.energy
-        this.points = counters.points
+        this.coin = resources.coin
+        this.energy = resources.energy
+        this.points = resources.points
+        this.action = resources.action
 
         this.supply = zones.get('supply') || []
         this.hand = zones.get('hand') || []
@@ -354,7 +368,7 @@ export class State {
         return new State(
             this.spec,
             read(stateUpdate, 'ui', this.ui),
-            read(stateUpdate, 'counters', this.counters),
+            read(stateUpdate, 'resources', this.resources),
             read(stateUpdate, 'zones', this.zones),
             read(stateUpdate, 'resolving', this.resolving),
             read(stateUpdate, 'nextID', this.nextID),
@@ -379,7 +393,7 @@ export class State {
         if (zone == 'resolving') return this.addResolving(card)
         const newZones:Map<ZoneName,Zone> = new Map(this.zones)
         const currentZone = this[zone]
-        card = card.update({zoneIndex: firstFreeIndex(currentZone)})
+        card = card.update({zoneIndex: firstFreeIndex(currentZone), place:zone})
         newZones.set(zone,  insertAt(currentZone, card, loc))
         return this.update({zones:newZones})
     }
@@ -404,31 +418,24 @@ export class State {
     replace(oldCard:Card, newCard:Card) {
         return this.apply(_ => newCard, oldCard)
     }
-    setCoin(n:number): State {
-        return this.update({counters: {coin:n, energy:this.energy, points:this.points}})
-    }
     addShadow(spec:ShadowSpec): State {
         let state:State = this
         let id:number; [state, id] = state.makeID()
         let shadow:Shadow = new Shadow(id, spec)
         return state.addResolving(shadow)
     }
-    setEnergy(n:number): State {
-        return this.update({counters: {coin:this.coin, energy:n, points:this.points}})
+    setResources(resources:Resources): State {
+        return this.update({resources:resources})
     }
-    setPoints(n:number): State {
-        return this.update({counters: {coin:this.coin, energy:this.energy, points:n}})
-    }
-    find(card:Card|null): FindResult {
-        if (card == null) return notFound
+    find(card:Card): Card {
         for (let [name, zone] of this.zones) {
             const matches:Card[] = zone.filter(c => c.id == card.id)
-            if (matches.length > 0) return {found:true, card:matches[0], place:name}
+            if (matches.length > 0) return matches[0]
         }
         const name = 'resolving', zone = this.resolving;
         const matches:Card[] = (zone.filter(c => c.id == card.id) as Card[])
-        if (matches.length > 0) return {found:true, card:matches[0], place:name}
-        return notFound
+        if (matches.length > 0) return matches[0]
+        return card.update({place:null})
     }
     startTicker(card:Card): State {
         return this.apply(card => card.startTicker(), card)
@@ -598,9 +605,8 @@ interface MoveEvent {kind:'move', fromZone:PlaceName, toZone:PlaceName, loc:Inse
 interface RecycleEvent {kind:'recycle', cards:Card[]}
 interface DiscardEvent {kind:'discard', cards:Card[]}
 interface DrawEvent {kind:'draw', cards:Card[], drawn:number, triedToDraw:number, source:Source}
-interface GainEnergyEvent {kind:'gainEnergy', amount:number}
-interface GainCoinEvent {kind:'gainCoin', amount:number, cost:boolean}
-interface GainPointsEvent {kind:'gainPoints', amount:number, source:Source}
+interface CostEvent {kind:'cost', cost:Cost, source:Source}
+interface ResourceEvent {kind:'resource', resource:ResourceName, amount:number, source:Source}
 interface GainChargeEvent {kind:'gainCharge', card:Card, oldCharge:number, newCharge:number, cost:boolean}
 interface RemoveTokensEvent { kind:'removeTokens', card:Card, token:string, removed:number }
 interface AddTokenEvent {kind: 'addToken', card:Card, token:string}
@@ -608,12 +614,12 @@ interface GameStartEvent {kind:'gameStart' }
 
 type GameEvent = BuyEvent | AfterBuyEvent | PlayEvent | AfterPlayEvent |
     CreateEvent | MoveEvent | RecycleEvent | DrawEvent | DiscardEvent |
-    GainCoinEvent | GainEnergyEvent | GainPointsEvent |
+    CostEvent | ResourceEvent |
     GainChargeEvent | RemoveTokensEvent | AddTokenEvent |
     GameStartEvent
 type TypedTrigger = Trigger<BuyEvent> | Trigger<AfterBuyEvent> | Trigger<PlayEvent> | Trigger<AfterPlayEvent> |
     Trigger<CreateEvent> | Trigger<MoveEvent> | Trigger<RecycleEvent> | Trigger<DrawEvent> | Trigger<DiscardEvent> |
-    Trigger<GainCoinEvent> | Trigger<GainEnergyEvent> | Trigger<GainPointsEvent> |
+    Trigger<CostEvent> | Trigger<ResourceEvent> |
     Trigger<GainChargeEvent> | Trigger<RemoveTokensEvent> | Trigger<AddTokenEvent> |
     Trigger<GameStartEvent>
 
@@ -764,18 +770,16 @@ function create(spec:CardSpec, zone:ZoneName='discard', loc:InsertLocation='bott
 
 function move(card:Card, toZone:PlaceName, loc:InsertLocation='end', logged:boolean=false): Transform {
     return async function(state) {
-        let result = state.find(card)
-        if (result.found) {
-            const card = result.card
-            state = state.remove(card)
-            if (toZone == null) {
-                if (!logged) state = state.log(`Trashed ${card.name} from ${result.place}`)
-            } else {
-                state = state.addToZone(card, toZone, loc)
-                if (!logged) state = state.log(`Moved ${card.name} from ${result.place} to ${toZone}`)
-            }
-            state = await trigger({kind:'move', fromZone:result.place, toZone:toZone, loc:loc, card:card})(state)
+        card = state.find(card)
+        if (card.place == null) return state
+        state = state.remove(card)
+        if (toZone == null) {
+            if (!logged) state = state.log(`Trashed ${card.name} from ${card.place}`)
+        } else {
+            state = state.addToZone(card, toZone, loc)
+            if (!logged) state = state.log(`Moved ${card.name} from ${card.place} to ${toZone}`)
         }
+        state = await trigger({kind:'move', fromZone:card.place, toZone:toZone, loc:loc, card:card})(state)
         return state
     }
 }
@@ -823,7 +827,7 @@ function recycle(cards:Card[]): Transform {
 }
 
 
-function draw(n:number, source:Source={name:'?'}):Transform {
+function draw(n:number, source:Source=unk):Transform {
     return async function(state:State):Promise<State> {
         var drawParams:Params = {kind:'draw', draw:n, source:source, effects:[]}
         drawParams = replace(drawParams, state)
@@ -883,14 +887,36 @@ class CostNotPaid extends Error {
     }
 }
 
-function payCoin(n:number): Transform {
-    return gainCoin(-n, true)
+function payCost(c:Cost, source:Source=unk): Transform {
+    return async function(state:State): Promise<State> {
+        if (state.coin < c.coin) throw new CostNotPaid("Not enough coin")
+        if (state.action < c.action) throw new CostNotPaid("Not enough action")
+        state = state.setResources({
+            coin:state.coin - c.coin,
+            action:state.action - c.action,
+            energy:state.energy + c.energy,
+            points:state.points
+        })
+        return trigger({kind:'cost', cost:c, source:source})(state)
+    }
 }
 
-function setCoin(n:number): Transform {
-    return async function(state) {
-        const adjustment:number = n - state.coin
-        return gainCoin(adjustment)(state)
+function gainResource(resource:ResourceName, amount:number, source:Source=unk) {
+    return async function(state:State): Promise<State> {
+        if (amount == 0) return state
+        const newResources =  {coin:state.coin, energy:state.energy, points:state.points, action:state.action}
+        newResources[resource] = newResources[resource] + amount
+        state = state.setResources(newResources)
+        state = state.log(amount > 0 ? 
+            `Gained ${renderResource(resource, amount)}` : 
+            `Lost ${renderResource(resource, -amount)}`)
+        return trigger({kind:'resource', resource:resource, amount:amount, source:source})(state)
+    }
+}
+
+function setCoin(n:number, source:Source=unk): Transform {
+    return async function(state:State) {
+        return gainResource('coin', -state.coin, source)(state)
     }
 }
 
@@ -901,37 +927,20 @@ export class Victory extends Error {
     }
 }
 
-function gainEnergy(n:number): Transform {
-    return async function(state) {
-        state = state.setEnergy(state.energy+n)
-        if (n != 0) state = state.log(`Gained ${renderEnergy(n)}`)
-        return trigger({kind:'gainEnergy', amount:n})(state)
-    }
+function gainEnergy(n:number, source:Source=unk): Transform {
+    return gainResource('energy', n, source)
 }
 
-function gainPoints(n:number, source:Source={name:'?'}): Transform {
+function gainPoints(n:number, source:Source=unk): Transform {
     return async function(state) {
-        let params:Params = {kind:'gainPoints', points:n, effects:[], source:source}
-        params = replace(params, state)
-        state = await doAll(params.effects)(state)
-        n = params.points
-        state = state.setPoints(state.points+n)
-        if (n != 0) state = state.log(n > 0 ? `Gained ${n} vp` : `Lost ${-n} vp`)
+        state = await gainResource('points', n, source)(state)
         if (state.points >= 50) throw new Victory(state)
-        return trigger({kind:'gainPoints', amount:n, source:source})(state)
+        return state
     }
 }
 
-function gainCoin(n:number, cost:boolean=false): Transform {
-    return async function(state) {
-        if (state.coin + n < 0) {
-            if (cost) throw new CostNotPaid("Not enough coin")
-            n = -state.coin
-        }
-        state = state.setCoin(state.coin+n)
-        if (n != 0) state = state.log(n > 0 ? `Gained $${n}` : `Lost $${-n}`)
-        return trigger({kind:'gainCoin', amount:n, cost:cost})(state)
-    }
+function gainCoin(n:number, source:Source=unk): Transform {
+    return gainResource('coin', n, source)
 }
 
 // ------------------------ Utilities for manipulating transformations
@@ -981,22 +990,20 @@ function discharge(card:Card, n:number): Transform {
 
 function uncharge(card:Card): Transform {
     return async function(state:State): Promise<State> {
-        const find = state.find(card)
-        if (find.found) state = await charge(find.card, -find.card.charge)(state)
+        card = state.find(card)
+        if (card.place != null) state = await charge(card, -card.charge)(state)
         return state
     }
 }
 
 function charge(card:Card, n:number, cost:boolean=false): Transform {
     return async function(state:State): Promise<State> {
-        let result = state.find(card)
-        if (!result.found) {
+        card = state.find(card)
+        if (card.place == null) {
             if (cost) throw new CostNotPaid(`card no longer exists`)
             return state
         }
-        card = result.card
-        if (card.charge + n < 0 && cost)
-            throw new CostNotPaid(`not enough charge`)
+        if (card.charge + n < 0 && cost) throw new CostNotPaid(`not enough charge`)
         const oldCharge:number = card.charge
         const newCharge:number = Math.max(oldCharge+n, 0)
         state = state.apply(card => card.setTokens('charge', newCharge), card)
@@ -1016,9 +1023,8 @@ function logTokenChange(state:State, card:Card, token:string, n:number): State {
 
 function addToken(card:Card, token:string): Transform {
     return async function(state) {
-        const result = state.find(card)
-        if (!result.found) return state
-        card = result.card
+        card = state.find(card)
+        if (card.place == null) return state
         const newCard = card.addTokens(token, 1)
         state = state.replace(card, newCard)
         state = logTokenChange(state, card, token, 1)
@@ -1028,9 +1034,8 @@ function addToken(card:Card, token:string): Transform {
 
 function removeTokens(card:Card, token:string): Transform {
     return async function(state)  {
-        const result = state.find(card)
-        if (!result.found) return state
-        card = result.card
+        card = state.find(card)
+        if (card.place == null) return state
         const removed: number = card.count(token)
         const newCard = card.setTokens(token, 0)
         state = state.replace(card, newCard)
@@ -1041,9 +1046,8 @@ function removeTokens(card:Card, token:string): Transform {
 function removeOneToken(card:Card, token:string): Transform {
     return async function(state) {
         let removed:number = 0
-        const result = state.find(card)
-        if (!result.found) return state
-        card = result.card
+        card = state.find(card)
+        if (card.place == null) return state
         if (card.count(token) == 0) return state
         const newCard:Card = card.addTokens(token, -1)
         state = state.replace(card, newCard)
@@ -1278,8 +1282,8 @@ async function act(state:State): Promise<State> {
     let card:Card|null;
     [state, card] = await actChoice(state)
     if (card == null) throw new Error('No valid options.')
-    let result = state.find(card)
-    switch (result.place) {
+    const newCard = state.find(card)
+    switch (newCard.place) {
         case 'play':
             return useCard(card)(state)
         case 'hand':
@@ -1291,8 +1295,8 @@ async function act(state:State): Promise<State> {
         case 'deck':
         case 'resolving':
         case null:
-            throw new Error(`Card can't be in zone ${result.place}`)
-        default: assertNever(result)
+            throw new Error(`Card can't be in zone ${newCard.place}`)
+        default: assertNever(newCard.place)
     }
 }
 
@@ -1444,10 +1448,10 @@ function buyableAnd(card:CardSpec, n: number, triggers:Trigger[], test:'test'|nu
 }
 
 function energy(n:number):Cost {
-    return {energy:n, coin:0}
+    return {...free, energy:n}
 }
 function coin(n:number):Cost {
-    return {energy:0, coin:n}
+    return {...free, coin:n}
 }
 
 //renders either "a" or "an" as appropriate
@@ -1555,10 +1559,10 @@ coreSupplies.push(supplyForCard(province, coin(8)))
 // ----- MIXINS -----
 //
 
-function playAgain(target:Card|null, source:Source = {name:'?'}): Transform {
+function playAgain(target:Card, source:Source=unk): Transform {
     return async function(state:State) {
-        let result = state.find(target)
-        if (result.place == 'discard') state = await result.card.play(source)(state)
+        target = state.find(target)
+        if (target.place == 'discard') state = await target.play(source)(state)
         return state
     }
 }
