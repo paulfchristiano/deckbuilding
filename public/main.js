@@ -68,17 +68,17 @@ import { playGame, initialState } from './logic.js';
 import { mixins } from './logic.js';
 import { VERSION } from './logic.js';
 var keyListeners = new Map();
-var handHotkeys = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0',
-    '!', '#', '$', '%', '^', '&', '*', '(', ')', '-', '+', '=', '{', '}', '[', ']']; // '@' is confusing
+var symbolHotkeys = ['!', '%', '^', '&', '*', '(', ')', '-', '+', '=', '{', '}', '[', ']']; // '@', '#', '$' are confusing
 var lowerHotkeys = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm',
     'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y',
 ];
 var upperHotkeys = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M',
     'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z'];
 var numHotkeys = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'].concat(lowerHotkeys);
-var supplyAndPlayHotkeys = lowerHotkeys.concat(upperHotkeys);
+var handHotkeys = lowerHotkeys.concat(upperHotkeys);
+var supplyAndPlayHotkeys = numHotkeys.concat(symbolHotkeys);
 // want to put zones that are least likely to change earlier, to not distrupt assignment
-var hotkeys = supplyAndPlayHotkeys.concat(handHotkeys).concat([' ']);
+var hotkeys = supplyAndPlayHotkeys.concat(handHotkeys).concat(symbolHotkeys).concat([' ']);
 var choiceHotkeys = handHotkeys.concat(supplyAndPlayHotkeys);
 $(document).keydown(function (e) {
     var listener = keyListeners.get(e.key);

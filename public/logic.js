@@ -1800,8 +1800,12 @@ function reboot(card, n) {
 var apE = energy;
 var rest = { name: 'Rest',
     fixedCost: energy(3),
+    buyable: {
+        test: function (c, s) { return s.action == 0; },
+        text: "You have no #.",
+    },
     effect: function (card) { return ({
-        text: 'Lose all $ and #, then +#5.',
+        text: 'Lose all $, then +#5.',
         effect: reboot(card, 5),
     }); }
 };

@@ -19,17 +19,17 @@ import { VERSION } from './logic.js'
 type Key = string
 
 const keyListeners: Map<Key, () => void> = new Map();
-const handHotkeys = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0', 
-    '!','#', '$', '%', '^', '&', '*', '(', ')', '-', '+', '=', '{', '}', '[', ']'] // '@' is confusing
+const symbolHotkeys = ['!','%', '^', '&', '*', '(', ')', '-', '+', '=', '{', '}', '[', ']'] // '@', '#', '$' are confusing
 const lowerHotkeys = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm',
     'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', // 'z' reserved for undo
 ]
 const upperHotkeys = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M',
     'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z']
 const numHotkeys:Key[] = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'].concat(lowerHotkeys)
-const supplyAndPlayHotkeys:Key[] = lowerHotkeys.concat(upperHotkeys)
+const handHotkeys = lowerHotkeys.concat(upperHotkeys)
+const supplyAndPlayHotkeys:Key[] = numHotkeys.concat(symbolHotkeys)
 // want to put zones that are least likely to change earlier, to not distrupt assignment
-const hotkeys:Key[] = supplyAndPlayHotkeys.concat(handHotkeys).concat([' '])
+const hotkeys:Key[] = supplyAndPlayHotkeys.concat(handHotkeys).concat(symbolHotkeys).concat([' '])
 const choiceHotkeys:Key[] = handHotkeys.concat(supplyAndPlayHotkeys)
 
 $(document).keydown((e: any) => {

@@ -1506,8 +1506,12 @@ const apE = energy
 
 const rest:CardSpec = {name: 'Rest',
     fixedCost: energy(3),
+    buyable: {
+        test: (c:Card, s:State) => s.action == 0,
+        text: "You have no #.",
+    },
     effect: card => ({
-        text: 'Lose all $ and #, then +#5.',
+        text: 'Lose all $, then +#5.',
         effect: reboot(card, 5),
     })
 }
