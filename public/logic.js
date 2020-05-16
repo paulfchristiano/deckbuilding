@@ -195,13 +195,17 @@ var Card = /** @class */ (function () {
         return newCost.cost;
     };
     // the transformation that actually pays the cost
-    Card.prototype.payCost = function () {
+    Card.prototype.payCost = function (kind) {
         var card = this;
         return function (state) {
             return __awaiter(this, void 0, void 0, function () {
+                var cost;
                 return __generator(this, function (_a) {
                     state = state.log("Paying for " + card.name);
-                    return [2 /*return*/, withTracking(payCost(card.cost(state), card), { kind: 'effect', card: card })(state)];
+                    cost = card.cost(state);
+                    if (kind == 'play')
+                        cost = addCosts(cost, __assign(__assign({}, free), { action: 1 }));
+                    return [2 /*return*/, withTracking(payCost(cost, card), { kind: 'effect', card: card })(state)];
                 });
             });
         };
@@ -381,9 +385,16 @@ var State = /** @class */ (function () {
     State.prototype.popResolving = function () {
         return this.update({ resolving: this.resolving.slice(0, this.resolving.length - 1) });
     };
+    State.prototype.sortZone = function (zone) {
+        var newZones = new Map(this.zones);
+        var newZone = (this.zones.get(zone) || []).slice();
+        newZone.sort(function (a, b) { return (a.name.localeCompare(b.name)); });
+        newZone = newZone.map(function (x, i) { return x.update({ zoneIndex: i }); });
+        newZones.set(zone, newZone);
+        return this.update({ zones: newZones });
+    };
     State.prototype.addToZone = function (card, zone, loc) {
         if (loc === void 0) { loc = 'end'; }
-        //if (zone == 'hand') loc = 'handSort'
         if (zone == 'resolving')
             return this.addResolving(card);
         var newZones = new Map(this.zones);
@@ -1530,15 +1541,19 @@ function act(state) {
 function canPay(cost, state) {
     return (cost.coin <= state.coin && cost.action <= state.action);
 }
-function canAffordIn(state) {
-    return function (x) { return canPay(x.cost(state), state); };
+function addCosts(a, b) {
+    return { coin: a.coin + b.coin, energy: a.energy + b.energy, action: a.action + b.action };
+}
+function canAffordIn(state, extra) {
+    if (extra === void 0) { extra = free; }
+    return function (x) { return canPay(addCosts(x.cost(state), extra), state); };
 }
 function actChoice(state) {
-    var validHand = state.hand.filter(canAffordIn(state));
+    var validHand = state.hand.filter(canAffordIn(state, __assign(__assign({}, free), { action: 1 })));
     var validSupplies = state.supply.filter(canAffordIn(state));
     var validPlay = state.play.filter(function (x) { return (x.abilities().length > 0); });
     var cards = validHand.concat(validSupplies).concat(validPlay);
-    return choice(state, 'Play a card from your hand, use an ability of a card in play, or buy a card from the supply.', cards.map(asChoice), false);
+    return choice(state, 'Buy a card from the supply, use a card in hand, or pay # to play a card from your hand.', cards.map(asChoice), false);
 }
 function useCard(card) {
     return function (state) {
@@ -1572,10 +1587,10 @@ function useCard(card) {
     };
 }
 function tryToBuy(card) {
-    return payToDo(card.payCost(), card.buy({ name: 'act' }));
+    return payToDo(card.payCost('buy'), card.buy({ name: 'act' }));
 }
 function tryToPlay(card) {
-    return payToDo(card.payCost(), card.play({ name: 'act' }));
+    return payToDo(card.payCost('play'), card.play({ name: 'act' }));
 }
 // ------------------------------ Start the game
 function supplyKey(spec) {
@@ -1758,18 +1773,68 @@ function reboot(card, n) {
         });
     };
 }
-//action plus energy(n)
-function apE(n) {
-    return __assign(__assign({}, free), { action: 1, energy: n });
-}
-var regroup = { name: 'Regroup',
+var apE = energy;
+var rest = { name: 'Rest',
     fixedCost: energy(3),
     effect: function (card) { return ({
         text: 'Lose all $ and +#5.',
         effect: reboot(card, 5),
     }); }
 };
+coreSupplies.push(rest);
+//TODO: make cards only buyable under certain conditions?
+var regroup = { name: 'Regroup',
+    fixedCost: energy(3),
+    effect: function (card) { return ({
+        text: 'If your hand is empty, put your discard pile and play into your hand.',
+        effect: function (state) {
+            return __awaiter(this, void 0, void 0, function () {
+                return __generator(this, function (_a) {
+                    switch (_a.label) {
+                        case 0:
+                            if (!(state.hand.length == 0)) return [3 /*break*/, 3];
+                            return [4 /*yield*/, moveMany(state.discard, 'hand')(state)];
+                        case 1:
+                            state = _a.sent();
+                            return [4 /*yield*/, moveMany(state.play, 'hand')(state)];
+                        case 2:
+                            state = _a.sent();
+                            state = state.sortZone('hand');
+                            _a.label = 3;
+                        case 3: return [2 /*return*/, state];
+                    }
+                });
+            });
+        }
+    }); }
+};
 coreSupplies.push(regroup);
+var retire = { name: 'Retire',
+    fixedCost: __assign(__assign({}, free), { action: 1 }),
+    effect: function (card) { return ({
+        text: 'Discard a card from your hand.',
+        effect: function (state) {
+            return __awaiter(this, void 0, void 0, function () {
+                var target;
+                var _a;
+                return __generator(this, function (_b) {
+                    switch (_b.label) {
+                        case 0: return [4 /*yield*/, choice(state, 'Discard a card.', state.hand.map(asChoice))];
+                        case 1:
+                            _a = __read.apply(void 0, [_b.sent(), 2]), state = _a[0], target = _a[1];
+                            if (!(target != null)) return [3 /*break*/, 3];
+                            return [4 /*yield*/, move(target, 'discard')(state)];
+                        case 2:
+                            state = _b.sent();
+                            _b.label = 3;
+                        case 3: return [2 /*return*/, state];
+                    }
+                });
+            });
+        }
+    }); }
+};
+coreSupplies.push(retire);
 var copper = { name: 'Copper',
     fixedCost: apE(0),
     effect: function (card) { return ({

@@ -170,11 +170,13 @@ export class Card {
         return newCost.cost
     }
     // the transformation that actually pays the cost
-    payCost(): Transform {
+    payCost(kind:'play' | 'buy'): Transform {
         const card = this
         return async function(state:State): Promise<State> {
             state = state.log(`Paying for ${card.name}`)
-            return withTracking(payCost(card.cost(state), card), {kind:'effect', card:card})(state)
+            let cost:Cost = card.cost(state)
+            if (kind == 'play') cost = addCosts(cost, {...free, action:1})
+            return withTracking(payCost(cost, card), {kind:'effect', card:card})(state)
         }
     }
     effect(): Effect {
@@ -386,8 +388,16 @@ export class State {
     popResolving(): State {
         return this.update({resolving: this.resolving.slice(0, this.resolving.length-1)})
     }
+    sortZone(zone:ZoneName): State {
+        const newZones:Map<ZoneName,Zone> = new Map(this.zones)
+        let newZone:Card[] = (this.zones.get(zone) || []).slice()
+        newZone.sort((a, b) => (a.name.localeCompare(b.name)))
+        newZone = newZone.map((x, i) => x.update({zoneIndex: i}))
+        newZones.set(zone, newZone)
+        return this.update({zones:newZones})
+
+    }
     addToZone(card:Card, zone:ZoneName|'resolving', loc:InsertLocation='end'): State {
-        //if (zone == 'hand') loc = 'handSort'
         if (zone == 'resolving') return this.addResolving(card)
         const newZones:Map<ZoneName,Zone> = new Map(this.zones)
         const currentZone = this[zone]
@@ -1272,17 +1282,21 @@ function canPay(cost:Cost, state:State) {
     return (cost.coin <= state.coin && cost.action <= state.action)
 }
 
-function canAffordIn(state:State): (c:Card) => boolean {
-    return x => canPay(x.cost(state), state)
+function addCosts(a:Cost, b:Cost) {
+    return {coin:a.coin + b.coin, energy:a.energy+b.energy, action:a.action+b.action}
+}
+
+function canAffordIn(state:State, extra:Cost=free): (c:Card) => boolean {
+    return x => canPay(addCosts(x.cost(state), extra), state)
 }
 
 function actChoice(state:State): Promise<[State, Card|null]> {
-    const validHand:Card[] = state.hand.filter(canAffordIn(state))
+    const validHand:Card[] = state.hand.filter(canAffordIn(state, {...free, action:1}))
     const validSupplies:Card[] = state.supply.filter(canAffordIn(state))
     const validPlay:Card[] = state.play.filter(x => (x.abilities().length > 0))
     const cards:Card[] = validHand.concat(validSupplies).concat(validPlay)
     return choice(state,
-        'Play a card from your hand, use an ability of a card in play, or buy a card from the supply.',
+        'Buy a card from the supply, use a card in hand, or pay # to play a card from your hand.',
         cards.map(asChoice), false)
 }
 
@@ -1311,11 +1325,11 @@ function useCard(card: Card): Transform {
 }
 
 function tryToBuy(card: Card): Transform {
-    return payToDo(card.payCost(), card.buy({name:'act'}))
+    return payToDo(card.payCost('buy'), card.buy({name:'act'}))
 }
 
 function tryToPlay(card:Card): Transform {
-    return payToDo(card.payCost(), card.play({name:'act'}))
+    return payToDo(card.payCost('play'), card.play({name:'act'}))
 }
 
 // ------------------------------ Start the game
@@ -1465,19 +1479,50 @@ function reboot(card:Card, n:number): Transform {
     }
 }
 
-//action plus energy(n)
-function apE(n:number): Cost {
-    return {...free, action:1, energy:n}
-}
+const apE = energy
 
-const regroup:CardSpec = {name: 'Regroup',
+const rest:CardSpec = {name: 'Rest',
     fixedCost: energy(3),
     effect: card => ({
         text: 'Lose all $ and +#5.',
         effect: reboot(card, 5),
     })
 }
+coreSupplies.push(rest)
+
+//TODO: make cards only buyable under certain conditions?
+const regroup:CardSpec = {name: 'Regroup',
+    fixedCost: energy(3),
+    effect: card => ({
+        text: 'If your hand is empty, put your discard pile and play into your hand.',
+        effect: async function(state) {
+            if (state.hand.length == 0) {
+                state = await moveMany(state.discard, 'hand')(state)
+                state = await moveMany(state.play, 'hand')(state)
+                state = state.sortZone('hand')
+            }
+            return state
+        }
+    })
+}
 coreSupplies.push(regroup)
+
+const retire:CardSpec = {name: 'Retire',
+    fixedCost: {...free, action:1},
+    effect: card => ({
+        text: 'Discard a card from your hand.',
+        effect: async function(state) {
+            let target:Card|null ; [state, target] = await choice(state,
+                'Discard a card.',
+                state.hand.map(asChoice)
+            )
+            if (target != null) state = await move(target, 'discard')(state)
+            return state
+        }
+    })
+}
+coreSupplies.push(retire)
+
 
 const copper:CardSpec = {name: 'Copper',
     fixedCost: apE(0),
