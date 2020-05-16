@@ -93,8 +93,9 @@ export function renderCost(cost) {
     try {
         for (var allCostResources_1 = __values(allCostResources), allCostResources_1_1 = allCostResources_1.next(); !allCostResources_1_1.done; allCostResources_1_1 = allCostResources_1.next()) {
             var name_1 = allCostResources_1_1.value;
-            if (cost[name_1] > 0)
-                parts.push(renderResource(name_1, cost[name_1]));
+            var x = cost[name_1];
+            if (x != undefined && x > 0)
+                parts.push(renderResource(name_1, x));
         }
     }
     catch (e_1_1) { e_1 = { error: e_1_1 }; }
@@ -127,7 +128,26 @@ function repeatSymbol(s, n) {
     }
     return parts.join('');
 }
-var free = { coin: 0, energy: 0, action: 0 };
+var free = { coin: 0, energy: 0, action: 0, effects: [] };
+function addCosts(a, b) {
+    return {
+        coin: a.coin + (b.coin || 0),
+        energy: a.energy + (b.energy || 0),
+        action: a.action + (b.action || 0),
+        effects: a.effects.concat(b.effects || []),
+    };
+}
+function subtractCost(c, reduction) {
+    return {
+        coin: Math.max(0, c.coin - (reduction.coin || 0)),
+        energy: Math.max(0, c.energy - (reduction.energy || 0)),
+        action: Math.max(0, c.action - (reduction.action || 0)),
+        effects: c.effects,
+    };
+}
+function eq(a, b) {
+    return a.coin == b.coin && a.energy == b.energy && a.action == b.action;
+}
 var unk = { name: '?' }; //Used as a default when we don't know the source
 function read(x, k, fallback) {
     return (x[k] == undefined) ? fallback : x[k];
@@ -984,18 +1004,49 @@ function payCost(c, source) {
     if (source === void 0) { source = unk; }
     return function (state) {
         return __awaiter(this, void 0, void 0, function () {
-            return __generator(this, function (_a) {
-                if (state.coin < c.coin)
-                    throw new CostNotPaid("Not enough coin");
-                if (state.action < c.action)
-                    throw new CostNotPaid("Not enough action");
-                state = state.setResources({
-                    coin: state.coin - c.coin,
-                    action: state.action - c.action,
-                    energy: state.energy + c.energy,
-                    points: state.points
-                });
-                return [2 /*return*/, trigger({ kind: 'cost', cost: c, source: source })(state)];
+            var _a, _b, effect, e_10_1;
+            var e_10, _c;
+            return __generator(this, function (_d) {
+                switch (_d.label) {
+                    case 0:
+                        if (state.coin < c.coin)
+                            throw new CostNotPaid("Not enough coin");
+                        if (state.action < c.action)
+                            throw new CostNotPaid("Not enough action");
+                        state = state.setResources({
+                            coin: state.coin - c.coin,
+                            action: state.action - c.action,
+                            energy: state.energy + c.energy,
+                            points: state.points
+                        });
+                        _d.label = 1;
+                    case 1:
+                        _d.trys.push([1, 6, 7, 8]);
+                        _a = __values(c.effects), _b = _a.next();
+                        _d.label = 2;
+                    case 2:
+                        if (!!_b.done) return [3 /*break*/, 5];
+                        effect = _b.value;
+                        return [4 /*yield*/, effect(state)];
+                    case 3:
+                        state = _d.sent();
+                        _d.label = 4;
+                    case 4:
+                        _b = _a.next();
+                        return [3 /*break*/, 2];
+                    case 5: return [3 /*break*/, 8];
+                    case 6:
+                        e_10_1 = _d.sent();
+                        e_10 = { error: e_10_1 };
+                        return [3 /*break*/, 8];
+                    case 7:
+                        try {
+                            if (_b && !_b.done && (_c = _a.return)) _c.call(_a);
+                        }
+                        finally { if (e_10) throw e_10.error; }
+                        return [7 /*endfinally*/];
+                    case 8: return [2 /*return*/, trigger({ kind: 'cost', cost: c, source: source })(state)];
+                }
             });
         });
     };
@@ -1035,6 +1086,16 @@ function setAction(n, source) {
         return __awaiter(this, void 0, void 0, function () {
             return __generator(this, function (_a) {
                 return [2 /*return*/, gainResource('action', -state.action, source)(state)];
+            });
+        });
+    };
+}
+function gainAction(n, source) {
+    if (source === void 0) { source = unk; }
+    return function (state) {
+        return __awaiter(this, void 0, void 0, function () {
+            return __generator(this, function (_a) {
+                return [2 /*return*/, gainResource('action', n, source)(state)];
             });
         });
     };
@@ -1484,7 +1545,7 @@ function mainLoop(state) {
 }
 export function verifyScore(seed, history, score) {
     return __awaiter(this, void 0, void 0, function () {
-        var e_10;
+        var e_11;
         return __generator(this, function (_a) {
             switch (_a.label) {
                 case 0:
@@ -1495,24 +1556,24 @@ export function verifyScore(seed, history, score) {
                     console.log("Uh oh!!!");
                     return [2 /*return*/, [true, ""]]; //unreachable
                 case 2:
-                    e_10 = _a.sent();
-                    if (e_10 instanceof Victory) {
-                        if (e_10.state.energy == score)
+                    e_11 = _a.sent();
+                    if (e_11 instanceof Victory) {
+                        if (e_11.state.energy == score)
                             return [2 /*return*/, [true, ""]];
                         else
-                            return [2 /*return*/, [false, "Computed score was " + e_10.state.energy]];
+                            return [2 /*return*/, [false, "Computed score was " + e_11.state.energy]];
                     }
-                    else if (e_10 instanceof HistoryMismatch) {
-                        return [2 /*return*/, [false, "" + e_10]];
+                    else if (e_11 instanceof HistoryMismatch) {
+                        return [2 /*return*/, [false, "" + e_11]];
                     }
-                    else if (e_10 instanceof VersionMismatch) {
-                        return [2 /*return*/, [false, "" + e_10]];
+                    else if (e_11 instanceof VersionMismatch) {
+                        return [2 /*return*/, [false, "" + e_11]];
                     }
-                    else if (e_10 instanceof ReplayEnded) {
-                        return [2 /*return*/, [false, "" + e_10]];
+                    else if (e_11 instanceof ReplayEnded) {
+                        return [2 /*return*/, [false, "" + e_11]];
                     }
                     else {
-                        throw e_10;
+                        throw e_11;
                     }
                     return [3 /*break*/, 3];
                 case 3: return [2 /*return*/];
@@ -1561,9 +1622,6 @@ function playableCards(state) {
 }
 function canPay(cost, state) {
     return (cost.coin <= state.coin && cost.action <= state.action);
-}
-function addCosts(a, b) {
-    return { coin: a.coin + b.coin, energy: a.energy + b.energy, action: a.action + b.action };
 }
 function canAffordIn(state, extra) {
     if (extra === void 0) { extra = free; }
@@ -1630,7 +1688,7 @@ function hash(s) {
     return hash;
 }
 function getFixedKingdom(kingdomString) {
-    var e_11, _a, e_12, _b;
+    var e_12, _a, e_13, _b;
     if (kingdomString == null)
         return null;
     var cardStrings = kingdomString.split(',');
@@ -1641,12 +1699,12 @@ function getFixedKingdom(kingdomString) {
             mixinsByName.set(spec.name, spec);
         }
     }
-    catch (e_11_1) { e_11 = { error: e_11_1 }; }
+    catch (e_12_1) { e_12 = { error: e_12_1 }; }
     finally {
         try {
             if (mixins_1_1 && !mixins_1_1.done && (_a = mixins_1.return)) _a.call(mixins_1);
         }
-        finally { if (e_11) throw e_11.error; }
+        finally { if (e_12) throw e_12.error; }
     }
     var result = [];
     try {
@@ -1662,12 +1720,12 @@ function getFixedKingdom(kingdomString) {
             }
         }
     }
-    catch (e_12_1) { e_12 = { error: e_12_1 }; }
+    catch (e_13_1) { e_13 = { error: e_13_1 }; }
     finally {
         try {
             if (cardStrings_1_1 && !cardStrings_1_1.done && (_b = cardStrings_1.return)) _b.call(cardStrings_1);
         }
-        finally { if (e_12) throw e_12.error; }
+        finally { if (e_13) throw e_13.error; }
     }
     return result;
 }
@@ -1959,6 +2017,89 @@ function playTwice(card) {
         });
     };
 }
+function subtractCoinsNonzero(cost, n) {
+    if (cost.coin == 0)
+        return cost;
+    var reducedCost = subtractCost(cost, { coin: n });
+    return eq(reducedCost, free) ? __assign(__assign({}, reducedCost), { coin: 1 }) : reducedCost;
+}
+function coinReduceNonzero(card, n) {
+    return {
+        text: "Cards in the supply cost " + n + " less, down to $1.",
+        kind: 'cost',
+        handles: function () { return true; },
+        replace: function (x, state) {
+            return __assign(__assign({}, x), { cost: subtractCoinsNonzero(x.cost, 1) });
+        }
+    };
+}
+function costReduce(card, zone, reduction) {
+    var descriptor = (zone == 'hand') ? 'Cards in your hand' : 'Cards in the supply';
+    return {
+        text: descriptor + " cost " + renderCost(reduction) + " less.",
+        kind: 'cost',
+        handles: function () { return true; },
+        replace: function (x, state) {
+            if (x.card.place == zone)
+                return __assign(__assign({}, x), { cost: subtractCost(x.cost, reduction) });
+            return x;
+        }
+    };
+}
+function costReduceNext(card, zone, reduction) {
+    var descriptor = (zone == 'hand') ? 'Cards in your hand' : 'Cards in the supply';
+    return {
+        text: descriptor + " cost " + renderCost(reduction) + " less. Whenever this reduces a cost, discard this.",
+        kind: 'cost',
+        handles: function () { return true; },
+        replace: function (x, state) {
+            if (x.card.place == zone) {
+                var newCost = subtractCost(x.cost, reduction);
+                if (!eq(newCost, x.cost)) {
+                    newCost.effects = newCost.effects.concat([move(card, 'discard')]);
+                    return __assign(__assign({}, x), { cost: newCost });
+                }
+            }
+            return x;
+        }
+    };
+}
+var smithy = { name: 'Smithy',
+    fixedCost: energy(1),
+    effect: function (card) { return ({
+        text: '+###',
+        effect: gainAction(3),
+    }); }
+};
+buyable(smithy, 4);
+var necropolis = { name: 'Necropolis',
+    effect: function (card) { return ({
+        text: 'Put this in play.',
+        effect: noop,
+        toZone: 'play',
+    }); },
+    replacers: function (card) { return [costReduceNext(card, 'hand', { energy: 1 })]; },
+};
+buyable(necropolis, 1);
+var village = { name: 'Village',
+    effect: function (card) { return ({
+        text: '+#. Put this in play.',
+        effect: gainAction(1),
+        toZone: 'play',
+    }); },
+    replacers: function (card) { return [costReduceNext(card, 'hand', { energy: 1 })]; },
+};
+buyable(village, 4);
+var bridge = { name: 'Bridge',
+    fixedCost: energy(1),
+    effect: function (card) { return ({
+        text: 'Put this in play',
+        effect: noop,
+        toZone: 'play'
+    }); },
+    replacers: function (card) { return [coinReduceNonzero(card, 1)]; },
+};
+buyable(bridge, 6);
 // ------------------ Testing -------------------
 var freeMoney = { name: 'Free money',
     fixedCost: energy(0),

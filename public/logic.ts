@@ -2,10 +2,11 @@ export const VERSION = "0.1.1"
 
 // ----------------------------- Formatting
 
-export function renderCost(cost:Cost): string {
+export function renderCost(cost:Partial<Cost>): string {
     const parts:string[] = []
     for (const name of allCostResources) {
-        if (cost[name] > 0) parts.push(renderResource(name, cost[name]))
+        const x:number|undefined = cost[name]
+        if (x != undefined && x > 0) parts.push(renderResource(name, x))
     }
     return parts.join(' ')
 }
@@ -54,8 +55,33 @@ export interface Cost {
     coin: number;
     energy: number;
     action: number;
+    effects: Transform[];
 }
-const free:Cost = {coin:0, energy:0, action:0}
+const free:Cost = {coin:0, energy:0, action:0, effects: []}
+
+function addCosts(a:Cost, b:Cost): Cost {
+    return {
+        coin:a.coin + (b.coin || 0),
+        energy:a.energy+(b.energy || 0),
+        action:a.action+(b.action || 0),
+        effects:a.effects.concat(b.effects || []),
+    }
+}
+
+type Partial<T> = { [P in keyof T]?: T[P] }
+
+function subtractCost(c:Cost, reduction:Partial<Cost>): Cost {
+    return {
+        coin:Math.max(0, c.coin - (reduction.coin || 0)),
+        energy:Math.max(0, c.energy - (reduction.energy || 0)),
+        action:Math.max(0, c.action - (reduction.action || 0)),
+        effects:c.effects,
+    }
+}
+
+function eq(a:Cost, b:Cost): boolean {
+    return a.coin == b.coin && a.energy == b.energy && a.action == b.action
+}
 
 export interface CalculatedCost {
     calculate: (card:Card, state:State) => Cost;
@@ -884,6 +910,9 @@ function payCost(c:Cost, source:Source=unk): Transform {
             energy:state.energy + c.energy,
             points:state.points
         })
+        for (const effect of c.effects) {
+            state = await effect(state)
+        }
         return trigger({kind:'cost', cost:c, source:source})(state)
     }
 }
@@ -910,6 +939,12 @@ function setCoin(n:number, source:Source=unk): Transform {
 function setAction(n:number, source:Source=unk): Transform {
     return async function(state:State) {
         return gainResource('action', -state.action, source)(state)
+    }
+}
+
+function gainAction(n:number, source:Source=unk): Transform {
+    return async function(state:State) {
+        return gainResource('action', n, source)(state)
     }
 }
 
@@ -1304,10 +1339,6 @@ function canPay(cost:Cost, state:State): boolean {
     return (cost.coin <= state.coin && cost.action <= state.action)
 }
 
-function addCosts(a:Cost, b:Cost): Cost {
-    return {coin:a.coin + b.coin, energy:a.energy+b.energy, action:a.action+b.action}
-}
-
 function canAffordIn(state:State, extra:Cost=free): (c:Card) => boolean {
     return x => canPay(addCosts(x.cost(state), extra), state)
 }
@@ -1632,6 +1663,98 @@ function playTwice(card:Card): Transform {
         return playAgain(target, card)(state)
     }
 }
+
+function subtractCoinsNonzero(cost:Cost, n:number): Cost {
+    if (cost.coin == 0) return cost
+    const reducedCost:Cost = subtractCost(cost, {coin:n})
+    return eq(reducedCost, free) ? {...reducedCost, coin:1} : reducedCost
+}
+
+function coinReduceNonzero(card:Card, n:number): Replacer<CostParams> {
+    return {
+        text: `Cards in the supply cost ${n} less, down to $1.`,
+        kind: 'cost',
+        handles: () => true,
+        replace: function(x:CostParams, state:State) {
+            return {...x, cost:subtractCoinsNonzero(x.cost, 1)}
+        }
+    }
+}
+
+function costReduce(card:Card, zone:'hand'|'supply', reduction:Partial<Cost>): Replacer<CostParams> {
+    const descriptor:string = (zone == 'hand') ? 'Cards in your hand' : 'Cards in the supply'
+    return {
+        text: `${descriptor} cost ${renderCost(reduction)} less.`,
+        kind: 'cost',
+        handles: () => true,
+        replace: function(x:CostParams, state:State) {
+            if (x.card.place == zone) return {...x, cost:subtractCost(x.cost, reduction)}
+            return x
+        }
+    }
+}
+
+function costReduceNext(card:Card, zone:'hand'|'supply', reduction:Partial<Cost>): Replacer<CostParams> {
+    const descriptor:string = (zone == 'hand') ? 'Cards in your hand' : 'Cards in the supply'
+    return {
+        text: `${descriptor} cost ${renderCost(reduction)} less. Whenever this reduces a cost, discard this.`,
+        kind: 'cost',
+        handles: () => true,
+        replace: function(x:CostParams, state:State) {
+            if (x.card.place == zone) {
+                const newCost:Cost = subtractCost(x.cost, reduction)
+                if (!eq(newCost, x.cost)) {
+                    newCost.effects = newCost.effects.concat([move(card, 'discard')])
+                    return {...x, cost:newCost}
+                }
+            }
+            return x
+        }
+    }
+}
+
+
+const smithy:CardSpec = {name: 'Smithy',
+    fixedCost: energy(1),
+    effect: card => ({
+        text: '+###',
+        effect: gainAction(3),
+    })
+}
+buyable(smithy, 4)
+
+const necropolis:CardSpec = {name: 'Necropolis',
+    effect: card => ({
+        text: 'Put this in play.',
+        effect: noop,
+        toZone: 'play',
+    }),
+    replacers: card => [costReduceNext(card, 'hand', {energy:1})],
+}
+buyable(necropolis, 1)
+
+const village:CardSpec = {name: 'Village',
+    effect: card => ({
+        text: '+#. Put this in play.',
+        effect: gainAction(1),
+        toZone: 'play',
+    }),
+    replacers: card => [costReduceNext(card, 'hand', {energy:1})],
+}
+buyable(village, 4)
+
+const bridge:CardSpec = {name: 'Bridge',
+    fixedCost: energy(1),
+    effect: card => ({
+        text: 'Put this in play',
+        effect: noop,
+        toZone: 'play'
+    }),
+    replacers: card => [coinReduceNonzero(card, 1)],
+}
+buyable(bridge, 6)
+
+
 
 // ------------------ Testing -------------------
 
