@@ -1,3 +1,4 @@
+// TODO: merge in the refactor from branch nodeck
 // TODO: if a zone gets bigger and then smaller, it's annoying to keep resizing it. As soon as a zone gets big I want to leave it big probably.
 // TODO: lay out the zones a bit more nicely
 // TODO: starting to see performance hiccups in big games
