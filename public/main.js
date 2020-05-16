@@ -370,15 +370,19 @@ function renderAbility(x) {
 function renderCalculatedCost(c) {
     return "<div>(cost) " + c.text + "</div>";
 }
+function renderBuyable(b) {
+    return "<div>(req) " + b.text + "</div>";
+}
 function renderTooltip(card, state, tokenRenderer) {
     var effectHtml = "<div>" + card.effect().text + "</div>";
+    var buyableHtml = (card.spec.buyable != undefined) ? renderBuyable(card.spec.buyable) : '';
     var costHtml = (card.spec.calculatedCost != undefined) ? renderCalculatedCost(card.spec.calculatedCost) : '';
     var abilitiesHtml = card.abilities().map(function (x) { return renderAbility(x); }).join('');
     var triggerHtml = card.triggers().map(function (x) { return renderStatic(x); }).join('');
     var replacerHtml = card.replacers().map(function (x) { return renderStatic(x); }).join('');
     var staticHtml = triggerHtml + replacerHtml;
     var tokensHtml = tokenRenderer.renderTooltip(card.tokens);
-    var baseFilling = [costHtml, effectHtml, abilitiesHtml, staticHtml, tokensHtml].join('');
+    var baseFilling = [costHtml, buyableHtml, effectHtml, abilitiesHtml, staticHtml, tokensHtml].join('');
     function renderRelated(spec) {
         var card = new Card(spec, -1);
         var costStr = renderCost(card.cost(emptyState));

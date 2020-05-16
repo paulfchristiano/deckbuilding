@@ -252,15 +252,20 @@ function renderCalculatedCost(c:CalculatedCost): string {
     return `<div>(cost) ${c.text}</div>`
 }
 
+function renderBuyable(b:{text:string}): string{
+    return `<div>(req) ${b.text}</div>`
+}
+
 function renderTooltip(card:Card, state:State, tokenRenderer:TokenRenderer): string {
     const effectHtml:string = `<div>${card.effect().text}</div>`
+    const buyableHtml:string = (card.spec.buyable != undefined) ? renderBuyable(card.spec.buyable) : ''
     const costHtml:string = (card.spec.calculatedCost != undefined) ? renderCalculatedCost(card.spec.calculatedCost) : ''
     const abilitiesHtml:string = card.abilities().map(x => renderAbility(x)).join('')
     const triggerHtml:string = card.triggers().map(x => renderStatic(x)).join('')
     const replacerHtml:string = card.replacers().map(x => renderStatic(x)).join('')
     const staticHtml:string = triggerHtml + replacerHtml
     const tokensHtml:string = tokenRenderer.renderTooltip(card.tokens)
-    const baseFilling:string = [costHtml, effectHtml, abilitiesHtml, staticHtml, tokensHtml].join('')
+    const baseFilling:string = [costHtml, buyableHtml, effectHtml, abilitiesHtml, staticHtml, tokensHtml].join('')
     function renderRelated(spec:CardSpec) {
         const card:Card = new Card(spec, -1)
         const costStr = renderCost(card.cost(emptyState))

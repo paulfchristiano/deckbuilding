@@ -38,6 +38,10 @@ function repeatSymbol(s:string, n:number): string {
 export interface CardSpec {
     name: string;
     fixedCost?: Cost;
+    buyable?: {
+        text:string, 
+        test: (card:Card, state:State) => boolean;
+    }
     calculatedCost?: CalculatedCost;
     relatedCards?: CardSpec[];
     effect?: (card:Card) => Effect;
@@ -220,6 +224,10 @@ export class Card {
     triggers(): TypedTrigger[] {
         if (this.spec.triggers == undefined) return []
         return this.spec.triggers(this)
+    }
+    buyable(): (card:Card, state:State) => boolean {
+        if (this.spec.buyable == undefined) return (() => true)
+        return this.spec.buyable.test
     }
     abilities(): Ability[] {
         if (this.spec.abilities == undefined) return []
@@ -899,6 +907,12 @@ function setCoin(n:number, source:Source=unk): Transform {
     }
 }
 
+function setAction(n:number, source:Source=unk): Transform {
+    return async function(state:State) {
+        return gainResource('action', -state.action, source)(state)
+    }
+}
+
 export class Victory extends Error {
     constructor(public state:State) {
         super('Victory')
@@ -1278,11 +1292,19 @@ async function act(state:State): Promise<State> {
     }
 }
 
-function canPay(cost:Cost, state:State) {
+function buyableCards(state:State): Card[] {
+    return state.supply.filter(x => x.buyable()(x, state))
+}
+
+function playableCards(state:State): Card[] {
+    return state.hand
+}
+
+function canPay(cost:Cost, state:State): boolean {
     return (cost.coin <= state.coin && cost.action <= state.action)
 }
 
-function addCosts(a:Cost, b:Cost) {
+function addCosts(a:Cost, b:Cost): Cost {
     return {coin:a.coin + b.coin, energy:a.energy+b.energy, action:a.action+b.action}
 }
 
@@ -1291,8 +1313,8 @@ function canAffordIn(state:State, extra:Cost=free): (c:Card) => boolean {
 }
 
 function actChoice(state:State): Promise<[State, Card|null]> {
-    const validHand:Card[] = state.hand.filter(canAffordIn(state, {...free, action:1}))
-    const validSupplies:Card[] = state.supply.filter(canAffordIn(state))
+    const validHand:Card[] = playableCards(state).filter(canAffordIn(state, {...free, action:1}))
+    const validSupplies:Card[] = buyableCards(state).filter(canAffordIn(state))
     const validPlay:Card[] = state.play.filter(x => (x.abilities().length > 0))
     const cards:Card[] = validHand.concat(validSupplies).concat(validPlay)
     return choice(state,
@@ -1474,6 +1496,7 @@ function makeCard(card:CardSpec, cost:Cost, selfdestruct:boolean=false):CardSpec
 function reboot(card:Card, n:number): Transform {
     return async function(state) {
         state = await setCoin(0)(state)
+        state = await setAction(0)(state)
         state = await gainResource('action', n)(state)
         return state
     }
@@ -1484,7 +1507,7 @@ const apE = energy
 const rest:CardSpec = {name: 'Rest',
     fixedCost: energy(3),
     effect: card => ({
-        text: 'Lose all $ and +#5.',
+        text: 'Lose all $ and #, then +#5.',
         effect: reboot(card, 5),
     })
 }
@@ -1493,8 +1516,12 @@ coreSupplies.push(rest)
 //TODO: make cards only buyable under certain conditions?
 const regroup:CardSpec = {name: 'Regroup',
     fixedCost: energy(3),
+    buyable: {
+        test: (c:Card, s:State) => s.hand.length == 0,
+        text: 'There are no cards in your hand.',
+    },
     effect: card => ({
-        text: 'If your hand is empty, put your discard pile and play into your hand.',
+        text: 'Put your discard pile and play into your hand.',
         effect: async function(state) {
             if (state.hand.length == 0) {
                 state = await moveMany(state.discard, 'hand')(state)

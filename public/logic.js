@@ -295,6 +295,11 @@ var Card = /** @class */ (function () {
             return [];
         return this.spec.triggers(this);
     };
+    Card.prototype.buyable = function () {
+        if (this.spec.buyable == undefined)
+            return (function () { return true; });
+        return this.spec.buyable.test;
+    };
     Card.prototype.abilities = function () {
         if (this.spec.abilities == undefined)
             return [];
@@ -1024,6 +1029,16 @@ function setCoin(n, source) {
         });
     };
 }
+function setAction(n, source) {
+    if (source === void 0) { source = unk; }
+    return function (state) {
+        return __awaiter(this, void 0, void 0, function () {
+            return __generator(this, function (_a) {
+                return [2 /*return*/, gainResource('action', -state.action, source)(state)];
+            });
+        });
+    };
+}
 var Victory = /** @class */ (function (_super) {
     __extends(Victory, _super);
     function Victory(state) {
@@ -1538,6 +1553,12 @@ function act(state) {
         });
     });
 }
+function buyableCards(state) {
+    return state.supply.filter(function (x) { return x.buyable()(x, state); });
+}
+function playableCards(state) {
+    return state.hand;
+}
 function canPay(cost, state) {
     return (cost.coin <= state.coin && cost.action <= state.action);
 }
@@ -1549,8 +1570,8 @@ function canAffordIn(state, extra) {
     return function (x) { return canPay(addCosts(x.cost(state), extra), state); };
 }
 function actChoice(state) {
-    var validHand = state.hand.filter(canAffordIn(state, __assign(__assign({}, free), { action: 1 })));
-    var validSupplies = state.supply.filter(canAffordIn(state));
+    var validHand = playableCards(state).filter(canAffordIn(state, __assign(__assign({}, free), { action: 1 })));
+    var validSupplies = buyableCards(state).filter(canAffordIn(state));
     var validPlay = state.play.filter(function (x) { return (x.abilities().length > 0); });
     var cards = validHand.concat(validSupplies).concat(validPlay);
     return choice(state, 'Buy a card from the supply, use a card in hand, or pay # to play a card from your hand.', cards.map(asChoice), false);
@@ -1764,8 +1785,11 @@ function reboot(card, n) {
                     case 0: return [4 /*yield*/, setCoin(0)(state)];
                     case 1:
                         state = _a.sent();
-                        return [4 /*yield*/, gainResource('action', n)(state)];
+                        return [4 /*yield*/, setAction(0)(state)];
                     case 2:
+                        state = _a.sent();
+                        return [4 /*yield*/, gainResource('action', n)(state)];
+                    case 3:
                         state = _a.sent();
                         return [2 /*return*/, state];
                 }
@@ -1777,7 +1801,7 @@ var apE = energy;
 var rest = { name: 'Rest',
     fixedCost: energy(3),
     effect: function (card) { return ({
-        text: 'Lose all $ and +#5.',
+        text: 'Lose all $ and #, then +#5.',
         effect: reboot(card, 5),
     }); }
 };
@@ -1785,8 +1809,12 @@ coreSupplies.push(rest);
 //TODO: make cards only buyable under certain conditions?
 var regroup = { name: 'Regroup',
     fixedCost: energy(3),
+    buyable: {
+        test: function (c, s) { return s.hand.length == 0; },
+        text: 'There are no cards in your hand.',
+    },
     effect: function (card) { return ({
-        text: 'If your hand is empty, put your discard pile and play into your hand.',
+        text: 'Put your discard pile and play into your hand.',
         effect: function (state) {
             return __awaiter(this, void 0, void 0, function () {
                 return __generator(this, function (_a) {
