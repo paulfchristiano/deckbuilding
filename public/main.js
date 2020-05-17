@@ -74,9 +74,9 @@ var lowerHotkeys = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 
 ];
 var upperHotkeys = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M',
     'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z'];
-var numHotkeys = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'].concat(lowerHotkeys);
+var numHotkeys = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
+var supplyAndPlayHotkeys = numHotkeys.concat(symbolHotkeys).concat(upperHotkeys);
 var handHotkeys = lowerHotkeys.concat(upperHotkeys);
-var supplyAndPlayHotkeys = numHotkeys.concat(symbolHotkeys);
 // want to put zones that are least likely to change earlier, to not distrupt assignment
 var hotkeys = supplyAndPlayHotkeys.concat(handHotkeys).concat(symbolHotkeys).concat([' ']);
 var choiceHotkeys = handHotkeys.concat(supplyAndPlayHotkeys);
@@ -168,6 +168,7 @@ var HotkeyMapper = /** @class */ (function () {
             }
         }
         //want to put zones that are most important not to change earlier
+        setFrom(state.events, supplyAndPlayHotkeys);
         setFrom(state.supply, supplyAndPlayHotkeys);
         setFrom(state.hand, handHotkeys);
         setFrom(state.play, supplyAndPlayHotkeys);
@@ -423,13 +424,15 @@ function renderState(state, settings) {
     }
     $('#resolvingHeader').html('Resolving:');
     $('#energy').html(state.energy.toString());
-    $('#action').html(state.action.toString());
+    $('#cards').html(state.cards.toString());
+    $('#buys').html(state.buys.toString());
     $('#coin').html(state.coin.toString());
     $('#points').html(state.points.toString());
     $('#aside').html(state.aside.map(render).join(''));
     $('#resolving').html(state.resolving.map(render).join(''));
     $('#play').html(state.play.map(render).join(''));
     $('#supply').html(state.supply.map(render).join(''));
+    $('#events').html(state.events.map(render).join(''));
     $('#hand').html(state.hand.map(render).join(''));
     $('#discard').html(state.discard.map(render).join(''));
     $('#log').html(state.logs.slice().reverse().map(render_log).join(''));
