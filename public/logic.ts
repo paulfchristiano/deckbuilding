@@ -2115,8 +2115,8 @@ const royalSeal:CardSpec = {name: 'Royal Seal',
         toZone:'play',
     }),
     triggers: card => [{
-        text: `Whenever you create a card, if it's in your discard pile' 
-        + ' and this is in play, discard this and put the card into your hand.`,
+        text: `Whenever you create a card, if it's in your discard pile
+               and this is in play, discard this and put the card into your hand.`,
         kind: 'create',
         handles: (e, state) => state.find(e.card).place == 'discard' && state.find(card).place == 'play',
         effect: e => doAll([move(card, 'discard'), move(e.card, 'hand')])

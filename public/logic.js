@@ -2539,7 +2539,7 @@ var royalSeal = { name: 'Royal Seal',
         toZone: 'play',
     }); },
     triggers: function (card) { return [{
-            text: "Whenever you create a card, if it's in your discard pile' \n        + ' and this is in play, discard this and put the card into your hand.",
+            text: "Whenever you create a card, if it's in your discard pile\n               and this is in play, discard this and put the card into your hand.",
             kind: 'create',
             handles: function (e, state) { return state.find(e.card).place == 'discard' && state.find(card).place == 'play'; },
             effect: function (e) { return doAll([move(card, 'discard'), move(e.card, 'hand')]); }
