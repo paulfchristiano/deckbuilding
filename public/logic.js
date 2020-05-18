@@ -2215,7 +2215,7 @@ var celebration = { name: 'Celebration',
     effect: justPlay,
     replacers: function (card) { return [costReduce(card, 'hand', { energy: 1 })]; }
 };
-buyable(celebration, 7);
+buyable(celebration, 12);
 var plough = { name: 'Plough',
     fixedCost: energy(2),
     effect: function (card) { return ({
@@ -2399,21 +2399,26 @@ buyable(vibrantCity, 7);
 var frontier = { name: 'Frontier',
     fixedCost: energy(1),
     effect: function (card) { return ({
-        text: 'Add a charge token to this, then +1 vp per charge token on this.',
+        text: 'Add a charge token to this if it has less than 5, then +1 vp per charge token on this.',
         effect: function (state) {
             return __awaiter(this, void 0, void 0, function () {
                 return __generator(this, function (_a) {
                     switch (_a.label) {
-                        case 0: return [4 /*yield*/, charge(card, 1)(state)];
+                        case 0:
+                            card = state.find(card);
+                            if (!(card.charge < 5)) return [3 /*break*/, 2];
+                            return [4 /*yield*/, charge(card, 1)(state)];
                         case 1:
                             state = _a.sent();
-                            card = state.find(card);
-                            if (!(card.place != null)) return [3 /*break*/, 3];
-                            return [4 /*yield*/, gainPoints(card.charge)(state)];
+                            _a.label = 2;
                         case 2:
+                            card = state.find(card);
+                            if (!(card.place != null)) return [3 /*break*/, 4];
+                            return [4 /*yield*/, gainPoints(card.charge)(state)];
+                        case 3:
                             state = _a.sent();
-                            _a.label = 3;
-                        case 3: return [2 /*return*/, state];
+                            _a.label = 4;
+                        case 4: return [2 /*return*/, state];
                     }
                 });
             });
@@ -2424,21 +2429,26 @@ buyable(frontier, 8);
 var investment = { name: 'Investment',
     fixedCost: energy(0),
     effect: function (card) { return ({
-        text: 'Add a charge token to this, then +$1 per charge token on this.',
+        text: 'Add a charge token to this if it has less than 5, then +$1 per charge token on this.',
         effect: function (state) {
             return __awaiter(this, void 0, void 0, function () {
                 return __generator(this, function (_a) {
                     switch (_a.label) {
-                        case 0: return [4 /*yield*/, charge(card, 1)(state)];
+                        case 0:
+                            card = state.find(card);
+                            if (!(card.charge < 5)) return [3 /*break*/, 2];
+                            return [4 /*yield*/, charge(card, 1)(state)];
                         case 1:
                             state = _a.sent();
-                            card = state.find(card);
-                            if (!(card.place != null)) return [3 /*break*/, 3];
-                            return [4 /*yield*/, gainCoin(card.charge)(state)];
+                            _a.label = 2;
                         case 2:
+                            card = state.find(card);
+                            if (!(card.place != null)) return [3 /*break*/, 4];
+                            return [4 /*yield*/, gainCoin(card.charge)(state)];
+                        case 3:
                             state = _a.sent();
-                            _a.label = 3;
-                        case 3: return [2 /*return*/, state];
+                            _a.label = 4;
+                        case 4: return [2 /*return*/, state];
                     }
                 });
             });
@@ -2716,21 +2726,26 @@ registerEvent(twin);
 var youngSmith = { name: 'Young Smith',
     fixedCost: energy(1),
     effect: function (card) { return ({
-        text: 'Add a charge token to this, then +1 card per charge token on this.',
+        text: 'Add a charge token to this if it has less than 5, then +1 card per charge token on this.',
         effect: function (state) {
             return __awaiter(this, void 0, void 0, function () {
                 return __generator(this, function (_a) {
                     switch (_a.label) {
-                        case 0: return [4 /*yield*/, charge(card, 1)(state)];
+                        case 0:
+                            card = state.find(card);
+                            if (!(card.charge < 5)) return [3 /*break*/, 2];
+                            return [4 /*yield*/, charge(card, 1)(state)];
                         case 1:
                             state = _a.sent();
-                            card = state.find(card);
-                            if (!(card.place != null)) return [3 /*break*/, 3];
-                            return [4 /*yield*/, draw(card.charge)(state)];
+                            _a.label = 2;
                         case 2:
+                            card = state.find(card);
+                            if (!(card.place != null)) return [3 /*break*/, 4];
+                            return [4 /*yield*/, draw(card.charge)(state)];
+                        case 3:
                             state = _a.sent();
-                            _a.label = 3;
-                        case 3: return [2 /*return*/, state];
+                            _a.label = 4;
+                        case 4: return [2 /*return*/, state];
                     }
                 });
             });

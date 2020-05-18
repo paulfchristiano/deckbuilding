@@ -1868,7 +1868,7 @@ const celebration:CardSpec = {name: 'Celebration',
     effect: justPlay,
     replacers: card => [costReduce(card, 'hand', {energy:1})]
 }
-buyable(celebration, 7)
+buyable(celebration, 12)
 
 const plough:CardSpec = {name: 'Plough',
     fixedCost: energy(2),
@@ -2037,9 +2037,10 @@ buyable(vibrantCity, 7)
 const frontier:CardSpec = {name: 'Frontier',
     fixedCost: energy(1),
     effect: card => ({
-        text: 'Add a charge token to this, then +1 vp per charge token on this.',
+        text: 'Add a charge token to this if it has less than 5, then +1 vp per charge token on this.',
         effect: async function(state) {
-            state = await charge(card, 1)(state);
+            card = state.find(card)
+            if (card.charge < 5) state = await charge(card, 1)(state);
             card = state.find(card)
             if (card.place != null) state = await gainPoints(card.charge)(state);
             return state
@@ -2051,9 +2052,10 @@ buyable(frontier, 8)
 const investment:CardSpec = {name: 'Investment',
     fixedCost: energy(0),
     effect: card => ({
-        text: 'Add a charge token to this, then +$1 per charge token on this.',
+        text: 'Add a charge token to this if it has less than 5, then +$1 per charge token on this.',
         effect: async function(state) {
-            state = await charge(card, 1)(state);
+            card = state.find(card)
+            if (card.charge < 5) state = await charge(card, 1)(state);
             card = state.find(card)
             if (card.place != null) state = await gainCoin(card.charge)(state);
             return state
@@ -2254,9 +2256,10 @@ registerEvent(twin)
 const youngSmith:CardSpec = {name: 'Young Smith',
     fixedCost: energy(1),
     effect: card => ({
-        text: 'Add a charge token to this, then +1 card per charge token on this.',
+        text: 'Add a charge token to this if it has less than 5, then +1 card per charge token on this.',
         effect: async function(state) {
-            state = await charge(card, 1)(state);
+            card = state.find(card)
+            if (card.charge < 5) state = await charge(card, 1)(state);
             card = state.find(card)
             if (card.place != null) state = await draw(card.charge)(state);
             return state
