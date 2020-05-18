@@ -2657,7 +2657,7 @@ var mobilization = { name: 'Mobilization',
 };
 registerEvent(mobilization);
 var refresh = { name: 'Refresh',
-    fixedCost: energy(1),
+    fixedCost: energy(2),
     effect: function (card) { return ({
         text: 'Put your discard pile into your hand.',
         effect: function (state) {

@@ -2215,7 +2215,7 @@ const mobilization:CardSpec = {name: 'Mobilization',
 registerEvent(mobilization)
 
 const refresh:CardSpec = {name: 'Refresh',
-    fixedCost: energy(1),
+    fixedCost: energy(2),
     effect: card => ({
         text: 'Put your discard pile into your hand.',
         effect: async function(state) { 
