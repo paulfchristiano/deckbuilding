@@ -1833,16 +1833,22 @@ function cantripPlay(card:Card): Effect {
     }
 }
 
-const crown:CardSpec = {name: 'Crown',
-    effect: justPlay,
-    triggers: card => [{
-        kind: 'afterPlay',
-        text: `After playing a card, if it's in your discard pile and this is in play, discard this and play that card again.`,
-        handles: (e, state) => (state.find(e.card).place == 'discard' && state.find(card).place == 'play'),
-        effect: e => doAll([move(card, 'discard'), playAgain(e.card)])
-    }]
+const throneRoom:CardSpec = {name: 'Throne Room',
+    fixedCost: energy(1),
+    effect: card => ({
+        text: `Pay 1 card to play a card in your hand. Then if it's in your discard pile play it again.`,
+        effect: payToDo(payCost({...free, cards:1}), async function(state) {
+            let target; [state, target] = await choice(state,
+                'Choose a card to play twice.',
+                state.hand.map(asChoice))
+            if (target == null) return state
+            state = await target.play(card)(state)
+            state = tick(card)(state)
+            return playAgain(target, card)(state)
+        })
+    })
 }
-buyable(crown, 5)
+buyable(throneRoom, 5, 'test')
 
 const coppersmith:CardSpec = {name: 'Coppersmith',
     fixedCost: energy(1),
@@ -2486,17 +2492,26 @@ const pressOn:CardSpec = {name: 'Press On',
     })
 }
 const kingsCourt:CardSpec = {name: "King's Court",
-    fixedCost: energy(1),
-    effect: justPlay,
-    triggers: card => [{
-        kind: 'afterPlay',
-        text: `After playing a card, if it's in your discard pile and this is in play, discard this and play that card again.`
-        + ` Then if it's in your discard pile play it again.`,
-        handles: (e, state) => (state.find(e.card).place == 'discard' && state.find(card).place == 'play'),
-        effect: e => doAll([move(card, 'discard'), playAgain(e.card), playAgain(e.card)])
-    }]
+    fixedCost: energy(2),
+    effect: card => ({
+        text: `Pay 1 card to play a card in your hand.
+        Then if it's in your discard pile, play it again.
+        Then if it's in your discard pile, play it a third time.`,
+        effect: payToDo(payCost({...free, cards:1}), async function(state) {
+            let target; [state, target] = await choice(state,
+                'Choose a card to play three times.',
+                state.hand.map(asChoice))
+            if (target == null) return state
+            state = await target.play(card)(state)
+            state = tick(card)(state)
+            state = await playAgain(target, card)(state)
+            state = tick(card)(state)
+            state = await playAgain(target, card)(state)
+            return state
+        })
+    })
 }
-buyable(kingsCourt, 10)
+buyable(kingsCourt, 10, 'test')
 
 const gardens:CardSpec = {name: "Gardens",
     fixedCost: energy(1),

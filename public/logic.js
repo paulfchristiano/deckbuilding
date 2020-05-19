@@ -2165,16 +2165,33 @@ function cantripPlay(card) {
         effect: gainCards(1),
     };
 }
-var crown = { name: 'Crown',
-    effect: justPlay,
-    triggers: function (card) { return [{
-            kind: 'afterPlay',
-            text: "After playing a card, if it's in your discard pile and this is in play, discard this and play that card again.",
-            handles: function (e, state) { return (state.find(e.card).place == 'discard' && state.find(card).place == 'play'); },
-            effect: function (e) { return doAll([move(card, 'discard'), playAgain(e.card)]); }
-        }]; }
+var throneRoom = { name: 'Throne Room',
+    fixedCost: energy(1),
+    effect: function (card) { return ({
+        text: "Pay 1 card to play a card in your hand. Then if it's in your discard pile play it again.",
+        effect: payToDo(payCost(__assign(__assign({}, free), { cards: 1 })), function (state) {
+            return __awaiter(this, void 0, void 0, function () {
+                var target;
+                var _a;
+                return __generator(this, function (_b) {
+                    switch (_b.label) {
+                        case 0: return [4 /*yield*/, choice(state, 'Choose a card to play twice.', state.hand.map(asChoice))];
+                        case 1:
+                            _a = __read.apply(void 0, [_b.sent(), 2]), state = _a[0], target = _a[1];
+                            if (target == null)
+                                return [2 /*return*/, state];
+                            return [4 /*yield*/, target.play(card)(state)];
+                        case 2:
+                            state = _b.sent();
+                            state = tick(card)(state);
+                            return [2 /*return*/, playAgain(target, card)(state)];
+                    }
+                });
+            });
+        })
+    }); }
 };
-buyable(crown, 5);
+buyable(throneRoom, 5, 'test');
 var coppersmith = { name: 'Coppersmith',
     fixedCost: energy(1),
     effect: justPlay,
@@ -3091,17 +3108,39 @@ var pressOn = { name: 'Press On',
     }); }
 };
 var kingsCourt = { name: "King's Court",
-    fixedCost: energy(1),
-    effect: justPlay,
-    triggers: function (card) { return [{
-            kind: 'afterPlay',
-            text: "After playing a card, if it's in your discard pile and this is in play, discard this and play that card again."
-                + " Then if it's in your discard pile play it again.",
-            handles: function (e, state) { return (state.find(e.card).place == 'discard' && state.find(card).place == 'play'); },
-            effect: function (e) { return doAll([move(card, 'discard'), playAgain(e.card), playAgain(e.card)]); }
-        }]; }
+    fixedCost: energy(2),
+    effect: function (card) { return ({
+        text: "Pay 1 card to play a card in your hand.\n        Then if it's in your discard pile, play it again.\n        Then if it's in your discard pile, play it a third time.",
+        effect: payToDo(payCost(__assign(__assign({}, free), { cards: 1 })), function (state) {
+            return __awaiter(this, void 0, void 0, function () {
+                var target;
+                var _a;
+                return __generator(this, function (_b) {
+                    switch (_b.label) {
+                        case 0: return [4 /*yield*/, choice(state, 'Choose a card to play three times.', state.hand.map(asChoice))];
+                        case 1:
+                            _a = __read.apply(void 0, [_b.sent(), 2]), state = _a[0], target = _a[1];
+                            if (target == null)
+                                return [2 /*return*/, state];
+                            return [4 /*yield*/, target.play(card)(state)];
+                        case 2:
+                            state = _b.sent();
+                            state = tick(card)(state);
+                            return [4 /*yield*/, playAgain(target, card)(state)];
+                        case 3:
+                            state = _b.sent();
+                            state = tick(card)(state);
+                            return [4 /*yield*/, playAgain(target, card)(state)];
+                        case 4:
+                            state = _b.sent();
+                            return [2 /*return*/, state];
+                    }
+                });
+            });
+        })
+    }); }
 };
-buyable(kingsCourt, 10);
+buyable(kingsCourt, 10, 'test');
 var gardens = { name: "Gardens",
     fixedCost: energy(1),
     effect: function (card) { return ({
