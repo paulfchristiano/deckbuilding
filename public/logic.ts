@@ -539,9 +539,6 @@ export class State {
         const last:State|null = this.checkpoint
         return (last==null) ? null : last.update({future:this.history.concat(this.future)})
     }
-    //TODO: serialize the full history
-    //TODO: make a version of state that raises an exception if player choice is required
-    //TODO: write a routine that creates dummy state and a proposed score, and tells if it's valid
     serializeHistory(): string {
         let state:State = this;
         let prev:State|null = state;
@@ -1578,7 +1575,6 @@ function regroupEffect(n:number): Transform {
     }
 }
 
-//TODO: make cards only buyable under certain conditions?
 const regroup:CardSpec = {name: 'Regroup',
     fixedCost: energy(4),
     effect: card => ({
@@ -1885,7 +1881,7 @@ const celebration:CardSpec = {name: 'Celebration',
     effect: justPlay,
     replacers: card => [costReduce(card, 'hand', {energy:1})]
 }
-buyable(celebration, 12)
+buyable(celebration, 10)
 
 const plough:CardSpec = {name: 'Plough',
     fixedCost: energy(2),
@@ -2281,7 +2277,7 @@ const youngSmith:CardSpec = {name: 'Young Smith',
         },
     })
 }
-buyable(youngSmith, 2)
+buyable(youngSmith, 3)
 
 const goldMine:CardSpec = {name: 'Gold Mine',
     fixedCost: energy(1),
@@ -2364,7 +2360,7 @@ const makeSynergy:CardSpec = {name: 'Synergy',
 registerEvent(makeSynergy)
 
 const bustlingSquare:CardSpec = {name: 'Bustling Square',
-    fixedCost: energy(2),
+    fixedCost: energy(1),
     effect: card => ({
         text: `Lose all draws. Set aside up to that many cards, then play them.`,
         effect: async function(state) {
@@ -2429,17 +2425,21 @@ const spices:CardSpec = {name: 'Spices',
 register(supplyForCard(spices, coin(5), {onBuy:gainCoin(3)}))
 
 const onslaught:CardSpec = {name: 'Onslaught',
-    calculatedCost: costPlus(coin(8), energy(1)),
+    calculatedCost: costPlus(coin(6), energy(1)),
     effect: card => ({
-        text: 'Put a charge counter on this. Play any number of cards from your hand.',
+        text: `Put a charge counter on this.
+        Set aside your hand, then play any number of those cards in any order and discard the rest.`,
         effect: async function(state) {
             state = await charge(card, 1)(state)
-            let options:Option<Card>[] = asNumberedChoices(state.hand)
+            const cards:Card[] = state.hand
+            state = await moveMany(cards, 'aside')(state)
+            let options:Option<Card>[] = asNumberedChoices(cards)
             while (true) {
                 let picked:Card|null; [state, picked] = await choice(state,
                     'Pick a card to play next.',
                     allowNull(options))
                 if (picked == null) {
+                    state = await moveMany(cards.filter(c => state.find(c).place == 'aside'), 'discard')(state)
                     return state
                 } else {
                     const id = picked.id

@@ -576,9 +576,6 @@ var State = /** @class */ (function () {
         var last = this.checkpoint;
         return (last == null) ? null : last.update({ future: this.history.concat(this.future) });
     };
-    //TODO: serialize the full history
-    //TODO: make a version of state that raises an exception if player choice is required
-    //TODO: write a routine that creates dummy state and a proposed score, and tells if it's valid
     State.prototype.serializeHistory = function () {
         var state = this;
         var prev = state;
@@ -1912,7 +1909,6 @@ function regroupEffect(n) {
         });
     };
 }
-//TODO: make cards only buyable under certain conditions?
 var regroup = { name: 'Regroup',
     fixedCost: energy(4),
     effect: function (card) { return ({
@@ -2237,7 +2233,7 @@ var celebration = { name: 'Celebration',
     effect: justPlay,
     replacers: function (card) { return [costReduce(card, 'hand', { energy: 1 })]; }
 };
-buyable(celebration, 12);
+buyable(celebration, 10);
 var plough = { name: 'Plough',
     fixedCost: energy(2),
     effect: function (card) { return ({
@@ -2785,7 +2781,7 @@ var youngSmith = { name: 'Young Smith',
         },
     }); }
 };
-buyable(youngSmith, 2);
+buyable(youngSmith, 3);
 var goldMine = { name: 'Gold Mine',
     fixedCost: energy(1),
     effect: function (card) { return ({
@@ -2929,7 +2925,7 @@ var makeSynergy = { name: 'Synergy',
 };
 registerEvent(makeSynergy);
 var bustlingSquare = { name: 'Bustling Square',
-    fixedCost: energy(2),
+    fixedCost: energy(1),
     effect: function (card) { return ({
         text: "Lose all draws. Set aside up to that many cards, then play them.",
         effect: function (state) {
@@ -3015,18 +3011,22 @@ var spices = { name: 'Spices',
 };
 register(supplyForCard(spices, coin(5), { onBuy: gainCoin(3) }));
 var onslaught = { name: 'Onslaught',
-    calculatedCost: costPlus(coin(8), energy(1)),
+    calculatedCost: costPlus(coin(6), energy(1)),
     effect: function (card) { return ({
-        text: 'Put a charge counter on this. Play any number of cards from your hand.',
+        text: "Put a charge counter on this.\n        Set aside your hand, then play any number of those cards in any order and discard the rest.",
         effect: function (state) {
             return __awaiter(this, void 0, void 0, function () {
-                var options, _loop_2, state_2;
+                var cards, options, _loop_2, state_2;
                 return __generator(this, function (_a) {
                     switch (_a.label) {
                         case 0: return [4 /*yield*/, charge(card, 1)(state)];
                         case 1:
                             state = _a.sent();
-                            options = asNumberedChoices(state.hand);
+                            cards = state.hand;
+                            return [4 /*yield*/, moveMany(cards, 'aside')(state)];
+                        case 2:
+                            state = _a.sent();
+                            options = asNumberedChoices(cards);
                             _loop_2 = function () {
                                 var picked, id_2;
                                 var _a;
@@ -3037,29 +3037,32 @@ var onslaught = { name: 'Onslaught',
                                             return [4 /*yield*/, choice(state, 'Pick a card to play next.', allowNull(options))];
                                         case 1:
                                             _a = __read.apply(void 0, [_b.sent(), 2]), state = _a[0], picked = _a[1];
-                                            if (!(picked == null)) return [3 /*break*/, 2];
-                                            return [2 /*return*/, { value: state }];
+                                            if (!(picked == null)) return [3 /*break*/, 3];
+                                            return [4 /*yield*/, moveMany(cards.filter(function (c) { return state.find(c).place == 'aside'; }), 'discard')(state)];
                                         case 2:
+                                            state = _b.sent();
+                                            return [2 /*return*/, { value: state }];
+                                        case 3:
                                             id_2 = picked.id;
                                             options = options.filter(function (c) { return c.value.id != id_2; });
                                             return [4 /*yield*/, picked.play(card)(state)];
-                                        case 3:
+                                        case 4:
                                             state = _b.sent();
-                                            _b.label = 4;
-                                        case 4: return [2 /*return*/];
+                                            _b.label = 5;
+                                        case 5: return [2 /*return*/];
                                     }
                                 });
                             };
-                            _a.label = 2;
-                        case 2:
-                            if (!true) return [3 /*break*/, 4];
-                            return [5 /*yield**/, _loop_2()];
+                            _a.label = 3;
                         case 3:
+                            if (!true) return [3 /*break*/, 5];
+                            return [5 /*yield**/, _loop_2()];
+                        case 4:
                             state_2 = _a.sent();
                             if (typeof state_2 === "object")
                                 return [2 /*return*/, state_2.value];
-                            return [3 /*break*/, 2];
-                        case 4: return [2 /*return*/];
+                            return [3 /*break*/, 3];
+                        case 5: return [2 /*return*/];
                     }
                 });
             });
