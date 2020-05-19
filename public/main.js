@@ -424,7 +424,7 @@ function renderState(state, settings) {
     }
     $('#resolvingHeader').html('Resolving:');
     $('#energy').html(state.energy.toString());
-    $('#cards').html(state.cards.toString());
+    $('#draws').html(state.draws.toString());
     $('#buys').html(state.buys.toString());
     $('#coin').html(state.coin.toString());
     $('#points').html(state.points.toString());
