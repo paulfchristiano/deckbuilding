@@ -671,19 +671,16 @@ function bindHelp(state, renderer) {
     function pick() {
         attach(renderer);
         var helpLines = [
-            'The goal of the game is to get to 50 points (vp) using as little energy (@) as possible.',
-            "When you play or buy a card, follow its instructions. After playing a card, discard it.",
-            "You can pay a card's cost in order to buy it from the supply or play it from your hand.",
+            "The goal of the game is to get to 50 points (vp) using as little energy (@) as possible.",
+            "When you play or buy a card, pay its cost then follow its instructions.",
             "The symbols below a card's name indicate its cost.",
             "When a cost is measured in energy (@, @@, ...) then you use that much energy to play it.",
             "When a cost is measured in coin ($) then you can only buy it if you have enough coin.",
-            "'Recycling' cards means to put them on the bottom of your deck (preserving their order).",
+            'After playing a card, discard it.',
             "You can activate the abilities of cards in play, marked with (ability).",
             "Effects marked with (static) apply whenever the card is in play or in the supply.",
-            "The game is played with a kingdom of 7 core cards and 12 randomized cards.",
             "You can play today's <a href='daily'>daily kingdom</a>, which refreshes midnight EDT.",
             "Or you can visit <a href=\"" + replayURL(state.spec) + "\">this link</a> to replay this kingdom anytime.",
-            "Or visit the <a href=\"picker.html\">kingdom picker<a> to pick a kingdom.",
         ];
         if (submittable(state.spec))
             helpLines.push("Check out the scoreboard <a href=" + scoreboardURL(state.spec) + ">here</a>.");
