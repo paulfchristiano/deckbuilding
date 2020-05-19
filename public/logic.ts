@@ -1705,7 +1705,8 @@ function costReduceNext(
 ): Replacer<CostParams> {
     const descriptor = descriptorForZone(zone)
     return {
-        text: `${descriptor} cost ${renderCost(reduction)} less. Whenever this reduces a cost, discard this.`,
+        text: `${descriptor} cost ${renderCost(reduction)} less${nonzero ? ', but not zero.' : '.'}
+        Whenever this reduces a cost, discard this.`,
         kind: 'cost',
         handles: () => true,
         replace: function(x:CostParams, state:State) {
@@ -1907,6 +1908,7 @@ const oldSmith:CardSpec = {name: 'Old Smith',
 }
 buyable(oldSmith, 3)
 
+//TODO: I would prefer 'other than with this'
 const hallOfMirrors:CardSpec = {name: 'Hall of Mirrors',
     fixedCost: {...free, energy:2, coin:5},
     effect: card => ({
@@ -2188,7 +2190,7 @@ const factory:CardSpec = {name: 'Factory',
         }
     })
 }
-buyable(factory, 3)
+buyable(factory, 4)
 
 const imitation:CardSpec = {name: 'Imitation',
     fixedCost: energy(1),
@@ -2546,9 +2548,9 @@ registerEvent(decay)
 const reflect:CardSpec = {name: 'Reflect',
     calculatedCost: costPlus(energy(1), coin(1)),
     effect: card => ({
-        text: `Play a card in your hand. Then if it's in your discard pile, play it again.` +
-        ` Put a charge token on this.`,
-        effect: doAll([charge(card, 1), playTwice(card)])
+        text: `Put a charge token on this.
+               Pay a card to play a card in your hand. Then if it's in your discard pile, play it again.`,
+        effect: doAll([charge(card, 1), payToDo(payCost({...free, cards:1}), playTwice(card))])
     })
 }
 registerEvent(reflect)
@@ -2556,7 +2558,8 @@ registerEvent(reflect)
 const replicate:CardSpec = {name: 'Replicate',
     calculatedCost: costPlus(energy(1), coin(1)),
     effect: card => ({
-        text: `Choose a card in your hand. Create a fresh copy of it in your discard pile. Put a charge token on this.`,
+        text: `Put a charge token on this.
+               Choose a card in your hand. Create a fresh copy of it in your discard pile.`,
         effect: async function(state) {
             state = await charge(card, 1)(state)
             let target:Card|null; [state, target] = await choice(state,
@@ -2575,7 +2578,7 @@ const inflation:CardSpec = {name: 'Inflation',
         effect: doAll([gainCoin(15), gainBuys(5), charge(card, 1)])
     }),
     replacers: card => [{
-        text: 'Cards that cost at least $1 cost $1 more.',
+        text: 'Cards that cost at least $1 cost $1 more per charge token on this.',
         kind: 'cost',
         handles: (p, state) => (p.cost.coin >= 1),
         replace: p => ({...p, cost:addCosts(p.cost, {coin:card.charge})})

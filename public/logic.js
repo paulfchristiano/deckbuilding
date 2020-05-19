@@ -2048,7 +2048,7 @@ function costReduceNext(card, zone, reduction, nonzero) {
     if (nonzero === void 0) { nonzero = false; }
     var descriptor = descriptorForZone(zone);
     return {
-        text: descriptor + " cost " + renderCost(reduction) + " less. Whenever this reduces a cost, discard this.",
+        text: descriptor + " cost " + renderCost(reduction) + " less" + (nonzero ? ', but not zero.' : '.') + "\n        Whenever this reduces a cost, discard this.",
         kind: 'cost',
         handles: function () { return true; },
         replace: function (x, state) {
@@ -2257,6 +2257,7 @@ var oldSmith = { name: 'Old Smith',
         }]; }
 };
 buyable(oldSmith, 3);
+//TODO: I would prefer 'other than with this'
 var hallOfMirrors = { name: 'Hall of Mirrors',
     fixedCost: __assign(__assign({}, free), { energy: 2, coin: 5 }),
     effect: function (card) { return ({
@@ -2648,7 +2649,7 @@ var factory = { name: 'Factory',
         }
     }); }
 };
-buyable(factory, 3);
+buyable(factory, 4);
 var imitation = { name: 'Imitation',
     fixedCost: energy(1),
     effect: function (card) { return ({
@@ -3181,16 +3182,15 @@ registerEvent(decay);
 var reflect = { name: 'Reflect',
     calculatedCost: costPlus(energy(1), coin(1)),
     effect: function (card) { return ({
-        text: "Play a card in your hand. Then if it's in your discard pile, play it again." +
-            " Put a charge token on this.",
-        effect: doAll([charge(card, 1), playTwice(card)])
+        text: "Put a charge token on this.\n               Pay a card to play a card in your hand. Then if it's in your discard pile, play it again.",
+        effect: doAll([charge(card, 1), payToDo(payCost(__assign(__assign({}, free), { cards: 1 })), playTwice(card))])
     }); }
 };
 registerEvent(reflect);
 var replicate = { name: 'Replicate',
     calculatedCost: costPlus(energy(1), coin(1)),
     effect: function (card) { return ({
-        text: "Choose a card in your hand. Create a fresh copy of it in your discard pile. Put a charge token on this.",
+        text: "Put a charge token on this.\n               Choose a card in your hand. Create a fresh copy of it in your discard pile.",
         effect: function (state) {
             return __awaiter(this, void 0, void 0, function () {
                 var target;
@@ -3223,7 +3223,7 @@ var inflation = { name: 'Inflation',
         effect: doAll([gainCoin(15), gainBuys(5), charge(card, 1)])
     }); },
     replacers: function (card) { return [{
-            text: 'Cards that cost at least $1 cost $1 more.',
+            text: 'Cards that cost at least $1 cost $1 more per charge token on this.',
             kind: 'cost',
             handles: function (p, state) { return (p.cost.coin >= 1); },
             replace: function (p) { return (__assign(__assign({}, p), { cost: addCosts(p.cost, { coin: card.charge }) })); }
