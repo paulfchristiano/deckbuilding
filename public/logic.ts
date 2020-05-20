@@ -1,4 +1,4 @@
-export const VERSION = "0.1.1"
+export const VERSION = "0.2"
 
 // ----------------------------- Formatting
 
@@ -1893,7 +1893,7 @@ const plough:CardSpec = {name: 'Plough',
 buyable(plough, 4)
 
 const oldSmith:CardSpec = {name: 'Old Smith',
-    fixedCost: energy(1),
+    fixedCost: energy(0),
     effect: justPlay,
     triggers: card => [{
         text: 'Whenever you pay @, gain that many draws.',
@@ -1926,17 +1926,17 @@ registerEvent(hallOfMirrors)
 function costPlus(initial:Cost, increment:Cost): CalculatedCost {
     return {
         calculate: function(card:Card, state:State) {
-            return addCosts(initial, multiplyCosts(increment, state.find(card).charge))
+            return addCosts(initial, multiplyCosts(increment, state.find(card).count('cost')))
         },
-        text: `${renderCost(initial)} plus ${renderCost(increment)} for each charge counter on this.`,
+        text: `${renderCost(initial)} plus ${renderCost(increment)} for each cost token on this.`,
     }
 }
 
 const retrench:CardSpec = {name: 'Retrench',
     calculatedCost: costPlus({...free, energy:2, coin:1}, coin(1)),
     effect: card => ({
-        text: 'Put a charge token on this. ' + regroupText(5),
-        effect: doAll([charge(card, 1), regroupEffect(5)])
+        text: 'Put a cost token on this. ' + regroupText(5),
+        effect: doAll([addToken(card, 'cost'), regroupEffect(5)])
     })
 }
 registerEvent(retrench)
@@ -1972,25 +1972,21 @@ const desperation:CardSpec = {name:'Desperation',
 }
 registerEvent(desperation)
 
-const fairEffect:CardSpec = {name:'Traveling Fair',
-    triggers: card => [{
-        text:`When you create a card, if it's in your discard pile trash this and put it into your hand.`,
-        kind:'create',
-        handles: (e, state) => (state.find(e.card).place == 'discard'),
-        effect: e => doAll([trash(card), move(e.card, 'hand')])
-    }],
-    replacers: card => [fragile(card)],
-}
-
-
 const travelingFair:CardSpec = {name:'Traveling Fair',
     fixedCost: coin(2),
     effect: card => ({
-        text: `+1 buy. Next time you gain a card this turn, if it's in your discard pile, put it into your hand.`,
-        effect: doAll([gainBuys(1), create(fairEffect, 'play')])
-    })
+        text: `+1 buy. Put a charge token on this.`,
+        effect: doAll([gainBuys(1), charge(card, 1)]),
+    }),
+    triggers: card => [{
+        text: `Whenever you create a card, if it's in your discard pile and this has a charge token on it,
+               remove a charge token from this and put the card in your hand`,
+        kind:'create',
+        handles: (e, state) => (card.charge > 0 && state.find(e.card).place == 'discard'),
+        effect: e => doAll([charge(card, -1), move(e.card, 'hand')])
+    }]
 }
-registerEvent(travelingFair)
+registerEvent(travelingFair, 'test')
 
 const philanthropy:CardSpec = {name: 'Philanthropy',
     fixedCost: {...free, coin:10, energy:2},
@@ -2051,10 +2047,10 @@ buyable(vibrantCity, 7)
 const frontier:CardSpec = {name: 'Frontier',
     fixedCost: energy(1),
     effect: card => ({
-        text: 'Add a charge token to this if it has less than 5, then +1 vp per charge token on this.',
+        text: 'Add a charge token to this if it has less than 6, then +1 vp per charge token on this.',
         effect: async function(state) {
             card = state.find(card)
-            if (card.charge < 5) state = await charge(card, 1)(state);
+            if (card.charge < 6) state = await charge(card, 1)(state);
             card = state.find(card)
             if (card.place != null) state = await gainPoints(card.charge)(state);
             return state
@@ -2215,11 +2211,11 @@ buyable(feast, 4)
 const mobilization:CardSpec = {name: 'Mobilization',
     calculatedCost: costPlus(coin(10), coin(10)),
     effect: card => ({
-        text: `Put a charge token on this.`,
-        effect: charge(card, 1),
+        text: "Put a charge token and a cost token on this.",
+        effect: doAll([addToken(card, 'cost'), charge(card, 1)])
     }),
     replacers: card => [{
-        text: `${regroup.name} costs @ less to play for each charge counter on this.`,
+        text: `${regroup.name} costs @ less to play for each cost token on this.`,
         kind:'cost',
         handles: x => (x.card.name == regroup.name),
         replace: x => ({...x, cost:subtractCost(x.cost, {energy:card.charge})})
@@ -2267,10 +2263,10 @@ registerEvent(twin)
 const youngSmith:CardSpec = {name: 'Young Smith',
     fixedCost: energy(1),
     effect: card => ({
-        text: 'Add a charge token to this if it has less than 5, then +1 draw per charge token on this.',
+        text: 'Add a charge token to this if it has less than 4, then +1 draw per charge token on this.',
         effect: async function(state) {
             card = state.find(card)
-            if (card.charge < 5) state = await charge(card, 1)(state);
+            if (card.charge < 4) state = await charge(card, 1)(state);
             card = state.find(card)
             if (card.place != null) state = await draw(card.charge)(state);
             return state
@@ -2297,22 +2293,19 @@ function fragile(card:Card):Replacer<MoveParams> {
     }
 }
 
-const expediteEffect:CardSpec = {name: 'Expedite',
-    triggers: card => [{
-        text: `When you create a card, if it's in your discard pile and this is in play,`
-        + ` trash this and play the new card.`,
-        kind: 'create',
-        handles: (e, state) => state.find(e.card).place == 'discard' && state.find(card).place =='play',
-        effect: e => doAll([trash(card), playAgain(e.card, card)])
-    }],
-    replacers: card => [fragile(card)],
-}
 const expedite:CardSpec = {name: 'Expedite',
     calculatedCost: costPlus(energy(1), coin(1)),
     effect: card => ({
-        text: "The next time you create a card in your discard pile, play it. Put a charge token on this.",
-        effect: doAll([create(expediteEffect, 'play'), charge(card, 1)])
-    })
+        text: "Put a charge token and a cost token on this.",
+        effect: doAll([addToken(card, 'cost'), charge(card, 1)])
+    }),
+    triggers: card => [{
+        text: `When you create a card, if it's in your discard pile and this has a charge token on it,
+               remove a charge token from this and play the card.`,
+        kind: 'create',
+        handles: (e, state) => state.find(e.card).place == 'discard' && state.find(card).charge > 0,
+        effect: e => doAll([charge(card, -1), playAgain(e.card, card)])
+    }],
 }
 registerEvent(expedite)
 
@@ -2427,10 +2420,10 @@ register(supplyForCard(spices, coin(5), {onBuy:gainCoin(3)}))
 const onslaught:CardSpec = {name: 'Onslaught',
     calculatedCost: costPlus(coin(6), energy(1)),
     effect: card => ({
-        text: `Put a charge counter on this.
+        text: `Put a cost token on this.
         Set aside your hand, then play any number of those cards in any order and discard the rest.`,
         effect: async function(state) {
-            state = await charge(card, 1)(state)
+            state = await addToken(card, 'cost')(state)
             const cards:Card[] = state.hand
             state = await moveMany(cards, 'aside')(state)
             let options:Option<Card>[] = asNumberedChoices(cards)
@@ -2518,14 +2511,14 @@ buyable(kingsCourt, 10, 'test')
 const gardens:CardSpec = {name: "Gardens",
     fixedCost: energy(1),
     effect: card => ({
-        text: "+1 vp per 10 cards in your hand.",
+        text: "+1 vp per 10 cards in your hand, discard pile, and play.",
         effect: async function(state) {
-            const n = state.hand.length;
+            const n = state.hand.length + state.discard.length + state.play.length;
             return gainPoints(Math.floor(n/10))(state)
         }
     })
 }
-buyable(gardens, 7)
+buyable(gardens, 4)
 
 const decay:CardSpec = {name: 'Decay',
     fixedCost: coin(3),
@@ -2548,9 +2541,9 @@ registerEvent(decay)
 const reflect:CardSpec = {name: 'Reflect',
     calculatedCost: costPlus(energy(1), coin(1)),
     effect: card => ({
-        text: `Put a charge token on this.
+        text: `Put a cost token on this.
                Pay 1 draw to play a card in your hand. Then if it's in your discard pile, play it again.`,
-        effect: doAll([charge(card, 1), payToDo(payCost({...free, draws:1}), playTwice(card))])
+        effect: doAll([addToken(card, 'cost'), payToDo(payCost({...free, draws:1}), playTwice(card))])
     })
 }
 registerEvent(reflect)
@@ -2558,10 +2551,10 @@ registerEvent(reflect)
 const replicate:CardSpec = {name: 'Replicate',
     calculatedCost: costPlus(energy(1), coin(1)),
     effect: card => ({
-        text: `Put a charge token on this.
+        text: `Put a cost token on this.
                Choose a card in your hand. Create a fresh copy of it in your discard pile.`,
         effect: async function(state) {
-            state = await charge(card, 1)(state)
+            state = await addToken(card, 'cost')(state)
             let target:Card|null; [state, target] = await choice(state,
                 'Choose a card to replicate.', state.hand.map(asChoice))
             if (target != null) state = await create(target.spec, 'discard')(state)
@@ -2599,9 +2592,9 @@ const burden:CardSpec = {name: 'Burden',
         }
     }),
     triggers: card => [{
-        text: 'Whenever you buy a card costing $, put a burden token on it.',
+        text: 'Whenever you buy a card in the supply, put a burden token on it.',
         kind:'buy',
-        handles: (e, state) => (e.card.cost(state).coin >= 1),
+        handles: (e, state) => (state.find(e.card).place == 'supply'),
         effect: e => addToken(e.card, 'burden')
     }],
     replacers: card => [{
@@ -2627,7 +2620,6 @@ const publicWorks:CardSpec = {name: 'Public Works',
     replacers: card => [costReduceNext(card, 'events', {energy:1}, true)],
 }
 buyable(publicWorks, 5, 'test')
-
 
 
 // ------------------ Testing -------------------
