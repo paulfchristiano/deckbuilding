@@ -2963,7 +2963,7 @@ var spree = { name: 'Spree',
 registerEvent(spree);
 var counterfeit = { name: 'Counterfeit',
     effect: function (card) { return ({
-        text: '+1 draw. Play a card in your hand, then trash it. +1 buy.',
+        text: '+1 draw. Play a card in your hand, then trash it. If you do, +1 buy.',
         effect: function (state) {
             return __awaiter(this, void 0, void 0, function () {
                 var target;
