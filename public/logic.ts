@@ -2388,7 +2388,7 @@ registerEvent(spree)
 
 const counterfeit:CardSpec = {name: 'Counterfeit',
     effect: card => ({
-        text: '+1 draw. Play a card in your hand, then trash it. +1 buy.',
+        text: '+1 draw. Play a card in your hand, then trash it. If you do, +1 buy.',
         effect: async function(state) {
             state = await gainCards(1)(state)
             let target:Card|null; [state, target] = await choice(state,
