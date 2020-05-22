@@ -583,7 +583,7 @@ function bindHelp(state:State, renderer: () => void) {
     function pick() {
         attach(renderer)
         const helpLines:string[] = [
-            "The goal of the game is to get to 50 points (vp) using as little energy (@) as possible.",
+            "The goal of the game is to get to 32 points (vp) using as little energy (@) as possible.",
             "When you play or buy a card, pay its cost then follow its instructions.",
             "The symbols below a card's name indicate its cost.",
             "When a cost is measured in energy (@, @@, ...) then you use that much energy to play it.",

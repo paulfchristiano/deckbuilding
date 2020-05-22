@@ -1,4 +1,4 @@
-export const VERSION = "0.2"
+export const VERSION = "0.3"
 
 // ----------------------------- Formatting
 
@@ -978,7 +978,7 @@ function gainEnergy(n:number, source:Source=unk): Transform {
 function gainPoints(n:number, source:Source=unk): Transform {
     return async function(state) {
         state = await gainResource('points', n, source)(state)
-        if (state.points >= 50) throw new Victory(state)
+        if (state.points >= 32) throw new Victory(state)
         return state
     }
 }

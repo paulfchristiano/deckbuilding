@@ -85,7 +85,7 @@ var __read = (this && this.__read) || function (o, n) {
     }
     return ar;
 };
-export var VERSION = "0.2";
+export var VERSION = "0.3";
 // ----------------------------- Formatting
 export function renderCost(cost) {
     var e_1, _a;
@@ -1140,7 +1140,7 @@ function gainPoints(n, source) {
                     case 0: return [4 /*yield*/, gainResource('points', n, source)(state)];
                     case 1:
                         state = _a.sent();
-                        if (state.points >= 50)
+                        if (state.points >= 32)
                             throw new Victory(state);
                         return [2 /*return*/, state];
                 }
