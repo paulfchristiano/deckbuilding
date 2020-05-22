@@ -2478,44 +2478,39 @@ var populate = { name: 'Populate',
         text: 'Buy any number of cards in the supply.',
         effect: function (state) {
             return __awaiter(this, void 0, void 0, function () {
-                var options, _loop_1, state_1;
-                return __generator(this, function (_a) {
-                    switch (_a.label) {
+                var options, options_1, options_1_1, supply_card, e_15_1;
+                var e_15, _a;
+                return __generator(this, function (_b) {
+                    switch (_b.label) {
                         case 0:
                             options = state.supply.filter(function (c) { return c.id != card.id; });
-                            _loop_1 = function () {
-                                var picked, id_1;
-                                var _a;
-                                return __generator(this, function (_b) {
-                                    switch (_b.label) {
-                                        case 0:
-                                            picked = void 0;
-                                            return [4 /*yield*/, choice(state, 'Pick a card to buy next.', allowNull(options.map(asChoice)))];
-                                        case 1:
-                                            _a = __read.apply(void 0, [_b.sent(), 2]), state = _a[0], picked = _a[1];
-                                            if (!(picked == null)) return [3 /*break*/, 2];
-                                            return [2 /*return*/, { value: state }];
-                                        case 2:
-                                            id_1 = picked.id;
-                                            options = options.filter(function (c) { return c.id != id_1; });
-                                            return [4 /*yield*/, picked.buy(card)(state)];
-                                        case 3:
-                                            state = _b.sent();
-                                            _b.label = 4;
-                                        case 4: return [2 /*return*/];
-                                    }
-                                });
-                            };
-                            _a.label = 1;
+                            _b.label = 1;
                         case 1:
-                            if (!true) return [3 /*break*/, 3];
-                            return [5 /*yield**/, _loop_1()];
+                            _b.trys.push([1, 6, 7, 8]);
+                            options_1 = __values(options), options_1_1 = options_1.next();
+                            _b.label = 2;
                         case 2:
-                            state_1 = _a.sent();
-                            if (typeof state_1 === "object")
-                                return [2 /*return*/, state_1.value];
-                            return [3 /*break*/, 1];
-                        case 3: return [2 /*return*/];
+                            if (!!options_1_1.done) return [3 /*break*/, 5];
+                            supply_card = options_1_1.value;
+                            return [4 /*yield*/, supply_card.buy(card)(state)];
+                        case 3:
+                            state = _b.sent();
+                            _b.label = 4;
+                        case 4:
+                            options_1_1 = options_1.next();
+                            return [3 /*break*/, 2];
+                        case 5: return [3 /*break*/, 8];
+                        case 6:
+                            e_15_1 = _b.sent();
+                            e_15 = { error: e_15_1 };
+                            return [3 /*break*/, 8];
+                        case 7:
+                            try {
+                                if (options_1_1 && !options_1_1.done && (_a = options_1.return)) _a.call(options_1);
+                            }
+                            finally { if (e_15) throw e_15.error; }
+                            return [7 /*endfinally*/];
+                        case 8: return [2 /*return*/, state];
                     }
                 });
             });
@@ -2819,8 +2814,8 @@ var makeSynergy = { name: 'Synergy',
             " then put synergy tokens on two cards in the supply or events.",
         effect: function (state) {
             return __awaiter(this, void 0, void 0, function () {
-                var _a, _b, card_1, e_15_1, cards, cards_1, cards_1_1, card_2, e_16_1;
-                var e_15, _c, _d, e_16, _e;
+                var _a, _b, card_1, e_16_1, cards, cards_1, cards_1_1, card_2, e_17_1;
+                var e_16, _c, _d, e_17, _e;
                 return __generator(this, function (_f) {
                     switch (_f.label) {
                         case 0:
@@ -2840,14 +2835,14 @@ var makeSynergy = { name: 'Synergy',
                             return [3 /*break*/, 1];
                         case 4: return [3 /*break*/, 7];
                         case 5:
-                            e_15_1 = _f.sent();
-                            e_15 = { error: e_15_1 };
+                            e_16_1 = _f.sent();
+                            e_16 = { error: e_16_1 };
                             return [3 /*break*/, 7];
                         case 6:
                             try {
                                 if (_b && !_b.done && (_c = _a.return)) _c.call(_a);
                             }
-                            finally { if (e_15) throw e_15.error; }
+                            finally { if (e_16) throw e_16.error; }
                             return [7 /*endfinally*/];
                         case 7: return [4 /*yield*/, multichoiceIfNeeded(state, 'Choose two cards to synergize.', state.supply.concat(state.events).map(asChoice), 2, false)];
                         case 8:
@@ -2869,14 +2864,14 @@ var makeSynergy = { name: 'Synergy',
                             return [3 /*break*/, 10];
                         case 13: return [3 /*break*/, 16];
                         case 14:
-                            e_16_1 = _f.sent();
-                            e_16 = { error: e_16_1 };
+                            e_17_1 = _f.sent();
+                            e_17 = { error: e_17_1 };
                             return [3 /*break*/, 16];
                         case 15:
                             try {
                                 if (cards_1_1 && !cards_1_1.done && (_e = cards_1.return)) _e.call(cards_1);
                             }
-                            finally { if (e_16) throw e_16.error; }
+                            finally { if (e_17) throw e_17.error; }
                             return [7 /*endfinally*/];
                         case 16: return [2 /*return*/, state];
                     }
@@ -3009,7 +3004,7 @@ var onslaught = { name: 'Onslaught',
         text: "Put a cost token on this.\n        Set aside your hand, then play any number of those cards in any order and discard the rest.",
         effect: function (state) {
             return __awaiter(this, void 0, void 0, function () {
-                var cards, options, _loop_2, state_2;
+                var cards, options, _loop_1, state_1;
                 return __generator(this, function (_a) {
                     switch (_a.label) {
                         case 0: return [4 /*yield*/, addToken(card, 'cost')(state)];
@@ -3020,8 +3015,8 @@ var onslaught = { name: 'Onslaught',
                         case 2:
                             state = _a.sent();
                             options = asNumberedChoices(cards);
-                            _loop_2 = function () {
-                                var picked, id_2;
+                            _loop_1 = function () {
+                                var picked, id_1;
                                 var _a;
                                 return __generator(this, function (_b) {
                                     switch (_b.label) {
@@ -3036,8 +3031,8 @@ var onslaught = { name: 'Onslaught',
                                             state = _b.sent();
                                             return [2 /*return*/, { value: state }];
                                         case 3:
-                                            id_2 = picked.id;
-                                            options = options.filter(function (c) { return c.value.id != id_2; });
+                                            id_1 = picked.id;
+                                            options = options.filter(function (c) { return c.value.id != id_1; });
                                             return [4 /*yield*/, picked.play(card)(state)];
                                         case 4:
                                             state = _b.sent();
@@ -3049,11 +3044,11 @@ var onslaught = { name: 'Onslaught',
                             _a.label = 3;
                         case 3:
                             if (!true) return [3 /*break*/, 5];
-                            return [5 /*yield**/, _loop_2()];
+                            return [5 /*yield**/, _loop_1()];
                         case 4:
-                            state_2 = _a.sent();
-                            if (typeof state_2 === "object")
-                                return [2 /*return*/, state_2.value];
+                            state_1 = _a.sent();
+                            if (typeof state_1 === "object")
+                                return [2 /*return*/, state_1.value];
                             return [3 /*break*/, 3];
                         case 5: return [2 /*return*/];
                     }
