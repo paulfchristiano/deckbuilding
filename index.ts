@@ -67,6 +67,8 @@ async function dailySeed(): Promise<string> {
     }
 }
 
+type RecentEntry = {version:string, age:string, score:number, username:string, seed:string}
+
 express()
     .use(express.static('./public'))
     .set('view engine', 'ejs')
@@ -83,7 +85,6 @@ express()
               res.send('version mismatch')
               return
           }
-          //TODO: include only scores for the current version
           const results = await sql`
               SELECT username, score, submitted FROM scoreboard
               WHERE seed=${seed} AND version=${version}
@@ -93,6 +94,34 @@ express()
               res.send('none')
           else
               res.send(results[0].score.toString())
+      } catch(err) {
+          console.error(err);
+          res.send('Error: ' + err);
+      }
+    })
+    .get('/recent', async (req:any, res:any) => {
+      try {
+          if (sql == null) {
+              res.send('Not connected to a database')
+              return
+          }
+          const results = await sql`
+              SELECT username, score, submitted, seed, version FROM scoreboard
+              ORDER BY submitted DESC
+          `
+          const recents:Map<string, RecentEntry> = new Map()
+          for (const result of results) {
+              if (!recents.has(result.seed)) {
+                  recents.set(result.seed, {
+                      seed:result.seed,
+                      version:result.version,
+                      age:renderTimeSince(result.submitted),
+                      score:result.score,
+                      username:result.username
+                  })
+              }
+          }
+          res.render('pages/recent', {recents:Array.from(recents.values())})
       } catch(err) {
           console.error(err);
           res.send('Error: ' + err);
