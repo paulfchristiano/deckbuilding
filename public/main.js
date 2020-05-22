@@ -679,7 +679,7 @@ function bindHelp(state, renderer) {
             'After playing a card, discard it.',
             "You can activate the abilities of cards in play, marked with (ability).",
             "Effects marked with (static) apply whenever the card is in play or in the supply.",
-            "You can play today's <a href='daily'>daily kingdom</a>, which refreshes midnight EDT.",
+            "You can play today's <a href='daily'>daily kingdom</a>, which refreshes 8pm PDT.",
             "Or you can visit <a href=\"" + replayURL(state.spec) + "\">this link</a> to replay this kingdom anytime.",
         ];
         if (submittable(state.spec))
@@ -819,11 +819,16 @@ function heartbeat(spec, interval) {
             var n = parseInt(x, 10);
             if (!isNaN(n))
                 renderBest(n, spec);
+            else
+                renderScoreboardLink(spec);
         });
     }
 }
 function renderBest(best, spec) {
     $('#best').html("Fastest win on this seed: " + best + " (<a href='" + scoreboardURL(spec) + "'>scoreboard</a>)");
+}
+function renderScoreboardLink(spec) {
+    $('#best').html("No wins yet for this version (<a href='" + scoreboardURL(spec) + "'>scoreboard</a>)");
 }
 // Creating the game spec and starting the game ------------------------------
 function makeGameSpec() {
