@@ -2662,9 +2662,9 @@ buyable(imitation, 4);
 var feast = { name: 'Feast',
     fixedCost: energy(0),
     effect: function (card) { return ({
-        text: '+$5. +1 buy. Trash this.',
+        text: '+$=. +1 buy. Trash this.',
         toZone: null,
-        effect: doAll([gainCoin(5), gainBuy]),
+        effect: doAll([gainCoin(6), gainBuy]),
     }); }
 };
 buyable(feast, 4);
