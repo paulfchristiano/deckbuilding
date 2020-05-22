@@ -20,17 +20,17 @@ import { VERSION } from './logic.js'
 type Key = string
 
 const keyListeners: Map<Key, () => void> = new Map();
-const handHotkeys = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0', 
-    '!','#', '$', '%', '^', '&', '*', '(', ')', '-', '+', '=', '{', '}', '[', ']'] // '@' is confusing
+const symbolHotkeys = ['!','%', '^', '&', '*', '(', ')', '-', '+', '=', '{', '}', '[', ']'] // '@', '#', '$' are confusing
 const lowerHotkeys = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm',
     'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', // 'z' reserved for undo
 ]
 const upperHotkeys = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M',
     'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z']
-const numHotkeys:Key[] = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'].concat(lowerHotkeys)
-const supplyAndPlayHotkeys:Key[] = lowerHotkeys.concat(upperHotkeys)
+const numHotkeys:Key[] = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9']
+const supplyAndPlayHotkeys:Key[] = numHotkeys.concat(symbolHotkeys).concat(upperHotkeys)
+const handHotkeys = lowerHotkeys.concat(upperHotkeys)
 // want to put zones that are least likely to change earlier, to not distrupt assignment
-const hotkeys:Key[] = supplyAndPlayHotkeys.concat(handHotkeys).concat([' '])
+const hotkeys:Key[] = supplyAndPlayHotkeys.concat(handHotkeys).concat(symbolHotkeys).concat([' '])
 const choiceHotkeys:Key[] = handHotkeys.concat(supplyAndPlayHotkeys)
 
 $(document).keydown((e: any) => {
@@ -95,6 +95,7 @@ class HotkeyMapper {
             }
         }
         //want to put zones that are most important not to change earlier
+        setFrom(state.events, supplyAndPlayHotkeys)
         setFrom(state.supply, supplyAndPlayHotkeys)
         setFrom(state.hand, handHotkeys)
         setFrom(state.play, supplyAndPlayHotkeys)
@@ -186,7 +187,6 @@ function describeCost(cost:Cost): string {
     return `Cost: ${costStr}.`
 }
 
-
 function renderShadow(shadow:Shadow, state:State, tokenRenderer:TokenRenderer):string {
     const card:Card = shadow.spec.card
     const tokenhtml:string = tokenRenderer.render(card.tokens)
@@ -254,15 +254,20 @@ function renderCalculatedCost(c:CalculatedCost): string {
     return `<div>(cost) ${c.text}</div>`
 }
 
+function renderBuyable(b:{text:string}): string{
+    return `<div>(req) ${b.text}</div>`
+}
+
 function renderTooltip(card:Card, state:State, tokenRenderer:TokenRenderer): string {
     const effectHtml:string = `<div>${card.effect().text}</div>`
+    const buyableHtml:string = (card.spec.buyable != undefined) ? renderBuyable(card.spec.buyable) : ''
     const costHtml:string = (card.spec.calculatedCost != undefined) ? renderCalculatedCost(card.spec.calculatedCost) : ''
     const abilitiesHtml:string = card.abilities().map(x => renderAbility(x)).join('')
     const triggerHtml:string = card.triggers().map(x => renderStatic(x)).join('')
     const replacerHtml:string = card.replacers().map(x => renderStatic(x)).join('')
     const staticHtml:string = triggerHtml + replacerHtml
     const tokensHtml:string = tokenRenderer.renderTooltip(card.tokens)
-    const baseFilling:string = [costHtml, effectHtml, abilitiesHtml, staticHtml, tokensHtml].join('')
+    const baseFilling:string = [costHtml, buyableHtml, effectHtml, abilitiesHtml, staticHtml, tokensHtml].join('')
     function renderRelated(spec:CardSpec) {
         const card:Card = new Card(spec, -1)
         const costStr = renderCost(card.cost(emptyState))
@@ -332,14 +337,16 @@ function renderState(state:State,
     }
     $('#resolvingHeader').html('Resolving:')
     $('#energy').html(state.energy.toString())
+    $('#draws').html(state.draws.toString())
+    $('#buys').html(state.buys.toString())
     $('#coin').html(state.coin.toString())
     $('#points').html(state.points.toString())
     $('#aside').html(state.aside.map(render).join(''))
     $('#resolving').html(state.resolving.map(render).join(''))
     $('#play').html(state.play.map(render).join(''))
     $('#supply').html(state.supply.map(render).join(''))
+    $('#events').html(state.events.map(render).join(''))
     $('#hand').html(state.hand.map(render).join(''))
-    $('#deck').html(state.deck.map(render).join(''))
     $('#discard').html(state.discard.map(render).join(''))
     $('#log').html(state.logs.slice().reverse().map(render_log).join(''))
 }
@@ -577,19 +584,17 @@ function bindHelp(state:State, renderer: () => void) {
     function pick() {
         attach(renderer)
         const helpLines:string[] = [
-            'The goal of the game is to get to 50 points (vp) using as little energy (@) as possible.',
-            "When you play or buy a card, follow its instructions. After playing a card, discard it.",
-            "You can pay a card's cost in order to buy it from the supply or play it from your hand.",
+            "The goal of the game is to get to 32 points (vp) using as little energy (@) as possible.",
+            "When you play or buy a card, pay its cost then follow its instructions.",
             "The symbols below a card's name indicate its cost.",
             "When a cost is measured in energy (@, @@, ...) then you use that much energy to play it.",
             "When a cost is measured in coin ($) then you can only buy it if you have enough coin.",
-            "'Recycling' cards means to put them on the bottom of your deck (preserving their order).",
+            'After playing a card, discard it.',
             "You can activate the abilities of cards in play, marked with (ability).",
             "Effects marked with (static) apply whenever the card is in play or in the supply.",
-            "The game is played with a kingdom of 7 core cards and 12 randomized cards.",
-            `You can play today's <a href='daily'>daily kingdom</a>, which refreshes midnight EDT.`,
+            `You can play today's <a href='daily'>daily kingdom</a>, which refreshes 8pm PDT.`,
             `Or you can visit <a href="${replayURL(state.spec)}">this link</a> to replay this kingdom anytime.`,
-            `Or visit the <a href="picker.html">kingdom picker<a> to pick a kingdom.`,
+            //`Or visit the <a href="picker.html">kingdom picker<a> to pick a kingdom.`,
         ]
         if (submittable(state.spec))
             helpLines.push(`Check out the scoreboard <a href=${scoreboardURL(state.spec)}>here</a>.`)
@@ -722,12 +727,16 @@ function heartbeat(spec:GameSpec, interval?:any): void {
             console.log(x)
             const n:number = parseInt(x, 10)
             if (!isNaN(n)) renderBest(n, spec)
+            else renderScoreboardLink(spec)
         })
     }
 }
 
 function renderBest(best:number, spec:GameSpec): void {
     $('#best').html(`Fastest win on this seed: ${best} (<a href='${scoreboardURL(spec)}'>scoreboard</a>)`)
+}
+function renderScoreboardLink(spec:GameSpec): void {
+    $('#best').html(`No wins yet for this version (<a href='${scoreboardURL(spec)}'>scoreboard</a>)`)
 }
 
 

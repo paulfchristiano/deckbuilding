@@ -212,9 +212,60 @@ express()
         }
     });
 }); })
-    .get('/scoreboard', function (req, res) { return __awaiter(void 0, void 0, void 0, function () {
-    var seed, results, entries, entriesByVersion, entries_1, entries_1_1, entry, lastVersion, err_2;
+    .get('/recent', function (req, res) { return __awaiter(void 0, void 0, void 0, function () {
+    var results, recents, results_1, results_1_1, result, oldBest, err_2;
     var e_2, _a;
+    return __generator(this, function (_b) {
+        switch (_b.label) {
+            case 0:
+                _b.trys.push([0, 2, , 3]);
+                if (sql == null) {
+                    res.send('Not connected to a database');
+                    return [2 /*return*/];
+                }
+                return [4 /*yield*/, sql(templateObject_4 || (templateObject_4 = __makeTemplateObject(["\n              SELECT username, score, submitted, seed, version FROM scoreboard\n              ORDER BY submitted DESC\n          "], ["\n              SELECT username, score, submitted, seed, version FROM scoreboard\n              ORDER BY submitted DESC\n          "])))];
+            case 1:
+                results = _b.sent();
+                recents = new Map();
+                try {
+                    for (results_1 = __values(results), results_1_1 = results_1.next(); !results_1_1.done; results_1_1 = results_1.next()) {
+                        result = results_1_1.value;
+                        oldBest = recents.get(result.seed);
+                        if (oldBest != undefined && oldBest.score > result.score && oldBest.version == result.version) {
+                            recents.delete(result.seed);
+                        }
+                        if (!recents.has(result.seed)) {
+                            recents.set(result.seed, {
+                                seed: result.seed,
+                                version: result.version,
+                                age: renderTimeSince(result.submitted),
+                                score: result.score,
+                                username: result.username
+                            });
+                        }
+                    }
+                }
+                catch (e_2_1) { e_2 = { error: e_2_1 }; }
+                finally {
+                    try {
+                        if (results_1_1 && !results_1_1.done && (_a = results_1.return)) _a.call(results_1);
+                    }
+                    finally { if (e_2) throw e_2.error; }
+                }
+                res.render('pages/recent', { recents: Array.from(recents.values()) });
+                return [3 /*break*/, 3];
+            case 2:
+                err_2 = _b.sent();
+                console.error(err_2);
+                res.send('Error: ' + err_2);
+                return [3 /*break*/, 3];
+            case 3: return [2 /*return*/];
+        }
+    });
+}); })
+    .get('/scoreboard', function (req, res) { return __awaiter(void 0, void 0, void 0, function () {
+    var seed, results, entries, entriesByVersion, entries_1, entries_1_1, entry, lastVersion, err_3;
+    var e_3, _a;
     return __generator(this, function (_b) {
         switch (_b.label) {
             case 0:
@@ -224,7 +275,7 @@ express()
                     res.send('Not connected to a database.');
                     return [2 /*return*/];
                 }
-                return [4 /*yield*/, sql(templateObject_4 || (templateObject_4 = __makeTemplateObject(["\n              SELECT username, score, submitted, version FROM scoreboard\n              WHERE seed=", "\n              ORDER BY version DESC, score ASC, submitted ASC\n          "], ["\n              SELECT username, score, submitted, version FROM scoreboard\n              WHERE seed=", "\n              ORDER BY version DESC, score ASC, submitted ASC\n          "])), seed)];
+                return [4 /*yield*/, sql(templateObject_5 || (templateObject_5 = __makeTemplateObject(["\n              SELECT username, score, submitted, version FROM scoreboard\n              WHERE seed=", "\n              ORDER BY version DESC, score ASC, submitted ASC\n          "], ["\n              SELECT username, score, submitted, version FROM scoreboard\n              WHERE seed=", "\n              ORDER BY version DESC, score ASC, submitted ASC\n          "])), seed)];
             case 1:
                 results = _b.sent();
                 entries = results.map(function (x) { return (__assign(__assign({}, x), { timesince: renderTimeSince(x.submitted) })); });
@@ -245,19 +296,19 @@ express()
                         }
                     }
                 }
-                catch (e_2_1) { e_2 = { error: e_2_1 }; }
+                catch (e_3_1) { e_3 = { error: e_3_1 }; }
                 finally {
                     try {
                         if (entries_1_1 && !entries_1_1.done && (_a = entries_1.return)) _a.call(entries_1);
                     }
-                    finally { if (e_2) throw e_2.error; }
+                    finally { if (e_3) throw e_3.error; }
                 }
                 res.render('pages/scoreboard', { entriesByVersion: entriesByVersion, seed: seed, currentVersion: VERSION });
                 return [3 /*break*/, 3];
             case 2:
-                err_2 = _b.sent();
-                console.error(err_2);
-                res.send('Error: ' + err_2);
+                err_3 = _b.sent();
+                console.error(err_3);
+                res.send('Error: ' + err_3);
                 return [3 /*break*/, 3];
             case 3: return [2 /*return*/];
         }
@@ -288,7 +339,7 @@ express()
     });
 }); })
     .get('/daily', function (req, res) { return __awaiter(void 0, void 0, void 0, function () {
-    var seed, err_3;
+    var seed, err_4;
     return __generator(this, function (_a) {
         switch (_a.label) {
             case 0:
@@ -299,16 +350,16 @@ express()
                 res.render('pages/main', { seed: seed });
                 return [3 /*break*/, 3];
             case 2:
-                err_3 = _a.sent();
-                console.error(err_3);
-                res.send('Error: ' + err_3);
+                err_4 = _a.sent();
+                console.error(err_4);
+                res.send('Error: ' + err_4);
                 return [3 /*break*/, 3];
             case 3: return [2 /*return*/];
         }
     });
 }); })
     .post('/submit', function (req, res) { return __awaiter(void 0, void 0, void 0, function () {
-    var seed, score, username, history_1, _a, valid, explanation, results, err_4;
+    var seed, score, username, history_1, _a, valid, explanation, results, err_5;
     return __generator(this, function (_b) {
         switch (_b.label) {
             case 0:
@@ -325,7 +376,7 @@ express()
             case 1:
                 _a = __read.apply(void 0, [_b.sent(), 2]), valid = _a[0], explanation = _a[1];
                 if (!valid) return [3 /*break*/, 3];
-                return [4 /*yield*/, sql(templateObject_5 || (templateObject_5 = __makeTemplateObject(["\n                  INSERT INTO scoreboard (username, score, seed, version)\n                  VALUES (", ", ", ", ", ", ", ")\n                "], ["\n                  INSERT INTO scoreboard (username, score, seed, version)\n                  VALUES (", ", ", ", ", ", ", ")\n                "])), username, score, seed, VERSION)];
+                return [4 /*yield*/, sql(templateObject_6 || (templateObject_6 = __makeTemplateObject(["\n                  INSERT INTO scoreboard (username, score, seed, version)\n                  VALUES (", ", ", ", ", ", ", ")\n                "], ["\n                  INSERT INTO scoreboard (username, score, seed, version)\n                  VALUES (", ", ", ", ", ", ", ")\n                "])), username, score, seed, VERSION)];
             case 2:
                 results = _b.sent();
                 res.send("OK");
@@ -335,14 +386,14 @@ express()
                 _b.label = 4;
             case 4: return [3 /*break*/, 6];
             case 5:
-                err_4 = _b.sent();
-                console.error(err_4);
-                res.send('Error: ' + err_4);
+                err_5 = _b.sent();
+                console.error(err_5);
+                res.send('Error: ' + err_5);
                 return [3 /*break*/, 6];
             case 6: return [2 /*return*/];
         }
     });
 }); })
     .listen(PORT, function () { return console.log("Listening on " + PORT); });
-var templateObject_1, templateObject_2, templateObject_3, templateObject_4, templateObject_5;
+var templateObject_1, templateObject_2, templateObject_3, templateObject_4, templateObject_5, templateObject_6;
 //# sourceMappingURL=index.js.map

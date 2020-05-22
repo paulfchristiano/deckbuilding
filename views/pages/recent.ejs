@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+.recents {
+    border-collapse: collapse;
+}
+.recents td {
+    border: 1px black solid;
+    text-align: center;
+}
+.recents thead td {
+    border-bottom: 3px black solid;
+    text-align: center;
+}
+.userhead {
+    width: 15em;
+}
+.seedhead {
+    width: 15em;
+}
+.scorehead {
+    width: 5em;
+}
+.versionhead {
+    width: 5em;
+}
+.timehead {
+    width: 10em;
+}
+</style>
+</head>
+
+<body>
+
+<table class='recents'>
+    <thead>
+        <tr>
+            <td class='versionhead'> Version</td>
+            <td class='seedhead'> Seed </td>
+            <td class='userhead'> Username </td>
+            <td class='scorehead'> Score </td>
+            <td class='timehead'> Time </td>
+        </tr>
+    </thead>
+    <tbody>
+        <% recents.forEach(function(r) { %>
+        <tr> 
+            <td><%= r.version %></td>
+            <td><a href='play?seed=<%= r.seed %>'><%= r.seed %></a></td>
+            <td><%= r.username %></td>
+            <td><%= r.score %></td>
+            <td><%= r.age %></td>
+        </tr>
+        <% }); %>
+    </tbody>
+</table>
+
+</body>
+</html>
