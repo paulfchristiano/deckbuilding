@@ -1087,7 +1087,7 @@ export type OptionRender = ID | string
 type Key = string
 
 export type HotkeyHint = {kind:'number', val:number} | {kind:'none'} |
-    {kind:'boolean', val:boolean} | {kind:'key', val:Key} 
+    {kind:'boolean', val:boolean} | {kind:'key', val:Key}
 
 export interface Option<T> {
     render: OptionRender;
@@ -1732,18 +1732,10 @@ const populate:CardSpec = {name: 'Populate',
         text: 'Buy any number of cards in the supply other than this.',
         effect: async function(state) {
             let options:Card[] = state.supply.filter(c => c.id != card.id)
-            while (true) {
-                let picked:Card|null; [state, picked] = await choice(state,
-                    'Pick a card to buy next.',
-                    allowNull(options.map(asChoice)))
-                if (picked == null) {
-                    return state
-                } else {
-                    const id = picked.id
-                    options = options.filter(c => c.id != id)
-                    state = await picked.buy(card)(state)
-                }
+            for (let bought of options) {
+              state = await bought.buy(card)(state)
             }
+            return state;
         }
     })
 }
@@ -1817,7 +1809,7 @@ const makeHallOfMirrors:CardSpec = {name: 'Hall of Mirrors',
     effect: card => gainCard(hallOfMirrors),
     relatedCards: [hallOfMirrors],
     triggers: card => [{
-        text: `Whenever you finish playing a card with a mirror token other than with this,` + 
+        text: `Whenever you finish playing a card with a mirror token other than with this,` +
         ` if it's in your discard pile remove a mirror token from it and play it again.`,
         kind: 'afterPlay',
         handles: e => (e.after != null && e.after.count('mirror') > 0 && e.source.id != card.id),
@@ -2298,7 +2290,7 @@ const makeSynergy:CardSpec = {name: 'Synergy',
         text: 'Remove all synergy tokens from cards in the supply,'+
         ` then put synergy tokens on two cards in the supply.`,
         effect: async function(state) {
-            for (const card of state.supply) 
+            for (const card of state.supply)
                 if (card.count('synergy') > 0)
                     state = await removeTokens(card, 'synergy')(state)
             let cards:Card[]; [state, cards] = await multichoiceIfNeeded(state,
