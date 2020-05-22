@@ -41,7 +41,7 @@ export interface CardSpec {
     name: string;
     fixedCost?: Cost;
     buyable?: {
-        text:string, 
+        text:string,
         test: (card:Card, state:State) => boolean;
     }
     calculatedCost?: CalculatedCost;
@@ -945,8 +945,8 @@ function gainResource(resource:ResourceName, amount:number, source:Source=unk) {
         }
         newResources[resource] = newResources[resource] + amount
         state = state.setResources(newResources)
-        state = state.log(amount > 0 ? 
-            `Gained ${renderResource(resource, amount)}` : 
+        state = state.log(amount > 0 ?
+            `Gained ${renderResource(resource, amount)}` :
             `Lost ${renderResource(resource, -amount)}`)
         return trigger({kind:'resource', resource:resource, amount:amount, source:source})(state)
     }
@@ -1143,7 +1143,7 @@ export type OptionRender = ID | string
 type Key = string
 
 export type HotkeyHint = {kind:'number', val:number} | {kind:'none'} |
-    {kind:'boolean', val:boolean} | {kind:'key', val:Key} 
+    {kind:'boolean', val:boolean} | {kind:'key', val:Key}
 
 export interface Option<T> {
     render: OptionRender;
@@ -2080,18 +2080,10 @@ const populate:CardSpec = {name: 'Populate',
         text: 'Buy any number of cards in the supply.',
         effect: async function(state) {
             let options:Card[] = state.supply.filter(c => c.id != card.id)
-            while (true) {
-                let picked:Card|null; [state, picked] = await choice(state,
-                    'Pick a card to buy next.',
-                    allowNull(options.map(asChoice)))
-                if (picked == null) {
-                    return state
-                } else {
-                    const id = picked.id
-                    options = options.filter(c => c.id != id)
-                    state = await picked.buy(card)(state)
-                }
+            for (let supply_card of options) {
+              state = await supply_card.buy(card)(state)
             }
+            return state;
         }
     })
 }
@@ -2227,7 +2219,7 @@ const refresh:CardSpec = {name: 'Refresh',
     fixedCost: energy(2),
     effect: card => ({
         text: 'Put your discard pile into your hand.',
-        effect: async function(state) { 
+        effect: async function(state) {
             state = await moveMany(state.discard, 'hand')(state)
             state = state.sortZone('hand')
             return state
@@ -2318,7 +2310,7 @@ const makeSynergy:CardSpec = {name: 'Synergy',
         text: 'Remove all synergy tokens from cards in the supply or events,'+
         ` then put synergy tokens on two cards in the supply or events.`,
         effect: async function(state) {
-            for (const card of state.supply.concat(state.events)) 
+            for (const card of state.supply.concat(state.events))
                 if (card.count('synergy') > 0)
                     state = await removeTokens(card, 'synergy')(state)
             let cards:Card[]; [state, cards] = await multichoiceIfNeeded(state,
