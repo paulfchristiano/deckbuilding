@@ -213,7 +213,7 @@ express()
     });
 }); })
     .get('/recent', function (req, res) { return __awaiter(void 0, void 0, void 0, function () {
-    var results, recents, results_1, results_1_1, result, err_2;
+    var results, recents, results_1, results_1_1, result, oldBest, err_2;
     var e_2, _a;
     return __generator(this, function (_b) {
         switch (_b.label) {
@@ -230,6 +230,10 @@ express()
                 try {
                     for (results_1 = __values(results), results_1_1 = results_1.next(); !results_1_1.done; results_1_1 = results_1.next()) {
                         result = results_1_1.value;
+                        oldBest = recents.get(result.seed);
+                        if (oldBest != undefined && oldBest.score > result.score && oldBest.version == result.version) {
+                            recents.delete(result.seed);
+                        }
                         if (!recents.has(result.seed)) {
                             recents.set(result.seed, {
                                 seed: result.seed,

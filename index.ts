@@ -111,6 +111,10 @@ express()
           `
           const recents:Map<string, RecentEntry> = new Map()
           for (const result of results) {
+              const oldBest:RecentEntry|undefined = recents.get(result.seed)
+              if (oldBest != undefined && oldBest.score > result.score && oldBest.version == result.version) {
+                  recents.delete(result.seed)
+              }
               if (!recents.has(result.seed)) {
                   recents.set(result.seed, {
                       seed:result.seed,
