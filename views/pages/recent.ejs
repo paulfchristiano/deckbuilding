@@ -47,7 +47,7 @@
         <% recents.forEach(function(r) { %>
         <tr> 
             <td><%= r.version %></td>
-            <td><a href='daily'><%= r.seed %></a></td>
+            <td><a href='play?seed=<%= r.seed %>'><%= r.seed %></a></td>
             <td><%= r.username %></td>
             <td><%= r.score %></td>
             <td><%= r.age %></td>
