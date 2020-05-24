@@ -11,14 +11,26 @@ export function renderCost(cost:Partial<Cost>): string {
     return parts.join(' ')
 }
 
+function num(n:number, s:string) {
+    return `${n} ${s}${n == 1 ? '' : 's'}`
+}
+
+//renders either "a" or "an" as appropriate
+function a(s:string): string {
+    const c = s[0].toLowerCase()
+    if (c == 'a' || c == 'e' || c == 'i' || c == 'o' || c == 'u')
+        return 'an ' + s
+    return 'a ' + s
+}
+
 function renderResource(resource:ResourceName, amount:number): string {
     if (amount < 0) return '-' + renderResource(resource, -amount)
     switch(resource) {
         case 'coin': return `$${amount}`
         case 'energy': return repeatSymbol('@', amount)
         case 'points': return `${amount} vp`
-        case 'draws': return `${amount} card${amount == 1 ? '' : 's'}`
-        case 'buys': return `${amount} buy${amount == 1 ? '' : 's'}`
+        case 'draws': return num(amount, 'draw')
+        case 'buys': return num(amount, 'buy')
         default: assertNever(resource)
     }
 }
@@ -43,10 +55,10 @@ export interface CardSpec {
     restriction?: Restriction;
     calculatedCost?: CalculatedCost;
     relatedCards?: CardSpec[];
-    effect?: (card:Card) => Effect;
-    triggers?: (card:Card) => TypedTrigger[];
-    abilities?: (card:Card) => Ability[];
-    replacers?: (card:Card) => TypedReplacer[];
+    effects?: Effect[];
+    triggers?: TypedTrigger[];
+    abilities?: Ability[];
+    replacers?: TypedReplacer[];
 }
 
 export interface Cost {
@@ -63,78 +75,34 @@ interface Restriction {
     test: (card:Card, state:State) => boolean;
 }
 
-
-function addCosts(a:Cost, b:Partial<Cost>): Cost {
-    return {
-        coin:a.coin + (b.coin || 0),
-        energy:a.energy+(b.energy || 0),
-        draws:a.draws+(b.draws || 0),
-        buys:a.buys + (b.buys || 0),
-        effects:a.effects.concat(b.effects || []),
-    }
-}
-
-function multiplyCosts(c:Partial<Cost>, n:number): Partial<Cost> {
-    const result:Partial<Cost> = {}
-    for (const resource of allCostResources) {
-        const r:number|undefined = c[resource]
-        if (r != undefined) result[resource] = n * r
-    }
-    if (c.effects != undefined) {
-        result.effects = []
-        for (let i = 0; i < n; i++) {
-            result.effects = result.effects.concat(c.effects)
-        }
-    }
-    return result
-}
-
-type Partial<T> = { [P in keyof T]?: T[P] }
-
-function subtractCost(c:Cost, reduction:Partial<Cost>): Cost {
-    return {
-        coin:Math.max(0, c.coin - (reduction.coin || 0)),
-        energy:Math.max(0, c.energy - (reduction.energy || 0)),
-        draws:Math.max(0, c.draws - (reduction.draws || 0)),
-        buys:Math.max(0, c.buys - (reduction.buys || 0)),
-        effects:c.effects,
-    }
-}
-
-function eq(a:Cost, b:Cost): boolean {
-    return a.coin == b.coin && a.energy == b.energy && a.draws == b.draws
-}
-
 export interface CalculatedCost {
     calculate: (card:Card, state:State) => Cost;
     text: string;
 }
 
 interface Effect {
-    text: string;
-    toZone?: ZoneName | null;
-    toLoc?: InsertLocation;
-    effect: Transform;
+    text: string[];
+    effect: (c:Card, s:State) => Transform;
 }
 
 export interface Trigger <T extends GameEvent = any> {
     text: string;
     kind: T['kind'];
-    handles: (e:T, s:State) => boolean;
-    effect: (e:T) => Transform;
+    handles: (e:T, s:State, c:Card) => boolean;
+    effect: (e:T, s:State, c:Card) => Transform;
 }
 
 export interface Replacer <T extends Params = any> {
     text: string;
     kind: T['kind'];
-    handles: (p:T, s:State) => boolean;
-    replace: (p:T, s:State) => T;
+    handles: (p:T, s:State, c:Card) => boolean;
+    replace: (p:T, s:State, c:Card) => T;
 }
 
 export interface Ability {
     text: string;
-    cost: Transform;
-    effect: Transform;
+    cost: (s:State, c:Card) => Transform;
+    effect: (s:State, c:Card) => Transform;
 }
 
 interface Source {
@@ -230,26 +198,27 @@ export class Card {
             return withTracking(payCost(cost, card), {kind:'effect', card:card})(state)
         }
     }
-    effect(): Effect {
-        if (this.spec.effect == undefined) return {text: '', effect: noop}
-        return this.spec.effect(this)
-    }
     buy(source:Source=unk): Transform {
         let card:Card = this
         return async function(state:State): Promise<State> {
             card = state.find(card)
             if (card.place == null) return state
             state = state.log(`Buying ${card.name}`)
-            state = await withTracking(doAll([
-                trigger({kind:'buy', card:card, source:source}),
-                card.effect().effect,
-             ]), {kind:'effect', card:card})(state)
-             state = await trigger({kind:'afterBuy', card:card, source:source})(state)
+            state = await withTracking(async function(state) {
+                state = await trigger({kind:'buy', card:card, source:source})(state)
+                for (const effect of card.effects()) {
+                    card = state.find(card)
+                    state = await effect.effect(card, state)(state)
+
+                }
+                return state
+            }, {kind:'effect', card:card})(state)
+            card = state.find(card)
+            state = await trigger({kind:'afterBuy', card:card, source:source})(state)
             return state
         }
     }
     play(source:Source=unk): Transform {
-        const effect:Effect = this.effect()
         let card:Card = this
         return async function(state:State):Promise<State> {
             card = state.find(card)
@@ -258,34 +227,36 @@ export class Card {
             state = state.log(`Playing ${card.name}`)
             state = await withTracking(async function(state) {
                 state = await trigger({kind:'play', card:card, source:source})(state)
-                state = await effect.effect(state)
+                for (const effect of card.effects()) {
+                    card = state.find(card)
+                    state = await effect.effect(card, state)(state)
+                }
                 return state
             }, {kind:'none', card:card})(state)
-            const toZone:ZoneName|null = (effect['toZone'] === undefined) ? 'discard' : effect['toZone']
-            const toLoc:InsertLocation = effect['toLoc'] || 'end'
-            state = await move(card, toZone, toLoc, toZone == 'discard')(state)
+            card = state.find(card)
+            if (card.place == 'resolving') state = await move(card, 'discard')(state)
             state = await trigger({kind:'afterPlay', card:card, source:source})(state)
             return state
         }
     }
+    effects(): Effect[] {
+        return this.spec.effects || []
+    }
     triggers(): TypedTrigger[] {
-        if (this.spec.triggers == undefined) return []
-        return this.spec.triggers(this)
+        return this.spec.triggers || []
+    }
+    abilities(): Ability[] {
+        return this.spec.abilities || []
+    }
+    replacers(): TypedReplacer[] {
+        return this.spec.replacers || []
+    }
+    relatedCards(): CardSpec[] {
+        return this.spec.relatedCards || []
     }
     buyable(state:State): boolean {
         if (this.spec.restriction == undefined) return true
         return this.spec.restriction.test(this, state)
-    }
-    abilities(): Ability[] {
-        if (this.spec.abilities == undefined) return []
-        return this.spec.abilities(this)
-    }
-    replacers(): TypedReplacer[] {
-        if (this.spec.replacers == undefined) return []
-        return this.spec.replacers(this)
-    }
-    relatedCards(): CardSpec[] {
-        return this.spec.relatedCards || []
     }
 }
 
@@ -699,10 +670,11 @@ function trigger<T extends GameEvent>(e:T): Transform {
             for (const rawtrigger of card.triggers()) {
                 if (rawtrigger.kind == e.kind) {
                     const trigger:Trigger<T> = ((rawtrigger as unknown) as Trigger<T>)
-                    if (trigger.handles(e, initialState) && trigger.handles(e, state)) {
+                    if (trigger.handles(e, initialState, card)
+                        && trigger.handles(e, state, card)) {
                         state = state.log(`Triggering ${card}`)
                         state = await withTracking(
-                            trigger.effect(e),
+                            trigger.effect(e, state, card),
                             {kind:'trigger', trigger:trigger, card:card}
                         )(state)
                     }
@@ -730,11 +702,13 @@ type TypedReplacer = Replacer<ResourceParams> | Replacer<CostParams> | Replacer<
 //each card in play or supply can change properties of x
 function replace<T extends Params>(x: T, state: State): T {
     var replacers:TypedReplacer[] = state.events.concat(state.supply).concat(state.play).map(x => x.replacers()).flat()
-    for (const rawreplacer of replacers) {
-        if (rawreplacer.kind == x.kind) {
-            const replacer = ((rawreplacer as unknown) as Replacer<T>)
-            if (replacer.handles(x, state)) {
-                x = replacer.replace(x, state)
+    for (const card of state.events.concat(state.supply).concat(state.play)) {
+        for (const rawreplacer of card.replacers()) {
+            if (rawreplacer.kind == x.kind) {
+                const replacer = ((rawreplacer as unknown) as Replacer<T>)
+                if (replacer.handles(x, state, card)) {
+                    x = replacer.replace(x, state, card)
+                }
             }
         }
     }
@@ -1055,6 +1029,53 @@ function noop(state:State): State {
     return state
 }
 
+// -------------------- Utilities for manipulating costs
+
+function addCosts(a:Cost, b:Partial<Cost>): Cost {
+    return {
+        coin:a.coin + (b.coin || 0),
+        energy:a.energy+(b.energy || 0),
+        draws:a.draws+(b.draws || 0),
+        buys:a.buys + (b.buys || 0),
+        effects:a.effects.concat(b.effects || []),
+    }
+}
+
+function multiplyCosts(c:Partial<Cost>, n:number): Partial<Cost> {
+    const result:Partial<Cost> = {}
+    for (const resource of allCostResources) {
+        const r:number|undefined = c[resource]
+        if (r != undefined) result[resource] = n * r
+    }
+    if (c.effects != undefined) {
+        result.effects = []
+        for (let i = 0; i < n; i++) {
+            result.effects = result.effects.concat(c.effects)
+        }
+    }
+    return result
+}
+
+type Partial<T> = { [P in keyof T]?: T[P] }
+
+function subtractCost(c:Cost, reduction:Partial<Cost>): Cost {
+    return {
+        coin:Math.max(0, c.coin - (reduction.coin || 0)),
+        energy:Math.max(0, c.energy - (reduction.energy || 0)),
+        draws:Math.max(0, c.draws - (reduction.draws || 0)),
+        buys:Math.max(0, c.buys - (reduction.buys || 0)),
+        effects:c.effects,
+    }
+}
+
+function eq(a:Cost, b:Cost): boolean {
+    return a.coin == b.coin && a.energy == b.energy && a.draws == b.draws
+}
+
+
+function leq(cost1:Cost, cost2:Cost) {
+    return cost1.coin <= cost2.coin && cost1.energy <= cost2.energy
+}
 
 // ----------------- Transforms for charge and tokens
 
@@ -1410,8 +1431,9 @@ function useCard(card: Card): Transform {
         state = stopTracking(state, {kind:'abilities', card:card})
         if (ability != null) {
             state = state.log(`Activating ${card.name}`)
+            card = state.find(card)
             state = await withTracking(
-                payToDo(ability.cost, ability.effect),
+                payToDo(ability.cost(state, card), ability.effect(state, card)),
                 {card:card, kind:'ability', ability:ability}
             )(state)
         }
@@ -1504,8 +1526,6 @@ export async function playGame(state:State): Promise<void> {
 }
 
 
-
-
 //
 // ----------------- CARDS -----------------
 //
@@ -1522,24 +1542,29 @@ const cheats:CardSpec[] = []
 // ----------- UTILS -------------------
 //
 
-interface Extras {
-    triggers?:(c:Card) => TypedTrigger[];
-    replacers?:(c:Card) => TypedReplacer[];
-    restriction?: Restriction;
-    onBuy?:Effect;
+function createEffect(spec:CardSpec, zone:'discard'='discard'): Effect {
+    return {
+        text: [`Create ${a(spec.name)} in your discard pile.`],
+        effect: () => create(spec, zone),
+    }
 }
-function supplyForCard(card:CardSpec, cost:Cost, extra:Extras={}): CardSpec {
-    return {name: card.name,
+
+interface Extras {
+    triggers?:TypedTrigger[];
+    replacers?:TypedReplacer[];
+    restriction?: Restriction;
+    onBuy?:Effect[];
+}
+function supplyForCard(
+    card:CardSpec,
+    cost:Cost,
+    extra:Extras={}
+): CardSpec {
+    return {
+        name: card.name,
         fixedCost: cost,
         restriction: extra.restriction,
-        effect: (supply:Card) => ({
-            text: ((extra.onBuy === undefined) ? '' : extra.onBuy.text + ' ') + 
-                `Create ${a(card.name)} in your discard pile.`,
-            effect: doAll([
-                create(card),
-                (extra.onBuy === undefined) ? noop : extra.onBuy.effect
-            ])
-        }),
+        effects: (extra.onBuy || []).concat([createEffect(card)]),
         relatedCards: [card],
         triggers: extra.triggers,
         replacers: extra.replacers,
@@ -1551,23 +1576,22 @@ function energy(n:number):Cost {
 function coin(n:number):Cost {
     return {...free, coin:n}
 }
-
-//renders either "a" or "an" as appropriate
-function a(s:string): string {
-    const c = s[0].toLowerCase()
-    if (c == 'a' || c == 'e' || c == 'i' || c == 'o' || c == 'u')
-        return 'an ' + s
-    return 'a ' + s
+function trashThis():Effect {
+    return {
+        text: ['Trash this.'],
+        effect: (c:Card) => trash(c)
+    }
 }
 
-
 function makeCard(card:CardSpec, cost:Cost, selfdestruct:boolean=false):CardSpec  {
+    const effects:Effect[] = [{
+        text: [`Create ${a(card.name)} in play.`],
+        effect: () => create(card, 'play')
+    }]
+    if (selfdestruct) effects.push(trashThis())
     return {name:card.name,
         fixedCost: cost,
-        effect: supply => ({
-            text:`Create ${a(card.name)} in play.` + (selfdestruct ? ' Trash this.': ''),
-            effect: doAll([create(card, 'play'), selfdestruct ? trash(supply) : noop])
-        }),
+        effects: effects,
         relatedCards: [card],
     }
 }
@@ -1590,82 +1614,99 @@ async function recycle(state:State): Promise<State> {
     return state
 }
 
-function regroupText(n:number): string {
-    return `Lose all $, draws, and buy. Put your discard pile and play into your hand. +${n} draws, +1 buy.`
+function recycleEffect(): Effect {
+    return {
+        text: ['Put your discard pile and play into your hand'],
+        effect: card => recycle
+    }
 }
 
-function regroupEffect(n:number, source?:Source): Transform {
-    return async function(state) {
-        state = await setResource('coin', 0)(state)
-        state = await setResource('draws', 0)(state)
-        state = await setResource('buys', 0)(state)
-        state = await recycle(state)
-        state = await draw(n, source)(state)
-        state = await gainBuy(state)
-        return state
+function regroupEffect(n:number, source?:Source): Effect {
+    return {
+        text: [`Lose all $, draws, and buy.`,
+        `Put your discard pile and play into your hand`,
+        `+${n} draws, +1 buy.`],
+        effect: () => async function(state) {
+            state = await setResource('coin', 0)(state)
+            state = await setResource('draws', 0)(state)
+            state = await setResource('buys', 0)(state)
+            state = await recycle(state)
+            state = await draw(n, source)(state)
+            state = await gainBuy(state)
+            return state
+        }
+    }
+}
+
+function gainCoinEffect(n:number): Effect {
+    return {
+        text: [`+$${n}`],
+        effect: (c:Card) => gainCoin(n, c),
+    }
+}
+function gainPointsEffect(n:number): Effect {
+    return {
+        text: [`+${n} vp`],
+        effect: (c:Card) => gainPoints(n, c),
+    }
+}
+function drawEffect(n:number): Effect {
+    return {
+        text: [`+` + num(n, 'draw')],
+        effect: (c:Card) => gainPoints(n, c),
+    }
+}
+function buyEffect() {
+    return {
+        text: [`+1 buy`],
+        effect: () => gainBuy,
+    }
+}
+
+function chargeEffect(): Effect {
+    return {
+        text: ['Put a charge token on this.'],
+        effect: card => charge(card, 1)
     }
 }
 
 const regroup:CardSpec = {name: 'Regroup',
     fixedCost: energy(4),
-    effect: card => ({
-        text: regroupText(5),
-        effect: regroupEffect(5, card)
-    })
+    effects: [regroupEffect(5)],
 }
 coreEvents.push(regroup)
 
+
 const copper:CardSpec = {name: 'Copper',
-    fixedCost: energy(0),
-    effect: card => ({
-        text: '+$1',
-        effect: gainCoin(1),
-    })
+    effects: [gainCoinEffect(1)]
 }
 coreSupplies.push(supplyForCard(copper, coin(0)))
 
 const silver:CardSpec = {name: 'Silver',
-    fixedCost: energy(0),
-    effect: card => ({
-        text: '+$2',
-        effect: gainCoin(2)
-    })
+    effects: [gainCoinEffect(2)]
 }
 coreSupplies.push(supplyForCard(silver, coin(3)))
 
 const gold:CardSpec = {name: 'Gold',
-    fixedCost: energy(0),
-    effect: card => ({
-        text: '+$3',
-        effect: gainCoin(3)
-    })
+    effects: [gainCoinEffect(3)]
 }
 coreSupplies.push(supplyForCard(gold, coin(6)))
 
 const estate:CardSpec = {name: 'Estate',
     fixedCost: energy(1),
-    effect: card => ({
-        text: '+1vp',
-        effect: gainPoints(1),
-    })
+    effects: [gainPointsEffect(1)]
 }
 coreSupplies.push(supplyForCard(estate, coin(2)))
 
 const duchy:CardSpec = {name: 'Duchy',
     fixedCost: energy(1),
-    effect: card => ({
-        text: '+2vp',
-        effect: gainPoints(2),
-    })
+    effects: [gainPointsEffect(2)]
 }
 coreSupplies.push(supplyForCard(duchy, coin(4)))
 
 const province:CardSpec = {name: 'Province',
     fixedCost: energy(1),
-    effect: card => ({
-        text: '+3vp',
-        effect: gainPoints(3),
-    })
+    effects: [gainPointsEffect(3)]
 }
 coreSupplies.push(supplyForCard(province, coin(8)))
 
@@ -1679,11 +1720,15 @@ function register(card:CardSpec, test:'test'|null=null):void {
     if (test=='test') testSupplies.push(card)
 }
 function buyable(card:CardSpec, n: number, test:'test'|null=null):void {
-    register(supplyForCard(card, coin(n)), test)
+    return buyableAnd(card, n, {}, test)
 }
 function buyableAnd(card:CardSpec, n:number, extra:Extras, test:'test'|null=null) {
     register(supplyForCard(card, coin(n), extra), test)
 }
+function buyableFree(card:CardSpec, coins:number, test:'test'|null=null): void {
+    buyableAnd(card, coins, {onBuy: [buyEffect()]}, test)
+}
+
 
 function playAgain(target:Card, source:Source=unk): Transform {
     return async function(state:State) {
@@ -1693,16 +1738,17 @@ function playAgain(target:Card, source:Source=unk): Transform {
     }
 }
 
-function playTwice(card:Card): Transform {
-    return async function(state:State): Promise<State> {
-        let target; [state, target] = await choice(state,
-            'Choose a card to play twice.',
-            state.hand.map(asChoice))
-        if (target == null) return state
-        state = await target.play(card)(state)
-        state = tick(card)(state)
-        return playAgain(target, card)(state)
-    }
+function playTwice(card:Card): Effect {
+    return targetedEffect(
+        (target:Card) => async function(state) {
+            state = await target.play(card)(state)
+            state = tick(card)(state)
+            state = await playAgain(target, card)(state)
+            return state
+        },
+        'Play a card from your hand twice.',
+        (s:State) => s.hand
+    )
 }
 
 function descriptorForZone(zone:'hand'|'supply'|'events'):string {
@@ -1714,7 +1760,7 @@ function descriptorForZone(zone:'hand'|'supply'|'events'):string {
     }
 }
 
-function costReduce(card:Card, zone:'hand'|'supply'|'events', reduction:Partial<Cost>): Replacer<CostParams> {
+function costReduce(zone:'hand'|'supply'|'events', reduction:Partial<Cost>): Replacer<CostParams> {
     const descriptor = descriptorForZone(zone)
     return {
         text: `${descriptor} cost ${renderCost(reduction)} less.`,
@@ -1728,7 +1774,6 @@ function costReduce(card:Card, zone:'hand'|'supply'|'events', reduction:Partial<
 }
 
 function costReduceNext(
-    card:Card,
     zone:'hand'|'supply'|'events',
     reduction:Partial<Cost>,
     nonzero:boolean=false
@@ -1738,21 +1783,19 @@ function costReduceNext(
         text: `${descriptor} cost ${renderCost(reduction)} less${nonzero ? ', but not zero.' : '.'}
         Whenever this reduces a cost, discard this.`,
         kind: 'cost',
-        handles: () => true,
-        replace: function(x:CostParams, state:State) {
-            if (x.card.place == zone) {
-                let newCost:Cost = subtractCost(x.cost, reduction)
-                if (nonzero && leq(newCost, free) && !leq(x.cost, free)) {
-                    if (reduction.coin || 0 > 0) {
-                        newCost = addCosts(newCost, {coin:1})
-                    } else if (reduction.energy || 0 > 0) {
-                        newCost = addCosts(newCost, {energy:1})
-                    }
+        handles: x => x.card.place == zone,
+        replace: function(x:CostParams, state:State, card:Card) {
+            let newCost:Cost = subtractCost(x.cost, reduction)
+            if (nonzero && leq(newCost, free) && !leq(x.cost, free)) {
+                if (reduction.coin || 0 > 0) {
+                    newCost = addCosts(newCost, {coin:1})
+                } else if (reduction.energy || 0 > 0) {
+                    newCost = addCosts(newCost, {energy:1})
                 }
-                if (!eq(newCost, x.cost)) {
-                    newCost.effects = newCost.effects.concat([move(card, 'discard')])
-                    return {...x, cost:newCost}
-                }
+            }
+            if (!eq(newCost, x.cost)) {
+                newCost.effects = newCost.effects.concat([move(card, 'discard')])
+                return {...x, cost:newCost}
             }
             return x
         }
@@ -1760,65 +1803,56 @@ function costReduceNext(
 }
 
 
-function buyableFree(card:CardSpec, coins:number, test:'test'|null=null): void {
-    return buyableAnd(card, coins, {onBuy: {text: '+1 buy.', effect:gainBuy}}, test)
+function toPlay(): Effect {
+    return {
+        text: ['Put this in play.'],
+        effect: card => move(card, 'play')
+    }
+}
+function villageReplacer(): Replacer<CostParams> {
+    return costReduceNext('hand', {energy:1})
 }
 
-
 const necropolis:CardSpec = {name: 'Necropolis',
-    effect: card => ({
-        text: 'Put this in play.',
-        effect: noop,
-        toZone: 'play',
-    }),
-    replacers: card => [costReduceNext(card, 'hand', {energy:1})],
+    effects: [toPlay()],
+    replacers: [villageReplacer()],
 }
 buyableFree(necropolis, 2)
 
 const hound:CardSpec = {name: 'Hound',
     fixedCost: energy(1),
-    effect: card => ({
-        text: '+2 draws.',
-        effect: gainCards(2),
-    })
+    effects: [drawEffect(2)],
 }
 buyableFree(hound, 2)
 
 const smithy:CardSpec = {name: 'Smithy',
     fixedCost: energy(1),
-    effect: card => ({
-        text: '+3 draws.',
-        effect: gainCards(3),
-    })
+    effects: [drawEffect(3)],
 }
 buyable(smithy, 4)
 
 const village:CardSpec = {name: 'Village',
-    effect: cantripPlay,
-    replacers: card => [costReduceNext(card, 'hand', {energy:1})],
+    effects:  [drawEffect(1), toPlay()],
+    replacers: [villageReplacer()],
 }
 buyable(village, 4)
 
 const bridge:CardSpec = {name: 'Bridge',
     fixedCost: energy(1),
-    effect: card => ({
-        text: '+1 buy. Put this in play',
-        effect: gainResource('buys', 1),
-        toZone: 'play'
-    }),
-    replacers: card => [costReduce(card, 'supply', {coin:1})]
+    effects: [buyEffect(), toPlay()],
+    replacers: [costReduce('supply', {coin:1})]
 }
 buyable(bridge, 6)
 
 const coven:CardSpec = {name: 'Coven',
-    effect: justPlay,
-    replacers: card => [{
+    effects: [toPlay()],
+    replacers: [{
         text: 'Cards in your hand cost @ less if you have no card with the same name'
          + ' in your discard pile or play.'
          + ' Whenever this reduces a cost, discard this and +$2.',
         kind: 'cost',
         handles: (e, state) => (state.discard.concat(state.play).every(c => c.name != e.card.name)),
-        replace: function(x:CostParams, state:State) {
+        replace: function(x:CostParams, state:State, card:Card) {
             if (x.card.place == 'hand') {
                 const newCost:Cost = subtractCost(x.cost, {energy:1})
                 if (!eq(newCost, x.cost)) {
@@ -1832,53 +1866,32 @@ const coven:CardSpec = {name: 'Coven',
 }
 buyable(coven, 4)
 
-
 const lab:CardSpec = {name: 'Lab',
-    effect: card => ({
-        text: '+2 draws.',
-        effect: gainResource('draws', 2),
-    }),
+    effects: [drawEffect(2)]
 }
 buyable(lab, 5)
-
-function justPlay(card:Card): Effect {
-    return {
-        text: 'Put this in play.',
-        toZone: 'play',
-        effect: noop
-    }
-}
-function cantripPlay(card:Card): Effect {
-    return {
-        text: '+1 draw. Put this in play.',
-        toZone: 'play',
-        effect: gainCards(1),
-    }
-}
 
 const payDraw= payCost({...free, draws:1})
 
 const throneRoom:CardSpec = {name: 'Throne Room',
     fixedCost: energy(1),
-    effect: card => ({
-        text: `Pay 1 draw to play a card in your hand. Then if it's in your discard pile play it again.`,
-        effect: payToDo(payDraw, async function(state) {
-            let target; [state, target] = await choice(state,
-                'Choose a card to play twice.',
-                state.hand.map(asChoice))
-            if (target == null) return state
-            state = await target.play(card)(state)
-            state = tick(card)(state)
-            return playAgain(target, card)(state)
-        })
-    })
+    effects: [{
+        text: [`Pay 1 draw to play a card in your hand.`,
+        `If it's in your discard pile play it again.`],
+        effect: (card, state) => payToDo(payDraw, applyToTarget(
+            target => doAll([
+                target.play(card),
+                tick(card),
+                playAgain(target, card)
+            ]), 'Choose a card to play twice.', state.hand))
+    }]
 }
 buyable(throneRoom, 5)
 
 const coppersmith:CardSpec = {name: 'Coppersmith',
     fixedCost: energy(1),
-    effect: justPlay,
-    triggers: card => [{
+    effects: [toPlay()],
+    triggers: [{
         kind: 'play',
         text: `When you play a copper, +$1.`,
         handles: e => e.card.name == copper.name,
@@ -1889,36 +1902,35 @@ buyable(coppersmith, 4)
 
 const scavenger:CardSpec = {name: 'Scavenger',
     fixedCost: energy(1),
-    effect: card => ({
-        text: '+$2. Put a card from your discard pile into yor hand.',
-        effect: doAll([
-            gainCoin(2),
-            applyToTarget(c => move(c, 'hand'), 'Choose a card to put into your hand.', 'discard')
-        ])
-    })
+    effects: [gainCoinEffect(2), targetedEffect(
+            target => move(target, 'hand'),
+            'Put a card from your discard pile into your hand.',
+            state => state.discard
+        )
+    ]
 }
 buyable(scavenger, 4)
 
 const celebration:CardSpec = {name: 'Celebration',
     fixedCost: energy(2),
-    effect: justPlay,
-    replacers: card => [costReduce(card, 'hand', {energy:1})]
+    effects: [toPlay()],
+    replacers: [costReduce('hand', {energy:1})]
 }
 buyable(celebration, 10)
 
 const plough:CardSpec = {name: 'Plough',
     fixedCost: energy(2),
-    effect: card => ({
-        text: 'Put your discard pile and play into your hand.',
-        effect: recycle
-    })
+    effects: [{
+        text: ['Put your discard pile and play into your hand.'],
+        effect: () => recycle
+    }]
 }
 buyable(plough, 4)
 
 const construction:CardSpec = {name: 'Construction',
     fixedCost: energy(1),
-    effect: justPlay,
-    triggers: card => [{
+    effects: [toPlay()],
+    triggers: [{
         text: 'Whenever you pay @, gain twice that many draws.',
         kind: 'cost',
         handles: () => true,
@@ -1930,18 +1942,25 @@ buyable(construction, 3)
 //TODO: I would prefer 'other than with this'
 const hallOfMirrors:CardSpec = {name: 'Hall of Mirrors',
     fixedCost: {...free, energy:2, coin:5},
-    effect: card => ({
-        text: 'Put a mirror token on each card in your hand.',
-        effect: async function(state) {
-            return doAll(state.hand.map((c:Card) => addToken(c, 'mirror')))(state)
-        }
-    }),
-    triggers: card => [{
-        text: 'Whenever you finish playing a card with a mirror token on it other than with this,' +
-           ` if it's in your discard pile remove a mirror token and play it again.`,
+    effects: [{
+        text: ['Put a mirror token on each card in your hand.'],
+        effect: (card:Card, state:State) => 
+            doAll(state.hand.map(c => addToken(c, 'mirror')))
+    }],
+    triggers: [{
+        text: `Whenever you finish playing a card with a mirror token on it 
+        other than with this, if it's in your discard pile
+        remove a mirror token and play it again.`,
         kind:'afterPlay',
-        handles: (e, state) => state.find(e.card).count('mirror') > 0 && e.source.name != card.name,
-        effect: e => doAll([playAgain(e.card, card), removeToken(e.card, 'mirror')]),
+        handles: (e, state, card) => {
+            const played:Card = state.find(card)
+            return played.count('mirror') > 0 && played.place == 'discard'
+                && e.source.name != card.name
+        },
+        effect: (e, s, card) => doAll([
+            playAgain(e.card, card),
+            removeToken(e.card, 'mirror')
+        ]),
     }]
 }
 registerEvent(hallOfMirrors)
@@ -1955,21 +1974,22 @@ function costPlus(initial:Cost, increment:Cost): CalculatedCost {
     }
 }
 
+function incrementCost(): Effect {
+    return {
+        text: ['Put a cost token on this.'],
+        effect: (c:Card) => addToken(c, 'cost')
+    }
+}
+
 const retrench:CardSpec = {name: 'Retrench',
     calculatedCost: costPlus(energy(2), coin(1)),
-    effect: card => ({
-        text: 'Put a cost token on this. ' + regroupText(5),
-        effect: doAll([addToken(card, 'cost'), regroupEffect(5, card)])
-    })
+    effects: [incrementCost(), regroupEffect(5)],
 }
 registerEvent(retrench)
 
 const respite:CardSpec = {name:'Respite',
     fixedCost: energy(2),
-    effect: card => ({
-        text: regroupText(2),
-        effect: regroupEffect(2, card)
-    })
+    effects: [regroupEffect(2)],
 }
 registerEvent(respite)
 
@@ -1979,121 +1999,104 @@ const perpetualMotion:CardSpec = {name:'Perpetual Motion',
         text: 'You have no cards in hand.',
         test: (card, state) => state.hand.length == 0
     },
-    effect: card => ({
-        text: regroupText(5),
-        effect: regroupEffect(5, card)
-    })
+    effects: [regroupEffect(5)],
 }
 registerEvent(perpetualMotion)
 
 const desperation:CardSpec = {name:'Desperation',
     fixedCost: energy(1),
-    effect: card => ({
-        text: '+$1.',
-        effect: gainCoin(1),
-    })
+    effects: [gainCoinEffect(1)]
 }
 registerEvent(desperation)
 
 const travelingFair:CardSpec = {name:'Traveling Fair',
     fixedCost: coin(2),
-    effect: card => ({
-        text: `+1 buy. Put a charge token on this.`,
-        effect: doAll([gainBuy, charge(card, 1)]),
-    }),
-    triggers: card => [{
+    effects: [buyEffect(), chargeEffect()],
+    triggers: [{
         text: `Whenever you create a card, if it's in your discard pile and this has a charge token on it,
                remove a charge token from this and put the card in your hand`,
         kind:'create',
-        handles: (e, state) => (card.charge > 0 && state.find(e.card).place == 'discard'),
-        effect: e => doAll([charge(card, -1), move(e.card, 'hand')])
+        handles: (e, state, card) => (card.charge > 0 &&
+            state.find(e.card).place == 'discard'),
+        effect: (e, s, card) => doAll([
+            charge(card, -1),
+            move(e.card, 'hand')
+        ])
     }]
 }
 registerEvent(travelingFair)
 
 const philanthropy:CardSpec = {name: 'Philanthropy',
     fixedCost: {...free, coin:10, energy:2},
-    effect: card => ({
-        text: 'Lose all $, then +1 vp per coin lost.',
-        effect: async function(state) {
+    effects: [{
+        text: ['Lose all $.', '+1 vp per $ lost.'],
+        effect: () => async function(state) {
             const n = state.coin
             state = await gainCoin(-n)(state)
             state = await gainPoints(n)(state)
             return state
         }
-    })
+    }]
 }
 registerEvent(philanthropy)
 
 const storytelling:CardSpec = {name: 'Storytelling',
     fixedCost: coin(1),
-    effect: card => ({
-        text: 'Lose all $. +1 draw per $ you lost.',
-        effect: async function(state) {
+    effects: [{
+        text: ['Lose all $.', '+1 draw per $ lost.'],
+        effect: () => async function(state) {
             const n = state.coin
             state = await setResource('coin', 0)(state)
             state = await draw(n)(state)
             return state
         }
-    })
+    }]
 }
 registerEvent(storytelling)
 
 const monument:CardSpec = {name: 'Monument',
     fixedCost: energy(1),
-    effect: card => ({
-        text: '+$2, +1 vp.',
-        effect: doAll([gainCoin(2), gainPoints(1)])
-    })
+    effects: [gainCoinEffect(2), gainPointsEffect(1)],
 }
 buyable(monument, 2)
 
 const repurpose:CardSpec = {name: 'Repurpose',
     fixedCost: energy(2),
-    effect: card => ({
-        text: 'Lose all $ and buys. Put your discard pile and play into your deck. +1 buy.',
-        effect: async function(state) {
-            return regroupEffect(state.draws, card)(state)
-        }
-    })
+    effects: [{
+        text: ['Lose all $ and buys.'],
+        effect: card => doAll([setResource('coin', 0, card),
+                               setResource('buys', 0, card)])
+    }, recycleEffect(), buyEffect()]
 }
 registerEvent(repurpose)
 
 const vibrantCity:CardSpec = {name: 'Vibrant City',
-    effect: card => ({
-        text: '+1 vp, +1 draw.',
-        effect: doAll([gainPoints(1), draw(1)])
-    })
+    effects: [gainPointsEffect(1), drawEffect(1)],
 }
 buyable(vibrantCity, 6)
 
+function chargeUpTo(max:number): Effect {
+    return {
+        text: [`Put a charge token on this if it has less than ${max}`],
+        effect: card => (card.charge >= max) ? noop : charge(card, 1)
+    }
+}
+
 const frontier:CardSpec = {name: 'Frontier',
     fixedCost: energy(1),
-    effect: card => ({
-        text: 'Add a charge token to this if it has less than 6, then +1 vp per charge token on this.',
-        effect: async function(state) {
-            card = state.find(card)
-            if (card.charge < 6) state = await charge(card, 1)(state);
-            card = state.find(card)
-            if (card.place != null) state = await gainPoints(card.charge)(state);
-            return state
-        },
-    })
+    effects: [chargeUpTo(6), {
+        text: ['+1 vp per charge token on this.'],
+        effect: card => gainPoints(card.charge, card)
+    }]
 }
 buyable(frontier, 7)
 
 const investment:CardSpec = {name: 'Investment',
     fixedCost: energy(0),
-    effect: card => ({
-        text: 'Add a charge token to this if it has less than 5, then +$1 per charge token on this.',
-        effect: async function(state) {
-            card = state.find(card)
-            if (card.charge < 5) state = await charge(card, 1)(state);
-            card = state.find(card)
-            if (card.place != null) state = await gainCoin(card.charge)(state);
-            return state
-        },
-    })
+    effects: [chargeUpTo(5), {
+        text: ['+$1 per charge token on this.'],
+        effect: card => gainCoin(card.charge, card),
+    }
 }
 buyable(investment, 4)
 
@@ -2345,9 +2348,6 @@ const expedite:CardSpec = {name: 'Expedite',
 }
 registerEvent(expedite)
 
-function leq(cost1:Cost, cost2:Cost) {
-    return cost1.coin <= cost2.coin && cost1.energy <= cost2.energy
-}
 const makeSynergy:CardSpec = {name: 'Synergy',
     fixedCost: {...free, coin:5, energy:1},
     effect: card => ({
@@ -2754,39 +2754,51 @@ const doubleTime:CardSpec = {name: 'Double Time',
 buyable(doubleTime, 2)
 
 function applyToTarget(
-    f:(c:Card) => Transform,
+    f:(x:Card) => Transform,
     text:string,
-    zone:ZoneName,
-    filter:(c:Card, s:State) => boolean = () => true,
+    options:Card[]
 ): Transform {
     return async function(state) {
-        let target; [state, target] = await choice(state,
-            text,
-            state.getZone(zone).filter(c => filter(c, state)).map(asChoice))
+        let target:Card|null; [state, target] = await choice(state,
+            text, options.map(asChoice))
         if (target != null) state = await f(target)(state)
         return state
     }
 }
+function targetedEffect(
+    f:(x:Card) => Transform,
+    text:string,
+    options:(s:State) => Card[]
+): Effect {
+    return {
+        text: [text],
+        effect: (c:Card, s:State) => applyToTarget(f, text, options(s))
+    }
+}
 
 const dragon:CardSpec = {name: 'Dragon',
-    effect: card => ({
-        text: 'Trash a card in your hand. +4 draw. +$4. +1 buy.',
-        effect: doAll([applyToTarget(trash, 'Choose a card to trash', 'hand'), gainCards(4), gainCoin(4), gainBuy])
-    })
+    effects: [targetedEffect(
+                trash,
+                'Trash a card in your hand.',
+                s => s.hand
+              ), drawEffect(4), gainCoinEffect(4), buyEffect()]
 }
 //TODO: adaptively moving cards is tough, need to rework toZone
 const egg:CardSpec = {name: 'Egg',
     fixedCost: energy(2),
     relatedCards: [dragon],
-    effect: card => ({
-        text:`If this has two or more charge tokens on it, trash it and create a ${dragon.name} in your hand.
-        Otherwise, put a charge token on this.`,
-        toZone: (card.charge >= 2) ? null : 'discard',
-        effect: async function(state) {
-            if (card.charge >= 2) return create(dragon, 'hand')(state)
+    effects: [{
+        text:[`If this has two or more charge tokens on it, trash it and create ${a(dragon.name)} in your hand.`,
+              `Otherwise, put a charge token on this.`],
+        effect: (card:Card) => async function(state) {
+            if (card.charge >= 2) {
+                state = await create(dragon, 'hand')(state)
+                state = await trash(card)(state)
+                return state
+            }
             else return charge(card, 1)(state)
         }
-    })
+    }]
 }
 buyable(egg, 4)
 
