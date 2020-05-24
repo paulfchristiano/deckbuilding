@@ -250,7 +250,7 @@ var Card = /** @class */ (function () {
                                                     if (!!_b.done) return [3 /*break*/, 6];
                                                     effect = _b.value;
                                                     card = state.find(card);
-                                                    return [4 /*yield*/, effect.effect(card, state)(state)];
+                                                    return [4 /*yield*/, effect.effect(state, card)(state)];
                                                 case 4:
                                                     state = _d.sent();
                                                     _d.label = 5;
@@ -318,7 +318,7 @@ var Card = /** @class */ (function () {
                                                     if (!!_b.done) return [3 /*break*/, 6];
                                                     effect = _b.value;
                                                     card = state.find(card);
-                                                    return [4 /*yield*/, effect.effect(card, state)(state)];
+                                                    return [4 /*yield*/, effect.effect(state, card)(state)];
                                                 case 4:
                                                     state = _d.sent();
                                                     _d.label = 5;
@@ -470,11 +470,12 @@ var State = /** @class */ (function () {
     };
     State.prototype.addToZone = function (card, zone, loc) {
         if (loc === void 0) { loc = 'end'; }
+        card = card.update({ place: zone });
         if (zone == 'resolving')
             return this.addResolving(card);
         var newZones = new Map(this.zones);
         var currentZone = this[zone];
-        card = card.update({ zoneIndex: firstFreeIndex(currentZone), place: zone });
+        card = card.update({ zoneIndex: firstFreeIndex(currentZone) });
         newZones.set(zone, insertAt(currentZone, card, loc));
         return this.update({ zones: newZones });
     };
@@ -897,16 +898,47 @@ function create(spec, zone, loc, postprocess) {
     if (postprocess === void 0) { postprocess = function () { return noop; }; }
     return function (state) {
         return __awaiter(this, void 0, void 0, function () {
-            var card;
-            var _a;
-            return __generator(this, function (_b) {
-                switch (_b.label) {
+            var params, _a, _b, effect, e_12_1, card;
+            var e_12, _c, _d;
+            return __generator(this, function (_e) {
+                switch (_e.label) {
                     case 0:
-                        _a = __read(createRaw(state, spec, zone, loc), 2), state = _a[0], card = _a[1];
+                        params = { kind: 'create', spec: spec, zone: zone, effects: [] };
+                        params = replace(params, state);
+                        spec = params.spec;
+                        zone = params.zone;
+                        _e.label = 1;
+                    case 1:
+                        _e.trys.push([1, 6, 7, 8]);
+                        _a = __values(params.effects), _b = _a.next();
+                        _e.label = 2;
+                    case 2:
+                        if (!!_b.done) return [3 /*break*/, 5];
+                        effect = _b.value;
+                        return [4 /*yield*/, effect(state)];
+                    case 3:
+                        state = _e.sent();
+                        _e.label = 4;
+                    case 4:
+                        _b = _a.next();
+                        return [3 /*break*/, 2];
+                    case 5: return [3 /*break*/, 8];
+                    case 6:
+                        e_12_1 = _e.sent();
+                        e_12 = { error: e_12_1 };
+                        return [3 /*break*/, 8];
+                    case 7:
+                        try {
+                            if (_b && !_b.done && (_c = _a.return)) _c.call(_a);
+                        }
+                        finally { if (e_12) throw e_12.error; }
+                        return [7 /*endfinally*/];
+                    case 8:
+                        _d = __read(createRaw(state, spec, zone, loc), 2), state = _d[0], card = _d[1];
                         state = state.log("Created " + a(card.name) + " in " + zone);
                         return [4 /*yield*/, trigger({ kind: 'create', card: card, zone: zone })(state)];
-                    case 1:
-                        state = _b.sent();
+                    case 9:
+                        state = _e.sent();
                         return [2 /*return*/, postprocess(card)(state)];
                 }
             });
@@ -918,8 +950,8 @@ function move(card, toZone, loc, logged) {
     if (logged === void 0) { logged = false; }
     return function (state) {
         return __awaiter(this, void 0, void 0, function () {
-            var params, _a, _b, effect, e_12_1;
-            var e_12, _c;
+            var params, _a, _b, effect, e_13_1;
+            var e_13, _c;
             return __generator(this, function (_d) {
                 switch (_d.label) {
                     case 0:
@@ -961,14 +993,14 @@ function move(card, toZone, loc, logged) {
                         return [3 /*break*/, 3];
                     case 6: return [3 /*break*/, 9];
                     case 7:
-                        e_12_1 = _d.sent();
-                        e_12 = { error: e_12_1 };
+                        e_13_1 = _d.sent();
+                        e_13 = { error: e_13_1 };
                         return [3 /*break*/, 9];
                     case 8:
                         try {
                             if (_b && !_b.done && (_c = _a.return)) _c.call(_a);
                         }
-                        finally { if (e_12) throw e_12.error; }
+                        finally { if (e_13) throw e_13.error; }
                         return [7 /*endfinally*/];
                     case 9: return [2 /*return*/, state];
                 }
@@ -1060,8 +1092,8 @@ function payCost(c, source) {
     if (source === void 0) { source = unk; }
     return function (state) {
         return __awaiter(this, void 0, void 0, function () {
-            var _a, _b, effect, e_13_1;
-            var e_13, _c;
+            var _a, _b, effect, e_14_1;
+            var e_14, _c;
             return __generator(this, function (_d) {
                 switch (_d.label) {
                     case 0:
@@ -1097,14 +1129,14 @@ function payCost(c, source) {
                         return [3 /*break*/, 2];
                     case 5: return [3 /*break*/, 8];
                     case 6:
-                        e_13_1 = _d.sent();
-                        e_13 = { error: e_13_1 };
+                        e_14_1 = _d.sent();
+                        e_14 = { error: e_14_1 };
                         return [3 /*break*/, 8];
                     case 7:
                         try {
                             if (_b && !_b.done && (_c = _a.return)) _c.call(_a);
                         }
-                        finally { if (e_13) throw e_13.error; }
+                        finally { if (e_14) throw e_14.error; }
                         return [7 /*endfinally*/];
                     case 8: return [2 /*return*/, trigger({ kind: 'cost', cost: c, source: source })(state)];
                 }
@@ -1184,6 +1216,7 @@ function gainEnergy(n, source) {
     if (source === void 0) { source = unk; }
     return gainResource('energy', n, source);
 }
+export var VP_GOAL = 40;
 function gainPoints(n, source) {
     if (source === void 0) { source = unk; }
     return function (state) {
@@ -1193,7 +1226,7 @@ function gainPoints(n, source) {
                     case 0: return [4 /*yield*/, gainResource('points', n, source)(state)];
                     case 1:
                         state = _a.sent();
-                        if (state.points >= 40)
+                        if (state.points >= VP_GOAL)
                             throw new Victory(state);
                         return [2 /*return*/, state];
                 }
@@ -1297,7 +1330,7 @@ function addCosts(a, b) {
     };
 }
 function multiplyCosts(c, n) {
-    var e_14, _a;
+    var e_15, _a;
     var result = {};
     try {
         for (var allCostResources_2 = __values(allCostResources), allCostResources_2_1 = allCostResources_2.next(); !allCostResources_2_1.done; allCostResources_2_1 = allCostResources_2.next()) {
@@ -1307,12 +1340,12 @@ function multiplyCosts(c, n) {
                 result[resource] = n * r;
         }
     }
-    catch (e_14_1) { e_14 = { error: e_14_1 }; }
+    catch (e_15_1) { e_15 = { error: e_15_1 }; }
     finally {
         try {
             if (allCostResources_2_1 && !allCostResources_2_1.done && (_a = allCostResources_2.return)) _a.call(allCostResources_2);
         }
-        finally { if (e_14) throw e_14.error; }
+        finally { if (e_15) throw e_15.error; }
     }
     if (c.effects != undefined) {
         result.effects = [];
@@ -1674,7 +1707,7 @@ function mainLoop(state) {
 }
 export function verifyScore(seed, history, score) {
     return __awaiter(this, void 0, void 0, function () {
-        var e_15;
+        var e_16;
         return __generator(this, function (_a) {
             switch (_a.label) {
                 case 0:
@@ -1684,24 +1717,24 @@ export function verifyScore(seed, history, score) {
                     _a.sent();
                     return [2 /*return*/, [true, ""]]; //unreachable
                 case 2:
-                    e_15 = _a.sent();
-                    if (e_15 instanceof Victory) {
-                        if (e_15.state.energy == score)
+                    e_16 = _a.sent();
+                    if (e_16 instanceof Victory) {
+                        if (e_16.state.energy == score)
                             return [2 /*return*/, [true, ""]];
                         else
-                            return [2 /*return*/, [false, "Computed score was " + e_15.state.energy]];
+                            return [2 /*return*/, [false, "Computed score was " + e_16.state.energy]];
                     }
-                    else if (e_15 instanceof HistoryMismatch) {
-                        return [2 /*return*/, [false, "" + e_15]];
+                    else if (e_16 instanceof HistoryMismatch) {
+                        return [2 /*return*/, [false, "" + e_16]];
                     }
-                    else if (e_15 instanceof VersionMismatch) {
-                        return [2 /*return*/, [false, "" + e_15]];
+                    else if (e_16 instanceof VersionMismatch) {
+                        return [2 /*return*/, [false, "" + e_16]];
                     }
-                    else if (e_15 instanceof ReplayEnded) {
-                        return [2 /*return*/, [false, "" + e_15]];
+                    else if (e_16 instanceof ReplayEnded) {
+                        return [2 /*return*/, [false, "" + e_16]];
                     }
                     else {
-                        throw e_15;
+                        throw e_16;
                     }
                     return [3 /*break*/, 3];
                 case 3: return [2 /*return*/];
@@ -1824,7 +1857,7 @@ function hash(s) {
     return hash;
 }
 function getFixedKingdom(kingdomString) {
-    var e_16, _a, e_17, _b;
+    var e_17, _a, e_18, _b;
     if (kingdomString == null)
         return null;
     var cardStrings = kingdomString.split(',');
@@ -1835,12 +1868,12 @@ function getFixedKingdom(kingdomString) {
             mixinsByName.set(spec.name, spec);
         }
     }
-    catch (e_16_1) { e_16 = { error: e_16_1 }; }
+    catch (e_17_1) { e_17 = { error: e_17_1 }; }
     finally {
         try {
             if (mixins_1_1 && !mixins_1_1.done && (_a = mixins_1.return)) _a.call(mixins_1);
         }
-        finally { if (e_16) throw e_16.error; }
+        finally { if (e_17) throw e_17.error; }
     }
     var result = [];
     try {
@@ -1856,12 +1889,12 @@ function getFixedKingdom(kingdomString) {
             }
         }
     }
-    catch (e_17_1) { e_17 = { error: e_17_1 }; }
+    catch (e_18_1) { e_18 = { error: e_18_1 }; }
     finally {
         try {
             if (cardStrings_1_1 && !cardStrings_1_1.done && (_b = cardStrings_1.return)) _b.call(cardStrings_1);
         }
-        finally { if (e_17) throw e_17.error; }
+        finally { if (e_18) throw e_18.error; }
     }
     return result;
 }
@@ -1949,7 +1982,7 @@ function coin(n) {
 function trashThis() {
     return {
         text: ['Trash this.'],
-        effect: function (c) { return trash(c); }
+        effect: function (s, c) { return trash(c); }
     };
 }
 function makeCard(card, cost, selfdestruct) {
@@ -1976,26 +2009,24 @@ function registerEvent(card, test) {
 //
 // ------ CORE ------
 //
+function sortHand(state) {
+    return state.sortZone('hand');
+}
 function recycle(state) {
     return __awaiter(this, void 0, void 0, function () {
         return __generator(this, function (_a) {
-            switch (_a.label) {
-                case 0: return [4 /*yield*/, moveMany(state.discard, 'hand')(state)];
-                case 1:
-                    state = _a.sent();
-                    return [4 /*yield*/, moveMany(state.play, 'hand')(state)];
-                case 2:
-                    state = _a.sent();
-                    state = state.sortZone('hand');
-                    return [2 /*return*/, state];
-            }
+            return [2 /*return*/, doAll([
+                    moveMany(state.discard, 'hand'),
+                    moveMany(state.play, 'hand'),
+                    sortHand,
+                ])(state)];
         });
     });
 }
 function recycleEffect() {
     return {
         text: ['Put your discard pile and play into your hand'],
-        effect: function (card) { return recycle; }
+        effect: function () { return recycle; }
     };
 }
 function regroupEffect(n, source) {
@@ -2035,19 +2066,25 @@ function regroupEffect(n, source) {
 function gainCoinEffect(n) {
     return {
         text: ["+$" + n],
-        effect: function (c) { return gainCoin(n, c); },
+        effect: function (s, c) { return gainCoin(n, c); },
     };
 }
 function gainPointsEffect(n) {
     return {
         text: ["+" + n + " vp"],
-        effect: function (c) { return gainPoints(n, c); },
+        effect: function (s, c) { return gainPoints(n, c); },
     };
 }
 function drawEffect(n) {
     return {
         text: ["+" + num(n, 'draw')],
-        effect: function (c) { return gainPoints(n, c); },
+        effect: function (s, c) { return gainPoints(n, c); },
+    };
+}
+function gainBuyEffect(n) {
+    return {
+        text: ['+' + num(n, 'buy')],
+        effect: function (state, card) { return gainBuys(n, card); },
     };
 }
 function buyEffect() {
@@ -2059,7 +2096,7 @@ function buyEffect() {
 function chargeEffect() {
     return {
         text: ['Put a charge token on this.'],
-        effect: function (card) { return charge(card, 1); }
+        effect: function (s, card) { return charge(card, 1); }
     };
 }
 var regroup = { name: 'Regroup',
@@ -2134,24 +2171,6 @@ function playAgain(target, source) {
         });
     };
 }
-function playTwice(card) {
-    return targetedEffect(function (target) { return function (state) {
-        return __awaiter(this, void 0, void 0, function () {
-            return __generator(this, function (_a) {
-                switch (_a.label) {
-                    case 0: return [4 /*yield*/, target.play(card)(state)];
-                    case 1:
-                        state = _a.sent();
-                        state = tick(card)(state);
-                        return [4 /*yield*/, playAgain(target, card)(state)];
-                    case 2:
-                        state = _a.sent();
-                        return [2 /*return*/, state];
-                }
-            });
-        });
-    }; }, 'Play a card from your hand twice.', function (s) { return s.hand; });
-}
 function descriptorForZone(zone) {
     switch (zone) {
         case 'hand': return 'Cards in your hand';
@@ -2198,10 +2217,37 @@ function costReduceNext(zone, reduction, nonzero) {
         }
     };
 }
+function applyToTarget(f, text, options) {
+    return function (state) {
+        return __awaiter(this, void 0, void 0, function () {
+            var target;
+            var _a;
+            return __generator(this, function (_b) {
+                switch (_b.label) {
+                    case 0: return [4 /*yield*/, choice(state, text, options.map(asChoice))];
+                    case 1:
+                        _a = __read.apply(void 0, [_b.sent(), 2]), state = _a[0], target = _a[1];
+                        if (!(target != null)) return [3 /*break*/, 3];
+                        return [4 /*yield*/, f(target)(state)];
+                    case 2:
+                        state = _b.sent();
+                        _b.label = 3;
+                    case 3: return [2 /*return*/, state];
+                }
+            });
+        });
+    };
+}
+function targetedEffect(f, text, options) {
+    return {
+        text: [text],
+        effect: function (s, c) { return applyToTarget(function (target) { return f(target, c); }, text, options(s)); }
+    };
+}
 function toPlay() {
     return {
         text: ['Put this in play.'],
-        effect: function (card) { return move(card, 'play'); }
+        effect: function (state, card) { return move(card, 'play'); }
     };
 }
 function villageReplacer() {
@@ -2234,8 +2280,7 @@ var bridge = { name: 'Bridge',
 };
 buyable(bridge, 6);
 var coven = { name: 'Coven',
-    effects: [toPlay()],
-    replacers: [{
+    effects: [toPlay()], replacers: [{
             text: 'Cards in your hand cost @ less if you have no card with the same name'
                 + ' in your discard pile or play.'
                 + ' Whenever this reduces a cost, discard this and +$2.',
@@ -2259,23 +2304,25 @@ var lab = { name: 'Lab',
 };
 buyable(lab, 5);
 var payDraw = payCost(__assign(__assign({}, free), { draws: 1 }));
+function playTwice() {
+    return {
+        text: ["Pay 1 draw to play a card in your hand.",
+            "If it's in your discard pile play it again."],
+        effect: function (state, card) { return payToDo(payDraw, applyToTarget(function (target) { return doAll([
+            target.play(card),
+            tick(card),
+            playAgain(target, card)
+        ]); }, 'Choose a card to play twice.', state.hand)); }
+    };
+}
 var throneRoom = { name: 'Throne Room',
     fixedCost: energy(1),
-    effects: [{
-            text: ["Pay 1 draw to play a card in your hand.",
-                "If it's in your discard pile play it again."],
-            effect: function (card, state) { return payToDo(payDraw, applyToTarget(function (target) { return doAll([
-                target.play(card),
-                tick(card),
-                playAgain(target, card)
-            ]); }, 'Choose a card to play twice.', state.hand)); }
-        }]
+    effects: [playTwice()]
 };
 buyable(throneRoom, 5);
 var coppersmith = { name: 'Coppersmith',
     fixedCost: energy(1),
-    effects: [toPlay()],
-    triggers: [{
+    effects: [toPlay()], triggers: [{
             kind: 'play',
             text: "When you play a copper, +$1.",
             handles: function (e) { return e.card.name == copper.name; },
@@ -2284,8 +2331,7 @@ var coppersmith = { name: 'Coppersmith',
 };
 buyable(coppersmith, 4);
 var scavenger = { name: 'Scavenger',
-    fixedCost: energy(1),
-    effects: [gainCoinEffect(2), targetedEffect(function (target) { return move(target, 'hand'); }, 'Put a card from your discard pile into your hand.', function (state) { return state.discard; })
+    fixedCost: energy(1), effects: [gainCoinEffect(2), targetedEffect(function (target) { return move(target, 'hand'); }, 'Put a card from your discard pile into your hand.', function (state) { return state.discard; })
     ]
 };
 buyable(scavenger, 4);
@@ -2296,8 +2342,7 @@ var celebration = { name: 'Celebration',
 };
 buyable(celebration, 10);
 var plough = { name: 'Plough',
-    fixedCost: energy(2),
-    effects: [{
+    fixedCost: energy(2), effects: [{
             text: ['Put your discard pile and play into your hand.'],
             effect: function () { return recycle; }
         }]
@@ -2305,8 +2350,7 @@ var plough = { name: 'Plough',
 buyable(plough, 4);
 var construction = { name: 'Construction',
     fixedCost: energy(1),
-    effects: [toPlay()],
-    triggers: [{
+    effects: [toPlay()], triggers: [{
             text: 'Whenever you pay @, gain twice that many draws.',
             kind: 'cost',
             handles: function () { return true; },
@@ -2315,11 +2359,10 @@ var construction = { name: 'Construction',
 };
 buyable(construction, 3);
 //TODO: I would prefer 'other than with this'
-var hallOfMirrors = { name: 'Hall of Mirrors',
-    fixedCost: __assign(__assign({}, free), { energy: 2, coin: 5 }),
+var hallOfMirrors = { name: 'Hall of Mirrors', fixedCost: __assign(__assign({}, free), { energy: 2, coin: 5 }),
     effects: [{
             text: ['Put a mirror token on each card in your hand.'],
-            effect: function (card, state) {
+            effect: function (state, card) {
                 return doAll(state.hand.map(function (c) { return addToken(c, 'mirror'); }));
             }
         }],
@@ -2327,7 +2370,7 @@ var hallOfMirrors = { name: 'Hall of Mirrors',
             text: "Whenever you finish playing a card with a mirror token on it \n        other than with this, if it's in your discard pile\n        remove a mirror token and play it again.",
             kind: 'afterPlay',
             handles: function (e, state, card) {
-                var played = state.find(card);
+                var played = state.find(e.card);
                 return played.count('mirror') > 0 && played.place == 'discard'
                     && e.source.name != card.name;
             },
@@ -2337,7 +2380,7 @@ var hallOfMirrors = { name: 'Hall of Mirrors',
             ]); },
         }]
 };
-registerEvent(hallOfMirrors);
+registerEvent(hallOfMirrors, 'test');
 function costPlus(initial, increment) {
     return {
         calculate: function (card, state) {
@@ -2349,7 +2392,7 @@ function costPlus(initial, increment) {
 function incrementCost() {
     return {
         text: ['Put a cost token on this.'],
-        effect: function (c) { return addToken(c, 'cost'); }
+        effect: function (s, c) { return addToken(c, 'cost'); }
     };
 }
 var retrench = { name: 'Retrench',
@@ -2363,13 +2406,10 @@ var respite = { name: 'Respite',
 };
 registerEvent(respite);
 var perpetualMotion = { name: 'Perpetual Motion',
-    fixedCost: energy(2),
-    restriction: {
+    fixedCost: energy(2), restriction: {
         text: 'You have no cards in hand.',
         test: function (card, state) { return state.hand.length == 0; }
-    },
-    effects: [regroupEffect(5)],
-};
+    }, effects: [regroupEffect(5)], };
 registerEvent(perpetualMotion);
 var desperation = { name: 'Desperation',
     fixedCost: energy(1),
@@ -2378,8 +2418,7 @@ var desperation = { name: 'Desperation',
 registerEvent(desperation);
 var travelingFair = { name: 'Traveling Fair',
     fixedCost: coin(2),
-    effects: [buyEffect(), chargeEffect()],
-    triggers: [{
+    effects: [buyEffect(), chargeEffect()], triggers: [{
             text: "Whenever you create a card, if it's in your discard pile and this has a charge token on it,\n               remove a charge token from this and put the card in your hand",
             kind: 'create',
             handles: function (e, state, card) { return (card.charge > 0 &&
@@ -2391,8 +2430,7 @@ var travelingFair = { name: 'Traveling Fair',
         }]
 };
 registerEvent(travelingFair);
-var philanthropy = { name: 'Philanthropy',
-    fixedCost: __assign(__assign({}, free), { coin: 10, energy: 2 }),
+var philanthropy = { name: 'Philanthropy', fixedCost: __assign(__assign({}, free), { coin: 10, energy: 2 }),
     effects: [{
             text: ['Lose all $.', '+1 vp per $ lost.'],
             effect: function () { return function (state) {
@@ -2417,8 +2455,7 @@ var philanthropy = { name: 'Philanthropy',
 };
 registerEvent(philanthropy);
 var storytelling = { name: 'Storytelling',
-    fixedCost: coin(1),
-    effects: [{
+    fixedCost: coin(1), effects: [{
             text: ['Lose all $.', '+1 draw per $ lost.'],
             effect: function () { return function (state) {
                 return __awaiter(this, void 0, void 0, function () {
@@ -2447,10 +2484,9 @@ var monument = { name: 'Monument',
 };
 buyable(monument, 2);
 var repurpose = { name: 'Repurpose',
-    fixedCost: energy(2),
-    effects: [{
+    fixedCost: energy(2), effects: [{
             text: ['Lose all $ and buys.'],
-            effect: function (card) { return doAll([setResource('coin', 0, card),
+            effect: function (state, card) { return doAll([setResource('coin', 0, card),
                 setResource('buys', 0, card)]); }
         }, recycleEffect(), buyEffect()]
 };
@@ -2462,84 +2498,36 @@ buyable(vibrantCity, 6);
 function chargeUpTo(max) {
     return {
         text: ["Put a charge token on this if it has less than " + max],
-        effect: function (card) { return (card.charge >= max) ? noop : charge(card, 1); }
+        effect: function (state, card) { return (card.charge >= max) ? noop : charge(card, 1); }
     };
 }
 var frontier = { name: 'Frontier',
-    fixedCost: energy(1),
-    effects: [chargeUpTo(6), {
+    fixedCost: energy(1), effects: [chargeUpTo(6), {
             text: ['+1 vp per charge token on this.'],
-            effect: function (card) { return gainPoints(card.charge, card); }
+            effect: function (state, card) { return gainPoints(state.find(card).charge, card); }
         }]
 };
 buyable(frontier, 7);
 var investment = { name: 'Investment',
-    fixedCost: energy(0),
-    effects: [chargeUpTo(5), {
+    fixedCost: energy(0), effects: [chargeUpTo(5), {
             text: ['+$1 per charge token on this.'],
-            effect: function (card) { return gainCoin(card.charge, card); },
+            effect: function (state, card) { return gainCoin(state.find(card).charge, card); },
         }]
 };
 buyable(investment, 4);
-var populate = { name: 'Populate',
-    fixedCost: __assign(__assign({}, free), { coin: 12, energy: 3 }),
-    effect: function (card) { return ({
-        text: 'Buy any number of cards in the supply.',
-        effect: function (state) {
-            return __awaiter(this, void 0, void 0, function () {
-                var options, options_1, options_1_1, supply_card, e_18_1;
-                var e_18, _a;
-                return __generator(this, function (_b) {
-                    switch (_b.label) {
-                        case 0:
-                            options = state.supply.filter(function (c) { return c.id != card.id; });
-                            _b.label = 1;
-                        case 1:
-                            _b.trys.push([1, 6, 7, 8]);
-                            options_1 = __values(options), options_1_1 = options_1.next();
-                            _b.label = 2;
-                        case 2:
-                            if (!!options_1_1.done) return [3 /*break*/, 5];
-                            supply_card = options_1_1.value;
-                            return [4 /*yield*/, supply_card.buy(card)(state)];
-                        case 3:
-                            state = _b.sent();
-                            _b.label = 4;
-                        case 4:
-                            options_1_1 = options_1.next();
-                            return [3 /*break*/, 2];
-                        case 5: return [3 /*break*/, 8];
-                        case 6:
-                            e_18_1 = _b.sent();
-                            e_18 = { error: e_18_1 };
-                            return [3 /*break*/, 8];
-                        case 7:
-                            try {
-                                if (options_1_1 && !options_1_1.done && (_a = options_1.return)) _a.call(options_1);
-                            }
-                            finally { if (e_18) throw e_18.error; }
-                            return [7 /*endfinally*/];
-                        case 8: return [2 /*return*/, state];
-                    }
-                });
-            });
-        }
-    }); }
+var populate = { name: 'Populate', fixedCost: __assign(__assign({}, free), { coin: 12, energy: 3 }),
+    effects: [{
+            text: ['Buy any number of cards in the supply.'],
+            effect: function (state, card) { return doAll(state.supply.map(function (s) { return s.buy(card); })); }
+        }]
 };
 registerEvent(populate);
-var duplicate = { name: 'Duplicate',
-    fixedCost: __assign(__assign({}, free), { coin: 5, energy: 1 }),
-    effect: function (card) { return ({
-        text: "Put a duplicate token on each card in the supply.",
-        effect: function (state) {
-            return __awaiter(this, void 0, void 0, function () {
-                return __generator(this, function (_a) {
-                    return [2 /*return*/, doAll(state.supply.map(function (c) { return addToken(c, 'duplicate'); }))(state)];
-                });
-            });
-        }
-    }); },
-    triggers: function (card) { return [{
+var duplicate = { name: 'Duplicate', fixedCost: __assign(__assign({}, free), { coin: 5, energy: 1 }),
+    effects: [{
+            text: ["Put a duplicate token on each card in the supply."],
+            effect: function (state, card) { return doAll(state.supply.map(function (c) { return addToken(c, 'duplicate'); })); }
+        }],
+    triggers: [{
             text: "After buying a card with a duplicate token on it the normal way, remove a duplicate tokens from it and buy it again.",
             kind: 'afterBuy',
             handles: function (e, state) {
@@ -2548,60 +2536,38 @@ var duplicate = { name: 'Duplicate',
                 var target = state.find(e.card);
                 return target.place != null && target.count('duplicate') > 0;
             },
-            effect: function (e) { return doAll([removeToken(e.card, 'duplicate'), e.card.buy(card)]); }
-        }]; }
+            effect: function (e, state, card) {
+                return doAll([removeToken(e.card, 'duplicate'), e.card.buy(card)]);
+            }
+        }]
 };
 registerEvent(duplicate);
 var royalSeal = { name: 'Royal Seal',
-    effect: function (card) { return ({
-        text: '+$2. Put this in play.',
-        effect: gainCoin(2),
-        toZone: 'play',
-    }); },
-    triggers: function (card) { return [{
-            text: "Whenever you create a card, if it's in your discard pile\n               and this is in play, discard this and put the card into your hand.",
+    effects: [gainCoinEffect(2), toPlay()], replacers: [{
+            text: "Whenever you would create a card in your discard pile, if this is in play\n        then instead create the card in your hand and discard this.",
             kind: 'create',
-            handles: function (e, state) { return state.find(e.card).place == 'discard' && state.find(card).place == 'play'; },
-            effect: function (e) { return doAll([move(card, 'discard'), move(e.card, 'hand')]); }
-        }]; }
+            handles: function (e, state, card) { return e.zone == 'discard'
+                && state.find(card).place == 'play'; },
+            replace: function (x, state, card) {
+                return (__assign(__assign({}, x), { zone: 'hand', effects: x.effects.concat([move(card, 'discard')]) }));
+            }
+        }]
 };
 buyable(royalSeal, 6);
 var workshop = { name: 'Workshop',
-    fixedCost: energy(0),
-    effect: function (card) { return ({
-        text: 'Buy a card in the supply costing up to $4.',
-        effect: function (state) {
-            return __awaiter(this, void 0, void 0, function () {
-                var options, target;
-                var _a;
-                return __generator(this, function (_b) {
-                    switch (_b.label) {
-                        case 0:
-                            options = state.supply.filter(function (card) { return (card.cost(state).coin <= 4 && card.cost(state).energy <= 0); });
-                            return [4 /*yield*/, choice(state, 'Choose a card costing up to $4 to buy.', options.map(asChoice))];
-                        case 1:
-                            _a = __read.apply(void 0, [_b.sent(), 2]), state = _a[0], target = _a[1];
-                            return [2 /*return*/, (target == null) ? state : target.buy(card)(state)];
-                    }
-                });
-            });
-        }
-    }); }
+    fixedCost: energy(0), effects: [targetedEffect(function (target, card) { return target.buy(card); }, 'Buy a card in the supply costing up to $4.', function (state) { return state.supply.filter(function (x) { return leq(x.cost(state), coin(4)); }); })]
 };
 buyable(workshop, 3);
 var shippingLane = { name: 'Shipping Lane',
     fixedCost: energy(1),
-    effect: function (card) { return ({
-        text: "+$2. Put this in play.",
-        effect: gainCoin(2),
-        toZone: 'play'
-    }); },
-    triggers: function (card) { return [{
+    effects: [gainCoinEffect(2), toPlay()], triggers: [{
             text: "When you finish buying a card or event the normal way,"
                 + " if this is in play and that card hasn't moved, discard this and buy that card again.",
             kind: 'afterBuy',
-            handles: function (e, state) { return (e.source.name == 'act' && state.find(card).place == 'play'); },
-            effect: function (e) { return function (state) {
+            handles: function (e, state, card) {
+                return (e.source.name == 'act' && state.find(card).place == 'play');
+            },
+            effect: function (e, state, card) { return function (state) {
                 return __awaiter(this, void 0, void 0, function () {
                     var bought;
                     return __generator(this, function (_a) {
@@ -2621,196 +2587,70 @@ var shippingLane = { name: 'Shipping Lane',
                     });
                 });
             }; }
-        }]; }
+        }]
 };
 buyable(shippingLane, 5);
 var factory = { name: 'Factory',
-    fixedCost: energy(1),
-    effect: function (card) { return ({
-        text: 'Buy a card in the supply costing up to $6.',
-        effect: function (state) {
-            return __awaiter(this, void 0, void 0, function () {
-                var options, target;
-                var _a;
-                return __generator(this, function (_b) {
-                    switch (_b.label) {
-                        case 0:
-                            options = state.supply.filter(function (card) { return (card.cost(state).coin <= 6 && card.cost(state).energy <= 0); });
-                            return [4 /*yield*/, choice(state, 'Choose a card costing up to $6 to buy.', options.map(asChoice))];
-                        case 1:
-                            _a = __read.apply(void 0, [_b.sent(), 2]), state = _a[0], target = _a[1];
-                            return [2 /*return*/, (target == null) ? state : target.buy(card)(state)];
-                    }
-                });
-            });
-        }
-    }); }
+    fixedCost: energy(1), effects: [targetedEffect(function (target, card) { return target.buy(card); }, 'Buy a card in the supply costing up to $6.', function (state) { return state.supply.filter(function (x) { return leq(x.cost(state), coin(6)); }); })]
 };
 buyable(factory, 4);
 var imitation = { name: 'Imitation',
-    fixedCost: energy(1),
-    effect: function (card) { return ({
-        text: 'Choose a card in your hand. Create a fresh copy of it in your hand.',
-        effect: function (state) {
-            return __awaiter(this, void 0, void 0, function () {
-                var target;
-                var _a;
-                return __generator(this, function (_b) {
-                    switch (_b.label) {
-                        case 0: return [4 /*yield*/, choice(state, 'Choose a card to replicate.', state.hand.map(asChoice))];
-                        case 1:
-                            _a = __read.apply(void 0, [_b.sent(), 2]), state = _a[0], target = _a[1];
-                            if (!(target != null)) return [3 /*break*/, 3];
-                            return [4 /*yield*/, create(target.spec, 'hand')(state)];
-                        case 2:
-                            state = _b.sent();
-                            _b.label = 3;
-                        case 3: return [2 /*return*/, state];
-                    }
-                });
-            });
-        }
-    }); }
+    fixedCost: energy(1), effects: [targetedEffect(function (target, card) { return create(target.spec, 'hand'); }, 'Choose a card in your hand. Create a fresh copy of it in your hand.', function (state) { return state.hand; })]
 };
 buyable(imitation, 4);
 var feast = { name: 'Feast',
     fixedCost: energy(0),
-    effect: function (card) { return ({
-        text: '+$=. +1 buy. Trash this.',
-        toZone: null,
-        effect: doAll([gainCoin(6), gainBuy]),
-    }); }
+    effects: [gainCoinEffect(6), buyEffect(), trashThis()]
 };
 buyable(feast, 4);
 var mobilization = { name: 'Mobilization',
     calculatedCost: costPlus(coin(10), coin(10)),
-    effect: function (card) { return ({
-        text: "Put a charge token and a cost token on this.",
-        effect: doAll([addToken(card, 'cost'), charge(card, 1)])
-    }); },
-    replacers: function (card) { return [{
+    effects: [chargeEffect(), incrementCost()], replacers: [{
             text: regroup.name + " costs @ less to play for each cost token on this.",
             kind: 'cost',
             handles: function (x) { return (x.card.name == regroup.name); },
-            replace: function (x) { return (__assign(__assign({}, x), { cost: subtractCost(x.cost, { energy: card.charge }) })); }
-        }]; }
+            replace: function (x, state, card) {
+                return (__assign(__assign({}, x), { cost: subtractCost(x.cost, { energy: state.find(card).charge }) }));
+            }
+        }]
 };
 registerEvent(mobilization);
 var refresh = { name: 'Refresh',
-    fixedCost: energy(2),
-    effect: function (card) { return ({
-        text: 'Put your discard pile into your hand.',
-        effect: function (state) {
-            return __awaiter(this, void 0, void 0, function () {
-                return __generator(this, function (_a) {
-                    switch (_a.label) {
-                        case 0: return [4 /*yield*/, moveMany(state.discard, 'hand')(state)];
-                        case 1:
-                            state = _a.sent();
-                            state = state.sortZone('hand');
-                            return [2 /*return*/, state];
-                    }
-                });
-            });
-        }
-    }); }
+    fixedCost: energy(2), effects: [{
+            text: ['Put your discard pile into your hand.'],
+            effect: function (state, card) { return doAll([moveMany(state.discard, 'hand'), sortHand]); },
+        }]
 };
 registerEvent(refresh);
-var twin = { name: 'Twin',
-    fixedCost: __assign(__assign({}, free), { energy: 1, coin: 8 }),
-    effect: function (card) { return ({
-        text: 'Put a twin token on a card in your hand.',
-        effect: function (state) {
-            return __awaiter(this, void 0, void 0, function () {
-                var target;
-                var _a;
-                return __generator(this, function (_b) {
-                    switch (_b.label) {
-                        case 0: return [4 /*yield*/, choice(state, 'Choose a card to put a twin token on.', state.hand.map(asChoice))];
-                        case 1:
-                            _a = __read.apply(void 0, [_b.sent(), 2]), state = _a[0], target = _a[1];
-                            if (target == null)
-                                return [2 /*return*/, state];
-                            return [2 /*return*/, addToken(target, 'twin')(state)];
-                    }
-                });
-            });
-        }
-    }); },
-    triggers: function (card) { return [{
+var twin = { name: 'Twin', fixedCost: __assign(__assign({}, free), { energy: 1, coin: 8 }),
+    effects: [targetedEffect(function (target) { return addToken(target, 'twin'); }, 'Put a twin token on a card in your hand.', function (state) { return state.hand; })],
+    triggers: [{
             text: "After playing a card with a twin token other than with this, if it's in your discard pile play it again.",
             kind: 'afterPlay',
-            handles: function (e) { return (e.card.count('twin') > 0 && e.source.id != card.id); },
-            effect: function (e) { return function (state) {
-                return __awaiter(this, void 0, void 0, function () {
-                    var target;
-                    return __generator(this, function (_a) {
-                        target = state.find(e.card);
-                        return [2 /*return*/, (target.place == 'discard' && target.count('twin') > 0) ? target.play(card)(state) : state];
-                    });
-                });
-            }; }
-        }]; },
+            handles: function (e, state, card) { return (e.card.count('twin') > 0 && e.source.id != card.id); },
+            effect: function (e, state, card) { return playAgain(e.card, card); }
+        }],
 };
 registerEvent(twin);
 var youngSmith = { name: 'Young Smith',
-    fixedCost: energy(1),
-    effect: function (card) { return ({
-        text: 'Add a charge token to this if it has less than 4, then +1 draw per charge token on this.',
-        effect: function (state) {
-            return __awaiter(this, void 0, void 0, function () {
-                return __generator(this, function (_a) {
-                    switch (_a.label) {
-                        case 0:
-                            card = state.find(card);
-                            if (!(card.charge < 4)) return [3 /*break*/, 2];
-                            return [4 /*yield*/, charge(card, 1)(state)];
-                        case 1:
-                            state = _a.sent();
-                            _a.label = 2;
-                        case 2:
-                            card = state.find(card);
-                            if (!(card.place != null)) return [3 /*break*/, 4];
-                            return [4 /*yield*/, draw(card.charge)(state)];
-                        case 3:
-                            state = _a.sent();
-                            _a.label = 4;
-                        case 4: return [2 /*return*/, state];
-                    }
-                });
-            });
-        },
-    }); }
+    fixedCost: energy(1), effects: [chargeUpTo(4), {
+            text: ['+1 draw per charge token on this.'],
+            effect: function (state, card) { return draw(state.find(card).charge, card); }
+        }]
 };
 buyable(youngSmith, 3);
 var oldSmith = { name: 'Old Smith',
-    fixedCost: energy(1),
-    effect: function (card) { return ({
-        text: '+4 draws -1 per charge token on this, then add a charge token to this.',
-        effect: function (state) {
-            return __awaiter(this, void 0, void 0, function () {
-                return __generator(this, function (_a) {
-                    switch (_a.label) {
-                        case 0: return [4 /*yield*/, draw(4 - state.find(card).charge)(state)];
-                        case 1:
-                            state = _a.sent();
-                            return [4 /*yield*/, charge(card, 1)(state)];
-                        case 2:
-                            state = _a.sent();
-                            return [2 /*return*/, state];
-                    }
-                });
-            });
-        },
-    }); }
+    fixedCost: energy(1), effects: [{
+            text: ['+4 draws -1 per charge token on this.'],
+            effect: function (state, card) { return draw(4 - state.find(card).charge, card); },
+        }, chargeEffect()]
 };
 buyable(oldSmith, 3);
 var goldMine = { name: 'Gold Mine',
-    fixedCost: energy(1),
-    effect: function (card) { return ({
-        text: 'Create two golds in your hand.',
-        effect: doAll([create(gold, 'hand'), create(gold, 'hand')]),
-    }); }
+    fixedCost: energy(1), effects: [{
+            text: ['Create two golds in your hand.'],
+            effect: function () { return doAll([create(gold, 'hand'), create(gold, 'hand')]); },
+        }]
 };
 buyable(goldMine, 8);
 function fragile(card) {
@@ -2829,563 +2669,328 @@ function robust(card) {
         replace: function (x) { return (__assign(__assign({}, x), { skip: true })); }
     };
 }
-var expedite = { name: 'Expedite',
+var expedite = {
+    name: 'Expedite',
     calculatedCost: costPlus(energy(1), coin(1)),
-    effect: function (card) { return ({
-        text: "Put a charge token and a cost token on this.",
-        effect: doAll([addToken(card, 'cost'), charge(card, 1)])
-    }); },
-    triggers: function (card) { return [{
-            text: "When you create a card, if it's in your discard pile and this has a charge token on it,\n               remove a charge token from this and play the card.",
+    effects: [chargeEffect(), incrementCost()],
+    triggers: [{
+            text: "When you create a card, if it's in your discard pile\n               and this has a charge token on it,\n               remove a charge token from this and play the card.",
             kind: 'create',
-            handles: function (e, state) { return state.find(e.card).place == 'discard' && state.find(card).charge > 0; },
-            effect: function (e) { return doAll([charge(card, -1), playAgain(e.card, card)]); }
-        }]; },
+            handles: function (e, state, card) { return state.find(e.card).place == 'discard'
+                && state.find(card).charge > 0; },
+            effect: function (e, state, card) { return doAll([charge(card, -1), playAgain(e.card, card)]); }
+        }],
 };
 registerEvent(expedite);
-var makeSynergy = { name: 'Synergy',
-    fixedCost: __assign(__assign({}, free), { coin: 5, energy: 1 }),
-    effect: function (card) { return ({
-        text: 'Remove all synergy tokens from cards in the supply or events,' +
-            " then put synergy tokens on two cards in the supply or events.",
-        effect: function (state) {
-            return __awaiter(this, void 0, void 0, function () {
-                var _a, _b, card_1, e_19_1, cards, cards_1, cards_1_1, card_2, e_20_1;
-                var e_19, _c, _d, e_20, _e;
-                return __generator(this, function (_f) {
-                    switch (_f.label) {
-                        case 0:
-                            _f.trys.push([0, 5, 6, 7]);
-                            _a = __values(state.supply.concat(state.events)), _b = _a.next();
-                            _f.label = 1;
-                        case 1:
-                            if (!!_b.done) return [3 /*break*/, 4];
-                            card_1 = _b.value;
-                            if (!(card_1.count('synergy') > 0)) return [3 /*break*/, 3];
-                            return [4 /*yield*/, removeTokens(card_1, 'synergy')(state)];
-                        case 2:
-                            state = _f.sent();
-                            _f.label = 3;
-                        case 3:
-                            _b = _a.next();
-                            return [3 /*break*/, 1];
-                        case 4: return [3 /*break*/, 7];
-                        case 5:
-                            e_19_1 = _f.sent();
-                            e_19 = { error: e_19_1 };
-                            return [3 /*break*/, 7];
-                        case 6:
-                            try {
-                                if (_b && !_b.done && (_c = _a.return)) _c.call(_a);
-                            }
-                            finally { if (e_19) throw e_19.error; }
-                            return [7 /*endfinally*/];
-                        case 7: return [4 /*yield*/, multichoiceIfNeeded(state, 'Choose two cards to synergize.', state.supply.concat(state.events).map(asChoice), 2, false)];
-                        case 8:
-                            _d = __read.apply(void 0, [_f.sent(), 2]), state = _d[0], cards = _d[1];
-                            _f.label = 9;
-                        case 9:
-                            _f.trys.push([9, 14, 15, 16]);
-                            cards_1 = __values(cards), cards_1_1 = cards_1.next();
-                            _f.label = 10;
-                        case 10:
-                            if (!!cards_1_1.done) return [3 /*break*/, 13];
-                            card_2 = cards_1_1.value;
-                            return [4 /*yield*/, addToken(card_2, 'synergy')(state)];
-                        case 11:
-                            state = _f.sent();
-                            _f.label = 12;
-                        case 12:
-                            cards_1_1 = cards_1.next();
-                            return [3 /*break*/, 10];
-                        case 13: return [3 /*break*/, 16];
-                        case 14:
-                            e_20_1 = _f.sent();
-                            e_20 = { error: e_20_1 };
-                            return [3 /*break*/, 16];
-                        case 15:
-                            try {
-                                if (cards_1_1 && !cards_1_1.done && (_e = cards_1.return)) _e.call(cards_1);
-                            }
-                            finally { if (e_20) throw e_20.error; }
-                            return [7 /*endfinally*/];
-                        case 16: return [2 /*return*/, state];
-                    }
-                });
-            });
-        }
-    }); },
-    triggers: function (card) { return [{
-            text: 'Whenever you buy a card with a synergy token other than with this,'
-                + ' afterwards buy a different card with a synergy token with equal or lesser cost.',
-            kind: 'afterBuy',
-            handles: function (e) { return (e.source.id != card.id && e.card.count('synergy') > 0); },
-            effect: function (e) { return function (state) {
+var synergy = { name: 'Synergy', fixedCost: __assign(__assign({}, free), { coin: 5, energy: 1 }),
+    effects: [{
+            text: ['Remove all synergy tokens from cards in the supply and events.'],
+            effect: function (state, card) { return doAll(state.supply.concat(state.events).
+                map(function (s) { return removeTokens(s, 'synergy'); })); }
+        }, {
+            text: ['Put synergy tokens on two cards in the supply or events.'],
+            effect: function () { return function (state) {
                 return __awaiter(this, void 0, void 0, function () {
-                    var options, target;
-                    var _a;
-                    return __generator(this, function (_b) {
-                        switch (_b.label) {
-                            case 0:
-                                options = state.supply.concat(state.events).filter(function (c) { return c.count('synergy') > 0
-                                    && leq(c.cost(state), e.card.cost(state))
-                                    && c.buyable(state)
-                                    && c.id != e.card.id; });
-                                return [4 /*yield*/, choice(state, 'Choose a card to buy.', options.map(asChoice))];
+                    var cards, cards_1, cards_1_1, card, e_19_1;
+                    var _a, e_19, _b;
+                    return __generator(this, function (_c) {
+                        switch (_c.label) {
+                            case 0: return [4 /*yield*/, multichoiceIfNeeded(state, 'Choose two cards to synergize.', state.supply.concat(state.events).map(asChoice), 2, false)];
                             case 1:
-                                _a = __read.apply(void 0, [_b.sent(), 2]), state = _a[0], target = _a[1];
-                                if (target == null) {
-                                    return [2 /*return*/, state];
+                                _a = __read.apply(void 0, [_c.sent(), 2]), state = _a[0], cards = _a[1];
+                                _c.label = 2;
+                            case 2:
+                                _c.trys.push([2, 7, 8, 9]);
+                                cards_1 = __values(cards), cards_1_1 = cards_1.next();
+                                _c.label = 3;
+                            case 3:
+                                if (!!cards_1_1.done) return [3 /*break*/, 6];
+                                card = cards_1_1.value;
+                                return [4 /*yield*/, addToken(card, 'synergy')(state)];
+                            case 4:
+                                state = _c.sent();
+                                _c.label = 5;
+                            case 5:
+                                cards_1_1 = cards_1.next();
+                                return [3 /*break*/, 3];
+                            case 6: return [3 /*break*/, 9];
+                            case 7:
+                                e_19_1 = _c.sent();
+                                e_19 = { error: e_19_1 };
+                                return [3 /*break*/, 9];
+                            case 8:
+                                try {
+                                    if (cards_1_1 && !cards_1_1.done && (_b = cards_1.return)) _b.call(cards_1);
                                 }
-                                else {
-                                    return [2 /*return*/, target.buy(card)(state)];
-                                }
-                                return [2 /*return*/];
+                                finally { if (e_19) throw e_19.error; }
+                                return [7 /*endfinally*/];
+                            case 9: return [2 /*return*/, state];
                         }
                     });
                 });
             }; }
-        }]; }
+        }],
+    triggers: [{
+            text: 'Whenever you buy a card with a synergy token other than with this,'
+                + ' afterwards buy a different card with a synergy token with equal or lesser cost.',
+            kind: 'afterBuy',
+            handles: function (e, state, card) { return (e.source.id != card.id && e.card.count('synergy') > 0); },
+            effect: function (e, state, card) { return applyToTarget(function (target) { return target.buy(card); }, 'Choose a card to buy.', state.supply.concat(state.events).filter(function (c) { return c.count('synergy') > 0
+                && leq(c.cost(state), e.card.cost(state))
+                && c.buyable(state)
+                && c.id != e.card.id; })); }
+        }]
 };
-registerEvent(makeSynergy);
-var shelter = { name: 'Shelter',
-    effect: function (card) { return ({
-        text: 'Put a shelter token on a card in play.',
-        effect: function (state) {
-            return __awaiter(this, void 0, void 0, function () {
-                var target;
-                var _a;
-                return __generator(this, function (_b) {
-                    switch (_b.label) {
-                        case 0: return [4 /*yield*/, choice(state, 'Choose a card to shelter.', state.play.map(asChoice))];
-                        case 1:
-                            _a = __read.apply(void 0, [_b.sent(), 2]), state = _a[0], target = _a[1];
-                            if (!(target != null)) return [3 /*break*/, 3];
-                            return [4 /*yield*/, addToken(target, 'shelter')(state)];
-                        case 2:
-                            state = _b.sent();
-                            _b.label = 3;
-                        case 3: return [2 /*return*/, state];
-                    }
-                });
-            });
-        }
-    }); }
+registerEvent(synergy);
+var shelter = { name: 'Shelter', effects: [targetedEffect(function (target) { return addToken(target, 'shelter'); }, 'Put a shelter token on a card in play.', function (state) { return state.play; })]
 };
-register(supplyForCard(shelter, coin(3), {
-    replacers: function (card) { return [{
+buyableAnd(shelter, 3, {
+    replacers: [{
             kind: 'move',
             text: "Whenever you would move a card with a shelter token from play,\n               instead remove a shelter token from it.",
             handles: function (x, state) { return (x.fromZone == 'play' && state.find(x.card).count('shelter') > 0); },
             replace: function (x) { return (__assign(__assign({}, x), { toZone: 'play', effects: x.effects.concat([removeToken(x.card, 'shelter')]) })); }
-        }]; }
-}));
-var market = { name: 'Market',
-    effect: function (card) { return ({
-        text: '+1 draw. +$1. +1 buy.',
-        effect: doAll([gainCards(1), gainCoin(1), gainBuy]),
-    }); }
+        }]
+});
+var market = {
+    name: 'Market',
+    effects: [drawEffect(1), gainCoinEffect(1), buyEffect()],
 };
 buyable(market, 5);
 var spree = { name: 'Spree',
     fixedCost: energy(1),
-    effect: function (card) { return ({
-        text: '+1 buy.',
-        effect: gainBuy,
-    }); }
+    effects: [buyEffect()],
 };
 registerEvent(spree);
-var counterfeit = { name: 'Counterfeit',
-    effect: function (card) { return ({
-        text: '+1 draw. Play a card in your hand, then trash it. If you do, +1 buy.',
-        effect: function (state) {
-            return __awaiter(this, void 0, void 0, function () {
-                var target;
-                var _a;
-                return __generator(this, function (_b) {
-                    switch (_b.label) {
-                        case 0: return [4 /*yield*/, gainCards(1)(state)];
-                        case 1:
-                            state = _b.sent();
-                            return [4 /*yield*/, choice(state, 'Choose a card to play then trash', state.hand.map(asChoice))];
-                        case 2:
-                            _a = __read.apply(void 0, [_b.sent(), 2]), state = _a[0], target = _a[1];
-                            if (!(target != null)) return [3 /*break*/, 4];
-                            return [4 /*yield*/, doAll([target.play(card), trash(target), gainBuy])(state)];
-                        case 3:
-                            state = _b.sent();
-                            _b.label = 4;
-                        case 4: return [2 /*return*/, state];
-                    }
-                });
-            });
-        }
-    }); }
+var counterfeit = { name: 'Counterfeit', effects: [drawEffect(1), buyEffect(), targetedEffect(function (target, card) { return doAll([target.play(card), trash(target)]); }, 'Play a card in your hand, then trash it.', function (state) { return state.hand; })]
 };
 buyable(counterfeit, 4);
 var ruinedMarket = { name: 'Ruined Market',
-    effect: function (card) { return ({
-        text: '+1 buy',
-        effect: gainBuy
-    }); }
+    effects: [buyEffect()]
 };
 buyableFree(ruinedMarket, 2);
-//TODO: onbuy should probably just have an effect and text field, and map a card...
 var spices = { name: 'Spices',
-    effect: function (card) { return ({
-        text: '+$2. +1 buy.',
-        effect: doAll([gainCoin(2), gainBuy]),
-    }); }
+    effects: [gainCoinEffect(2), buyEffect()],
 };
-register(supplyForCard(spices, coin(5), { onBuy: { effect: gainCoin(4), text: '+$4.' } }));
+buyableAnd(spices, 5, { onBuy: [gainCoinEffect(4)] });
 var onslaught = { name: 'Onslaught',
-    calculatedCost: costPlus(coin(6), energy(1)),
-    effect: function (card) { return ({
-        text: "Put a cost token on this.\n        Set aside your hand, then play any number of those cards in any order and discard the rest.",
-        effect: function (state) {
-            return __awaiter(this, void 0, void 0, function () {
-                var cards, options, _loop_1, state_1;
-                return __generator(this, function (_a) {
-                    switch (_a.label) {
-                        case 0: return [4 /*yield*/, addToken(card, 'cost')(state)];
-                        case 1:
-                            state = _a.sent();
-                            cards = state.hand;
-                            return [4 /*yield*/, moveMany(cards, 'aside')(state)];
-                        case 2:
-                            state = _a.sent();
-                            options = asNumberedChoices(cards);
-                            _loop_1 = function () {
-                                var picked, id_1;
-                                var _a;
-                                return __generator(this, function (_b) {
-                                    switch (_b.label) {
-                                        case 0:
-                                            picked = void 0;
-                                            return [4 /*yield*/, choice(state, 'Pick a card to play next.', allowNull(options))];
-                                        case 1:
-                                            _a = __read.apply(void 0, [_b.sent(), 2]), state = _a[0], picked = _a[1];
-                                            if (!(picked == null)) return [3 /*break*/, 3];
-                                            return [4 /*yield*/, moveMany(cards.filter(function (c) { return state.find(c).place == 'aside'; }), 'discard')(state)];
-                                        case 2:
-                                            state = _b.sent();
-                                            return [2 /*return*/, { value: state }];
-                                        case 3:
-                                            id_1 = picked.id;
-                                            options = options.filter(function (c) { return c.value.id != id_1; });
-                                            return [4 /*yield*/, picked.play(card)(state)];
-                                        case 4:
-                                            state = _b.sent();
-                                            _b.label = 5;
-                                        case 5: return [2 /*return*/];
-                                    }
-                                });
-                            };
-                            _a.label = 3;
-                        case 3:
-                            if (!true) return [3 /*break*/, 5];
-                            return [5 /*yield**/, _loop_1()];
-                        case 4:
-                            state_1 = _a.sent();
-                            if (typeof state_1 === "object")
-                                return [2 /*return*/, state_1.value];
-                            return [3 /*break*/, 3];
-                        case 5: return [2 /*return*/];
-                    }
+    calculatedCost: costPlus(coin(6), energy(1)), effects: [incrementCost(), {
+            text: ["Set aside your hand, then play any number of those cards in any order\n        and discard the rest."],
+            effect: function (state, card) { return function (state) {
+                return __awaiter(this, void 0, void 0, function () {
+                    var cards, options, _loop_1, state_1;
+                    return __generator(this, function (_a) {
+                        switch (_a.label) {
+                            case 0:
+                                cards = state.hand;
+                                return [4 /*yield*/, moveMany(cards, 'aside')(state)];
+                            case 1:
+                                state = _a.sent();
+                                options = asNumberedChoices(cards);
+                                _loop_1 = function () {
+                                    var picked, id_1;
+                                    var _a;
+                                    return __generator(this, function (_b) {
+                                        switch (_b.label) {
+                                            case 0:
+                                                picked = void 0;
+                                                return [4 /*yield*/, choice(state, 'Pick a card to play next.', allowNull(options))];
+                                            case 1:
+                                                _a = __read.apply(void 0, [_b.sent(), 2]), state = _a[0], picked = _a[1];
+                                                if (!(picked == null)) return [3 /*break*/, 3];
+                                                return [4 /*yield*/, moveMany(cards.filter(function (c) { return state.find(c).place == 'aside'; }), 'discard')(state)];
+                                            case 2:
+                                                state = _b.sent();
+                                                return [2 /*return*/, { value: state }];
+                                            case 3:
+                                                id_1 = picked.id;
+                                                options = options.filter(function (c) { return c.value.id != id_1; });
+                                                return [4 /*yield*/, picked.play(card)(state)];
+                                            case 4:
+                                                state = _b.sent();
+                                                _b.label = 5;
+                                            case 5: return [2 /*return*/];
+                                        }
+                                    });
+                                };
+                                _a.label = 2;
+                            case 2:
+                                if (!true) return [3 /*break*/, 4];
+                                return [5 /*yield**/, _loop_1()];
+                            case 3:
+                                state_1 = _a.sent();
+                                if (typeof state_1 === "object")
+                                    return [2 /*return*/, state_1.value];
+                                return [3 /*break*/, 2];
+                            case 4: return [2 /*return*/];
+                        }
+                    });
                 });
-            });
-        }
-    }); }
+            }; }
+        }]
 };
 registerEvent(onslaught);
 //TODO: link these together, modules in general?
 var colony = { name: 'Colony',
     fixedCost: energy(1),
-    effect: function (card) { return ({
-        text: '+5 vp',
-        effect: gainPoints(5),
-    }); }
+    effects: [gainPointsEffect(5)],
 };
 buyable(colony, 16);
 var platinum = { name: "Platinum",
     fixedCost: energy(0),
-    effect: function (card) { return ({
-        text: '+$5',
-        effect: gainCoin(5)
-    }); }
+    effects: [gainCoinEffect(5)]
 };
 buyable(platinum, 10);
 var greatSmithy = { name: 'Great Smithy',
     fixedCost: energy(2),
-    effect: function (card) { return ({
-        text: '+5 draws',
-        effect: draw(5),
-    }); }
+    effects: [drawEffect(5)]
 };
 buyable(greatSmithy, 7);
 var pressOn = { name: 'Press On',
-    fixedCost: energy(1),
-    effect: function (card) { return ({
-        text: 'Set $ to 0, set buys to 1, set draws to 5.',
-        effect: function (state) {
-            return __awaiter(this, void 0, void 0, function () {
-                return __generator(this, function (_a) {
-                    return [2 /*return*/, doAll([
-                            setResource('coin', 0),
-                            setResource('buys', 1),
-                            setResource('draws', 5),
-                        ])(state)];
-                });
-            });
-        }
-    }); }
+    fixedCost: energy(1), effects: [{
+            text: ['Set $ to 0, set buys to 1, and set draws to 5.'],
+            effect: function () { return doAll([
+                setResource('coin', 0),
+                setResource('buys', 1),
+                setResource('draws', 5),
+            ]); }
+        }]
 };
 registerEvent(pressOn);
 var kingsCourt = { name: "King's Court",
-    fixedCost: energy(2),
-    effect: function (card) { return ({
-        text: "Pay 1 draw to play a card in your hand.\n        Then if it's in your discard pile, play it again.\n        Then if it's in your discard pile, play it a third time.",
-        effect: payToDo(payDraw, function (state) {
-            return __awaiter(this, void 0, void 0, function () {
-                var target;
-                var _a;
-                return __generator(this, function (_b) {
-                    switch (_b.label) {
-                        case 0: return [4 /*yield*/, choice(state, 'Choose a card to play three times.', state.hand.map(asChoice))];
-                        case 1:
-                            _a = __read.apply(void 0, [_b.sent(), 2]), state = _a[0], target = _a[1];
-                            if (target == null)
-                                return [2 /*return*/, state];
-                            return [4 /*yield*/, target.play(card)(state)];
-                        case 2:
-                            state = _b.sent();
-                            state = tick(card)(state);
-                            return [4 /*yield*/, playAgain(target, card)(state)];
-                        case 3:
-                            state = _b.sent();
-                            state = tick(card)(state);
-                            return [4 /*yield*/, playAgain(target, card)(state)];
-                        case 4:
-                            state = _b.sent();
-                            return [2 /*return*/, state];
-                    }
-                });
-            });
-        })
-    }); }
+    fixedCost: energy(2), effects: [{
+            text: ["Pay 1 draw to play a card in your hand.",
+                "If it's in your discard pile play it again."],
+            effect: function (state, card) { return payToDo(payDraw, applyToTarget(function (target) { return doAll([
+                target.play(card),
+                tick(card),
+                playAgain(target, card),
+                tick(card),
+                playAgain(target, card)
+            ]); }, 'Choose a card to play twice.', state.hand)); }
+        }]
 };
 buyable(kingsCourt, 10);
 var gardens = { name: "Gardens",
-    fixedCost: energy(1),
-    effect: function (card) { return ({
-        text: "+1 vp per 10 cards in your hand, discard pile, and play.",
-        effect: function (state) {
-            return __awaiter(this, void 0, void 0, function () {
-                var n;
-                return __generator(this, function (_a) {
-                    n = state.hand.length + state.discard.length + state.play.length;
-                    return [2 /*return*/, gainPoints(Math.floor(n / 10))(state)];
-                });
-            });
-        }
-    }); }
+    fixedCost: energy(1), effects: [{
+            text: ['+1 vp per 10 cards in your hand, discard pile, and play.'],
+            effect: function (state, card) { return gainPoints(Math.floor((state.hand.length + state.discard.length + state.play.length) / 10), card); }
+        }]
 };
 buyable(gardens, 4);
 var decay = { name: 'Decay',
-    fixedCost: coin(3),
-    effect: function (card) { return ({
-        text: 'Remove a decay token from each card in your discard pile.',
-        effect: function (state) {
-            return __awaiter(this, void 0, void 0, function () {
-                return __generator(this, function (_a) {
-                    return [2 /*return*/, doAll(state.discard.map(function (x) { return removeToken(x, 'decay'); }))(state)];
-                });
-            });
-        }
-    }); },
-    triggers: function (card) { return [{
+    fixedCost: coin(3), effects: [{
+            text: ['Remove a decay token from each card in your discard pile.'],
+            effect: function (state) { return doAll(state.discard.map(function (x) { return removeToken(x, 'decay'); })); }
+        }],
+    triggers: [{
             text: 'Whenever you move a card to your hand, if it has 3 or more decay tokens on it trash it,' +
                 ' otherwise put a decay token on it.',
             kind: 'move',
             handles: function (e) { return e.toZone == 'hand'; },
-            effect: function (e) { return (e.card.count('decay') >= 3) ? trash(e.card) : addToken(e.card, 'decay'); }
-        }]; }
+            effect: function (e) { return (e.card.count('decay') >= 3) ?
+                trash(e.card) : addToken(e.card, 'decay'); }
+        }]
 };
 registerEvent(decay);
 var reflect = { name: 'Reflect',
     calculatedCost: costPlus(energy(1), coin(1)),
-    effect: function (card) { return ({
-        text: "Put a cost token on this.\n               Pay 1 draw to play a card in your hand. Then if it's in your discard pile, play it again.",
-        effect: doAll([addToken(card, 'cost'), payToDo(payDraw, playTwice(card))])
-    }); }
+    effects: [incrementCost(), playTwice()],
 };
 registerEvent(reflect);
 var replicate = { name: 'Replicate',
-    calculatedCost: costPlus(energy(1), coin(1)),
-    effect: function (card) { return ({
-        text: "Put a cost token on this.\n               Choose a card in your hand. Create a fresh copy of it in your discard pile.",
-        effect: function (state) {
-            return __awaiter(this, void 0, void 0, function () {
-                var target;
-                var _a;
-                return __generator(this, function (_b) {
-                    switch (_b.label) {
-                        case 0: return [4 /*yield*/, addToken(card, 'cost')(state)];
-                        case 1:
-                            state = _b.sent();
-                            return [4 /*yield*/, choice(state, 'Choose a card to replicate.', state.hand.map(asChoice))];
-                        case 2:
-                            _a = __read.apply(void 0, [_b.sent(), 2]), state = _a[0], target = _a[1];
-                            if (!(target != null)) return [3 /*break*/, 4];
-                            return [4 /*yield*/, create(target.spec, 'discard')(state)];
-                        case 3:
-                            state = _b.sent();
-                            _b.label = 4;
-                        case 4: return [2 /*return*/, state];
-                    }
-                });
-            });
-        }
-    }); }
+    calculatedCost: costPlus(energy(1), coin(1)), effects: [incrementCost(), targetedEffect(function (target) { return create(target.spec, 'discard'); }, 'Choose a card in your hand. Create a fresh copy of it in your discard pile.', function (state) { return state.hand; })]
 };
 registerEvent(replicate);
 var inflation = { name: 'Inflation',
     fixedCost: energy(3),
-    effect: function (card) { return ({
-        text: '+$15. +5 buys. Put a charge token on this.',
-        effect: doAll([gainCoin(15), gainBuys(5), charge(card, 1)])
-    }); },
-    replacers: function (card) { return [{
+    effects: [gainCoinEffect(15), gainBuyEffect(5), chargeEffect()], replacers: [{
             text: 'Cards that cost at least $1 cost $1 more per charge token on this.',
             kind: 'cost',
             handles: function (p, state) { return (p.cost.coin >= 1); },
-            replace: function (p) { return (__assign(__assign({}, p), { cost: addCosts(p.cost, { coin: card.charge }) })); }
-        }]; }
+            replace: function (p, state, card) { return (__assign(__assign({}, p), { cost: addCosts(p.cost, { coin: card.charge }) })); }
+        }]
 };
 registerEvent(inflation);
 var burden = { name: 'Burden',
-    fixedCost: energy(1),
-    effect: function (card) { return ({
-        text: 'Remove a burden token from a card in the supply',
-        effect: function (state) {
-            return __awaiter(this, void 0, void 0, function () {
-                var options, target;
-                var _a;
-                return __generator(this, function (_b) {
-                    switch (_b.label) {
-                        case 0:
-                            options = state.supply.filter(function (x) { return x.count('burden') > 0; });
-                            return [4 /*yield*/, choice(state, 'Choose a supply to unburden.', allowNull(options.map(asChoice)))];
-                        case 1:
-                            _a = __read.apply(void 0, [_b.sent(), 2]), state = _a[0], target = _a[1];
-                            if (target == null)
-                                return [2 /*return*/, state];
-                            return [2 /*return*/, removeToken(target, 'burden')(state)];
-                    }
-                });
-            });
-        }
-    }); },
-    triggers: function (card) { return [{
+    fixedCost: energy(1), effects: [targetedEffect(function (target) { return removeToken(target, 'burden'); }, 'Remove a burden token from a card in the supply.', function (state) { return state.supply; })],
+    triggers: [{
             text: 'Whenever you buy a card in the supply, put a burden token on it.',
             kind: 'buy',
             handles: function (e, state) { return (state.find(e.card).place == 'supply'); },
             effect: function (e) { return addToken(e.card, 'burden'); }
-        }]; },
-    replacers: function (card) { return [{
+        }],
+    replacers: [{
             kind: 'cost',
             text: 'Cards cost $1 more for each burden token on them.',
             handles: function (x) { return x.card.count('burden') > 0; },
             replace: function (x) { return (__assign(__assign({}, x), { cost: addCosts(x.cost, { coin: x.card.count('burden') }) })); }
-        }]; }
+        }]
 };
 registerEvent(burden);
 var goldsmith = { name: 'Goldsmith',
     fixedCost: energy(1),
-    effect: function (card) { return ({
-        text: '+2 draws. +$3.',
-        effect: doAll([draw(2), gainCoin(3)]),
-    }); }
+    effects: [drawEffect(2), gainCoinEffect(3)]
 };
 buyable(goldsmith, 7);
 var publicWorks = { name: 'Public Works',
-    effect: justPlay,
-    replacers: function (card) { return [costReduceNext(card, 'events', { energy: 1 }, true)]; },
+    effects: [toPlay()],
+    replacers: [costReduceNext('events', { energy: 1 }, true)],
 };
 buyable(publicWorks, 5);
 //TODO: handle skip better, other things shouldn't replace it again...
-var echo = { name: 'Echo',
-    effect: function (card) { return ({
-        text: "Choose a card you have in play.\n        Create a fresh copy of it in play and put an echo token on it.",
-        effect: function (state) {
-            return __awaiter(this, void 0, void 0, function () {
-                var target;
-                var _a;
-                return __generator(this, function (_b) {
-                    switch (_b.label) {
-                        case 0: return [4 /*yield*/, choice(state, 'Choose a card to copy.', state.play.map(asChoice))];
-                        case 1:
-                            _a = __read.apply(void 0, [_b.sent(), 2]), state = _a[0], target = _a[1];
-                            if (!(target != null)) return [3 /*break*/, 3];
-                            return [4 /*yield*/, create(target.spec, 'play', 'end', function (c) { return addToken(c, 'echo'); })(state)];
-                        case 2:
-                            state = _b.sent();
-                            _b.label = 3;
-                        case 3: return [2 /*return*/, state];
-                    }
-                });
-            });
-        }
-    }); }
+var echo = { name: 'Echo', effects: [targetedEffect(function (target) { return create(target.spec, 'play', 'end', function (c) { return addToken(c, 'echo'); }); }, "Choose a card you have in play.\n        Create a fresh copy of it in play with an echo token on it.", function (state) { return state.play; })]
 };
-register(supplyForCard(echo, coin(4), {
-    triggers: function (card) { return [{
+buyableAnd(echo, 4, {
+    triggers: [{
             text: 'Whenever you move a card with an echo token on it, trash it.',
             kind: 'move',
-            handles: function (x, state) { return x.card.count('echo') > 0; },
+            handles: function (x, state) { return state.find(x.card).count('echo') > 0; },
             effect: function (x) { return trash(x.card); }
-        }]; }
-}));
+        }]
+});
 var mastermind = { name: 'Mastermind',
-    effect: justPlay,
-    replacers: function (card) { return [{
+    effects: [toPlay()], replacers: [{
             text: "Whenever you would move this from play to your hand,\n            if it has no charge tokens on it instead put a charge token on it.",
             kind: 'move',
-            handles: function (x, state) { return (x.fromZone == 'play' && x.toZone == 'hand'
+            handles: function (x, state, card) { return (x.fromZone == 'play' && x.toZone == 'hand'
                 && x.card.id == card.id && state.find(card).charge == 0); },
-            replace: function (x) { return (__assign(__assign({}, x), { skip: true, effects: x.effects.concat([charge(card, 1)]) })); }
-        }]; },
-    triggers: function (card) { return [{
+            replace: function (x, state, card) {
+                return (__assign(__assign({}, x), { skip: true, effects: x.effects.concat([charge(card, 1)]) }));
+            }
+        }],
+    triggers: [{
             text: "Whenever you finish playing a card, if it's in your discard pile and\n            this is in play with a charge token on it,\n            remove the charge token, discard this, and play that card again.\n            Then if it's still in your discard pile, play it a third time.",
             kind: 'afterPlay',
-            handles: function (e, state) {
+            handles: function (e, state, card) {
                 card = state.find(card);
                 return card.place == 'play' && card.charge > 0
                     && state.find(e.card).place == 'discard';
             },
-            effect: function (e) { return doAll([
+            effect: function (e, state, card) { return doAll([
                 uncharge(card),
                 move(card, 'discard'),
                 playAgain(e.card),
                 playAgain(e.card)
             ]); }
-        }]; }
+        }]
 };
 buyable(mastermind, 5);
 //TODO: haggler makes $2, puts itself in play, buy cheaper things...
-var doubleTime = { name: 'Double Time',
-    effect: cantripPlay,
-    triggers: function (card) { return [{
+var doubleTime = {
+    name: 'Double Time',
+    effects: [drawEffect(1), toPlay()],
+    triggers: [{
             text: 'Whenever you pay @, that many charge tokens on this.',
             kind: 'cost',
             handles: function () { return true; },
-            effect: function (e) { return charge(card, e.cost.energy); }
-        }]; },
-    replacers: function (card) { return [{
+            effect: function (e, state, card) { return charge(card, e.cost.energy); }
+        }],
+    replacers: [{
             text: "Cards in your hand @ less to play for each charge token on this.\n            Whenever this reduces a cost by one or more @, remove that many charge tokens from this.",
             kind: 'cost',
-            handles: function (x, state) { return (state.find(x.card).place == 'hand') && card.charge > 0; },
-            replace: function (x, state) {
+            handles: function (x, state, card) { return (state.find(x.card).place == 'hand') && card.charge > 0; },
+            replace: function (x, state, card) {
                 card = state.find(card);
                 var reduction = Math.min(x.cost.energy, card.charge);
                 return __assign(__assign({}, x), { cost: __assign(__assign({}, x.cost), { energy: x.cost.energy - reduction, effects: x.cost.effects.concat([discharge(card, reduction)]) }) });
@@ -3394,48 +2999,18 @@ var doubleTime = { name: 'Double Time',
             text: 'Whenever this leaves play, remove all charge tokens from it.',
             kind: 'move',
             handles: function (x) { return x.fromZone == 'play' && !x.skip; },
-            replace: function (x) { return (__assign(__assign({}, x), { effects: x.effects.concat([uncharge(card)]) })); }
-        }]; }
+            replace: function (x, state, card) { return (__assign(__assign({}, x), { effects: x.effects.concat([uncharge(card)]) })); }
+        }]
 };
 buyable(doubleTime, 2);
-function applyToTarget(f, text, options) {
-    return function (state) {
-        return __awaiter(this, void 0, void 0, function () {
-            var target;
-            var _a;
-            return __generator(this, function (_b) {
-                switch (_b.label) {
-                    case 0: return [4 /*yield*/, choice(state, text, options.map(asChoice))];
-                    case 1:
-                        _a = __read.apply(void 0, [_b.sent(), 2]), state = _a[0], target = _a[1];
-                        if (!(target != null)) return [3 /*break*/, 3];
-                        return [4 /*yield*/, f(target)(state)];
-                    case 2:
-                        state = _b.sent();
-                        _b.label = 3;
-                    case 3: return [2 /*return*/, state];
-                }
-            });
-        });
-    };
-}
-function targetedEffect(f, text, options) {
-    return {
-        text: [text],
-        effect: function (c, s) { return applyToTarget(f, text, options(s)); }
-    };
-}
-var dragon = { name: 'Dragon',
-    effects: [targetedEffect(trash, 'Trash a card in your hand.', function (s) { return s.hand; }), drawEffect(4), gainCoinEffect(4), buyEffect()]
+var dragon = { name: 'Dragon', effects: [targetedEffect(function (c) { return trash(c); }, 'Trash a card in your hand.', function (s) { return s.hand; }), drawEffect(4), gainCoinEffect(4), buyEffect()]
 };
-//TODO: adaptively moving cards is tough, need to rework toZone
 var egg = { name: 'Egg',
     fixedCost: energy(2),
-    relatedCards: [dragon],
-    effects: [{
+    relatedCards: [dragon], effects: [{
             text: ["If this has two or more charge tokens on it, trash it and create " + a(dragon.name) + " in your hand.",
                 "Otherwise, put a charge token on this."],
-            effect: function (card) { return function (state) {
+            effect: function (state, card) { return function (state) {
                 return __awaiter(this, void 0, void 0, function () {
                     return __generator(this, function (_a) {
                         switch (_a.label) {
@@ -3456,170 +3031,148 @@ var egg = { name: 'Egg',
         }]
 };
 buyable(egg, 4);
-var looter = { name: 'Looter',
-    effect: function (card) { return ({
-        text: "Discard up to three cards from your hand. +1 draw per card you discarded.",
-        effect: function (state) {
-            return __awaiter(this, void 0, void 0, function () {
-                var targets;
-                var _a;
-                return __generator(this, function (_b) {
-                    switch (_b.label) {
-                        case 0: return [4 /*yield*/, multichoice(state, 'Choose up to three cards to discard', state.hand.map(asChoice), function (xs) { return xs.length <= 3; })];
-                        case 1:
-                            _a = __read.apply(void 0, [_b.sent(), 2]), state = _a[0], targets = _a[1];
-                            return [4 /*yield*/, moveMany(targets, 'discard')(state)];
-                        case 2:
-                            state = _b.sent();
-                            return [4 /*yield*/, draw(targets.length)(state)];
-                        case 3:
-                            state = _b.sent();
-                            return [2 /*return*/, state];
-                    }
+var looter = { name: 'Looter', effects: [{
+            text: ["Discard up to three cards from your hand.",
+                "+1 draw per card you discarded."],
+            effect: function () { return function (state) {
+                return __awaiter(this, void 0, void 0, function () {
+                    var targets;
+                    var _a;
+                    return __generator(this, function (_b) {
+                        switch (_b.label) {
+                            case 0: return [4 /*yield*/, multichoice(state, 'Choose up to three cards to discard', state.hand.map(asChoice), function (xs) { return xs.length <= 3; })];
+                            case 1:
+                                _a = __read.apply(void 0, [_b.sent(), 2]), state = _a[0], targets = _a[1];
+                                return [4 /*yield*/, moveMany(targets, 'discard')(state)];
+                            case 2:
+                                state = _b.sent();
+                                return [4 /*yield*/, draw(targets.length)(state)];
+                            case 3:
+                                state = _b.sent();
+                                return [2 /*return*/, state];
+                        }
+                    });
                 });
-            });
-        }
-    }); }
+            }; }
+        }]
 };
 buyable(looter, 4);
 var empire = { name: 'Empire',
     fixedCost: energy(1),
-    effect: function (card) { return ({
-        text: '+3 draw. +3 vp.',
-        effect: doAll([gainCards(3), gainPoints(3)])
-    }); }
+    effects: [drawEffect(3), gainPointsEffect(3)]
 };
 buyable(empire, 10);
 var innovation = { name: 'Innovation',
-    effect: cantripPlay,
-    triggers: function (card) { return [{
+    effects: [drawEffect(1), toPlay()], triggers: [{
             text: "When you create a card,\n            if it's in your discard pile and this is in play,\n            discard this and play the card.",
             kind: 'create',
-            handles: function (e, state) { return (state.find(e.card).place == 'discard' && state.find(card).place == 'play'); },
-            effect: function (e) { return doAll([move(card, 'discard'), playAgain(e.card)]); },
-        }]; }
+            handles: function (e, state, card) { return state.find(e.card).place == 'discard'
+                && state.find(card).place == 'play'; },
+            effect: function (e, state, card) { return doAll([move(card, 'discard'), playAgain(e.card)]); },
+        }]
 };
 buyable(innovation, 9);
 var formation = { name: 'Formation',
-    effect: function (card) { return ({
-        text: "+1 draw, +1 buy. Put this in play.",
-        toZone: 'play',
-        effect: doAll([gainCards(1), gainBuy])
-    }); },
-    replacers: function (card) { return [{
+    effects: [toPlay()], replacers: [{
             text: 'Cards in your hand cost @ less if you have a card with the same name'
                 + ' in your discard pile or play.'
                 + ' Whenever this reduces a cost, discard this and +$2.',
             kind: 'cost',
-            handles: function (e, state) { return (state.discard.concat(state.play).some(function (c) { return c.name == e.card.name; })); },
-            replace: function (x, state) {
-                if (x.card.place == 'hand') {
-                    var newCost = subtractCost(x.cost, { energy: 1 });
-                    if (!eq(newCost, x.cost)) {
-                        newCost.effects = newCost.effects.concat([move(card, 'discard'), gainCoin(2)]);
-                        return __assign(__assign({}, x), { cost: newCost });
-                    }
+            handles: function (e, state) { return e.card.place == 'hand'
+                && state.discard.concat(state.play).some(function (c) { return c.name == e.card.name; }); },
+            replace: function (x, state, card) {
+                var newCost = subtractCost(x.cost, { energy: 1 });
+                if (!eq(newCost, x.cost)) {
+                    newCost.effects = newCost.effects.concat([
+                        move(card, 'discard'),
+                        gainCoin(2)
+                    ]);
+                    return __assign(__assign({}, x), { cost: newCost });
                 }
                 return x;
             }
-        }]; }
+        }]
 };
 buyable(formation, 4);
+var Traveler = 'Traveler';
 var traveler = {
     name: 'Traveler',
     fixedCost: energy(1),
-    effect: function (card) { return ({
-        text: "Pay a draw to play a card in your hand not named " + traveler.name + ".\n        If this has at least one charge token on it,\n        play the card again if it's in your discard.\n        If this has at least two charge tokens on it,\n        gain a fresh copy of the card in your discard.\n        If this has at least three charge tokens on it,\n        play the card a third time if it's in your discard.\n        Put a charge token on this if it has less than 4.",
-        effect: payToDo(payDraw, function (state) {
-            return __awaiter(this, void 0, void 0, function () {
-                var target, n;
-                var _a;
-                return __generator(this, function (_b) {
-                    switch (_b.label) {
-                        case 0: return [4 /*yield*/, choice(state, "Choose a card to play with " + traveler.name, state.hand.filter(function (x) { return x.name != traveler.name; }).map(asChoice))];
-                        case 1:
-                            _a = __read.apply(void 0, [_b.sent(), 2]), state = _a[0], target = _a[1];
-                            n = state.find(card).charge;
-                            if (!(target != null)) return [3 /*break*/, 8];
-                            return [4 /*yield*/, target.play(card)(state)];
-                        case 2:
-                            state = _b.sent();
-                            if (!(n >= 1)) return [3 /*break*/, 4];
-                            return [4 /*yield*/, playAgain(target, card)(state)];
-                        case 3:
-                            state = _b.sent();
-                            _b.label = 4;
-                        case 4:
-                            if (!(n >= 2)) return [3 /*break*/, 6];
-                            return [4 /*yield*/, create(target.spec, 'discard')(state)];
-                        case 5:
-                            state = _b.sent();
-                            _b.label = 6;
-                        case 6:
-                            if (!(n >= 3)) return [3 /*break*/, 8];
-                            return [4 /*yield*/, playAgain(target, card)(state)];
-                        case 7:
-                            state = _b.sent();
-                            _b.label = 8;
-                        case 8:
-                            if (!(n < 4)) return [3 /*break*/, 10];
-                            return [4 /*yield*/, charge(card, 1)(state)];
-                        case 9:
-                            state = _b.sent();
-                            _b.label = 10;
-                        case 10: return [2 /*return*/, state];
-                    }
+    effects: [{
+            text: ["Pay a draw to play a card in your hand not named " + Traveler + ".",
+                "If this has at least one charge token on it,\n            play the card again if it's in your discard.",
+                "If this has at least two charge tokens on it,\n            gain a fresh copy of the card in your discard.",
+                "If this has at least three charge tokens on it,\n            play the card a third time if it's in your discard."],
+            effect: function (state, card) { return payToDo(payDraw, applyToTarget(function (target) { return function (state) {
+                return __awaiter(this, void 0, void 0, function () {
+                    var n;
+                    return __generator(this, function (_a) {
+                        switch (_a.label) {
+                            case 0:
+                                n = state.find(card).charge;
+                                return [4 /*yield*/, target.play(card)(state)];
+                            case 1:
+                                state = _a.sent();
+                                state = tick(card)(state);
+                                if (!(n >= 1)) return [3 /*break*/, 3];
+                                return [4 /*yield*/, playAgain(target, card)(state)];
+                            case 2:
+                                state = _a.sent();
+                                _a.label = 3;
+                            case 3:
+                                state = tick(card)(state);
+                                if (!(n >= 2)) return [3 /*break*/, 5];
+                                return [4 /*yield*/, create(target.spec, 'discard')(state)];
+                            case 4:
+                                state = _a.sent();
+                                _a.label = 5;
+                            case 5:
+                                if (!(n >= 3)) return [3 /*break*/, 7];
+                                return [4 /*yield*/, playAgain(target, card)(state)];
+                            case 6:
+                                state = _a.sent();
+                                _a.label = 7;
+                            case 7: return [2 /*return*/, state];
+                        }
+                    });
                 });
-            });
-        })
-    }); }
+            }; }, "Choose a card to play with " + Traveler + ".", state.hand.filter(function (x) { return x.name != Traveler; }))); }
+        }, chargeUpTo(4)]
 };
 buyable(traveler, 5);
 var fountain = {
     name: 'Fountain',
     fixedCost: energy(1),
-    effect: function (card) { return ({
-        text: 'Set $ to 0, draws to 5, and buys to 1.',
-        effect: doAll([
-            setResource('coin', 0),
-            setResource('buys', 1),
-            setResource('draws', 5),
-        ])
-    }); }
+    effects: [{
+            text: ['Set $ to 0, draws to 5, and buys to 1.'],
+            effect: function () { return doAll([
+                setResource('coin', 0),
+                setResource('buys', 1),
+                setResource('draws', 5),
+            ]); }
+        }]
 };
 buyable(fountain, 5);
-var chameleonEffect = {
+var chameleon = {
     name: 'Chameleon',
-    replacers: function (card) { return [{
+    replacers: [{
             text: "As long as this has a charge token on it,\n        whenever you would gain $ instead gain that many draws and vice versa.",
             kind: 'resource',
-            handles: function (x) { return card.charge > 0; },
+            handles: function (x, state, card) { return state.find(card).charge > 0; },
             replace: function (x) { return (__assign(__assign({}, x), { resource: (x.resource == 'coin') ? 'draws' :
                     (x.resource == 'draws') ? 'coin' :
                         x.resource })); }
-        }, robust(card)]; },
-    abilities: function (card) { return [{
-            text: "If this has a charge token on it, remove all charge tokens.\n        Otherwise, put a charge token on it.",
-            cost: noop,
-            effect: (card.charge > 0) ? uncharge(card) : charge(card, 1),
-        }]; }
-};
-var chameleon = {
-    name: 'Chameleon',
-    fixedCost: energy(4),
-    relatedCards: [chameleonEffect],
-    effect: function (card) { return ({
-        text: "Create a " + chameleonEffect.name + " in play.",
-        effect: create(chameleonEffect, 'play')
-    }); }
+        }],
+    effects: [{
+            text: ["If this has a charge token on it, remove all charge tokens.\n        Otherwise, put a charge token on it."],
+            effect: function (state, card) { return (state.find(card).charge > 0) ?
+                uncharge(card) : charge(card, 1); },
+        }]
 };
 registerEvent(chameleon);
 var grandMarket = {
     name: 'Grand Market',
-    effect: function (card) { return ({
-        text: "+$2, +1 draw, +1 buy.",
-        effect: doAll([gainCoin(2), draw(1), gainBuy])
-    }); }
+    effects: [gainCoinEffect(2), drawEffect(1), buyEffect()],
 };
 buyableAnd(grandMarket, 6, { restriction: {
         text: "You have no cards named " + copper.name + " or " + silver.name + " in your discard pile.",
@@ -3627,67 +3180,55 @@ buyableAnd(grandMarket, 6, { restriction: {
     } });
 var greatHearth = {
     name: 'Great Hearth',
-    effect: justPlay,
-    triggers: function (card) { return [{
+    effects: [toPlay()],
+    triggers: [{
             text: "Whenever you play " + a(estate.name) + ", +1 draw.",
             kind: 'play',
             handles: function (e) { return e.card.name == estate.name; },
-            effect: function (e) { return draw(1, card); }
-        }]; }
+            effect: function (e, state, card) { return draw(1, card); }
+        }]
 };
 buyable(greatHearth, 3);
 var homesteading = {
     name: 'Homesteading',
-    effect: cantripPlay,
-    replacers: function (card) { return [{
+    effects: [drawEffect(1), toPlay()],
+    replacers: [{
             text: estate.name + "s cost @ less.",
             kind: 'cost',
             handles: function (x) { return x.card.name == estate.name; },
             replace: function (x) { return (__assign(__assign({}, x), { cost: subtractCost(x.cost, { energy: 1 }) })); },
-        }]; }
+        }]
 };
 buyable(homesteading, 3);
 var duke = {
     name: 'Duke',
-    effect: justPlay,
-    triggers: function (card) { return [{
+    effects: [toPlay()],
+    triggers: [{
             text: "Whenever you play " + a(duchy.name) + ", +1 vp.",
             kind: 'play',
             handles: function (e) { return e.card.name == duchy.name; },
-            effect: function (e) { return gainPoints(1, card); }
-        }]; }
+            effect: function (e, state, card) { return gainPoints(1, card); }
+        }]
 };
 buyable(duke, 4);
 var industry = {
     name: 'Industry',
     fixedCost: energy(1),
-    effect: function (card) { return ({
-        text: "+1 draw per card you have in play up to a max of 5.",
-        effect: function (state) {
-            return __awaiter(this, void 0, void 0, function () {
-                return __generator(this, function (_a) {
-                    return [2 /*return*/, draw(Math.min(state.play.length, 5), card)(state)];
-                });
-            });
-        }
-    }); }
+    effects: [{
+            text: ["+1 draw per card in play up to a max of 5."],
+            effect: function (state, card) { return draw(Math.min(state.play.length, 5), card); }
+        }]
 };
 buyable(industry, 4);
 // ------------------ Testing -------------------
 var freeMoney = { name: 'Money and buys',
     fixedCost: energy(0),
-    effect: function (card) { return ({
-        text: '+$100, +100 buys',
-        effect: doAll([gainCoin(100), gainBuys(100)])
-    }); }
+    effects: [gainCoinEffect(100), gainBuyEffect(100)],
 };
 cheats.push(freeMoney);
 var freePoints = { name: 'Free points',
     fixedCost: energy(0),
-    effect: function (card) { return ({
-        text: '+10vp',
-        effect: gainPoints(10),
-    }); }
+    effects: [gainPointsEffect(10)],
 };
 cheats.push(freePoints);
 //# sourceMappingURL=logic.js.map

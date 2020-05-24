@@ -67,7 +67,7 @@ import { emptyState } from './logic.js';
 import { Undo } from './logic.js';
 import { playGame, initialState } from './logic.js';
 import { mixins } from './logic.js';
-import { VERSION } from './logic.js';
+import { VERSION, VP_GOAL } from './logic.js';
 var keyListeners = new Map();
 var symbolHotkeys = ['!', '%', '^', '&', '*', '(', ')', '-', '+', '=', '{', '}', '[', ']']; // '@', '#', '$' are confusing
 var lowerHotkeys = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm',
@@ -329,7 +329,7 @@ function renderShadow(shadow, state, tokenRenderer) {
             tooltip = renderStatic(shadow.spec.trigger);
             break;
         case 'effect':
-            tooltip = card.effect().text;
+            tooltip = renderEffects(shadow.spec.card);
             break;
         case 'abilities':
             tooltip = card.abilities().map(renderAbility).join('');
@@ -344,6 +344,24 @@ function renderShadow(shadow, state, tokenRenderer) {
         "<div class='cardcost'>" + costhtml + "</div>",
         "<span class='tooltip'>" + tooltip + "</span>",
         "</div>"].join('');
+}
+function renderEffects(card) {
+    var e_8, _a;
+    var parts = [];
+    try {
+        for (var _b = __values(card.effects()), _c = _b.next(); !_c.done; _c = _b.next()) {
+            var effect = _c.value;
+            parts = parts.concat(effect.text);
+        }
+    }
+    catch (e_8_1) { e_8 = { error: e_8_1 }; }
+    finally {
+        try {
+            if (_c && !_c.done && (_a = _b.return)) _a.call(_b);
+        }
+        finally { if (e_8) throw e_8.error; }
+    }
+    return parts.map(function (x) { return "<div>" + x + "</div>"; }).join();
 }
 function renderCard(card, state, options, tokenRenderer) {
     if (card instanceof Shadow) {
@@ -376,7 +394,7 @@ function renderBuyable(b) {
     return "<div>(req) " + b.text + "</div>";
 }
 function renderTooltip(card, state, tokenRenderer) {
-    var effectHtml = "<div>" + card.effect().text + "</div>";
+    var effectHtml = renderEffects(card);
     var buyableHtml = (card.spec.restriction != undefined) ? renderBuyable(card.spec.restriction) : '';
     var costHtml = (card.spec.calculatedCost != undefined) ? renderCalculatedCost(card.spec.calculatedCost) : '';
     var abilitiesHtml = card.abilities().map(function (x) { return renderAbility(x); }).join('');
@@ -457,7 +475,7 @@ var webUI = {
         return new Promise(function (resolve, reject) {
             var chosen = new Set();
             function chosenOptions() {
-                var e_8, _a;
+                var e_9, _a;
                 var result = [];
                 try {
                     for (var chosen_1 = __values(chosen), chosen_1_1 = chosen_1.next(); !chosen_1_1.done; chosen_1_1 = chosen_1.next()) {
@@ -465,12 +483,12 @@ var webUI = {
                         result.push(options[i].value);
                     }
                 }
-                catch (e_8_1) { e_8 = { error: e_8_1 }; }
+                catch (e_9_1) { e_9 = { error: e_9_1 }; }
                 finally {
                     try {
                         if (chosen_1_1 && !chosen_1_1.done && (_a = chosen_1.return)) _a.call(chosen_1);
                     }
-                    finally { if (e_8) throw e_8.error; }
+                    finally { if (e_9) throw e_9.error; }
                 }
                 return result;
             }
@@ -490,7 +508,7 @@ var webUI = {
                 return $("[option='" + i + "']");
             }
             function picks() {
-                var e_9, _a;
+                var e_10, _a;
                 var result = new Map();
                 var i = 0;
                 try {
@@ -499,12 +517,12 @@ var webUI = {
                         result.set(options[k].render, i++);
                     }
                 }
-                catch (e_9_1) { e_9 = { error: e_9_1 }; }
+                catch (e_10_1) { e_10 = { error: e_10_1 }; }
                 finally {
                     try {
                         if (chosen_2_1 && !chosen_2_1.done && (_a = chosen_2.return)) _a.call(chosen_2);
                     }
-                    finally { if (e_9) throw e_9.error; }
+                    finally { if (e_10) throw e_10.error; }
                 }
                 return result;
             }
@@ -529,7 +547,7 @@ var webUI = {
                 } });
             chosen.clear();
             function renderer() {
-                var e_10, _a;
+                var e_11, _a;
                 renderChoice(state, choicePrompt, newOptions, reject, renderer, picks);
                 try {
                     for (var chosen_3 = __values(chosen), chosen_3_1 = chosen_3.next(); !chosen_3_1.done; chosen_3_1 = chosen_3.next()) {
@@ -537,12 +555,12 @@ var webUI = {
                         elem(j).attr('chosen', true);
                     }
                 }
-                catch (e_10_1) { e_10 = { error: e_10_1 }; }
+                catch (e_11_1) { e_11 = { error: e_11_1 }; }
                 finally {
                     try {
                         if (chosen_3_1 && !chosen_3_1.done && (_a = chosen_3.return)) _a.call(chosen_3);
                     }
-                    finally { if (e_10) throw e_10.error; }
+                    finally { if (e_11) throw e_11.error; }
                 }
             }
             renderer();
@@ -672,7 +690,7 @@ function bindHelp(state, renderer) {
     function pick() {
         attach(renderer);
         var helpLines = [
-            "The goal of the game is to get to 32 points (vp) using as little energy (@) as possible.",
+            "The goal of the game is to get to " + VP_GOAL + " points (vp) using as little energy (@) as possible.",
             "When you play or buy a card, pay its cost then follow its instructions.",
             "The symbols below a card's name indicate its cost.",
             "When a cost is measured in energy (@, @@, ...) then you use that much energy to play it.",
@@ -718,7 +736,7 @@ function setCookie(name, value) {
     document.cookie = name + "=" + value + "; max-age=315360000; path=/";
 }
 function getCookie(name) {
-    var e_11, _a;
+    var e_12, _a;
     var nameEQ = name + "=";
     var ca = document.cookie.split(';');
     try {
@@ -730,12 +748,12 @@ function getCookie(name) {
                 return c.substring(nameEQ.length, c.length);
         }
     }
-    catch (e_11_1) { e_11 = { error: e_11_1 }; }
+    catch (e_12_1) { e_12 = { error: e_12_1 }; }
     finally {
         try {
             if (_c && !_c.done && (_a = _b.return)) _a.call(_b);
         }
-        finally { if (e_11) throw e_11.error; }
+        finally { if (e_12) throw e_12.error; }
     }
     return null;
 }
@@ -816,7 +834,6 @@ function heartbeat(spec, interval) {
                 clearInterval(interval);
                 alert("The server has updated to a new version, please refresh.");
             }
-            console.log(x);
             var n = parseInt(x, 10);
             if (!isNaN(n))
                 renderBest(n, spec);

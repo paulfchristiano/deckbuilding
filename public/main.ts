@@ -13,7 +13,7 @@ import { Option, OptionRender, HotkeyHint } from './logic.js'
 import { UI, Undo, Victory, HistoryMismatch, ReplayEnded } from './logic.js'
 import { playGame, initialState, verifyScore } from './logic.js'
 import { mixins } from './logic.js'
-import { VERSION } from './logic.js'
+import { VERSION, VP_GOAL } from './logic.js'
 
 // --------------------- Hotkeys
 
@@ -202,7 +202,7 @@ function renderShadow(shadow:Shadow, state:State, tokenRenderer:TokenRenderer):s
             tooltip = renderStatic(shadow.spec.trigger)
             break
         case 'effect':
-            tooltip = card.effect().text
+            tooltip = renderEffects(shadow.spec.card)
             break
         case 'abilities':
             tooltip = card.abilities().map(renderAbility).join('')
@@ -217,6 +217,14 @@ function renderShadow(shadow:Shadow, state:State, tokenRenderer:TokenRenderer):s
             `<div class='cardcost'>${costhtml}</div>`,
             `<span class='tooltip'>${tooltip}</span>`,
             `</div>`].join('')
+}
+
+function renderEffects(card:Card) {
+    let parts:string[] = []
+    for (const effect of card.effects()) {
+        parts = parts.concat(effect.text)
+    }
+    return parts.map(x => `<div>${x}</div>`).join()
 }
 
 function renderCard(
@@ -259,7 +267,7 @@ function renderBuyable(b:{text:string}): string{
 }
 
 function renderTooltip(card:Card, state:State, tokenRenderer:TokenRenderer): string {
-    const effectHtml:string = `<div>${card.effect().text}</div>`
+    const effectHtml:string = renderEffects(card)
     const buyableHtml:string = (card.spec.restriction != undefined) ? renderBuyable(card.spec.restriction) : ''
     const costHtml:string = (card.spec.calculatedCost != undefined) ? renderCalculatedCost(card.spec.calculatedCost) : ''
     const abilitiesHtml:string = card.abilities().map(x => renderAbility(x)).join('')
@@ -584,7 +592,7 @@ function bindHelp(state:State, renderer: () => void) {
     function pick() {
         attach(renderer)
         const helpLines:string[] = [
-            "The goal of the game is to get to 32 points (vp) using as little energy (@) as possible.",
+            `The goal of the game is to get to ${VP_GOAL} points (vp) using as little energy (@) as possible.`,
             "When you play or buy a card, pay its cost then follow its instructions.",
             "The symbols below a card's name indicate its cost.",
             "When a cost is measured in energy (@, @@, ...) then you use that much energy to play it.",
@@ -724,7 +732,6 @@ function heartbeat(spec:GameSpec, interval?:any): void {
                 clearInterval(interval)
                 alert("The server has updated to a new version, please refresh.")
             }
-            console.log(x)
             const n:number = parseInt(x, 10)
             if (!isNaN(n)) renderBest(n, spec)
             else renderScoreboardLink(spec)
