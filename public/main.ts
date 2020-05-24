@@ -260,7 +260,7 @@ function renderBuyable(b:{text:string}): string{
 
 function renderTooltip(card:Card, state:State, tokenRenderer:TokenRenderer): string {
     const effectHtml:string = `<div>${card.effect().text}</div>`
-    const buyableHtml:string = (card.spec.buyable != undefined) ? renderBuyable(card.spec.buyable) : ''
+    const buyableHtml:string = (card.spec.restriction != undefined) ? renderBuyable(card.spec.restriction) : ''
     const costHtml:string = (card.spec.calculatedCost != undefined) ? renderCalculatedCost(card.spec.calculatedCost) : ''
     const abilitiesHtml:string = card.abilities().map(x => renderAbility(x)).join('')
     const triggerHtml:string = card.triggers().map(x => renderStatic(x)).join('')

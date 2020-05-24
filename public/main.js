@@ -377,7 +377,7 @@ function renderBuyable(b) {
 }
 function renderTooltip(card, state, tokenRenderer) {
     var effectHtml = "<div>" + card.effect().text + "</div>";
-    var buyableHtml = (card.spec.buyable != undefined) ? renderBuyable(card.spec.buyable) : '';
+    var buyableHtml = (card.spec.restriction != undefined) ? renderBuyable(card.spec.restriction) : '';
     var costHtml = (card.spec.calculatedCost != undefined) ? renderCalculatedCost(card.spec.calculatedCost) : '';
     var abilitiesHtml = card.abilities().map(function (x) { return renderAbility(x); }).join('');
     var triggerHtml = card.triggers().map(function (x) { return renderStatic(x); }).join('');
