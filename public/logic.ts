@@ -37,6 +37,7 @@ function repeatSymbol(s:string, n:number): string {
 
 // ----------------------------- Cards
 
+
 export interface CardSpec {
     name: string;
     fixedCost?: Cost;
@@ -2730,7 +2731,7 @@ const doubleTime:CardSpec = {name: 'Double Time',
         text: `Cards in your hand @ less to play for each charge token on this.
             Whenever this reduces a cost by one or more @, remove that many charge tokens from this.`,
         kind: 'cost',
-        handles: () => card.charge > 0,
+        handles: (x, state) => (state.find(x.card).place == 'hand') && card.charge > 0,
         replace: (x, state) => {
             card = state.find(card)
             const reduction = Math.min(x.cost.energy, card.charge)
@@ -2739,6 +2740,11 @@ const doubleTime:CardSpec = {name: 'Double Time',
                 effects:x.cost.effects.concat([discharge(card, reduction)])
             }}
         }
+    }, {
+        text: 'Whenever this leaves play, remove all charge tokens from it.',
+        kind: 'move',
+        handles: x => x.fromZone == 'play' && !x.skip,
+        replace: x => ({...x, effects:x.effects.concat([uncharge(card)])})
     }]
 }
 buyable(doubleTime, 2)
