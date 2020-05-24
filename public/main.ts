@@ -55,7 +55,8 @@ function interpretHint(hint:HotkeyHint|undefined): Key|undefined {
     switch (hint.kind) {
         case "number":
             const n = hint.val
-            if (n < numHotkeys.length) return numHotkeys[n]
+            const candidates = numHotkeys.concat(lowerHotkeys).concat(upperHotkeys)
+            if (n < candidates.length) return candidates[n]
             else return undefined
         case "none":
             return ' '
@@ -224,7 +225,7 @@ function renderEffects(card:Card) {
     for (const effect of card.effects()) {
         parts = parts.concat(effect.text)
     }
-    return parts.map(x => `<div>${x}</div>`).join()
+    return parts.map(x => `<div>${x}</div>`).join('')
 }
 
 function renderCard(

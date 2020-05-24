@@ -104,8 +104,9 @@ function interpretHint(hint) {
     switch (hint.kind) {
         case "number":
             var n = hint.val;
-            if (n < numHotkeys.length)
-                return numHotkeys[n];
+            var candidates = numHotkeys.concat(lowerHotkeys).concat(upperHotkeys);
+            if (n < candidates.length)
+                return candidates[n];
             else
                 return undefined;
         case "none":
@@ -361,7 +362,7 @@ function renderEffects(card) {
         }
         finally { if (e_8) throw e_8.error; }
     }
-    return parts.map(function (x) { return "<div>" + x + "</div>"; }).join();
+    return parts.map(function (x) { return "<div>" + x + "</div>"; }).join('');
 }
 function renderCard(card, state, options, tokenRenderer) {
     if (card instanceof Shadow) {

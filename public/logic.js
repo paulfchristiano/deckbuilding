@@ -167,7 +167,7 @@ var Card = /** @class */ (function () {
         return this.name;
     };
     Card.prototype.update = function (newValues) {
-        return new Card(this.spec, this.id, (newValues.ticks == undefined) ? this.ticks : newValues.ticks, (newValues.tokens == undefined) ? this.tokens : newValues.tokens, (newValues.place == undefined) ? this.place : newValues.place, (newValues.zoneIndex == undefined) ? this.zoneIndex : newValues.zoneIndex);
+        return new Card(this.spec, this.id, (newValues.ticks === undefined) ? this.ticks : newValues.ticks, (newValues.tokens === undefined) ? this.tokens : newValues.tokens, (newValues.place === undefined) ? this.place : newValues.place, (newValues.zoneIndex === undefined) ? this.zoneIndex : newValues.zoneIndex);
     };
     Card.prototype.setTokens = function (token, n) {
         var tokens = new Map(this.tokens);
@@ -551,7 +551,7 @@ var State = /** @class */ (function () {
             }
             finally { if (e_6) throw e_6.error; }
         }
-        var name = 'resolving', zone = this.resolving;
+        var zone = this.resolving;
         var matches = zone.filter(function (c) { return c.id == card.id; });
         if (matches.length > 0)
             return matches[0];
@@ -2078,7 +2078,7 @@ function gainPointsEffect(n) {
 function drawEffect(n) {
     return {
         text: ["+" + num(n, 'draw')],
-        effect: function (s, c) { return gainPoints(n, c); },
+        effect: function (s, c) { return gainCards(n, c); },
     };
 }
 function gainBuyEffect(n) {
@@ -2380,7 +2380,7 @@ var hallOfMirrors = { name: 'Hall of Mirrors', fixedCost: __assign(__assign({}, 
             ]); },
         }]
 };
-registerEvent(hallOfMirrors, 'test');
+registerEvent(hallOfMirrors);
 function costPlus(initial, increment) {
     return {
         calculate: function (card, state) {
@@ -2521,7 +2521,7 @@ var populate = { name: 'Populate', fixedCost: __assign(__assign({}, free), { coi
             effect: function (state, card) { return doAll(state.supply.map(function (s) { return s.buy(card); })); }
         }]
 };
-registerEvent(populate);
+registerEvent(populate, 'test');
 var duplicate = { name: 'Duplicate', fixedCost: __assign(__assign({}, free), { coin: 5, energy: 1 }),
     effects: [{
             text: ["Put a duplicate token on each card in the supply."],
@@ -3030,7 +3030,7 @@ var egg = { name: 'Egg',
             }; }
         }]
 };
-buyable(egg, 4);
+buyable(egg, 4, 'test');
 var looter = { name: 'Looter', effects: [{
             text: ["Discard up to three cards from your hand.",
                 "+1 draw per card you discarded."],
@@ -3100,9 +3100,9 @@ var traveler = {
     fixedCost: energy(1),
     effects: [{
             text: ["Pay a draw to play a card in your hand not named " + Traveler + ".",
-                "If this has at least one charge token on it,\n            play the card again if it's in your discard.",
-                "If this has at least two charge tokens on it,\n            gain a fresh copy of the card in your discard.",
-                "If this has at least three charge tokens on it,\n            play the card a third time if it's in your discard."],
+                "If this has at least 1 charge token on it,\n            play the card again if it's in your discard.",
+                "If this has at least 2 charge tokens on it,\n            gain a fresh copy of the card in your discard.",
+                "If this has at least 3 charge tokens on it,\n            play the card a third time if it's in your discard."],
             effect: function (state, card) { return payToDo(payDraw, applyToTarget(function (target) { return function (state) {
                 return __awaiter(this, void 0, void 0, function () {
                     var n;
@@ -3137,7 +3137,7 @@ var traveler = {
                     });
                 });
             }; }, "Choose a card to play with " + Traveler + ".", state.hand.filter(function (x) { return x.name != Traveler; }))); }
-        }, chargeUpTo(4)]
+        }, chargeUpTo(3)]
 };
 buyable(traveler, 5);
 var fountain = {
@@ -3221,11 +3221,16 @@ var industry = {
 };
 buyable(industry, 4);
 // ------------------ Testing -------------------
-var freeMoney = { name: 'Money and buys',
+var freeMoney = { name: 'Free money',
     fixedCost: energy(0),
     effects: [gainCoinEffect(100), gainBuyEffect(100)],
 };
 cheats.push(freeMoney);
+var freeDraws = { name: 'Free draws',
+    fixedCost: energy(0),
+    effects: [drawEffect(100)],
+};
+cheats.push(freeDraws);
 var freePoints = { name: 'Free points',
     fixedCost: energy(0),
     effects: [gainPointsEffect(10)],

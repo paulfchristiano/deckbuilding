@@ -146,10 +146,10 @@ export class Card {
         return new Card(
             this.spec,
             this.id,
-            (newValues.ticks == undefined) ? this.ticks : newValues.ticks,
-            (newValues.tokens == undefined) ? this.tokens : newValues.tokens,
-            (newValues.place == undefined) ? this.place : newValues.place,
-            (newValues.zoneIndex == undefined) ? this.zoneIndex : newValues.zoneIndex,
+            (newValues.ticks === undefined) ? this.ticks : newValues.ticks,
+            (newValues.tokens === undefined) ? this.tokens : newValues.tokens,
+            (newValues.place === undefined) ? this.place : newValues.place,
+            (newValues.zoneIndex === undefined) ? this.zoneIndex : newValues.zoneIndex,
         )
     }
     setTokens(token:string, n:number): Card {
@@ -475,7 +475,7 @@ export class State {
             const matches:Card[] = zone.filter(c => c.id == card.id)
             if (matches.length > 0) return matches[0]
         }
-        const name = 'resolving', zone = this.resolving;
+        const zone = this.resolving;
         const matches:Card[] = (zone.filter(c => c.id == card.id) as Card[])
         if (matches.length > 0) return matches[0]
         return card.update({place:null})
@@ -1667,7 +1667,7 @@ function gainPointsEffect(n:number): Effect {
 function drawEffect(n:number): Effect {
     return {
         text: [`+` + num(n, 'draw')],
-        effect: (s:State, c:Card) => gainPoints(n, c),
+        effect: (s:State, c:Card) => gainCards(n, c),
     }
 }
 function gainBuyEffect(n:number): Effect {
@@ -2001,7 +2001,7 @@ const hallOfMirrors:CardSpec = {name: 'Hall of Mirrors',
         ]),
     }]
 }
-registerEvent(hallOfMirrors, 'test')
+registerEvent(hallOfMirrors)
 
 function costPlus(initial:Cost, increment:Cost): CalculatedCost {
     return {
@@ -2145,7 +2145,7 @@ const populate:CardSpec = {name: 'Populate',
         effect: (state, card) => doAll(state.supply.map(s => s.buy(card)))
     }]
 }
-registerEvent(populate)
+registerEvent(populate, 'test')
 
 const duplicate:CardSpec = {name: 'Duplicate',
     fixedCost: {...free, coin:5, energy:1},
@@ -2685,7 +2685,7 @@ const egg:CardSpec = {name: 'Egg',
         }
     }]
 }
-buyable(egg, 4)
+buyable(egg, 4, 'test')
 
 const looter:CardSpec = {name: 'Looter',
     effects: [{
@@ -2754,11 +2754,11 @@ const traveler:CardSpec = {
     fixedCost: energy(1),
     effects: [{
         text: [`Pay a draw to play a card in your hand not named ${Traveler}.`,
-            `If this has at least one charge token on it,
+            `If this has at least 1 charge token on it,
             play the card again if it's in your discard.`,
-            `If this has at least two charge tokens on it,
+            `If this has at least 2 charge tokens on it,
             gain a fresh copy of the card in your discard.`,
-            `If this has at least three charge tokens on it,
+            `If this has at least 3 charge tokens on it,
             play the card a third time if it's in your discard.`],
         effect: (state, card) => payToDo(payDraw, applyToTarget(
             target => async function(state){
@@ -2774,7 +2774,7 @@ const traveler:CardSpec = {
             `Choose a card to play with ${Traveler}.`,
             state.hand.filter(x => x.name != Traveler)
         ))
-    }, chargeUpTo(4)]
+    }, chargeUpTo(3)]
 }
 buyable(traveler, 5)
 
@@ -2874,11 +2874,17 @@ buyable(industry, 4)
 
 // ------------------ Testing -------------------
 
-const freeMoney:CardSpec = {name: 'Money and buys',
+const freeMoney:CardSpec = {name: 'Free money',
     fixedCost: energy(0),
     effects: [gainCoinEffect(100), gainBuyEffect(100)],
 }
 cheats.push(freeMoney)
+
+const freeDraws:CardSpec = {name: 'Free draws',
+    fixedCost: energy(0),
+    effects: [drawEffect(100)],
+}
+cheats.push(freeDraws)
 
 const freePoints:CardSpec = {name: 'Free points',
     fixedCost: energy(0),
