@@ -85,7 +85,7 @@ var __read = (this && this.__read) || function (o, n) {
     }
     return ar;
 };
-export var VERSION = "0.4";
+export var VERSION = "0.4.1";
 // ----------------------------- Formatting
 export function renderCost(cost) {
     var e_1, _a;
@@ -3436,21 +3436,21 @@ var reuse = {
         }]
 };
 registerEvent(reuse);
-var sharpen = {
+var polish = {
     name: 'Sharpen',
     fixedCost: __assign(__assign({}, free), { coin: 2, energy: 1 }),
     effects: [{
-            text: ["Put a sharp token on each card in your hand."],
-            effect: function (state) { return doAll(state.hand.map(function (c) { return addToken(c, 'sharp'); })); }
+            text: ["Put a polish token on each card in your hand."],
+            effect: function (state) { return doAll(state.hand.map(function (c) { return addToken(c, 'polish'); })); }
         }],
     triggers: [{
-            text: "Whenever you play a card with a sharp token on it,\n        remove a sharp token from it and +$1.",
+            text: "Whenever you play a card with a polish token on it,\n        remove a polish token from it and +$1.",
             kind: 'play',
-            handles: function (e, state) { return (e.card.count('sharp') > 0); },
-            effect: function (e) { return doAll([removeToken(e.card, 'sharp'), gainCoin(1)]); }
+            handles: function (e, state) { return (e.card.count('polish') > 0); },
+            effect: function (e) { return doAll([removeToken(e.card, 'polish'), gainCoin(1)]); }
         }]
 };
-registerEvent(sharpen);
+registerEvent(polish);
 var slog = {
     name: 'Slog',
     restriction: {
@@ -3496,8 +3496,8 @@ var reverberate = {
     name: 'Reverberate',
     calculatedCost: costPlus(energy(1), coin(1)),
     effects: [incrementCost(), {
-            text: ["For each card in play, create a copy in play with an echo token on it."],
-            effect: function (state) { return doAll(state.play.map(echoEffect)); }
+            text: ["For each card in play without an echo token,\n            create a copy in play with an echo token on it."],
+            effect: function (state) { return doAll(state.play.filter(function (c) { return c.count('echo') == 0; }).map(echoEffect)); }
         }],
     triggers: [fragileEcho()]
 };
