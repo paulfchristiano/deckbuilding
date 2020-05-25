@@ -1654,31 +1654,31 @@ function regroupEffect(n:number, source?:Source): Effect {
 
 function gainCoinEffect(n:number): Effect {
     return {
-        text: [`+$${n}`],
+        text: [`+$${n}.`],
         effect: (s:State, c:Card) => gainCoin(n, c),
     }
 }
 function gainPointsEffect(n:number): Effect {
     return {
-        text: [`+${n} vp`],
+        text: [`+${n} vp.`],
         effect: (s:State, c:Card) => gainPoints(n, c),
     }
 }
 function drawEffect(n:number): Effect {
     return {
-        text: [`+` + num(n, 'draw')],
+        text: [`+${num(n, 'draw')}.`],
         effect: (s:State, c:Card) => gainCards(n, c),
     }
 }
 function gainBuyEffect(n:number): Effect {
     return {
-        text: ['+' + num(n, 'buy')],
+        text: [`+${num(n, 'buy')}.`],
         effect: (state, card) => gainBuys(n, card),
     }
 }
 function buyEffect() {
     return {
-        text: [`+1 buy`],
+        text: [`+1 buy.`],
         effect: () => gainBuy,
     }
 }
@@ -1977,7 +1977,6 @@ const construction:CardSpec = {name: 'Construction',
 }
 buyable(construction, 3)
 
-//TODO: I would prefer 'other than with this'
 const hallOfMirrors:CardSpec = {name: 'Hall of Mirrors',
     fixedCost: {...free, energy:2, coin:5},
     effects: [{
@@ -2145,7 +2144,7 @@ const populate:CardSpec = {name: 'Populate',
         effect: (state, card) => doAll(state.supply.map(s => s.buy(card)))
     }]
 }
-registerEvent(populate, 'test')
+registerEvent(populate)
 
 const duplicate:CardSpec = {name: 'Duplicate',
     fixedCost: {...free, coin:5, energy:1},
@@ -2582,23 +2581,28 @@ const publicWorks:CardSpec = {name: 'Public Works',
 }
 buyable(publicWorks, 5)
 
+function echoEffect(card:Card): Transform {
+    return create(card.spec, 'play', 'end', c => addToken(c, 'echo'))
+}
+
+function fragileEcho(): Trigger<MoveEvent> {
+    return {
+        text: 'Whenever you move a card with an echo token on it, trash it.',
+        kind: 'move',
+        handles: (x, state) => state.find(x.card).count('echo') > 0,
+        effect: x => trash(x.card)
+    }
+}
+
 //TODO: handle skip better, other things shouldn't replace it again...
 const echo:CardSpec = {name: 'Echo',
-    effects: [targetedEffect(
-        target => create(target.spec, 'play', 'end', c => addToken(c, 'echo')),
+    effects: [targetedEffect(echoEffect,
         `Choose a card you have in play.
         Create a fresh copy of it in play with an echo token on it.`,
         state => state.play
     )]
 }
-buyableAnd(echo, 4, {
-    triggers: [{
-        text: 'Whenever you move a card with an echo token on it, trash it.',
-        kind: 'move',
-        handles: (x, state) => state.find(x.card).count('echo') > 0,
-        effect: x => trash(x.card)
-    }]
-})
+buyableAnd(echo, 4, {triggers: [fragileEcho()]})
 
 const mastermind:CardSpec = {name: 'Mastermind',
     effects: [toPlay()],
@@ -2632,18 +2636,9 @@ const mastermind:CardSpec = {name: 'Mastermind',
 }
 buyable(mastermind, 5)
 
-//TODO: haggler makes $2, puts itself in play, buy cheaper things...
 
-const doubleTime:CardSpec = {
-    name: 'Double Time',
-    effects: [drawEffect(1), toPlay()],
-    triggers: [{
-        text: 'Whenever you pay @, that many charge tokens on this.',
-        kind: 'cost',
-        handles: () => true,
-        effect: (e, state, card) => charge(card, e.cost.energy)
-    }],
-    replacers: [{
+function chargeVillage(): Replacer<CostParams> {
+    return {
         text: `Cards in your hand @ less to play for each charge token on this.
             Whenever this reduces a cost by one or more @, remove that many charge tokens from this.`,
         kind: 'cost',
@@ -2656,12 +2651,30 @@ const doubleTime:CardSpec = {
                 effects:x.cost.effects.concat([discharge(card, reduction)])
             }}
         }
-    }, {
+    }
+}
+
+function unchargeOnMove(): Replacer<MoveParams> {
+    return {
         text: 'Whenever this leaves play, remove all charge tokens from it.',
         kind: 'move',
         handles: x => x.fromZone == 'play' && !x.skip,
         replace: (x, state, card) => ({...x, effects:x.effects.concat([uncharge(card)])})
-    }]
+    }
+}
+
+//TODO: should "this is in play" always be a requirement for triggers?
+const doubleTime:CardSpec = {
+    name: 'Double Time',
+    effects: [drawEffect(1), toPlay()],
+    triggers: [{
+        text: 'Whenever you pay @, put that many charge tokens on this.',
+        kind: 'cost',
+        handles: (e, state, card) => e.cost.energy > 0
+            && state.find(card).place == 'play',
+        effect: (e, state, card) => charge(card, e.cost.energy)
+    }],
+    replacers: [chargeVillage(), unchargeOnMove()]
 }
 buyable(doubleTime, 2)
 
@@ -2685,7 +2698,7 @@ const egg:CardSpec = {name: 'Egg',
         }
     }]
 }
-buyable(egg, 4, 'test')
+buyable(egg, 4)
 
 const looter:CardSpec = {name: 'Looter',
     effects: [{
@@ -2824,7 +2837,7 @@ buyableAnd(grandMarket, 6, {restriction: {
 
 const greatHearth:CardSpec = {
     name: 'Great Hearth',
-    effects: [toPlay()],
+    effects: [drawEffect(1), toPlay()],
     triggers: [{
         text: `Whenever you play ${a(estate.name)}, +1 draw.`,
         kind: 'play',
@@ -2837,12 +2850,15 @@ buyable(greatHearth, 3)
 const homesteading:CardSpec = {
     name: 'Homesteading',
     effects: [drawEffect(1), toPlay()],
-    replacers: [{
-        text: `${estate.name}s cost @ less.`,
-        kind: 'cost',
-        handles: x => x.card.name == estate.name,
-        replace: x => ({...x, cost:subtractCost(x.cost, {energy:1})}),
-    }]
+    triggers: [{
+        text: `Whenever you play ${a(estate.name)}, put a charge token on this.`,
+        kind: 'play',
+        handles: (e, state, card) => e.card.name == estate.name
+            && state.find(card).place == 'play',
+        effect: (e, state, card) => charge(card, 1),
+
+    }],
+    replacers: [chargeVillage(), unchargeOnMove()],
 }
 buyable(homesteading, 3)
 
@@ -2870,6 +2886,209 @@ const industry:CardSpec = {
     }]
 }
 buyable(industry, 4)
+
+const flourishing:CardSpec = {
+    name: 'Flourishing',
+    calculatedCost: {
+        text: `@ if you have less than 10 vp.`,
+        calculate: (card, state) => (state.points < 10) ? energy(1) : free
+    },
+    effects: [drawEffect(2), {
+        text: [`If you have at least 20 vp, +$2.`],
+        effect: (state, card) => (state.points < 20) ? noop : gainCoin(2)
+    }]
+}
+buyable(flourishing, 3)
+
+const banquet:CardSpec = {
+    name: 'Banquet',
+    effects: [gainCoinEffect(4), toPlay(), {
+        text: ['Put a neglect token on each card in your hand.'],
+        effect: state => doAll(state.hand.map(x => addToken(x, 'neglect')))
+    }],
+    triggers: [{
+        text: `Whenever a card moves, remove all neglect tokens from it.`,
+        kind: 'move',
+        handles: p => p.fromZone != p.toZone,
+        effect: p => removeTokens(p.card, 'neglect')
+
+    }],
+    replacers: [{
+        text: `Whenever you'd move this to your hand,
+            if you have any cards in your hand with a neglect token,
+            instead leave this in play.`,
+        kind: 'move',
+        handles: (p, state, card) => p.card.id == card.id && p.toZone == 'hand'
+            && state.hand.some(c => c.count('neglect') > 0),
+        replace: (p, state, card) => ({...p, skip:true})
+    }]
+}
+buyable(banquet, 3)
+
+function countDistinct<T>(xs:T[]): number {
+    const distinct:Set<T> = new Set()
+    let result:number = 0
+    for (const x of xs) {
+        if (!distinct.has(x)) {
+            result += 1
+            distinct.add(x)
+        }
+    }
+    return result
+}
+
+const harvest:CardSpec = {
+    name:'Harvest',
+    fixedCost: energy(1),
+    effects: [{
+        text: [`+$1 for every differently-named card in your discard pile
+            up to a max of 5.`],
+        effect: state => gainCoin(countDistinct(state.discard.map(x => x.name)))
+    }]
+}
+buyable(harvest, 3)
+
+const horseTraders:CardSpec = {
+    name:'Horse Traders',
+    fixedCost: energy(1),
+    effects: [{
+        text: ['If you have any draws, lose 1.'],
+        effect: (state, card) => draw(-1, card)
+    }, gainCoinEffect(4), buyEffect()]
+}
+buyable(horseTraders, 4)
+
+const supplies:CardSpec = {
+    name: 'Supplies',
+    effects: [gainCoinEffect(1)],
+    replacers: [{
+        text: 'Whenever you would move this to your hand, first draw a card.',
+        kind: 'move',
+        handles: (p, s, c) => p.card.id == c.id && p.toZone == 'hand',
+        replace: (p, s, c) => ({...p, effects:p.effects.concat([draw(1, c)])})
+    }]
+}
+buyable(supplies, 2)
+
+//TODO: "buy normal way" should maybe be it's own trigger with a cost field?
+const haggler:CardSpec = {
+    name: 'Haggler',
+    fixedCost: energy(1),
+    effects: [gainCoinEffect(2), toPlay()],
+    triggers: [{
+        text: `Whenever you buy a card or event the normal way,
+        buy an event or card in the supply costing at least $1 less.`,
+        kind: 'buy',
+        handles: p => p.source.name == 'act',
+        effect: (p, state, card) => applyToTarget(
+            target => target.buy(card),
+            "Choose a cheaper card to buy.",
+            state.supply.concat(state.events).filter(
+                c => leq(addCosts(c.cost(state), {coin:1}), p.card.cost(state))
+            )
+        )
+    }]
+}
+buyable(haggler, 5)
+
+const reuse:CardSpec = {
+    name: 'Reuse',
+    fixedCost: energy(2),
+    effects: [{
+        text: [`Play any number of cards in your discard pile without a reuse token.`,
+                `Put a reuse token on each card played in this way.`],
+        effect: (state, card) => async function(state) {
+            const cards:Card[] = state.discard.filter(c => c.count('reuse') == 0)
+            let options:Option<Card>[] = asNumberedChoices(cards)
+            while (true) {
+                let picked:Card|null; [state, picked] = await choice(state,
+                    'Pick a card to play next.',
+                    allowNull(options))
+                if (picked == null) {
+                    return state
+                } else {
+                    const id = picked.id
+                    options = options.filter(c => c.value.id != id)
+                    state = await picked.play(card)(state)
+                    state = await addToken(picked, 'reuse')(state)
+                }
+            }
+        }
+    }]
+}
+registerEvent(reuse)
+
+const sharpen:CardSpec = {
+    name: 'Sharpen',
+    fixedCost: {...free, coin:2, energy:1},
+    effects: [{
+        text: [`Put a sharp token on each card in your hand.`],
+        effect: state => doAll(state.hand.map(c => addToken(c, 'sharp')))
+    }],
+    triggers: [{
+        text: `Whenever you play a card with a sharp token on it,
+        remove a sharp token from it and +$1.`,
+        kind: 'play',
+        handles: (e, state) => (e.card.count('sharp') > 0),
+        effect: e => doAll([removeToken(e.card, 'sharp'), gainCoin(1)])
+    }]
+}
+registerEvent(sharpen)
+
+const slog:CardSpec = {
+    name: 'Slog',
+    restriction: {
+        text: `Can't be bought`,
+        test: () => false
+    },
+    replacers: [{
+        text: `Cards that cost at least @ cost an additional @.`,
+        kind: 'cost',
+        handles: (p, state) => p.cost.energy > 0,
+        replace: p => ({...p, cost:addCosts(p.cost, {energy:1})})
+    }]
+}
+registerEvent(slog)
+
+const coinOfTheRealm:CardSpec = {
+    name: 'Coin of the Realm',
+    fixedCost: energy(1),
+    effects: [{
+        text: [`Lose all $.`, `Put a charge token on this for each $ lost.`],
+        effect: (state, card) => async function(state) {
+            const n = state.coin
+            state = await setResource('coin', 0)(state)
+            state = await charge(card, n)(state)
+            return state
+        }
+    }],
+    replacers: [chargeVillage()]
+}
+registerEvent(coinOfTheRealm)
+
+const reverberate:CardSpec = {
+    name: 'Reverberate',
+    calculatedCost: costPlus(energy(1), coin(1)),
+    effects: [incrementCost(), {
+        text: [`For each card in play, create a copy in play with an echo token on it.`],
+        effect: state => doAll(state.play.map(echoEffect))
+    }],
+    triggers: [fragileEcho()]
+}
+registerEvent(reverberate, 'test')
+
+const preparations:CardSpec = {
+    name: 'Preparations',
+    fixedCost: energy(1),
+    effects: [toPlay()],
+    replacers: [{
+        text: `When you would move this to your hand, first +$2 and +2 draw`,
+        kind: 'move',
+        handles: (p, state, card) => (p.card.id == card.id && p.toZone == 'hand'),
+        replace: p => ({...p, effects:p.effects.concat([gainCoin(2), draw(2)])})
+    }]
+}
+buyable(preparations, 3, 'test')
 
 
 // ------------------ Testing -------------------

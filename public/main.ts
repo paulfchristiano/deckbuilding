@@ -176,7 +176,7 @@ class TokenRenderer {
             const n = tokens.get(token) || 0
             if (n > 0) tokenHtmls.push(f(n, token))
         }
-        return (tokenHtmls.length > 0) ? `Tokens: ${tokenHtmls.join(',')}` : ''
+        return (tokenHtmls.length > 0) ? `Tokens: ${tokenHtmls.join(', ')}` : ''
     }
 }
 

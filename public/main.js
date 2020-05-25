@@ -304,7 +304,7 @@ var TokenRenderer = /** @class */ (function () {
             }
             finally { if (e_7) throw e_7.error; }
         }
-        return (tokenHtmls.length > 0) ? "Tokens: " + tokenHtmls.join(',') : '';
+        return (tokenHtmls.length > 0) ? "Tokens: " + tokenHtmls.join(', ') : '';
     };
     return TokenRenderer;
 }());
