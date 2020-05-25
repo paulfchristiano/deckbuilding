@@ -638,6 +638,9 @@ var State = /** @class */ (function () {
         var future = pieces.map(renderPiece);
         return initialState(spec).update({ future: future });
     };
+    State.prototype.clearFuture = function () {
+        return this.update({ future: [] });
+    };
     return State;
 }());
 export { State };
@@ -1534,7 +1537,7 @@ function multichoice(state, prompt, options, validator, automateTrivial) {
     if (validator === void 0) { validator = (function (xs) { return true; }); }
     if (automateTrivial === void 0) { automateTrivial = true; }
     return __awaiter(this, void 0, void 0, function () {
-        var indices;
+        var indices, newState;
         var _a;
         return __generator(this, function (_b) {
             switch (_b.label) {
@@ -1542,29 +1545,29 @@ function multichoice(state, prompt, options, validator, automateTrivial) {
                     if (!(automateTrivial && options.length == 0)) return [3 /*break*/, 1];
                     return [2 /*return*/, [state, []]];
                 case 1:
-                    indices = void 0;
+                    indices = void 0, newState = void 0;
                     return [4 /*yield*/, doOrReplay(state, function () { return state.ui.multichoice(state, prompt, options, validator); })];
                 case 2:
-                    _a = __read.apply(void 0, [_b.sent(), 2]), state = _a[0], indices = _a[1];
+                    _a = __read.apply(void 0, [_b.sent(), 2]), newState = _a[0], indices = _a[1];
                     if (indices.some(function (x) { return x >= options.length; }))
-                        throw new HistoryMismatch(indices, state);
-                    return [2 /*return*/, [state, indices.map(function (i) { return options[i].value; })]];
+                        throw new InvalidHistory(indices, state);
+                    return [2 /*return*/, [newState, indices.map(function (i) { return options[i].value; })]];
             }
         });
     });
 }
-var HistoryMismatch = /** @class */ (function (_super) {
-    __extends(HistoryMismatch, _super);
-    function HistoryMismatch(indices, state) {
-        var _this = _super.call(this, 'HistoryMismatch') || this;
+var InvalidHistory = /** @class */ (function (_super) {
+    __extends(InvalidHistory, _super);
+    function InvalidHistory(indices, state) {
+        var _this = _super.call(this, "Indices " + indices + " do not correspond to a valid choice") || this;
         _this.indices = indices;
         _this.state = state;
-        Object.setPrototypeOf(_this, HistoryMismatch.prototype);
+        Object.setPrototypeOf(_this, InvalidHistory.prototype);
         return _this;
     }
-    return HistoryMismatch;
+    return InvalidHistory;
 }(Error));
-export { HistoryMismatch };
+export { InvalidHistory };
 var Undo = /** @class */ (function (_super) {
     __extends(Undo, _super);
     function Undo(state) {
@@ -1579,7 +1582,7 @@ export { Undo };
 function choice(state, prompt, options, automateTrivial) {
     if (automateTrivial === void 0) { automateTrivial = true; }
     return __awaiter(this, void 0, void 0, function () {
-        var index, indices;
+        var index, indices, newState;
         var _a;
         return __generator(this, function (_b) {
             switch (_b.label) {
@@ -1590,7 +1593,7 @@ function choice(state, prompt, options, automateTrivial) {
                     if (!(automateTrivial && options.length == 1)) return [3 /*break*/, 2];
                     return [2 /*return*/, [state, options[0].value]];
                 case 2:
-                    indices = void 0;
+                    indices = void 0, newState = void 0;
                     return [4 /*yield*/, doOrReplay(state, function () {
                             return __awaiter(this, void 0, void 0, function () { var x; return __generator(this, function (_a) {
                                 switch (_a.label) {
@@ -1602,10 +1605,10 @@ function choice(state, prompt, options, automateTrivial) {
                             }); });
                         })];
                 case 3:
-                    _a = __read.apply(void 0, [_b.sent(), 2]), state = _a[0], indices = _a[1];
+                    _a = __read.apply(void 0, [_b.sent(), 2]), newState = _a[0], indices = _a[1];
                     if (indices.length != 1 || indices[0] >= options.length)
-                        throw new HistoryMismatch(indices, state);
-                    return [2 /*return*/, [state, options[indices[0]].value]];
+                        throw new InvalidHistory(indices, state);
+                    return [2 /*return*/, [newState, options[indices[0]].value]];
             }
         });
     });
@@ -1724,7 +1727,7 @@ export function verifyScore(seed, history, score) {
                         else
                             return [2 /*return*/, [false, "Computed score was " + e_16.state.energy]];
                     }
-                    else if (e_16 instanceof HistoryMismatch) {
+                    else if (e_16 instanceof InvalidHistory) {
                         return [2 /*return*/, [false, "" + e_16]];
                     }
                     else if (e_16 instanceof VersionMismatch) {

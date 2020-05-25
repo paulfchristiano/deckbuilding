@@ -10,7 +10,7 @@ import { ID } from './logic.js'
 import { renderCost, renderEnergy } from './logic.js'
 import { emptyState } from './logic.js'
 import { Option, OptionRender, HotkeyHint } from './logic.js'
-import { UI, Undo, Victory, HistoryMismatch, ReplayEnded } from './logic.js'
+import { UI, Undo, Victory, InvalidHistory, ReplayEnded } from './logic.js'
 import { playGame, initialState, verifyScore } from './logic.js'
 import { mixins } from './logic.js'
 import { VERSION, VP_GOAL } from './logic.js'
@@ -602,7 +602,8 @@ function bindHelp(state:State, renderer: () => void) {
             "You can activate the abilities of cards in play, marked with (ability).",
             "Effects marked with (static) apply whenever the card is in play or in the supply.",
             `You can play today's <a href='daily'>daily kingdom</a>, which refreshes 8pm PDT.`,
-            `Or you can visit <a href="${replayURL(state.spec)}">this link</a> to replay this kingdom anytime.`,
+            `Visit <a href="${stateURL(state)}">this link</a> to replay this kingdom anytime.`,
+            `Visit <a href="${stateURL(state, false)}">this link</a> to resume this game from the current state.`,
             //`Or visit the <a href="picker.html">kingdom picker<a> to pick a kingdom.`,
         ]
         if (submittable(state.spec))
@@ -629,10 +630,11 @@ function dateSeedURL() {
     return `play?seed=${dateString()}`
 }
 
-
-function replayURL(spec:GameSpec) {
+function stateURL(state:State, restart:boolean=true): string {
+    const spec:GameSpec = state.spec
     const args:string[] = [`seed=${spec.seed}`]
-    if (spec.kingdom != null) args.push(`kingdom=${spec.kingdom}`)
+    if (spec.kingdom != null) args.push(`kingdom=${spec.kingdom}`);
+    if (!restart) args.push(`history=${state.serializeHistory()}`)
     return `play?${args.join('&')}`
 }
 
@@ -758,7 +760,7 @@ function isTesting(): boolean {
     return new URLSearchParams(window.location.search).get('test') != null
 }
 
-function getKingdom(): string|null {
+function getKingdom(): string | null {
     return new URLSearchParams(window.location.search).get('kingdom')
 }
 
@@ -770,11 +772,31 @@ function getSeed(): string {
     return (seeds.length == 0) ? Math.random().toString(36).substring(2, 7) : seeds.join('.')
 }
 
+function getHistory(): string | null {
+    return new URLSearchParams(window.location.search).get('history')
+}
+
 export function load(): void {
     const spec:GameSpec = makeGameSpec()
+    const history:string|null = getHistory()
+    let state = initialState(spec)
+    if (history !== null) {
+        try {
+            state = State.fromHistory(history, spec)
+        } catch(e) {
+            alert(`Error loading history: ${e}`);
+        }
+    }
     heartbeat(spec)
     const interval:any = setInterval(() => heartbeat(spec, interval), 10000)
-    playGame(initialState(spec).attachUI(webUI))
+    playGame(state.attachUI(webUI)).catch(e => {
+        if (e instanceof InvalidHistory) {
+            alert(e)
+            playGame(e.state.clearFuture())
+        } else {
+            alert(e)
+        }
+    })
 }
 
 // ----------------------------------- Kingdom picker

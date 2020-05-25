@@ -61,10 +61,10 @@ var __values = (this && this.__values) || function(o) {
     };
     throw new TypeError(s ? "Object is not iterable." : "Symbol.iterator is not defined.");
 };
-import { Shadow, Card } from './logic.js';
+import { Shadow, State, Card } from './logic.js';
 import { renderCost, renderEnergy } from './logic.js';
 import { emptyState } from './logic.js';
-import { Undo } from './logic.js';
+import { Undo, InvalidHistory } from './logic.js';
 import { playGame, initialState } from './logic.js';
 import { mixins } from './logic.js';
 import { VERSION, VP_GOAL } from './logic.js';
@@ -700,7 +700,8 @@ function bindHelp(state, renderer) {
             "You can activate the abilities of cards in play, marked with (ability).",
             "Effects marked with (static) apply whenever the card is in play or in the supply.",
             "You can play today's <a href='daily'>daily kingdom</a>, which refreshes 8pm PDT.",
-            "Or you can visit <a href=\"" + replayURL(state.spec) + "\">this link</a> to replay this kingdom anytime.",
+            "Visit <a href=\"" + stateURL(state) + "\">this link</a> to replay this kingdom anytime.",
+            "Visit <a href=\"" + stateURL(state, false) + "\">this link</a> to resume this game from the current state.",
         ];
         if (submittable(state.spec))
             helpLines.push("Check out the scoreboard <a href=" + scoreboardURL(state.spec) + ">here</a>.");
@@ -722,10 +723,14 @@ function dateString() {
 function dateSeedURL() {
     return "play?seed=" + dateString();
 }
-function replayURL(spec) {
+function stateURL(state, restart) {
+    if (restart === void 0) { restart = true; }
+    var spec = state.spec;
     var args = ["seed=" + spec.seed];
     if (spec.kingdom != null)
         args.push("kingdom=" + spec.kingdom);
+    if (!restart)
+        args.push("history=" + state.serializeHistory());
     return "play?" + args.join('&');
 }
 // ------------------------------ High score submission
@@ -866,11 +871,32 @@ function getSeed() {
     var seeds = windowSeed.concat(urlSeed);
     return (seeds.length == 0) ? Math.random().toString(36).substring(2, 7) : seeds.join('.');
 }
+function getHistory() {
+    return new URLSearchParams(window.location.search).get('history');
+}
 export function load() {
     var spec = makeGameSpec();
+    var history = getHistory();
+    var state = initialState(spec);
+    if (history !== null) {
+        try {
+            state = State.fromHistory(history, spec);
+        }
+        catch (e) {
+            alert("Error loading history: " + e);
+        }
+    }
     heartbeat(spec);
     var interval = setInterval(function () { return heartbeat(spec, interval); }, 10000);
-    playGame(initialState(spec).attachUI(webUI));
+    playGame(state.attachUI(webUI)).catch(function (e) {
+        if (e instanceof InvalidHistory) {
+            alert(e);
+            playGame(e.state.clearFuture());
+        }
+        else {
+            alert(e);
+        }
+    });
 }
 // ----------------------------------- Kingdom picker
 //

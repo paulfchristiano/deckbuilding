@@ -555,6 +555,9 @@ export class State {
         const future = pieces.map(renderPiece)
         return initialState(spec).update({future: future})
     }
+    clearFuture(): State {
+        return this.update({future: []})
+    }
 }
 
 
@@ -1228,20 +1231,20 @@ async function multichoice<T>(
 ): Promise<[State, T[]]> {
     if (automateTrivial && options.length == 0) return [state, []]
     else {
-        let indices:number[]; [state, indices] = await doOrReplay(
+        let indices:number[], newState:State; [newState, indices] = await doOrReplay(
             state,
             () => state.ui.multichoice(state, prompt, options, validator),
         )
         if (indices.some(x => x >= options.length))
-            throw new HistoryMismatch(indices, state)
-        return [state, indices.map(i => options[i].value)]
+            throw new InvalidHistory(indices, state)
+        return [newState, indices.map(i => options[i].value)]
     }
 }
 
-export class HistoryMismatch extends Error {
+export class InvalidHistory extends Error {
     constructor(public indices:Replayable, public state:State) {
-        super('HistoryMismatch')
-        Object.setPrototypeOf(this, HistoryMismatch.prototype)
+        super(`Indices ${indices} do not correspond to a valid choice`)
+        Object.setPrototypeOf(this, InvalidHistory.prototype)
     }
 }
 
@@ -1262,13 +1265,13 @@ async function choice<T>(
     if (options.length == 0) return [state, null]
     else if (automateTrivial && options.length == 1) return [state, options[0].value]
     else {
-        let indices:number[]; [state, indices] = await doOrReplay(
+        let indices:number[], newState:State; [newState, indices] = await doOrReplay(
             state,
             async function() {const x = await state.ui.choice(state, prompt, options); return [x]},
         )
         if (indices.length != 1 || indices[0] >= options.length)
-            throw new HistoryMismatch(indices, state)
-        return [state, options[indices[0]].value]
+            throw new InvalidHistory(indices, state)
+        return [newState, options[indices[0]].value]
     }
 }
 
@@ -1362,7 +1365,7 @@ export async function verifyScore(seed:string, history:string, score:number): Pr
                 return [true, ""]
             else
                 return [false, `Computed score was ${e.state.energy}`]
-        } else if (e instanceof HistoryMismatch) {
+        } else if (e instanceof InvalidHistory) {
             return [false, `${e}`]
         } else if (e instanceof VersionMismatch) {
             return [false, `${e}`]
