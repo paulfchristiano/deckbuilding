@@ -85,7 +85,7 @@ var __read = (this && this.__read) || function (o, n) {
     }
     return ar;
 };
-export var VERSION = "0.4.1";
+export var VERSION = "0.4.2";
 // ----------------------------- Formatting
 export function renderCost(cost) {
     var e_1, _a;
@@ -2631,7 +2631,7 @@ var mobilization = { name: 'Mobilization',
     calculatedCost: costPlus(coin(10), coin(10)),
     effects: [chargeEffect(), incrementCost()],
     replacers: [{
-            text: regroup.name + " costs @ less to play for each cost token on this.",
+            text: regroup.name + " costs @ less to play for each charge token on this.",
             kind: 'cost',
             handles: function (x) { return (x.card.name == regroup.name); },
             replace: function (x, state, card) {
@@ -2903,7 +2903,7 @@ var kingsCourt = { name: "King's Court",
                 playAgain(target, card),
                 tick(card),
                 playAgain(target, card)
-            ]); }, 'Choose a card to play twice.', state.hand)); }
+            ]); }, 'Choose a card to play three times.', state.hand)); }
         }]
 };
 buyable(kingsCourt, 10);
@@ -3162,7 +3162,7 @@ var traveler = {
             text: ["Pay a draw to play a card in your hand not named " + Traveler + ".",
                 "If this has at least 1 charge token on it,\n            play the card again if it's in your discard.",
                 "If this has at least 2 charge tokens on it,\n            gain a fresh copy of the card in your discard.",
-                "If this has at least 3 charge tokens on it,\n            play the card a third time if it's in your discard."],
+                "If this has at least 3 charge tokens on it,\n            instead gain the card to your hand."],
             effect: function (state, card) { return payToDo(payDraw, applyToTarget(function (target) { return function (state) {
                 return __awaiter(this, void 0, void 0, function () {
                     var n;
@@ -3181,14 +3181,14 @@ var traveler = {
                                 _a.label = 3;
                             case 3:
                                 state = tick(card)(state);
-                                if (!(n >= 2)) return [3 /*break*/, 5];
+                                if (!(n == 2)) return [3 /*break*/, 5];
                                 return [4 /*yield*/, create(target.spec, 'discard')(state)];
                             case 4:
                                 state = _a.sent();
                                 _a.label = 5;
                             case 5:
-                                if (!(n >= 3)) return [3 /*break*/, 7];
-                                return [4 /*yield*/, playAgain(target, card)(state)];
+                                if (!(n >= 2)) return [3 /*break*/, 7];
+                                return [4 /*yield*/, create(target.spec, 'hand')(state)];
                             case 6:
                                 state = _a.sent();
                                 _a.label = 7;

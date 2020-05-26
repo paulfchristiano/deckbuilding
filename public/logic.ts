@@ -1,4 +1,4 @@
-export const VERSION = "0.4.1"
+export const VERSION = "0.4.2"
 
 // ----------------------------- Formatting
 
@@ -2240,7 +2240,7 @@ const mobilization:CardSpec = {name: 'Mobilization',
     calculatedCost: costPlus(coin(10), coin(10)),
     effects: [chargeEffect(), incrementCost()],
     replacers: [{
-        text: `${regroup.name} costs @ less to play for each cost token on this.`,
+        text: `${regroup.name} costs @ less to play for each charge token on this.`,
         kind:'cost',
         handles: x => (x.card.name == regroup.name),
         replace: (x, state, card) => 
@@ -2488,7 +2488,7 @@ const kingsCourt:CardSpec = {name: "King's Court",
                 playAgain(target, card),
                 tick(card),
                 playAgain(target, card)
-            ]), 'Choose a card to play twice.', state.hand))
+            ]), 'Choose a card to play three times.', state.hand))
     }]
 }
 buyable(kingsCourt, 10)
@@ -2775,7 +2775,7 @@ const traveler:CardSpec = {
             `If this has at least 2 charge tokens on it,
             gain a fresh copy of the card in your discard.`,
             `If this has at least 3 charge tokens on it,
-            play the card a third time if it's in your discard.`],
+            instead gain the card to your hand.`],
         effect: (state, card) => payToDo(payDraw, applyToTarget(
             target => async function(state){
                 const n:number = state.find(card).charge
@@ -2783,8 +2783,8 @@ const traveler:CardSpec = {
                 state = tick(card)(state)
                 if (n >= 1) state = await playAgain(target, card)(state);
                 state = tick(card)(state)
-                if (n >= 2) state = await create(target.spec, 'discard')(state);
-                if (n >= 3) state = await playAgain(target, card)(state);
+                if (n == 2) state = await create(target.spec, 'discard')(state);
+                if (n >= 2) state = await create(target.spec, 'hand')(state);
                 return state
             },
             `Choose a card to play with ${Traveler}.`,
