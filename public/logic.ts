@@ -1,4 +1,4 @@
-export const VERSION = "0.4.2"
+export const VERSION = "0.4.3"
 
 // ----------------------------- Formatting
 
@@ -1638,17 +1638,18 @@ function recycleEffect(): Effect {
     }
 }
 
-function regroupEffect(n:number, source?:Source): Effect {
+function regroupEffect(n:number, doRecycle:boolean=true): Effect {
+    let text:string[] = ['Lose all $, draws, and buy.']
+    if (doRecycle) text.push('Put your discard pile and play into your hand.');
+    text.push(`+${n} draws, +1 buy.`)
     return {
-        text: [`Lose all $, draws, and buy.`,
-        `Put your discard pile and play into your hand`,
-        `+${n} draws, +1 buy.`],
-        effect: () => async function(state) {
+        text: text,
+        effect: (state, card) => async function(state) {
             state = await setResource('coin', 0)(state)
             state = await setResource('draws', 0)(state)
             state = await setResource('buys', 0)(state)
-            state = await recycle(state)
-            state = await draw(n, source)(state)
+            if (doRecycle) state = await recycle(state);
+            state = await draw(n, card)(state)
             state = await gainBuy(state)
             return state
         }
@@ -1770,15 +1771,31 @@ function descriptorForZone(zone:'hand'|'supply'|'events'):string {
     }
 }
 
-function costReduce(zone:'hand'|'supply'|'events', reduction:Partial<Cost>): Replacer<CostParams> {
+function reducedCost(cost:Cost, reduction:Partial<Cost>, nonzero:boolean=false) {
+    let newCost:Cost = subtractCost(cost, reduction)
+    if (nonzero && leq(newCost, free) && !leq(cost, free)) {
+        if (reduction.coin || 0 > 0) {
+            newCost = addCosts(newCost, {coin:1})
+        } else if (reduction.energy || 0 > 0) {
+            newCost = addCosts(newCost, {energy:1})
+        }
+    }
+    return newCost
+}
+
+function costReduce(
+    zone:'hand'|'supply'|'events',
+    reduction:Partial<Cost>,
+    nonzero:boolean=false,
+): Replacer<CostParams> {
     const descriptor = descriptorForZone(zone)
     return {
-        text: `${descriptor} cost ${renderCost(reduction)} less.`,
+        text: `${descriptor} cost ${renderCost(reduction)} less{nonzero ? ', but not zero.' : '.'}`,
         kind: 'cost',
-        handles: () => true,
+        handles: x => x.card.place == zone,
         replace: function(x:CostParams, state:State) {
-            if (x.card.place == zone) return {...x, cost:subtractCost(x.cost, reduction)}
-            return x
+            const newCost:Cost = reducedCost(x.cost, reduction, nonzero)
+            return {...x, cost:newCost}
         }
     }
 }
@@ -1795,19 +1812,9 @@ function costReduceNext(
         kind: 'cost',
         handles: x => x.card.place == zone,
         replace: function(x:CostParams, state:State, card:Card) {
-            let newCost:Cost = subtractCost(x.cost, reduction)
-            if (nonzero && leq(newCost, free) && !leq(x.cost, free)) {
-                if (reduction.coin || 0 > 0) {
-                    newCost = addCosts(newCost, {coin:1})
-                } else if (reduction.energy || 0 > 0) {
-                    newCost = addCosts(newCost, {energy:1})
-                }
-            }
-            if (!eq(newCost, x.cost)) {
-                newCost.effects = newCost.effects.concat([move(card, 'discard')])
-                return {...x, cost:newCost}
-            }
-            return x
+            const newCost:Cost = reducedCost(x.cost, reduction, nonzero)
+            if (!eq(newCost, x.cost)) newCost.effects = newCost.effects.concat([move(card, 'discard')])
+            return {...x, cost:newCost}
         }
     }
 }
@@ -1877,9 +1884,9 @@ buyable(village, 4)
 const bridge:CardSpec = {name: 'Bridge',
     fixedCost: energy(1),
     effects: [buyEffect(), toPlay()],
-    replacers: [costReduce('supply', {coin:1})]
+    replacers: [costReduce('supply', {coin:1}, true)]
 }
-buyable(bridge, 6)
+buyable(bridge, 6, 'test')
 
 const coven:CardSpec = {name: 'Coven',
     effects: [toPlay()],
@@ -2465,16 +2472,9 @@ buyable(greatSmithy, 7)
 
 const pressOn:CardSpec = {name: 'Press On',
     fixedCost: energy(1),
-    effects: [{
-        text: ['Set $ to 0, set buys to 1, and set draws to 5.'],
-        effect: () => doAll([
-            setResource('coin', 0),
-            setResource('buys', 1),
-            setResource('draws', 5),
-        ])
-    }]
+    effects: [regroupEffect(5, false)]
 }
-registerEvent(pressOn)
+registerEvent(pressOn, 'test')
 
 const kingsCourt:CardSpec = {name: "King's Court",
     fixedCost: energy(2),
@@ -2797,14 +2797,7 @@ buyable(traveler, 5)
 const fountain:CardSpec = {
     name: 'Fountain',
     fixedCost: energy(1),
-    effects: [{
-        text: ['Set $ to 0, draws to 5, and buys to 1.'],
-        effect: () => doAll([
-            setResource('coin', 0),
-            setResource('buys', 1),
-            setResource('draws', 5),
-        ])
-    }]
+    effects: [regroupEffect(5, false)]
 }
 buyable(fountain, 5)
 
