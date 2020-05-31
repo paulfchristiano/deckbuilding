@@ -367,10 +367,15 @@ function renderEffects(card) {
 function renderAbility(card) {
     var e_9, _a;
     var parts = [];
+    if (card.spec.ability !== undefined) {
+        var abilityStr = card.spec.ability.costStr;
+        if (abilityStr !== undefined)
+            parts.push("<div> (use cost) " + abilityStr + "</div>");
+    }
     try {
         for (var _b = __values(card.abilityEffects()), _c = _b.next(); !_c.done; _c = _b.next()) {
             var effect = _c.value;
-            parts = parts.concat(effect.text);
+            parts = parts.concat(effect.text.map(function (x) { return "<div>(use) " + x + "</div>"; }));
         }
     }
     catch (e_9_1) { e_9 = { error: e_9_1 }; }
@@ -380,7 +385,7 @@ function renderAbility(card) {
         }
         finally { if (e_9) throw e_9.error; }
     }
-    return parts.map(function (x) { return "<div>(use) " + x + "</div>"; }).join('');
+    return parts.join('');
 }
 function renderCard(card, state, zone, options, tokenRenderer) {
     if (card instanceof Shadow) {
@@ -478,8 +483,7 @@ function renderState(state, settings) {
     $('#events').html(state.events.map(render('events')).join(''));
     $('#hand').html(state.hand.map(render('hand')).join(''));
     $('#discard').html(state.discard.map(render('discard')).join(''));
-    //$('#log').html(state.logs.slice().reverse().map(render_log).join(''))
-    var x = state.logs.slice().reverse().map(render_log).join('');
+    //$('#log').html(state.logs.slice(state.logs.length-10).reverse().map(render_log).join(''))
 }
 // ------------------------------- Rendering choices
 var webUI = {

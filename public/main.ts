@@ -230,10 +230,16 @@ function renderEffects(card:Card) {
 
 function renderAbility(card:Card): string {
     let parts:string[] = []
-    for (const effect of card.abilityEffects()) {
-        parts = parts.concat(effect.text)
+    if (card.spec.ability !== undefined) {
+        const abilityStr = card.spec.ability.costStr;
+        if (abilityStr !== undefined) parts.push(
+            `<div> (use cost) ${abilityStr}</div>`
+        )
     }
-    return parts.map(x => `<div>(use) ${x}</div>`).join('')
+    for (const effect of card.abilityEffects()) {
+        parts = parts.concat(effect.text.map(x => `<div>(use) ${x}</div>`))
+    }
+    return parts.join('')
 }
 
 
@@ -378,8 +384,7 @@ function renderState(state:State,
     $('#events').html(state.events.map(render('events')).join(''))
     $('#hand').html(state.hand.map(render('hand')).join(''))
     $('#discard').html(state.discard.map(render('discard')).join(''))
-    //$('#log').html(state.logs.slice().reverse().map(render_log).join(''))
-    const x = state.logs.slice().reverse().map(render_log).join('')
+    //$('#log').html(state.logs.slice(state.logs.length-10).reverse().map(render_log).join(''))
 }
 
 
