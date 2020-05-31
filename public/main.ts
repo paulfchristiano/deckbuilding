@@ -4,7 +4,7 @@
 // TODO: starting to see performance hiccups in big games
 // TODO: probably don't want the public move method to allow moves into or out of resolving.
 
-import { Cost, Shadow, State, Card, CardSpec, GameSpec } from './logic.js'
+import { Cost, Shadow, State, Card, CardSpec, GameSpec, PlaceName } from './logic.js'
 import { Trigger, Replacer, Ability, CalculatedCost } from './logic.js'
 import { ID } from './logic.js'
 import { renderCost, renderEnergy } from './logic.js'
@@ -47,7 +47,7 @@ $(document).keydown((e: any) => {
 
 function renderHotkey(hotkey: Key) {
     if (hotkey == ' ') hotkey = '&#x23B5;'
-    return `<span class="hotkey">${hotkey}</span> `
+    return `<div class="hotkey">${hotkey}</div> `
 }
 
 function interpretHint(hint:HotkeyHint|undefined): Key|undefined {
@@ -191,25 +191,25 @@ function describeCost(cost:Cost): string {
 function renderShadow(shadow:Shadow, state:State, tokenRenderer:TokenRenderer):string {
     const card:Card = shadow.spec.card
     const tokenhtml:string = tokenRenderer.render(card.tokens)
-    const costhtml:string = renderCost(card.cost(state)) || '&nbsp'
+    const costhtml:string = '&nbsp'
     const ticktext:string = `tick=${shadow.tick}`
     const shadowtext:string = `shadow='true'`
     let tooltip:string;
     switch (shadow.spec.kind) {
         case 'ability':
-            tooltip = renderAbility(shadow.spec.ability)
+            tooltip = renderAbility(shadow.spec.card)
             break
         case 'trigger':
-            tooltip = renderStatic(shadow.spec.trigger)
+            tooltip = renderTrigger(shadow.spec.trigger, false)
             break
         case 'effect':
             tooltip = renderEffects(shadow.spec.card)
             break
-        case 'abilities':
-            tooltip = card.abilities().map(renderAbility).join('')
-            break
         case 'cost':
-            tooltip = describeCost(card.cost(state))
+            tooltip = describeCost(shadow.spec.cost)
+            break
+        case 'buying':
+            tooltip = 'Buying ${shadow.spec.card.name}'
             break
         default: assertNever(shadow.spec)
     }
@@ -228,35 +228,45 @@ function renderEffects(card:Card) {
     return parts.map(x => `<div>${x}</div>`).join('')
 }
 
+function renderAbility(card:Card): string {
+    let parts:string[] = []
+    for (const effect of card.abilityEffects()) {
+        parts = parts.concat(effect.text)
+    }
+    return parts.map(x => `<div>(use) ${x}</div>`).join('')
+}
+
+
 function renderCard(
     card:Card|Shadow,
     state:State,
+    zone:PlaceName,
     options:CardRenderOptions,
     tokenRenderer:TokenRenderer
 ):string {
     if (card instanceof Shadow) {
         return renderShadow(card, state, tokenRenderer)
     } else {
+        const costType:'use'|'play' = (zone == 'events') ? 'use' : 'play'
         const tokenhtml:string = tokenRenderer.render(card.tokens)
-        const costhtml:string = renderCost(card.cost(state)) || '&nbsp'
+        const costhtml:string = (zone == 'supply') ? 
+            renderCost(card.cost('buy', state)) || '&nbsp' :
+            renderCost(card.cost(costType, state)) || '&nbsp'
         const picktext:string = (options.pick !== undefined) ? `<div class='pickorder'>${options.pick}</div>` : ''
         const choosetext:string = (options.option !== undefined) ? `choosable chosen='false' option=${options.option}` : ''
         const hotkeytext:string = (options.hotkey !== undefined) ? renderHotkey(options.hotkey) : ''
         const ticktext:string = `tick=${card.ticks[card.ticks.length-1]}`
-        return [`<div class='card' ${ticktext} ${choosetext}> ${picktext}`,
-                `<div class='cardbody'>${hotkeytext}${card}${tokenhtml}</div>`,
-                `<div class='cardcost'>${costhtml}</div>`,
-                `<span class='tooltip'>${renderTooltip(card, state, tokenRenderer)}</span>`,
-                `</div>`].join('')
+        return `<div class='card' ${ticktext} ${choosetext}> ${picktext}
+                    <div class='cardbody'>${hotkeytext} ${card}${tokenhtml}</div>
+                    <div class='cardcost'>${costhtml}</div>
+                    <span class='tooltip'>${renderTooltip(card, state, tokenRenderer)}</span>
+                </div>`
     }
 }
 
-function renderStatic(x:Trigger|Replacer): string {
-    return `<div>(static) ${x.text}</div>`
-}
-
-function renderAbility(x:Ability): string {
-    return `<div>(ability) ${x.text}</div>`
+function renderTrigger(x:Trigger|Replacer, staticTrigger:boolean): string {
+    const desc:string = (staticTrigger) ? '(static)' : '(trigger)'
+    return `<div>${desc} ${x.text}</div>`
 }
 
 function renderCalculatedCost(c:CalculatedCost): string {
@@ -267,23 +277,30 @@ function renderBuyable(b:{text:string}): string{
     return `<div>(req) ${b.text}</div>`
 }
 
+function isZero(c:Cost|undefined) {
+    return (c===undefined || renderCost(c) == '')
+}
+
 function renderTooltip(card:Card, state:State, tokenRenderer:TokenRenderer): string {
+    const buyStr = !isZero(card.spec.buyCost) ?
+        `(${renderCost(card.spec.buyCost as Cost)})` : '---'
+    const costStr = !isZero(card.spec.fixedCost) ?
+        `(${renderCost(card.cost('play', emptyState) as Cost)})` : '---'
+    const header = `<div>---${buyStr} ${card.name} ${costStr}---</div>`
     const effectHtml:string = renderEffects(card)
     const buyableHtml:string = (card.spec.restriction != undefined) ? renderBuyable(card.spec.restriction) : ''
     const costHtml:string = (card.spec.calculatedCost != undefined) ? renderCalculatedCost(card.spec.calculatedCost) : ''
-    const abilitiesHtml:string = card.abilities().map(x => renderAbility(x)).join('')
-    const triggerHtml:string = card.triggers().map(x => renderStatic(x)).join('')
-    const replacerHtml:string = card.replacers().map(x => renderStatic(x)).join('')
-    const staticHtml:string = triggerHtml + replacerHtml
+    const abilitiesHtml:string = renderAbility(card)
+    const triggerHtml:string = card.triggers().map(x => renderTrigger(x, false)).join('')
+    const replacerHtml:string = card.replacers().map(x => renderTrigger(x, false)).join('')
+    const staticTriggerHtml:string = card.staticTriggers().map(x => renderTrigger(x, true)).join('')
+    const staticReplacerHtml:string = card.staticReplacers().map(x => renderTrigger(x, true)).join('')
+    const staticHtml:string = triggerHtml + replacerHtml + staticTriggerHtml + staticReplacerHtml
     const tokensHtml:string = tokenRenderer.renderTooltip(card.tokens)
-    const baseFilling:string = [costHtml, buyableHtml, effectHtml, abilitiesHtml, staticHtml, tokensHtml].join('')
+    const baseFilling:string = [header, costHtml, buyableHtml, effectHtml, abilitiesHtml, staticHtml, tokensHtml].join('')
     function renderRelated(spec:CardSpec) {
         const card:Card = new Card(spec, -1)
-        const costStr = renderCost(card.cost(emptyState))
-        const header = (costStr.length > 0) ?
-            `<div>---${card.toString()} (${costStr})---</div>` :
-            `<div>-----${card.toString() }----</div>`
-        return header + renderTooltip(card, state, tokenRenderer)
+        return renderTooltip(card, state, tokenRenderer)
     }
     const relatedFilling:string = card.relatedCards().map(renderRelated).join('')
     return `${baseFilling}${relatedFilling}`
@@ -336,13 +353,17 @@ function renderState(state:State,
 ): void {
     window.renderedState = state
     clearChoice()
-    function render(card:Card|Shadow) {
-        const cardRenderOptions:CardRenderOptions = {
-            option: getIfDef(settings.optionsMap, card.id),
-            hotkey: getIfDef(settings.hotkeyMap, card.id),
-            pick: getIfDef(settings.pickMap, card.id),
+    function render(zone:PlaceName) {
+        return function (card:Card|Shadow) {
+            const cardRenderOptions:CardRenderOptions = {
+                option: getIfDef(settings.optionsMap, card.id),
+                hotkey: getIfDef(settings.hotkeyMap, card.id),
+                pick: getIfDef(settings.pickMap, card.id),
+            }
+            return renderCard(card, state, zone,
+                cardRenderOptions,
+                globalRendererState.tokenRenderer)
         }
-        return renderCard(card, state, cardRenderOptions, globalRendererState.tokenRenderer)
     }
     $('#resolvingHeader').html('Resolving:')
     $('#energy').html(state.energy.toString())
@@ -350,14 +371,15 @@ function renderState(state:State,
     $('#buys').html(state.buys.toString())
     $('#coin').html(state.coin.toString())
     $('#points').html(state.points.toString())
-    $('#aside').html(state.aside.map(render).join(''))
-    $('#resolving').html(state.resolving.map(render).join(''))
-    $('#play').html(state.play.map(render).join(''))
-    $('#supply').html(state.supply.map(render).join(''))
-    $('#events').html(state.events.map(render).join(''))
-    $('#hand').html(state.hand.map(render).join(''))
-    $('#discard').html(state.discard.map(render).join(''))
-    $('#log').html(state.logs.slice().reverse().map(render_log).join(''))
+    $('#aside').html(state.aside.map(render('aside')).join(''))
+    $('#resolving').html(state.resolving.map(render('resolving')).join(''))
+    $('#play').html(state.play.map(render('play')).join(''))
+    $('#supply').html(state.supply.map(render('supply')).join(''))
+    $('#events').html(state.events.map(render('events')).join(''))
+    $('#hand').html(state.hand.map(render('hand')).join(''))
+    $('#discard').html(state.discard.map(render('discard')).join(''))
+    //$('#log').html(state.logs.slice().reverse().map(render_log).join(''))
+    const x = state.logs.slice().reverse().map(render_log).join('')
 }
 
 
@@ -594,8 +616,9 @@ function bindHelp(state:State, renderer: () => void) {
         attach(renderer)
         const helpLines:string[] = [
             `The goal of the game is to get to ${VP_GOAL} points (vp) using as little energy (@) as possible.`,
-            "When you play or buy a card, pay its cost then follow its instructions.",
-            "The symbols below a card's name indicate its cost.",
+            `When you buy a card, pay its buy cost then create a copy of it in your discard pile.`,
+            "When you play a card or use an event, pay its cost then follow its instructions.",
+            "The symbols below a card's name indicate its cost or buy cost.",
             "When a cost is measured in energy (@, @@, ...) then you use that much energy to play it.",
             "When a cost is measured in coin ($) then you can only buy it if you have enough coin.",
             'After playing a card, discard it.',
