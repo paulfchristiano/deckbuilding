@@ -85,7 +85,7 @@ var __read = (this && this.__read) || function (o, n) {
     }
     return ar;
 };
-export var VERSION = "0.5.1.1";
+export var VERSION = "0.5.2";
 // ----------------------------- Formatting
 export function renderCost(cost, full) {
     var e_1, _a;
@@ -2253,12 +2253,13 @@ function playAgain(target, source) {
         });
     };
 }
-function descriptorForZone(zone) {
-    switch (zone) {
-        case 'hand': return 'Cards in your hand';
-        case 'supply': return 'Cards in the supply';
-        case 'events': return 'Events';
-        default: return assertNever(zone);
+function descriptorForKind(kind) {
+    switch (kind) {
+        case 'play': return 'Cards you play';
+        case 'buy': return 'Cards you buy';
+        case 'use': return 'Events you use';
+        case 'activate': return 'Abilities you use';
+        default: return assertNever(kind);
     }
 }
 function reducedCost(cost, reduction, nonzero) {
@@ -2274,26 +2275,26 @@ function reducedCost(cost, reduction, nonzero) {
     }
     return newCost;
 }
-function costReduce(zone, reduction, nonzero) {
+function costReduce(kind, reduction, nonzero) {
     if (nonzero === void 0) { nonzero = false; }
-    var descriptor = descriptorForZone(zone);
+    var descriptor = descriptorForKind(kind);
     return {
         text: descriptor + " cost " + renderCost(reduction, true) + " less" + (nonzero ? ', but not zero.' : '.'),
         kind: 'cost',
-        handles: function (x) { return x.card.place == zone; },
+        handles: function (x) { return x.actionKind == kind; },
         replace: function (x, state) {
             var newCost = reducedCost(x.cost, reduction, nonzero);
             return __assign(__assign({}, x), { cost: newCost });
         }
     };
 }
-function costReduceNext(zone, reduction, nonzero) {
+function costReduceNext(kind, reduction, nonzero) {
     if (nonzero === void 0) { nonzero = false; }
-    var descriptor = descriptorForZone(zone);
+    var descriptor = descriptorForKind(kind);
     return {
         text: descriptor + " cost " + renderCost(reduction, true) + " less" + (nonzero ? ', but not zero.' : '.') + "\n        Whenever this reduces a cost, discard this.",
         kind: 'cost',
-        handles: function (x) { return x.card.place == zone; },
+        handles: function (x) { return x.actionKind == kind; },
         replace: function (x, state, card) {
             var newCost = reducedCost(x.cost, reduction, nonzero);
             if (!eq(newCost, x.cost))
@@ -2336,13 +2337,13 @@ function toPlay() {
     };
 }
 function villageReplacer() {
-    return costReduceNext('hand', { energy: 1 });
+    return costReduceNext('play', { energy: 1 });
 }
 var necropolis = { name: 'Necropolis',
     effects: [toPlay()],
     replacers: [villageReplacer()],
 };
-buyableFree(necropolis, 2);
+buyableFree(necropolis, 2, 'test');
 var hound = { name: 'Hound',
     fixedCost: energy(1),
     effects: [drawEffect(2)],
@@ -2361,7 +2362,7 @@ buyable(village, 4);
 var bridge = { name: 'Bridge',
     fixedCost: energy(1),
     effects: [buyEffect(), toPlay()],
-    replacers: [costReduce('supply', { coin: 1 }, true)]
+    replacers: [costReduce('buy', { coin: 1 }, true)]
 };
 buyable(bridge, 5);
 var coven = { name: 'Coven',
@@ -2425,7 +2426,7 @@ buyable(scavenger, 4);
 var celebration = { name: 'Celebration',
     fixedCost: energy(2),
     effects: [toPlay()],
-    replacers: [costReduce('hand', { energy: 1 })]
+    replacers: [costReduce('play', { energy: 1 })]
 };
 buyable(celebration, 10);
 var plough = { name: 'Plough',
@@ -3008,7 +3009,7 @@ var inflation = { name: 'Inflation',
     fixedCost: energy(3),
     effects: [gainCoinEffect(15), gainBuyEffect(5), chargeEffect()],
     replacers: [{
-            text: 'Cards that cost at least $1 cost $1 more per charge token on this.',
+            text: 'Cards and events that cost at least $1 cost $1 more per charge token on this.',
             kind: 'cost',
             handles: function (p, state) { return (p.cost.coin >= 1); },
             replace: function (p, state, card) { return (__assign(__assign({}, p), { cost: addCosts(p.cost, { coin: card.charge }) })); }
@@ -3039,7 +3040,7 @@ var goldsmith = { name: 'Goldsmith',
 buyable(goldsmith, 7);
 var publicWorks = { name: 'Public Works',
     effects: [toPlay()],
-    replacers: [costReduceNext('events', { energy: 1 }, true)],
+    replacers: [costReduceNext('use', { energy: 1 }, true)],
 };
 buyable(publicWorks, 5);
 function echoEffect(card) {
@@ -3524,8 +3525,8 @@ var slog = {
         }]
 };
 registerEvent(slog);
-var coinOfTheRealm = {
-    name: 'Coin of the Realm',
+var commerce = {
+    name: 'Commerce',
     fixedCost: energy(1),
     effects: [{
             text: ["Lose all $.", "Put a charge token on this for each $ lost."],
@@ -3550,7 +3551,7 @@ var coinOfTheRealm = {
         }],
     replacers: [chargeVillage()]
 };
-registerEvent(coinOfTheRealm);
+registerEvent(commerce);
 var reverberate = {
     name: 'Reverberate',
     calculatedCost: costPlus(energy(1), coin(1)),
@@ -3576,7 +3577,7 @@ buyable(preparations, 3);
 var highway = {
     name: 'Highway',
     effects: [drawEffect(1), toPlay()],
-    replacers: [costReduce('supply', { coin: 1 }, true)],
+    replacers: [costReduce('buy', { coin: 1 }, true)],
 };
 buyable(highway, 7);
 function nameHasToken(card, token, state) {

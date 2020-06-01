@@ -1,4 +1,4 @@
-export const VERSION = "0.5.1.1"
+export const VERSION = "0.5.2"
 
 // ----------------------------- Formatting
 
@@ -1810,12 +1810,13 @@ function playAgain(target:Card, source:Source=unk): Transform {
     }
 }
 
-function descriptorForZone(zone:'hand'|'supply'|'events'):string {
-    switch (zone) {
-        case 'hand': return 'Cards in your hand'
-        case 'supply': return 'Cards in the supply'
-        case 'events': return 'Events'
-        default: return assertNever(zone)
+function descriptorForKind(kind:ActionKind):string {
+    switch (kind) {
+        case 'play': return 'Cards you play'
+        case 'buy': return 'Cards you buy'
+        case 'use': return 'Events you use'
+        case 'activate': return 'Abilities you use'
+        default: return assertNever(kind)
     }
 }
 
@@ -1832,15 +1833,15 @@ function reducedCost(cost:Cost, reduction:Partial<Cost>, nonzero:boolean=false) 
 }
 
 function costReduce(
-    zone:'hand'|'supply'|'events',
+    kind:ActionKind,
     reduction:Partial<Cost>,
     nonzero:boolean=false,
 ): Replacer<CostParams> {
-    const descriptor = descriptorForZone(zone)
+    const descriptor = descriptorForKind(kind)
     return {
         text: `${descriptor} cost ${renderCost(reduction, true)} less${nonzero ? ', but not zero.' : '.'}`,
         kind: 'cost',
-        handles: x => x.card.place == zone,
+        handles: x => x.actionKind == kind,
         replace: function(x:CostParams, state:State) {
             const newCost:Cost = reducedCost(x.cost, reduction, nonzero)
             return {...x, cost:newCost}
@@ -1849,16 +1850,16 @@ function costReduce(
 }
 
 function costReduceNext(
-    zone:'hand'|'supply'|'events',
+    kind:ActionKind,
     reduction:Partial<Cost>,
     nonzero:boolean=false
 ): Replacer<CostParams> {
-    const descriptor = descriptorForZone(zone)
+    const descriptor = descriptorForKind(kind)
     return {
         text: `${descriptor} cost ${renderCost(reduction, true)} less${nonzero ? ', but not zero.' : '.'}
         Whenever this reduces a cost, discard this.`,
         kind: 'cost',
-        handles: x => x.card.place == zone,
+        handles: x => x.actionKind == kind,
         replace: function(x:CostParams, state:State, card:Card) {
             const newCost:Cost = reducedCost(x.cost, reduction, nonzero)
             if (!eq(newCost, x.cost)) newCost.effects = newCost.effects.concat([move(card, 'discard')])
@@ -1902,14 +1903,14 @@ function toPlay(): Effect {
     }
 }
 function villageReplacer(): Replacer<CostParams> {
-    return costReduceNext('hand', {energy:1})
+    return costReduceNext('play', {energy:1})
 }
 
 const necropolis:CardSpec = {name: 'Necropolis',
     effects: [toPlay()],
     replacers: [villageReplacer()],
 }
-buyableFree(necropolis, 2)
+buyableFree(necropolis, 2, 'test')
 
 const hound:CardSpec = {name: 'Hound',
     fixedCost: energy(1),
@@ -1932,7 +1933,7 @@ buyable(village, 4)
 const bridge:CardSpec = {name: 'Bridge',
     fixedCost: energy(1),
     effects: [buyEffect(), toPlay()],
-    replacers: [costReduce('supply', {coin:1}, true)]
+    replacers: [costReduce('buy', {coin:1}, true)]
 }
 buyable(bridge, 5)
 
@@ -2009,7 +2010,7 @@ buyable(scavenger, 4)
 const celebration:CardSpec = {name: 'Celebration',
     fixedCost: energy(2),
     effects: [toPlay()],
-    replacers: [costReduce('hand', {energy:1})]
+    replacers: [costReduce('play', {energy:1})]
 }
 buyable(celebration, 10)
 
@@ -2589,7 +2590,7 @@ const inflation:CardSpec = {name: 'Inflation',
     fixedCost: energy(3),
     effects: [gainCoinEffect(15), gainBuyEffect(5), chargeEffect()],
     replacers: [{
-        text: 'Cards that cost at least $1 cost $1 more per charge token on this.',
+        text: 'Cards and events that cost at least $1 cost $1 more per charge token on this.',
         kind: 'cost',
         handles: (p, state) => (p.cost.coin >= 1),
         replace: (p, state, card) => ({...p, cost:addCosts(p.cost, {coin:card.charge})})
@@ -2627,7 +2628,7 @@ buyable(goldsmith, 7)
 
 const publicWorks:CardSpec = {name: 'Public Works',
     effects: [toPlay()],
-    replacers: [costReduceNext('events', {energy:1}, true)],
+    replacers: [costReduceNext('use', {energy:1}, true)],
 }
 buyable(publicWorks, 5)
 
@@ -3109,8 +3110,8 @@ const slog:CardSpec = {
 }
 registerEvent(slog)
 
-const coinOfTheRealm:CardSpec = {
-    name: 'Coin of the Realm',
+const commerce:CardSpec = {
+    name: 'Commerce',
     fixedCost: energy(1),
     effects: [{
         text: [`Lose all $.`, `Put a charge token on this for each $ lost.`],
@@ -3123,7 +3124,7 @@ const coinOfTheRealm:CardSpec = {
     }],
     replacers: [chargeVillage()]
 }
-registerEvent(coinOfTheRealm)
+registerEvent(commerce)
 
 const reverberate:CardSpec = {
     name: 'Reverberate',
@@ -3155,7 +3156,7 @@ buyable(preparations, 3)
 const highway:CardSpec = {
     name: 'Highway',
     effects: [drawEffect(1), toPlay()],
-    replacers: [costReduce('supply', {coin:1}, true)],
+    replacers: [costReduce('buy', {coin:1}, true)],
 }
 buyable(highway, 7)
 
