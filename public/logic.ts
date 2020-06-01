@@ -1,4 +1,4 @@
-export const VERSION = "0.5.1"
+export const VERSION = "0.5.1.1"
 
 // ----------------------------- Formatting
 
@@ -67,7 +67,7 @@ export interface CardSpec {
     staticTriggers?: TypedTrigger[];
     replacers?: TypedReplacer[];
     staticReplacers?: TypedReplacer[];
-    ability?: Ability;
+    ability?: Effect[];
 }
 
 export interface Cost {
@@ -199,14 +199,9 @@ export class Card {
                 if (kind == 'play') result = addCosts(result, {draws:1});
                 return result
             case 'buy': return addCosts(this.spec.buyCost || free, {buys:1})
-            case 'activate': return this.abilityCost()
+            case 'activate': return free
             default: return assertNever(kind)
         }
-    }
-    abilityCost(): Cost {
-        if (this.spec.ability === undefined) return free;
-        if (this.spec.ability.cost === undefined) return free;
-        return this.spec.ability.cost(this) || free;
     }
     // the cost after replacement effects
     cost(kind:ActionKind, state:State): Cost {
@@ -312,8 +307,7 @@ export class Card {
     }
 
     abilityEffects(): Effect[] {
-        if (this.spec.ability === undefined) return [];
-        return this.spec.ability.effects;
+        return this.spec.ability || []
     }
     effects(): Effect[] {
         return this.spec.effects || []
@@ -2695,13 +2689,25 @@ const mastermind:CardSpec = {
         replace: (x, state, card) =>
             ({...x, skip:true, effects:x.effects.concat([charge(card, 1)])})
     }],
-    ability: {
-        cost: card => addCosts(dischargeCost(card), discardCost(card)),
-        costStr: `Remove a charge counter from this and discard it.`,
-        effects: [KCEffect()],
-    }
+    ability:[{
+        text: [`Remove a charge counter from this, discard it, and pay 1 draw
+        to play a card from your hand three times.`],
+        transform: (state, card) => payToDo(payCost({
+            ...free, draws:1, effects:[discharge(card, 1), discardFromPlay(card)]
+        }), applyToTarget(
+            target => doAll([
+                target.play(card),
+                tick(card),
+                target.play(card),
+                tick(card),
+                target.play(card)
+            ]),
+            'Choose a card to play three times.',
+            state.hand
+        ))
+    }],
 }
-buyable(mastermind, 5)
+buyable(mastermind, 5, 'test')
 
 
 function chargeVillage(): Replacer<CostParams> {

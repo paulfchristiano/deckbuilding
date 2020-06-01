@@ -85,7 +85,7 @@ var __read = (this && this.__read) || function (o, n) {
     }
     return ar;
 };
-export var VERSION = "0.5.1";
+export var VERSION = "0.5.1.1";
 // ----------------------------- Formatting
 export function renderCost(cost, full) {
     var e_1, _a;
@@ -210,16 +210,9 @@ var Card = /** @class */ (function () {
                     result = addCosts(result, { draws: 1 });
                 return result;
             case 'buy': return addCosts(this.spec.buyCost || free, { buys: 1 });
-            case 'activate': return this.abilityCost();
+            case 'activate': return free;
             default: return assertNever(kind);
         }
-    };
-    Card.prototype.abilityCost = function () {
-        if (this.spec.ability === undefined)
-            return free;
-        if (this.spec.ability.cost === undefined)
-            return free;
-        return this.spec.ability.cost(this) || free;
     };
     // the cost after replacement effects
     Card.prototype.cost = function (kind, state) {
@@ -418,9 +411,7 @@ var Card = /** @class */ (function () {
         };
     };
     Card.prototype.abilityEffects = function () {
-        if (this.spec.ability === undefined)
-            return [];
-        return this.spec.ability.effects;
+        return this.spec.ability || [];
     };
     Card.prototype.effects = function () {
         return this.spec.effects || [];
@@ -3099,13 +3090,18 @@ var mastermind = {
                 return (__assign(__assign({}, x), { skip: true, effects: x.effects.concat([charge(card, 1)]) }));
             }
         }],
-    ability: {
-        cost: function (card) { return addCosts(dischargeCost(card), discardCost(card)); },
-        costStr: "Remove a charge counter from this and discard it.",
-        effects: [KCEffect()],
-    }
+    ability: [{
+            text: ["Remove a charge counter from this, discard it, and pay 1 draw\n        to play a card from your hand three times."],
+            transform: function (state, card) { return payToDo(payCost(__assign(__assign({}, free), { draws: 1, effects: [discharge(card, 1), discardFromPlay(card)] })), applyToTarget(function (target) { return doAll([
+                target.play(card),
+                tick(card),
+                target.play(card),
+                tick(card),
+                target.play(card)
+            ]); }, 'Choose a card to play three times.', state.hand)); }
+        }],
 };
-buyable(mastermind, 5);
+buyable(mastermind, 5, 'test');
 function chargeVillage() {
     return {
         text: "Cards in your hand @ less to play for each charge token on this.\n            Whenever this reduces a cost by one or more @, remove that many charge tokens from this.",

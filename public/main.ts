@@ -230,12 +230,6 @@ function renderEffects(card:Card) {
 
 function renderAbility(card:Card): string {
     let parts:string[] = []
-    if (card.spec.ability !== undefined) {
-        const abilityStr = card.spec.ability.costStr;
-        if (abilityStr !== undefined) parts.push(
-            `<div> (use cost) ${abilityStr}</div>`
-        )
-    }
     for (const effect of card.abilityEffects()) {
         parts = parts.concat(effect.text.map(x => `<div>(use) ${x}</div>`))
     }

@@ -367,11 +367,6 @@ function renderEffects(card) {
 function renderAbility(card) {
     var e_9, _a;
     var parts = [];
-    if (card.spec.ability !== undefined) {
-        var abilityStr = card.spec.ability.costStr;
-        if (abilityStr !== undefined)
-            parts.push("<div> (use cost) " + abilityStr + "</div>");
-    }
     try {
         for (var _b = __values(card.abilityEffects()), _c = _b.next(); !_c.done; _c = _b.next()) {
             var effect = _c.value;
