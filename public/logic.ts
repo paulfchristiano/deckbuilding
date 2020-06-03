@@ -1,4 +1,4 @@
-export const VERSION = "0.5.2"
+export const VERSION = "0.5.3"
 
 // ----------------------------- Formatting
 
@@ -2036,7 +2036,7 @@ const construction:CardSpec = {name: 'Construction',
 buyable(construction, 3)
 
 const hallOfMirrors:CardSpec = {name: 'Hall of Mirrors',
-    fixedCost: {...free, energy:2, coin:5},
+    fixedCost: {...free, energy:1, coin:5},
     effects: [{
         text: ['Put a mirror token on each card in your hand.'],
         transform: (state:State, card:Card) => 
@@ -2797,8 +2797,16 @@ const empire:CardSpec = {name: 'Empire',
 }
 buyable(empire, 10)
 
-const innovation:CardSpec = {name: 'Innovation',
-    effects: [drawEffect(1), toPlay()],
+const Innovation:string = 'Innovation'
+const innovation:CardSpec = {name: Innovation,
+    effects: [drawEffect(1), {
+        text: [`If you don't have any cards named ${Innovation} in play,
+        put this in play.`],
+        transform: (state, card) => move(
+            card, 
+            (state.play.some(x => x.name == Innovation)) ? 'discard' : 'play'
+        )
+    }],
     triggers: [{
         text: `When you create a card, discard this to play the card.`,
         kind: 'create',
@@ -2806,7 +2814,7 @@ const innovation:CardSpec = {name: 'Innovation',
         transform: (e, state, card) => payToDo(discardFromPlay(card), e.card.play(card)),
     }]
 }
-buyable(innovation, 9)
+buyable(innovation, 9, 'test')
 
 const formation:CardSpec = {name: 'Formation',
     effects: [toPlay()],
@@ -3040,7 +3048,7 @@ const haggler:CardSpec = {
         transform: (p, state, card) => applyToTarget(
             target => target.buy(card),
             "Choose a cheaper card to buy.",
-            state.supply.concat(state.events).filter(
+            state.supply.filter(
                 c => leq(
                     addCosts(c.cost('buy', state), {coin:1}),
                     p.card.cost('buy', state)
@@ -3049,7 +3057,7 @@ const haggler:CardSpec = {
         )
     }]
 }
-buyable(haggler, 5)
+buyable(haggler, 6)
 
 const reuse:CardSpec = {
     name: 'Reuse',
