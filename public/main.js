@@ -406,8 +406,8 @@ function renderTrigger(x, staticTrigger) {
 function renderCalculatedCost(c) {
     return "<div>(cost) " + c.text + "</div>";
 }
-function renderBuyable(b) {
-    return "<div>(req) " + b.text + "</div>";
+function renderBuyable(bs) {
+    return bs.map(function (b) { return "<div>(req) " + b.text + "</div>"; }).join('');
 }
 function isZero(c) {
     return (c === undefined || renderCost(c) == '');
@@ -419,7 +419,7 @@ function renderTooltip(card, state, tokenRenderer) {
         "(" + renderCost(card.cost('play', emptyState)) + ")" : '---';
     var header = "<div>---" + buyStr + " " + card.name + " " + costStr + "---</div>";
     var effectHtml = renderEffects(card);
-    var buyableHtml = (card.spec.restriction != undefined) ? renderBuyable(card.spec.restriction) : '';
+    var buyableHtml = (card.spec.restrictions != undefined) ? renderBuyable(card.spec.restrictions) : '';
     var costHtml = (card.spec.calculatedCost != undefined) ? renderCalculatedCost(card.spec.calculatedCost) : '';
     var abilitiesHtml = renderAbility(card);
     var triggerHtml = card.triggers().map(function (x) { return renderTrigger(x, false); }).join('');
@@ -435,9 +435,6 @@ function renderTooltip(card, state, tokenRenderer) {
     }
     var relatedFilling = card.relatedCards().map(renderRelated).join('');
     return "" + baseFilling + relatedFilling;
-}
-function render_log(msg) {
-    return "<div class=\".log\">" + msg + "</div>";
 }
 function getIfDef(m, x) {
     return (m == undefined) ? undefined : m.get(x);
@@ -467,7 +464,7 @@ function renderState(state, settings) {
     }
     $('#resolvingHeader').html('Resolving:');
     $('#energy').html(state.energy.toString());
-    $('#draws').html(state.draws.toString());
+    $('#actions').html(state.actions.toString());
     $('#buys').html(state.buys.toString());
     $('#coin').html(state.coin.toString());
     $('#points').html(state.points.toString());
@@ -478,7 +475,21 @@ function renderState(state, settings) {
     $('#events').html(state.events.map(render('events')).join(''));
     $('#hand').html(state.hand.map(render('hand')).join(''));
     $('#discard').html(state.discard.map(render('discard')).join(''));
-    //$('#log').html(state.logs.slice(state.logs.length-10).reverse().map(render_log).join(''))
+    $('#log').html(renderLogs(state.logs));
+}
+function renderLog(msg) {
+    return "<div class=\"log\">" + msg + "</div>";
+}
+function renderLogs(logs) {
+    var result = [];
+    for (var i = logs.length - 1; i >= 0; i--) {
+        result.push(renderLog(logs[i]));
+        if (i > 0 && result.length > 100) {
+            result.push(renderLog('... (earlier events truncated)'));
+            break;
+        }
+    }
+    return result.join('');
 }
 // ------------------------------- Rendering choices
 var webUI = {

@@ -273,8 +273,8 @@ function renderCalculatedCost(c:CalculatedCost): string {
     return `<div>(cost) ${c.text}</div>`
 }
 
-function renderBuyable(b:{text:string}): string{
-    return `<div>(req) ${b.text}</div>`
+function renderBuyable(bs:{text:string}[]): string{
+    return bs.map(b => `<div>(req) ${b.text}</div>`).join('')
 }
 
 function isZero(c:Cost|undefined) {
@@ -288,7 +288,7 @@ function renderTooltip(card:Card, state:State, tokenRenderer:TokenRenderer): str
         `(${renderCost(card.cost('play', emptyState) as Cost)})` : '---'
     const header = `<div>---${buyStr} ${card.name} ${costStr}---</div>`
     const effectHtml:string = renderEffects(card)
-    const buyableHtml:string = (card.spec.restriction != undefined) ? renderBuyable(card.spec.restriction) : ''
+    const buyableHtml:string = (card.spec.restrictions != undefined) ? renderBuyable(card.spec.restrictions) : ''
     const costHtml:string = (card.spec.calculatedCost != undefined) ? renderCalculatedCost(card.spec.calculatedCost) : ''
     const abilitiesHtml:string = renderAbility(card)
     const triggerHtml:string = card.triggers().map(x => renderTrigger(x, false)).join('')
@@ -306,10 +306,6 @@ function renderTooltip(card:Card, state:State, tokenRenderer:TokenRenderer): str
     return `${baseFilling}${relatedFilling}`
 }
 
-
-function render_log(msg: string) {
-  return `<div class=".log">${msg}</div>`
-}
 
 interface CardRenderOptions {
     option?: number;
@@ -367,7 +363,7 @@ function renderState(state:State,
     }
     $('#resolvingHeader').html('Resolving:')
     $('#energy').html(state.energy.toString())
-    $('#draws').html(state.draws.toString())
+    $('#actions').html(state.actions.toString())
     $('#buys').html(state.buys.toString())
     $('#coin').html(state.coin.toString())
     $('#points').html(state.points.toString())
@@ -378,7 +374,23 @@ function renderState(state:State,
     $('#events').html(state.events.map(render('events')).join(''))
     $('#hand').html(state.hand.map(render('hand')).join(''))
     $('#discard').html(state.discard.map(render('discard')).join(''))
-    //$('#log').html(state.logs.slice(state.logs.length-10).reverse().map(render_log).join(''))
+    $('#log').html(renderLogs(state.logs))
+}
+
+function renderLog(msg: string) {
+  return `<div class="log">${msg}</div>`
+}
+
+function renderLogs(logs:string[]) {
+    const result:string[] = []
+    for (let i = logs.length-1; i >= 0; i--) {
+        result.push(renderLog(logs[i]))
+        if (i > 0 && result.length > 100) {
+            result.push(renderLog('... (earlier events truncated)'))
+            break
+        }
+    }
+    return result.join('')
 }
 
 

@@ -1,4 +1,4 @@
-export const VERSION = "0.5.3"
+export const VERSION = "0.6"
 
 // ----------------------------- Formatting
 
@@ -35,7 +35,7 @@ function renderResource(resource:ResourceName, amount:number): string {
         case 'coin': return `$${amount}`
         case 'energy': return repeatSymbol('@', amount)
         case 'points': return `${amount} vp`
-        case 'draws': return num(amount, 'draw')
+        case 'actions': return num(amount, 'action')
         case 'buys': return num(amount, 'buy')
         default: assertNever(resource)
     }
@@ -58,7 +58,7 @@ function repeatSymbol(s:string, n:number): string {
 export interface CardSpec {
     name: string;
     fixedCost?: Cost;
-    restriction?: Restriction;
+    restrictions?: Restriction[];
     calculatedCost?: CalculatedCost;
     buyCost?: Cost; //TODO: variable buy costs
     relatedCards?: CardSpec[];
@@ -73,12 +73,12 @@ export interface CardSpec {
 export interface Cost {
     coin: number;
     energy: number;
-    draws: number;
+    actions: number;
     buys: number;
     effects: Transform[];
     tests: ((s:State) => boolean)[];
 }
-const free:Cost = {coin:0, energy:0, draws:0, buys:0, effects: [], tests: []}
+const free:Cost = {coin:0, energy:0, actions:0, buys:0, effects: [], tests: []}
 
 type ActionKind = 'play' | 'use' | 'buy' | 'activate'
 
@@ -130,7 +130,7 @@ function read<T>(x:any, k:string, fallback:T) {
 interface CardUpdate {
     ticks?: number[];
     place?: PlaceName;
-    tokens?: Map<string, number>;
+    tokens?: Map<Token, number>;
     zoneIndex?: number;
 }
 
@@ -144,7 +144,7 @@ export class Card {
         public readonly spec:CardSpec,
         public readonly id:number,
         public readonly ticks: number[] = [0],
-        public readonly tokens: Map<string, number> = new Map(),
+        public readonly tokens: Map<Token, number> = new Map(),
         public readonly place:PlaceName = null,
         // we assign each card the smallest unused index in its current zone, for consistency of hotkey mappings
         public readonly zoneIndex = 0,
@@ -165,15 +165,15 @@ export class Card {
             (newValues.zoneIndex === undefined) ? this.zoneIndex : newValues.zoneIndex,
         )
     }
-    setTokens(token:string, n:number): Card {
-        const tokens: Map<string, number> = new Map(this.tokens)
+    setTokens(token:Token, n:number): Card {
+        const tokens: Map<Token, number> = new Map(this.tokens)
         tokens.set(token, n)
         return this.update({tokens:tokens})
     }
-    addTokens(token:string, n:number): Card {
+    addTokens(token:Token, n:number): Card {
         return this.setTokens(token, this.count(token) + n)
     }
-    count(token:string): number {
+    count(token:Token): number {
         return this.tokens.get(token) || 0
     }
     startTicker(): Card {
@@ -196,7 +196,7 @@ export class Card {
                     result = this.spec.fixedCost
                 else if (this.spec.calculatedCost != undefined)
                     result = this.spec.calculatedCost.calculate(this, state)
-                if (kind == 'play') result = addCosts(result, {draws:1});
+                if (kind == 'play') result = addCosts(result, {actions:1});
                 return result
             case 'buy': return addCosts(this.spec.buyCost || free, {buys:1})
             case 'activate': return free
@@ -240,6 +240,7 @@ export class Card {
         let card:Card = this
         return async function(state:State) {
             card = state.find(card)
+            const before:State = state
             let trackingSpec:TrackingSpec, gameEvent:GameEvent;
             switch (kind) {
                 case 'play':
@@ -292,13 +293,28 @@ export class Card {
                 case 'play':
                     if (card.place == 'resolving')
                         state = await move(card, 'discard')(state);
-                    state = await trigger({kind:'afterPlay', card:card, source:source})(state)
+                    state = await trigger({
+                        kind:'afterPlay',
+                        card:card,
+                        source:source,
+                        before:before,
+                    })(state)
                     return state
                 case 'use':
-                    state = await trigger({kind:'afterUse', card:card, source:source})(state)
+                    state = await trigger({
+                        kind:'afterUse',
+                        card:card,
+                        source:source,
+                        before:before,
+                    })(state)
                     return state
                 case 'buy':
-                    state = await trigger({kind:'afterBuy', card:card, source:source})(state)
+                    state = await trigger({
+                        kind:'afterBuy',
+                        card:card,
+                        source:source,
+                        before:before
+                    })(state)
                     return state
                 case 'activate': return state
                 default: return assertNever(kind)
@@ -327,10 +343,15 @@ export class Card {
     relatedCards(): CardSpec[] {
         return this.spec.relatedCards || []
     }
+    restrictions(): Restriction[] {
+        return this.spec.restrictions || []
+    }
     available(kind:ActionKind, state:State): boolean {
-        if (kind == 'activate' && this.spec.ability === undefined) return false
-        if (this.spec.restriction !== undefined &&
-            !this.spec.restriction.test(this, state, kind)) return false
+        if (kind == 'activate' && this.spec.ability === undefined) return false;
+        for (const restriction of this.restrictions()) {
+            if (restriction.test(this, state, kind))
+                return false
+        }
         return canPay(this.cost(kind, state), state)
     }
 }
@@ -358,13 +379,13 @@ export type Replayable = number[]
 interface Resources {
     coin:number;
     energy:number;
-    draws:number;
+    actions:number;
     buys:number;
     points:number
 }
 
-type CostResourceName = 'coin' | 'energy' | 'draws' | 'buys'
-const allCostResources:CostResourceName[] = ['coin', 'energy', 'draws', 'buys']
+type CostResourceName = 'coin' | 'energy' | 'actions' | 'buys'
+const allCostResources:CostResourceName[] = ['coin', 'energy', 'actions', 'buys']
 type ResourceName = CostResourceName | 'points'
 const allResources:ResourceName[] = (allCostResources as ResourceName[]).concat(['points'])
 
@@ -436,7 +457,7 @@ export class State {
     public readonly coin:number;
     public readonly energy:number;
     public readonly points:number;
-    public readonly draws:number;
+    public readonly actions:number;
     public readonly buys:number;
 
     public readonly supply:Zone;
@@ -448,7 +469,7 @@ export class State {
     constructor(
         public readonly spec: GameSpec = {seed:'', kingdom:null},
         public readonly ui: UI = noUI,
-        public readonly resources:Resources = {coin:0, energy:0, points:0, draws:0, buys:0},
+        public readonly resources:Resources = {coin:0, energy:0, points:0, actions:0, buys:0},
         private readonly zones:Map<ZoneName,Zone> = new Map(),
         public readonly resolving:Resolving = [],
         private readonly nextID:number = 0,
@@ -461,7 +482,7 @@ export class State {
         this.coin = resources.coin
         this.energy = resources.energy
         this.points = resources.points
-        this.draws = resources.draws
+        this.actions = resources.actions
         this.buys = resources.buys
 
         this.supply = zones.get('supply') || []
@@ -716,32 +737,31 @@ function createRawMulti(state:State, specs:CardSpec[], zone:ZoneName='discard', 
 // --------------------- Events and triggers
 
 interface BuyEvent {kind:'buy'; card:Card; source:Source}
-interface AfterBuyEvent {kind:'afterBuy'; card:Card; source:Source}
+interface AfterBuyEvent {kind:'afterBuy'; card:Card; source:Source, before:State}
 interface PlayEvent {kind:'play'; card:Card; source:Source}
-interface AfterPlayEvent {kind:'afterPlay'; card:Card; source:Source}
+interface AfterPlayEvent {kind:'afterPlay'; card:Card; source:Source, before:State}
 interface UseEvent {kind:'use'; card:Card; source:Source}
-interface AfterUseEvent {kind:'afterUse'; card:Card; source:Source}
+interface AfterUseEvent {kind:'afterUse'; card:Card; source:Source, before:State}
 interface ActivateEvent {kind:'activate', card:Card, source:Source}
 interface CreateEvent {kind:'create', card:Card, zone:ZoneName}
 interface MoveEvent {kind:'move', fromZone:PlaceName, toZone:PlaceName, loc:InsertLocation, card:Card}
 interface DiscardEvent {kind:'discard', cards:Card[]}
-interface DrawEvent {kind:'draw', cards:Card[], drawn:number, triedToDraw:number, source:Source}
 interface CostEvent {kind:'cost', cost:Cost, source:Source}
 interface ResourceEvent {kind:'resource', resource:ResourceName, amount:number, source:Source}
 interface GainChargeEvent {kind:'gainCharge', card:Card, oldCharge:number, newCharge:number, cost:boolean}
 interface RemoveTokensEvent { kind:'removeTokens', card:Card, token:string, removed:number }
-interface AddTokenEvent {kind: 'addToken', card:Card, token:string, amount:number}
+interface AddTokenEvent {kind: 'addToken', card:Card, token:Token, amount:number}
 interface GameStartEvent {kind:'gameStart' }
 
 type GameEvent = BuyEvent | AfterBuyEvent | PlayEvent | AfterPlayEvent |
     UseEvent | AfterUseEvent | ActivateEvent |
-    CreateEvent | MoveEvent | DrawEvent | DiscardEvent |
+    CreateEvent | MoveEvent | DiscardEvent |
     CostEvent | ResourceEvent |
     GainChargeEvent | RemoveTokensEvent | AddTokenEvent |
     GameStartEvent
 type TypedTrigger = Trigger<BuyEvent> | Trigger<AfterBuyEvent> | Trigger<PlayEvent> | Trigger<AfterPlayEvent> |
     Trigger<UseEvent> | Trigger<AfterUseEvent> | Trigger<ActivateEvent> |
-    Trigger<CreateEvent> | Trigger<MoveEvent> | Trigger<DrawEvent> | Trigger<DiscardEvent> |
+    Trigger<CreateEvent> | Trigger<MoveEvent> | Trigger<DiscardEvent> |
     Trigger<CostEvent> | Trigger<ResourceEvent> |
     Trigger<GainChargeEvent> | Trigger<RemoveTokensEvent> | Trigger<AddTokenEvent> |
     Trigger<GameStartEvent>
@@ -780,12 +800,11 @@ function trigger<T extends GameEvent>(e:T): Transform {
 
 interface ResourceParams {kind:'resource', resource:ResourceName, amount:number, source:Source}
 interface CostParams {kind:'cost', actionKind: ActionKind, card:Card, cost:Cost}
-interface DrawParams {kind:'draw', draw:number, source:Source, effects:Transform[]}
 interface MoveParams {kind:'move', card:Card, fromZone:PlaceName, toZone:PlaceName, effects:Transform[], skip:boolean}
 interface CreateParams {kind:'create', spec:CardSpec, zone:ZoneName, effects:Transform[]}
 
-type Params = ResourceParams | CostParams | DrawParams | MoveParams | CreateParams
-type TypedReplacer = Replacer<ResourceParams> | Replacer<CostParams> | Replacer<DrawParams> |
+type Params = ResourceParams | CostParams | MoveParams | CreateParams
+type TypedReplacer = Replacer<ResourceParams> | Replacer<CostParams> |
     Replacer<MoveParams> | Replacer<CreateParams>
 
 //TODO: this should maybe be async and return a new state?
@@ -1000,11 +1019,11 @@ class CostNotPaid extends Error {
 function payCost(c:Cost, source:Source=unk): Transform {
     return async function(state:State): Promise<State> {
         if (state.coin < c.coin) throw new CostNotPaid("Not enough coin")
-        if (state.draws < c.draws) throw new CostNotPaid("Not enough draws")
+        if (state.actions < c.actions) throw new CostNotPaid("Not enough actions")
         if (state.buys < c.buys) throw new CostNotPaid("Not enough buys")
         state = state.setResources({
             coin:state.coin - c.coin,
-            draws:state.draws - c.draws,
+            actions:state.actions - c.actions,
             buys:state.buys - c.buys,
             energy:state.energy + c.energy,
             points:state.points
@@ -1024,7 +1043,7 @@ function gainResource(resource:ResourceName, amount:number, source:Source=unk) {
             coin:state.coin,
             energy:state.energy,
             points:state.points,
-            draws:state.draws,
+            actions:state.actions,
             buys:state.buys,
         }
         let params:ResourceParams = {
@@ -1036,7 +1055,7 @@ function gainResource(resource:ResourceName, amount:number, source:Source=unk) {
         params = replace(params, state)
         resource = params.resource
         amount = params.amount
-        newResources[resource] = newResources[resource] + amount
+        newResources[resource] = Math.max(newResources[resource] + amount, 0)
         state = state.setResources(newResources)
         state = state.log(amount > 0 ?
             `Gained ${renderResource(resource, amount)}` :
@@ -1053,9 +1072,9 @@ function setResource(resource:ResourceName, amount:number, source:Source=unk) {
     }
 }
 
-function gainCards(n:number, source:Source=unk): Transform {
+function gainActions(n:number, source:Source=unk): Transform {
     return async function(state:State) {
-        return gainResource('draws', n, source)(state)
+        return gainResource('actions', n, source)(state)
     }
 }
 
@@ -1088,10 +1107,6 @@ function gainBuys(n:number, source:Source=unk): Transform {
 }
 
 const gainBuy = gainBuys(1)
-
-function draw(n:number, source:Source=unk): Transform {
-    return gainResource('draws', n, source)
-}
 
 // ------------------------ Utilities for manipulating transformations
 
@@ -1137,7 +1152,7 @@ function addCosts(a:Cost, b:Partial<Cost>): Cost {
     return {
         coin:a.coin + (b.coin || 0),
         energy:a.energy+(b.energy || 0),
-        draws:a.draws+(b.draws || 0),
+        actions:a.actions+(b.actions || 0),
         buys:a.buys + (b.buys || 0),
         effects:a.effects.concat(b.effects || []),
         tests:a.tests.concat(b.tests || []),
@@ -1165,7 +1180,7 @@ function subtractCost(c:Cost, reduction:Partial<Cost>): Cost {
     return {
         coin:Math.max(0, c.coin - (reduction.coin || 0)),
         energy:Math.max(0, c.energy - (reduction.energy || 0)),
-        draws:Math.max(0, c.draws - (reduction.draws || 0)),
+        actions:Math.max(0, c.actions - (reduction.actions || 0)),
         buys:Math.max(0, c.buys - (reduction.buys || 0)),
         effects:c.effects,
         tests:c.tests
@@ -1173,7 +1188,7 @@ function subtractCost(c:Cost, reduction:Partial<Cost>): Cost {
 }
 
 function eq(a:Cost, b:Cost): boolean {
-    return a.coin == b.coin && a.energy == b.energy && a.draws == b.draws
+    return a.coin == b.coin && a.energy == b.energy && a.actions == b.actions
 }
 
 
@@ -1182,6 +1197,10 @@ function leq(cost1:Cost, cost2:Cost) {
 }
 
 // ----------------- Transforms for charge and tokens
+
+type Token = 'charge' | 'cost' | 'mirror' | 'duplicate' | 'twin' | 'synergy' |
+    'shelter' | 'echo' | 'decay' | 'burden' | 'pathfinding' | 'neglect' |
+    'reuse' | 'polish' | 'priority'
 
 function discharge(card:Card, n:number): Transform {
     return charge(card, -n, true)
@@ -1214,13 +1233,13 @@ function charge(card:Card, n:number, cost:boolean=false): Transform {
     }
 }
 
-function logTokenChange(state:State, card:Card, token:string, n:number): State {
+function logTokenChange(state:State, card:Card, token:Token, n:number): State {
     return logChange(state, `${token} token`, n,
         ['Added ', ` to ${card.name}`],
         ['Removed ', ` from ${card.name}`])
 }
 
-function addToken(card:Card, token:string, n:number=1): Transform {
+function addToken(card:Card, token:Token, n:number=1): Transform {
     return async function(state) {
         card = state.find(card)
         if (card.place == null) return state
@@ -1231,7 +1250,7 @@ function addToken(card:Card, token:string, n:number=1): Transform {
     }
 }
 
-function removeTokens(card:Card, token:string): Transform {
+function removeTokens(card:Card, token:Token): Transform {
     return async function(state)  {
         card = state.find(card)
         if (card.place == null) return state
@@ -1242,12 +1261,18 @@ function removeTokens(card:Card, token:string): Transform {
         return trigger({kind:'removeTokens', card:newCard, token:token, removed:removed})(state)
     }
 }
-function removeToken(card:Card, token:string): Transform {
+function removeToken(card:Card, token:Token, isCost:boolean=false): Transform {
     return async function(state) {
         let removed:number = 0
         card = state.find(card)
-        if (card.place == null) return state
-        if (card.count(token) == 0) return state
+        console.log(token)
+        console.log(card)
+        console.log(card.count(token))
+        if (card.place == null || card.count(token) == 0) {
+            if (isCost) throw new CostNotPaid(`Couldn't remove ${token} token.`)
+            return state
+        }
+        console.log('!')
         const newCard:Card = card.addTokens(token, -1)
         state = state.replace(card, newCard)
         state = logTokenChange(state, card, token, -removed)
@@ -1487,7 +1512,7 @@ async function act(state:State): Promise<State> {
 function canPay(cost:Cost, state:State): boolean {
     return (
         cost.coin <= state.coin &&
-        cost.draws <= state.draws &&
+        cost.actions <= state.actions &&
         cost.buys <= state.buys &&
         cost.tests.every(t => t(state))
     )
@@ -1506,7 +1531,7 @@ function actChoice(state:State): Promise<[State, [Card, ActionKind]|null]> {
     const play = state.play.filter(available('activate')).map(asActChoice('activate'))
     return choice(state, `Use an event or card in play,
         pay 1 buy to buy a card from the supply,
-        or pay 1 draw to play a card from your hand.`,
+        or pay 1 action to play a card from your hand.`,
         hand.concat(supply).concat(events).concat(play))
 }
 
@@ -1687,17 +1712,17 @@ function recycleEffect(): Effect {
 }
 
 function regroupEffect(n:number, doRecycle:boolean=true): Effect {
-    let text:string[] = ['Lose all $, draws, and buy.']
+    let text:string[] = ['Lose all $, actions, and buys.']
     if (doRecycle) text.push('Put your discard pile and play into your hand.');
-    text.push(`+${n} draws, +1 buy.`)
+    text.push(`+${n} actions, +1 buy.`)
     return {
         text: text,
         transform: (state, card) => async function(state) {
             state = await setResource('coin', 0)(state)
-            state = await setResource('draws', 0)(state)
+            state = await setResource('actions', 0)(state)
             state = await setResource('buys', 0)(state)
             if (doRecycle) state = await recycle(state);
-            state = await draw(n, card)(state)
+            state = await gainActions(n, card)(state)
             state = await gainBuy(state)
             return state
         }
@@ -1716,10 +1741,10 @@ function gainPointsEffect(n:number): Effect {
         transform: (s:State, c:Card) => gainPoints(n, c),
     }
 }
-function drawEffect(n:number): Effect {
+function actionEffect(n:number): Effect {
     return {
-        text: [`+${num(n, 'draw')}.`],
-        transform: (s:State, c:Card) => gainCards(n, c),
+        text: [`+${num(n, 'action')}.`],
+        transform: (s:State, c:Card) => gainActions(n, c),
     }
 }
 function gainBuyEffect(n:number): Effect {
@@ -1871,12 +1896,14 @@ function costReduceNext(
 function applyToTarget(
     f:(target:Card) => Transform,
     text:string,
-    options:Card[]
+    options:Card[],
+    isCost:boolean=false,
 ): Transform {
     return async function(state) {
         let target:Card|null; [state, target] = await choice(state,
             text, options.map(asChoice))
-        if (target != null) state = await f(target)(state)
+        if (target != null) state = await f(target)(state);
+        if (target == null && isCost) throw new CostNotPaid('No valid targets')
         return state
     }
 }
@@ -1910,22 +1937,22 @@ const necropolis:CardSpec = {name: 'Necropolis',
     effects: [toPlay()],
     replacers: [villageReplacer()],
 }
-buyableFree(necropolis, 2, 'test')
+buyableFree(necropolis, 2)
 
 const hound:CardSpec = {name: 'Hound',
     fixedCost: energy(1),
-    effects: [drawEffect(2)],
+    effects: [actionEffect(2)],
 }
 buyableFree(hound, 2)
 
 const smithy:CardSpec = {name: 'Smithy',
     fixedCost: energy(1),
-    effects: [drawEffect(3)],
+    effects: [actionEffect(3)],
 }
 buyable(smithy, 4)
 
 const village:CardSpec = {name: 'Village',
-    effects:  [drawEffect(1), toPlay()],
+    effects:  [actionEffect(1), toPlay()],
     replacers: [villageReplacer()],
 }
 buyable(village, 4)
@@ -1960,16 +1987,16 @@ const coven:CardSpec = {name: 'Coven',
 buyable(coven, 4)
 
 const lab:CardSpec = {name: 'Lab',
-    effects: [drawEffect(2)]
+    effects: [actionEffect(2)]
 }
 buyable(lab, 5)
 
-const payDraw= payCost({...free, draws:1})
+const payAction = payCost({...free, actions:1})
 
 function playTwice(): Effect {
     return {
-        text: [`Pay 1 draw to play a card in your hand twice.`],
-        transform: (state, card) => payToDo(payDraw, applyToTarget(
+        text: [`Pay an action to play a card in your hand twice.`],
+        transform: (state, card) => payToDo(payAction, applyToTarget(
             target => doAll([
                 target.play(card),
                 tick(card),
@@ -1998,7 +2025,7 @@ buyable(coppersmith, 4)
 
 const scavenger:CardSpec = {name: 'Scavenger',
     fixedCost: energy(1),
-    effects: [gainCoinEffect(2), drawEffect(1), targetedEffect(
+    effects: [gainCoinEffect(2), actionEffect(1), targetedEffect(
             target => move(target, 'hand'),
             'Put a card from your discard pile into your hand.',
             state => state.discard
@@ -2027,10 +2054,10 @@ const construction:CardSpec = {name: 'Construction',
     fixedCost: energy(1),
     effects: [toPlay()],
     triggers: [{
-        text: 'Whenever you pay @, gain twice that many draws.',
+        text: 'Whenever you pay @, gain twice that many actions.',
         kind: 'cost',
         handles: () => true,
-        transform: e => draw(2 * e.cost.energy)
+        transform: e => gainActions(2 * e.cost.energy)
     }]
 }
 buyable(construction, 3)
@@ -2043,9 +2070,9 @@ const hallOfMirrors:CardSpec = {name: 'Hall of Mirrors',
             doAll(state.hand.map(c => addToken(c, 'mirror')))
     }],
     triggers: [{
-        text: `Whenever you play a card with a mirror token on it 
+        text: `After playing a card with a mirror token on it 
         other than with this, remove a mirror token and play it again.`,
-        kind:'play',
+        kind:'afterPlay',
         handles: (e, state, card) => {
             const played:Card = state.find(e.card)
             return played.count('mirror') > 0 && e.source.name != card.name
@@ -2088,10 +2115,10 @@ registerEvent(respite)
 
 const perpetualMotion:CardSpec = {name:'Perpetual Motion',
     fixedCost: energy(2),
-    restriction: {
+    restrictions: [{
         text: 'You have no cards in hand.',
         test: (card, state) => state.hand.length == 0
-    },
+    }],
     effects: [regroupEffect(5)],
 }
 registerEvent(perpetualMotion)
@@ -2135,11 +2162,11 @@ registerEvent(philanthropy)
 const storytelling:CardSpec = {name: 'Storytelling',
     fixedCost: coin(1),
     effects: [{
-        text: ['Lose all $.', '+1 draw per $ lost.'],
+        text: ['Lose all $.', '+1 action per $ lost.'],
         transform: () => async function(state) {
             const n = state.coin
             state = await setResource('coin', 0)(state)
-            state = await draw(n)(state)
+            state = await gainActions(n)(state)
             return state
         }
     }]
@@ -2163,7 +2190,7 @@ const repurpose:CardSpec = {name: 'Repurpose',
 registerEvent(repurpose)
 
 const vibrantCity:CardSpec = {name: 'Vibrant City',
-    effects: [gainPointsEffect(1), drawEffect(1)],
+    effects: [gainPointsEffect(1), actionEffect(1)],
 }
 buyable(vibrantCity, 6)
 
@@ -2195,7 +2222,7 @@ buyable(investment, 4)
 const populate:CardSpec = {name: 'Populate',
     fixedCost: {...free, coin:12, energy:3},
     effects: [{
-        text: ['Buy any number of cards in the supply.'],
+        text: ['Buy each card in the supply.'],
         transform: (state, card) => doAll(state.supply.map(s => s.buy(card)))
     }]
 }
@@ -2208,16 +2235,16 @@ const duplicate:CardSpec = {name: 'Duplicate',
         transform: (state, card) => doAll(state.supply.map(c => addToken(c, 'duplicate')))
     }],
     triggers: [{
-        text: `Whenever you buy a card with a duplicate token on it other than with this,
-        remove a duplicate token from it and buy it again.`,
-        kind:'buy',
+        text: `After buying a card with a duplicate token on it other than with this,
+        remove a duplicate token from it to buy it again.`,
+        kind:'afterBuy',
         handles: (e, state, card) => {
             if (e.source.name == card.name) return false
             const target:Card = state.find(e.card);
             return target.count('duplicate') > 0
         },
         transform: (e, state, card) => 
-            doAll([removeToken(e.card, 'duplicate'), e.card.buy(card)])
+            payToDo(removeToken(e.card, 'duplicate'), e.card.buy(card))
     }]
 }
 registerEvent(duplicate)
@@ -2249,10 +2276,12 @@ const shippingLane:CardSpec = {name: 'Shipping Lane',
     fixedCost: energy(1),
     effects: [gainCoinEffect(2), toPlay()],
     triggers: [{
-        text: `Whenever you buy a card in the supply,
-            if this is in play then discard it and buy that card again.`,
-        kind: 'buy',
-        handles: (e, state, card) => state.find(card).place == 'play',
+        text: `After buying a card in the supply,
+            if this is in play and was in play when you bought it,
+            then discard it and buy that card again.`,
+        kind: 'afterBuy',
+        handles: (e, state, card) => state.find(card).place == 'play'
+            && e.before.find(card).place == 'play',
         transform: (e, state, card) => async function(state) {
             state = await move(card, 'discard')(state)
             return e.card.buy(card)(state)
@@ -2318,8 +2347,8 @@ const twin:CardSpec = {name: 'Twin',
         'Put a twin token on a card in your hand.',
         state => state.hand)],
     triggers: [{
-        text: `Whenever you play a card with a twin token other than with this, play it again.`,
-        kind: 'play',
+        text: `After playing a card with a twin token other than with this, play it again.`,
+        kind: 'afterPlay',
         handles: (e, state, card) => (e.card.count('twin') > 0 && e.source.id != card.id),
         transform: (e, state, card) => e.card.play(card),
     }],
@@ -2329,8 +2358,8 @@ registerEvent(twin)
 const youngSmith:CardSpec = {name: 'Young Smith',
     fixedCost: energy(1),
     effects: [chargeUpTo(4), {
-        text: ['+1 draw per charge token on this.'],
-        transform: (state, card) => draw(state.find(card).charge, card)
+        text: ['+1 action per charge token on this.'],
+        transform: (state, card) => gainActions(state.find(card).charge, card)
     }]
 }
 buyable(youngSmith, 3)
@@ -2338,8 +2367,8 @@ buyable(youngSmith, 3)
 const oldSmith:CardSpec = {name: 'Old Smith',
     fixedCost: energy(1),
     effects: [{
-        text: ['+4 draws -1 per charge token on this.'],
-        transform: (state, card) => draw(4 - state.find(card).charge, card),
+        text: ['+4 actions -1 per charge token on this.'],
+        transform: (state, card) => gainActions(4 - state.find(card).charge, card),
     }, chargeEffect()]
 }
 buyable(oldSmith, 3)
@@ -2384,7 +2413,7 @@ const expedite: CardSpec = {
 }
 registerEvent(expedite)
 
-function removeAllSupplyTokens(token:string): Effect {
+function removeAllSupplyTokens(token:Token): Effect {
     return {
         text: [`Remove all ${token} tokens from cards in the supply.`],
         transform: (state, card) => doAll(state.supply.map(s => removeTokens(s, token)))
@@ -2440,7 +2469,7 @@ buyableAnd(shelter, 3, {
 
 const market:CardSpec = {
     name: 'Market',
-    effects: [drawEffect(1), gainCoinEffect(1), buyEffect()],
+    effects: [actionEffect(1), gainCoinEffect(1), buyEffect()],
 }
 buyable(market, 5)
 
@@ -2451,7 +2480,7 @@ const spree:CardSpec = {name: 'Spree',
 registerEvent(spree)
 
 const counterfeit:CardSpec = {name: 'Counterfeit',
-    effects: [drawEffect(1), buyEffect(), targetedEffect(
+    effects: [actionEffect(1), buyEffect(), targetedEffect(
         (target, card) => doAll([target.play(card), trash(target)]),
         'Play a card in your hand, then trash it.',
         state => state.hand)]
@@ -2511,7 +2540,7 @@ buyable(platinum, 10)
 
 const greatSmithy:CardSpec = {name: 'Great Smithy',
     fixedCost: energy(2),
-    effects: [drawEffect(5)]
+    effects: [actionEffect(5)]
 }
 buyable(greatSmithy, 7)
 
@@ -2523,8 +2552,8 @@ registerEvent(pressOn)
 
 function KCEffect(): Effect {
     return {
-        text: [`Pay 1 draw to play a card in your hand three times.`],
-        transform: (state, card) => payToDo(payDraw, applyToTarget(
+        text: [`Pay an action to play a card in your hand three times.`],
+        transform: (state, card) => payToDo(payAction, applyToTarget(
             target => doAll([
                 target.play(card),
                 tick(card),
@@ -2622,7 +2651,7 @@ registerEvent(burden)
 
 const goldsmith:CardSpec = {name: 'Goldsmith',
     fixedCost: energy(1),
-    effects: [drawEffect(2), gainCoinEffect(3)]
+    effects: [actionEffect(2), gainCoinEffect(3)]
 }
 buyable(goldsmith, 7)
 
@@ -2691,10 +2720,10 @@ const mastermind:CardSpec = {
             ({...x, skip:true, effects:x.effects.concat([charge(card, 1)])})
     }],
     ability:[{
-        text: [`Remove a charge counter from this, discard it, and pay 1 draw
+        text: [`Remove a charge counter from this, discard it, and pay 1 action
         to play a card from your hand three times.`],
         transform: (state, card) => payToDo(payCost({
-            ...free, draws:1, effects:[discharge(card, 1), discardFromPlay(card)]
+            ...free, actions:1, effects:[discharge(card, 1), discardFromPlay(card)]
         }), applyToTarget(
             target => doAll([
                 target.play(card),
@@ -2708,8 +2737,7 @@ const mastermind:CardSpec = {
         ))
     }],
 }
-buyable(mastermind, 5, 'test')
-
+buyable(mastermind, 6)
 
 function chargeVillage(): Replacer<CostParams> {
     return {
@@ -2732,7 +2760,8 @@ function unchargeOnMove(): Replacer<MoveParams> {
     return {
         text: 'Whenever this leaves play, remove all charge tokens from it.',
         kind: 'move',
-        handles: x => x.fromZone == 'play' && !x.skip,
+        handles: (x, state, card) => (x.card.id == card.id &&
+            x.fromZone == 'play' && !x.skip),
         replace: (x, state, card) => ({...x, effects:x.effects.concat([uncharge(card)])})
     }
 }
@@ -2740,7 +2769,7 @@ function unchargeOnMove(): Replacer<MoveParams> {
 //TODO: should "this is in play" always be a requirement for triggers?
 const doubleTime:CardSpec = {
     name: 'Double Time',
-    effects: [drawEffect(1), toPlay()],
+    effects: [actionEffect(1), toPlay()],
     triggers: [{
         text: 'Whenever you pay @, put that many charge tokens on this.',
         kind: 'cost',
@@ -2750,26 +2779,20 @@ const doubleTime:CardSpec = {
     }],
     replacers: [chargeVillage(), unchargeOnMove()]
 }
-buyable(doubleTime, 2)
+buyable(doubleTime, 3)
 
 const dragon:CardSpec = {name: 'Dragon',
     effects: [targetedEffect(c => trash(c), 'Trash a card in your hand.', s => s.hand),
-              drawEffect(4), gainCoinEffect(4), buyEffect()]
+              actionEffect(4), gainCoinEffect(4), buyEffect()]
 }
 const egg:CardSpec = {name: 'Egg',
     fixedCost: energy(2),
     relatedCards: [dragon],
-    effects: [{
-        text:[`If this has two or more charge tokens on it, trash it and create ${a(dragon.name)} in your hand.`,
-              `Otherwise, put a charge token on this.`],
-        transform: (state:State, card:Card) => async function(state) {
-            if (card.charge >= 2) {
-                state = await create(dragon, 'hand')(state)
-                state = await trash(card)(state)
-                return state
-            }
-            else return charge(card, 1)(state)
-        }
+    effects: [chargeEffect(), {
+        text: [`If this has three or more charge tokens on it, trash it and 
+        create ${a(dragon.name)} in your hand.`],
+        transform: (state, card) => state.find(card).charge >= 3 ?
+            doAll([trash(card), create(dragon, 'hand')]) : noop
     }]
 }
 buyable(egg, 4)
@@ -2777,14 +2800,14 @@ buyable(egg, 4)
 const looter:CardSpec = {name: 'Looter',
     effects: [{
         text: [`Discard up to three cards from your hand.`,
-            `+1 draw per card you discarded.`],
+            `+1 action per card you discarded.`],
         transform: () => async function(state) {
             let targets; [state, targets] = await multichoice(state,
                 'Choose up to three cards to discard',
                 state.hand.map(asChoice),
                 xs => xs.length <= 3)
             state = await moveMany(targets, 'discard')(state)
-            state = await draw(targets.length)(state)
+            state = await gainActions(targets.length)(state)
             return state
         }
     }]
@@ -2793,13 +2816,13 @@ buyable(looter, 4)
 
 const empire:CardSpec = {name: 'Empire',
     fixedCost: energy(1),
-    effects: [drawEffect(3), gainPointsEffect(3)]
+    effects: [actionEffect(3), gainPointsEffect(3)]
 }
 buyable(empire, 10)
 
 const Innovation:string = 'Innovation'
 const innovation:CardSpec = {name: Innovation,
-    effects: [drawEffect(1), {
+    effects: [actionEffect(1), {
         text: [`If you don't have any cards named ${Innovation} in play,
         put this in play.`],
         transform: (state, card) => move(
@@ -2814,7 +2837,7 @@ const innovation:CardSpec = {name: Innovation,
         transform: (e, state, card) => payToDo(discardFromPlay(card), e.card.play(card)),
     }]
 }
-buyable(innovation, 9, 'test')
+buyable(innovation, 9)
 
 const formation:CardSpec = {name: 'Formation',
     effects: [toPlay()],
@@ -2845,8 +2868,8 @@ const traveler:CardSpec = {
     name: 'Traveler',
     fixedCost: energy(1),
     effects: [{
-        text: [`Pay a draw to play a card in your hand once for each charge token on this.`],
-        transform: (state, card) => payToDo(payDraw, applyToTarget(
+        text: [`Pay an action to play a card in your hand once for each charge token on this.`],
+        transform: (state, card) => payToDo(payAction, applyToTarget(
             target => async function(state){
                 const n:number = state.find(card).charge
                 for (let i = 0; i < Math.min(n, 3); i++) {
@@ -2873,12 +2896,12 @@ const chameleon:CardSpec = {
     name:'Chameleon',
     replacers: [{
         text: `As long as this has a charge token on it,
-        whenever you would gain $ instead gain that many draws and vice versa.`,
+        whenever you would gain $ instead gain that many actions and vice versa.`,
         kind: 'resource',
         handles: (x, state, card) => state.find(card).charge > 0,
         replace: x => ({...x, resource:
-            (x.resource == 'coin') ? 'draws' :
-            (x.resource == 'draws') ? 'coin' :
+            (x.resource == 'coin') ? 'actions' :
+            (x.resource == 'actions') ? 'coin' :
             x.resource })
     }],
     effects: [{
@@ -2892,29 +2915,30 @@ registerEvent(chameleon)
 
 const grandMarket:CardSpec = {
     name: 'Grand Market',
-    restriction: {
+    restrictions: [{
         text: `You have no cards named ${copper.name} or ${silver.name} in your discard pile.`,
-        test: (c:Card, s:State) => s.discard.every(x => x.name != copper.name && x.name != silver.name)
-    },
-    effects: [gainCoinEffect(2), drawEffect(1), buyEffect()],
+        test: (c:Card, s:State, k:ActionKind) => k == 'buy' &&
+            s.discard.some(x => x.name == copper.name || x.name == silver.name)
+    }],
+    effects: [gainCoinEffect(2), actionEffect(1), buyEffect()],
 }
 buyable(grandMarket, 6)
 
 const greatHearth:CardSpec = {
     name: 'Great Hearth',
-    effects: [drawEffect(1), toPlay()],
+    effects: [actionEffect(1), toPlay()],
     triggers: [{
-        text: `Whenever you play ${a(estate.name)}, +1 draw.`,
+        text: `Whenever you play ${a(estate.name)}, +1 action.`,
         kind: 'play',
         handles: e => e.card.name == estate.name,
-        transform: (e, state, card) => draw(1, card)
+        transform: (e, state, card) => gainActions(1, card)
     }]
 }
 buyable(greatHearth, 3)
 
 const homesteading:CardSpec = {
     name: 'Homesteading',
-    effects: [drawEffect(1), toPlay()],
+    effects: [actionEffect(1), toPlay()],
     triggers: [{
         text: `Whenever you play ${a(estate.name)}, put a charge token on this.`,
         kind: 'play',
@@ -2943,8 +2967,8 @@ const industry:CardSpec = {
     name: 'Industry',
     fixedCost: energy(1),
     effects: [{
-        text: [`+1 draw per card in play up to a max of 5.`],
-        transform: (state, card) => draw(
+        text: [`+1 action per card in play up to a max of 5.`],
+        transform: (state, card) => gainActions(
             Math.min(state.play.length, 5),
             card
         )
@@ -2958,7 +2982,7 @@ const flourishing:CardSpec = {
         text: `@ if you have less than 10 vp.`,
         calculate: (card, state) => (state.points < 10) ? energy(1) : free
     },
-    effects: [drawEffect(2), {
+    effects: [actionEffect(2), {
         text: [`If you have at least 20 vp, +$2.`],
         transform: (state, card) => (state.points < 20) ? noop : gainCoin(2)
     }]
@@ -3017,8 +3041,8 @@ const horseTraders:CardSpec = {
     name:'Horse Traders',
     fixedCost: energy(1),
     effects: [{
-        text: ['If you have any draws, lose 1.'],
-        transform: (state, card) => draw(-1, card)
+        text: ['If you have any actions, lose 1.'],
+        transform: (state, card) => gainActions(-1, card)
     }, gainCoinEffect(4), buyEffect()]
 }
 buyable(horseTraders, 4)
@@ -3027,10 +3051,10 @@ const supplies:CardSpec = {
     name: 'Supplies',
     effects: [gainCoinEffect(1), toPlay()],
     replacers: [{
-        text: 'Whenever you would move this to your hand, first draw a card.',
+        text: 'Whenever you would move this to your hand, first +1 action.',
         kind: 'move',
         handles: (p, s, c) => p.card.id == c.id && p.toZone == 'hand',
-        replace: (p, s, c) => ({...p, effects:p.effects.concat([draw(1, c)])})
+        replace: (p, s, c) => ({...p, effects:p.effects.concat([gainActions(1, c)])})
     }]
 }
 buyable(supplies, 2)
@@ -3105,10 +3129,10 @@ registerEvent(polish)
 
 const slog:CardSpec = {
     name: 'Slog',
-    restriction: {
+    restrictions: [{
         text: `Can't be bought`,
-        test: () => false
-    },
+        test: () => true
+    }],
     replacers: [{
         text: `Cards that cost at least @ cost an additional @.`,
         kind: 'cost',
@@ -3153,51 +3177,52 @@ const preparations:CardSpec = {
     fixedCost: energy(1),
     effects: [toPlay()],
     replacers: [{
-        text: `When you move this to your hand, +$2 and +2 draw.`,
+        text: `When you move this to your hand, +$2 and +2 actions.`,
         kind: 'move',
         handles: (p, state, card) => (p.card.id == card.id && p.toZone == 'hand'),
-        replace: p => ({...p, effects:p.effects.concat([gainCoin(2), draw(2)])})
+        replace: p => ({...p, effects:p.effects.concat([gainCoin(2), gainActions(2)])})
     }]
 }
 buyable(preparations, 3)
 
 const highway:CardSpec = {
     name: 'Highway',
-    effects: [drawEffect(1), toPlay()],
+    effects: [actionEffect(1), toPlay()],
     replacers: [costReduce('buy', {coin:1}, true)],
 }
 buyable(highway, 7)
 
-function nameHasToken(card:Card, token:string, state:State): boolean {
+function nameHasToken(card:Card, token:Token, state:State): boolean {
     return state.supply.some(s => s.name == card.name && s.count(token) > 0)
 }
 
 const prioritize:CardSpec = {
     name: 'Prioritize',
     fixedCost: {...free, energy:1, coin:3},
-    effects: [removeAllSupplyTokens('prioity'), targetedEffect(
+    effects: [removeAllSupplyTokens('priority'), targetedEffect(
         card => addToken(card, 'priority', 5),
         'Put five priority tokens on a card in the supply.',
         state => state.supply,
     )],
     triggers: [{
         text: `Whenever you create a card with the same name
-            as a card in the supply with a priority token, play that card.`,
+            as a card in the supply with a priority token,
+            remove a priority token to play the card.`,
         kind: 'create',
         handles: (e, state) => nameHasToken(e.card, 'priority', state),
-        transform: (e, state, card) => e.card.play(card)
-    }, {
-        text: `After buying a card with a priority token, remove one priority token from it.`,
-        kind: 'afterBuy',
-        handles: () => true,
-        transform: e => removeToken(e.card, 'priority')
+        transform: (e, state, card) => payToDo(applyToTarget(
+                target => removeToken(target, 'priority', true),
+                'Remove a prioritize token.',
+                state.supply.filter(target => target.name == e.card.name),
+                true
+            ), e.card.play(card))
     }]
 }
 registerEvent(prioritize)
 
 const composting:CardSpec = {
     name: 'Composting',
-    effects: [drawEffect(1), toPlay()],
+    effects: [actionEffect(1), toPlay()],
     triggers: [{
         kind: 'cost',
         text: `Whenever you gain @,
@@ -3237,9 +3262,9 @@ const pathfinding:CardSpec = {
     triggers: [{
         kind: 'play',
         text: `Whenever you play a card that has the same name as a card in the supply
-        with a  pathfinding token on it, draw a card.`,
+        with a  pathfinding token on it, +1 action.`,
         handles: (e, state) => nameHasToken(e.card, 'pathfinding', state),
-        transform: (e, state, card) => draw(1, card)
+        transform: (e, state, card) => gainActions(1, card)
     }]
 }
 registerEvent(pathfinding)
@@ -3289,11 +3314,11 @@ const freeMoney:CardSpec = {name: 'Free money',
 }
 cheats.push(freeMoney)
 
-const freeDraws:CardSpec = {name: 'Free draws',
+const freeActions:CardSpec = {name: 'Free actions',
     fixedCost: energy(0),
-    effects: [drawEffect(100)],
+    effects: [actionEffect(100)],
 }
-cheats.push(freeDraws)
+cheats.push(freeActions)
 
 const freePoints:CardSpec = {name: 'Free points',
     fixedCost: energy(0),

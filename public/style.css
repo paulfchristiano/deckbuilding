@@ -16,7 +16,7 @@
     text-align: center;
     position: relative;
 }
-#coin, #energy, #draws, #points, #buys {
+.resource {
     margin-right:1em;
 }
 .option {
