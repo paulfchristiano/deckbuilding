@@ -37,7 +37,8 @@ async function ensureNextMonth(): Promise<void> {
         const secret = randomString()
         const datestring = renderEastCoastDate(d)
         const results = await sql`
-            INSERT INTO dailies (datestring, secret) values (${datestring}, ${secret})
+            INSERT INTO dailies (datestring, secret, seed)
+                        values (${datestring}, ${secret}, ${makeSeed(datestring, secret)}
             ON CONFLICT DO NOTHING
         `
         d.setDate(d.getDate() + 1)
@@ -46,7 +47,7 @@ async function ensureNextMonth(): Promise<void> {
 
 function renderEastCoastDate(inputDate:Date|null = null): string {
     const d:Date = (inputDate == null) ? new Date() : new Date(inputDate)
-    d.setMinutes(d.getMinutes() + d.getTimezoneOffset() - 180)
+    d.setMinutes(d.getMinutes() + d.getTimezoneOffset() - 240)
     return d.toLocaleDateString().split('/').join('.')
 }
 
@@ -55,17 +56,32 @@ async function dailySeed(): Promise<string> {
     if (sql == null) return datestring
     while (true) {
         const results = await sql`
-          SELECT secret FROM dailies
+          SELECT seed FROM dailies
           WHERE datestring=${datestring}
         `
         if (results.length == 0) {
             await ensureNextMonth()
         }
         else {
-            return `${datestring}.${results[0].secret}`
+            return results[0].seed
         }
     }
 }
+
+function makeSeed(datestring:string, secret:string) {
+    return `${datestring}.${secret}`
+}
+
+async function submitForDaily(username:string, seed:string, score:number): Promise<void> {
+    if (sql == null) return
+    await sql`
+        UPDATE dailies
+        SET best_user = ${username}, best_score=${score}, version=${VERSION}
+        WHERE seed = ${seed} AND
+            (version = ${VERSION} OR version ISNULL) AND
+            (best_score > ${score} OR best_score ISNULL)
+    `
+} 
 
 type RecentEntry = {version:string, age:string, score:number, username:string, seed:string}
 
@@ -126,6 +142,26 @@ express()
               }
           }
           res.render('pages/recent', {recents:Array.from(recents.values())})
+      } catch(err) {
+          console.error(err);
+          res.send('Error: ' + err);
+      }
+    })
+    .get('/dailies', async (req:any, res:any) => {
+      try {
+          if (sql == null) {
+              res.send('Not connected to a database')
+              return
+          }
+          const results = await sql`
+              SELECT datestring, seed, version, best_score, best_user,
+                     to_date(datestring, 'MM.DD.YYYY') as date
+              FROM dailies
+              ORDER BY date DESC
+          `
+          for (const result of results)
+              results.current = (result.version == VERSION)
+          res.render('pages/dailies', {dailies:results.filter((r:any) => r.best_user != null)})
       } catch(err) {
           console.error(err);
           res.send('Error: ' + err);
@@ -204,6 +240,7 @@ express()
                   INSERT INTO scoreboard (username, score, seed, version)
                   VALUES (${username}, ${score}, ${seed}, ${VERSION})
                 `
+                await submitForDaily(username, seed, score)
                 res.send(`OK`)
             } else {
                 res.send(`Score did not validate: ${explanation}`)

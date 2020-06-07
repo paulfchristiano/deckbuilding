@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+.dailies {
+    border-collapse: collapse;
+}
+.dailies td {
+    border: 1px black solid;
+    text-align: center;
+}
+.dailies thead td {
+    border-bottom: 3px black solid;
+    padding-left: 1em;
+    padding-right: 1em;
+    text-align: center;
+}
+.userhead {
+    width: 15em;
+}
+.datehead {
+    width: 5em;
+}
+.versionhead {
+    width: 5em;
+}
+</style>
+</head>
+
+<body>
+
+<table class='dailies'>
+    <thead>
+        <tr>
+            <td class='datehead'> Day</td>
+            <td class='scorehead'> Top score </td>
+            <td class='userhead'> Username </td>
+            <td class='playhead'> Play </td>
+            <td class='scoreboardhead'> All scores </td>
+            <td class='versionhead'> Version </td>
+        </tr>
+    </thead>
+    <tbody>
+        <% dailies.forEach(function(r) { %>
+        <tr> 
+            <td><%= r.datestring %></td>
+            <td><%= r.best_score %></td>
+            <td><%= r.best_user %></td>
+            <td><a href='play?seed=<%= r.seed %>'>play</a></td>
+            <td><a href='scoreboard?seed=<%= r.seed %>'>scores</a></td>
+            <td><%= r.version%></td>
+        </tr>
+        <% }); %>
+    </tbody>
+</table>
+
+</body>
+</html>

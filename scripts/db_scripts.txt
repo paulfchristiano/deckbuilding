@@ -1,0 +1,41 @@
+#Add net columns to dailies table
+
+ALTER TABLE dailies ADD COLUMN version text;
+ALTER TABLE dailies ADD COLUMN best_score int;
+ALTER TABLE dailies ADD COLUMN best_user text;
+
+#Make columns not null
+
+ALTER TABLE dailies ALTER COLUMN datestring SET NOT NULL;
+ALTER TABLE dailies ALTER COLUMN secret SET NOT NULL;
+
+#Add seed column to the dailies table
+
+ALTER TABLE dailies ADD COLUMN seed text;
+UPDATE dailies SET seed = datestring || '.' || secret;
+ALTER TABLE dailies ALTER COLUMN seed SET NOT NULL;
+
+#remove version column from table
+
+ALTER TABLE dailies DROP COLUMN version;
+
+#insert test item into dailies
+INSERT INTO dailies (datestring, secret) values ('test', 'test');
+
+#delete test item from dailies
+DELETE FROM dailies WHERE datestring = 'test';
+
+#show dailies
+SELECT * FROM dailies;
+
+#### Unused
+
+#Add date column to the dailies table
+
+ALTER TABLE dailies ADD COLUMN date DATE;
+UPDATE dailies SET date = to_date(datestring, 'MM.DD.YYYY');
+ALTER TABLE dailies ALTER COLUMN date SET NOT NULL;
+
+#Remove date column from the dailies table
+
+ALTER TABLE dailies DROP COLUMN date;

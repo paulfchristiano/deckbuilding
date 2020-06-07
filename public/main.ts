@@ -570,7 +570,7 @@ function renderStringOption(option:StringOption<number>, hotkey?:Key, pick?:numb
 }
 
 function renderSpecials(undoable:boolean): string {
-    return renderUndo(undoable) + renderHotkeyToggle() + renderHelp()
+    return renderUndo(undoable) + renderHotkeyToggle() + renderHelp() + renderDeepLink()
 }
 
 function renderHotkeyToggle(): string {
@@ -578,6 +578,9 @@ function renderHotkeyToggle(): string {
 }
 function renderHelp(): string {
     return `<span id='help' class='option', option='help' choosable chosen='false'>${renderHotkey('?')} Help</span>`
+}
+function renderDeepLink(): string {
+    return `<span id='deeplink' class='option', option='link' choosable chosen='false'>Link</span>`
 }
 
 function renderUndo(undoable:boolean): string {
@@ -589,6 +592,7 @@ function bindSpecials(state:State, reject: ((x:any) => void), renderer: () => vo
     bindHotkeyToggle(renderer)
     bindUndo(state, reject)
     bindHelp(state, renderer)
+    bindDeepLink(state)
 }
 
 function bindHotkeyToggle(renderer: () => void) {
@@ -606,6 +610,45 @@ function bindUndo(state:State, reject: ((x:any) => void)): void {
     }
     keyListeners.set('z', pick)
     $(`[option='undo']`).on('click', pick)
+}
+
+function bindDeepLink(state:State): void {
+    const url:string = `${window.location.host}/${stateURL(state, false)}`
+    $(`[option='link']`).on('click', () => showLinkDialog(url))
+}
+
+function showLinkDialog(url:string) {
+    $('#scoreSubmitter').attr('active', 'true')
+    $('#scoreSubmitter').html(
+        `<label for="link">Link:</label>` +
+        `<textarea id="link"></textarea>` +
+        `<div>` +
+        `<span class="option" choosable id="copyLink">${renderHotkey('⏎')}Copy</span>` +
+        `<span class="option" choosable id="cancel">${renderHotkey('Esc')}Cancel</span>` +
+        `</div>`
+    )
+    $('#link').val(url)
+    $('#link').select()
+    function exit() {
+        $('#link').blur()
+        $('#scoreSubmitter').attr('active', 'false')
+    }
+    function submit() {
+        $('#link').select()
+        document.execCommand('copy')
+        exit()
+    }
+    $('#cancel').click(exit)
+    $('#copyLink').click(submit)
+    $('#link').keydown((e:any) => {
+        if (e.keyCode == 27) {
+            exit()
+            e.preventDefault()
+        } else if (e.keyCode == 13) {
+            submit()
+            e.preventDefault()
+        }
+    })
 }
 
 function clearChoice(): void {
@@ -634,10 +677,11 @@ function bindHelp(state:State, renderer: () => void) {
             "When a cost is measured in coin ($) then you can only buy it if you have enough coin.",
             'After playing a card, discard it.',
             "You can activate the abilities of cards in play, marked with (ability).",
-            "Effects marked with (static) apply whenever the card is in play or in the supply.",
-            `You can play today's <a href='daily'>daily kingdom</a>, which refreshes 8pm PDT.`,
+            "Effects marked with (static) apply whenever the card is in the supply.",
+            "Effects marked with (trigger) apply whenever the card is in play.",
+            `You can play today's <a href='daily'>daily kingdom</a>, which refreshes 9pm PDT.`,
+            `Click on the 'Link' button to get a link to resume the game from the current state.`,
             `Visit <a href="${stateURL(state)}">this link</a> to replay this kingdom anytime.`,
-            `Visit <a href="${stateURL(state, false)}">this link</a> to resume this game from the current state.`,
             //`Or visit the <a href="picker.html">kingdom picker<a> to pick a kingdom.`,
         ]
         if (submittable(state.spec))

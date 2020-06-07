@@ -51,6 +51,17 @@
     height: 1.2em;
     border:none;
 }
+#link {
+    margin-left: 0.5em;
+    margin-right: 0.5em;
+    padding: 0.1em;
+    padding-top: 0.3em;
+    padding-bottom: 0.3em;
+    width: 10em;
+    font-size: 1em;
+    height: 1.5em;
+    border:none;
+}
 #resolving {
     display:inline-block;
 }

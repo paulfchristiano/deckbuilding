@@ -677,13 +677,16 @@ function renderStringOption(option, hotkey, pick) {
     return "<span class='option' option='" + option.value + "' choosable chosen='false'>" + picktext + hotkeyText + option.render + "</span>";
 }
 function renderSpecials(undoable) {
-    return renderUndo(undoable) + renderHotkeyToggle() + renderHelp();
+    return renderUndo(undoable) + renderHotkeyToggle() + renderHelp() + renderDeepLink();
 }
 function renderHotkeyToggle() {
     return "<span class='option', option='hotkeyToggle' choosable chosen='false'>" + renderHotkey('/') + " Hotkeys</span>";
 }
 function renderHelp() {
     return "<span id='help' class='option', option='help' choosable chosen='false'>" + renderHotkey('?') + " Help</span>";
+}
+function renderDeepLink() {
+    return "<span id='deeplink' class='option', option='link' choosable chosen='false'>Link</span>";
 }
 function renderUndo(undoable) {
     var hotkeyText = renderHotkey('z');
@@ -693,6 +696,7 @@ function bindSpecials(state, reject, renderer) {
     bindHotkeyToggle(renderer);
     bindUndo(state, reject);
     bindHelp(state, renderer);
+    bindDeepLink(state);
 }
 function bindHotkeyToggle(renderer) {
     function pick() {
@@ -709,6 +713,42 @@ function bindUndo(state, reject) {
     }
     keyListeners.set('z', pick);
     $("[option='undo']").on('click', pick);
+}
+function bindDeepLink(state) {
+    var url = window.location.host + "/" + stateURL(state, false);
+    $("[option='link']").on('click', function () { return showLinkDialog(url); });
+}
+function showLinkDialog(url) {
+    $('#scoreSubmitter').attr('active', 'true');
+    $('#scoreSubmitter').html("<label for=\"link\">Link:</label>" +
+        "<textarea id=\"link\"></textarea>" +
+        "<div>" +
+        ("<span class=\"option\" choosable id=\"copyLink\">" + renderHotkey('⏎') + "Copy</span>") +
+        ("<span class=\"option\" choosable id=\"cancel\">" + renderHotkey('Esc') + "Cancel</span>") +
+        "</div>");
+    $('#link').val(url);
+    $('#link').select();
+    function exit() {
+        $('#link').blur();
+        $('#scoreSubmitter').attr('active', 'false');
+    }
+    function submit() {
+        $('#link').select();
+        document.execCommand('copy');
+        exit();
+    }
+    $('#cancel').click(exit);
+    $('#copyLink').click(submit);
+    $('#link').keydown(function (e) {
+        if (e.keyCode == 27) {
+            exit();
+            e.preventDefault();
+        }
+        else if (e.keyCode == 13) {
+            submit();
+            e.preventDefault();
+        }
+    });
 }
 function clearChoice() {
     keyListeners.clear();
@@ -733,10 +773,11 @@ function bindHelp(state, renderer) {
             "When a cost is measured in coin ($) then you can only buy it if you have enough coin.",
             'After playing a card, discard it.',
             "You can activate the abilities of cards in play, marked with (ability).",
-            "Effects marked with (static) apply whenever the card is in play or in the supply.",
-            "You can play today's <a href='daily'>daily kingdom</a>, which refreshes 8pm PDT.",
+            "Effects marked with (static) apply whenever the card is in the supply.",
+            "Effects marked with (trigger) apply whenever the card is in play.",
+            "You can play today's <a href='daily'>daily kingdom</a>, which refreshes 9pm PDT.",
+            "Click on the 'Link' button to get a link to resume the game from the current state.",
             "Visit <a href=\"" + stateURL(state) + "\">this link</a> to replay this kingdom anytime.",
-            "Visit <a href=\"" + stateURL(state, false) + "\">this link</a> to resume this game from the current state.",
         ];
         if (submittable(state.spec))
             helpLines.push("Check out the scoreboard <a href=" + scoreboardURL(state.spec) + ">here</a>.");
