@@ -1530,8 +1530,8 @@ function actChoice(state:State): Promise<[State, [Card, ActionKind]|null]> {
     const events = state.events.filter(available('use')).map(asActChoice('use'))
     const play = state.play.filter(available('activate')).map(asActChoice('activate'))
     return choice(state, `Use an event or card in play,
-        pay 1 buy to buy a card from the supply,
-        or pay 1 action to play a card from your hand.`,
+        pay a buy to buy a card from the supply,
+        or pay an action to play a card from your hand.`,
         hand.concat(supply).concat(events).concat(play))
 }
 
