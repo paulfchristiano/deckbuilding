@@ -336,7 +336,7 @@ function renderShadow(shadow, state, tokenRenderer) {
             tooltip = describeCost(shadow.spec.cost);
             break;
         case 'buying':
-            tooltip = 'Buying ${shadow.spec.card.name}';
+            tooltip = "Buying " + shadow.spec.card.name;
             break;
         default: assertNever(shadow.spec);
     }
