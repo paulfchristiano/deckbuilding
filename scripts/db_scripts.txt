@@ -1,4 +1,6 @@
-#Add net columns to dailies table
+### migration 6/7/2020
+
+#Add new columns to dailies table
 
 ALTER TABLE dailies ADD COLUMN version text;
 ALTER TABLE dailies ADD COLUMN best_score int;
@@ -15,6 +17,18 @@ ALTER TABLE dailies ADD COLUMN seed text;
 UPDATE dailies SET seed = datestring || '.' || secret;
 ALTER TABLE dailies ALTER COLUMN seed SET NOT NULL;
 
+#### Unused
+
+#Add date column to the dailies table
+
+ALTER TABLE dailies ADD COLUMN date DATE;
+UPDATE dailies SET date = to_date(datestring, 'MM.DD.YYYY');
+ALTER TABLE dailies ALTER COLUMN date SET NOT NULL;
+
+#Remove date column from the dailies table
+
+ALTER TABLE dailies DROP COLUMN date;
+
 #remove version column from table
 
 ALTER TABLE dailies DROP COLUMN version;
@@ -28,14 +42,3 @@ DELETE FROM dailies WHERE datestring = 'test';
 #show dailies
 SELECT * FROM dailies;
 
-#### Unused
-
-#Add date column to the dailies table
-
-ALTER TABLE dailies ADD COLUMN date DATE;
-UPDATE dailies SET date = to_date(datestring, 'MM.DD.YYYY');
-ALTER TABLE dailies ALTER COLUMN date SET NOT NULL;
-
-#Remove date column from the dailies table
-
-ALTER TABLE dailies DROP COLUMN date;

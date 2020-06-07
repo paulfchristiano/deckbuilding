@@ -775,7 +775,7 @@ function bindHelp(state, renderer) {
             "You can activate the abilities of cards in play, marked with (ability).",
             "Effects marked with (static) apply whenever the card is in the supply.",
             "Effects marked with (trigger) apply whenever the card is in play.",
-            "You can play today's <a href='daily'>daily kingdom</a>, which refreshes 9pm PDT.",
+            "You can play today's <a href='daily'>daily kingdom</a>, which refreshes midnight EDT.",
             "Click on the 'Link' button to get a link to resume the game from the current state.",
             "Visit <a href=\"" + stateURL(state) + "\">this link</a> to replay this kingdom anytime.",
         ];
