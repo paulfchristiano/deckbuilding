@@ -475,6 +475,9 @@ function renderState(state, settings) {
     $('#events').html(state.events.map(render('events')).join(''));
     $('#hand').html(state.hand.map(render('hand')).join(''));
     $('#discard').html(state.discard.map(render('discard')).join(''));
+    $('#playsize').html('' + state.play.length);
+    $('#handsize').html('' + state.hand.length);
+    $('#discardsize').html('' + state.discard.length);
     $('#log').html(renderLogs(state.logs));
 }
 function renderLog(msg) {
