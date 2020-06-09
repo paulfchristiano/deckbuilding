@@ -462,6 +462,7 @@ function renderState(state, settings) {
             return renderCard(card, state, zone, cardRenderOptions, globalRendererState.tokenRenderer);
         };
     }
+    window.history.pushState(null, "", "#" + state.serializeHistory());
     $('#resolvingHeader').html('Resolving:');
     $('#energy').html(state.energy.toString());
     $('#actions').html(state.actions.toString());
@@ -805,9 +806,10 @@ function stateURL(state, restart) {
     var args = ["seed=" + spec.seed];
     if (spec.kingdom != null)
         args.push("kingdom=" + spec.kingdom);
+    var str = "play?" + args.join('&');
     if (!restart)
-        args.push("history=" + state.serializeHistory());
-    return "play?" + args.join('&');
+        str = str + ("#" + state.serializeHistory());
+    return str;
 }
 // ------------------------------ High score submission
 //TODO: allow submitting custom kingdoms
@@ -948,7 +950,7 @@ function getSeed() {
     return (seeds.length == 0) ? Math.random().toString(36).substring(2, 7) : seeds.join('.');
 }
 function getHistory() {
-    return new URLSearchParams(window.location.search).get('history');
+    return window.location.hash.substring(1) || null;
 }
 export function load() {
     var spec = makeGameSpec();

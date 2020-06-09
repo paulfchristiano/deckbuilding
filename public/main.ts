@@ -138,7 +138,7 @@ class TokenRenderer {
         this.tokenTypes = ['charge'];
     }
     tokenColor(token:string): string {
-        const tokenColors:string[] = ['black', 'red', 'orange', 'green', 'fuchsia', 'blue'] 
+        const tokenColors:string[] = ['black', 'red', 'orange', 'green', 'fuchsia', 'blue']
         return tokenColors[this.tokenType(token) % tokenColors.length]
     }
     tokenType(token:string): number {
@@ -249,7 +249,7 @@ function renderCard(
     } else {
         const costType:'use'|'play' = (zone == 'events') ? 'use' : 'play'
         const tokenhtml:string = tokenRenderer.render(card.tokens)
-        const costhtml:string = (zone == 'supply') ? 
+        const costhtml:string = (zone == 'supply') ?
             renderCost(card.cost('buy', state)) || '&nbsp' :
             renderCost(card.cost(costType, state)) || '&nbsp'
         const picktext:string = (options.pick !== undefined) ? `<div class='pickorder'>${options.pick}</div>` : ''
@@ -361,6 +361,7 @@ function renderState(state:State,
                 globalRendererState.tokenRenderer)
         }
     }
+    window.history.pushState(null, "", `#${state.serializeHistory()}`);
     $('#resolvingHeader').html('Resolving:')
     $('#energy').html(state.energy.toString())
     $('#actions').html(state.actions.toString())
@@ -480,7 +481,7 @@ const webUI:UI = {
         })
     },
     async victory(state:State): Promise<void> {
-        const submitOrUndo: () => Promise<void> = () => 
+        const submitOrUndo: () => Promise<void> = () =>
             new Promise(function (resolve, reject) {
                 heartbeat(state.spec)
                 const submitDialog = () => {
@@ -488,7 +489,7 @@ const webUI:UI = {
                     renderScoreSubmission(state, () => submitOrUndo().then(resolve, reject))
                 }
                 const options:Option<() => void>[] = (!submittable(state.spec)) ? [] : [{
-                        render: 'Submit', 
+                        render: 'Submit',
                         value: submitDialog,
                         hotkeyHint: {kind:'key', val:'!'}
                     }]
@@ -686,7 +687,7 @@ function bindHelp(state:State, renderer: () => void) {
         ]
         if (submittable(state.spec))
             helpLines.push(`Check out the scoreboard <a href=${scoreboardURL(state.spec)}>here</a>.`)
-        else 
+        else
             helpLines.push(`There is no scoreboard when you specify a kingdom manually.`)
         $('#choicePrompt').html('')
         $('#resolvingHeader').html('')
@@ -712,8 +713,9 @@ function stateURL(state:State, restart:boolean=true): string {
     const spec:GameSpec = state.spec
     const args:string[] = [`seed=${spec.seed}`]
     if (spec.kingdom != null) args.push(`kingdom=${spec.kingdom}`);
-    if (!restart) args.push(`history=${state.serializeHistory()}`)
-    return `play?${args.join('&')}`
+    let str = `play?${args.join('&')}`
+    if (!restart) str = str + `#${state.serializeHistory()}`;
+    return str;
 }
 
 // ------------------------------ High score submission
@@ -851,7 +853,7 @@ function getSeed(): string {
 }
 
 function getHistory(): string | null {
-    return new URLSearchParams(window.location.search).get('history')
+    return window.location.hash.substring(1) || null;
 }
 
 export function load(): void {
