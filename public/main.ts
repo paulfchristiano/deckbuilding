@@ -273,8 +273,10 @@ function renderCalculatedCost(c:CalculatedCost): string {
     return `<div>(cost) ${c.text}</div>`
 }
 
-function renderBuyable(bs:{text:string}[]): string{
-    return bs.map(b => `<div>(req) ${b.text}</div>`).join('')
+function renderBuyable(bs:{text?:string}[]): string{
+    return bs.map(
+        b => (b.text == undefined) ? '' : `<div>(static) ${b.text}</div>`
+    ).join('')
 }
 
 function isZero(c:Cost|undefined) {
@@ -613,7 +615,7 @@ function bindUndo(state:State, reject: ((x:any) => void)): void {
 }
 
 function bindDeepLink(state:State): void {
-    const url:string = `${window.location.host}/${stateURL(state, false)}`
+    const url:string = `${window.location.origin}/${stateURL(state, false)}`
     $(`[option='link']`).on('click', () => showLinkDialog(url))
 }
 

@@ -85,7 +85,7 @@ var __read = (this && this.__read) || function (o, n) {
     }
     return ar;
 };
-export var VERSION = "0.6";
+export var VERSION = "0.6.1";
 // ----------------------------- Formatting
 export function renderCost(cost, full) {
     var e_1, _a;
@@ -2525,10 +2525,32 @@ var respite = { name: 'Respite',
 };
 registerEvent(respite);
 var perpetualMotion = { name: 'Perpetual Motion',
-    fixedCost: energy(2), restrictions: [{
-            text: 'You have no cards in hand.',
-            test: function (card, state) { return state.hand.length == 0; }
-        }], effects: [regroupEffect(5)], };
+    fixedCost: energy(1), restrictions: [{
+            test: function (card, state) { return state.hand.length > 0; }
+        }],
+    effects: [{
+            text: ["If you have no cards in your hand,\n        put your discard pile into your hand and +3 actions."],
+            transform: function () { return function (state) {
+                return __awaiter(this, void 0, void 0, function () {
+                    return __generator(this, function (_a) {
+                        switch (_a.label) {
+                            case 0:
+                                if (!(state.hand.length == 0)) return [3 /*break*/, 3];
+                                return [4 /*yield*/, moveMany(state.discard, 'hand')(state)];
+                            case 1:
+                                state = _a.sent();
+                                return [4 /*yield*/, gainActions(3)(state)];
+                            case 2:
+                                state = _a.sent();
+                                state = sortHand(state);
+                                _a.label = 3;
+                            case 3: return [2 /*return*/, state];
+                        }
+                    });
+                });
+            }; }
+        }]
+};
 registerEvent(perpetualMotion);
 var desperation = { name: 'Desperation',
     fixedCost: energy(1),
@@ -2722,11 +2744,15 @@ var mobilization = { name: 'Mobilization',
         }]
 };
 registerEvent(mobilization);
+function refreshEffect() {
+    return {
+        text: ['Put your discard pile into your hand.'],
+        transform: function (state) { return doAll([moveMany(state.discard, 'hand'), sortHand]); }
+    };
+}
 var refresh = { name: 'Refresh',
-    fixedCost: energy(2), effects: [{
-            text: ['Put your discard pile into your hand.'],
-            transform: function (state, card) { return doAll([moveMany(state.discard, 'hand'), sortHand]); },
-        }]
+    fixedCost: energy(2),
+    effects: [refreshEffect()],
 };
 registerEvent(refresh);
 var twin = { name: 'Twin', fixedCost: __assign(__assign({}, free), { energy: 1, coin: 8 }),
@@ -3272,7 +3298,7 @@ registerEvent(chameleon);
 var grandMarket = {
     name: 'Grand Market',
     restrictions: [{
-            text: "You have no cards named " + copper.name + " or " + silver.name + " in your discard pile.",
+            text: "You can't buy this if you have any\n        " + copper.name + "s or " + silver.name + "s\n        in your discard pile.",
             test: function (c, s, k) { return k == 'buy' &&
                 s.discard.some(function (x) { return x.name == copper.name || x.name == silver.name; }); }
         }],
@@ -3495,7 +3521,6 @@ registerEvent(polish);
 var slog = {
     name: 'Slog',
     restrictions: [{
-            text: "Can't be bought",
             test: function () { return true; }
         }],
     replacers: [{
@@ -3627,7 +3652,7 @@ buyable(fairyGold, 3);
 var pathfinding = {
     name: 'Pathfinding',
     fixedCost: __assign(__assign({}, free), { coin: 8, energy: 1 }),
-    effects: [removeAllSupplyTokens('pathfinding'), targetedEffect(function (target) { return addToken(target, 'pathfinding'); }, "Put a pathfinding token on a card in the supply.", function (state) { return state.supply; })],
+    effects: [removeAllSupplyTokens('pathfinding'), targetedEffect(function (target) { return addToken(target, 'pathfinding'); }, "Put a pathfinding token on a card in the supply other than Copper.", function (state) { return state.supply.filter(function (target) { return target.name != copper.name; }); })],
     triggers: [{
             kind: 'play',
             text: "Whenever you play a card that has the same name as a card in the supply\n        with a  pathfinding token on it, +1 action.",

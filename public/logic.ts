@@ -1,4 +1,4 @@
-export const VERSION = "0.6"
+export const VERSION = "0.6.1"
 
 // ----------------------------- Formatting
 
@@ -83,7 +83,7 @@ const free:Cost = {coin:0, energy:0, actions:0, buys:0, effects: [], tests: []}
 type ActionKind = 'play' | 'use' | 'buy' | 'activate'
 
 interface Restriction {
-    text: string;
+    text?: string;
     test: (card:Card, state:State, kind:ActionKind) => boolean;
 }
 
@@ -2114,12 +2114,22 @@ const respite:CardSpec = {name:'Respite',
 registerEvent(respite)
 
 const perpetualMotion:CardSpec = {name:'Perpetual Motion',
-    fixedCost: energy(2),
+    fixedCost: energy(1),
     restrictions: [{
-        text: 'You have no cards in hand.',
-        test: (card, state) => state.hand.length == 0
+        test: (card, state) => state.hand.length > 0
     }],
-    effects: [regroupEffect(5)],
+    effects: [{
+        text: [`If you have no cards in your hand,
+        put your discard pile into your hand and +3 actions.`],
+        transform: () => async function(state) {
+            if (state.hand.length == 0) {
+                state = await moveMany(state.discard, 'hand')(state)
+                state = await gainActions(3)(state)
+                state = sortHand(state)
+            }
+            return state
+        }
+    }]
 }
 registerEvent(perpetualMotion)
 
@@ -2331,12 +2341,16 @@ const mobilization:CardSpec = {name: 'Mobilization',
 }
 registerEvent(mobilization)
 
+function refreshEffect(): Effect {
+    return {
+        text: ['Put your discard pile into your hand.'],
+        transform: state => doAll([moveMany(state.discard, 'hand'), sortHand])
+    }
+}
+
 const refresh:CardSpec = {name: 'Refresh',
     fixedCost: energy(2),
-    effects: [{
-        text: ['Put your discard pile into your hand.'],
-        transform: (state, card) => doAll([moveMany(state.discard, 'hand'), sortHand ]),
-    }]
+    effects: [refreshEffect()],
 }
 registerEvent(refresh)
 
@@ -2916,7 +2930,9 @@ registerEvent(chameleon)
 const grandMarket:CardSpec = {
     name: 'Grand Market',
     restrictions: [{
-        text: `You have no cards named ${copper.name} or ${silver.name} in your discard pile.`,
+        text: `You can't buy this if you have any
+        ${copper.name}s or ${silver.name}s
+        in your discard pile.`,
         test: (c:Card, s:State, k:ActionKind) => k == 'buy' &&
             s.discard.some(x => x.name == copper.name || x.name == silver.name)
     }],
@@ -3130,7 +3146,6 @@ registerEvent(polish)
 const slog:CardSpec = {
     name: 'Slog',
     restrictions: [{
-        text: `Can't be bought`,
         test: () => true
     }],
     replacers: [{
@@ -3256,8 +3271,8 @@ const pathfinding:CardSpec = {
     fixedCost: {...free, coin:8, energy:1},
     effects: [removeAllSupplyTokens('pathfinding'), targetedEffect(
         target => addToken(target, 'pathfinding'),
-        `Put a pathfinding token on a card in the supply.`,
-        state => state.supply
+        `Put a pathfinding token on a card in the supply other than Copper.`,
+        state => state.supply.filter(target => target.name != copper.name)
     )],
     triggers: [{
         kind: 'play',
