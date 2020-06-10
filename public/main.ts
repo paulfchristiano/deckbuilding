@@ -138,7 +138,7 @@ class TokenRenderer {
         this.tokenTypes = ['charge'];
     }
     tokenColor(token:string): string {
-        const tokenColors:string[] = ['black', 'red', 'orange', 'green', 'fuchsia', 'blue'] 
+        const tokenColors:string[] = ['black', 'red', 'orange', 'green', 'fuchsia', 'blue']
         return tokenColors[this.tokenType(token) % tokenColors.length]
     }
     tokenType(token:string): number {
@@ -249,7 +249,7 @@ function renderCard(
     } else {
         const costType:'use'|'play' = (zone == 'events') ? 'use' : 'play'
         const tokenhtml:string = tokenRenderer.render(card.tokens)
-        const costhtml:string = (zone == 'supply') ? 
+        const costhtml:string = (zone == 'supply') ?
             renderCost(card.cost('buy', state)) || '&nbsp' :
             renderCost(card.cost(costType, state)) || '&nbsp'
         const picktext:string = (options.pick !== undefined) ? `<div class='pickorder'>${options.pick}</div>` : ''
@@ -376,6 +376,9 @@ function renderState(state:State,
     $('#events').html(state.events.map(render('events')).join(''))
     $('#hand').html(state.hand.map(render('hand')).join(''))
     $('#discard').html(state.discard.map(render('discard')).join(''))
+    $('#playsize').html('' + state.play.length)
+    $('#handsize').html('' + state.hand.length)
+    $('#discardsize').html('' + state.discard.length)
     $('#log').html(renderLogs(state.logs))
 }
 
@@ -482,7 +485,7 @@ const webUI:UI = {
         })
     },
     async victory(state:State): Promise<void> {
-        const submitOrUndo: () => Promise<void> = () => 
+        const submitOrUndo: () => Promise<void> = () =>
             new Promise(function (resolve, reject) {
                 heartbeat(state.spec)
                 const submitDialog = () => {
@@ -490,7 +493,7 @@ const webUI:UI = {
                     renderScoreSubmission(state, () => submitOrUndo().then(resolve, reject))
                 }
                 const options:Option<() => void>[] = (!submittable(state.spec)) ? [] : [{
-                        render: 'Submit', 
+                        render: 'Submit',
                         value: submitDialog,
                         hotkeyHint: {kind:'key', val:'!'}
                     }]
@@ -688,7 +691,7 @@ function bindHelp(state:State, renderer: () => void) {
         ]
         if (submittable(state.spec))
             helpLines.push(`Check out the scoreboard <a href=${scoreboardURL(state.spec)}>here</a>.`)
-        else 
+        else
             helpLines.push(`There is no scoreboard when you specify a kingdom manually.`)
         $('#choicePrompt').html('')
         $('#resolvingHeader').html('')
