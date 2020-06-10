@@ -363,6 +363,7 @@ function renderState(state:State,
                 globalRendererState.tokenRenderer)
         }
     }
+    window.history.pushState(null, "", `#${state.serializeHistory()}`);
     $('#resolvingHeader').html('Resolving:')
     $('#energy').html(state.energy.toString())
     $('#actions').html(state.actions.toString())
@@ -717,8 +718,9 @@ function stateURL(state:State, restart:boolean=true): string {
     const spec:GameSpec = state.spec
     const args:string[] = [`seed=${spec.seed}`]
     if (spec.kingdom != null) args.push(`kingdom=${spec.kingdom}`);
-    if (!restart) args.push(`history=${state.serializeHistory()}`)
-    return `play?${args.join('&')}`
+    let str = `play?${args.join('&')}`
+    if (!restart) str = str + `#${state.serializeHistory()}`;
+    return str;
 }
 
 // ------------------------------ High score submission
@@ -856,7 +858,7 @@ function getSeed(): string {
 }
 
 function getHistory(): string | null {
-    return new URLSearchParams(window.location.search).get('history')
+    return window.location.hash.substring(1) || null;
 }
 
 export function load(): void {
