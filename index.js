@@ -129,7 +129,7 @@ function ensureNextMonth() {
                     if (!(i < 30)) return [3 /*break*/, 4];
                     secret = randomString();
                     datestring = renderEastCoastDate(d);
-                    return [4 /*yield*/, sql(templateObject_1 || (templateObject_1 = __makeTemplateObject(["\n            INSERT INTO dailies (datestring, secret, seed)\n                        values (", ", ", ", ", "\n            ON CONFLICT DO NOTHING\n        "], ["\n            INSERT INTO dailies (datestring, secret, seed)\n                        values (", ", ", ", ", "\n            ON CONFLICT DO NOTHING\n        "])), datestring, secret, makeSeed(datestring, secret))];
+                    return [4 /*yield*/, sql(templateObject_1 || (templateObject_1 = __makeTemplateObject(["\n            INSERT INTO dailies (datestring, secret, seed)\n                        values (", ", ", ", ", ")\n            ON CONFLICT DO NOTHING\n        "], ["\n            INSERT INTO dailies (datestring, secret, seed)\n                        values (", ", ", ", ", ")\n            ON CONFLICT DO NOTHING\n        "])), datestring, secret, makeSeed(datestring, secret))];
                 case 2:
                     results = _a.sent();
                     d.setDate(d.getDate() + 1);

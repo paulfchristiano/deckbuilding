@@ -38,7 +38,7 @@ async function ensureNextMonth(): Promise<void> {
         const datestring = renderEastCoastDate(d)
         const results = await sql`
             INSERT INTO dailies (datestring, secret, seed)
-                        values (${datestring}, ${secret}, ${makeSeed(datestring, secret)}
+                        values (${datestring}, ${secret}, ${makeSeed(datestring, secret)})
             ON CONFLICT DO NOTHING
         `
         d.setDate(d.getDate() + 1)
