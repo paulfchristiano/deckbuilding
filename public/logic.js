@@ -85,7 +85,7 @@ var __read = (this && this.__read) || function (o, n) {
     }
     return ar;
 };
-export var VERSION = "0.6.1";
+export var VERSION = "0.6.2";
 // ----------------------------- Formatting
 export function renderCost(cost, full) {
     var e_1, _a;
@@ -2397,10 +2397,10 @@ var village = { name: 'Village',
 buyable(village, 4);
 var bridge = { name: 'Bridge',
     fixedCost: energy(1),
-    effects: [buyEffect(), toPlay()],
+    effects: [gainCoinEffect(1), buyEffect(), toPlay()],
     replacers: [costReduce('buy', { coin: 1 }, true)]
 };
-buyable(bridge, 5);
+buyable(bridge, 4);
 var coven = { name: 'Coven',
     effects: [toPlay()], replacers: [{
             text: 'Cards in your hand cost @ less if you have no card with the same name'
@@ -3067,7 +3067,7 @@ var publicWorks = { name: 'Public Works',
     effects: [toPlay()],
     replacers: [costReduceNext('use', { energy: 1 }, true)],
 };
-buyable(publicWorks, 5);
+buyable(publicWorks, 4);
 function echoEffect(card) {
     return create(card.spec, 'play', 'end', function (c) { return addToken(c, 'echo'); });
 }
@@ -3198,7 +3198,7 @@ var looter = { name: 'Looter', effects: [{
             }; }
         }]
 };
-buyable(looter, 4);
+buyable(looter, 5);
 var empire = { name: 'Empire',
     fixedCost: energy(1),
     effects: [actionEffect(3), gainPointsEffect(3)]
@@ -3216,7 +3216,7 @@ var innovation = { name: Innovation, effects: [actionEffect(1), {
             transform: function (e, state, card) { return payToDo(discardFromPlay(card), e.card.play(card)); },
         }]
 };
-buyable(innovation, 9);
+buyable(innovation, 6);
 var formation = { name: 'Formation',
     effects: [toPlay()], replacers: [{
             text: 'Cards in your hand cost @ less if you have a card with the same name'
@@ -3518,6 +3518,7 @@ var polish = {
         }]
 };
 registerEvent(polish);
+//NOT INCLUDED
 var slog = {
     name: 'Slog',
     restrictions: [{
@@ -3530,7 +3531,22 @@ var slog = {
             replace: function (p) { return (__assign(__assign({}, p), { cost: addCosts(p.cost, { energy: 1 }) })); }
         }]
 };
-registerEvent(slog);
+var hesitation = {
+    name: 'Hesitation',
+    restrictions: [{
+            test: function () { return true; }
+        }],
+    triggers: [{
+            text: "Whenever you buy a card without a hesitation token on it,\n        put a hesitation token on it and gain @@.",
+            kind: 'buy',
+            handles: function (e, state) { return state.find(e.card).count('hesitation') == 0; },
+            transform: function (e, state, card) { return doAll([
+                addToken(e.card, 'hesitation'),
+                gainEnergy(2, card)
+            ]); }
+        }]
+};
+registerEvent(hesitation, 'test');
 var commerce = {
     name: 'Commerce',
     fixedCost: energy(1),

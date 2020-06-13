@@ -1,4 +1,4 @@
-export const VERSION = "0.6.1"
+export const VERSION = "0.6.2"
 
 // ----------------------------- Formatting
 
@@ -1200,7 +1200,7 @@ function leq(cost1:Cost, cost2:Cost) {
 
 type Token = 'charge' | 'cost' | 'mirror' | 'duplicate' | 'twin' | 'synergy' |
     'shelter' | 'echo' | 'decay' | 'burden' | 'pathfinding' | 'neglect' |
-    'reuse' | 'polish' | 'priority'
+    'reuse' | 'polish' | 'priority' | 'hesitation'
 
 function discharge(card:Card, n:number): Transform {
     return charge(card, -n, true)
@@ -1959,10 +1959,10 @@ buyable(village, 4)
 
 const bridge:CardSpec = {name: 'Bridge',
     fixedCost: energy(1),
-    effects: [buyEffect(), toPlay()],
+    effects: [gainCoinEffect(1), buyEffect(), toPlay()],
     replacers: [costReduce('buy', {coin:1}, true)]
 }
-buyable(bridge, 5)
+buyable(bridge, 4)
 
 const coven:CardSpec = {name: 'Coven',
     effects: [toPlay()],
@@ -2673,7 +2673,7 @@ const publicWorks:CardSpec = {name: 'Public Works',
     effects: [toPlay()],
     replacers: [costReduceNext('use', {energy:1}, true)],
 }
-buyable(publicWorks, 5)
+buyable(publicWorks, 4)
 
 function echoEffect(card:Card): Transform {
     return create(card.spec, 'play', 'end', c => addToken(c, 'echo'))
@@ -2826,7 +2826,7 @@ const looter:CardSpec = {name: 'Looter',
         }
     }]
 }
-buyable(looter, 4)
+buyable(looter, 5)
 
 const empire:CardSpec = {name: 'Empire',
     fixedCost: energy(1),
@@ -2851,7 +2851,7 @@ const innovation:CardSpec = {name: Innovation,
         transform: (e, state, card) => payToDo(discardFromPlay(card), e.card.play(card)),
     }]
 }
-buyable(innovation, 9)
+buyable(innovation, 6)
 
 const formation:CardSpec = {name: 'Formation',
     effects: [toPlay()],
@@ -3143,6 +3143,7 @@ const polish:CardSpec = {
 }
 registerEvent(polish)
 
+//NOT INCLUDED
 const slog:CardSpec = {
     name: 'Slog',
     restrictions: [{
@@ -3155,7 +3156,24 @@ const slog:CardSpec = {
         replace: p => ({...p, cost:addCosts(p.cost, {energy:1})})
     }]
 }
-registerEvent(slog)
+
+const hesitation:CardSpec = {
+    name: 'Hesitation',
+    restrictions: [{
+        test: () => true
+    }],
+    triggers: [{
+        text: `Whenever you buy a card without a hesitation token on it,
+        put a hesitation token on it and gain @@.`,
+        kind: 'buy',
+        handles: (e, state) => state.find(e.card).count('hesitation') == 0,
+        transform: (e, state, card) => doAll([
+            addToken(e.card, 'hesitation'),
+            gainEnergy(2, card)
+        ])
+    }]
+}
+registerEvent(hesitation, 'test')
 
 const commerce:CardSpec = {
     name: 'Commerce',
