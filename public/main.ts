@@ -23,10 +23,9 @@ type Key = string
 const keyListeners: Map<Key, () => void> = new Map();
 const symbolHotkeys = ['!','%', '^', '&', '*', '(', ')', '-', '+', '=', '{', '}', '[', ']'] // '@', '#', '$' are confusing
 const lowerHotkeys = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm',
-    'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', // 'z' reserved for undo
-]
+    'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y'] // 'z' reserved for undo
 const upperHotkeys = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M',
-    'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z']
+    'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y'] // 'Z' reserved for redo
 const numHotkeys:Key[] = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9']
 const supplyAndPlayHotkeys:Key[] = numHotkeys.concat(symbolHotkeys).concat(upperHotkeys)
 const handHotkeys = lowerHotkeys.concat(upperHotkeys)
@@ -415,10 +414,14 @@ const webUI:UI = {
                 resolve(i)
             }
             function renderer() {
-                renderChoice(state,
+                renderChoice(
+                    state,
                     choicePrompt,
                     options.map((x, i) => ({...x, value:() => pick(i)})),
-                    reject, renderer)
+                    x => resolve(x[0]),
+                    reject,
+                    renderer
+                )
             }
             renderer()
         })
@@ -480,7 +483,7 @@ const webUI:UI = {
             }})
             chosen.clear()
             function renderer() {
-                renderChoice(state, choicePrompt, newOptions, reject, renderer, picks)
+                renderChoice(state, choicePrompt, newOptions, resolve, reject, renderer, picks)
                 for (const j of chosen) elem(j).attr('chosen', true)
             }
             renderer()
@@ -500,7 +503,7 @@ const webUI:UI = {
                         hotkeyHint: {kind:'key', val:'!'}
                     }]
                 renderChoice(state, `You won using ${state.energy} energy!`,
-                    options, () => resolve(), () => {})
+                    options, resolve, resolve, () => {})
             })
         return submitOrUndo()
     }
@@ -516,6 +519,7 @@ function renderChoice(
     state: State,
     choicePrompt: string,
     options: Option<() => void>[],
+    resolve:((x:any) => void),
     reject:((x:any) => void),
     renderer:() => void,
     picks?: () => Map<ID|string, number>,
@@ -550,8 +554,8 @@ function renderChoice(
 
     $('#choicePrompt').html(choicePrompt)
     $('#options').html(stringOptions.map(localRender).join(''))
-    $('#undoArea').html(renderSpecials(state.undoable()))
-    bindSpecials(state, reject, renderer)
+    $('#undoArea').html(renderSpecials(state))
+    bindSpecials(state, resolve, reject, renderer)
 
     function elem(i:number): any {
         return $(`[option='${i}']`)
@@ -576,8 +580,10 @@ function renderStringOption(option:StringOption<number>, hotkey?:Key, pick?:numb
     return `<span class='option' option='${option.value}' choosable chosen='false'>${picktext}${hotkeyText}${option.render}</span>`
 }
 
-function renderSpecials(undoable:boolean): string {
-    return renderUndo(undoable) + renderHotkeyToggle() + renderHelp() + renderRestart()
+function renderSpecials(state:State): string {
+    return renderUndo(state.undoable()) + 
+        renderRedo(state.redo.length > 0) +
+        renderHotkeyToggle() + renderHelp() + renderRestart()
 }
 
 function renderRestart(): string {
@@ -599,12 +605,22 @@ function renderUndo(undoable:boolean): string {
     return `<span class='option', option='undo' ${undoable ? 'choosable' : ''} chosen='false'>${hotkeyText}Undo</span>`
 }
 
-function bindSpecials(state:State, reject: ((x:any) => void), renderer: () => void): void {
+function renderRedo(redoable:boolean): string {
+    const hotkeyText = renderHotkey('Z')
+    return `<span class='option', option='redo' ${redoable ? 'choosable' : ''} chosen='false'>${hotkeyText}Redo</span>`
+}
+
+function bindSpecials(
+    state:State,
+    accept: ((x:any) => void),
+    reject: ((x:any) => void),
+    renderer: () => void
+): void {
     bindHotkeyToggle(renderer)
     bindUndo(state, reject)
     bindHelp(state, renderer)
-    bindDeepLink(state)
     bindRestart(state)
+    bindRedo(state, accept)
 }
 
 function bindHotkeyToggle(renderer: () => void) {
@@ -618,6 +634,14 @@ function bindHotkeyToggle(renderer: () => void) {
 
 function bindRestart(state:State): void {
     $(`[option='restart']`).on('click', () => restart(state))
+}
+
+function bindRedo(state:State, accept: ((x:any) => void)): void {
+    function pick() {
+        if (state.redo.length > 0) accept(state.redo[state.redo.length - 1])
+    }
+    keyListeners.set('Z', pick)
+    $(`[option='redo']`).on('click', pick)
 }
 
 function bindUndo(state:State, reject: ((x:any) => void)): void {
@@ -696,7 +720,6 @@ function bindHelp(state:State, renderer: () => void) {
             "Effects marked with (static) apply whenever the card is in the supply.",
             "Effects marked with (trigger) apply whenever the card is in play.",
             `You can play today's <a href='daily'>daily kingdom</a>, which refreshes midnight EDT.`,
-            `Click on the 'Link' button to get a link to resume the game from the current state.`,
             `Visit <a href="${stateURL(state)}">this link</a> to replay this kingdom anytime.`,
             //`Or visit the <a href="picker.html">kingdom picker<a> to pick a kingdom.`,
         ]
@@ -828,8 +851,7 @@ function heartbeat(spec:GameSpec, interval?:any): void {
         $.get(`topScore?seed=${spec.seed}&version=${VERSION}`).done(function(x:string) {
             if (x == 'version mismatch') {
                 clearInterval(interval)
-                alert(`The server has updated to a new version, please refresh.
-                You will get an error and your game will restart if the history is no longer valid.`)
+                alert("The server has updated to a new version, please refresh. You will get an error and your game will restart if the history is no longer valid.")
             }
             const n:number = parseInt(x, 10)
             if (!isNaN(n)) renderBest(n, spec)
@@ -969,5 +991,5 @@ export function loadPicker(): void {
         state.supply.map((card, i) => ({
             render: card.id,
             value: () => pick(i)
-        })), trivial, trivial)
+        })), trivial, trivial, trivial)
 }

@@ -123,10 +123,6 @@ interface Source {
 }
 const unk:Source = {name:'?'} //Used as a default when we don't know the source
 
-function read<T>(x:any, k:string, fallback:T) {
-    return (x[k] == undefined) ? fallback : x[k]
-}
-
 interface CardUpdate {
     ticks?: number[];
     place?: PlaceName;
@@ -389,19 +385,6 @@ const allCostResources:CostResourceName[] = ['coin', 'energy', 'actions', 'buys'
 type ResourceName = CostResourceName | 'points'
 const allResources:ResourceName[] = (allCostResources as ResourceName[]).concat(['points'])
 
-interface StateUpdate {
-    resources?:Resources;
-    ui?:UI;
-    zones?:Map<ZoneName,Zone>;
-    resolving?:Resolving;
-    history?:Replayable[];
-    future?:Replayable[];
-    logs?:string[];
-    logIndent?:number;
-    checkpoint?:State;
-    nextID?:number;
-}
-
 interface FoundResult {
     found:true;
     card:Card;
@@ -453,6 +436,15 @@ const noUI:UI = {
     }
 }
 
+function get<K extends keyof State>(
+    stateUpdate:Partial<State>,
+    k:K,
+    state:State,
+): Partial<State>[K] {
+    return (stateUpdate[k] === undefined) ? state[k] : stateUpdate[k]
+}
+
+
 export class State {
     public readonly coin:number;
     public readonly energy:number;
@@ -470,14 +462,15 @@ export class State {
         public readonly spec: GameSpec = {seed:'', kingdom:null},
         public readonly ui: UI = noUI,
         public readonly resources:Resources = {coin:0, energy:0, points:0, actions:0, buys:0},
-        private readonly zones:Map<ZoneName,Zone> = new Map(),
+        public readonly zones:Map<ZoneName,Zone> = new Map(),
         public readonly resolving:Resolving = [],
-        private readonly nextID:number = 0,
-        private readonly history: Replayable[] = [],
+        public readonly nextID:number = 0,
+        public readonly history: Replayable[] = [],
         public readonly future: Replayable[] = [],
-        private readonly checkpoint: State|null = null,
+        public readonly redo: Replayable[] = [],
+        public readonly checkpoint: State|null = null,
         public readonly logs: string[] = [],
-        private readonly logIndent: number = 0,
+        public readonly logIndent: number = 0,
     ) {
         this.coin = resources.coin
         this.energy = resources.energy
@@ -492,19 +485,20 @@ export class State {
         this.aside = zones.get('aside') || []
         this.events = zones.get('events') || []
     }
-    private update(stateUpdate:StateUpdate) {
+    private update(stateUpdate:Partial<State>) {
         return new State(
             this.spec,
-            read(stateUpdate, 'ui', this.ui),
-            read(stateUpdate, 'resources', this.resources),
-            read(stateUpdate, 'zones', this.zones),
-            read(stateUpdate, 'resolving', this.resolving),
-            read(stateUpdate, 'nextID', this.nextID),
-            read(stateUpdate, 'history', this.history),
-            read(stateUpdate, 'future', this.future),
-            read(stateUpdate, 'checkpoint', this.checkpoint),
-            read(stateUpdate, 'logs', this.logs),
-            read(stateUpdate, 'logIndent', this.logIndent),
+            get(stateUpdate, 'ui', this),
+            get(stateUpdate, 'resources', this),
+            get(stateUpdate, 'zones', this),
+            get(stateUpdate, 'resolving', this),
+            get(stateUpdate, 'nextID', this),
+            get(stateUpdate, 'history', this),
+            get(stateUpdate, 'future', this),
+            get(stateUpdate, 'redo', this),
+            get(stateUpdate, 'checkpoint', this),
+            get(stateUpdate, 'logs', this),
+            get(stateUpdate, 'logIndent', this),
         )
     }
     public getZone(zone:ZoneName): Zone {
@@ -584,7 +578,11 @@ export class State {
         return this.apply(card => card.endTicker(), card)
     }
     addHistory(record:Replayable): State {
-        return this.update({history: this.history.concat([record])})
+        let result:Replayable|null, redo:Replayable[]; [result, redo] = popLast(this.redo)
+        if (result === null || result.some((x, i) => x != record[i])) {
+            redo = []
+        }
+        return this.update({history: this.history.concat([record]), redo:redo})
     }
     log(msg:string): State {
         //return this
@@ -613,7 +611,10 @@ export class State {
     // this enables undoing by backing up until you have future, then just popping from the future
     backup(): State|null {
         const last:State|null = this.checkpoint
-        return (last==null) ? null : last.update({future:this.history.concat(this.future)})
+        return (last==null) ? null : last.update({
+            future:this.history.concat(this.future),
+            redo:this.redo
+        })
     }
     makeID(): [State, number] {
         const id:number = this.nextID
@@ -632,6 +633,9 @@ export class State {
     }
     clearFuture(): State {
         return this.update({future: []})
+    }
+    addRedo(action:Replayable): State {
+        return this.update({redo: this.redo.concat([action])})
     }
     serializeHistory(): string {
         let state:State = this;
@@ -1357,6 +1361,20 @@ export class ReplayEnded extends Error {
     }
 }
 
+export class InvalidHistory extends Error {
+    constructor(public indices:Replayable, public state:State) {
+        super(`Indices ${indices} do not correspond to a valid choice`)
+        Object.setPrototypeOf(this, InvalidHistory.prototype)
+    }
+}
+
+export class Undo extends Error {
+    constructor(public state:State) {
+        super('Undo')
+        Object.setPrototypeOf(this, Undo.prototype)
+    }
+}
+
 async function doOrReplay(
     state: State,
     f: () => Promise<Replayable>,
@@ -1383,20 +1401,6 @@ async function multichoice<T>(
         if (indices.some(x => x >= options.length))
             throw new InvalidHistory(indices, state)
         return [newState, indices.map(i => options[i].value)]
-    }
-}
-
-export class InvalidHistory extends Error {
-    constructor(public indices:Replayable, public state:State) {
-        super(`Indices ${indices} do not correspond to a valid choice`)
-        Object.setPrototypeOf(this, InvalidHistory.prototype)
-    }
-}
-
-export class Undo extends Error {
-    constructor(public state:State) {
-        super('Undo')
-        Object.setPrototypeOf(this, Undo.prototype)
     }
 }
 
@@ -1477,7 +1481,7 @@ function undo(startState: State): State {
             state = state.backup()
             if (state == null) throw Error("tried to undo past beginning of the game")
         } else {
-            return state
+            return state.addRedo(last)
         }
     }
 }

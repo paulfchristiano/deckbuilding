@@ -72,10 +72,9 @@ import { VERSION, VP_GOAL } from './logic.js';
 var keyListeners = new Map();
 var symbolHotkeys = ['!', '%', '^', '&', '*', '(', ')', '-', '+', '=', '{', '}', '[', ']']; // '@', '#', '$' are confusing
 var lowerHotkeys = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm',
-    'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y',
-];
+    'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y']; // 'z' reserved for undo
 var upperHotkeys = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M',
-    'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z'];
+    'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y']; // 'Z' reserved for redo
 var numHotkeys = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
 var supplyAndPlayHotkeys = numHotkeys.concat(symbolHotkeys).concat(upperHotkeys);
 var handHotkeys = lowerHotkeys.concat(upperHotkeys);
@@ -505,7 +504,7 @@ var webUI = {
                 resolve(i);
             }
             function renderer() {
-                renderChoice(state, choicePrompt, options.map(function (x, i) { return (__assign(__assign({}, x), { value: function () { return pick(i); } })); }), reject, renderer);
+                renderChoice(state, choicePrompt, options.map(function (x, i) { return (__assign(__assign({}, x), { value: function () { return pick(i); } })); }), function (x) { return resolve(x[0]); }, reject, renderer);
             }
             renderer();
         });
@@ -588,7 +587,7 @@ var webUI = {
             chosen.clear();
             function renderer() {
                 var e_12, _a;
-                renderChoice(state, choicePrompt, newOptions, reject, renderer, picks);
+                renderChoice(state, choicePrompt, newOptions, resolve, reject, renderer, picks);
                 try {
                     for (var chosen_3 = __values(chosen), chosen_3_1 = chosen_3.next(); !chosen_3_1.done; chosen_3_1 = chosen_3.next()) {
                         var j = chosen_3_1.value;
@@ -622,7 +621,7 @@ var webUI = {
                                 value: submitDialog,
                                 hotkeyHint: { kind: 'key', val: '!' }
                             }];
-                        renderChoice(state, "You won using " + state.energy + " energy!", options, function () { return resolve(); }, function () { });
+                        renderChoice(state, "You won using " + state.energy + " energy!", options, resolve, resolve, function () { });
                     });
                 };
                 return [2 /*return*/, submitOrUndo()];
@@ -630,7 +629,7 @@ var webUI = {
         });
     }
 };
-function renderChoice(state, choicePrompt, options, reject, renderer, picks) {
+function renderChoice(state, choicePrompt, options, resolve, reject, renderer, picks) {
     var optionsMap = new Map(); //map card ids to their position in the choice list
     var stringOptions = []; // values are indices into options
     for (var i = 0; i < options.length; i++) {
@@ -659,8 +658,8 @@ function renderChoice(state, choicePrompt, options, reject, renderer, picks) {
     renderState(state, { hotkeyMap: hotkeyMap, optionsMap: optionsMap, pickMap: pickMap });
     $('#choicePrompt').html(choicePrompt);
     $('#options').html(stringOptions.map(localRender).join(''));
-    $('#undoArea').html(renderSpecials(state.undoable()));
-    bindSpecials(state, reject, renderer);
+    $('#undoArea').html(renderSpecials(state));
+    bindSpecials(state, resolve, reject, renderer);
     function elem(i) {
         return $("[option='" + i + "']");
     }
@@ -681,8 +680,10 @@ function renderStringOption(option, hotkey, pick) {
     var picktext = (pick !== undefined) ? "<div class='pickorder'>" + pick + "</div>" : '';
     return "<span class='option' option='" + option.value + "' choosable chosen='false'>" + picktext + hotkeyText + option.render + "</span>";
 }
-function renderSpecials(undoable) {
-    return renderUndo(undoable) + renderHotkeyToggle() + renderHelp() + renderRestart();
+function renderSpecials(state) {
+    return renderUndo(state.undoable()) +
+        renderRedo(state.redo.length > 0) +
+        renderHotkeyToggle() + renderHelp() + renderRestart();
 }
 function renderRestart() {
     return "<span id='deeplink' class='option', option='restart' choosable chosen='false'>Restart</span>";
@@ -700,12 +701,16 @@ function renderUndo(undoable) {
     var hotkeyText = renderHotkey('z');
     return "<span class='option', option='undo' " + (undoable ? 'choosable' : '') + " chosen='false'>" + hotkeyText + "Undo</span>";
 }
-function bindSpecials(state, reject, renderer) {
+function renderRedo(redoable) {
+    var hotkeyText = renderHotkey('Z');
+    return "<span class='option', option='redo' " + (redoable ? 'choosable' : '') + " chosen='false'>" + hotkeyText + "Redo</span>";
+}
+function bindSpecials(state, accept, reject, renderer) {
     bindHotkeyToggle(renderer);
     bindUndo(state, reject);
     bindHelp(state, renderer);
-    bindDeepLink(state);
     bindRestart(state);
+    bindRedo(state, accept);
 }
 function bindHotkeyToggle(renderer) {
     function pick() {
@@ -717,6 +722,14 @@ function bindHotkeyToggle(renderer) {
 }
 function bindRestart(state) {
     $("[option='restart']").on('click', function () { return restart(state); });
+}
+function bindRedo(state, accept) {
+    function pick() {
+        if (state.redo.length > 0)
+            accept(state.redo[state.redo.length - 1]);
+    }
+    keyListeners.set('Z', pick);
+    $("[option='redo']").on('click', pick);
 }
 function bindUndo(state, reject) {
     function pick() {
@@ -788,7 +801,6 @@ function bindHelp(state, renderer) {
             "Effects marked with (static) apply whenever the card is in the supply.",
             "Effects marked with (trigger) apply whenever the card is in play.",
             "You can play today's <a href='daily'>daily kingdom</a>, which refreshes midnight EDT.",
-            "Click on the 'Link' button to get a link to resume the game from the current state.",
             "Visit <a href=\"" + stateURL(state) + "\">this link</a> to replay this kingdom anytime.",
         ];
         if (submittable(state.spec))
@@ -927,7 +939,7 @@ function heartbeat(spec, interval) {
         $.get("topScore?seed=" + spec.seed + "&version=" + VERSION).done(function (x) {
             if (x == 'version mismatch') {
                 clearInterval(interval);
-                alert("The server has updated to a new version, please refresh.\n                You will get an error and your game will restart if the history is no longer valid.");
+                alert("The server has updated to a new version, please refresh. You will get an error and your game will restart if the history is no longer valid.");
             }
             var n = parseInt(x, 10);
             if (!isNaN(n))
@@ -1060,6 +1072,6 @@ export function loadPicker() {
     renderChoice(state, 'Choose which cards to include in the supply.', state.supply.map(function (card, i) { return ({
         render: card.id,
         value: function () { return pick(i); }
-    }); }), trivial, trivial);
+    }); }), trivial, trivial, trivial);
 }
 //# sourceMappingURL=main.js.map
