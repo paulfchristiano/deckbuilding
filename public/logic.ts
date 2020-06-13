@@ -2995,15 +2995,18 @@ buyable(industry, 4)
 const flourishing:CardSpec = {
     name: 'Flourishing',
     calculatedCost: {
-        text: `@ if you have less than 10 vp.`,
+        text: `Costs @ if you have less than 10 vp.`,
         calculate: (card, state) => (state.points < 10) ? energy(1) : free
     },
     effects: [actionEffect(2), {
-        text: [`If you have at least 20 vp, +$2.`],
+        text: [`If you have at least 20 vp, +1 card.`],
         transform: (state, card) => (state.points < 20) ? noop : gainCoin(2)
+    }, {
+        text: [`If you have at least 30 vp, +1 card.`],
+        transform: (state, card) => (state.points < 30) ? noop : gainCoin(2)
     }]
 }
-buyable(flourishing, 3)
+buyable(flourishing, 2)
 
 const banquet:CardSpec = {
     name: 'Banquet',
