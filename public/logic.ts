@@ -2101,17 +2101,17 @@ function incrementCost(): Effect {
     }
 }
 
-const retrench:CardSpec = {name: 'Retrench',
+const restock:CardSpec = {name: 'Restock',
     calculatedCost: costPlus(energy(2), coin(1)),
     effects: [incrementCost(), regroupEffect(5)],
 }
-registerEvent(retrench)
+registerEvent(restock)
 
-const improvise:CardSpec = {name:'Improvise',
+const scrapeBy:CardSpec = {name:'Scrape By',
     fixedCost: energy(2),
     effects: [regroupEffect(1)],
 }
-registerEvent(respite)
+registerEvent(scrapeBy)
 
 const perpetualMotion:CardSpec = {name:'Perpetual Motion',
     fixedCost: energy(1),

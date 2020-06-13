@@ -2520,16 +2520,16 @@ function incrementCost() {
         transform: function (s, c) { return addToken(c, 'cost'); }
     };
 }
-var retrench = { name: 'Retrench',
+var restock = { name: 'Restock',
     calculatedCost: costPlus(energy(2), coin(1)),
     effects: [incrementCost(), regroupEffect(5)],
 };
-registerEvent(retrench);
-var improvise = { name: 'Improvise',
+registerEvent(restock);
+var scrapeBy = { name: 'Scrape By',
     fixedCost: energy(2),
     effects: [regroupEffect(1)],
 };
-registerEvent(respite);
+registerEvent(scrapeBy);
 var perpetualMotion = { name: 'Perpetual Motion',
     fixedCost: energy(1),
     restrictions: [{
