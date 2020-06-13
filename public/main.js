@@ -1078,7 +1078,12 @@ function getHistory() {
 export function load() {
     var spec = { seed: randomSeed(), type: 'main' };
     try {
-        spec = specFromURL(new URLSearchParams(window.location.search));
+        if (window.serverSeed !== undefined) {
+            spec = { seed: window.serverSeed, type: 'main' };
+        }
+        else {
+            spec = specFromURL(new URLSearchParams(window.location.search));
+        }
     }
     catch (e) {
         if (e instanceof MalformedSpec) {

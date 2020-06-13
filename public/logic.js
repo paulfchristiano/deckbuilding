@@ -2007,7 +2007,7 @@ function hash(s) {
     }
     return hash;
 }
-var defaultCards = Array(12).fill(RANDOM);
+var defaultCards = Array(10).fill(RANDOM);
 var defaultEvents = Array(4).fill(RANDOM);
 export function fillSpec(spec) {
     if (spec.type != 'main')

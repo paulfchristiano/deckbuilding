@@ -1606,7 +1606,7 @@ function hash(s:string):number{
     return hash
 }
 
-const defaultCards:SlotSpec[] = Array(12).fill(RANDOM)
+const defaultCards:SlotSpec[] = Array(10).fill(RANDOM)
 const defaultEvents:SlotSpec[] = Array(4).fill(RANDOM)
 export function fillSpec(spec:GameSpec): FullGameSpec {
     if (spec.type != 'main') return assertNever(spec.type)

@@ -952,7 +952,11 @@ function getHistory(): string | null {
 export function load(): void {
     let spec:GameSpec = {seed:randomSeed(), type:'main'}
     try {
-        spec= specFromURL(new URLSearchParams(window.location.search))
+        if (window.serverSeed !== undefined) {
+            spec = {seed:window.serverSeed, type:'main'}
+        } else {
+            spec = specFromURL(new URLSearchParams(window.location.search))
+        }
     } catch(e) {
         if (e instanceof MalformedSpec) {
             alert(e)
