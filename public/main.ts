@@ -363,7 +363,8 @@ function renderState(state:State,
                 globalRendererState.tokenRenderer)
         }
     }
-    window.history.replaceState(null, "", `#${state.serializeHistory()}`);
+    window.history.replaceState(null, "",
+        `${specToQuery(state.spec)}#${state.serializeHistory()}`);
     $('#resolvingHeader').html('Resolving:')
     $('#energy').html(state.energy.toString())
     $('#actions').html(state.actions.toString())
@@ -869,6 +870,13 @@ function renderScoreboardLink(spec:GameSpec): void {
 
 
 // Creating the game spec and starting the game ------------------------------
+
+export function specToQuery(spec:GameSpec) {
+    const result:string[] = [`play?seed=${spec.seed}`]
+    if (spec.kingdom !== null) result.push(`kingdom=${spec.kingdom}`)
+    if (spec.testing) result.push(`test`)
+    return result.join('&')
+}
 
 function makeGameSpec(): GameSpec {
     return {seed:getSeed(), kingdom:getKingdom(), testing:isTesting()}

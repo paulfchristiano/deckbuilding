@@ -462,7 +462,7 @@ function renderState(state, settings) {
             return renderCard(card, state, zone, cardRenderOptions, globalRendererState.tokenRenderer);
         };
     }
-    window.history.replaceState(null, "", "#" + state.serializeHistory());
+    window.history.replaceState(null, "", specToQuery(state.spec) + "#" + state.serializeHistory());
     $('#resolvingHeader').html('Resolving:');
     $('#energy').html(state.energy.toString());
     $('#actions').html(state.actions.toString());
@@ -956,6 +956,14 @@ function renderScoreboardLink(spec) {
     $('#best').html("No wins yet for this version (<a href='" + scoreboardURL(spec) + "'>scoreboard</a>)");
 }
 // Creating the game spec and starting the game ------------------------------
+export function specToQuery(spec) {
+    var result = ["play?seed=" + spec.seed];
+    if (spec.kingdom !== null)
+        result.push("kingdom=" + spec.kingdom);
+    if (spec.testing)
+        result.push("test");
+    return result.join('&');
+}
 function makeGameSpec() {
     return { seed: getSeed(), kingdom: getKingdom(), testing: isTesting() };
 }
