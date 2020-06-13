@@ -637,14 +637,17 @@ export class State {
     addRedo(action:Replayable): State {
         return this.update({redo: this.redo.concat([action])})
     }
-    serializeHistory(): string {
+    serializeHistory(includeVersion:boolean=true): string {
         let state:State = this;
         let prev:State|null = state;
         while (prev != null) {
             state = prev;
             prev = state.backup()
         }
-        return serializeReplay({version: VERSION, actions:state.future})
+        return serializeReplay({
+            version: includeVersion ? VERSION : '',
+            actions:state.future
+        })
     }
     static fromReplayString(s:string, spec:GameSpec): State {
         return State.fromReplay(parseReplay(s), spec)

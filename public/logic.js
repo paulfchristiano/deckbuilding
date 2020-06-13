@@ -723,14 +723,18 @@ var State = /** @class */ (function () {
     State.prototype.addRedo = function (action) {
         return this.update({ redo: this.redo.concat([action]) });
     };
-    State.prototype.serializeHistory = function () {
+    State.prototype.serializeHistory = function (includeVersion) {
+        if (includeVersion === void 0) { includeVersion = true; }
         var state = this;
         var prev = state;
         while (prev != null) {
             state = prev;
             prev = state.backup();
         }
-        return serializeReplay({ version: VERSION, actions: state.future });
+        return serializeReplay({
+            version: includeVersion ? VERSION : '',
+            actions: state.future
+        });
     };
     State.fromReplayString = function (s, spec) {
         return State.fromReplay(parseReplay(s), spec);
