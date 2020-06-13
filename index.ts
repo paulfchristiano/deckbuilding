@@ -236,8 +236,8 @@ express()
             const [valid, explanation] = await verifyScore({seed:seed, type:'main'}, history, score)
             if (valid) {
                 const results = await sql`
-                  INSERT INTO scoreboard (username, score, seed, version)
-                  VALUES (${username}, ${score}, ${seed}, ${VERSION})
+                  INSERT INTO scoreboard (username, score, seed, version, history)
+                  VALUES (${username}, ${score}, ${seed}, ${VERSION}, ${history})
                 `
                 await submitForDaily(username, seed, score)
                 res.send(`OK`)

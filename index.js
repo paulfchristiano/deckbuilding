@@ -428,7 +428,7 @@ express()
             case 1:
                 _a = __read.apply(void 0, [_b.sent(), 2]), valid = _a[0], explanation = _a[1];
                 if (!valid) return [3 /*break*/, 4];
-                return [4 /*yield*/, sql(templateObject_8 || (templateObject_8 = __makeTemplateObject(["\n                  INSERT INTO scoreboard (username, score, seed, version)\n                  VALUES (", ", ", ", ", ", ", ")\n                "], ["\n                  INSERT INTO scoreboard (username, score, seed, version)\n                  VALUES (", ", ", ", ", ", ", ")\n                "])), username, score, seed, VERSION)];
+                return [4 /*yield*/, sql(templateObject_8 || (templateObject_8 = __makeTemplateObject(["\n                  INSERT INTO scoreboard (username, score, seed, version, history)\n                  VALUES (", ", ", ", ", ", ", ", ", ")\n                "], ["\n                  INSERT INTO scoreboard (username, score, seed, version, history)\n                  VALUES (", ", ", ", ", ", ", ", ", ")\n                "])), username, score, seed, VERSION, history_1)];
             case 2:
                 results = _b.sent();
                 return [4 /*yield*/, submitForDaily(username, seed, score)];

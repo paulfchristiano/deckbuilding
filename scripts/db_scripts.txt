@@ -17,6 +17,12 @@ ALTER TABLE dailies ADD COLUMN seed text;
 UPDATE dailies SET seed = datestring || '.' || secret;
 ALTER TABLE dailies ALTER COLUMN seed SET NOT NULL;
 
+### migration 6/13/2020
+
+# Add history to the scoreboard table
+
+ALTER TABLE scoreboard ADD COLUMN history text;
+
 #### Unused
 
 #Add date column to the dailies table
