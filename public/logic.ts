@@ -1,4 +1,4 @@
-export const VERSION = "0.6.2"
+export const VERSION = "0.6.3"
 
 // ----------------------------- Formatting
 
@@ -2187,17 +2187,17 @@ function incrementCost(): Effect {
     }
 }
 
-const retrench:CardSpec = {name: 'Retrench',
+const restock:CardSpec = {name: 'Restock',
     calculatedCost: costPlus(energy(2), coin(1)),
     effects: [incrementCost(), regroupEffect(5)],
 }
-registerEvent(retrench)
+registerEvent(restock)
 
-const respite:CardSpec = {name:'Respite',
+const scrapeBy:CardSpec = {name:'Scrape By',
     fixedCost: energy(2),
-    effects: [regroupEffect(2)],
+    effects: [regroupEffect(1)],
 }
-registerEvent(respite)
+registerEvent(scrapeBy)
 
 const perpetualMotion:CardSpec = {name:'Perpetual Motion',
     fixedCost: energy(1),
@@ -3081,15 +3081,18 @@ buyable(industry, 4)
 const flourishing:CardSpec = {
     name: 'Flourishing',
     calculatedCost: {
-        text: `@ if you have less than 10 vp.`,
+        text: `Costs @ if you have less than 10 vp.`,
         calculate: (card, state) => (state.points < 10) ? energy(1) : free
     },
     effects: [actionEffect(2), {
-        text: [`If you have at least 20 vp, +$2.`],
+        text: [`If you have at least 20 vp, +1 card.`],
         transform: (state, card) => (state.points < 20) ? noop : gainCoin(2)
+    }, {
+        text: [`If you have at least 30 vp, +1 card.`],
+        transform: (state, card) => (state.points < 30) ? noop : gainCoin(2)
     }]
 }
-buyable(flourishing, 3)
+buyable(flourishing, 2)
 
 const banquet:CardSpec = {
     name: 'Banquet',
@@ -3318,9 +3321,9 @@ function nameHasToken(card:Card, token:Token, state:State): boolean {
 const prioritize:CardSpec = {
     name: 'Prioritize',
     fixedCost: {...free, energy:1, coin:3},
-    effects: [removeAllSupplyTokens('priority'), targetedEffect(
-        card => addToken(card, 'priority', 5),
-        'Put five priority tokens on a card in the supply.',
+    effects: [targetedEffect(
+        card => addToken(card, 'priority', 8),
+        'Put eight priority tokens on a card in the supply.',
         state => state.supply,
     )],
     triggers: [{

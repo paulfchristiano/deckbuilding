@@ -85,7 +85,7 @@ var __read = (this && this.__read) || function (o, n) {
     }
     return ar;
 };
-export var VERSION = "0.6.2";
+export var VERSION = "0.6.3";
 // ----------------------------- Formatting
 export function renderCost(cost, full) {
     var e_1, _a;
@@ -2601,16 +2601,16 @@ function incrementCost() {
         transform: function (s, c) { return addToken(c, 'cost'); }
     };
 }
-var retrench = { name: 'Retrench',
+var restock = { name: 'Restock',
     calculatedCost: costPlus(energy(2), coin(1)),
     effects: [incrementCost(), regroupEffect(5)],
 };
-registerEvent(retrench);
-var respite = { name: 'Respite',
+registerEvent(restock);
+var scrapeBy = { name: 'Scrape By',
     fixedCost: energy(2),
-    effects: [regroupEffect(2)],
+    effects: [regroupEffect(1)],
 };
-registerEvent(respite);
+registerEvent(scrapeBy);
 var perpetualMotion = { name: 'Perpetual Motion',
     fixedCost: energy(1),
     restrictions: [{
@@ -3475,15 +3475,18 @@ buyable(industry, 4);
 var flourishing = {
     name: 'Flourishing',
     calculatedCost: {
-        text: "@ if you have less than 10 vp.",
+        text: "Costs @ if you have less than 10 vp.",
         calculate: function (card, state) { return (state.points < 10) ? energy(1) : free; }
     },
     effects: [actionEffect(2), {
-            text: ["If you have at least 20 vp, +$2."],
+            text: ["If you have at least 20 vp, +1 card."],
             transform: function (state, card) { return (state.points < 20) ? noop : gainCoin(2); }
+        }, {
+            text: ["If you have at least 30 vp, +1 card."],
+            transform: function (state, card) { return (state.points < 30) ? noop : gainCoin(2); }
         }]
 };
-buyable(flourishing, 3);
+buyable(flourishing, 2);
 var banquet = {
     name: 'Banquet',
     effects: [gainCoinEffect(4), toPlay(), {
@@ -3731,7 +3734,7 @@ function nameHasToken(card, token, state) {
 var prioritize = {
     name: 'Prioritize',
     fixedCost: __assign(__assign({}, free), { energy: 1, coin: 3 }),
-    effects: [removeAllSupplyTokens('priority'), targetedEffect(function (card) { return addToken(card, 'priority', 5); }, 'Put five priority tokens on a card in the supply.', function (state) { return state.supply; })],
+    effects: [targetedEffect(function (card) { return addToken(card, 'priority', 8); }, 'Put eight priority tokens on a card in the supply.', function (state) { return state.supply; })],
     triggers: [{
             text: "Whenever you create a card with the same name\n            as a card in the supply with a priority token,\n            remove a priority token to play the card.",
             kind: 'create',
