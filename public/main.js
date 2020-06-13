@@ -462,7 +462,7 @@ function renderState(state, settings) {
             return renderCard(card, state, zone, cardRenderOptions, globalRendererState.tokenRenderer);
         };
     }
-    window.history.pushState(null, "", "#" + state.serializeHistory());
+    window.history.replaceState(null, "", "#" + state.serializeHistory());
     $('#resolvingHeader').html('Resolving:');
     $('#energy').html(state.energy.toString());
     $('#actions').html(state.actions.toString());
