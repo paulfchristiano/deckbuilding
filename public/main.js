@@ -3,6 +3,19 @@
 // TODO: lay out the zones a bit more nicely
 // TODO: starting to see performance hiccups in big games
 // TODO: probably don't want the public move method to allow moves into or out of resolving.
+var __extends = (this && this.__extends) || (function () {
+    var extendStatics = function (d, b) {
+        extendStatics = Object.setPrototypeOf ||
+            ({ __proto__: [] } instanceof Array && function (d, b) { d.__proto__ = b; }) ||
+            function (d, b) { for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p]; };
+        return extendStatics(d, b);
+    };
+    return function (d, b) {
+        extendStatics(d, b);
+        function __() { this.constructor = d; }
+        d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
+    };
+})();
 var __assign = (this && this.__assign) || function () {
     __assign = Object.assign || function(t) {
         for (var s, i = 1, n = arguments.length; i < n; i++) {
@@ -67,7 +80,7 @@ import { emptyState } from './logic.js';
 import { Undo, InvalidHistory } from './logic.js';
 import { playGame, initialState } from './logic.js';
 import { coerceReplayVersion, parseReplay, MalformedReplay } from './logic.js';
-import { mixins } from './logic.js';
+import { mixins, eventMixins, randomPlaceholder, RANDOM } from './logic.js';
 import { VERSION, VP_GOAL } from './logic.js';
 var keyListeners = new Map();
 var symbolHotkeys = ['!', '%', '^', '&', '*', '(', ')', '-', '+', '=', '{', '}', '[', ']']; // '@', '#', '$' are confusing
@@ -462,7 +475,9 @@ function renderState(state, settings) {
             return renderCard(card, state, zone, cardRenderOptions, globalRendererState.tokenRenderer);
         };
     }
-    window.history.replaceState(null, "", specToQuery(state.spec) + "#" + state.serializeHistory(false));
+    if (settings.updateURL === undefined || settings.updateURL) {
+        window.history.replaceState(null, "", specToURL(state.spec) + "#" + state.serializeHistory(false));
+    }
     $('#resolvingHeader').html('Resolving:');
     $('#energy').html(state.energy.toString());
     $('#actions').html(state.actions.toString());
@@ -629,7 +644,8 @@ var webUI = {
         });
     }
 };
-function renderChoice(state, choicePrompt, options, resolve, reject, renderer, picks) {
+function renderChoice(state, choicePrompt, options, resolve, reject, renderer, picks, extraRenderSettings) {
+    if (extraRenderSettings === void 0) { extraRenderSettings = {}; }
     var optionsMap = new Map(); //map card ids to their position in the choice list
     var stringOptions = []; // values are indices into options
     for (var i = 0; i < options.length; i++) {
@@ -655,7 +671,7 @@ function renderChoice(state, choicePrompt, options, resolve, reject, renderer, p
     else {
         pickMap = new Map();
     }
-    renderState(state, { hotkeyMap: hotkeyMap, optionsMap: optionsMap, pickMap: pickMap });
+    renderState(state, __assign(__assign({}, extraRenderSettings), { hotkeyMap: hotkeyMap, optionsMap: optionsMap, pickMap: pickMap }));
     $('#choicePrompt').html(choicePrompt);
     $('#options').html(stringOptions.map(localRender).join(''));
     $('#undoArea').html(renderSpecials(state));
@@ -739,10 +755,6 @@ function bindUndo(state, reject) {
     keyListeners.set('z', pick);
     $("[option='undo']").on('click', pick);
 }
-function bindDeepLink(state) {
-    var url = window.location.origin + "/" + stateURL(state, false);
-    $("[option='link']").on('click', function () { return showLinkDialog(url); });
-}
 function showLinkDialog(url) {
     $('#scoreSubmitter').attr('active', 'true');
     $('#scoreSubmitter').html("<label for=\"link\">Link:</label>" +
@@ -801,7 +813,7 @@ function bindHelp(state, renderer) {
             "Effects marked with (static) apply whenever the card is in the supply.",
             "Effects marked with (trigger) apply whenever the card is in play.",
             "You can play today's <a href='daily'>daily kingdom</a>, which refreshes midnight EDT.",
-            "Visit <a href=\"" + stateURL(state) + "\">this link</a> to replay this kingdom anytime.",
+            "Visit <a href=\"" + specToURL(state.spec) + "\">this link</a> to replay this kingdom anytime.",
         ];
         if (submittable(state.spec))
             helpLines.push("Check out the scoreboard <a href=" + scoreboardURL(state.spec) + ">here</a>.");
@@ -823,21 +835,12 @@ function dateString() {
 function dateSeedURL() {
     return "play?seed=" + dateString();
 }
-function stateURL(state, restart) {
-    if (restart === void 0) { restart = true; }
-    var spec = state.spec;
-    var args = ["seed=" + spec.seed];
-    if (spec.kingdom != null)
-        args.push("kingdom=" + spec.kingdom);
-    var str = "play?" + args.join('&');
-    if (!restart)
-        str = str + ("#" + state.serializeHistory());
-    return str;
-}
 // ------------------------------ High score submission
 //TODO: allow submitting custom kingdoms
 function submittable(spec) {
-    return (spec.kingdom == null);
+    return (spec.cards == undefined
+        && spec.events == undefined
+        && !spec.testing);
 }
 function setCookie(name, value) {
     document.cookie = name + "=" + value + "; max-age=315360000; path=/";
@@ -935,7 +938,7 @@ function scoreboardURL(spec) {
 }
 //TODO: live updates?
 function heartbeat(spec, interval) {
-    if (spec.kingdom == null) {
+    if (submittable(spec) == null) {
         $.get("topScore?seed=" + spec.seed + "&version=" + VERSION).done(function (x) {
             if (x == 'version mismatch') {
                 clearInterval(interval);
@@ -956,35 +959,135 @@ function renderScoreboardLink(spec) {
     $('#best').html("No wins yet for this version (<a href='" + scoreboardURL(spec) + "'>scoreboard</a>)");
 }
 // Creating the game spec and starting the game ------------------------------
-export function specToQuery(spec) {
-    var result = ["play?seed=" + spec.seed];
-    if (spec.kingdom !== null)
-        result.push("kingdom=" + spec.kingdom);
+function renderSlots(slots) {
+    var e_14, _a;
+    var result = [];
+    try {
+        for (var slots_1 = __values(slots), slots_1_1 = slots_1.next(); !slots_1_1.done; slots_1_1 = slots_1.next()) {
+            var slot = slots_1_1.value;
+            if (slot == RANDOM)
+                result.push(slot);
+            else
+                result.push(slot.name);
+        }
+    }
+    catch (e_14_1) { e_14 = { error: e_14_1 }; }
+    finally {
+        try {
+            if (slots_1_1 && !slots_1_1.done && (_a = slots_1.return)) _a.call(slots_1);
+        }
+        finally { if (e_14) throw e_14.error; }
+    }
+    return result.join(',');
+}
+function renderQuery(base, args) {
+    if (args.size == 0)
+        return base;
+    else
+        return base + '?'
+            + Array.from(args.entries()).map(function (x) { return x[0] + "=" + x[1]; }).join('&');
+}
+export function specToURL(spec) {
+    var args = new Map();
+    args.set('seed', spec.seed);
+    if (spec.cards !== undefined)
+        args.set('cards', renderSlots(spec.cards));
+    if (spec.events !== undefined)
+        args.set('events', renderSlots(spec.events));
     if (spec.testing)
-        result.push("test");
-    return result.join('&');
+        args.set('test', 'true');
+    return renderQuery('play', args);
 }
-function makeGameSpec() {
-    return { seed: getSeed(), kingdom: getKingdom(), testing: isTesting() };
+function makeDictionary(xs) {
+    var e_15, _a;
+    var result = new Map();
+    try {
+        for (var xs_1 = __values(xs), xs_1_1 = xs_1.next(); !xs_1_1.done; xs_1_1 = xs_1.next()) {
+            var x = xs_1_1.value;
+            result.set(x.name, x);
+        }
+    }
+    catch (e_15_1) { e_15 = { error: e_15_1 }; }
+    finally {
+        try {
+            if (xs_1_1 && !xs_1_1.done && (_a = xs_1.return)) _a.call(xs_1);
+        }
+        finally { if (e_15) throw e_15.error; }
+    }
+    return result;
 }
-function isTesting() {
-    return new URLSearchParams(window.location.search).get('test') != null;
+function extractList(s, xs) {
+    var e_16, _a;
+    if (s.length == 0)
+        return [];
+    var dictionary = makeDictionary(xs);
+    var result = [];
+    try {
+        for (var _b = __values(s.split(',')), _c = _b.next(); !_c.done; _c = _b.next()) {
+            var name_1 = _c.value;
+            if (name_1 == RANDOM)
+                result.push(RANDOM);
+            else {
+                var lookup = dictionary.get(name_1);
+                if (lookup == undefined)
+                    throw new MalformedSpec(name_1 + " is not a valid name");
+                result.push(lookup);
+            }
+        }
+    }
+    catch (e_16_1) { e_16 = { error: e_16_1 }; }
+    finally {
+        try {
+            if (_c && !_c.done && (_a = _b.return)) _a.call(_b);
+        }
+        finally { if (e_16) throw e_16.error; }
+    }
+    return result;
 }
-function getKingdom() {
-    return new URLSearchParams(window.location.search).get('kingdom');
+var MalformedSpec = /** @class */ (function (_super) {
+    __extends(MalformedSpec, _super);
+    function MalformedSpec(s) {
+        var _this = _super.call(this, "Not a well-formed game spec: " + s) || this;
+        _this.s = s;
+        Object.setPrototypeOf(_this, MalformedSpec.prototype);
+        return _this;
+    }
+    return MalformedSpec;
+}(Error));
+export { MalformedSpec };
+function randomSeed() {
+    return Math.random().toString(36).substring(2, 7);
 }
-function getSeed() {
-    var seed = new URLSearchParams(window.location.search).get('seed');
-    var urlSeed = (seed == null || seed.length == 0) ? [] : [seed];
-    var windowSeed = (window.serverSeed == undefined || window.serverSeed.length == 0) ? [] : [window.serverSeed];
-    var seeds = windowSeed.concat(urlSeed);
-    return (seeds.length == 0) ? Math.random().toString(36).substring(2, 7) : seeds.join('.');
+function specFromURL(search) {
+    var seed = search.get('seed');
+    var cards = search.get('cards');
+    var events = search.get('events');
+    var testing = search.get('test');
+    return {
+        seed: seed || randomSeed(),
+        cards: (cards == null) ? undefined : extractList(cards, mixins),
+        events: (events == null) ? undefined : extractList(events, eventMixins),
+        testing: testing != null,
+        type: 'main'
+    };
 }
 function getHistory() {
     return window.location.hash.substring(1) || null;
 }
 export function load() {
-    var spec = makeGameSpec();
+    var spec = { seed: randomSeed(), type: 'main' };
+    try {
+        spec = specFromURL(new URLSearchParams(window.location.search));
+    }
+    catch (e) {
+        if (e instanceof MalformedSpec) {
+            alert(e);
+        }
+        else {
+            throw e;
+        }
+    }
+    var state = initialState(spec);
     var history = null;
     var historyString = getHistory();
     if (historyString != null) {
@@ -996,9 +1099,11 @@ export function load() {
                 alert(e);
                 history = null;
             }
+            else {
+                throw e;
+            }
         }
     }
-    var state = initialState(spec);
     if (history !== null) {
         try {
             state = State.fromReplay(history, spec);
@@ -1036,18 +1141,48 @@ function restart(state) {
 }
 // ----------------------------------- Kingdom picker
 //
-function kingdomURL(specs) {
-    return "play?kingdom=" + specs.map(function (card) { return card.name; }).join(',');
+function kingdomURL(cards, events) {
+    return "play?cards=" + cards.map(function (card) { return card.name; }).join(',') + "&events=" + events.map(function (card) { return card.name; });
+}
+function countIn(s, f) {
+    var e_17, _a;
+    var count = 0;
+    try {
+        for (var s_1 = __values(s), s_1_1 = s_1.next(); !s_1_1.done; s_1_1 = s_1.next()) {
+            var x = s_1_1.value;
+            if (f(x))
+                count += 1;
+        }
+    }
+    catch (e_17_1) { e_17 = { error: e_17_1 }; }
+    finally {
+        try {
+            if (s_1_1 && !s_1_1.done && (_a = s_1.return)) _a.call(s_1);
+        }
+        finally { if (e_17) throw e_17.error; }
+    }
+    return count;
 }
 //TODO: refactor the logic into logic.ts, probably just state initialization
 export function loadPicker() {
     var state = emptyState;
-    var specs = mixins.slice();
-    specs.sort(function (spec1, spec2) { return spec1.name.localeCompare(spec2.name); });
-    for (var i = 0; i < specs.length; i++) {
-        var spec = specs[i];
+    var cards = mixins.slice();
+    var events = eventMixins.slice();
+    cards.sort(function (spec1, spec2) { return spec1.name.localeCompare(spec2.name); });
+    events.sort(function (spec1, spec2) { return spec1.name.localeCompare(spec2.name); });
+    for (var i = 0; i < 8; i++)
+        events.push(randomPlaceholder);
+    for (var i = 0; i < 20; i++)
+        cards.push(randomPlaceholder);
+    for (var i = 0; i < cards.length; i++) {
+        var spec = cards[i];
         state = state.addToZone(new Card(spec, i), 'supply');
     }
+    for (var i = 0; i < events.length; i++) {
+        var spec = events[i];
+        state = state.addToZone(new Card(events[i], cards.length + i), 'events');
+    }
+    var specs = cards.concat(events);
     function trivial() { }
     function elem(i) {
         return $("[option='" + i + "']");
@@ -1057,7 +1192,7 @@ export function loadPicker() {
         return parts.slice(0, parts.length - 1).join('/');
     }
     function kingdomLink() {
-        return kingdomURL(Array.from(chosen.values()).map(function (i) { return specs[i]; }));
+        return kingdomURL(Array.from(chosen.values()).filter(function (i) { return i < cards.length; }).map(function (i) { return cards[i]; }), Array.from(chosen.values()).filter(function (i) { return i >= cards.length; }).map(function (i) { return events[i - cards.length]; }));
     }
     var chosen = new Set();
     function pick(i) {
@@ -1069,7 +1204,8 @@ export function loadPicker() {
             chosen.add(i);
             elem(i).attr('chosen', true);
         }
-        $('#count').html(String(chosen.size));
+        $('#cardCount').html(String(countIn(chosen, function (x) { return x < cards.length; })));
+        $('#eventCount').html(String(countIn(chosen, function (x) { return x >= cards.length; })));
         if (chosen.size > 0) {
             $('#kingdomLink').attr('href', kingdomLink());
         }
@@ -1077,9 +1213,12 @@ export function loadPicker() {
             $('#kingdomLink').removeAttr('href');
         }
     }
-    renderChoice(state, 'Choose which cards to include in the supply.', state.supply.map(function (card, i) { return ({
+    renderChoice(state, 'Choose which events and cards to use.', state.supply.map(function (card, i) { return ({
         render: card.id,
         value: function () { return pick(i); }
-    }); }), trivial, trivial, trivial);
+    }); }).concat(state.events.map(function (card, i) { return ({
+        render: card.id,
+        value: function () { return pick(cards.length + i); }
+    }); })), trivial, trivial, trivial, undefined, { updateURL: false });
 }
 //# sourceMappingURL=main.js.map

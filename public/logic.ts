@@ -355,12 +355,6 @@ export class Card {
 // ------------------------- State
 
 
-export interface GameSpec {
-    seed: string;
-    kingdom: string|null;
-    testing?: boolean;
-}
-
 type Transform = ((state:State) => Promise<State>) | ((state:State) => State)
 
 type ZoneName = 'supply' | 'hand' | 'discard' | 'play' | 'aside' | 'events'
@@ -436,12 +430,30 @@ const noUI:UI = {
     }
 }
 
-function get<K extends keyof State>(
-    stateUpdate:Partial<State>,
+function get<T, K extends keyof T>(
+    stateUpdate:Partial<T>,
     k:K,
-    state:State,
-): Partial<State>[K] {
+    state:T,
+): Partial<T>[K] {
     return (stateUpdate[k] === undefined) ? state[k] : stateUpdate[k]
+}
+
+export type SlotSpec = CardSpec|'Random'
+export const RANDOM = 'Random'
+
+export interface FullGameSpec {
+    seed: string;
+    cards: SlotSpec[];
+    events: SlotSpec[];
+    testing: boolean;
+}
+
+export interface GameSpec {
+    seed: string;
+    cards?: SlotSpec[];
+    events?: SlotSpec[];
+    testing?: boolean;
+    type: 'main';
 }
 
 
@@ -459,9 +471,10 @@ export class State {
     public readonly aside:Zone;
     public readonly events:Zone;
     constructor(
-        public readonly spec: GameSpec = {seed:'', kingdom:null},
+        public readonly spec: GameSpec = {seed: '', type:'main'},
         public readonly ui: UI = noUI,
-        public readonly resources:Resources = {coin:0, energy:0, points:0, actions:0, buys:0},
+        public readonly resources:Resources =
+            {coin:0, energy:0, points:0, actions:0, buys:0},
         public readonly zones:Map<ZoneName,Zone> = new Map(),
         public readonly resolving:Resolving = [],
         public readonly nextID:number = 0,
@@ -1325,7 +1338,11 @@ function PRF(a: number, b: number) {
         ((b*b+1) / (a*a+1)) * 392901666676)  % N) / N
 }
 
-function randomChoices<T>(xs:T[], n:number, seed?:number): T[] {
+function randomChoices<T>(
+    xs:T[],
+    n:number,
+    seed?:number
+): T[] {
     const result = []
     xs = xs.slice()
     while (result.length < n) {
@@ -1507,9 +1524,9 @@ async function mainLoop(state: State): Promise<State> {
     }
 }
 
-export async function verifyScore(seed:string, history:string, score:number): Promise<[boolean, string]> {
+export async function verifyScore(spec:GameSpec, history:string, score:number): Promise<[boolean, string]> {
     try {
-        await playGame(State.fromReplayString(history, {seed:seed, kingdom:null}))
+        await playGame(State.fromReplayString(history, spec))
         return [true, ""] //unreachable
     } catch(e) {
         if (e instanceof Victory) {
@@ -1589,6 +1606,22 @@ function hash(s:string):number{
     return hash
 }
 
+const defaultCards:SlotSpec[] = Array(12).fill(RANDOM)
+const defaultEvents:SlotSpec[] = Array(4).fill(RANDOM)
+export function fillSpec(spec:GameSpec): FullGameSpec {
+    if (spec.type != 'main') return assertNever(spec.type)
+    return {
+        seed: (spec.seed === undefined) ? randomSeed() : spec.seed,
+        cards: (spec.cards === undefined) ? defaultCards : spec.cards,
+        events: (spec.events === undefined) ? defaultEvents : spec.events,
+        testing: (spec.testing === undefined) ? false : spec.testing,
+    }
+}
+
+function randomSeed(): string {
+    return Math.random().toString(36).substring(2, 7)
+}
+
 function getFixedKingdom(kingdomString:string|null): CardSpec[]|null {
     if (kingdomString==null) return null
     const cardStrings:string[] = kingdomString.split(',')
@@ -1607,13 +1640,32 @@ function getFixedKingdom(kingdomString:string|null): CardSpec[]|null {
     return result
 }
 
+function pickRandoms(slots:SlotSpec[], source:CardSpec[], seed:number): CardSpec[] {
+    const taken:Set<string> = new Set()
+    const result:CardSpec[] = []
+    let randoms = 0;
+    for (const slot of slots) {
+        if (slot == RANDOM) {
+            randoms += 1
+        } else {
+            taken.add(slot.name);
+            result.push(slot)
+        }
+    }
+    return result.concat(randomChoices(
+        source.filter(x => !taken.has(x.name)), 
+        randoms, seed
+    ))
+}
+
 export function initialState(spec:GameSpec): State {
     const startingHand:CardSpec[] = [copper, copper, copper, estate, estate]
     const intSeed:number = hash(spec.seed)
-    let variableSupplies = randomChoices(mixins, 10, intSeed)
-    let variableEvents = randomChoices(eventMixins, 4, intSeed+1)
-    const fixedKingdom:CardSpec[]|null = getFixedKingdom(spec.kingdom)
-    if (fixedKingdom != null) variableSupplies = fixedKingdom
+
+    const fullSpec:FullGameSpec = fillSpec(spec)
+    let variableSupplies = pickRandoms(fullSpec.cards, mixins, intSeed)
+    let variableEvents = pickRandoms(fullSpec.events, eventMixins, intSeed+1)
+
     variableSupplies.sort(supplySort)
     variableEvents.sort(supplySort)
     if (spec.testing) {
@@ -3392,3 +3444,8 @@ const freePoints:CardSpec = {name: 'Free points',
     effects: [gainPointsEffect(10)],
 }
 cheats.push(freePoints)
+
+
+// ------------ Random placeholder --------------
+
+export const randomPlaceholder:CardSpec = {name: RANDOM}

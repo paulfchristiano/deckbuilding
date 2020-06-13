@@ -4,7 +4,8 @@
 // TODO: starting to see performance hiccups in big games
 // TODO: probably don't want the public move method to allow moves into or out of resolving.
 
-import { Cost, Shadow, State, Card, CardSpec, GameSpec, PlaceName } from './logic.js'
+import { Cost, Shadow, State, Card, CardSpec, PlaceName } from './logic.js'
+import { GameSpec, SlotSpec } from './logic.js'
 import { Trigger, Replacer, Ability, CalculatedCost } from './logic.js'
 import { ID } from './logic.js'
 import { renderCost, renderEnergy } from './logic.js'
@@ -13,7 +14,7 @@ import { Option, OptionRender, HotkeyHint } from './logic.js'
 import { UI, Undo, Victory, InvalidHistory, ReplayEnded } from './logic.js'
 import { playGame, initialState, verifyScore} from './logic.js'
 import { Replay, coerceReplayVersion, parseReplay, MalformedReplay } from './logic.js'
-import { mixins } from './logic.js'
+import { mixins, eventMixins, randomPlaceholder, RANDOM } from './logic.js'
 import { VERSION, VP_GOAL } from './logic.js'
 
 // --------------------- Hotkeys
@@ -323,6 +324,7 @@ interface RenderSettings {
     hotkeyMap?: Map<number|string, Key>;
     optionsMap?: Map<number, number>;
     pickMap?: Map<number|string, number>;
+    updateURL?: boolean;
 }
 
 declare global {
@@ -346,7 +348,8 @@ function resetGlobalRenderer() {
     globalRendererState.tokenRenderer = new TokenRenderer()
 }
 
-function renderState(state:State,
+function renderState(
+    state:State,
     settings:RenderSettings = {},
 ): void {
     window.renderedState = state
@@ -363,8 +366,13 @@ function renderState(state:State,
                 globalRendererState.tokenRenderer)
         }
     }
-    window.history.replaceState(null, "",
-        `${specToQuery(state.spec)}#${state.serializeHistory(false)}`);
+    if (settings.updateURL === undefined || settings.updateURL) {
+        window.history.replaceState(
+            null,
+            "",
+            `${specToURL(state.spec)}#${state.serializeHistory(false)}`
+        );
+    }
     $('#resolvingHeader').html('Resolving:')
     $('#energy').html(state.energy.toString())
     $('#actions').html(state.actions.toString())
@@ -524,6 +532,7 @@ function renderChoice(
     reject:((x:any) => void),
     renderer:() => void,
     picks?: () => Map<ID|string, number>,
+    extraRenderSettings: Partial<RenderSettings> = {}
 ): void {
 
     const optionsMap:Map<number,number> = new Map() //map card ids to their position in the choice list
@@ -551,7 +560,12 @@ function renderChoice(
         pickMap = new Map()
     }
 
-    renderState(state, {hotkeyMap: hotkeyMap, optionsMap:optionsMap, pickMap:pickMap})
+    renderState(state, {
+        ...extraRenderSettings,
+        hotkeyMap: hotkeyMap,
+        optionsMap:optionsMap,
+        pickMap:pickMap
+    })
 
     $('#choicePrompt').html(choicePrompt)
     $('#options').html(stringOptions.map(localRender).join(''))
@@ -653,11 +667,6 @@ function bindUndo(state:State, reject: ((x:any) => void)): void {
     $(`[option='undo']`).on('click', pick)
 }
 
-function bindDeepLink(state:State): void {
-    const url:string = `${window.location.origin}/${stateURL(state, false)}`
-    $(`[option='link']`).on('click', () => showLinkDialog(url))
-}
-
 function showLinkDialog(url:string) {
     $('#scoreSubmitter').attr('active', 'true')
     $('#scoreSubmitter').html(
@@ -721,7 +730,7 @@ function bindHelp(state:State, renderer: () => void) {
             "Effects marked with (static) apply whenever the card is in the supply.",
             "Effects marked with (trigger) apply whenever the card is in play.",
             `You can play today's <a href='daily'>daily kingdom</a>, which refreshes midnight EDT.`,
-            `Visit <a href="${stateURL(state)}">this link</a> to replay this kingdom anytime.`,
+            `Visit <a href="${specToURL(state.spec)}">this link</a> to replay this kingdom anytime.`,
             //`Or visit the <a href="picker.html">kingdom picker<a> to pick a kingdom.`,
         ]
         if (submittable(state.spec))
@@ -748,20 +757,13 @@ function dateSeedURL() {
     return `play?seed=${dateString()}`
 }
 
-function stateURL(state:State, restart:boolean=true): string {
-    const spec:GameSpec = state.spec
-    const args:string[] = [`seed=${spec.seed}`]
-    if (spec.kingdom != null) args.push(`kingdom=${spec.kingdom}`);
-    let str = `play?${args.join('&')}`
-    if (!restart) str = str + `#${state.serializeHistory()}`;
-    return str;
-}
-
 // ------------------------------ High score submission
 
 //TODO: allow submitting custom kingdoms
 function submittable(spec:GameSpec): boolean {
-    return (spec.kingdom == null)
+    return (spec.cards == undefined
+        && spec.events == undefined
+        && !spec.testing)
 }
 
 
@@ -848,7 +850,7 @@ function scoreboardURL(spec:GameSpec) {
 
 //TODO: live updates?
 function heartbeat(spec:GameSpec, interval?:any): void {
-    if (spec.kingdom == null) {
+    if (submittable(spec)== null) {
         $.get(`topScore?seed=${spec.seed}&version=${VERSION}`).done(function(x:string) {
             if (x == 'version mismatch') {
                 clearInterval(interval)
@@ -871,31 +873,76 @@ function renderScoreboardLink(spec:GameSpec): void {
 
 // Creating the game spec and starting the game ------------------------------
 
-export function specToQuery(spec:GameSpec) {
-    const result:string[] = [`play?seed=${spec.seed}`]
-    if (spec.kingdom !== null) result.push(`kingdom=${spec.kingdom}`)
-    if (spec.testing) result.push(`test`)
-    return result.join('&')
+function renderSlots(slots:SlotSpec[]) {
+    const result:string[] = []
+    for (const slot of slots) {
+        if (slot == RANDOM) result.push(slot);
+        else result.push(slot.name);
+    }
+    return result.join(',')
+
 }
 
-function makeGameSpec(): GameSpec {
-    return {seed:getSeed(), kingdom:getKingdom(), testing:isTesting()}
+function renderQuery(base:string, args:Map<string, string>): string {
+    if (args.size == 0) return base;
+    else return base + '?' 
+        + Array.from(args.entries()).map(x => `${x[0]}=${x[1]}`).join('&')
 }
 
-function isTesting(): boolean {
-    return new URLSearchParams(window.location.search).get('test') != null
+export function specToURL(spec:GameSpec): string {
+    const args:Map<string, string> = new Map()
+    args.set('seed', spec.seed)
+    if (spec.cards !== undefined) args.set('cards', renderSlots(spec.cards));
+    if (spec.events !== undefined) args.set('events', renderSlots(spec.events));
+    if (spec.testing) args.set('test', 'true');
+    return renderQuery('play', args)
 }
 
-function getKingdom(): string | null {
-    return new URLSearchParams(window.location.search).get('kingdom')
+function makeDictionary(xs:CardSpec[]): Map<string, CardSpec> {
+    const result:Map<string, CardSpec> = new Map()
+    for (const x of xs) result.set(x.name, x);
+    return result
 }
 
-function getSeed(): string {
-    const seed:string|null = new URLSearchParams(window.location.search).get('seed')
-    const urlSeed:string[] = (seed == null || seed.length == 0) ? [] : [seed]
-    const windowSeed:string[] = (window.serverSeed == undefined || window.serverSeed.length == 0) ? [] : [window.serverSeed]
-    const seeds:string[] = windowSeed.concat(urlSeed)
-    return (seeds.length == 0) ? Math.random().toString(36).substring(2, 7) : seeds.join('.')
+function extractList(s:string, xs:CardSpec[]): SlotSpec[] {
+    if (s.length == 0) return []
+    const dictionary = makeDictionary(xs)
+    const result:SlotSpec[] = []
+    for (const name of s.split(',')) {
+        if (name == RANDOM) result.push(RANDOM)
+        else {
+            const lookup = dictionary.get(name)
+            if (lookup == undefined)
+                throw new MalformedSpec(`${name} is not a valid name`);
+            result.push(lookup)
+        }
+    }
+    return result
+}
+
+export class MalformedSpec extends Error {
+    constructor(public s:string) {
+        super(`Not a well-formed game spec: ${s}`)
+        Object.setPrototypeOf(this, MalformedSpec.prototype)
+    }
+}
+
+function randomSeed(): string {
+    return Math.random().toString(36).substring(2, 7)
+}
+
+function specFromURL(search:URLSearchParams): GameSpec {
+    const seed:string|null = search.get('seed')
+    const cards:string|null = search.get('cards')
+    const events:string|null = search.get('events')
+    const testing:string|null = search.get('test')
+    return {
+        seed: seed || randomSeed(), 
+        cards: (cards == null) ? undefined  : extractList(cards, mixins),
+        events: (events== null) ? undefined  : extractList(events, eventMixins),
+        testing: testing != null,
+        type: 'main'
+    }
 }
 
 function getHistory(): string | null {
@@ -903,7 +950,18 @@ function getHistory(): string | null {
 }
 
 export function load(): void {
-    const spec:GameSpec = makeGameSpec()
+    let spec:GameSpec = {seed:randomSeed(), type:'main'}
+    try {
+        spec= specFromURL(new URLSearchParams(window.location.search))
+    } catch(e) {
+        if (e instanceof MalformedSpec) {
+            alert(e)
+        } else {
+            throw e
+        }
+    }
+    let state = initialState(spec)
+
     let history:Replay|null = null;
     const historyString:string|null = getHistory()
     if (historyString != null) {
@@ -913,10 +971,11 @@ export function load(): void {
             if (e instanceof MalformedReplay) {
                 alert(e)
                 history = null
+            } else {
+                throw e
             }
         }
     }
-    let state = initialState(spec)
     if (history !== null) {
         try {
             state = State.fromReplay(history, spec)
@@ -924,8 +983,10 @@ export function load(): void {
             alert(`Error loading history: ${e}`);
         }
     }
+
     heartbeat(spec)
     const interval:any = setInterval(() => heartbeat(spec, interval), 10000)
+
     playGame(state.attachUI(webUI)).catch(e => {
         if (e instanceof InvalidHistory) {
             alert(e)
@@ -954,19 +1015,34 @@ function restart(state:State): void {
 // ----------------------------------- Kingdom picker
 //
 
-function kingdomURL(specs:CardSpec[]) {
-    return `play?kingdom=${specs.map(card => card.name).join(',')}`
+function kingdomURL(cards:CardSpec[], events:CardSpec[]) {
+    return `play?cards=${cards.map(card => card.name).join(',')}&events=${events.map(card => card.name)}`
+}
+
+function countIn<T>(s:Set<T>, f:((t:T) => boolean)): number{
+    let count = 0
+    for (const x of s) if (f(x)) count += 1;
+    return count
 }
 
 //TODO: refactor the logic into logic.ts, probably just state initialization
 export function loadPicker(): void {
     let state = emptyState;
-    const specs = mixins.slice()
-    specs.sort((spec1, spec2) => spec1.name.localeCompare(spec2.name))
-    for (let i = 0; i < specs.length; i++) {
-        const spec = specs[i]
+    const cards = mixins.slice()
+    const events = eventMixins.slice()
+    cards.sort((spec1, spec2) => spec1.name.localeCompare(spec2.name))
+    events.sort((spec1, spec2) => spec1.name.localeCompare(spec2.name))
+    for (let i = 0; i < 8; i++) events.push(randomPlaceholder)
+    for (let i = 0; i < 20; i++) cards.push(randomPlaceholder)
+    for (let i = 0; i < cards.length; i++) {
+        const spec = cards[i]
         state = state.addToZone(new Card(spec, i), 'supply')
     }
+    for (let i = 0; i < events.length; i++) {
+        const spec = events[i]
+        state = state.addToZone(new Card(events[i], cards.length + i), 'events')
+    }
+    const specs = cards.concat(events)
     function trivial() {}
     function elem(i:number): any {
         return $(`[option='${i}']`)
@@ -976,7 +1052,10 @@ export function loadPicker(): void {
         return parts.slice(0, parts.length-1).join('/')
     }
     function kingdomLink(): string {
-        return kingdomURL(Array.from(chosen.values()).map(i => specs[i]))
+        return kingdomURL(
+            Array.from(chosen.values()).filter(i => i < cards.length).map(i => cards[i]),
+            Array.from(chosen.values()).filter(i => i >= cards.length).map(i => events[i - cards.length]),
+        )
     }
     const chosen:Set<number> = new Set()
     function pick(i:number): void {
@@ -987,7 +1066,8 @@ export function loadPicker(): void {
             chosen.add(i)
             elem(i).attr('chosen', true)
         }
-        $('#count').html(String(chosen.size))
+        $('#cardCount').html(String(countIn(chosen, x => x < cards.length)))
+        $('#eventCount').html(String(countIn(chosen, x => x >= cards.length)))
         if (chosen.size > 0) {
             $('#kingdomLink').attr('href', kingdomLink())
         } else {
@@ -995,9 +1075,12 @@ export function loadPicker(): void {
         }
     }
     renderChoice(state,
-        'Choose which cards to include in the supply.',
+        'Choose which events and cards to use.',
         state.supply.map((card, i) => ({
             render: card.id,
             value: () => pick(i)
-        })), trivial, trivial, trivial)
+        })).concat(state.events.map((card, i) => ({
+            render: card.id,
+            value: () => pick(cards.length + i)
+        }))), trivial, trivial, trivial, undefined, {updateURL:false})
 }

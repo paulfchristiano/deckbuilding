@@ -500,9 +500,10 @@ var noUI = {
 function get(stateUpdate, k, state) {
     return (stateUpdate[k] === undefined) ? state[k] : stateUpdate[k];
 }
+export var RANDOM = 'Random';
 var State = /** @class */ (function () {
     function State(spec, ui, resources, zones, resolving, nextID, history, future, redo, checkpoint, logs, logIndent) {
-        if (spec === void 0) { spec = { seed: '', kingdom: null }; }
+        if (spec === void 0) { spec = { seed: '', type: 'main' }; }
         if (ui === void 0) { ui = noUI; }
         if (resources === void 0) { resources = { coin: 0, energy: 0, points: 0, actions: 0, buys: 0 }; }
         if (zones === void 0) { zones = new Map(); }
@@ -1913,14 +1914,14 @@ function mainLoop(state) {
         });
     });
 }
-export function verifyScore(seed, history, score) {
+export function verifyScore(spec, history, score) {
     return __awaiter(this, void 0, void 0, function () {
         var e_23;
         return __generator(this, function (_a) {
             switch (_a.label) {
                 case 0:
                     _a.trys.push([0, 2, , 3]);
-                    return [4 /*yield*/, playGame(State.fromReplayString(history, { seed: seed, kingdom: null }))];
+                    return [4 /*yield*/, playGame(State.fromReplayString(history, spec))];
                 case 1:
                     _a.sent();
                     return [2 /*return*/, [true, ""]]; //unreachable
@@ -2006,6 +2007,21 @@ function hash(s) {
     }
     return hash;
 }
+var defaultCards = Array(12).fill(RANDOM);
+var defaultEvents = Array(4).fill(RANDOM);
+export function fillSpec(spec) {
+    if (spec.type != 'main')
+        return assertNever(spec.type);
+    return {
+        seed: (spec.seed === undefined) ? randomSeed() : spec.seed,
+        cards: (spec.cards === undefined) ? defaultCards : spec.cards,
+        events: (spec.events === undefined) ? defaultEvents : spec.events,
+        testing: (spec.testing === undefined) ? false : spec.testing,
+    };
+}
+function randomSeed() {
+    return Math.random().toString(36).substring(2, 7);
+}
 function getFixedKingdom(kingdomString) {
     var e_24, _a, e_25, _b;
     if (kingdomString == null)
@@ -2048,14 +2064,38 @@ function getFixedKingdom(kingdomString) {
     }
     return result;
 }
+function pickRandoms(slots, source, seed) {
+    var e_26, _a;
+    var taken = new Set();
+    var result = [];
+    var randoms = 0;
+    try {
+        for (var slots_1 = __values(slots), slots_1_1 = slots_1.next(); !slots_1_1.done; slots_1_1 = slots_1.next()) {
+            var slot = slots_1_1.value;
+            if (slot == RANDOM) {
+                randoms += 1;
+            }
+            else {
+                taken.add(slot.name);
+                result.push(slot);
+            }
+        }
+    }
+    catch (e_26_1) { e_26 = { error: e_26_1 }; }
+    finally {
+        try {
+            if (slots_1_1 && !slots_1_1.done && (_a = slots_1.return)) _a.call(slots_1);
+        }
+        finally { if (e_26) throw e_26.error; }
+    }
+    return result.concat(randomChoices(source.filter(function (x) { return !taken.has(x.name); }), randoms, seed));
+}
 export function initialState(spec) {
     var startingHand = [copper, copper, copper, estate, estate];
     var intSeed = hash(spec.seed);
-    var variableSupplies = randomChoices(mixins, 10, intSeed);
-    var variableEvents = randomChoices(eventMixins, 4, intSeed + 1);
-    var fixedKingdom = getFixedKingdom(spec.kingdom);
-    if (fixedKingdom != null)
-        variableSupplies = fixedKingdom;
+    var fullSpec = fillSpec(spec);
+    var variableSupplies = pickRandoms(fullSpec.cards, mixins, intSeed);
+    var variableEvents = pickRandoms(fullSpec.events, eventMixins, intSeed + 1);
     variableSupplies.sort(supplySort);
     variableEvents.sort(supplySort);
     if (spec.testing) {
@@ -2866,8 +2906,8 @@ var synergy = { name: 'Synergy', fixedCost: __assign(__assign({}, free), { coin:
             text: ['Put synergy tokens on two cards in the supply.'],
             transform: function () { return function (state) {
                 return __awaiter(this, void 0, void 0, function () {
-                    var cards, cards_1, cards_1_1, card, e_26_1;
-                    var _a, e_26, _b;
+                    var cards, cards_1, cards_1_1, card, e_27_1;
+                    var _a, e_27, _b;
                     return __generator(this, function (_c) {
                         switch (_c.label) {
                             case 0: return [4 /*yield*/, multichoiceIfNeeded(state, 'Choose two cards to synergize.', state.supply.map(asChoice), 2, false)];
@@ -2890,14 +2930,14 @@ var synergy = { name: 'Synergy', fixedCost: __assign(__assign({}, free), { coin:
                                 return [3 /*break*/, 3];
                             case 6: return [3 /*break*/, 9];
                             case 7:
-                                e_26_1 = _c.sent();
-                                e_26 = { error: e_26_1 };
+                                e_27_1 = _c.sent();
+                                e_27 = { error: e_27_1 };
                                 return [3 /*break*/, 9];
                             case 8:
                                 try {
                                     if (cards_1_1 && !cards_1_1.done && (_b = cards_1.return)) _b.call(cards_1);
                                 }
-                                finally { if (e_26) throw e_26.error; }
+                                finally { if (e_27) throw e_27.error; }
                                 return [7 /*endfinally*/];
                             case 9: return [2 /*return*/, state];
                         }
@@ -3424,7 +3464,7 @@ var banquet = {
 };
 buyable(banquet, 3);
 function countDistinct(xs) {
-    var e_27, _a;
+    var e_28, _a;
     var distinct = new Set();
     var result = 0;
     try {
@@ -3436,12 +3476,12 @@ function countDistinct(xs) {
             }
         }
     }
-    catch (e_27_1) { e_27 = { error: e_27_1 }; }
+    catch (e_28_1) { e_28 = { error: e_28_1 }; }
     finally {
         try {
             if (xs_1_1 && !xs_1_1.done && (_a = xs_1.return)) _a.call(xs_1);
         }
-        finally { if (e_27) throw e_27.error; }
+        finally { if (e_28) throw e_28.error; }
     }
     return result;
 }
@@ -3763,4 +3803,6 @@ var freePoints = { name: 'Free points',
     effects: [gainPointsEffect(10)],
 };
 cheats.push(freePoints);
+// ------------ Random placeholder --------------
+export var randomPlaceholder = { name: RANDOM };
 //# sourceMappingURL=logic.js.map
