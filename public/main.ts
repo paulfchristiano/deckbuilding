@@ -936,6 +936,7 @@ function specFromURL(search:URLSearchParams): GameSpec {
     const cards:string|null = search.get('cards')
     const events:string|null = search.get('events')
     const testing:string|null = search.get('test')
+    console.log(seed)
     return {
         seed: seed || randomSeed(), 
         cards: (cards == null) ? undefined  : extractList(cards, mixins),
@@ -952,7 +953,7 @@ function getHistory(): string | null {
 export function load(): void {
     let spec:GameSpec = {seed:randomSeed(), type:'main'}
     try {
-        if (window.serverSeed !== undefined) {
+        if (window.serverSeed !== undefined && window.serverSeed.length > 0) {
             spec = {seed:window.serverSeed, type:'main'}
         } else {
             spec = specFromURL(new URLSearchParams(window.location.search))

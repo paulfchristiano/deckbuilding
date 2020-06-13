@@ -1064,6 +1064,7 @@ function specFromURL(search) {
     var cards = search.get('cards');
     var events = search.get('events');
     var testing = search.get('test');
+    console.log(seed);
     return {
         seed: seed || randomSeed(),
         cards: (cards == null) ? undefined : extractList(cards, mixins),
@@ -1078,7 +1079,7 @@ function getHistory() {
 export function load() {
     var spec = { seed: randomSeed(), type: 'main' };
     try {
-        if (window.serverSeed !== undefined) {
+        if (window.serverSeed !== undefined && window.serverSeed.length > 0) {
             spec = { seed: window.serverSeed, type: 'main' };
         }
         else {
