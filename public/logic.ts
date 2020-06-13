@@ -615,15 +615,6 @@ export class State {
         const last:State|null = this.checkpoint
         return (last==null) ? null : last.update({future:this.history.concat(this.future)})
     }
-    serializeHistory(): string {
-        let state:State = this;
-        let prev:State|null = state;
-        while (prev != null) {
-            state = prev;
-            prev = state.backup()
-        }
-        return [VERSION].concat(state.future.map(xs => xs.map(x => `${x}`).join(','))).join(';')
-    }
     makeID(): [State, number] {
         const id:number = this.nextID
         return [this.update({nextID: id+1}), id]
@@ -639,25 +630,61 @@ export class State {
     undoable(): boolean {
         return (this.lastReplayable() != null)
     }
-    static fromHistory(s:string, spec:GameSpec): State {
-        let historyVersion:string|null;
-        let pieces:string[];
-        [historyVersion, pieces] = shiftFirst(s.split(';'))
-        if (VERSION != historyVersion) {
-            throw new VersionMismatch(historyVersion || 'null')
-        }
-        function renderPiece(piece:string): number[] {
-            if (piece == '') return []
-            return piece.split(',').map(x => parseInt(x))
-        }
-        const future = pieces.map(renderPiece)
-        return initialState(spec).update({future: future})
-    }
     clearFuture(): State {
         return this.update({future: []})
     }
+    serializeHistory(): string {
+        let state:State = this;
+        let prev:State|null = state;
+        while (prev != null) {
+            state = prev;
+            prev = state.backup()
+        }
+        return serializeReplay({version: VERSION, actions:state.future})
+    }
+    static fromReplayString(s:string, spec:GameSpec): State {
+        return State.fromReplay(parseReplay(s), spec)
+    }
+    static fromReplay(replay:Replay, spec:GameSpec): State {
+        if (replay.version != VERSION)
+            throw new VersionMismatch(replay.version || 'null');
+        return initialState(spec).update({future:replay.actions})
+    }
 }
 
+export type Replay = {
+    version: string;
+    actions: Replayable[];
+}
+
+export class MalformedReplay extends Error {
+    constructor(public s:string) {
+        super(`Not a well-formed replay: ${s}`)
+        Object.setPrototypeOf(this, MalformedReplay.prototype)
+    }
+}
+
+export function coerceReplayVersion(r:Replay): Replay {
+    return {version: VERSION, actions:r.actions}
+}
+
+export function serializeReplay(r:Replay): string {
+    return [r.version].concat(
+        r.actions.map(xs => xs.map(String).join(','))
+    ).join(';')
+}
+
+export function parseReplay(s:string): Replay {
+    const [version, pieces] = shiftFirst(s.split(';'))
+    if (version === null) throw new MalformedReplay('No version');
+    function parsePiece(piece:string): number[] {
+        if (piece == '') return [];
+        const result:number[] = piece.split(',').map(x => parseInt(x))
+        if (result.some(isNaN)) throw new MalformedReplay(`${piece} is not a valid action`);
+        return result
+    }
+    return {version:version, actions: pieces.map(parsePiece)}
+}
 
 export class VersionMismatch extends Error {
     constructor(public historyVersion:string) {
@@ -1475,7 +1502,7 @@ async function mainLoop(state: State): Promise<State> {
 
 export async function verifyScore(seed:string, history:string, score:number): Promise<[boolean, string]> {
     try {
-        await playGame(State.fromHistory(history, {seed:seed, kingdom:null}))
+        await playGame(State.fromReplayString(history, {seed:seed, kingdom:null}))
         return [true, ""] //unreachable
     } catch(e) {
         if (e instanceof Victory) {

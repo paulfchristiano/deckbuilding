@@ -66,6 +66,7 @@ import { renderCost, renderEnergy } from './logic.js';
 import { emptyState } from './logic.js';
 import { Undo, InvalidHistory } from './logic.js';
 import { playGame, initialState } from './logic.js';
+import { coerceReplayVersion, parseReplay, MalformedReplay } from './logic.js';
 import { mixins } from './logic.js';
 import { VERSION, VP_GOAL } from './logic.js';
 var keyListeners = new Map();
@@ -681,7 +682,10 @@ function renderStringOption(option, hotkey, pick) {
     return "<span class='option' option='" + option.value + "' choosable chosen='false'>" + picktext + hotkeyText + option.render + "</span>";
 }
 function renderSpecials(undoable) {
-    return renderUndo(undoable) + renderHotkeyToggle() + renderHelp() + renderDeepLink();
+    return renderUndo(undoable) + renderHotkeyToggle() + renderHelp() + renderRestart();
+}
+function renderRestart() {
+    return "<span id='deeplink' class='option', option='restart' choosable chosen='false'>Restart</span>";
 }
 function renderHotkeyToggle() {
     return "<span class='option', option='hotkeyToggle' choosable chosen='false'>" + renderHotkey('/') + " Hotkeys</span>";
@@ -701,6 +705,7 @@ function bindSpecials(state, reject, renderer) {
     bindUndo(state, reject);
     bindHelp(state, renderer);
     bindDeepLink(state);
+    bindRestart(state);
 }
 function bindHotkeyToggle(renderer) {
     function pick() {
@@ -709,6 +714,9 @@ function bindHotkeyToggle(renderer) {
     }
     keyListeners.set('/', pick);
     $("[option='hotkeyToggle']").on('click', pick);
+}
+function bindRestart(state) {
+    $("[option='restart']").on('click', function () { return restart(state); });
 }
 function bindUndo(state, reject) {
     function pick() {
@@ -919,7 +927,7 @@ function heartbeat(spec, interval) {
         $.get("topScore?seed=" + spec.seed + "&version=" + VERSION).done(function (x) {
             if (x == 'version mismatch') {
                 clearInterval(interval);
-                alert("The server has updated to a new version, please refresh.");
+                alert("The server has updated to a new version, please refresh.\n                You will get an error and your game will restart if the history is no longer valid.");
             }
             var n = parseInt(x, 10);
             if (!isNaN(n))
@@ -957,11 +965,23 @@ function getHistory() {
 }
 export function load() {
     var spec = makeGameSpec();
-    var history = getHistory();
+    var history = null;
+    var historyString = getHistory();
+    if (historyString != null) {
+        try {
+            history = coerceReplayVersion(parseReplay(historyString));
+        }
+        catch (e) {
+            if (e instanceof MalformedReplay) {
+                alert(e);
+                history = null;
+            }
+        }
+    }
     var state = initialState(spec);
     if (history !== null) {
         try {
-            state = State.fromHistory(history, spec);
+            state = State.fromReplay(history, spec);
         }
         catch (e) {
             alert("Error loading history: " + e);
@@ -969,6 +989,21 @@ export function load() {
     }
     heartbeat(spec);
     var interval = setInterval(function () { return heartbeat(spec, interval); }, 10000);
+    playGame(state.attachUI(webUI)).catch(function (e) {
+        if (e instanceof InvalidHistory) {
+            alert(e);
+            playGame(e.state.clearFuture());
+        }
+        else {
+            alert(e);
+        }
+    });
+}
+function restart(state) {
+    //TODO: detach the UI to avoid a race?
+    //TODO: clear hearatbeat? (currently assumes spec is the same...)
+    var spec = state.spec;
+    state = initialState(spec);
     playGame(state.attachUI(webUI)).catch(function (e) {
         if (e instanceof InvalidHistory) {
             alert(e);

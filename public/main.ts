@@ -11,7 +11,8 @@ import { renderCost, renderEnergy } from './logic.js'
 import { emptyState } from './logic.js'
 import { Option, OptionRender, HotkeyHint } from './logic.js'
 import { UI, Undo, Victory, InvalidHistory, ReplayEnded } from './logic.js'
-import { playGame, initialState, verifyScore } from './logic.js'
+import { playGame, initialState, verifyScore} from './logic.js'
+import { Replay, coerceReplayVersion, parseReplay, MalformedReplay } from './logic.js'
 import { mixins } from './logic.js'
 import { VERSION, VP_GOAL } from './logic.js'
 
@@ -576,7 +577,11 @@ function renderStringOption(option:StringOption<number>, hotkey?:Key, pick?:numb
 }
 
 function renderSpecials(undoable:boolean): string {
-    return renderUndo(undoable) + renderHotkeyToggle() + renderHelp() + renderDeepLink()
+    return renderUndo(undoable) + renderHotkeyToggle() + renderHelp() + renderRestart()
+}
+
+function renderRestart(): string {
+    return `<span id='deeplink' class='option', option='restart' choosable chosen='false'>Restart</span>`
 }
 
 function renderHotkeyToggle(): string {
@@ -599,6 +604,7 @@ function bindSpecials(state:State, reject: ((x:any) => void), renderer: () => vo
     bindUndo(state, reject)
     bindHelp(state, renderer)
     bindDeepLink(state)
+    bindRestart(state)
 }
 
 function bindHotkeyToggle(renderer: () => void) {
@@ -608,6 +614,10 @@ function bindHotkeyToggle(renderer: () => void) {
     }
     keyListeners.set('/', pick)
     $(`[option='hotkeyToggle']`).on('click', pick)
+}
+
+function bindRestart(state:State): void {
+    $(`[option='restart']`).on('click', () => restart(state))
 }
 
 function bindUndo(state:State, reject: ((x:any) => void)): void {
@@ -818,7 +828,8 @@ function heartbeat(spec:GameSpec, interval?:any): void {
         $.get(`topScore?seed=${spec.seed}&version=${VERSION}`).done(function(x:string) {
             if (x == 'version mismatch') {
                 clearInterval(interval)
-                alert("The server has updated to a new version, please refresh.")
+                alert(`The server has updated to a new version, please refresh.
+                You will get an error and your game will restart if the history is no longer valid.`)
             }
             const n:number = parseInt(x, 10)
             if (!isNaN(n)) renderBest(n, spec)
@@ -863,17 +874,43 @@ function getHistory(): string | null {
 
 export function load(): void {
     const spec:GameSpec = makeGameSpec()
-    const history:string|null = getHistory()
+    let history:Replay|null = null;
+    const historyString:string|null = getHistory()
+    if (historyString != null) {
+        try {
+            history = coerceReplayVersion(parseReplay(historyString))
+        } catch (e) {
+            if (e instanceof MalformedReplay) {
+                alert(e)
+                history = null
+            }
+        }
+    }
     let state = initialState(spec)
     if (history !== null) {
         try {
-            state = State.fromHistory(history, spec)
+            state = State.fromReplay(history, spec)
         } catch(e) {
             alert(`Error loading history: ${e}`);
         }
     }
     heartbeat(spec)
     const interval:any = setInterval(() => heartbeat(spec, interval), 10000)
+    playGame(state.attachUI(webUI)).catch(e => {
+        if (e instanceof InvalidHistory) {
+            alert(e)
+            playGame(e.state.clearFuture())
+        } else {
+            alert(e)
+        }
+    })
+}
+
+function restart(state:State): void {
+    //TODO: detach the UI to avoid a race?
+    //TODO: clear hearatbeat? (currently assumes spec is the same...)
+    const spec = state.spec
+    state = initialState(spec)
     playGame(state.attachUI(webUI)).catch(e => {
         if (e instanceof InvalidHistory) {
             alert(e)
