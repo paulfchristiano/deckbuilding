@@ -1,4 +1,4 @@
-export const VERSION = "0.6.2"
+export const VERSION = "0.6.3"
 
 // ----------------------------- Formatting
 
@@ -2107,9 +2107,9 @@ const retrench:CardSpec = {name: 'Retrench',
 }
 registerEvent(retrench)
 
-const respite:CardSpec = {name:'Respite',
+const improvise:CardSpec = {name:'Improvise',
     fixedCost: energy(2),
-    effects: [regroupEffect(2)],
+    effects: [regroupEffect(1)],
 }
 registerEvent(respite)
 
@@ -3232,9 +3232,9 @@ function nameHasToken(card:Card, token:Token, state:State): boolean {
 const prioritize:CardSpec = {
     name: 'Prioritize',
     fixedCost: {...free, energy:1, coin:3},
-    effects: [removeAllSupplyTokens('priority'), targetedEffect(
-        card => addToken(card, 'priority', 5),
-        'Put five priority tokens on a card in the supply.',
+    effects: [targetedEffect(
+        card => addToken(card, 'priority', 8),
+        'Put eight priority tokens on a card in the supply.',
         state => state.supply,
     )],
     triggers: [{
