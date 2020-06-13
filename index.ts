@@ -83,6 +83,25 @@ async function submitForDaily(username:string, seed:string, score:number): Promi
     `
 } 
 
+async function serveDaily(req:any, res:any): Promise<void> {
+    try {
+        const seed = await dailySeed()
+        res.render('pages/main', {seed:seed})
+    } catch(err) {
+        console.error(err);
+        res.send('Error: ' + err);
+    }
+}
+
+async function serveMain(req:any, res:any): Promise<void> {
+    try {
+        res.render('pages/main', {seed:undefined})
+    } catch(err) {
+        console.error(err);
+        res.send(err)
+    }
+}
+
 type RecentEntry = {version:string, age:string, score:number, username:string, seed:string}
 
 express()
@@ -199,31 +218,10 @@ express()
           res.send('Error: ' + err);
       }
     })
-    .get('/play', async (req:any, res:any) => {
-        try {
-            res.render('pages/main', {seed:undefined})
-        } catch(err) {
-            console.error(err);
-            res.send(err)
-        }
-    })
-    .get('/', async (req:any, res:any) => {
-        try {
-            res.render('pages/main', {seed:undefined})
-        } catch(err) {
-            console.error(err);
-            res.send('Error: ' + err);
-        }
-    })
-    .get('/daily', async (req:any, res:any) => {
-        try {
-            const seed = await dailySeed()
-            res.render('pages/main', {seed:seed})
-        } catch(err) {
-            console.error(err);
-            res.send('Error: ' + err);
-        }
-    })
+    .get('/play', serveMain)
+    .get('/random', serveMain)
+    .get('/', serveDaily)
+    .get('/daily', serveDaily)
     .post('/submit', async (req:any, res:any) => {
         try {
             if (sql == null) {
