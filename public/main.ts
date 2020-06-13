@@ -731,7 +731,7 @@ function bindHelp(state:State, renderer: () => void) {
             "Effects marked with (trigger) apply whenever the card is in play.",
             `You can play today's <a href='daily'>daily kingdom</a>, which refreshes midnight EDT.`,
             `Visit <a href="${specToURL(state.spec)}">this link</a> to replay this kingdom anytime.`,
-            //`Or visit the <a href="picker.html">kingdom picker<a> to pick a kingdom.`,
+            `Or visit the <a href="picker.html">kingdom picker<a> to pick a kingdom.`,
         ]
         if (submittable(state.spec))
             helpLines.push(`Check out the scoreboard <a href=${scoreboardURL(state.spec)}>here</a>.`)
@@ -850,7 +850,7 @@ function scoreboardURL(spec:GameSpec) {
 
 //TODO: live updates?
 function heartbeat(spec:GameSpec, interval?:any): void {
-    if (submittable(spec)== null) {
+    if (submittable(spec)) {
         $.get(`topScore?seed=${spec.seed}&version=${VERSION}`).done(function(x:string) {
             if (x == 'version mismatch') {
                 clearInterval(interval)

@@ -428,7 +428,7 @@ express()
                 score = req.query.score;
                 username = req.query.username;
                 history_1 = req.query.history;
-                return [4 /*yield*/, verifyScore(seed, history_1, score)];
+                return [4 /*yield*/, verifyScore({ seed: seed, type: 'main' }, history_1, score)];
             case 1:
                 _a = __read.apply(void 0, [_b.sent(), 2]), valid = _a[0], explanation = _a[1];
                 if (!valid) return [3 /*break*/, 4];

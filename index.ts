@@ -234,7 +234,8 @@ express()
             const score = req.query.score
             const username = req.query.username
             const history = req.query.history
-            const [valid, explanation] = await verifyScore(seed, history, score)
+            //TODO: verify custom games, probably use URL here and everywhere in file?
+            const [valid, explanation] = await verifyScore({seed:seed, type:'main'}, history, score)
             if (valid) {
                 const results = await sql`
                   INSERT INTO scoreboard (username, score, seed, version)
