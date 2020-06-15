@@ -1,4 +1,4 @@
-export const VERSION = "0.7"
+export const VERSION = "0.7.1"
 
 // ----------------------------- Formatting
 
@@ -2242,7 +2242,7 @@ const travelingFair:CardSpec = {name:'Traveling Fair',
 registerEvent(travelingFair)
 
 const philanthropy:CardSpec = {name: 'Philanthropy',
-    fixedCost: {...free, coin:10, energy:2},
+    fixedCost: {...free, coin:4, energy:2},
     effects: [{
         text: ['Lose all $.', '+1 vp per $ lost.'],
         transform: () => async function(state) {
@@ -2988,9 +2988,15 @@ buyable(traveler, 5)
 const fountain:CardSpec = {
     name: 'Fountain',
     fixedCost: energy(1),
-    effects: [regroupEffect(5, false)]
+    effects: [{
+        text: [`Lose all actions and $.`],
+        transform: (state, card) => doAll([
+            setResource('coin', 0),
+            setResource('actions', 0)
+        ])
+    }, actionEffect(7)]
 }
-buyable(fountain, 5)
+buyable(fountain, 5, 'test')
 
 const chameleon:CardSpec = {
     name:'Chameleon',
