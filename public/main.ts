@@ -864,10 +864,10 @@ function heartbeat(spec:GameSpec, interval?:any): void {
 }
 
 function renderBest(best:number, spec:GameSpec): void {
-    $('#best').html(`Fastest win on this seed: ${best} (<a href='${scoreboardURL(spec)}'>scoreboard</a>)`)
+    $('#best').html(`Fastest win on this seed: ${best} (<a target='_blank' href='${scoreboardURL(spec)}'>scoreboard</a>)`)
 }
 function renderScoreboardLink(spec:GameSpec): void {
-    $('#best').html(`No wins yet for this version (<a href='${scoreboardURL(spec)}'>scoreboard</a>)`)
+    $('#best').html(`No wins yet for this seed (<a target='_blank' href='${scoreboardURL(spec)}'>scoreboard</a>)`)
 }
 
 
