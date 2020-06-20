@@ -991,6 +991,8 @@ export function load(): void {
     heartbeat(spec)
     const interval:any = setInterval(() => heartbeat(spec, interval), 10000)
 
+    window.addEventListener("hashchange", load, false);
+
     playGame(state.attachUI(webUI)).catch(e => {
         if (e instanceof InvalidHistory) {
             alert(e)
@@ -1006,6 +1008,8 @@ function restart(state:State): void {
     //TODO: clear hearatbeat? (currently assumes spec is the same...)
     const spec = state.spec
     state = initialState(spec)
+    window.history.pushState(null, "")
+    console.log('pushing state!')
     playGame(state.attachUI(webUI)).catch(e => {
         if (e instanceof InvalidHistory) {
             alert(e)
