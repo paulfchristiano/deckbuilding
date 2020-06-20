@@ -1,4 +1,4 @@
-export const VERSION = "0.7.1"
+export const VERSION = "0.8"
 
 // ----------------------------- Formatting
 
@@ -1410,38 +1410,29 @@ async function multichoice<T>(
     prompt:string,
     options:Option<T>[],
     validator:(xs:T[]) => boolean = (xs => true),
-    automateTrivial:boolean=true,
 ): Promise<[State, T[]]> {
-    if (automateTrivial && options.length == 0) return [state, []]
-    else {
-        let indices:number[], newState:State; [newState, indices] = await doOrReplay(
-            state,
-            () => state.ui.multichoice(state, prompt, options, validator),
-        )
-        if (indices.some(x => x >= options.length))
-            throw new InvalidHistory(indices, state)
-        return [newState, indices.map(i => options[i].value)]
-    }
+    let indices:number[], newState:State; [newState, indices] = await doOrReplay(
+        state,
+        () => state.ui.multichoice(state, prompt, options, validator),
+    )
+    if (indices.some(x => x >= options.length))
+        throw new InvalidHistory(indices, state)
+    return [newState, indices.map(i => options[i].value)]
 }
 
 async function choice<T>(
     state:State,
     prompt:string,
     options:Option<T>[],
-    automateTrivial:boolean=true,
 ): Promise<[State, T|null]> {
     let index:number;
-    if (options.length == 0) return [state, null]
-    else if (automateTrivial && options.length == 1) return [state, options[0].value]
-    else {
-        let indices:number[], newState:State; [newState, indices] = await doOrReplay(
-            state,
-            async function() {const x = await state.ui.choice(state, prompt, options); return [x]},
-        )
-        if (indices.length != 1 || indices[0] >= options.length)
-            throw new InvalidHistory(indices, state)
-        return [newState, options[indices[0]].value]
-    }
+    let indices:number[], newState:State; [newState, indices] = await doOrReplay(
+        state,
+        async function() {const x = await state.ui.choice(state, prompt, options); return [x]},
+    )
+    if (indices.length != 1 || indices[0] >= options.length)
+        throw new InvalidHistory(indices, state)
+    return [newState, options[indices[0]].value]
 }
 
 async function multichoiceIfNeeded<T>(
@@ -1781,7 +1772,7 @@ function sortHand(state:State): State {
     return state.sortZone('hand')
 }
 
-async function recycle(state:State): Promise<State> {
+async function ploughTransform(state:State): Promise<State> {
     return doAll([
         moveMany(state.discard, 'hand'),
         moveMany(state.play, 'hand'),
@@ -1790,14 +1781,14 @@ async function recycle(state:State): Promise<State> {
 }
 
 
-function recycleEffect(): Effect {
+function ploughEffect(): Effect {
     return {
         text: ['Put your discard pile and play into your hand'],
-        transform: () => recycle
+        transform: () => ploughTransform
     }
 }
 
-function regroupEffect(n:number, doRecycle:boolean=true): Effect {
+function refreshEffect(n:number, doRecycle:boolean=true): Effect {
     let text:string[] = ['Lose all $, actions, and buys.']
     if (doRecycle) text.push('Put your discard pile and play into your hand.');
     text.push(`+${n} actions, +1 buy.`)
@@ -1807,7 +1798,7 @@ function regroupEffect(n:number, doRecycle:boolean=true): Effect {
             state = await setResource('coin', 0)(state)
             state = await setResource('actions', 0)(state)
             state = await setResource('buys', 0)(state)
-            if (doRecycle) state = await recycle(state);
+            if (doRecycle) state = await ploughTransform(state);
             state = await gainActions(n, card)(state)
             state = await gainBuy(state)
             return state
@@ -1853,11 +1844,11 @@ function chargeEffect(): Effect {
     }
 }
 
-const regroup:CardSpec = {name: 'Regroup',
+const refresh:CardSpec = {name: 'Regroup',
     fixedCost: energy(4),
-    effects: [regroupEffect(5)],
+    effects: [refreshEffect(5)],
 }
-coreEvents.push(regroup)
+coreEvents.push(refresh)
 
 
 const copper:CardSpec = {name: 'Copper',
@@ -1879,7 +1870,7 @@ const estate:CardSpec = {name: 'Estate',
     fixedCost: energy(1),
     effects: [gainPointsEffect(1)]
 }
-coreSupplies.push(supplyForCard(estate, coin(2)))
+coreSupplies.push(supplyForCard(estate, coin(1)))
 
 const duchy:CardSpec = {name: 'Duchy',
     fixedCost: energy(1),
@@ -2131,7 +2122,7 @@ const plough:CardSpec = {name: 'Plough',
     fixedCost: energy(2),
     effects: [{
         text: ['Put your discard pile and play into your hand.'],
-        transform: () => recycle
+        transform: () => ploughTransform
     }]
 }
 buyable(plough, 4)
@@ -2189,28 +2180,26 @@ function incrementCost(): Effect {
 
 const restock:CardSpec = {name: 'Restock',
     calculatedCost: costPlus(energy(2), coin(1)),
-    effects: [incrementCost(), regroupEffect(5)],
+    effects: [incrementCost(), refreshEffect(5)],
 }
 registerEvent(restock)
 
 const scrapeBy:CardSpec = {name:'Scrape By',
     fixedCost: energy(2),
-    effects: [regroupEffect(1)],
+    effects: [refreshEffect(1)],
 }
 registerEvent(scrapeBy)
 
 const perpetualMotion:CardSpec = {name:'Perpetual Motion',
-    fixedCost: energy(1),
     restrictions: [{
         test: (card, state) => state.hand.length > 0
     }],
     effects: [{
         text: [`If you have no cards in your hand,
-        put your discard pile into your hand and +3 actions.`],
+        put your discard pile into your hand.`],
         transform: () => async function(state) {
             if (state.hand.length == 0) {
                 state = await moveMany(state.discard, 'hand')(state)
-                state = await gainActions(3)(state)
                 state = sortHand(state)
             }
             return state
@@ -2281,7 +2270,7 @@ const repurpose:CardSpec = {name: 'Repurpose',
         text: ['Lose all $ and buys.'],
         transform: (state, card) => doAll([setResource('coin', 0, card),
                                  setResource('buys', 0, card)])
-    }, recycleEffect(), buyEffect()]
+    }, ploughEffect(), buyEffect()]
 }
 registerEvent(repurpose)
 
@@ -2418,27 +2407,27 @@ const mobilization:CardSpec = {name: 'Mobilization',
     calculatedCost: costPlus(coin(10), coin(10)),
     effects: [chargeEffect(), incrementCost()],
     replacers: [{
-        text: `${regroup.name} costs @ less to play for each charge token on this.`,
+        text: `${refresh.name} costs @ less to play for each charge token on this.`,
         kind:'cost',
-        handles: x => (x.card.name == regroup.name),
+        handles: x => (x.card.name == refresh.name),
         replace: (x, state, card) => 
             ({...x, cost:subtractCost(x.cost, {energy:state.find(card).charge})})
     }]
 }
 registerEvent(mobilization)
 
-function refreshEffect(): Effect {
+function recycleEffect(): Effect {
     return {
         text: ['Put your discard pile into your hand.'],
         transform: state => doAll([moveMany(state.discard, 'hand'), sortHand])
     }
 }
 
-const refresh:CardSpec = {name: 'Refresh',
+const recycle:CardSpec = {name: 'Refresh',
     fixedCost: energy(2),
-    effects: [refreshEffect()],
+    effects: [recycleEffect()],
 }
-registerEvent(refresh)
+registerEvent(recycle)
 
 const twin:CardSpec = {name: 'Twin',
     fixedCost: {...free, energy:1, coin:8},
@@ -2646,7 +2635,7 @@ buyable(greatSmithy, 7)
 
 const pressOn:CardSpec = {name: 'Press On',
     fixedCost: energy(1),
-    effects: [regroupEffect(5, false)]
+    effects: [refreshEffect(5, false)]
 }
 registerEvent(pressOn)
 
@@ -2700,10 +2689,13 @@ const decay:CardSpec = {name: 'Decay',
 registerEvent(decay)
 
 const reflect:CardSpec = {name: 'Reflect',
+    restrictions: [{
+        test: (c:Card, s:State, k:ActionKind) => (s.actions < 1 || s.hand.length == 0)
+    }],
     calculatedCost: costPlus(energy(1), coin(1)),
     effects: [incrementCost(), playTwice()],
 }
-registerEvent(reflect)
+registerEvent(reflect, 'test')
 
 const replicate:CardSpec = {name: 'Replicate',
     calculatedCost: costPlus(energy(1), coin(1)),
@@ -2715,9 +2707,23 @@ const replicate:CardSpec = {name: 'Replicate',
 }
 registerEvent(replicate)
 
+function setCoinEffect(n:number) {
+    return {
+        text: [`Set $ to ${n}.`],
+        transform: (s:State, c:Card) => setResource('coin', n, c),
+    }
+}
+
+function setBuyEffect(n:number) {
+    return {
+        text: [`Set buys to ${n}.`],
+        transform: (s:State, c:Card) => setResource('buys', n, c),
+    }
+}
+
 const inflation:CardSpec = {name: 'Inflation',
     fixedCost: energy(3),
-    effects: [gainCoinEffect(15), gainBuyEffect(5), chargeEffect()],
+    effects: [setCoinEffect(15), setBuyEffect(5), chargeEffect()],
     replacers: [{
         text: 'Cards and events that cost at least $1 cost $1 more per charge token on this.',
         kind: 'cost',
@@ -2810,6 +2816,9 @@ const mastermind:CardSpec = {
     name: 'Mastermind',
     fixedCost: energy(1),
     effects: [toPlay()],
+    restrictions: [{
+        test: (c:Card, s:State, k:ActionKind) => k == 'activate' && (c.charge < 1)
+    }],
     replacers: [{
         text: `Whenever you would move this from play to your hand,
             instead put a charge token on it.`,
@@ -2837,7 +2846,7 @@ const mastermind:CardSpec = {
         ))
     }],
 }
-buyable(mastermind, 6)
+buyable(mastermind, 6, 'test')
 
 function chargeVillage(): Replacer<CostParams> {
     return {
@@ -2931,9 +2940,10 @@ const innovation:CardSpec = {name: Innovation,
         )
     }],
     triggers: [{
-        text: `When you create a card, discard this to play the card.`,
+        text: `When you create a card in your discard pile,
+        discard this to play that card.`,
         kind: 'create',
-        handles: () => true,
+        handles: (e) => e.zone == 'discard',
         transform: (e, state, card) => payToDo(discardFromPlay(card), e.card.play(card)),
     }]
 }
@@ -2996,7 +3006,7 @@ const fountain:CardSpec = {
         ])
     }, actionEffect(7)]
 }
-buyable(fountain, 5, 'test')
+buyable(fountain, 5)
 
 const chameleon:CardSpec = {
     name:'Chameleon',
@@ -3268,7 +3278,7 @@ const hesitation:CardSpec = {
         ])
     }]
 }
-registerEvent(hesitation, 'test')
+registerEvent(hesitation)
 
 const commerce:CardSpec = {
     name: 'Commerce',
