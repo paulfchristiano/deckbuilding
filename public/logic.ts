@@ -590,12 +590,15 @@ export class State {
     endTicker(card:Card): State {
         return this.apply(card => card.endTicker(), card)
     }
+    consumeRedo(record:Replayable): State {
+        let result:Replayable|null,
+            redo:Replayable[];
+        [result, redo] = popLast(this.redo)
+        if (result === null) return this;
+        return this.update({redo: arrayEq(result, record) ? redo : []})
+    }
     addHistory(record:Replayable): State {
-        let result:Replayable|null, redo:Replayable[]; [result, redo] = popLast(this.redo)
-        if (result === null || result.some((x, i) => x != record[i])) {
-            redo = []
-        }
-        return this.update({history: this.history.concat([record]), redo:redo})
+        return this.update({history: this.history.concat([record])})
     }
     log(msg:string): State {
         //return this
@@ -648,7 +651,8 @@ export class State {
         return this.update({future: []})
     }
     addRedo(action:Replayable): State {
-        return this.update({redo: this.redo.concat([action])})
+        const result:State = this.update({redo: this.redo.concat([action])})
+        return result
     }
     serializeHistory(includeVersion:boolean=true): string {
         let state:State = this;
@@ -670,6 +674,10 @@ export class State {
             throw new VersionMismatch(replay.version || 'null');
         return initialState(spec).update({future:replay.actions})
     }
+}
+
+function arrayEq<T>(xs: T[], ys:T[]): boolean {
+    return (xs.length == ys.length) && xs.every((x, i) => x == ys[i])
 }
 
 export type Replay = {
@@ -1312,14 +1320,10 @@ function removeToken(card:Card, token:Token, isCost:boolean=false): Transform {
     return async function(state) {
         let removed:number = 0
         card = state.find(card)
-        console.log(token)
-        console.log(card)
-        console.log(card.count(token))
         if (card.place == null || card.count(token) == 0) {
             if (isCost) throw new CostNotPaid(`Couldn't remove ${token} token.`)
             return state
         }
-        console.log('!')
         const newCard:Card = card.addTokens(token, -1)
         state = state.replace(card, newCard)
         state = logTokenChange(state, card, token, -removed)
@@ -1400,7 +1404,13 @@ async function doOrReplay(
     f: () => Promise<Replayable>,
 ): Promise<[State, Replayable]> {
     let record:Replayable | null; [state, record] = state.shiftFuture()
-    const x: Replayable = (record == null) ? await f() : record
+    let x: Replayable;
+    if (record !== null) {
+        x = record
+    } else {
+        x = await f()
+        state = state.consumeRedo(x)
+    }
     return [state.addHistory(x), x]
 }
 

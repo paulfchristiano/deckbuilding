@@ -1064,7 +1064,6 @@ function specFromURL(search) {
     var cards = search.get('cards');
     var events = search.get('events');
     var testing = search.get('test');
-    console.log(seed);
     return {
         seed: seed || randomSeed(),
         cards: (cards == null) ? undefined : extractList(cards, mixins),

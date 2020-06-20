@@ -936,7 +936,6 @@ function specFromURL(search:URLSearchParams): GameSpec {
     const cards:string|null = search.get('cards')
     const events:string|null = search.get('events')
     const testing:string|null = search.get('test')
-    console.log(seed)
     return {
         seed: seed || randomSeed(), 
         cards: (cards == null) ? undefined  : extractList(cards, mixins),
