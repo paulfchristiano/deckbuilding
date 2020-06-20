@@ -1854,7 +1854,7 @@ function chargeEffect(): Effect {
     }
 }
 
-const refresh:CardSpec = {name: 'Regroup',
+const refresh:CardSpec = {name: 'Refresh',
     fixedCost: energy(4),
     effects: [refreshEffect(5)],
 }
@@ -2433,7 +2433,7 @@ function recycleEffect(): Effect {
     }
 }
 
-const recycle:CardSpec = {name: 'Refresh',
+const recycle:CardSpec = {name: 'Recycle',
     fixedCost: energy(2),
     effects: [recycleEffect()],
 }
