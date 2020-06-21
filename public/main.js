@@ -1137,7 +1137,6 @@ function restart(state) {
     var spec = state.spec;
     state = initialState(spec);
     window.history.pushState(null, "");
-    console.log('pushing state!');
     playGame(state.attachUI(webUI)).catch(function (e) {
         if (e instanceof InvalidHistory) {
             alert(e);

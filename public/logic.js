@@ -2209,7 +2209,7 @@ function refreshEffect(n, doRecycle) {
     var text = ['Lose all $, actions, and buys.'];
     if (doRecycle)
         text.push('Put your discard pile and play into your hand.');
-    text.push("+" + n + " actions, +1 buy.");
+    text.push("+" + num(n, 'action') + ", +1 buy.");
     return {
         text: text,
         transform: function (state, card) { return function (state) {

@@ -586,8 +586,9 @@ function renderChoice(
     function localRender(option:StringOption<number>): string {
         return renderStringOption(option, hotkeyMap.get(option.render), pickMap.get(option.render))
     }
-
 }
+
+
 
 function renderStringOption(option:StringOption<number>, hotkey?:Key, pick?:number): string {
     const hotkeyText = (hotkey!==undefined) ? renderHotkey(hotkey) : ''
@@ -1009,7 +1010,6 @@ function restart(state:State): void {
     const spec = state.spec
     state = initialState(spec)
     window.history.pushState(null, "")
-    console.log('pushing state!')
     playGame(state.attachUI(webUI)).catch(e => {
         if (e instanceof InvalidHistory) {
             alert(e)
