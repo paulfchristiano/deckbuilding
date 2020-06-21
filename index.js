@@ -197,7 +197,7 @@ function serveMain(req, res) {
     return __awaiter(this, void 0, void 0, function () {
         return __generator(this, function (_a) {
             try {
-                res.render('pages/main', { seed: undefined });
+                res.render('pages/main', { seed: undefined, tutorial: false });
             }
             catch (err) {
                 console.error(err);
@@ -217,7 +217,7 @@ function serveDaily(req, res) {
                     return [4 /*yield*/, dailySeed()];
                 case 1:
                     seed = _a.sent();
-                    res.render('pages/main', { seed: seed });
+                    res.render('pages/main', { seed: seed, tutorial: false });
                     return [3 /*break*/, 3];
                 case 2:
                     err_1 = _a.sent();
@@ -226,6 +226,14 @@ function serveDaily(req, res) {
                     return [3 /*break*/, 3];
                 case 3: return [2 /*return*/];
             }
+        });
+    });
+}
+function serveTutorial(req, res) {
+    return __awaiter(this, void 0, void 0, function () {
+        return __generator(this, function (_a) {
+            res.render('pages/main', { seed: undefined, tutorial: true });
+            return [2 /*return*/];
         });
     });
 }
@@ -410,6 +418,7 @@ express()
     .get('/play', serveMain)
     .get('/', serveDaily)
     .get('/daily', serveDaily)
+    .get('/tutorial', serveTutorial)
     .post('/submit', function (req, res) { return __awaiter(void 0, void 0, void 0, function () {
     var seed, score, username, history_1, _a, valid, explanation, results, err_6;
     return __generator(this, function (_b) {

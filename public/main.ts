@@ -709,6 +709,159 @@ function clearChoice(): void {
     $('#undoArea').html('')
 }
 
+// ------------------------------------------ Tutorial
+
+interface tutorialStage {
+    text: string[];
+    nextAction?: number;
+}
+
+const tutorialStages:tutorialStage[] = [
+    {
+        text: [`Welcome to the tutorial.
+        It will walk you through the first few actions of a simple game.
+        Press enter or click 'Next' to advance.`,
+        `When you use an event or play a card, you first pay its cost
+        then follows its instructions.
+        After pressing 'Next',
+        hover over Refresh to see what it does, then click on it to use it.`],
+        nextAction:0,
+    },
+    {
+        text: [`When you used Refresh you spent @4,
+        because that's the cost of Refresh.
+         You can see how much @ you've spent at the top of the screen.
+         The goal of the game is to spend as little as possible.`,
+        `After paying Refresh's cost, you put your discard pile into your hand.
+         These are the cards available to play.`,
+        `Then you gained 5 actions, which you can use to play cards from your hand,
+         and 1 buy, which you can use to buy a card from the supply.
+         Your actions and buys are visible at the top of the screen.`,
+        `You have $0, so you can't buy much.
+         But you can use an action to play a Copper from your hand.`],
+        nextAction:0,
+    },
+    {
+        text: [
+            `When you play Copper, you follow its instructions and gain $1.
+             You can see your $ at the top of the screen.
+             You can also see that you've spent 1 action so have 4 remaining.`,
+        ],
+        nextAction: 0
+    },
+    { text: [], nextAction: 0 },
+    { 
+        text: [`Now that you have $3 and a buy, you can buy a Silver.`],
+        nextAction: 3
+    },
+    { 
+        text: [`When you buy a card, you lose a buy and the $ you spent on it.
+        Then you gain a copy of that card in your discard pile.
+        Next time you Refresh you will have an extra Silver to play.`,
+        `Note that using an event like Refresh or Duplicate doesn't require a buy.`,
+        `For now, click on an Estate to play it.`],
+        nextAction: 0
+    },
+    { 
+        text: [`You spent @ to play the estate, and gained 1 vp.
+        The goal of the game is to get to ${VP_GOAL}vp
+        using as little @ as possible.`,
+        `Playing an Estate is often a bad idea, since it's possible
+         to get much more than one vp per @ you spend.`,
+        `This is a very small kingdom for the purposes of learning.
+        The fastest win for using these cards is @38. Good luck!`,
+        `You can press '?' or click 'Help' to view the help at any time.`],
+    },
+]
+
+class tutorialUI {
+    public stage:number = 0;
+    public readonly innerUI:UI = webUI;
+    constructor(
+        public readonly stages:tutorialStage[]
+    ) {}
+    async choice<T>(
+        state: State,
+        choicePrompt: string,
+        options: Option<T>[],
+    ): Promise<number> {
+        if (this.stage < this.stages.length) {
+            const stage = this.stages[this.stage]
+            const validIndex = stage.nextAction;
+
+            if (validIndex != undefined) options = [options[validIndex]];
+            const result = this.innerUI.choice(
+                state,
+                choicePrompt,
+                options
+            ).then(x => {
+                this.stage += 1
+                return (validIndex != undefined) ? validIndex : x
+            }).catch(e => {
+                if (e instanceof Undo) {
+                    if (validIndex === undefined) this.stage += 1;
+                    else this.stage -= 1
+                }
+                throw e
+            })
+            renderTutorialMessage(stage.text)
+            return result
+        }
+        else return this.innerUI.choice(state, choicePrompt, options)
+    }
+    async multichoice<T>(
+        state: State,
+        choicePrompt: string,
+        options: Option<T>[],
+        validator:((xs:T[]) => boolean) = (xs => true)
+    ) {
+        return this.innerUI.multichoice(state, choicePrompt, options, validator)
+    }
+    async victory(state:State) {
+        return this.innerUI.victory(state)
+    }
+}
+
+function renderTutorialMessage(text:string[]) {
+    $('#tutorialDialog').html(
+        `<div id='tutorialText'></div>` +
+         `<span class="option" choosable id="tutorialNext">
+             ${renderHotkey('⏎')} Next
+         </span>`
+    )
+    let step:number = 0;
+    $('#tutorialDialog').attr('active', 'true')
+    function next() {
+        if (step >= text.length) {
+            $('#tutorialDialog').attr('active', 'false')
+        } else {
+            $('#tutorialText').html(text[step])
+            step += 1
+        }
+    }
+    keyListeners.set('Enter', next)
+    next()
+    $('#tutorialDialog').keydown((e:any) => {
+        if (e.keyCode == 13 || e.keyCode == 27) {
+            next()
+            e.preventDefault()
+        }
+    })
+    $('#tutorialNext').on('click', next)
+}
+
+const tutorialSpec:GameSpec = {
+    seed: '',
+    cards:extractList('Throne Room', mixins),
+    events:extractList('Duplicate', eventMixins),
+    testing: false,
+    type: 'main'
+}
+
+export function loadTutorial(){
+    const state = initialState(tutorialSpec)
+    startGame(state, new tutorialUI(tutorialStages))
+}
 
 // ------------------------------------------ Help
 
@@ -720,6 +873,7 @@ function bindHelp(state:State, renderer: () => void) {
     function pick() {
         attach(renderer)
         const helpLines:string[] = [
+            `Rules:`,
             `The goal of the game is to get to ${VP_GOAL} points (vp) using as little energy (@) as possible.`,
             `When you buy a card, pay its buy cost then create a copy of it in your discard pile.`,
             "When you play a card or use an event, pay its cost then follow its instructions.",
@@ -730,8 +884,13 @@ function bindHelp(state:State, renderer: () => void) {
             "You can activate the abilities of cards in play, marked with (ability).",
             "Effects marked with (static) apply whenever the card is in the supply.",
             "Effects marked with (trigger) apply whenever the card is in play.",
+            `&nbsp;`,
+            `Other help:`,
+            "Press 'z' or click the undo button to undo the last move.",
+            "Press '/' or click the hotkey button to turn on hotkeys.",
+            "You can use the current URL to link to the current state of this game.",
             `You can play today's <a href='daily'>daily kingdom</a>, which refreshes midnight EDT.`,
-            `Visit <a href="${specToURL(state.spec)}">this link</a> to replay this kingdom anytime.`,
+            `Visit <a href="${specToURL(state.spec)}">this link</a> to replay the current kingdom anytime.`,
             `Or visit the <a href="picker.html">kingdom picker<a> to pick a kingdom.`,
         ]
         if (submittable(state.spec))
@@ -950,19 +1109,19 @@ function getHistory(): string | null {
     return window.location.hash.substring(1) || null;
 }
 
-export function load(): void {
+export function load(seed?:string): void {
     let spec:GameSpec = {seed:randomSeed(), type:'main'}
-    try {
-        if (window.serverSeed !== undefined && window.serverSeed.length > 0) {
-            spec = {seed:window.serverSeed, type:'main'}
-        } else {
+    if (seed !== undefined && seed.length > 0) {
+        spec = {seed:seed, type:'main'}
+    } else {
+        try {
             spec = specFromURL(new URLSearchParams(window.location.search))
-        }
-    } catch(e) {
-        if (e instanceof MalformedSpec) {
-            alert(e)
-        } else {
-            throw e
+        } catch(e) {
+            if (e instanceof MalformedSpec) {
+                alert(e)
+            } else {
+                throw e
+            }
         }
     }
     let state = initialState(spec)
@@ -989,12 +1148,16 @@ export function load(): void {
         }
     }
 
-    heartbeat(spec)
-    const interval:any = setInterval(() => heartbeat(spec, interval), 10000)
+    startGame(state)
+}
 
-    window.addEventListener("hashchange", load, false);
+function startGame(state:State, ui:UI=webUI): void {
+    heartbeat(state.spec)
+    const interval:any = setInterval(() => heartbeat(state.spec, interval), 10000)
 
-    playGame(state.attachUI(webUI)).catch(e => {
+    window.addEventListener("hashchange", () => load(), false);
+
+    playGame(state.attachUI(ui)).catch(e => {
         if (e instanceof InvalidHistory) {
             alert(e)
             playGame(e.state.clearFuture())

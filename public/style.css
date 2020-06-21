@@ -40,6 +40,25 @@
 #scoreSubmitter[active='true'] {
     visibility:visible;
 }
+#tutorialText {
+    padding-bottom: 1em;
+}
+#tutorialDialog {
+    position:absolute;
+    visibility:hidden;
+    top:5em;
+    left:5em;
+    font-size: 1.5em;
+    width: 15em;
+    border: 3px solid;
+    border-radius: 6px;
+    padding: 1em;
+    background: white;
+    z-index:3;
+}
+#tutorialDialog[active='true'] {
+    visibility:visible;
+}
 #username {
     margin-left: 0.5em;
     margin-right: 0.5em;

@@ -4,9 +4,12 @@
     <link rel="modulepreload" href="/logic.js">
     <script type="text/javascript" src="jquery.js"></script>
     <script type="module">
-        import {load} from '/main.js'
-        window.serverSeed = '<%= seed %>'
-        load()
+        import {load, loadTutorial} from '/main.js'
+        if (<%= tutorial%>) {
+            loadTutorial()
+        } else {
+            load('<%= seed%>')
+        }
     </script>
     <link rel="stylesheet" type="text/css" href="style.css"/>
     <title>Progression</title>
@@ -15,6 +18,9 @@
 <body>
 
 <div id='scoreSubmitter'>
+</div>
+
+<div id='tutorialDialog'>
 </div>
 
 <div id='resources'>

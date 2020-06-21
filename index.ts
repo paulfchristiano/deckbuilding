@@ -87,7 +87,7 @@ type RecentEntry = {version:string, age:string, score:number, username:string, s
 
 async function serveMain(req:any, res:any) {
     try {
-          res.render('pages/main', {seed:undefined})
+          res.render('pages/main', {seed:undefined, tutorial:false})
       } catch(err) {
           console.error(err);
           res.send(err)
@@ -97,11 +97,15 @@ async function serveMain(req:any, res:any) {
 async function serveDaily(req:any, res:any) {
     try {
         const seed = await dailySeed()
-        res.render('pages/main', {seed:seed})
+        res.render('pages/main', {seed:seed, tutorial:false})
     } catch(err) {
         console.error(err);
         res.send('Error: ' + err);
     }
+}
+
+async function serveTutorial(req:any, res:any) {
+  res.render('pages/main', {seed:undefined, tutorial:true})
 }
 
 express()
@@ -222,6 +226,7 @@ express()
     .get('/play', serveMain)
     .get('/', serveDaily)
     .get('/daily', serveDaily)
+    .get('/tutorial', serveTutorial)
     .post('/submit', async (req:any, res:any) => {
         try {
             if (sql == null) {

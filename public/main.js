@@ -793,6 +793,132 @@ function clearChoice() {
     $('#options').html('');
     $('#undoArea').html('');
 }
+var tutorialStages = [
+    {
+        text: ["Welcome to the tutorial.\n        It will walk you through the first few actions of a simple game.\n        Press enter or click 'Next' to advance.",
+            "When you use an event or play a card, you first pay its cost\n        then follows its instructions.\n        After pressing 'Next',\n        hover over Refresh to see what it does, then click on it to use it."],
+        nextAction: 0,
+    },
+    {
+        text: ["When you used Refresh you spent @4,\n        because that's the cost of Refresh.\n         You can see how much @ you've spent at the top of the screen.\n         The goal of the game is to spend as little as possible.",
+            "After paying Refresh's cost, you put your discard pile into your hand.\n         These are the cards available to play.",
+            "Then you gained 5 actions, which you can use to play cards from your hand,\n         and 1 buy, which you can use to buy a card from the supply.\n         Your actions and buys are visible at the top of the screen.",
+            "You have $0, so you can't buy much.\n         But you can use an action to play a Copper from your hand."],
+        nextAction: 0,
+    },
+    {
+        text: [
+            "When you play Copper, you follow its instructions and gain $1.\n             You can see your $ at the top of the screen.\n             You can also see that you've spent 1 action so have 4 remaining.",
+        ],
+        nextAction: 0
+    },
+    { text: [], nextAction: 0 },
+    {
+        text: ["Now that you have $3 and a buy, you can buy a Silver."],
+        nextAction: 3
+    },
+    {
+        text: ["When you buy a card, you lose a buy and the $ you spent on it.\n        Then you gain a copy of that card in your discard pile.\n        Next time you Refresh you will have an extra Silver to play.",
+            "Note that using an event like Refresh or Duplicate doesn't require a buy.",
+            "For now, click on an Estate to play it."],
+        nextAction: 0
+    },
+    {
+        text: ["You spent @ to play the estate, and gained 1 vp.\n        The goal of the game is to get to " + VP_GOAL + "vp\n        using as little @ as possible.",
+            "Playing an Estate is often a bad idea, since it's possible\n         to get much more than one vp per @ you spend.",
+            "This is a very small kingdom for the purposes of learning.\n        The fastest win for using these cards is @38. Good luck!",
+            "You can press '?' or click 'Help' to view the help at any time."],
+    },
+];
+var tutorialUI = /** @class */ (function () {
+    function tutorialUI(stages) {
+        this.stages = stages;
+        this.stage = 0;
+        this.innerUI = webUI;
+    }
+    tutorialUI.prototype.choice = function (state, choicePrompt, options) {
+        return __awaiter(this, void 0, void 0, function () {
+            var stage, validIndex_1, result;
+            var _this = this;
+            return __generator(this, function (_a) {
+                if (this.stage < this.stages.length) {
+                    stage = this.stages[this.stage];
+                    validIndex_1 = stage.nextAction;
+                    if (validIndex_1 != undefined)
+                        options = [options[validIndex_1]];
+                    result = this.innerUI.choice(state, choicePrompt, options).then(function (x) {
+                        _this.stage += 1;
+                        return (validIndex_1 != undefined) ? validIndex_1 : x;
+                    }).catch(function (e) {
+                        if (e instanceof Undo) {
+                            if (validIndex_1 === undefined)
+                                _this.stage += 1;
+                            else
+                                _this.stage -= 1;
+                        }
+                        throw e;
+                    });
+                    renderTutorialMessage(stage.text);
+                    return [2 /*return*/, result];
+                }
+                else
+                    return [2 /*return*/, this.innerUI.choice(state, choicePrompt, options)];
+                return [2 /*return*/];
+            });
+        });
+    };
+    tutorialUI.prototype.multichoice = function (state, choicePrompt, options, validator) {
+        if (validator === void 0) { validator = (function (xs) { return true; }); }
+        return __awaiter(this, void 0, void 0, function () {
+            return __generator(this, function (_a) {
+                return [2 /*return*/, this.innerUI.multichoice(state, choicePrompt, options, validator)];
+            });
+        });
+    };
+    tutorialUI.prototype.victory = function (state) {
+        return __awaiter(this, void 0, void 0, function () {
+            return __generator(this, function (_a) {
+                return [2 /*return*/, this.innerUI.victory(state)];
+            });
+        });
+    };
+    return tutorialUI;
+}());
+function renderTutorialMessage(text) {
+    $('#tutorialDialog').html("<div id='tutorialText'></div>" +
+        ("<span class=\"option\" choosable id=\"tutorialNext\">\n             " + renderHotkey('⏎') + " Next\n         </span>"));
+    var step = 0;
+    $('#tutorialDialog').attr('active', 'true');
+    function next() {
+        if (step >= text.length) {
+            $('#tutorialDialog').attr('active', 'false');
+        }
+        else {
+            $('#tutorialText').html(text[step]);
+            step += 1;
+        }
+    }
+    keyListeners.set('Enter', next);
+    next();
+    $('#tutorialDialog').keydown(function (e) {
+        if (e.keyCode == 13 || e.keyCode == 27) {
+            next();
+            e.preventDefault();
+        }
+    });
+    $('#tutorialNext').on('click', next);
+}
+var tutorialSpec = {
+    seed: '',
+    cards: extractList('Throne Room', mixins),
+    events: extractList('Duplicate', eventMixins),
+    testing: false,
+    type: 'main'
+};
+export function loadTutorial() {
+    var state = initialState(tutorialSpec);
+    startGame(state, new tutorialUI(tutorialStages));
+}
 // ------------------------------------------ Help
 function bindHelp(state, renderer) {
     function attach(f) {
@@ -802,6 +928,7 @@ function bindHelp(state, renderer) {
     function pick() {
         attach(renderer);
         var helpLines = [
+            "Rules:",
             "The goal of the game is to get to " + VP_GOAL + " points (vp) using as little energy (@) as possible.",
             "When you buy a card, pay its buy cost then create a copy of it in your discard pile.",
             "When you play a card or use an event, pay its cost then follow its instructions.",
@@ -812,8 +939,13 @@ function bindHelp(state, renderer) {
             "You can activate the abilities of cards in play, marked with (ability).",
             "Effects marked with (static) apply whenever the card is in the supply.",
             "Effects marked with (trigger) apply whenever the card is in play.",
+            "&nbsp;",
+            "Other help:",
+            "Press 'z' or click the undo button to undo the last move.",
+            "Press '/' or click the hotkey button to turn on hotkeys.",
+            "You can use the current URL to link to the current state of this game.",
             "You can play today's <a href='daily'>daily kingdom</a>, which refreshes midnight EDT.",
-            "Visit <a href=\"" + specToURL(state.spec) + "\">this link</a> to replay this kingdom anytime.",
+            "Visit <a href=\"" + specToURL(state.spec) + "\">this link</a> to replay the current kingdom anytime.",
             "Or visit the <a href=\"picker.html\">kingdom picker<a> to pick a kingdom.",
         ];
         if (submittable(state.spec))
@@ -1075,22 +1207,22 @@ function specFromURL(search) {
 function getHistory() {
     return window.location.hash.substring(1) || null;
 }
-export function load() {
+export function load(seed) {
     var spec = { seed: randomSeed(), type: 'main' };
-    try {
-        if (window.serverSeed !== undefined && window.serverSeed.length > 0) {
-            spec = { seed: window.serverSeed, type: 'main' };
-        }
-        else {
+    if (seed !== undefined && seed.length > 0) {
+        spec = { seed: seed, type: 'main' };
+    }
+    else {
+        try {
             spec = specFromURL(new URLSearchParams(window.location.search));
         }
-    }
-    catch (e) {
-        if (e instanceof MalformedSpec) {
-            alert(e);
-        }
-        else {
-            throw e;
+        catch (e) {
+            if (e instanceof MalformedSpec) {
+                alert(e);
+            }
+            else {
+                throw e;
+            }
         }
     }
     var state = initialState(spec);
@@ -1118,10 +1250,14 @@ export function load() {
             alert("Error loading history: " + e);
         }
     }
-    heartbeat(spec);
-    var interval = setInterval(function () { return heartbeat(spec, interval); }, 10000);
-    window.addEventListener("hashchange", load, false);
-    playGame(state.attachUI(webUI)).catch(function (e) {
+    startGame(state);
+}
+function startGame(state, ui) {
+    if (ui === void 0) { ui = webUI; }
+    heartbeat(state.spec);
+    var interval = setInterval(function () { return heartbeat(state.spec, interval); }, 10000);
+    window.addEventListener("hashchange", function () { return load(); }, false);
+    playGame(state.attachUI(ui)).catch(function (e) {
         if (e instanceof InvalidHistory) {
             alert(e);
             playGame(e.state.clearFuture());
