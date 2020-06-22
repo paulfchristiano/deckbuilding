@@ -192,7 +192,7 @@ express()
     })
     .get('/scoreboard', async (req:any, res:any) => {
       try {
-          const url = req.query.url
+          const url = req._parsedUrl.query
           if (sql == null) {
               res.send('Not connected to a database.')
               return

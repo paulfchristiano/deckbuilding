@@ -1043,7 +1043,7 @@ function renderScoreSubmission(state, done) {
     $('#cancelSubmit').on('click', exit);
 }
 function scoreboardURL(spec) {
-    return "scoreboard?url=" + encodeURIComponent(specToURL(spec));
+    return "scoreboard?" + specToURL(spec);
 }
 //TODO: live updates?
 function heartbeat(spec, interval) {

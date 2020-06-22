@@ -47,8 +47,8 @@
             <td><%= r.datestring %></td>
             <td><%= r.best_score %></td>
             <td><%= r.best_user %></td>
-            <td><a href='play?seed=<%= r.seed %>'>play</a></td>
-            <td><a href='scoreboard?seed=<%= r.seed %>'>scores</a></td>
+            <td><a href='play?<%= r.url %>'>play</a></td>
+            <td><a href='scoreboard?seed=<%= r.url %>'>scores</a></td>
             <td><%= r.version%></td>
         </tr>
         <% }); %>

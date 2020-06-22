@@ -992,7 +992,7 @@ function renderScoreSubmission(state:State, done:() => void) {
 }
 
 function scoreboardURL(spec:GameSpec) {
-    return `scoreboard?url=${encodeURIComponent(specToURL(spec))}`
+    return `scoreboard?${specToURL(spec)}`
 }
 
 //TODO: live updates?

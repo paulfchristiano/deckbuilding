@@ -370,7 +370,7 @@ express()
         switch (_b.label) {
             case 0:
                 _b.trys.push([0, 2, , 3]);
-                url = req.query.url;
+                url = req._parsedUrl.query;
                 if (sql == null) {
                     res.send('Not connected to a database.');
                     return [2 /*return*/];
