@@ -1701,8 +1701,12 @@ export function specToURL(spec:GameSpec): string {
         case 'half':
             args.set('seed', spec.seed)
             break
-        case 'pick':
         case 'pickR':
+            args.set('seed', spec.seed)
+            args.set('cards', renderSlots(spec.cards))
+            args.set('events', renderSlots(spec.events))
+            break
+        case 'pick':
             args.set('cards', renderSlots(spec.cards))
             args.set('events', renderSlots(spec.events))
             break
