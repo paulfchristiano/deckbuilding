@@ -8,7 +8,7 @@
         if (<%= tutorial%>) {
             loadTutorial()
         } else {
-            load('<%= url%>')
+            load('<%- url %>') //- for no escaping
         }
     </script>
     <link rel="stylesheet" type="text/css" href="style.css"/>

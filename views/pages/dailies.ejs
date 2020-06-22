@@ -30,6 +30,8 @@
 
 <body>
 
+<h2>Past <%= type %> challenges</h2>
+
 <table class='dailies'>
     <thead>
         <tr>
@@ -44,7 +46,7 @@
     <tbody>
         <% dailies.forEach(function(r) { %>
         <tr> 
-            <td><%= r.datestring %></td>
+            <td><%= r.key %></td>
             <td><%= r.best_score %></td>
             <td><%= r.best_user %></td>
             <td><a href='play?<%= r.url %>'>play</a></td>

@@ -30,34 +30,51 @@ function renderTimeSince(date:Date) {
     return 'Just now'
 }
 
+const challengeTypes = ['full', 'mini']
+
 async function ensureNextMonth(): Promise<void> {
     if (sql == null) return
     const d:Date = new Date()
     for (let i = 0; i < 30; i++) {
-        const secret = randomString()
-        const datestring = renderEastCoastDate(d)
-        const results = await sql`
-            INSERT INTO dailies (datestring, secret, url)
-                        values (${datestring}, ${secret}, ${makeDailyURL(datestring, secret)})
-            ON CONFLICT DO NOTHING
-        `
+        for (const type of dailyTypes) {
+          const secret = randomString()
+          const key = makeDailyKey(type, d)
+          const results = await sql`
+              INSERT INTO dailies (type, key, secret, url)
+                          values (${type}, ${key}, ${secret}, ${makeDailyURL(type, key, secret)})
+              ON CONFLICT DO NOTHING
+          `
+        }
         d.setDate(d.getDate() + 1)
     }
 }
 
-function renderEastCoastDate(inputDate:Date|null = null): string {
-    const d:Date = (inputDate == null) ? new Date() : new Date(inputDate)
-    d.setMinutes(d.getMinutes() + d.getTimezoneOffset() - 240)
-    return d.toLocaleDateString().split('/').join('.')
+type DailyType = 'mini' | 'full'
+const dailyTypes:DailyType[] = ['mini', 'full']
+
+function makeDailyKey(type:DailyType, inputDate:Date|null=null): string {
+  const d:Date = (inputDate == null) ? new Date() : new Date(inputDate)
+  //TODO: this seems like a bad way to handle timezones...
+  d.setMinutes(d.getMinutes() + d.getTimezoneOffset() - 240) //east coast time
+  switch (type) {
+    case 'mini':
+      return d.toLocaleDateString().split('/').join('.')
+    case 'full':
+      //new full challenges only at beginning of Monday/Thursday
+      while (d.getDay() != 1 && d.getDay() != 4)
+        d.setDate(d.getDate() - 1)
+      return d.toLocaleDateString().split('/').join('.')
+  }
+
 }
 
-async function dailyURL(): Promise<string> {
-    const datestring:string = renderEastCoastDate()
-    if (sql == null) return datestring
+async function dailyURL(type:DailyType): Promise<string> {
+    const key:string = makeDailyKey(type)
+    if (sql == null) return makeDailyURL(type, key, 'offline')
     while (true) {
         const results = await sql`
           SELECT url FROM dailies
-          WHERE datestring=${datestring}
+          WHERE type=${type} AND key=${key}
         `
         if (results.length == 0) {
             await ensureNextMonth()
@@ -68,12 +85,19 @@ async function dailyURL(): Promise<string> {
     }
 }
 
-function makeDailyURL(datestring:string, secret:string) {
-    return `seed=${datestring}.${secret}`
+function makeDailyURL(type:DailyType, key:string, secret:string) {
+    switch (type) {
+      case 'mini':
+        return `kind=mini&seed=${key}.${secret}`
+      case 'full':
+        return `seed=${key}.${secret}`
+    }
 }
 
 async function submitForDaily(username:string, url:string, score:number): Promise<void> {
     if (sql == null) return;
+    for (const type of dailyTypes) {
+    }
     await sql`
         UPDATE dailies
         SET best_user = ${username}, best_score=${score}, version=${VERSION}
@@ -90,17 +114,31 @@ async function serveMain(req:any, res:any) {
           res.render('pages/main', {url:undefined, tutorial:false})
       } catch(err) {
           console.error(err);
-          res.send(err)
+          res.send(err.toString())
       }
+}
+
+
+function dailyTypeFromReq(req:any): DailyType {
+  let typeString:string|undefined = req.query.type
+  let type:DailyType|undefined = undefined;
+  for (const dailyType of dailyTypes) {
+    if (typeString == dailyType) type = dailyType
+  }
+  if (typeString === undefined) type = 'full';
+  if (type === undefined) throw Error(`Invalid daily type ${typeString}`)
+  return type
 }
 
 async function serveDaily(req:any, res:any) {
     try {
-        const url = await dailyURL()
+        const type:DailyType = dailyTypeFromReq(req)
+        const url = await dailyURL(type)
+        console.log(url)
         res.render('pages/main', {url:url, tutorial:false})
     } catch(err) {
         console.error(err);
-        res.send('Error: ' + err);
+        res.send(err.toString())
     }
 }
 
@@ -135,7 +173,7 @@ express()
               res.send(results[0].score.toString())
       } catch(err) {
           console.error(err);
-          res.send('Error: ' + err);
+          res.send(err.toString())
       }
     })
     .get('/recent', async (req:any, res:any) => {
@@ -167,7 +205,7 @@ express()
           res.render('pages/recent', {recents:Array.from(recents.values())})
       } catch(err) {
           console.error(err);
-          res.send('Error: ' + err);
+          res.send(err.toString())
       }
     })
     .get('/dailies', async (req:any, res:any) => {
@@ -176,18 +214,22 @@ express()
               res.send('Not connected to a database')
               return
           }
+          let type:DailyType = dailyTypeFromReq(req)
+
+          //TODO: this assumes that key is a date, remove assumption
           const results = await sql`
-              SELECT datestring, url, version, best_score, best_user,
-                     to_date(datestring, 'MM.DD.YYYY') as date
+              SELECT key, url, version, best_score, best_user, type,
+                     to_date(key, 'MM.DD.YYYY') as date
               FROM dailies
+              WHERE type = ${type}
               ORDER BY date DESC
           `
           for (const result of results)
               results.current = (result.version == VERSION)
-          res.render('pages/dailies', {dailies:results.filter((r:any) => r.best_user != null)})
+          res.render('pages/dailies', {type:type, dailies:results.filter((r:any) => r.best_user != null)})
       } catch(err) {
           console.error(err);
-          res.send('Error: ' + err);
+          res.send(err.toString())
       }
     })
     .get('/scoreboard', async (req:any, res:any) => {
@@ -219,7 +261,7 @@ express()
           res.render('pages/scoreboard', {entriesByVersion:entriesByVersion, url:url, currentVersion:VERSION});
       } catch(err) {
           console.error(err);
-          res.send('Error: ' + err);
+          res.send(err.toString())
       }
     })
     .get('/random', serveMain)
@@ -252,7 +294,7 @@ express()
             }
         } catch(err) {
           console.error(err);
-          res.send('Error: ' + err);
+          res.send(err.toString())
         }
     })
     .listen(PORT, () => console.log(`Listening on ${ PORT }`))

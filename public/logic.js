@@ -1779,22 +1779,28 @@ function multichoice(state, prompt, options, validator) {
         });
     });
 }
-function choice(state, prompt, options) {
+function choice(state, prompt, options, automate) {
+    if (automate === void 0) { automate = false; }
     return __awaiter(this, void 0, void 0, function () {
         var index, indices, newState;
         var _a;
         return __generator(this, function (_b) {
             switch (_b.label) {
-                case 0: return [4 /*yield*/, doOrReplay(state, function () {
-                        return __awaiter(this, void 0, void 0, function () { var x; return __generator(this, function (_a) {
-                            switch (_a.label) {
-                                case 0: return [4 /*yield*/, state.ui.choice(state, prompt, options)];
-                                case 1:
-                                    x = _a.sent();
-                                    return [2 /*return*/, [x]];
-                            }
-                        }); });
-                    })];
+                case 0:
+                    if (options.length == 0)
+                        return [2 /*return*/, [state, null]];
+                    if (automate && options.length == 1)
+                        return [2 /*return*/, [state, options[0].value]];
+                    return [4 /*yield*/, doOrReplay(state, function () {
+                            return __awaiter(this, void 0, void 0, function () { var x; return __generator(this, function (_a) {
+                                switch (_a.label) {
+                                    case 0: return [4 /*yield*/, state.ui.choice(state, prompt, options)];
+                                    case 1:
+                                        x = _a.sent();
+                                        return [2 /*return*/, [x]];
+                                }
+                            }); });
+                        })];
                 case 1:
                     _a = __read.apply(void 0, [_b.sent(), 2]), newState = _a[0], indices = _a[1];
                     if (indices.length != 1 || indices[0] >= options.length)
@@ -2605,7 +2611,7 @@ function applyToTarget(f, text, options, isCost) {
             var _a;
             return __generator(this, function (_b) {
                 switch (_b.label) {
-                    case 0: return [4 /*yield*/, choice(state, text, options.map(asChoice))];
+                    case 0: return [4 /*yield*/, choice(state, text, options.map(asChoice), false)];
                     case 1:
                         _a = __read.apply(void 0, [_b.sent(), 2]), state = _a[0], target = _a[1];
                         if (!(target != null)) return [3 /*break*/, 3];

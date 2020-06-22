@@ -1431,8 +1431,11 @@ async function choice<T>(
     state:State,
     prompt:string,
     options:Option<T>[],
+    automate:boolean = false
 ): Promise<[State, T|null]> {
     let index:number;
+    if (options.length == 0) return [state, null];
+    if (automate && options.length == 1) return [state, options[0].value];
     let indices:number[], newState:State; [newState, indices] = await doOrReplay(
         state,
         async function() {const x = await state.ui.choice(state, prompt, options); return [x]},
@@ -2130,7 +2133,7 @@ function applyToTarget(
 ): Transform {
     return async function(state) {
         let target:Card|null; [state, target] = await choice(state,
-            text, options.map(asChoice))
+            text, options.map(asChoice), false)
         if (target != null) state = await f(target)(state);
         if (target == null && isCost) throw new CostNotPaid('No valid targets')
         return state

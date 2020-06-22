@@ -114,53 +114,89 @@ function renderTimeSince(date) {
     }
     return 'Just now';
 }
+var challengeTypes = ['full', 'mini'];
 function ensureNextMonth() {
     return __awaiter(this, void 0, void 0, function () {
-        var d, i, secret, datestring, results;
-        return __generator(this, function (_a) {
-            switch (_a.label) {
+        var d, i, dailyTypes_1, dailyTypes_1_1, type, secret, key, results, e_2_1;
+        var e_2, _a;
+        return __generator(this, function (_b) {
+            switch (_b.label) {
                 case 0:
                     if (sql == null)
                         return [2 /*return*/];
                     d = new Date();
                     i = 0;
-                    _a.label = 1;
+                    _b.label = 1;
                 case 1:
-                    if (!(i < 30)) return [3 /*break*/, 4];
-                    secret = randomString();
-                    datestring = renderEastCoastDate(d);
-                    return [4 /*yield*/, sql(templateObject_1 || (templateObject_1 = __makeTemplateObject(["\n            INSERT INTO dailies (datestring, secret, url)\n                        values (", ", ", ", ", ")\n            ON CONFLICT DO NOTHING\n        "], ["\n            INSERT INTO dailies (datestring, secret, url)\n                        values (", ", ", ", ", ")\n            ON CONFLICT DO NOTHING\n        "])), datestring, secret, makeDailyURL(datestring, secret))];
+                    if (!(i < 30)) return [3 /*break*/, 11];
+                    _b.label = 2;
                 case 2:
-                    results = _a.sent();
-                    d.setDate(d.getDate() + 1);
-                    _a.label = 3;
+                    _b.trys.push([2, 7, 8, 9]);
+                    dailyTypes_1 = (e_2 = void 0, __values(dailyTypes)), dailyTypes_1_1 = dailyTypes_1.next();
+                    _b.label = 3;
                 case 3:
+                    if (!!dailyTypes_1_1.done) return [3 /*break*/, 6];
+                    type = dailyTypes_1_1.value;
+                    secret = randomString();
+                    key = makeDailyKey(type, d);
+                    return [4 /*yield*/, sql(templateObject_1 || (templateObject_1 = __makeTemplateObject(["\n              INSERT INTO dailies (type, key, secret, url)\n                          values (", ", ", ", ", ", ", ")\n              ON CONFLICT DO NOTHING\n          "], ["\n              INSERT INTO dailies (type, key, secret, url)\n                          values (", ", ", ", ", ", ", ")\n              ON CONFLICT DO NOTHING\n          "])), type, key, secret, makeDailyURL(type, key, secret))];
+                case 4:
+                    results = _b.sent();
+                    _b.label = 5;
+                case 5:
+                    dailyTypes_1_1 = dailyTypes_1.next();
+                    return [3 /*break*/, 3];
+                case 6: return [3 /*break*/, 9];
+                case 7:
+                    e_2_1 = _b.sent();
+                    e_2 = { error: e_2_1 };
+                    return [3 /*break*/, 9];
+                case 8:
+                    try {
+                        if (dailyTypes_1_1 && !dailyTypes_1_1.done && (_a = dailyTypes_1.return)) _a.call(dailyTypes_1);
+                    }
+                    finally { if (e_2) throw e_2.error; }
+                    return [7 /*endfinally*/];
+                case 9:
+                    d.setDate(d.getDate() + 1);
+                    _b.label = 10;
+                case 10:
                     i++;
                     return [3 /*break*/, 1];
-                case 4: return [2 /*return*/];
+                case 11: return [2 /*return*/];
             }
         });
     });
 }
-function renderEastCoastDate(inputDate) {
+var dailyTypes = ['mini', 'full'];
+function makeDailyKey(type, inputDate) {
     if (inputDate === void 0) { inputDate = null; }
     var d = (inputDate == null) ? new Date() : new Date(inputDate);
-    d.setMinutes(d.getMinutes() + d.getTimezoneOffset() - 240);
-    return d.toLocaleDateString().split('/').join('.');
+    //TODO: this seems like a bad way to handle timezones...
+    d.setMinutes(d.getMinutes() + d.getTimezoneOffset() - 240); //east coast time
+    switch (type) {
+        case 'mini':
+            return d.toLocaleDateString().split('/').join('.');
+        case 'full':
+            //new full challenges only at beginning of Monday/Thursday
+            while (d.getDay() != 1 && d.getDay() != 4)
+                d.setDate(d.getDate() - 1);
+            return d.toLocaleDateString().split('/').join('.');
+    }
 }
-function dailyURL() {
+function dailyURL(type) {
     return __awaiter(this, void 0, void 0, function () {
-        var datestring, results;
+        var key, results;
         return __generator(this, function (_a) {
             switch (_a.label) {
                 case 0:
-                    datestring = renderEastCoastDate();
+                    key = makeDailyKey(type);
                     if (sql == null)
-                        return [2 /*return*/, datestring];
+                        return [2 /*return*/, makeDailyURL(type, key, 'offline')];
                     _a.label = 1;
                 case 1:
                     if (!true) return [3 /*break*/, 6];
-                    return [4 /*yield*/, sql(templateObject_2 || (templateObject_2 = __makeTemplateObject(["\n          SELECT url FROM dailies\n          WHERE datestring=", "\n        "], ["\n          SELECT url FROM dailies\n          WHERE datestring=", "\n        "])), datestring)];
+                    return [4 /*yield*/, sql(templateObject_2 || (templateObject_2 = __makeTemplateObject(["\n          SELECT url FROM dailies\n          WHERE type=", " AND key=", "\n        "], ["\n          SELECT url FROM dailies\n          WHERE type=", " AND key=", "\n        "])), type, key)];
                 case 2:
                     results = _a.sent();
                     if (!(results.length == 0)) return [3 /*break*/, 4];
@@ -175,19 +211,38 @@ function dailyURL() {
         });
     });
 }
-function makeDailyURL(datestring, secret) {
-    return "seed=" + datestring + "." + secret;
+function makeDailyURL(type, key, secret) {
+    switch (type) {
+        case 'mini':
+            return "kind=mini&seed=" + key + "." + secret;
+        case 'full':
+            return "seed=" + key + "." + secret;
+    }
 }
 function submitForDaily(username, url, score) {
     return __awaiter(this, void 0, void 0, function () {
-        return __generator(this, function (_a) {
-            switch (_a.label) {
+        var dailyTypes_2, dailyTypes_2_1, type;
+        var e_3, _a;
+        return __generator(this, function (_b) {
+            switch (_b.label) {
                 case 0:
                     if (sql == null)
                         return [2 /*return*/];
+                    try {
+                        for (dailyTypes_2 = __values(dailyTypes), dailyTypes_2_1 = dailyTypes_2.next(); !dailyTypes_2_1.done; dailyTypes_2_1 = dailyTypes_2.next()) {
+                            type = dailyTypes_2_1.value;
+                        }
+                    }
+                    catch (e_3_1) { e_3 = { error: e_3_1 }; }
+                    finally {
+                        try {
+                            if (dailyTypes_2_1 && !dailyTypes_2_1.done && (_a = dailyTypes_2.return)) _a.call(dailyTypes_2);
+                        }
+                        finally { if (e_3) throw e_3.error; }
+                    }
                     return [4 /*yield*/, sql(templateObject_3 || (templateObject_3 = __makeTemplateObject(["\n        UPDATE dailies\n        SET best_user = ", ", best_score=", ", version=", "\n        WHERE url = ", " AND\n            (version = ", " OR version ISNULL) AND\n            (best_score > ", " OR best_score ISNULL)\n    "], ["\n        UPDATE dailies\n        SET best_user = ", ", best_score=", ", version=", "\n        WHERE url = ", " AND\n            (version = ", " OR version ISNULL) AND\n            (best_score > ", " OR best_score ISNULL)\n    "])), username, score, VERSION, url, VERSION, score)];
                 case 1:
-                    _a.sent();
+                    _b.sent();
                     return [2 /*return*/];
             }
         });
@@ -201,28 +256,54 @@ function serveMain(req, res) {
             }
             catch (err) {
                 console.error(err);
-                res.send(err);
+                res.send(err.toString());
             }
             return [2 /*return*/];
         });
     });
 }
+function dailyTypeFromReq(req) {
+    var e_4, _a;
+    var typeString = req.query.type;
+    var type = undefined;
+    try {
+        for (var dailyTypes_3 = __values(dailyTypes), dailyTypes_3_1 = dailyTypes_3.next(); !dailyTypes_3_1.done; dailyTypes_3_1 = dailyTypes_3.next()) {
+            var dailyType = dailyTypes_3_1.value;
+            if (typeString == dailyType)
+                type = dailyType;
+        }
+    }
+    catch (e_4_1) { e_4 = { error: e_4_1 }; }
+    finally {
+        try {
+            if (dailyTypes_3_1 && !dailyTypes_3_1.done && (_a = dailyTypes_3.return)) _a.call(dailyTypes_3);
+        }
+        finally { if (e_4) throw e_4.error; }
+    }
+    if (typeString === undefined)
+        type = 'full';
+    if (type === undefined)
+        throw Error("Invalid daily type " + typeString);
+    return type;
+}
 function serveDaily(req, res) {
     return __awaiter(this, void 0, void 0, function () {
-        var url, err_1;
+        var type, url, err_1;
         return __generator(this, function (_a) {
             switch (_a.label) {
                 case 0:
                     _a.trys.push([0, 2, , 3]);
-                    return [4 /*yield*/, dailyURL()];
+                    type = dailyTypeFromReq(req);
+                    return [4 /*yield*/, dailyURL(type)];
                 case 1:
                     url = _a.sent();
+                    console.log(url);
                     res.render('pages/main', { url: url, tutorial: false });
                     return [3 /*break*/, 3];
                 case 2:
                     err_1 = _a.sent();
                     console.error(err_1);
-                    res.send('Error: ' + err_1);
+                    res.send(err_1.toString());
                     return [3 /*break*/, 3];
                 case 3: return [2 /*return*/];
             }
@@ -268,7 +349,7 @@ express()
             case 2:
                 err_2 = _a.sent();
                 console.error(err_2);
-                res.send('Error: ' + err_2);
+                res.send(err_2.toString());
                 return [3 /*break*/, 3];
             case 3: return [2 /*return*/];
         }
@@ -276,7 +357,7 @@ express()
 }); })
     .get('/recent', function (req, res) { return __awaiter(void 0, void 0, void 0, function () {
     var results, recents, results_1, results_1_1, result, oldBest, err_3;
-    var e_2, _a;
+    var e_5, _a;
     return __generator(this, function (_b) {
         switch (_b.label) {
             case 0:
@@ -307,27 +388,27 @@ express()
                         }
                     }
                 }
-                catch (e_2_1) { e_2 = { error: e_2_1 }; }
+                catch (e_5_1) { e_5 = { error: e_5_1 }; }
                 finally {
                     try {
                         if (results_1_1 && !results_1_1.done && (_a = results_1.return)) _a.call(results_1);
                     }
-                    finally { if (e_2) throw e_2.error; }
+                    finally { if (e_5) throw e_5.error; }
                 }
                 res.render('pages/recent', { recents: Array.from(recents.values()) });
                 return [3 /*break*/, 3];
             case 2:
                 err_3 = _b.sent();
                 console.error(err_3);
-                res.send('Error: ' + err_3);
+                res.send(err_3.toString());
                 return [3 /*break*/, 3];
             case 3: return [2 /*return*/];
         }
     });
 }); })
     .get('/dailies', function (req, res) { return __awaiter(void 0, void 0, void 0, function () {
-    var results, results_2, results_2_1, result, err_4;
-    var e_3, _a;
+    var type, results, results_2, results_2_1, result, err_4;
+    var e_6, _a;
     return __generator(this, function (_b) {
         switch (_b.label) {
             case 0:
@@ -336,7 +417,8 @@ express()
                     res.send('Not connected to a database');
                     return [2 /*return*/];
                 }
-                return [4 /*yield*/, sql(templateObject_6 || (templateObject_6 = __makeTemplateObject(["\n              SELECT datestring, url, version, best_score, best_user,\n                     to_date(datestring, 'MM.DD.YYYY') as date\n              FROM dailies\n              ORDER BY date DESC\n          "], ["\n              SELECT datestring, url, version, best_score, best_user,\n                     to_date(datestring, 'MM.DD.YYYY') as date\n              FROM dailies\n              ORDER BY date DESC\n          "])))];
+                type = dailyTypeFromReq(req);
+                return [4 /*yield*/, sql(templateObject_6 || (templateObject_6 = __makeTemplateObject(["\n              SELECT key, url, version, best_score, best_user, type,\n                     to_date(key, 'MM.DD.YYYY') as date\n              FROM dailies\n              WHERE type = ", "\n              ORDER BY date DESC\n          "], ["\n              SELECT key, url, version, best_score, best_user, type,\n                     to_date(key, 'MM.DD.YYYY') as date\n              FROM dailies\n              WHERE type = ", "\n              ORDER BY date DESC\n          "])), type)];
             case 1:
                 results = _b.sent();
                 try {
@@ -345,19 +427,19 @@ express()
                         results.current = (result.version == VERSION);
                     }
                 }
-                catch (e_3_1) { e_3 = { error: e_3_1 }; }
+                catch (e_6_1) { e_6 = { error: e_6_1 }; }
                 finally {
                     try {
                         if (results_2_1 && !results_2_1.done && (_a = results_2.return)) _a.call(results_2);
                     }
-                    finally { if (e_3) throw e_3.error; }
+                    finally { if (e_6) throw e_6.error; }
                 }
-                res.render('pages/dailies', { dailies: results.filter(function (r) { return r.best_user != null; }) });
+                res.render('pages/dailies', { type: type, dailies: results.filter(function (r) { return r.best_user != null; }) });
                 return [3 /*break*/, 3];
             case 2:
                 err_4 = _b.sent();
                 console.error(err_4);
-                res.send('Error: ' + err_4);
+                res.send(err_4.toString());
                 return [3 /*break*/, 3];
             case 3: return [2 /*return*/];
         }
@@ -365,7 +447,7 @@ express()
 }); })
     .get('/scoreboard', function (req, res) { return __awaiter(void 0, void 0, void 0, function () {
     var url, results, entries, entriesByVersion, entries_1, entries_1_1, entry, lastVersion, err_5;
-    var e_4, _a;
+    var e_7, _a;
     return __generator(this, function (_b) {
         switch (_b.label) {
             case 0:
@@ -396,19 +478,19 @@ express()
                         }
                     }
                 }
-                catch (e_4_1) { e_4 = { error: e_4_1 }; }
+                catch (e_7_1) { e_7 = { error: e_7_1 }; }
                 finally {
                     try {
                         if (entries_1_1 && !entries_1_1.done && (_a = entries_1.return)) _a.call(entries_1);
                     }
-                    finally { if (e_4) throw e_4.error; }
+                    finally { if (e_7) throw e_7.error; }
                 }
                 res.render('pages/scoreboard', { entriesByVersion: entriesByVersion, url: url, currentVersion: VERSION });
                 return [3 /*break*/, 3];
             case 2:
                 err_5 = _b.sent();
                 console.error(err_5);
-                res.send('Error: ' + err_5);
+                res.send(err_5.toString());
                 return [3 /*break*/, 3];
             case 3: return [2 /*return*/];
         }
@@ -453,7 +535,7 @@ express()
             case 6:
                 err_6 = _b.sent();
                 console.error(err_6);
-                res.send('Error: ' + err_6);
+                res.send(err_6.toString());
                 return [3 /*break*/, 7];
             case 7: return [2 /*return*/];
         }

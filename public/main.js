@@ -813,7 +813,6 @@ var tutorialStages = [
     },
     {
         text: ["You spent @ to play the estate, and gained 1 vp.\n        The goal of the game is to get to " + VP_GOAL + "vp\n        using as little @ as possible.",
-            "Playing an Estate is often a bad idea, since it's possible\n         to get much more than one vp per @ you spend.",
             "This is a very small kingdom for the purposes of learning.\n        The fastest win for using these cards is @38. Good luck!",
             "You can press '?' or click 'Help' to view the help at any time."],
     },
@@ -1072,10 +1071,11 @@ function getHistory() {
     return window.location.hash.substring(1) || null;
 }
 export function load(fixedURL) {
-    var url = (fixedURL === undefined) ? window.location.search : fixedURL;
+    if (fixedURL === void 0) { fixedURL = ''; }
+    var url = (fixedURL.length == 0) ? window.location.search : fixedURL;
     var spec;
     try {
-        spec = specFromURL(window.location.search);
+        spec = specFromURL(url);
     }
     catch (e) {
         if (e instanceof MalformedSpec) {
@@ -1086,7 +1086,6 @@ export function load(fixedURL) {
             throw e;
         }
     }
-    var state = initialState(spec);
     var history = null;
     var historyString = getHistory();
     if (historyString != null) {
@@ -1103,13 +1102,18 @@ export function load(fixedURL) {
             }
         }
     }
+    var state;
     if (history !== null) {
         try {
             state = State.fromReplay(history, spec);
         }
         catch (e) {
             alert("Error loading history: " + e);
+            state = initialState(spec);
         }
+    }
+    else {
+        state = initialState(spec);
     }
     startGame(state);
 }

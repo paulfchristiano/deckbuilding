@@ -1,5 +1,13 @@
 ### migration 6/21/2020
 
+#Add types to dailies table
+
+ALTER TABLE dailies ADD COLUMN type text NOT NULL DEFAULT 'full';
+ALTER TABLE dailies ALTER COLUMN type DROP DEFAULT;
+ALTER TABLE dailies RENAME datestring TO key;
+ALTER TABLE dailies DROP CONSTRAINT dailies_datestring_key;
+ALTER TABLE dailies ADD CONSTRAINT unique_key_per_type UNIQUE (key, type);
+
 #Add URLs to the dailies table
 
 ALTER TABLE dailies ADD COLUMN url TEXT;
