@@ -441,21 +441,18 @@ function get<T, K extends keyof T>(
 export type SlotSpec = CardSpec|'Random'
 export const RANDOM = 'Random'
 
-export interface FullGameSpec {
-    seed: string;
-    cards: SlotSpec[];
-    events: SlotSpec[];
-    testing: boolean;
+export interface Kingdom {
+    cards: CardSpec[];
+    events: CardSpec[];
 }
 
-export interface GameSpec {
-    seed: string;
-    cards?: SlotSpec[];
-    events?: SlotSpec[];
-    testing?: boolean;
-    type: 'main';
-}
-
+export type GameSpec = 
+    { kind: 'test' } |
+    { kind: 'pick', cards:CardSpec[], events:CardSpec[] } |
+    { kind: 'pickR', cards:SlotSpec[], events:SlotSpec[], seed: string } |
+    { kind: 'full', seed: string} | 
+    { kind: 'half', seed: string} |
+    { kind: 'mini', seed: string}
 
 export class State {
     public readonly coin:number;
@@ -471,7 +468,7 @@ export class State {
     public readonly aside:Zone;
     public readonly events:Zone;
     constructor(
-        public readonly spec: GameSpec = {seed: '', type:'main'},
+        public readonly spec: GameSpec = {kind:'full', seed: ''},
         public readonly ui: UI = noUI,
         public readonly resources:Resources =
             {coin:0, energy:0, points:0, actions:0, buys:0},
@@ -1607,20 +1604,162 @@ function hash(s:string):number{
     return hash
 }
 
-const defaultCards:SlotSpec[] = Array(10).fill(RANDOM)
-const defaultEvents:SlotSpec[] = Array(4).fill(RANDOM)
-export function fillSpec(spec:GameSpec): FullGameSpec {
-    if (spec.type != 'main') return assertNever(spec.type)
-    return {
-        seed: (spec.seed === undefined) ? randomSeed() : spec.seed,
-        cards: (spec.cards === undefined) ? defaultCards : spec.cards,
-        events: (spec.events === undefined) ? defaultEvents : spec.events,
-        testing: (spec.testing === undefined) ? false : spec.testing,
+export function cardsAndEvents(
+    spec:GameSpec
+): {cards:SlotSpec[], events:SlotSpec[]} {
+    switch (spec.kind) {
+        case 'full': return {cards: Array(10).fill(RANDOM), events:Array(4).fill(RANDOM)}
+        case 'half': return {cards: Array(5).fill(RANDOM), events:Array(2).fill(RANDOM)}
+        case 'mini': return {cards: Array(3).fill(RANDOM), events:Array(1).fill(RANDOM)}
+        case 'test': return {cards: [], events: []}
+        case 'pick': return {cards: [], events: []}
+        case 'pickR': return {cards: spec.cards, events: spec.events}
+        default: return assertNever(spec)
+    }
+}
+
+export function makeKingdom(spec:GameSpec): Kingdom {
+    switch (spec.kind) {
+        case 'test':
+            return {
+                cards:mixins,
+                events:eventMixins.concat(cheats),
+            }
+        case 'pick':
+            return {cards:spec.cards, events:spec.events}
+        default:
+            const kingdom = cardsAndEvents(spec)
+            return {
+                cards: pickRandoms(kingdom.cards, mixins, 'cards' + spec.seed),
+                events: pickRandoms(kingdom.events, eventMixins, 'events' + spec.seed),
+            }
     }
 }
 
 function randomSeed(): string {
     return Math.random().toString(36).substring(2, 7)
+}
+
+export class MalformedSpec extends Error {
+    constructor(public s:string) {
+        super(`Not a well-formed game spec: ${s}`)
+        Object.setPrototypeOf(this, MalformedSpec.prototype)
+    }
+}
+
+export function getTutorialSpec(): GameSpec {
+    return {
+        cards:[throneRoom],
+        events:[duplicate],
+        kind: 'pick'
+    }
+}
+
+function makeDictionary(xs:CardSpec[]): Map<string, CardSpec> {
+    const result:Map<string, CardSpec> = new Map()
+    for (const x of xs) result.set(x.name, x);
+    return result
+}
+
+function extractList(s:string, xs:CardSpec[]): SlotSpec[] {
+    if (s.length == 0) return []
+    const dictionary = makeDictionary(xs)
+    const result:SlotSpec[] = []
+    for (const name of s.split(',')) {
+        if (name == RANDOM) result.push(RANDOM)
+        else {
+            const lookup = dictionary.get(name)
+            if (lookup == undefined)
+                throw new MalformedSpec(`${name} is not a valid name`);
+            result.push(lookup)
+        }
+    }
+    return result
+}
+
+function mapToURL(args:Map<string, string>): string {
+    return Array.from(args.entries()).map(x => `${x[0]}=${x[1]}`).join('&')
+}
+
+function renderSlots(slots:SlotSpec[]) {
+    const result:string[] = []
+    for (const slot of slots) {
+        if (slot == RANDOM) result.push(slot);
+        else result.push(slot.name);
+    }
+    return result.join(',')
+
+}
+
+export function specToURL(spec:GameSpec): string {
+    const args:Map<string, string> = new Map()
+    if (spec.kind != 'full')
+        args.set('kind', spec.kind)
+    switch (spec.kind) {
+        case 'full':
+        case 'mini':
+        case 'half':
+            args.set('seed', spec.seed)
+            break
+        case 'pick':
+        case 'pickR':
+            args.set('cards', renderSlots(spec.cards))
+            args.set('events', renderSlots(spec.events))
+            break
+        case 'test': break
+        default: return assertNever(spec)
+    }
+    return mapToURL(args)
+}
+
+export function specFromURL(search:string): GameSpec {
+    const searchParams = new URLSearchParams(search)
+    const urlKind:string|null = searchParams.get('kind')
+    const cards:string|null = searchParams.get('cards')
+    const events:string|null = searchParams.get('events')
+    const seed:string|null = searchParams.get('seed') || randomSeed()
+    let kind:string
+
+    if ((cards === null) != (events === null)) {
+        throw new MalformedSpec('Must pick cards iff picking events.')
+    }
+
+    if (urlKind !== null) {
+        kind = urlKind
+    } else {
+        if (cards === null || events === null) kind = 'full';
+        else if (cards.includes(RANDOM) || events.includes(RANDOM)) kind = 'pickR';
+        else kind = 'pick';
+    }
+
+    switch(kind) {
+        case 'full':
+        case 'half':
+        case 'mini':
+            return {kind:kind, seed:seed}
+        case 'pick':
+            const cardSpecs:CardSpec[] = [];
+            const eventSpecs:CardSpec[] = [];
+            if (cards === null) throw new MalformedSpec('Custom kingdoms must pick cards')
+            if (events === null) throw new MalformedSpec('Custom kingdoms must pick events')
+            for (const card of extractList(cards, mixins)) {
+                if (card == RANDOM) throw new MalformedSpec('Random card is only allowable in type pickR');
+                else cardSpecs.push(card)
+            }
+            for (const card of extractList(events, eventMixins)) {
+                if (card == RANDOM) throw new MalformedSpec('Random card is only allowable in type pickR');
+                else eventSpecs.push(card)
+            }
+            return {kind:kind, cards:cardSpecs, events:eventSpecs}
+        case 'pickR':
+            if (cards === null) throw new MalformedSpec('Custom kingdoms must specify cards')
+            if (events === null) throw new MalformedSpec('Custom kingdoms must specify events')
+            return {kind:kind, seed:seed,
+                    cards:extractList(cards, mixins),
+                    events:extractList(events, eventMixins)}
+        case 'test': return {kind: 'test'}
+        default: throw new MalformedSpec(`Invalid kind ${kind}`)
+    }
 }
 
 function getFixedKingdom(kingdomString:string|null): CardSpec[]|null {
@@ -1641,7 +1780,7 @@ function getFixedKingdom(kingdomString:string|null): CardSpec[]|null {
     return result
 }
 
-function pickRandoms(slots:SlotSpec[], source:CardSpec[], seed:number): CardSpec[] {
+function pickRandoms(slots:SlotSpec[], source:CardSpec[], seed:string): CardSpec[] {
     const taken:Set<string> = new Set()
     const result:CardSpec[] = []
     let randoms = 0;
@@ -1655,29 +1794,25 @@ function pickRandoms(slots:SlotSpec[], source:CardSpec[], seed:number): CardSpec
     }
     return result.concat(randomChoices(
         source.filter(x => !taken.has(x.name)), 
-        randoms, seed
+        randoms, hash(seed)
     ))
 }
 
 export function initialState(spec:GameSpec): State {
     const startingHand:CardSpec[] = [copper, copper, copper, estate, estate]
-    const intSeed:number = hash(spec.seed)
 
-    const fullSpec:FullGameSpec = fillSpec(spec)
-    let variableSupplies = pickRandoms(fullSpec.cards, mixins, intSeed)
-    let variableEvents = pickRandoms(fullSpec.events, eventMixins, intSeed+1)
+    const kingdom:Kingdom = makeKingdom(spec)
 
+    const variableSupplies = kingdom.cards.slice()
+    const variableEvents = kingdom.events.slice()
     variableSupplies.sort(supplySort)
     variableEvents.sort(supplySort)
-    if (spec.testing) {
-        for (let i = 0; i < cheats.length; i++) variableEvents.push(cheats[i])
-        variableSupplies = variableSupplies.concat(testSupplies)
-        variableEvents = variableEvents.concat(testEvents)
-    }
-    const kingdom = coreSupplies.concat(variableSupplies)
+
+    const supply = coreSupplies.concat(variableSupplies)
     const events = coreEvents.concat(variableEvents)
+
     let state = new State(spec)
-    state = createRawMulti(state, kingdom, 'supply')
+    state = createRawMulti(state, supply, 'supply')
     state = createRawMulti(state, events, 'events')
     state = createRawMulti(state, startingHand, 'discard')
     return state
@@ -1699,8 +1834,6 @@ const coreSupplies:CardSpec[] = []
 const coreEvents:CardSpec[] = []
 export const mixins:CardSpec[] = []
 export const eventMixins:CardSpec[] = []
-const testSupplies:CardSpec[] = []
-const testEvents:CardSpec[] = []
 const cheats:CardSpec[] = []
 
 //
@@ -1767,9 +1900,8 @@ function makeCard(card:CardSpec, cost:Cost, selfdestruct:boolean=false):CardSpec
     }
 }
 
-function registerEvent(card:CardSpec, test:'test'|null=null):void {
+function registerEvent(card:CardSpec):void {
     eventMixins.push(card)
-    if (test=='test') testEvents.push(card)
 }
 
 
@@ -1862,55 +1994,61 @@ coreEvents.push(refresh)
 
 
 const copper:CardSpec = {name: 'Copper',
+    buyCost: coin(0),
     effects: [gainCoinEffect(1)]
 }
-coreSupplies.push(supplyForCard(copper, coin(0)))
+coreSupplies.push(copper)
 
 const silver:CardSpec = {name: 'Silver',
+    buyCost: coin(3),
     effects: [gainCoinEffect(2)]
 }
-coreSupplies.push(supplyForCard(silver, coin(3)))
+coreSupplies.push(silver)
 
 const gold:CardSpec = {name: 'Gold',
+    buyCost: coin(6),
     effects: [gainCoinEffect(3)]
 }
-coreSupplies.push(supplyForCard(gold, coin(6)))
+coreSupplies.push(gold)
 
 const estate:CardSpec = {name: 'Estate',
+    buyCost: coin(1),
     fixedCost: energy(1),
     effects: [gainPointsEffect(1)]
 }
-coreSupplies.push(supplyForCard(estate, coin(1)))
+coreSupplies.push(estate)
 
 const duchy:CardSpec = {name: 'Duchy',
+    buyCost: coin(4),
     fixedCost: energy(1),
     effects: [gainPointsEffect(2)]
 }
-coreSupplies.push(supplyForCard(duchy, coin(4)))
+coreSupplies.push(duchy)
 
 const province:CardSpec = {name: 'Province',
+    buyCost: coin(8),
     fixedCost: energy(1),
     effects: [gainPointsEffect(3)]
 }
-coreSupplies.push(supplyForCard(province, coin(8)))
+coreSupplies.push(province)
 
 
 //
 // ----- MIXINS -----
 //
 
-function register(card:CardSpec, test:'test'|null=null):void {
+function register(card:CardSpec):void {
     mixins.push(card)
-    if (test=='test') testSupplies.push(card)
 }
-function buyable(card:CardSpec, n: number, test:'test'|null=null):void {
-    return buyableAnd(card, n, {}, test)
+function buyable(card:CardSpec, n: number):void {
+    return buyableAnd(card, n, {})
 }
-function buyableAnd(card:CardSpec, n:number, extra:Extras, test:'test'|null=null) {
-    register(supplyForCard(card, coin(n), extra), test)
+function buyableAnd(card:CardSpec, n:number, extra:Extras) {
+    card.buyCost = coin(n)
+    register(supplyForCard(card, coin(n), extra))
 }
-function buyableFree(card:CardSpec, coins:number, test:'test'|null=null): void {
-    buyableAnd(card, coins, {onBuy: [buyEffect()]}, test)
+function buyableFree(card:CardSpec, coins:number): void {
+    buyableAnd(card, coins, {onBuy: [buyEffect()]})
 }
 
 
@@ -2705,7 +2843,7 @@ const reflect:CardSpec = {name: 'Reflect',
     calculatedCost: costPlus(energy(1), coin(1)),
     effects: [incrementCost(), playTwice()],
 }
-registerEvent(reflect, 'test')
+registerEvent(reflect)
 
 const replicate:CardSpec = {name: 'Replicate',
     calculatedCost: costPlus(energy(1), coin(1)),
@@ -2856,7 +2994,7 @@ const mastermind:CardSpec = {
         ))
     }],
 }
-buyable(mastermind, 6, 'test')
+buyable(mastermind, 6)
 
 function chargeVillage(): Replacer<CostParams> {
     return {

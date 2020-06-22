@@ -78,7 +78,7 @@ var __read = (this && this.__read) || function (o, n) {
 };
 import express from 'express';
 var PORT = process.env.PORT || 5000;
-import { verifyScore, VERSION } from './public/logic.js';
+import { verifyScore, VERSION, specFromURL } from './public/logic.js';
 import postgres from 'postgres';
 var sql = (process.env.DATABASE_URL == undefined) ? null : postgres(process.env.DATABASE_URL);
 //TODO: get rid of these any's
@@ -129,7 +129,7 @@ function ensureNextMonth() {
                     if (!(i < 30)) return [3 /*break*/, 4];
                     secret = randomString();
                     datestring = renderEastCoastDate(d);
-                    return [4 /*yield*/, sql(templateObject_1 || (templateObject_1 = __makeTemplateObject(["\n            INSERT INTO dailies (datestring, secret, seed)\n                        values (", ", ", ", ", ")\n            ON CONFLICT DO NOTHING\n        "], ["\n            INSERT INTO dailies (datestring, secret, seed)\n                        values (", ", ", ", ", ")\n            ON CONFLICT DO NOTHING\n        "])), datestring, secret, makeSeed(datestring, secret))];
+                    return [4 /*yield*/, sql(templateObject_1 || (templateObject_1 = __makeTemplateObject(["\n            INSERT INTO dailies (datestring, secret, url)\n                        values (", ", ", ", ", ")\n            ON CONFLICT DO NOTHING\n        "], ["\n            INSERT INTO dailies (datestring, secret, url)\n                        values (", ", ", ", ", ")\n            ON CONFLICT DO NOTHING\n        "])), datestring, secret, makeDailyURL(datestring, secret))];
                 case 2:
                     results = _a.sent();
                     d.setDate(d.getDate() + 1);
@@ -148,7 +148,7 @@ function renderEastCoastDate(inputDate) {
     d.setMinutes(d.getMinutes() + d.getTimezoneOffset() - 240);
     return d.toLocaleDateString().split('/').join('.');
 }
-function dailySeed() {
+function dailyURL() {
     return __awaiter(this, void 0, void 0, function () {
         var datestring, results;
         return __generator(this, function (_a) {
@@ -160,7 +160,7 @@ function dailySeed() {
                     _a.label = 1;
                 case 1:
                     if (!true) return [3 /*break*/, 6];
-                    return [4 /*yield*/, sql(templateObject_2 || (templateObject_2 = __makeTemplateObject(["\n          SELECT seed FROM dailies\n          WHERE datestring=", "\n        "], ["\n          SELECT seed FROM dailies\n          WHERE datestring=", "\n        "])), datestring)];
+                    return [4 /*yield*/, sql(templateObject_2 || (templateObject_2 = __makeTemplateObject(["\n          SELECT url FROM dailies\n          WHERE datestring=", "\n        "], ["\n          SELECT url FROM dailies\n          WHERE datestring=", "\n        "])), datestring)];
                 case 2:
                     results = _a.sent();
                     if (!(results.length == 0)) return [3 /*break*/, 4];
@@ -168,24 +168,24 @@ function dailySeed() {
                 case 3:
                     _a.sent();
                     return [3 /*break*/, 5];
-                case 4: return [2 /*return*/, results[0].seed];
+                case 4: return [2 /*return*/, results[0].url];
                 case 5: return [3 /*break*/, 1];
                 case 6: return [2 /*return*/];
             }
         });
     });
 }
-function makeSeed(datestring, secret) {
-    return datestring + "." + secret;
+function makeDailyURL(datestring, secret) {
+    return "seed=" + datestring + "." + secret;
 }
-function submitForDaily(username, seed, score) {
+function submitForDaily(username, url, score) {
     return __awaiter(this, void 0, void 0, function () {
         return __generator(this, function (_a) {
             switch (_a.label) {
                 case 0:
                     if (sql == null)
                         return [2 /*return*/];
-                    return [4 /*yield*/, sql(templateObject_3 || (templateObject_3 = __makeTemplateObject(["\n        UPDATE dailies\n        SET best_user = ", ", best_score=", ", version=", "\n        WHERE seed = ", " AND\n            (version = ", " OR version ISNULL) AND\n            (best_score > ", " OR best_score ISNULL)\n    "], ["\n        UPDATE dailies\n        SET best_user = ", ", best_score=", ", version=", "\n        WHERE seed = ", " AND\n            (version = ", " OR version ISNULL) AND\n            (best_score > ", " OR best_score ISNULL)\n    "])), username, score, VERSION, seed, VERSION, score)];
+                    return [4 /*yield*/, sql(templateObject_3 || (templateObject_3 = __makeTemplateObject(["\n        UPDATE dailies\n        SET best_user = ", ", best_score=", ", version=", "\n        WHERE url = ", " AND\n            (version = ", " OR version ISNULL) AND\n            (best_score > ", " OR best_score ISNULL)\n    "], ["\n        UPDATE dailies\n        SET best_user = ", ", best_score=", ", version=", "\n        WHERE url = ", " AND\n            (version = ", " OR version ISNULL) AND\n            (best_score > ", " OR best_score ISNULL)\n    "])), username, score, VERSION, url, VERSION, score)];
                 case 1:
                     _a.sent();
                     return [2 /*return*/];
@@ -197,7 +197,7 @@ function serveMain(req, res) {
     return __awaiter(this, void 0, void 0, function () {
         return __generator(this, function (_a) {
             try {
-                res.render('pages/main', { seed: undefined, tutorial: false });
+                res.render('pages/main', { url: undefined, tutorial: false });
             }
             catch (err) {
                 console.error(err);
@@ -209,15 +209,15 @@ function serveMain(req, res) {
 }
 function serveDaily(req, res) {
     return __awaiter(this, void 0, void 0, function () {
-        var seed, err_1;
+        var url, err_1;
         return __generator(this, function (_a) {
             switch (_a.label) {
                 case 0:
                     _a.trys.push([0, 2, , 3]);
-                    return [4 /*yield*/, dailySeed()];
+                    return [4 /*yield*/, dailyURL()];
                 case 1:
-                    seed = _a.sent();
-                    res.render('pages/main', { seed: seed, tutorial: false });
+                    url = _a.sent();
+                    res.render('pages/main', { url: url, tutorial: false });
                     return [3 /*break*/, 3];
                 case 2:
                     err_1 = _a.sent();
@@ -232,7 +232,7 @@ function serveDaily(req, res) {
 function serveTutorial(req, res) {
     return __awaiter(this, void 0, void 0, function () {
         return __generator(this, function (_a) {
-            res.render('pages/main', { seed: undefined, tutorial: true });
+            res.render('pages/main', { url: undefined, tutorial: true });
             return [2 /*return*/];
         });
     });
@@ -242,7 +242,7 @@ express()
     .set('view engine', 'ejs')
     .set('views', './views')
     .get('/topScore', function (req, res) { return __awaiter(void 0, void 0, void 0, function () {
-    var seed, version, results, err_2;
+    var url, version, results, err_2;
     return __generator(this, function (_a) {
         switch (_a.label) {
             case 0:
@@ -251,13 +251,13 @@ express()
                     res.send('none');
                     return [2 /*return*/];
                 }
-                seed = req.query.seed;
+                url = decodeURIComponent(req.query.url);
                 version = req.query.version;
                 if (version != VERSION) {
                     res.send('version mismatch');
                     return [2 /*return*/];
                 }
-                return [4 /*yield*/, sql(templateObject_4 || (templateObject_4 = __makeTemplateObject(["\n              SELECT username, score, submitted FROM scoreboard\n              WHERE seed=", " AND version=", "\n              ORDER BY score ASC, submitted ASC\n          "], ["\n              SELECT username, score, submitted FROM scoreboard\n              WHERE seed=", " AND version=", "\n              ORDER BY score ASC, submitted ASC\n          "])), seed, version)];
+                return [4 /*yield*/, sql(templateObject_4 || (templateObject_4 = __makeTemplateObject(["\n              SELECT username, score, submitted FROM scoreboard\n              WHERE url=", " AND version=", "\n              ORDER BY score ASC, submitted ASC\n          "], ["\n              SELECT username, score, submitted FROM scoreboard\n              WHERE url=", " AND version=", "\n              ORDER BY score ASC, submitted ASC\n          "])), url, version)];
             case 1:
                 results = _a.sent();
                 if (results.length == 0)
@@ -285,20 +285,20 @@ express()
                     res.send('Not connected to a database');
                     return [2 /*return*/];
                 }
-                return [4 /*yield*/, sql(templateObject_5 || (templateObject_5 = __makeTemplateObject(["\n              SELECT username, score, submitted, seed, version FROM scoreboard\n              ORDER BY submitted DESC\n          "], ["\n              SELECT username, score, submitted, seed, version FROM scoreboard\n              ORDER BY submitted DESC\n          "])))];
+                return [4 /*yield*/, sql(templateObject_5 || (templateObject_5 = __makeTemplateObject(["\n              SELECT username, score, submitted, url, version FROM scoreboard\n              ORDER BY submitted DESC\n          "], ["\n              SELECT username, score, submitted, url, version FROM scoreboard\n              ORDER BY submitted DESC\n          "])))];
             case 1:
                 results = _b.sent();
                 recents = new Map();
                 try {
                     for (results_1 = __values(results), results_1_1 = results_1.next(); !results_1_1.done; results_1_1 = results_1.next()) {
                         result = results_1_1.value;
-                        oldBest = recents.get(result.seed);
+                        oldBest = recents.get(result.url);
                         if (oldBest != undefined && oldBest.score > result.score && oldBest.version == result.version) {
-                            recents.delete(result.seed);
+                            recents.delete(result.url);
                         }
-                        if (!recents.has(result.seed)) {
-                            recents.set(result.seed, {
-                                seed: result.seed,
+                        if (!recents.has(result.url)) {
+                            recents.set(result.url, {
+                                url: result.url,
                                 version: result.version,
                                 age: renderTimeSince(result.submitted),
                                 score: result.score,
@@ -336,7 +336,7 @@ express()
                     res.send('Not connected to a database');
                     return [2 /*return*/];
                 }
-                return [4 /*yield*/, sql(templateObject_6 || (templateObject_6 = __makeTemplateObject(["\n              SELECT datestring, seed, version, best_score, best_user,\n                     to_date(datestring, 'MM.DD.YYYY') as date\n              FROM dailies\n              ORDER BY date DESC\n          "], ["\n              SELECT datestring, seed, version, best_score, best_user,\n                     to_date(datestring, 'MM.DD.YYYY') as date\n              FROM dailies\n              ORDER BY date DESC\n          "])))];
+                return [4 /*yield*/, sql(templateObject_6 || (templateObject_6 = __makeTemplateObject(["\n              SELECT datestring, url, version, best_score, best_user,\n                     to_date(datestring, 'MM.DD.YYYY') as date\n              FROM dailies\n              ORDER BY date DESC\n          "], ["\n              SELECT datestring, url, version, best_score, best_user,\n                     to_date(datestring, 'MM.DD.YYYY') as date\n              FROM dailies\n              ORDER BY date DESC\n          "])))];
             case 1:
                 results = _b.sent();
                 try {
@@ -364,18 +364,18 @@ express()
     });
 }); })
     .get('/scoreboard', function (req, res) { return __awaiter(void 0, void 0, void 0, function () {
-    var seed, results, entries, entriesByVersion, entries_1, entries_1_1, entry, lastVersion, err_5;
+    var url, results, entries, entriesByVersion, entries_1, entries_1_1, entry, lastVersion, err_5;
     var e_4, _a;
     return __generator(this, function (_b) {
         switch (_b.label) {
             case 0:
                 _b.trys.push([0, 2, , 3]);
-                seed = req.query.seed;
+                url = req.query.url;
                 if (sql == null) {
                     res.send('Not connected to a database.');
                     return [2 /*return*/];
                 }
-                return [4 /*yield*/, sql(templateObject_7 || (templateObject_7 = __makeTemplateObject(["\n              SELECT username, score, submitted, version FROM scoreboard\n              WHERE seed=", "\n              ORDER BY version DESC, score ASC, submitted ASC\n          "], ["\n              SELECT username, score, submitted, version FROM scoreboard\n              WHERE seed=", "\n              ORDER BY version DESC, score ASC, submitted ASC\n          "])), seed)];
+                return [4 /*yield*/, sql(templateObject_7 || (templateObject_7 = __makeTemplateObject(["\n              SELECT username, score, submitted, version FROM scoreboard\n              WHERE url=", "\n              ORDER BY version DESC, score ASC, submitted ASC\n          "], ["\n              SELECT username, score, submitted, version FROM scoreboard\n              WHERE url=", "\n              ORDER BY version DESC, score ASC, submitted ASC\n          "])), url)];
             case 1:
                 results = _b.sent();
                 entries = results.map(function (x) { return (__assign(__assign({}, x), { timesince: renderTimeSince(x.submitted) })); });
@@ -403,7 +403,7 @@ express()
                     }
                     finally { if (e_4) throw e_4.error; }
                 }
-                res.render('pages/scoreboard', { entriesByVersion: entriesByVersion, seed: seed, currentVersion: VERSION });
+                res.render('pages/scoreboard', { entriesByVersion: entriesByVersion, url: url, currentVersion: VERSION });
                 return [3 /*break*/, 3];
             case 2:
                 err_5 = _b.sent();
@@ -420,7 +420,7 @@ express()
     .get('/daily', serveDaily)
     .get('/tutorial', serveTutorial)
     .post('/submit', function (req, res) { return __awaiter(void 0, void 0, void 0, function () {
-    var seed, score, username, history_1, _a, valid, explanation, results, err_6;
+    var url, spec, score, username, history_1, _a, valid, explanation, results, err_6;
     return __generator(this, function (_b) {
         switch (_b.label) {
             case 0:
@@ -429,18 +429,19 @@ express()
                     res.send('Not connected to db.');
                     return [2 /*return*/];
                 }
-                seed = req.query.seed;
+                url = decodeURIComponent(req.query.url);
+                spec = specFromURL(url);
                 score = req.query.score;
                 username = req.query.username;
                 history_1 = req.query.history;
-                return [4 /*yield*/, verifyScore({ seed: seed, type: 'main' }, history_1, score)];
+                return [4 /*yield*/, verifyScore(spec, history_1, score)];
             case 1:
                 _a = __read.apply(void 0, [_b.sent(), 2]), valid = _a[0], explanation = _a[1];
                 if (!valid) return [3 /*break*/, 4];
-                return [4 /*yield*/, sql(templateObject_8 || (templateObject_8 = __makeTemplateObject(["\n                  INSERT INTO scoreboard (username, score, seed, version, history)\n                  VALUES (", ", ", ", ", ", ", ", ", ")\n                "], ["\n                  INSERT INTO scoreboard (username, score, seed, version, history)\n                  VALUES (", ", ", ", ", ", ", ", ", ")\n                "])), username, score, seed, VERSION, history_1)];
+                return [4 /*yield*/, sql(templateObject_8 || (templateObject_8 = __makeTemplateObject(["\n                  INSERT INTO scoreboard (username, score, url, version, history)\n                  VALUES (", ", ", ", ", ", ", ", ", ")\n                "], ["\n                  INSERT INTO scoreboard (username, score, url, version, history)\n                  VALUES (", ", ", ", ", ", ", ", ", ")\n                "])), username, score, url, VERSION, history_1)];
             case 2:
                 results = _b.sent();
-                return [4 /*yield*/, submitForDaily(username, seed, score)];
+                return [4 /*yield*/, submitForDaily(username, url, score)];
             case 3:
                 _b.sent();
                 res.send("OK");

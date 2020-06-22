@@ -3,19 +3,6 @@
 // TODO: lay out the zones a bit more nicely
 // TODO: starting to see performance hiccups in big games
 // TODO: probably don't want the public move method to allow moves into or out of resolving.
-var __extends = (this && this.__extends) || (function () {
-    var extendStatics = function (d, b) {
-        extendStatics = Object.setPrototypeOf ||
-            ({ __proto__: [] } instanceof Array && function (d, b) { d.__proto__ = b; }) ||
-            function (d, b) { for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p]; };
-        return extendStatics(d, b);
-    };
-    return function (d, b) {
-        extendStatics(d, b);
-        function __() { this.constructor = d; }
-        d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
-    };
-})();
 var __assign = (this && this.__assign) || function () {
     __assign = Object.assign || function(t) {
         for (var s, i = 1, n = arguments.length; i < n; i++) {
@@ -80,8 +67,9 @@ import { emptyState } from './logic.js';
 import { Undo, InvalidHistory } from './logic.js';
 import { playGame, initialState } from './logic.js';
 import { coerceReplayVersion, parseReplay, MalformedReplay } from './logic.js';
-import { mixins, eventMixins, randomPlaceholder, RANDOM } from './logic.js';
+import { mixins, eventMixins, randomPlaceholder } from './logic.js';
 import { VERSION, VP_GOAL } from './logic.js';
+import { MalformedSpec, getTutorialSpec, specToURL, specFromURL } from './logic.js';
 var keyListeners = new Map();
 var symbolHotkeys = ['!', '%', '^', '&', '*', '(', ')', '-', '+', '=', '{', '}', '[', ']']; // '@', '#', '$' are confusing
 var lowerHotkeys = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm',
@@ -476,7 +464,7 @@ function renderState(state, settings) {
         };
     }
     if (settings.updateURL === undefined || settings.updateURL) {
-        window.history.replaceState(null, "", specToURL(state.spec) + "#" + state.serializeHistory(false));
+        window.history.replaceState(null, "", "play?" + specToURL(state.spec) + "#" + state.serializeHistory(false));
     }
     $('#resolvingHeader').html('Resolving:');
     $('#energy').html(state.energy.toString());
@@ -908,15 +896,8 @@ function renderTutorialMessage(text) {
     });
     $('#tutorialNext').on('click', next);
 }
-var tutorialSpec = {
-    seed: '',
-    cards: extractList('Throne Room', mixins),
-    events: extractList('Duplicate', eventMixins),
-    testing: false,
-    type: 'main'
-};
 export function loadTutorial() {
-    var state = initialState(tutorialSpec);
+    var state = initialState(getTutorialSpec());
     startGame(state, new tutorialUI(tutorialStages));
 }
 // ------------------------------------------ Help
@@ -945,7 +926,7 @@ function bindHelp(state, renderer) {
             "Press '/' or click the hotkey button to turn on hotkeys.",
             "You can use the current URL to link to the current state of this game.",
             "You can play today's <a href='daily'>daily kingdom</a>, which refreshes midnight EDT.",
-            "Visit <a href=\"" + specToURL(state.spec) + "\">this link</a> to replay the current kingdom anytime.",
+            "Visit <a href=\"play?" + specToURL(state.spec) + "\">this link</a> to replay the current kingdom anytime.",
             "Or visit the <a href=\"picker.html\">kingdom picker<a> to pick a kingdom.",
         ];
         if (submittable(state.spec))
@@ -965,15 +946,9 @@ function dateString() {
     var date = new Date();
     return (String(date.getMonth() + 1)) + String(date.getDate()).padStart(2, '0') + date.getFullYear();
 }
-function dateSeedURL() {
-    return "play?seed=" + dateString();
-}
 // ------------------------------ High score submission
-//TODO: allow submitting custom kingdoms
 function submittable(spec) {
-    return (spec.cards == undefined
-        && spec.events == undefined
-        && !spec.testing);
+    return true;
 }
 function setCookie(name, value) {
     document.cookie = name + "=" + value + "; max-age=315360000; path=/";
@@ -1008,7 +983,7 @@ function getUsername() {
 }
 function renderScoreSubmission(state, done) {
     var score = state.energy;
-    var seed = state.spec.seed;
+    var url = specToURL(state.spec);
     $('#scoreSubmitter').attr('active', 'true');
     var pattern = "[a-ZA-Z0-9]";
     $('#scoreSubmitter').html("<label for=\"username\">Name:</label>" +
@@ -1029,8 +1004,9 @@ function renderScoreSubmission(state, done) {
         var username = $('#username').val();
         if (username.length > 0) {
             rememberUsername(username);
+            console.log(url);
             var query = [
-                "seed=" + seed,
+                "url=" + encodeURIComponent(url),
                 "score=" + score,
                 "username=" + username,
                 "history=" + state.serializeHistory()
@@ -1067,12 +1043,12 @@ function renderScoreSubmission(state, done) {
     $('#cancelSubmit').on('click', exit);
 }
 function scoreboardURL(spec) {
-    return "scoreboard?seed=" + spec.seed;
+    return "scoreboard?url=" + encodeURIComponent(specToURL(spec));
 }
 //TODO: live updates?
 function heartbeat(spec, interval) {
     if (submittable(spec)) {
-        $.get("topScore?seed=" + spec.seed + "&version=" + VERSION).done(function (x) {
+        $.get("topScore?url=" + encodeURIComponent(specToURL(spec)) + "&version=" + VERSION).done(function (x) {
             if (x == 'version mismatch') {
                 clearInterval(interval);
                 alert("The server has updated to a new version, please refresh. You will get an error and your game will restart if the history is no longer valid.");
@@ -1092,137 +1068,22 @@ function renderScoreboardLink(spec) {
     $('#best').html("No wins yet for this seed (<a target='_blank' href='" + scoreboardURL(spec) + "'>scoreboard</a>)");
 }
 // Creating the game spec and starting the game ------------------------------
-function renderSlots(slots) {
-    var e_14, _a;
-    var result = [];
-    try {
-        for (var slots_1 = __values(slots), slots_1_1 = slots_1.next(); !slots_1_1.done; slots_1_1 = slots_1.next()) {
-            var slot = slots_1_1.value;
-            if (slot == RANDOM)
-                result.push(slot);
-            else
-                result.push(slot.name);
-        }
-    }
-    catch (e_14_1) { e_14 = { error: e_14_1 }; }
-    finally {
-        try {
-            if (slots_1_1 && !slots_1_1.done && (_a = slots_1.return)) _a.call(slots_1);
-        }
-        finally { if (e_14) throw e_14.error; }
-    }
-    return result.join(',');
-}
-function renderQuery(base, args) {
-    if (args.size == 0)
-        return base;
-    else
-        return base + '?'
-            + Array.from(args.entries()).map(function (x) { return x[0] + "=" + x[1]; }).join('&');
-}
-export function specToURL(spec) {
-    var args = new Map();
-    args.set('seed', spec.seed);
-    if (spec.cards !== undefined)
-        args.set('cards', renderSlots(spec.cards));
-    if (spec.events !== undefined)
-        args.set('events', renderSlots(spec.events));
-    if (spec.testing)
-        args.set('test', 'true');
-    return renderQuery('play', args);
-}
-function makeDictionary(xs) {
-    var e_15, _a;
-    var result = new Map();
-    try {
-        for (var xs_1 = __values(xs), xs_1_1 = xs_1.next(); !xs_1_1.done; xs_1_1 = xs_1.next()) {
-            var x = xs_1_1.value;
-            result.set(x.name, x);
-        }
-    }
-    catch (e_15_1) { e_15 = { error: e_15_1 }; }
-    finally {
-        try {
-            if (xs_1_1 && !xs_1_1.done && (_a = xs_1.return)) _a.call(xs_1);
-        }
-        finally { if (e_15) throw e_15.error; }
-    }
-    return result;
-}
-function extractList(s, xs) {
-    var e_16, _a;
-    if (s.length == 0)
-        return [];
-    var dictionary = makeDictionary(xs);
-    var result = [];
-    try {
-        for (var _b = __values(s.split(',')), _c = _b.next(); !_c.done; _c = _b.next()) {
-            var name_1 = _c.value;
-            if (name_1 == RANDOM)
-                result.push(RANDOM);
-            else {
-                var lookup = dictionary.get(name_1);
-                if (lookup == undefined)
-                    throw new MalformedSpec(name_1 + " is not a valid name");
-                result.push(lookup);
-            }
-        }
-    }
-    catch (e_16_1) { e_16 = { error: e_16_1 }; }
-    finally {
-        try {
-            if (_c && !_c.done && (_a = _b.return)) _a.call(_b);
-        }
-        finally { if (e_16) throw e_16.error; }
-    }
-    return result;
-}
-var MalformedSpec = /** @class */ (function (_super) {
-    __extends(MalformedSpec, _super);
-    function MalformedSpec(s) {
-        var _this = _super.call(this, "Not a well-formed game spec: " + s) || this;
-        _this.s = s;
-        Object.setPrototypeOf(_this, MalformedSpec.prototype);
-        return _this;
-    }
-    return MalformedSpec;
-}(Error));
-export { MalformedSpec };
-function randomSeed() {
-    return Math.random().toString(36).substring(2, 7);
-}
-function specFromURL(search) {
-    var seed = search.get('seed');
-    var cards = search.get('cards');
-    var events = search.get('events');
-    var testing = search.get('test');
-    return {
-        seed: seed || randomSeed(),
-        cards: (cards == null) ? undefined : extractList(cards, mixins),
-        events: (events == null) ? undefined : extractList(events, eventMixins),
-        testing: testing != null,
-        type: 'main'
-    };
-}
 function getHistory() {
     return window.location.hash.substring(1) || null;
 }
-export function load(seed) {
-    var spec = { seed: randomSeed(), type: 'main' };
-    if (seed !== undefined && seed.length > 0) {
-        spec = { seed: seed, type: 'main' };
+export function load(fixedURL) {
+    var url = (fixedURL === undefined) ? window.location.search : fixedURL;
+    var spec;
+    try {
+        spec = specFromURL(window.location.search);
     }
-    else {
-        try {
-            spec = specFromURL(new URLSearchParams(window.location.search));
+    catch (e) {
+        if (e instanceof MalformedSpec) {
+            alert(e);
+            spec = specFromURL('');
         }
-        catch (e) {
-            if (e instanceof MalformedSpec) {
-                alert(e);
-            }
-            else {
-                throw e;
-            }
+        else {
+            throw e;
         }
     }
     var state = initialState(spec);
@@ -1289,7 +1150,7 @@ function kingdomURL(cards, events) {
     return "play?cards=" + cards.map(function (card) { return card.name; }).join(',') + "&events=" + events.map(function (card) { return card.name; });
 }
 function countIn(s, f) {
-    var e_17, _a;
+    var e_14, _a;
     var count = 0;
     try {
         for (var s_1 = __values(s), s_1_1 = s_1.next(); !s_1_1.done; s_1_1 = s_1.next()) {
@@ -1298,12 +1159,12 @@ function countIn(s, f) {
                 count += 1;
         }
     }
-    catch (e_17_1) { e_17 = { error: e_17_1 }; }
+    catch (e_14_1) { e_14 = { error: e_14_1 }; }
     finally {
         try {
             if (s_1_1 && !s_1_1.done && (_a = s_1.return)) _a.call(s_1);
         }
-        finally { if (e_17) throw e_17.error; }
+        finally { if (e_14) throw e_14.error; }
     }
     return count;
 }

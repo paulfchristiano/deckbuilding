@@ -1,7 +1,7 @@
 import express from 'express'
 import path from 'path'
 const PORT = process.env.PORT || 5000
-import {verifyScore, VERSION } from './public/logic.js'
+import {verifyScore, VERSION, specFromURL, specToURL } from './public/logic.js'
 
 import postgres from 'postgres'
 const sql = (process.env.DATABASE_URL == undefined) ? null : postgres(process.env.DATABASE_URL)
@@ -37,8 +37,8 @@ async function ensureNextMonth(): Promise<void> {
         const secret = randomString()
         const datestring = renderEastCoastDate(d)
         const results = await sql`
-            INSERT INTO dailies (datestring, secret, seed)
-                        values (${datestring}, ${secret}, ${makeSeed(datestring, secret)})
+            INSERT INTO dailies (datestring, secret, url)
+                        values (${datestring}, ${secret}, ${makeDailyURL(datestring, secret)})
             ON CONFLICT DO NOTHING
         `
         d.setDate(d.getDate() + 1)
@@ -51,43 +51,43 @@ function renderEastCoastDate(inputDate:Date|null = null): string {
     return d.toLocaleDateString().split('/').join('.')
 }
 
-async function dailySeed(): Promise<string> {
+async function dailyURL(): Promise<string> {
     const datestring:string = renderEastCoastDate()
     if (sql == null) return datestring
     while (true) {
         const results = await sql`
-          SELECT seed FROM dailies
+          SELECT url FROM dailies
           WHERE datestring=${datestring}
         `
         if (results.length == 0) {
             await ensureNextMonth()
         }
         else {
-            return results[0].seed
+            return results[0].url
         }
     }
 }
 
-function makeSeed(datestring:string, secret:string) {
-    return `${datestring}.${secret}`
+function makeDailyURL(datestring:string, secret:string) {
+    return `seed=${datestring}.${secret}`
 }
 
-async function submitForDaily(username:string, seed:string, score:number): Promise<void> {
-    if (sql == null) return
+async function submitForDaily(username:string, url:string, score:number): Promise<void> {
+    if (sql == null) return;
     await sql`
         UPDATE dailies
         SET best_user = ${username}, best_score=${score}, version=${VERSION}
-        WHERE seed = ${seed} AND
+        WHERE url = ${url} AND
             (version = ${VERSION} OR version ISNULL) AND
             (best_score > ${score} OR best_score ISNULL)
     `
 } 
 
-type RecentEntry = {version:string, age:string, score:number, username:string, seed:string}
+type RecentEntry = {version:string, age:string, score:number, username:string, url:string}
 
 async function serveMain(req:any, res:any) {
     try {
-          res.render('pages/main', {seed:undefined, tutorial:false})
+          res.render('pages/main', {url:undefined, tutorial:false})
       } catch(err) {
           console.error(err);
           res.send(err)
@@ -96,8 +96,8 @@ async function serveMain(req:any, res:any) {
 
 async function serveDaily(req:any, res:any) {
     try {
-        const seed = await dailySeed()
-        res.render('pages/main', {seed:seed, tutorial:false})
+        const url = await dailyURL()
+        res.render('pages/main', {url:url, tutorial:false})
     } catch(err) {
         console.error(err);
         res.send('Error: ' + err);
@@ -105,7 +105,7 @@ async function serveDaily(req:any, res:any) {
 }
 
 async function serveTutorial(req:any, res:any) {
-  res.render('pages/main', {seed:undefined, tutorial:true})
+  res.render('pages/main', {url:undefined, tutorial:true})
 }
 
 express()
@@ -118,7 +118,7 @@ express()
               res.send('none')
               return
           }
-          const seed = req.query.seed
+          const url = decodeURIComponent(req.query.url)
           const version = req.query.version
           if (version != VERSION) {
               res.send('version mismatch')
@@ -126,7 +126,7 @@ express()
           }
           const results = await sql`
               SELECT username, score, submitted FROM scoreboard
-              WHERE seed=${seed} AND version=${version}
+              WHERE url=${url} AND version=${version}
               ORDER BY score ASC, submitted ASC
           `
           if (results.length == 0)
@@ -145,18 +145,18 @@ express()
               return
           }
           const results = await sql`
-              SELECT username, score, submitted, seed, version FROM scoreboard
+              SELECT username, score, submitted, url, version FROM scoreboard
               ORDER BY submitted DESC
           `
           const recents:Map<string, RecentEntry> = new Map()
           for (const result of results) {
-              const oldBest:RecentEntry|undefined = recents.get(result.seed)
+              const oldBest:RecentEntry|undefined = recents.get(result.url)
               if (oldBest != undefined && oldBest.score > result.score && oldBest.version == result.version) {
-                  recents.delete(result.seed)
+                  recents.delete(result.url)
               }
-              if (!recents.has(result.seed)) {
-                  recents.set(result.seed, {
-                      seed:result.seed,
+              if (!recents.has(result.url)) {
+                  recents.set(result.url, {
+                      url:result.url,
                       version:result.version,
                       age:renderTimeSince(result.submitted),
                       score:result.score,
@@ -177,7 +177,7 @@ express()
               return
           }
           const results = await sql`
-              SELECT datestring, seed, version, best_score, best_user,
+              SELECT datestring, url, version, best_score, best_user,
                      to_date(datestring, 'MM.DD.YYYY') as date
               FROM dailies
               ORDER BY date DESC
@@ -192,14 +192,14 @@ express()
     })
     .get('/scoreboard', async (req:any, res:any) => {
       try {
-          const seed = req.query.seed
+          const url = req.query.url
           if (sql == null) {
               res.send('Not connected to a database.')
               return
           }
           const results = await sql`
               SELECT username, score, submitted, version FROM scoreboard
-              WHERE seed=${seed}
+              WHERE url=${url}
               ORDER BY version DESC, score ASC, submitted ASC
           `
           const entries = results.map((x:any) => ({...x, timesince:renderTimeSince(x.submitted)}))
@@ -216,7 +216,7 @@ express()
                   lastVersion[1].push(entry)
               }
           }
-          res.render('pages/scoreboard', {entriesByVersion:entriesByVersion, seed:seed, currentVersion:VERSION});
+          res.render('pages/scoreboard', {entriesByVersion:entriesByVersion, url:url, currentVersion:VERSION});
       } catch(err) {
           console.error(err);
           res.send('Error: ' + err);
@@ -233,18 +233,19 @@ express()
                 res.send('Not connected to db.')
                 return
             }
-            const seed = req.query.seed
+            const url = decodeURIComponent(req.query.url)
+            const spec = specFromURL(url)
             const score = req.query.score
             const username = req.query.username
             const history = req.query.history
             //TODO: verify custom games, probably use URL here and everywhere in file?
-            const [valid, explanation] = await verifyScore({seed:seed, type:'main'}, history, score)
+            const [valid, explanation] = await verifyScore(spec, history, score)
             if (valid) {
                 const results = await sql`
-                  INSERT INTO scoreboard (username, score, seed, version, history)
-                  VALUES (${username}, ${score}, ${seed}, ${VERSION}, ${history})
+                  INSERT INTO scoreboard (username, score, url, version, history)
+                  VALUES (${username}, ${score}, ${url}, ${VERSION}, ${history})
                 `
-                await submitForDaily(username, seed, score)
+                await submitForDaily(username, url, score)
                 res.send(`OK`)
             } else {
                 res.send(`Score did not validate: ${explanation}`)

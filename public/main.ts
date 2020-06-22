@@ -14,8 +14,9 @@ import { Option, OptionRender, HotkeyHint } from './logic.js'
 import { UI, Undo, Victory, InvalidHistory, ReplayEnded } from './logic.js'
 import { playGame, initialState, verifyScore} from './logic.js'
 import { Replay, coerceReplayVersion, parseReplay, MalformedReplay } from './logic.js'
-import { mixins, eventMixins, randomPlaceholder, RANDOM } from './logic.js'
+import { mixins, eventMixins, randomPlaceholder } from './logic.js'
 import { VERSION, VP_GOAL } from './logic.js'
+import { MalformedSpec, getTutorialSpec, specToURL, specFromURL } from './logic.js'
 
 // --------------------- Hotkeys
 
@@ -370,7 +371,7 @@ function renderState(
         window.history.replaceState(
             null,
             "",
-            `${specToURL(state.spec)}#${state.serializeHistory(false)}`
+            `play?${specToURL(state.spec)}#${state.serializeHistory(false)}`
         );
     }
     $('#resolvingHeader').html('Resolving:')
@@ -850,16 +851,8 @@ function renderTutorialMessage(text:string[]) {
     $('#tutorialNext').on('click', next)
 }
 
-const tutorialSpec:GameSpec = {
-    seed: '',
-    cards:extractList('Throne Room', mixins),
-    events:extractList('Duplicate', eventMixins),
-    testing: false,
-    type: 'main'
-}
-
 export function loadTutorial(){
-    const state = initialState(tutorialSpec)
+    const state = initialState(getTutorialSpec())
     startGame(state, new tutorialUI(tutorialStages))
 }
 
@@ -890,7 +883,7 @@ function bindHelp(state:State, renderer: () => void) {
             "Press '/' or click the hotkey button to turn on hotkeys.",
             "You can use the current URL to link to the current state of this game.",
             `You can play today's <a href='daily'>daily kingdom</a>, which refreshes midnight EDT.`,
-            `Visit <a href="${specToURL(state.spec)}">this link</a> to replay the current kingdom anytime.`,
+            `Visit <a href="play?${specToURL(state.spec)}">this link</a> to replay the current kingdom anytime.`,
             `Or visit the <a href="picker.html">kingdom picker<a> to pick a kingdom.`,
         ]
         if (submittable(state.spec))
@@ -913,17 +906,10 @@ function dateString() {
     return (String(date.getMonth() + 1)) + String(date.getDate()).padStart(2, '0') + date.getFullYear()
 }
 
-function dateSeedURL() {
-    return `play?seed=${dateString()}`
-}
-
 // ------------------------------ High score submission
 
-//TODO: allow submitting custom kingdoms
 function submittable(spec:GameSpec): boolean {
-    return (spec.cards == undefined
-        && spec.events == undefined
-        && !spec.testing)
+    return true;
 }
 
 
@@ -949,7 +935,7 @@ function getUsername():string|null {
 
 function renderScoreSubmission(state:State, done:() => void) {
     const score = state.energy
-    const seed = state.spec.seed
+    const url = specToURL(state.spec)
     $('#scoreSubmitter').attr('active', 'true')
     const pattern = "[a-ZA-Z0-9]"
     $('#scoreSubmitter').html(
@@ -971,8 +957,9 @@ function renderScoreSubmission(state:State, done:() => void) {
         const username:string = $('#username').val() as string
         if (username.length > 0) {
             rememberUsername(username)
+            console.log(url)
             const query = [
-                `seed=${seed}`,
+                `url=${encodeURIComponent(url)}`,
                 `score=${score}`,
                 `username=${username}`,
                 `history=${state.serializeHistory()}`
@@ -1005,13 +992,13 @@ function renderScoreSubmission(state:State, done:() => void) {
 }
 
 function scoreboardURL(spec:GameSpec) {
-    return `scoreboard?seed=${spec.seed}`
+    return `scoreboard?url=${encodeURIComponent(specToURL(spec))}`
 }
 
 //TODO: live updates?
 function heartbeat(spec:GameSpec, interval?:any): void {
     if (submittable(spec)) {
-        $.get(`topScore?seed=${spec.seed}&version=${VERSION}`).done(function(x:string) {
+        $.get(`topScore?url=${encodeURIComponent(specToURL(spec))}&version=${VERSION}`).done(function(x:string) {
             if (x == 'version mismatch') {
                 clearInterval(interval)
                 alert("The server has updated to a new version, please refresh. You will get an error and your game will restart if the history is no longer valid.")
@@ -1033,95 +1020,22 @@ function renderScoreboardLink(spec:GameSpec): void {
 
 // Creating the game spec and starting the game ------------------------------
 
-function renderSlots(slots:SlotSpec[]) {
-    const result:string[] = []
-    for (const slot of slots) {
-        if (slot == RANDOM) result.push(slot);
-        else result.push(slot.name);
-    }
-    return result.join(',')
-
-}
-
-function renderQuery(base:string, args:Map<string, string>): string {
-    if (args.size == 0) return base;
-    else return base + '?' 
-        + Array.from(args.entries()).map(x => `${x[0]}=${x[1]}`).join('&')
-}
-
-export function specToURL(spec:GameSpec): string {
-    const args:Map<string, string> = new Map()
-    args.set('seed', spec.seed)
-    if (spec.cards !== undefined) args.set('cards', renderSlots(spec.cards));
-    if (spec.events !== undefined) args.set('events', renderSlots(spec.events));
-    if (spec.testing) args.set('test', 'true');
-    return renderQuery('play', args)
-}
-
-function makeDictionary(xs:CardSpec[]): Map<string, CardSpec> {
-    const result:Map<string, CardSpec> = new Map()
-    for (const x of xs) result.set(x.name, x);
-    return result
-}
-
-function extractList(s:string, xs:CardSpec[]): SlotSpec[] {
-    if (s.length == 0) return []
-    const dictionary = makeDictionary(xs)
-    const result:SlotSpec[] = []
-    for (const name of s.split(',')) {
-        if (name == RANDOM) result.push(RANDOM)
-        else {
-            const lookup = dictionary.get(name)
-            if (lookup == undefined)
-                throw new MalformedSpec(`${name} is not a valid name`);
-            result.push(lookup)
-        }
-    }
-    return result
-}
-
-export class MalformedSpec extends Error {
-    constructor(public s:string) {
-        super(`Not a well-formed game spec: ${s}`)
-        Object.setPrototypeOf(this, MalformedSpec.prototype)
-    }
-}
-
-function randomSeed(): string {
-    return Math.random().toString(36).substring(2, 7)
-}
-
-function specFromURL(search:URLSearchParams): GameSpec {
-    const seed:string|null = search.get('seed')
-    const cards:string|null = search.get('cards')
-    const events:string|null = search.get('events')
-    const testing:string|null = search.get('test')
-    return {
-        seed: seed || randomSeed(), 
-        cards: (cards == null) ? undefined  : extractList(cards, mixins),
-        events: (events== null) ? undefined  : extractList(events, eventMixins),
-        testing: testing != null,
-        type: 'main'
-    }
-}
 
 function getHistory(): string | null {
     return window.location.hash.substring(1) || null;
 }
 
-export function load(seed?:string): void {
-    let spec:GameSpec = {seed:randomSeed(), type:'main'}
-    if (seed !== undefined && seed.length > 0) {
-        spec = {seed:seed, type:'main'}
-    } else {
-        try {
-            spec = specFromURL(new URLSearchParams(window.location.search))
-        } catch(e) {
-            if (e instanceof MalformedSpec) {
-                alert(e)
-            } else {
-                throw e
-            }
+export function load(fixedURL?:string): void {
+    const url = (fixedURL === undefined) ? window.location.search : fixedURL
+    let spec:GameSpec;
+    try {
+        spec = specFromURL(window.location.search)
+    } catch(e) {
+        if (e instanceof MalformedSpec) {
+            alert(e)
+            spec = specFromURL('')
+        } else {
+            throw e
         }
     }
     let state = initialState(spec)

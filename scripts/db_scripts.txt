@@ -1,3 +1,19 @@
+### migration 6/21/2020
+
+#Add URLs to the dailies table
+
+ALTER TABLE dailies ADD COLUMN url TEXT;
+UPDATE dailies SET url = 'seed=' || seed;
+ALTER TABLE dailies ALTER COLUMN url SET NOT NULL;
+ALTER TABLE dailies DROP COLUMN seed;
+
+#Add URLs to the scoreboard table
+
+ALTER TABLE scoreboard ADD COLUMN url TEXT;
+UPDATE scoreboard SET url = 'seed=' || seed;
+ALTER TABLE scoreboard ALTER COLUMN url SET NOT NULL;
+ALTER TABLE scoreboard DROP COLUMN seed;
+
 ### migration 6/7/2020
 
 #Add new columns to dailies table

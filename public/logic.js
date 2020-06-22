@@ -503,7 +503,7 @@ function get(stateUpdate, k, state) {
 export var RANDOM = 'Random';
 var State = /** @class */ (function () {
     function State(spec, ui, resources, zones, resolving, nextID, history, future, redo, checkpoint, logs, logIndent) {
-        if (spec === void 0) { spec = { seed: '', type: 'main' }; }
+        if (spec === void 0) { spec = { kind: 'full', seed: '' }; }
         if (ui === void 0) { ui = noUI; }
         if (resources === void 0) { resources = { coin: 0, energy: 0, points: 0, actions: 0, buys: 0 }; }
         if (zones === void 0) { zones = new Map(); }
@@ -1992,23 +1992,226 @@ function hash(s) {
     }
     return hash;
 }
-var defaultCards = Array(10).fill(RANDOM);
-var defaultEvents = Array(4).fill(RANDOM);
-export function fillSpec(spec) {
-    if (spec.type != 'main')
-        return assertNever(spec.type);
-    return {
-        seed: (spec.seed === undefined) ? randomSeed() : spec.seed,
-        cards: (spec.cards === undefined) ? defaultCards : spec.cards,
-        events: (spec.events === undefined) ? defaultEvents : spec.events,
-        testing: (spec.testing === undefined) ? false : spec.testing,
-    };
+export function cardsAndEvents(spec) {
+    switch (spec.kind) {
+        case 'full': return { cards: Array(10).fill(RANDOM), events: Array(4).fill(RANDOM) };
+        case 'half': return { cards: Array(5).fill(RANDOM), events: Array(2).fill(RANDOM) };
+        case 'mini': return { cards: Array(3).fill(RANDOM), events: Array(1).fill(RANDOM) };
+        case 'test': return { cards: [], events: [] };
+        case 'pick': return { cards: [], events: [] };
+        case 'pickR': return { cards: spec.cards, events: spec.events };
+        default: return assertNever(spec);
+    }
+}
+export function makeKingdom(spec) {
+    switch (spec.kind) {
+        case 'test':
+            return {
+                cards: mixins,
+                events: eventMixins.concat(cheats),
+            };
+        case 'pick':
+            return { cards: spec.cards, events: spec.events };
+        default:
+            var kingdom = cardsAndEvents(spec);
+            return {
+                cards: pickRandoms(kingdom.cards, mixins, 'cards' + spec.seed),
+                events: pickRandoms(kingdom.events, eventMixins, 'events' + spec.seed),
+            };
+    }
 }
 function randomSeed() {
     return Math.random().toString(36).substring(2, 7);
 }
+var MalformedSpec = /** @class */ (function (_super) {
+    __extends(MalformedSpec, _super);
+    function MalformedSpec(s) {
+        var _this = _super.call(this, "Not a well-formed game spec: " + s) || this;
+        _this.s = s;
+        Object.setPrototypeOf(_this, MalformedSpec.prototype);
+        return _this;
+    }
+    return MalformedSpec;
+}(Error));
+export { MalformedSpec };
+export function getTutorialSpec() {
+    return {
+        cards: [throneRoom],
+        events: [duplicate],
+        kind: 'pick'
+    };
+}
+function makeDictionary(xs) {
+    var e_24, _a;
+    var result = new Map();
+    try {
+        for (var xs_1 = __values(xs), xs_1_1 = xs_1.next(); !xs_1_1.done; xs_1_1 = xs_1.next()) {
+            var x = xs_1_1.value;
+            result.set(x.name, x);
+        }
+    }
+    catch (e_24_1) { e_24 = { error: e_24_1 }; }
+    finally {
+        try {
+            if (xs_1_1 && !xs_1_1.done && (_a = xs_1.return)) _a.call(xs_1);
+        }
+        finally { if (e_24) throw e_24.error; }
+    }
+    return result;
+}
+function extractList(s, xs) {
+    var e_25, _a;
+    if (s.length == 0)
+        return [];
+    var dictionary = makeDictionary(xs);
+    var result = [];
+    try {
+        for (var _b = __values(s.split(',')), _c = _b.next(); !_c.done; _c = _b.next()) {
+            var name_5 = _c.value;
+            if (name_5 == RANDOM)
+                result.push(RANDOM);
+            else {
+                var lookup = dictionary.get(name_5);
+                if (lookup == undefined)
+                    throw new MalformedSpec(name_5 + " is not a valid name");
+                result.push(lookup);
+            }
+        }
+    }
+    catch (e_25_1) { e_25 = { error: e_25_1 }; }
+    finally {
+        try {
+            if (_c && !_c.done && (_a = _b.return)) _a.call(_b);
+        }
+        finally { if (e_25) throw e_25.error; }
+    }
+    return result;
+}
+function mapToURL(args) {
+    return Array.from(args.entries()).map(function (x) { return x[0] + "=" + x[1]; }).join('&');
+}
+function renderSlots(slots) {
+    var e_26, _a;
+    var result = [];
+    try {
+        for (var slots_1 = __values(slots), slots_1_1 = slots_1.next(); !slots_1_1.done; slots_1_1 = slots_1.next()) {
+            var slot = slots_1_1.value;
+            if (slot == RANDOM)
+                result.push(slot);
+            else
+                result.push(slot.name);
+        }
+    }
+    catch (e_26_1) { e_26 = { error: e_26_1 }; }
+    finally {
+        try {
+            if (slots_1_1 && !slots_1_1.done && (_a = slots_1.return)) _a.call(slots_1);
+        }
+        finally { if (e_26) throw e_26.error; }
+    }
+    return result.join(',');
+}
+export function specToURL(spec) {
+    var args = new Map();
+    if (spec.kind != 'full')
+        args.set('kind', spec.kind);
+    switch (spec.kind) {
+        case 'full':
+        case 'mini':
+        case 'half':
+            args.set('seed', spec.seed);
+            break;
+        case 'pick':
+        case 'pickR':
+            args.set('cards', renderSlots(spec.cards));
+            args.set('events', renderSlots(spec.events));
+            break;
+        case 'test': break;
+        default: return assertNever(spec);
+    }
+    return mapToURL(args);
+}
+export function specFromURL(search) {
+    var e_27, _a, e_28, _b;
+    var searchParams = new URLSearchParams(search);
+    var urlKind = searchParams.get('kind');
+    var cards = searchParams.get('cards');
+    var events = searchParams.get('events');
+    var seed = searchParams.get('seed') || randomSeed();
+    var kind;
+    if ((cards === null) != (events === null)) {
+        throw new MalformedSpec('Must pick cards iff picking events.');
+    }
+    if (urlKind !== null) {
+        kind = urlKind;
+    }
+    else {
+        if (cards === null || events === null)
+            kind = 'full';
+        else if (cards.includes(RANDOM) || events.includes(RANDOM))
+            kind = 'pickR';
+        else
+            kind = 'pick';
+    }
+    switch (kind) {
+        case 'full':
+        case 'half':
+        case 'mini':
+            return { kind: kind, seed: seed };
+        case 'pick':
+            var cardSpecs = [];
+            var eventSpecs = [];
+            if (cards === null)
+                throw new MalformedSpec('Custom kingdoms must pick cards');
+            if (events === null)
+                throw new MalformedSpec('Custom kingdoms must pick events');
+            try {
+                for (var _c = __values(extractList(cards, mixins)), _d = _c.next(); !_d.done; _d = _c.next()) {
+                    var card = _d.value;
+                    if (card == RANDOM)
+                        throw new MalformedSpec('Random card is only allowable in type pickR');
+                    else
+                        cardSpecs.push(card);
+                }
+            }
+            catch (e_27_1) { e_27 = { error: e_27_1 }; }
+            finally {
+                try {
+                    if (_d && !_d.done && (_a = _c.return)) _a.call(_c);
+                }
+                finally { if (e_27) throw e_27.error; }
+            }
+            try {
+                for (var _e = __values(extractList(events, eventMixins)), _f = _e.next(); !_f.done; _f = _e.next()) {
+                    var card = _f.value;
+                    if (card == RANDOM)
+                        throw new MalformedSpec('Random card is only allowable in type pickR');
+                    else
+                        eventSpecs.push(card);
+                }
+            }
+            catch (e_28_1) { e_28 = { error: e_28_1 }; }
+            finally {
+                try {
+                    if (_f && !_f.done && (_b = _e.return)) _b.call(_e);
+                }
+                finally { if (e_28) throw e_28.error; }
+            }
+            return { kind: kind, cards: cardSpecs, events: eventSpecs };
+        case 'pickR':
+            if (cards === null)
+                throw new MalformedSpec('Custom kingdoms must specify cards');
+            if (events === null)
+                throw new MalformedSpec('Custom kingdoms must specify events');
+            return { kind: kind, seed: seed,
+                cards: extractList(cards, mixins),
+                events: extractList(events, eventMixins) };
+        case 'test': return { kind: 'test' };
+        default: throw new MalformedSpec("Invalid kind " + kind);
+    }
+}
 function getFixedKingdom(kingdomString) {
-    var e_24, _a, e_25, _b;
+    var e_29, _a, e_30, _b;
     if (kingdomString == null)
         return null;
     var cardStrings = kingdomString.split(',');
@@ -2019,12 +2222,12 @@ function getFixedKingdom(kingdomString) {
             mixinsByName.set(spec.name, spec);
         }
     }
-    catch (e_24_1) { e_24 = { error: e_24_1 }; }
+    catch (e_29_1) { e_29 = { error: e_29_1 }; }
     finally {
         try {
             if (mixins_1_1 && !mixins_1_1.done && (_a = mixins_1.return)) _a.call(mixins_1);
         }
-        finally { if (e_24) throw e_24.error; }
+        finally { if (e_29) throw e_29.error; }
     }
     var result = [];
     try {
@@ -2040,23 +2243,23 @@ function getFixedKingdom(kingdomString) {
             }
         }
     }
-    catch (e_25_1) { e_25 = { error: e_25_1 }; }
+    catch (e_30_1) { e_30 = { error: e_30_1 }; }
     finally {
         try {
             if (cardStrings_1_1 && !cardStrings_1_1.done && (_b = cardStrings_1.return)) _b.call(cardStrings_1);
         }
-        finally { if (e_25) throw e_25.error; }
+        finally { if (e_30) throw e_30.error; }
     }
     return result;
 }
 function pickRandoms(slots, source, seed) {
-    var e_26, _a;
+    var e_31, _a;
     var taken = new Set();
     var result = [];
     var randoms = 0;
     try {
-        for (var slots_1 = __values(slots), slots_1_1 = slots_1.next(); !slots_1_1.done; slots_1_1 = slots_1.next()) {
-            var slot = slots_1_1.value;
+        for (var slots_2 = __values(slots), slots_2_1 = slots_2.next(); !slots_2_1.done; slots_2_1 = slots_2.next()) {
+            var slot = slots_2_1.value;
             if (slot == RANDOM) {
                 randoms += 1;
             }
@@ -2066,33 +2269,26 @@ function pickRandoms(slots, source, seed) {
             }
         }
     }
-    catch (e_26_1) { e_26 = { error: e_26_1 }; }
+    catch (e_31_1) { e_31 = { error: e_31_1 }; }
     finally {
         try {
-            if (slots_1_1 && !slots_1_1.done && (_a = slots_1.return)) _a.call(slots_1);
+            if (slots_2_1 && !slots_2_1.done && (_a = slots_2.return)) _a.call(slots_2);
         }
-        finally { if (e_26) throw e_26.error; }
+        finally { if (e_31) throw e_31.error; }
     }
-    return result.concat(randomChoices(source.filter(function (x) { return !taken.has(x.name); }), randoms, seed));
+    return result.concat(randomChoices(source.filter(function (x) { return !taken.has(x.name); }), randoms, hash(seed)));
 }
 export function initialState(spec) {
     var startingHand = [copper, copper, copper, estate, estate];
-    var intSeed = hash(spec.seed);
-    var fullSpec = fillSpec(spec);
-    var variableSupplies = pickRandoms(fullSpec.cards, mixins, intSeed);
-    var variableEvents = pickRandoms(fullSpec.events, eventMixins, intSeed + 1);
+    var kingdom = makeKingdom(spec);
+    var variableSupplies = kingdom.cards.slice();
+    var variableEvents = kingdom.events.slice();
     variableSupplies.sort(supplySort);
     variableEvents.sort(supplySort);
-    if (spec.testing) {
-        for (var i = 0; i < cheats.length; i++)
-            variableEvents.push(cheats[i]);
-        variableSupplies = variableSupplies.concat(testSupplies);
-        variableEvents = variableEvents.concat(testEvents);
-    }
-    var kingdom = coreSupplies.concat(variableSupplies);
+    var supply = coreSupplies.concat(variableSupplies);
     var events = coreEvents.concat(variableEvents);
     var state = new State(spec);
-    state = createRawMulti(state, kingdom, 'supply');
+    state = createRawMulti(state, supply, 'supply');
     state = createRawMulti(state, events, 'events');
     state = createRawMulti(state, startingHand, 'discard');
     return state;
@@ -2123,8 +2319,6 @@ var coreSupplies = [];
 var coreEvents = [];
 export var mixins = [];
 export var eventMixins = [];
-var testSupplies = [];
-var testEvents = [];
 var cheats = [];
 //
 // ----------- UTILS -------------------
@@ -2174,11 +2368,8 @@ function makeCard(card, cost, selfdestruct) {
         relatedCards: [card],
     };
 }
-function registerEvent(card, test) {
-    if (test === void 0) { test = null; }
+function registerEvent(card) {
     eventMixins.push(card);
-    if (test == 'test')
-        testEvents.push(card);
 }
 //
 //
@@ -2285,52 +2476,53 @@ var refresh = { name: 'Refresh',
 };
 coreEvents.push(refresh);
 var copper = { name: 'Copper',
+    buyCost: coin(0),
     effects: [gainCoinEffect(1)]
 };
-coreSupplies.push(supplyForCard(copper, coin(0)));
+coreSupplies.push(copper);
 var silver = { name: 'Silver',
+    buyCost: coin(3),
     effects: [gainCoinEffect(2)]
 };
-coreSupplies.push(supplyForCard(silver, coin(3)));
+coreSupplies.push(silver);
 var gold = { name: 'Gold',
+    buyCost: coin(6),
     effects: [gainCoinEffect(3)]
 };
-coreSupplies.push(supplyForCard(gold, coin(6)));
+coreSupplies.push(gold);
 var estate = { name: 'Estate',
+    buyCost: coin(1),
     fixedCost: energy(1),
     effects: [gainPointsEffect(1)]
 };
-coreSupplies.push(supplyForCard(estate, coin(1)));
+coreSupplies.push(estate);
 var duchy = { name: 'Duchy',
+    buyCost: coin(4),
     fixedCost: energy(1),
     effects: [gainPointsEffect(2)]
 };
-coreSupplies.push(supplyForCard(duchy, coin(4)));
+coreSupplies.push(duchy);
 var province = { name: 'Province',
+    buyCost: coin(8),
     fixedCost: energy(1),
     effects: [gainPointsEffect(3)]
 };
-coreSupplies.push(supplyForCard(province, coin(8)));
+coreSupplies.push(province);
 //
 // ----- MIXINS -----
 //
-function register(card, test) {
-    if (test === void 0) { test = null; }
+function register(card) {
     mixins.push(card);
-    if (test == 'test')
-        testSupplies.push(card);
 }
-function buyable(card, n, test) {
-    if (test === void 0) { test = null; }
-    return buyableAnd(card, n, {}, test);
+function buyable(card, n) {
+    return buyableAnd(card, n, {});
 }
-function buyableAnd(card, n, extra, test) {
-    if (test === void 0) { test = null; }
-    register(supplyForCard(card, coin(n), extra), test);
+function buyableAnd(card, n, extra) {
+    card.buyCost = coin(n);
+    register(supplyForCard(card, coin(n), extra));
 }
-function buyableFree(card, coins, test) {
-    if (test === void 0) { test = null; }
-    buyableAnd(card, coins, { onBuy: [buyEffect()] }, test);
+function buyableFree(card, coins) {
+    buyableAnd(card, coins, { onBuy: [buyEffect()] });
 }
 function playAgain(target, source) {
     if (source === void 0) { source = unk; }
@@ -2887,8 +3079,8 @@ var synergy = { name: 'Synergy', fixedCost: __assign(__assign({}, free), { coin:
             text: ['Put synergy tokens on two cards in the supply.'],
             transform: function () { return function (state) {
                 return __awaiter(this, void 0, void 0, function () {
-                    var cards, cards_1, cards_1_1, card, e_27_1;
-                    var _a, e_27, _b;
+                    var cards, cards_1, cards_1_1, card, e_32_1;
+                    var _a, e_32, _b;
                     return __generator(this, function (_c) {
                         switch (_c.label) {
                             case 0: return [4 /*yield*/, multichoiceIfNeeded(state, 'Choose two cards to synergize.', state.supply.map(asChoice), 2, false)];
@@ -2911,14 +3103,14 @@ var synergy = { name: 'Synergy', fixedCost: __assign(__assign({}, free), { coin:
                                 return [3 /*break*/, 3];
                             case 6: return [3 /*break*/, 9];
                             case 7:
-                                e_27_1 = _c.sent();
-                                e_27 = { error: e_27_1 };
+                                e_32_1 = _c.sent();
+                                e_32 = { error: e_32_1 };
                                 return [3 /*break*/, 9];
                             case 8:
                                 try {
                                     if (cards_1_1 && !cards_1_1.done && (_b = cards_1.return)) _b.call(cards_1);
                                 }
-                                finally { if (e_27) throw e_27.error; }
+                                finally { if (e_32) throw e_32.error; }
                                 return [7 /*endfinally*/];
                             case 9: return [2 /*return*/, state];
                         }
@@ -3089,7 +3281,7 @@ var reflect = { name: 'Reflect', restrictions: [{
             test: function (c, s, k) { return (s.actions < 1 || s.hand.length == 0); }
         }], calculatedCost: costPlus(energy(1), coin(1)),
     effects: [incrementCost(), playTwice()], };
-registerEvent(reflect, 'test');
+registerEvent(reflect);
 var replicate = { name: 'Replicate',
     calculatedCost: costPlus(energy(1), coin(1)), effects: [incrementCost(), targetedEffect(function (target) { return create(target.spec, 'discard'); }, 'Choose a card in your hand. Create a fresh copy of it in your discard pile.', function (state) { return state.hand; })]
 };
@@ -3203,7 +3395,7 @@ var mastermind = {
             ]); }, 'Choose a card to play three times.', state.hand)); }
         }],
 };
-buyable(mastermind, 6, 'test');
+buyable(mastermind, 6);
 function chargeVillage() {
     return {
         text: "Cards in your hand @ less to play for each charge token on this.\n            Whenever this reduces a cost by one or more @, remove that many charge tokens from this.",
@@ -3469,24 +3661,24 @@ var banquet = {
 };
 buyable(banquet, 3);
 function countDistinct(xs) {
-    var e_28, _a;
+    var e_33, _a;
     var distinct = new Set();
     var result = 0;
     try {
-        for (var xs_1 = __values(xs), xs_1_1 = xs_1.next(); !xs_1_1.done; xs_1_1 = xs_1.next()) {
-            var x = xs_1_1.value;
+        for (var xs_2 = __values(xs), xs_2_1 = xs_2.next(); !xs_2_1.done; xs_2_1 = xs_2.next()) {
+            var x = xs_2_1.value;
             if (!distinct.has(x)) {
                 result += 1;
                 distinct.add(x);
             }
         }
     }
-    catch (e_28_1) { e_28 = { error: e_28_1 }; }
+    catch (e_33_1) { e_33 = { error: e_33_1 }; }
     finally {
         try {
-            if (xs_1_1 && !xs_1_1.done && (_a = xs_1.return)) _a.call(xs_1);
+            if (xs_2_1 && !xs_2_1.done && (_a = xs_2.return)) _a.call(xs_2);
         }
-        finally { if (e_28) throw e_28.error; }
+        finally { if (e_33) throw e_33.error; }
     }
     return result;
 }
