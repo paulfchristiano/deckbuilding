@@ -1,5 +1,9 @@
-#resources, #choicePrompt, .header, #kingdomLink, .helpLine, .sizeDescription {
+#resources, #choicePrompt, .header, #kingdomLink, .helpLine, .sizeDescription, .homeLine {
     font-size: 1.25em;
+}
+.homeLine {
+    max-width: 30em;
+    margin-bottom: 1em;
 }
 .card, .option {
     font-size: 1em;
