@@ -1,4 +1,4 @@
-export const VERSION = "0.8"
+export const VERSION = "1"
 
 // ----------------------------- Formatting
 
