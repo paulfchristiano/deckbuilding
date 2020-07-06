@@ -723,7 +723,7 @@ const tutorialStages:tutorialStage[] = [
         It will walk you through the first few actions of a simple game.
         Press enter or click 'Next' to advance.`,
         `When you use an event or play a card, you first pay its cost
-        then follows its instructions.
+        then follow its instructions.
         After pressing 'Next',
         hover over Refresh to see what it does, then click on it to use it.`],
         nextAction:0,

@@ -784,7 +784,7 @@ function clearChoice() {
 var tutorialStages = [
     {
         text: ["Welcome to the tutorial.\n        It will walk you through the first few actions of a simple game.\n        Press enter or click 'Next' to advance.",
-            "When you use an event or play a card, you first pay its cost\n        then follows its instructions.\n        After pressing 'Next',\n        hover over Refresh to see what it does, then click on it to use it."],
+            "When you use an event or play a card, you first pay its cost\n        then follow its instructions.\n        After pressing 'Next',\n        hover over Refresh to see what it does, then click on it to use it."],
         nextAction: 0,
     },
     {
