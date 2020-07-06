@@ -37,11 +37,20 @@ async function ensureNextMonth(): Promise<void> {
     const d:Date = new Date()
     for (let i = 0; i < 30; i++) {
         for (const type of dailyTypes) {
-          const secret = randomString()
           const key = makeDailyKey(type, d)
-          const results = await sql`
+          let secret:string;
+          const results = await sql`SELECT secret FROM secrets WHERE key=${key}`
+          if (results.length == 0) {
+            secret = randomString();
+            await sql`INSERT INTO secrets (key, secret)
+                                  VALUES (${key}, ${secret})
+                      ON CONFLICT DO NOTHING`
+          } else {
+            secret = results[0].secret
+          }
+          await sql`
               INSERT INTO dailies (type, key, secret, url)
-                          values (${type}, ${key}, ${secret}, ${makeDailyURL(type, key, secret)})
+                          values (${type}, ${key}, ${secret}, ${makeDailyURL(key, secret)})
               ON CONFLICT DO NOTHING
           `
         }
@@ -49,20 +58,19 @@ async function ensureNextMonth(): Promise<void> {
     }
 }
 
-type DailyType = 'mini' | 'full'
-const dailyTypes:DailyType[] = ['mini', 'full']
+type DailyType = 'weekly' | 'full'
+const dailyTypes:DailyType[] = ['weekly', 'full']
 
 function makeDailyKey(type:DailyType, inputDate:Date|null=null): string {
   const d:Date = (inputDate == null) ? new Date() : new Date(inputDate)
   //TODO: this seems like a bad way to handle timezones...
   d.setMinutes(d.getMinutes() + d.getTimezoneOffset() - 240) //east coast time
   switch (type) {
-    case 'mini':
+    case 'weekly':
+      //new weekly challenges only at beginning of Monday
+      while (d.getDay() != 1) d.setDate(d.getDate() - 1)
       return d.toLocaleDateString().split('/').join('.')
     case 'full':
-      //new full challenges only at beginning of Monday/Thursday
-      while (d.getDay() != 1 && d.getDay() != 4)
-        d.setDate(d.getDate() - 1)
       return d.toLocaleDateString().split('/').join('.')
   }
 
@@ -70,41 +78,38 @@ function makeDailyKey(type:DailyType, inputDate:Date|null=null): string {
 
 async function dailyURL(type:DailyType): Promise<string> {
     const key:string = makeDailyKey(type)
-    if (sql == null) return makeDailyURL(type, key, 'offline')
+    if (sql == null) return makeDailyURL(key, 'offline')
     while (true) {
         const results = await sql`
-          SELECT url FROM dailies
-          WHERE type=${type} AND key=${key}
+          SELECT secret FROM secrets
+          WHERE key=${key}
         `
         if (results.length == 0) {
             await ensureNextMonth()
         }
         else {
-            return results[0].url
+            return makeDailyURL(key, results[0].secret)
         }
     }
 }
 
-function makeDailyURL(type:DailyType, key:string, secret:string) {
-    switch (type) {
-      case 'mini':
-        return `kind=mini&seed=${key}.${secret}`
-      case 'full':
-        return `seed=${key}.${secret}`
-    }
+function makeDailyURL(key:string, secret:string) {
+  return `seed=${key}.${secret}`
 }
 
 async function submitForDaily(username:string, url:string, score:number): Promise<void> {
     if (sql == null) return;
     for (const type of dailyTypes) {
+      if (url == await dailyURL(type)) {
+        await sql`
+            UPDATE dailies
+            SET best_user = ${username}, best_score=${score}, version=${VERSION}
+            WHERE url = ${url} AND type = ${type} AND
+                (version = ${VERSION} OR version ISNULL) AND
+                (best_score > ${score} OR best_score ISNULL)
+        `
+      }
     }
-    await sql`
-        UPDATE dailies
-        SET best_user = ${username}, best_score=${score}, version=${VERSION}
-        WHERE url = ${url} AND
-            (version = ${VERSION} OR version ISNULL) AND
-            (best_score > ${score} OR best_score ISNULL)
-    `
 } 
 
 type RecentEntry = {version:string, age:string, score:number, username:string, url:string}
@@ -130,12 +135,45 @@ function dailyTypeFromReq(req:any): DailyType {
   return type
 }
 
-async function serveDaily(req:any, res:any) {
+async function serveDailyByType(type:DailyType, res:any) {
     try {
-        const type:DailyType = dailyTypeFromReq(req)
         const url = await dailyURL(type)
         console.log(url)
         res.render('pages/main', {url:url, tutorial:false})
+    } catch(err) {
+        console.error(err);
+        res.send(err.toString())
+    }
+}
+
+async function serveWeekly(req:any, res:any) {
+  await serveDailyByType('weekly', res)
+}
+
+async function serveDaily(req:any, res:any) {
+    try {
+        const type:DailyType = dailyTypeFromReq(req)
+        await serveDailyByType(type, res)
+    } catch(err) {
+        console.error(err);
+        res.send(err.toString())
+    }
+}
+
+async function serveDailiesByType(type:DailyType, res:any) {
+  try {
+      //TODO: this assumes that key is a date, remove assumption
+      // (does alphabetical just work fine?)
+      const results = await sql`
+          SELECT key, url, version, best_score, best_user, type,
+                 to_date(key, 'MM.DD.YYYY') as date
+          FROM dailies
+          WHERE type = ${type}
+          ORDER BY date DESC
+      `
+      for (const result of results)
+          results.current = (result.version == VERSION)
+      res.render('pages/dailies', {type:type, dailies:results.filter((r:any) => r.best_user != null)})
     } catch(err) {
         console.error(err);
         res.send(err.toString())
@@ -215,22 +253,14 @@ express()
               return
           }
           let type:DailyType = dailyTypeFromReq(req)
-
-          //TODO: this assumes that key is a date, remove assumption
-          const results = await sql`
-              SELECT key, url, version, best_score, best_user, type,
-                     to_date(key, 'MM.DD.YYYY') as date
-              FROM dailies
-              WHERE type = ${type}
-              ORDER BY date DESC
-          `
-          for (const result of results)
-              results.current = (result.version == VERSION)
-          res.render('pages/dailies', {type:type, dailies:results.filter((r:any) => r.best_user != null)})
+          await serveDailiesByType(type, res)
       } catch(err) {
           console.error(err);
           res.send(err.toString())
       }
+    })
+    .get('/weeklies', async (req: any, res:any) => {
+      await serveDailiesByType('weekly', res)
     })
     .get('/scoreboard', async (req:any, res:any) => {
       try {
@@ -268,6 +298,7 @@ express()
     .get('/play', serveMain)
     .get('/', serveDaily)
     .get('/daily', serveDaily)
+    .get('/weekly', serveWeekly)
     .get('/tutorial', serveTutorial)
     .post('/submit', async (req:any, res:any) => {
         try {

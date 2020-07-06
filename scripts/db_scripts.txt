@@ -1,3 +1,10 @@
+### migration 7/5/2020
+
+#create secrets table
+
+CREATE TABLE secrets (key TEXT PRIMARY KEY, secret TEXT NOT NULL);
+INSERT INTO secrets SELECT key, secret FROM dailies WHERE type = 'full';
+
 ### migration 6/21/2020
 
 #Add types to dailies table
