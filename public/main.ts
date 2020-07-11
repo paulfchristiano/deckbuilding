@@ -729,7 +729,7 @@ const tutorialStages:tutorialStage[] = [
         nextAction:0,
     },
     {
-        text: [`When you used Refresh you spent @4,
+        text: [`When you used Refresh you spent @@@@,
         because that's the cost of Refresh.
          You can see how much @ you've spent at the top of the screen.
          The goal of the game is to spend as little as possible.`,
@@ -768,7 +768,7 @@ const tutorialStages:tutorialStage[] = [
         The goal of the game is to get to ${VP_GOAL}vp
         using as little @ as possible.`,
         `This is a very small kingdom for the purposes of learning.
-        The fastest win for using these cards is @38. Good luck!`,
+        The fastest win with these cards is 38@. Good luck!`,
         `You can press '?' or click 'Help' to view the help at any time.`],
     },
 ]
