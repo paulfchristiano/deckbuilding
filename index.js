@@ -318,7 +318,6 @@ function serveDailyByType(type, res) {
                     return [4 /*yield*/, dailyURL(type)];
                 case 1:
                     url = _a.sent();
-                    console.log(url);
                     res.render('pages/main', { url: url, tutorial: false });
                     return [3 /*break*/, 3];
                 case 2:
@@ -538,7 +537,7 @@ express()
         switch (_b.label) {
             case 0:
                 _b.trys.push([0, 2, , 3]);
-                url = req._parsedUrl.query;
+                url = decodeURIComponent(req._parsedUrl.query);
                 if (sql == null) {
                     res.send('Not connected to a database.');
                     return [2 /*return*/];

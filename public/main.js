@@ -788,7 +788,7 @@ var tutorialStages = [
         nextAction: 0,
     },
     {
-        text: ["When you used Refresh you spent @4,\n        because that's the cost of Refresh.\n         You can see how much @ you've spent at the top of the screen.\n         The goal of the game is to spend as little as possible.",
+        text: ["When you used Refresh you spent @@@@,\n        because that's the cost of Refresh.\n         You can see how much @ you've spent at the top of the screen.\n         The goal of the game is to spend as little as possible.",
             "After paying Refresh's cost, you put your discard pile into your hand.\n         These are the cards available to play.",
             "Then you gained 5 actions, which you can use to play cards from your hand,\n         and 1 buy, which you can use to buy a card from the supply.\n         Your actions and buys are visible at the top of the screen.",
             "You have $0, so you can't buy much.\n         But you can use an action to play a Copper from your hand."],
@@ -813,7 +813,7 @@ var tutorialStages = [
     },
     {
         text: ["You spent @ to play the estate, and gained 1 vp.\n        The goal of the game is to get to " + VP_GOAL + "vp\n        using as little @ as possible.",
-            "This is a very small kingdom for the purposes of learning.\n        The fastest win for using these cards is @38. Good luck!",
+            "This is a very small kingdom for the purposes of learning.\n        The fastest win with these cards is 38@. Good luck!",
             "You can press '?' or click 'Help' to view the help at any time."],
     },
 ];

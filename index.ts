@@ -138,7 +138,6 @@ function dailyTypeFromReq(req:any): DailyType {
 async function serveDailyByType(type:DailyType, res:any) {
     try {
         const url = await dailyURL(type)
-        console.log(url)
         res.render('pages/main', {url:url, tutorial:false})
     } catch(err) {
         console.error(err);
@@ -264,7 +263,7 @@ express()
     })
     .get('/scoreboard', async (req:any, res:any) => {
       try {
-          const url = req._parsedUrl.query
+          const url = decodeURIComponent(req._parsedUrl.query)
           if (sql == null) {
               res.send('Not connected to a database.')
               return
