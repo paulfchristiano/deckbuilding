@@ -50,7 +50,7 @@
             <td><%= r.best_score %></td>
             <td><%= r.best_user %></td>
             <td><a href='play?<%= r.url %>'>play</a></td>
-            <td><a href='scoreboard?seed=<%= r.url %>'>scores</a></td>
+            <td><a href='scoreboard?<%= r.url %>'>scores</a></td>
             <td><%= r.version%></td>
         </tr>
         <% }); %>
