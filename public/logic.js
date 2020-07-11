@@ -85,7 +85,7 @@ var __read = (this && this.__read) || function (o, n) {
     }
     return ar;
 };
-export var VERSION = "1";
+export var VERSION = "1.1";
 // ----------------------------- Formatting
 export function renderCost(cost, full) {
     var e_1, _a;
@@ -1780,7 +1780,7 @@ function multichoice(state, prompt, options, validator) {
     });
 }
 function choice(state, prompt, options, automate) {
-    if (automate === void 0) { automate = false; }
+    if (automate === void 0) { automate = true; }
     return __awaiter(this, void 0, void 0, function () {
         var index, indices, newState;
         var _a;
@@ -1978,7 +1978,7 @@ function actChoice(state) {
     var supply = state.supply.filter(available('buy')).map(asActChoice('buy'));
     var events = state.events.filter(available('use')).map(asActChoice('use'));
     var play = state.play.filter(available('activate')).map(asActChoice('activate'));
-    return choice(state, "Use an event or card in play,\n        pay a buy to buy a card from the supply,\n        or pay an action to play a card from your hand.", hand.concat(supply).concat(events).concat(play));
+    return choice(state, "Use an event or card in play,\n        pay a buy to buy a card from the supply,\n        or pay an action to play a card from your hand.", hand.concat(supply).concat(events).concat(play), false);
 }
 // ------------------------------ Start the game
 function supplyKey(spec) {
@@ -3922,10 +3922,10 @@ var preparations = {
     fixedCost: energy(1),
     effects: [toPlay()],
     replacers: [{
-            text: "When you move this to your hand, +$2 and +2 actions.",
+            text: "When you would move this to your hand,\n            instead move it to your discard pile and gain +1 buy and +4 actions.",
             kind: 'move',
             handles: function (p, state, card) { return (p.card.id == card.id && p.toZone == 'hand'); },
-            replace: function (p) { return (__assign(__assign({}, p), { effects: p.effects.concat([gainCoin(2), gainActions(2)]) })); }
+            replace: function (p) { return (__assign(__assign({}, p), { toZone: 'discard', effects: p.effects.concat([gainBuys(1), gainActions(4)]) })); }
         }]
 };
 buyable(preparations, 3);

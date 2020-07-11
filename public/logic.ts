@@ -1,4 +1,4 @@
-export const VERSION = "1"
+export const VERSION = "1.1"
 
 // ----------------------------- Formatting
 
@@ -1431,7 +1431,7 @@ async function choice<T>(
     state:State,
     prompt:string,
     options:Option<T>[],
-    automate:boolean = false
+    automate:boolean = true
 ): Promise<[State, T|null]> {
     let index:number;
     if (options.length == 0) return [state, null];
@@ -1584,7 +1584,7 @@ function actChoice(state:State): Promise<[State, [Card, ActionKind]|null]> {
     return choice(state, `Use an event or card in play,
         pay a buy to buy a card from the supply,
         or pay an action to play a card from your hand.`,
-        hand.concat(supply).concat(events).concat(play))
+        hand.concat(supply).concat(events).concat(play), false)
 }
 
 // ------------------------------ Start the game
@@ -3470,10 +3470,14 @@ const preparations:CardSpec = {
     fixedCost: energy(1),
     effects: [toPlay()],
     replacers: [{
-        text: `When you move this to your hand, +$2 and +2 actions.`,
+        text: `When you would move this to your hand,
+            instead move it to your discard pile and gain +1 buy and +4 actions.`,
         kind: 'move',
         handles: (p, state, card) => (p.card.id == card.id && p.toZone == 'hand'),
-        replace: p => ({...p, effects:p.effects.concat([gainCoin(2), gainActions(2)])})
+        replace: p => ({...p, 
+            toZone:'discard',
+            effects:p.effects.concat([gainBuys(1), gainActions(4)])
+        })
     }]
 }
 buyable(preparations, 3)
