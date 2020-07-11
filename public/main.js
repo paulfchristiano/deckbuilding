@@ -1061,10 +1061,10 @@ function heartbeat(spec, interval) {
     }
 }
 function renderBest(best, spec) {
-    $('#best').html("Fastest win on this seed: " + best + " (<a target='_blank' href='" + scoreboardURL(spec) + "'>scoreboard</a>)");
+    $('#best').html("Fastest win on this kingdom: " + best + " (<a target='_blank' href='" + scoreboardURL(spec) + "'>scoreboard</a>)");
 }
 function renderScoreboardLink(spec) {
-    $('#best').html("No wins yet for this seed (<a target='_blank' href='" + scoreboardURL(spec) + "'>scoreboard</a>)");
+    $('#best').html("No wins yet for this kingdom (<a target='_blank' href='" + scoreboardURL(spec) + "'>scoreboard</a>)");
 }
 // Creating the game spec and starting the game ------------------------------
 function getHistory() {
