@@ -325,13 +325,13 @@ function renderShadow(shadow, state, tokenRenderer) {
     var tooltip;
     switch (shadow.spec.kind) {
         case 'ability':
-            tooltip = renderAbility(shadow.spec.card);
+            tooltip = renderAbility(shadow.spec.card.spec);
             break;
         case 'trigger':
             tooltip = renderTrigger(shadow.spec.trigger, false);
             break;
         case 'effect':
-            tooltip = renderEffects(shadow.spec.card);
+            tooltip = renderEffects(shadow.spec.card.spec);
             break;
         case 'cost':
             tooltip = describeCost(shadow.spec.cost);
@@ -347,11 +347,11 @@ function renderShadow(shadow, state, tokenRenderer) {
         "<span class='tooltip'>" + tooltip + "</span>",
         "</div>"].join('');
 }
-function renderEffects(card) {
+function renderEffects(spec) {
     var e_8, _a;
     var parts = [];
     try {
-        for (var _b = __values(card.effects()), _c = _b.next(); !_c.done; _c = _b.next()) {
+        for (var _b = __values(spec.effects || []), _c = _b.next(); !_c.done; _c = _b.next()) {
             var effect = _c.value;
             parts = parts.concat(effect.text);
         }
@@ -365,11 +365,11 @@ function renderEffects(card) {
     }
     return parts.map(function (x) { return "<div>" + x + "</div>"; }).join('');
 }
-function renderAbility(card) {
+function renderAbility(spec) {
     var e_9, _a;
     var parts = [];
     try {
-        for (var _b = __values(card.abilityEffects()), _c = _b.next(); !_c.done; _c = _b.next()) {
+        for (var _b = __values(spec.ability || []), _c = _b.next(); !_c.done; _c = _b.next()) {
             var effect = _c.value;
             parts = parts.concat(effect.text.map(function (x) { return "<div>(ability) " + x + "</div>"; }));
         }
@@ -413,29 +413,40 @@ function renderBuyable(bs) {
 function isZero(c) {
     return (c === undefined || renderCost(c) == '');
 }
+function cardText(spec) {
+    var effectHtml = renderEffects(spec);
+    var buyableHtml = (spec.restrictions != undefined) ? renderBuyable(spec.restrictions) : '';
+    var costHtml = (spec.calculatedCost != undefined) ? renderCalculatedCost(spec.calculatedCost) : '';
+    var abilitiesHtml = renderAbility(spec);
+    var triggerHtml = (spec.triggers || []).map(function (x) { return renderTrigger(x, false); }).join('');
+    var replacerHtml = (spec.replacers || []).map(function (x) { return renderTrigger(x, false); }).join('');
+    var staticTriggerHtml = (spec.staticTriggers || []).map(function (x) { return renderTrigger(x, true); }).join('');
+    var staticReplacerHtml = (spec.staticReplacers || []).map(function (x) { return renderTrigger(x, true); }).join('');
+    return [buyableHtml, costHtml, effectHtml, abilitiesHtml,
+        triggerHtml, replacerHtml, staticTriggerHtml, staticReplacerHtml].join('');
+}
 function renderTooltip(card, state, tokenRenderer) {
     var buyStr = !isZero(card.spec.buyCost) ?
         "(" + renderCost(card.spec.buyCost) + ")" : '---';
     var costStr = !isZero(card.spec.fixedCost) ?
         "(" + renderCost(card.cost('play', emptyState)) + ")" : '---';
     var header = "<div>---" + buyStr + " " + card.name + " " + costStr + "---</div>";
-    var effectHtml = renderEffects(card);
-    var buyableHtml = (card.spec.restrictions != undefined) ? renderBuyable(card.spec.restrictions) : '';
-    var costHtml = (card.spec.calculatedCost != undefined) ? renderCalculatedCost(card.spec.calculatedCost) : '';
-    var abilitiesHtml = renderAbility(card);
-    var triggerHtml = card.triggers().map(function (x) { return renderTrigger(x, false); }).join('');
-    var replacerHtml = card.replacers().map(function (x) { return renderTrigger(x, false); }).join('');
-    var staticTriggerHtml = card.staticTriggers().map(function (x) { return renderTrigger(x, true); }).join('');
-    var staticReplacerHtml = card.staticReplacers().map(function (x) { return renderTrigger(x, true); }).join('');
-    var staticHtml = triggerHtml + replacerHtml + staticTriggerHtml + staticReplacerHtml;
     var tokensHtml = tokenRenderer.renderTooltip(card.tokens);
-    var baseFilling = [header, costHtml, buyableHtml, effectHtml, abilitiesHtml, staticHtml, tokensHtml].join('');
+    var baseFilling = header + cardText(card.spec) + tokensHtml;
     function renderRelated(spec) {
         var card = new Card(spec, -1);
         return renderTooltip(card, state, tokenRenderer);
     }
     var relatedFilling = card.relatedCards().map(renderRelated).join('');
     return "" + baseFilling + relatedFilling;
+}
+function renderSpec(spec) {
+    var buyText = isZero(spec.buyCost) ? '' : "(" + renderCost(spec.buyCost) + ")&nbsp;";
+    var costText = isZero(spec.fixedCost) ? '' : "&nbsp;(" + renderCost(spec.fixedCost) + ")";
+    var header = "<div>" + buyText + spec.name + costText + "</div>";
+    var me = "<div class='spec'>" + header + cardText(spec) + "</div>";
+    var related = (spec.relatedCards || []).map(renderSpec);
+    return [me].concat(related).join('');
 }
 function getIfDef(m, x) {
     return (m == undefined) ? undefined : m.get(x);
@@ -780,9 +791,7 @@ function bindViewKingdom(state) {
             globalRendererState.viewingKingdom = false;
         }
         else {
-            var contents = state.events.concat(state.supply).map(function (card) {
-                return renderTooltip(card, state, globalRendererState.tokenRenderer);
-            }).join('');
+            var contents = state.events.concat(state.supply).map(function (card) { return renderSpec(card.spec); }).join('');
             e.html("<div id='kingdomView'>" + contents + "</div>");
             globalRendererState.viewingKingdom = true;
         }

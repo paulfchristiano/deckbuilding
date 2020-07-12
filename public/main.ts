@@ -199,13 +199,13 @@ function renderShadow(shadow:Shadow, state:State, tokenRenderer:TokenRenderer):s
     let tooltip:string;
     switch (shadow.spec.kind) {
         case 'ability':
-            tooltip = renderAbility(shadow.spec.card)
+            tooltip = renderAbility(shadow.spec.card.spec)
             break
         case 'trigger':
             tooltip = renderTrigger(shadow.spec.trigger, false)
             break
         case 'effect':
-            tooltip = renderEffects(shadow.spec.card)
+            tooltip = renderEffects(shadow.spec.card.spec)
             break
         case 'cost':
             tooltip = describeCost(shadow.spec.cost)
@@ -222,17 +222,17 @@ function renderShadow(shadow:Shadow, state:State, tokenRenderer:TokenRenderer):s
             `</div>`].join('')
 }
 
-function renderEffects(card:Card) {
+function renderEffects(spec:CardSpec) {
     let parts:string[] = []
-    for (const effect of card.effects()) {
+    for (const effect of spec.effects || []) {
         parts = parts.concat(effect.text)
     }
     return parts.map(x => `<div>${x}</div>`).join('')
 }
 
-function renderAbility(card:Card): string {
+function renderAbility(spec:CardSpec): string {
     let parts:string[] = []
-    for (const effect of card.abilityEffects()) {
+    for (const effect of spec.ability || []) {
         parts = parts.concat(effect.text.map(x => `<div>(ability) ${x}</div>`))
     }
     return parts.join('')
@@ -285,29 +285,53 @@ function isZero(c:Cost|undefined) {
     return (c===undefined || renderCost(c) == '')
 }
 
+function cardText(spec:CardSpec): string {
+    const effectHtml:string = renderEffects(spec)
+    const buyableHtml:string = (spec.restrictions != undefined) ? renderBuyable(spec.restrictions) : ''
+    const costHtml:string = (spec.calculatedCost != undefined) ? renderCalculatedCost(spec.calculatedCost) : ''
+    const abilitiesHtml:string = renderAbility(spec)
+    const triggerHtml:string = (spec.triggers || []).map(
+        x => renderTrigger(x, false)
+    ).join('')
+    const replacerHtml:string = (spec.replacers || []).map(
+        x => renderTrigger(x, false)
+    ).join('')
+    const staticTriggerHtml:string = (spec.staticTriggers || []).map(
+        x => renderTrigger(x, true)
+    ).join('')
+    const staticReplacerHtml:string = (spec.staticReplacers || []).map(
+        x => renderTrigger(x, true)
+    ).join('')
+    return [buyableHtml, costHtml, effectHtml, abilitiesHtml,
+            triggerHtml, replacerHtml, staticTriggerHtml, staticReplacerHtml].join('')
+
+}
+
 function renderTooltip(card:Card, state:State, tokenRenderer:TokenRenderer): string {
     const buyStr = !isZero(card.spec.buyCost) ?
         `(${renderCost(card.spec.buyCost as Cost)})` : '---'
     const costStr = !isZero(card.spec.fixedCost) ?
         `(${renderCost(card.cost('play', emptyState) as Cost)})` : '---'
     const header = `<div>---${buyStr} ${card.name} ${costStr}---</div>`
-    const effectHtml:string = renderEffects(card)
-    const buyableHtml:string = (card.spec.restrictions != undefined) ? renderBuyable(card.spec.restrictions) : ''
-    const costHtml:string = (card.spec.calculatedCost != undefined) ? renderCalculatedCost(card.spec.calculatedCost) : ''
-    const abilitiesHtml:string = renderAbility(card)
-    const triggerHtml:string = card.triggers().map(x => renderTrigger(x, false)).join('')
-    const replacerHtml:string = card.replacers().map(x => renderTrigger(x, false)).join('')
-    const staticTriggerHtml:string = card.staticTriggers().map(x => renderTrigger(x, true)).join('')
-    const staticReplacerHtml:string = card.staticReplacers().map(x => renderTrigger(x, true)).join('')
-    const staticHtml:string = triggerHtml + replacerHtml + staticTriggerHtml + staticReplacerHtml
     const tokensHtml:string = tokenRenderer.renderTooltip(card.tokens)
-    const baseFilling:string = [header, costHtml, buyableHtml, effectHtml, abilitiesHtml, staticHtml, tokensHtml].join('')
+    const baseFilling:string = header + cardText(card.spec) + tokensHtml
+
     function renderRelated(spec:CardSpec) {
         const card:Card = new Card(spec, -1)
         return renderTooltip(card, state, tokenRenderer)
     }
     const relatedFilling:string = card.relatedCards().map(renderRelated).join('')
+
     return `${baseFilling}${relatedFilling}`
+}
+
+function renderSpec(spec:CardSpec): string {
+    const buyText = isZero(spec.buyCost) ? '' : `(${renderCost(spec.buyCost as Cost)})&nbsp;`
+    const costText = isZero(spec.fixedCost) ? '' : `&nbsp;(${renderCost(spec.fixedCost as Cost)})`
+    const header = `<div>${buyText}${spec.name}${costText}</div>`
+    const me = `<div class='spec'>${header}${cardText(spec)}</div>`
+    const related:string[] = (spec.relatedCards || []).map(renderSpec)
+    return [me].concat(related).join('')
 }
 
 
@@ -705,8 +729,8 @@ function bindViewKingdom(state:State): void {
             e.html('')
             globalRendererState.viewingKingdom = false
         } else {
-            const contents = state.events.concat(state.supply).map(card => 
-                renderTooltip(card, state, globalRendererState.tokenRenderer)
+            const contents = state.events.concat(state.supply).map(
+                card => renderSpec(card.spec)
             ).join('')
             e.html(`<div id='kingdomView'>${contents}</div>`)
             globalRendererState.viewingKingdom = true

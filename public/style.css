@@ -20,6 +20,24 @@
     text-align: center;
     position: relative;
 }
+.spec {
+    display:flex;
+    flex-direction: column;
+    justify-content: center;
+    font-size: 1em;
+    border: 2px solid;
+    border-radius: 5px;
+    padding-left: 3px;
+    padding-right: 3px;
+    padding-top: 3px;
+    padding-bottom: 3px;
+    margin-right: 3px;
+    margin-top: 3px;
+    width: 20em;
+    cursor:default;
+    text-align: center;
+    position: relative;
+}
 .resource {
     margin-right:1em;
 }
@@ -45,10 +63,13 @@
     visibility:visible;
 }
 #kingdomView {
+    flex-direction: row;
+    flex-wrap: wrap;
+    display:flex;
     margin-top: 1em;
     margin-bottom: 1em;
     font-size: 1.25em;
-    max-width: 30em;
+    max-width: 65em;
 }
 #tutorialText {
     padding-bottom: 1em;
