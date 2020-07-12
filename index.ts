@@ -30,6 +30,10 @@ function renderTimeSince(date:Date) {
     return 'Just now'
 }
 
+function renderTime(date:Date) {
+  return date.toLocaleString('en-US', {timeZone: 'America/New_York'})
+}
+
 const challengeTypes = ['full', 'mini']
 
 async function ensureNextMonth(): Promise<void> {
@@ -233,7 +237,7 @@ express()
                   recents.set(result.url, {
                       url:result.url,
                       version:result.version,
-                      age:renderTimeSince(result.submitted),
+                      age:renderTime(result.submitted),
                       score:result.score,
                       username:result.username
                   })
@@ -273,7 +277,7 @@ express()
               WHERE url=${url}
               ORDER BY version DESC, score ASC, submitted ASC
           `
-          const entries = results.map((x:any) => ({...x, timesince:renderTimeSince(x.submitted)}))
+          const entries = results.map((x:any) => ({...x, timesince:renderTime(x.submitted)}))
           const entriesByVersion: [string, object[]][] = [];
           for (const entry of entries) {
               if (entriesByVersion.length == 0) {

@@ -114,6 +114,9 @@ function renderTimeSince(date) {
     }
     return 'Just now';
 }
+function renderTime(date) {
+    return date.toLocaleString('en-US', { timeZone: 'America/New_York' });
+}
 var challengeTypes = ['full', 'mini'];
 function ensureNextMonth() {
     return __awaiter(this, void 0, void 0, function () {
@@ -471,7 +474,7 @@ express()
                             recents.set(result.url, {
                                 url: result.url,
                                 version: result.version,
-                                age: renderTimeSince(result.submitted),
+                                age: renderTime(result.submitted),
                                 score: result.score,
                                 username: result.username
                             });
@@ -545,7 +548,7 @@ express()
                 return [4 /*yield*/, sql(templateObject_9 || (templateObject_9 = __makeTemplateObject(["\n              SELECT username, score, submitted, version FROM scoreboard\n              WHERE url=", "\n              ORDER BY version DESC, score ASC, submitted ASC\n          "], ["\n              SELECT username, score, submitted, version FROM scoreboard\n              WHERE url=", "\n              ORDER BY version DESC, score ASC, submitted ASC\n          "])), url)];
             case 1:
                 results = _b.sent();
-                entries = results.map(function (x) { return (__assign(__assign({}, x), { timesince: renderTimeSince(x.submitted) })); });
+                entries = results.map(function (x) { return (__assign(__assign({}, x), { timesince: renderTime(x.submitted) })); });
                 entriesByVersion = [];
                 try {
                     for (entries_1 = __values(entries), entries_1_1 = entries_1.next(); !entries_1_1.done; entries_1_1 = entries_1.next()) {
