@@ -412,13 +412,27 @@ function renderLogs(logs:string[]) {
 
 // ------------------------------- Rendering choices
 
-const webUI:UI = {
+class webUI {
+    public undoing:boolean = false;
+    constructor() {}
     choice<T>(
         state: State,
         choicePrompt: string,
         options: Option<T>[],
+        info: string[],
     ): Promise<number> {
+        const ui:webUI = this;
+        const automate:number|null = this.automateChoice(state, options, info)
+        if (automate !== null) {
+            if (this.undoing) throw new Undo(state)
+            else return Promise.resolve(automate)
+        }
+        this.undoing = false;
         return new Promise(function(resolve, reject) {
+            function newReject(reason:any) {
+                if (reason instanceof Undo) ui.undoing = true
+                reject(reason)
+            }
             function pick(i:number) {
                 clearChoice()
                 resolve(i)
@@ -429,20 +443,42 @@ const webUI:UI = {
                     choicePrompt,
                     options.map((x, i) => ({...x, value:() => pick(i)})),
                     x => resolve(x[0]),
-                    reject,
+                    newReject,
                     renderer
                 )
             }
             renderer()
         })
-    },
+    }
+    automateChoice<T>(
+        state:State,
+        options: Option<T>[],
+        info: string[],
+    ): number|null {
+        if (info.indexOf('tutorial') != -1) return null
+        if (info.indexOf('actChoice') != -1) return null
+        if (options.length == 1) return 0
+        return null
+    }
     multichoice<T>(
         state: State,
         choicePrompt: string,
         options: Option<T>[],
-        validator:((xs:T[]) => boolean) = (xs => true)
+        validator:((xs:T[]) => boolean) = (xs => true),
+        info: string[],
     ): Promise<number[]> {
+        const ui:webUI = this;
+        const automate:number[]|null = this.automateMultichoice(state, options, info)
+        if (automate !== null) {
+            if (this.undoing) throw new Undo(state)
+            else return Promise.resolve(automate)
+        }
+        this.undoing = false;
         return new Promise(function(resolve, reject){
+            function newReject(reason:any) {
+                if (reason instanceof Undo) ui.undoing = true
+                reject(reason)
+            }
             const chosen:Set<number> = new Set()
             function chosenOptions(): T[] {
                 const result = []
@@ -493,12 +529,20 @@ const webUI:UI = {
             }})
             chosen.clear()
             function renderer() {
-                renderChoice(state, choicePrompt, newOptions, resolve, reject, renderer, picks)
+                renderChoice(state, choicePrompt, newOptions, resolve, newReject, renderer, picks)
                 for (const j of chosen) elem(j).attr('chosen', true)
             }
             renderer()
         })
-    },
+    }
+    automateMultichoice<T>(
+        state:State,
+        options: Option<T>[],
+        info: string[],
+    ): number[]|null {
+        if (options.length == 0) return []
+        return null
+    }
     async victory(state:State): Promise<void> {
         const submitOrUndo: () => Promise<void> = () =>
             new Promise(function (resolve, reject) {
@@ -775,14 +819,15 @@ const tutorialStages:tutorialStage[] = [
 
 class tutorialUI {
     public stage:number = 0;
-    public readonly innerUI:UI = webUI;
     constructor(
-        public readonly stages:tutorialStage[]
+        public readonly stages:tutorialStage[],
+        public readonly innerUI:UI = new webUI()
     ) {}
     async choice<T>(
         state: State,
         choicePrompt: string,
         options: Option<T>[],
+        info: string[],
     ): Promise<number> {
         if (this.stage < this.stages.length) {
             const stage = this.stages[this.stage]
@@ -792,7 +837,8 @@ class tutorialUI {
             const result = this.innerUI.choice(
                 state,
                 choicePrompt,
-                options
+                options,
+                info.concat(['tutorial'])
             ).then(x => {
                 this.stage += 1
                 return (validIndex != undefined) ? validIndex : x
@@ -806,15 +852,22 @@ class tutorialUI {
             renderTutorialMessage(stage.text)
             return result
         }
-        else return this.innerUI.choice(state, choicePrompt, options)
+        else return this.innerUI.choice(state, choicePrompt, options, info)
     }
     async multichoice<T>(
         state: State,
         choicePrompt: string,
         options: Option<T>[],
-        validator:((xs:T[]) => boolean) = (xs => true)
+        validator:((xs:T[]) => boolean) = (xs => true),
+        info: string[],
     ) {
-        return this.innerUI.multichoice(state, choicePrompt, options, validator)
+        return this.innerUI.multichoice(
+            state,
+            choicePrompt,
+            options,
+            validator,
+            info.concat(['tutorial'])
+        )
     }
     async victory(state:State) {
         return this.innerUI.victory(state)
@@ -1066,7 +1119,8 @@ export function load(fixedURL:string=''): void {
     startGame(state)
 }
 
-function startGame(state:State, ui:UI=webUI): void {
+function startGame(state:State, ui?:UI): void {
+    if (ui === undefined) ui = new webUI()
     heartbeat(state.spec)
     const interval:any = setInterval(() => heartbeat(state.spec, interval), 10000)
 
@@ -1088,7 +1142,7 @@ function restart(state:State): void {
     const spec = state.spec
     state = initialState(spec)
     window.history.pushState(null, "")
-    playGame(state.attachUI(webUI)).catch(e => {
+    playGame(state.attachUI(new webUI())).catch(e => {
         if (e instanceof InvalidHistory) {
             alert(e)
             playGame(e.state.clearFuture())

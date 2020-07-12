@@ -398,13 +398,15 @@ export interface UI {
     choice<T>(
         s:State,
         prompt:string,
-        options:Option<T>[]
+        options:Option<T>[],
+        info: string[],
     ): Promise<number>;
     multichoice<T>(
         s:State,
         prompt:string,
         options:Option<T>[],
-        validator: ((xs:T[]) => boolean)
+        validator: ((xs:T[]) => boolean),
+        info: string[],
     ): Promise<number[]>;
     victory(s:State): Promise<void>;
 }
@@ -414,6 +416,7 @@ const noUI:UI = {
         state: State,
         choicePrompt: string,
         options: Option<T>[],
+        info: string[],
     ): Promise<number> {
         throw new ReplayEnded(state)
     },
@@ -421,7 +424,8 @@ const noUI:UI = {
         state: State,
         choicePrompt: string,
         options: Option<T>[],
-        validator:((xs:T[]) => boolean) = (xs => true)
+        validator:((xs:T[]) => boolean) = (xs => true),
+        info: string[],
     ): Promise<number[]> {
         throw new ReplayEnded(state)
     },
@@ -1417,10 +1421,11 @@ async function multichoice<T>(
     prompt:string,
     options:Option<T>[],
     validator:(xs:T[]) => boolean = (xs => true),
+    info:string[] = [],
 ): Promise<[State, T[]]> {
     let indices:number[], newState:State; [newState, indices] = await doOrReplay(
         state,
-        () => state.ui.multichoice(state, prompt, options, validator),
+        () => state.ui.multichoice(state, prompt, options, validator, info),
     )
     if (indices.some(x => x >= options.length))
         throw new InvalidHistory(indices, state)
@@ -1431,14 +1436,13 @@ async function choice<T>(
     state:State,
     prompt:string,
     options:Option<T>[],
-    automate:boolean = false
+    info:string[] = [],
 ): Promise<[State, T|null]> {
     let index:number;
     if (options.length == 0) return [state, null];
-    if (automate && options.length == 1) return [state, options[0].value];
     let indices:number[], newState:State; [newState, indices] = await doOrReplay(
         state,
-        async function() {const x = await state.ui.choice(state, prompt, options); return [x]},
+        async function() {const x = await state.ui.choice(state, prompt, options, info); return [x]},
     )
     if (indices.length != 1 || indices[0] >= options.length)
         throw new InvalidHistory(indices, state)
@@ -1584,7 +1588,7 @@ function actChoice(state:State): Promise<[State, [Card, ActionKind]|null]> {
     return choice(state, `Use an event or card in play,
         pay a buy to buy a card from the supply,
         or pay an action to play a card from your hand.`,
-        hand.concat(supply).concat(events).concat(play))
+        hand.concat(supply).concat(events).concat(play), ['actChoice'])
 }
 
 // ------------------------------ Start the game
@@ -2133,7 +2137,7 @@ function applyToTarget(
 ): Transform {
     return async function(state) {
         let target:Card|null; [state, target] = await choice(state,
-            text, options.map(asChoice), false)
+            text, options.map(asChoice), ['applyToTarget'])
         if (target != null) state = await f(target)(state);
         if (target == null && isCost) throw new CostNotPaid('No valid targets')
         return state
@@ -3524,7 +3528,7 @@ const composting:CardSpec = {
         transform: e => async function(state) {
             const n = e.cost.energy;
             let targets:Card[]; [state, targets] = await multichoiceIfNeeded(state,
-                `Choose ${num(n, 'card')} to put into your hand.`,
+                `Choose up to ${num(n, 'card')} to put into your hand.`,
                 state.discard.map(asChoice), n, true)
             return moveMany(targets, 'hand')(state)
         }

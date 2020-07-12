@@ -499,22 +499,62 @@ function renderLogs(logs) {
     return result.join('');
 }
 // ------------------------------- Rendering choices
-var webUI = {
-    choice: function (state, choicePrompt, options) {
+var webUI = /** @class */ (function () {
+    function webUI() {
+        this.undoing = false;
+    }
+    webUI.prototype.choice = function (state, choicePrompt, options, info) {
+        var ui = this;
+        var automate = this.automateChoice(state, options, info);
+        if (automate !== null) {
+            if (this.undoing)
+                throw new Undo(state);
+            else
+                return Promise.resolve(automate);
+        }
+        this.undoing = false;
         return new Promise(function (resolve, reject) {
+            function newReject(reason) {
+                if (reason instanceof Undo)
+                    ui.undoing = true;
+                reject(reason);
+            }
             function pick(i) {
                 clearChoice();
                 resolve(i);
             }
             function renderer() {
-                renderChoice(state, choicePrompt, options.map(function (x, i) { return (__assign(__assign({}, x), { value: function () { return pick(i); } })); }), function (x) { return resolve(x[0]); }, reject, renderer);
+                renderChoice(state, choicePrompt, options.map(function (x, i) { return (__assign(__assign({}, x), { value: function () { return pick(i); } })); }), function (x) { return resolve(x[0]); }, newReject, renderer);
             }
             renderer();
         });
-    },
-    multichoice: function (state, choicePrompt, options, validator) {
+    };
+    webUI.prototype.automateChoice = function (state, options, info) {
+        if (info.indexOf('tutorial') != -1)
+            return null;
+        if (info.indexOf('actChoice') != -1)
+            return null;
+        if (options.length == 1)
+            return 0;
+        return null;
+    };
+    webUI.prototype.multichoice = function (state, choicePrompt, options, validator, info) {
         if (validator === void 0) { validator = (function (xs) { return true; }); }
+        var ui = this;
+        var automate = this.automateMultichoice(state, options, info);
+        if (automate !== null) {
+            if (this.undoing)
+                throw new Undo(state);
+            else
+                return Promise.resolve(automate);
+        }
+        this.undoing = false;
         return new Promise(function (resolve, reject) {
+            function newReject(reason) {
+                if (reason instanceof Undo)
+                    ui.undoing = true;
+                reject(reason);
+            }
             var chosen = new Set();
             function chosenOptions() {
                 var e_10, _a;
@@ -590,7 +630,7 @@ var webUI = {
             chosen.clear();
             function renderer() {
                 var e_12, _a;
-                renderChoice(state, choicePrompt, newOptions, resolve, reject, renderer, picks);
+                renderChoice(state, choicePrompt, newOptions, resolve, newReject, renderer, picks);
                 try {
                     for (var chosen_3 = __values(chosen), chosen_3_1 = chosen_3.next(); !chosen_3_1.done; chosen_3_1 = chosen_3.next()) {
                         var j = chosen_3_1.value;
@@ -607,8 +647,13 @@ var webUI = {
             }
             renderer();
         });
-    },
-    victory: function (state) {
+    };
+    webUI.prototype.automateMultichoice = function (state, options, info) {
+        if (options.length == 0)
+            return [];
+        return null;
+    };
+    webUI.prototype.victory = function (state) {
         return __awaiter(this, void 0, void 0, function () {
             var submitOrUndo;
             return __generator(this, function (_a) {
@@ -630,8 +675,9 @@ var webUI = {
                 return [2 /*return*/, submitOrUndo()];
             });
         });
-    }
-};
+    };
+    return webUI;
+}());
 function renderChoice(state, choicePrompt, options, resolve, reject, renderer, picks, extraRenderSettings) {
     if (extraRenderSettings === void 0) { extraRenderSettings = {}; }
     var optionsMap = new Map(); //map card ids to their position in the choice list
@@ -818,12 +864,13 @@ var tutorialStages = [
     },
 ];
 var tutorialUI = /** @class */ (function () {
-    function tutorialUI(stages) {
+    function tutorialUI(stages, innerUI) {
+        if (innerUI === void 0) { innerUI = new webUI(); }
         this.stages = stages;
+        this.innerUI = innerUI;
         this.stage = 0;
-        this.innerUI = webUI;
     }
-    tutorialUI.prototype.choice = function (state, choicePrompt, options) {
+    tutorialUI.prototype.choice = function (state, choicePrompt, options, info) {
         return __awaiter(this, void 0, void 0, function () {
             var stage, validIndex_1, result;
             var _this = this;
@@ -833,7 +880,7 @@ var tutorialUI = /** @class */ (function () {
                     validIndex_1 = stage.nextAction;
                     if (validIndex_1 != undefined)
                         options = [options[validIndex_1]];
-                    result = this.innerUI.choice(state, choicePrompt, options).then(function (x) {
+                    result = this.innerUI.choice(state, choicePrompt, options, info.concat(['tutorial'])).then(function (x) {
                         _this.stage += 1;
                         return (validIndex_1 != undefined) ? validIndex_1 : x;
                     }).catch(function (e) {
@@ -849,16 +896,16 @@ var tutorialUI = /** @class */ (function () {
                     return [2 /*return*/, result];
                 }
                 else
-                    return [2 /*return*/, this.innerUI.choice(state, choicePrompt, options)];
+                    return [2 /*return*/, this.innerUI.choice(state, choicePrompt, options, info)];
                 return [2 /*return*/];
             });
         });
     };
-    tutorialUI.prototype.multichoice = function (state, choicePrompt, options, validator) {
+    tutorialUI.prototype.multichoice = function (state, choicePrompt, options, validator, info) {
         if (validator === void 0) { validator = (function (xs) { return true; }); }
         return __awaiter(this, void 0, void 0, function () {
             return __generator(this, function (_a) {
-                return [2 /*return*/, this.innerUI.multichoice(state, choicePrompt, options, validator)];
+                return [2 /*return*/, this.innerUI.multichoice(state, choicePrompt, options, validator, info.concat(['tutorial']))];
             });
         });
     };
@@ -1118,7 +1165,8 @@ export function load(fixedURL) {
     startGame(state);
 }
 function startGame(state, ui) {
-    if (ui === void 0) { ui = webUI; }
+    if (ui === undefined)
+        ui = new webUI();
     heartbeat(state.spec);
     var interval = setInterval(function () { return heartbeat(state.spec, interval); }, 10000);
     window.addEventListener("hashchange", function () { return load(); }, false);
@@ -1138,7 +1186,7 @@ function restart(state) {
     var spec = state.spec;
     state = initialState(spec);
     window.history.pushState(null, "");
-    playGame(state.attachUI(webUI)).catch(function (e) {
+    playGame(state.attachUI(new webUI())).catch(function (e) {
         if (e instanceof InvalidHistory) {
             alert(e);
             playGame(e.state.clearFuture());
