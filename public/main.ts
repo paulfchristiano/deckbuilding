@@ -233,7 +233,7 @@ function renderEffects(card:Card) {
 function renderAbility(card:Card): string {
     let parts:string[] = []
     for (const effect of card.abilityEffects()) {
-        parts = parts.concat(effect.text.map(x => `<div>(use) ${x}</div>`))
+        parts = parts.concat(effect.text.map(x => `<div>(ability) ${x}</div>`))
     }
     return parts.join('')
 }
@@ -267,7 +267,7 @@ function renderCard(
 }
 
 function renderTrigger(x:Trigger|Replacer, staticTrigger:boolean): string {
-    const desc:string = (staticTrigger) ? '(static)' : '(trigger)'
+    const desc:string = (staticTrigger) ? '(static)' : '(effect)'
     return `<div>${desc} ${x.text}</div>`
 }
 
@@ -332,14 +332,18 @@ declare global {
     interface Window { renderedState: State; serverSeed?: string; }
 }
 
+//TODO: this is all a mess, this should be part of the webUI
+
 interface RendererState {
     hotkeysOn:boolean;
     hotkeyMapper: HotkeyMapper;
     tokenRenderer: TokenRenderer;
+    viewingKingdom: boolean,
 }
 
 const globalRendererState:RendererState = {
     hotkeysOn:false,
+    viewingKingdom:false,
     hotkeyMapper: new HotkeyMapper(),
     tokenRenderer: new TokenRenderer(),
 }
@@ -642,13 +646,22 @@ function renderStringOption(option:StringOption<number>, hotkey?:Key, pick?:numb
 }
 
 function renderSpecials(state:State): string {
-    return renderUndo(state.undoable()) + 
-        renderRedo(state.redo.length > 0) +
-        renderHotkeyToggle() + renderHelp() + renderRestart()
+    return [
+        renderUndo(state.undoable()),
+        renderRedo(state.redo.length > 0),
+        renderHotkeyToggle(),
+        renderKingdomViewer(),
+        renderHelp(),
+        renderRestart()
+    ].join('')
 }
 
 function renderRestart(): string {
     return `<span id='deeplink' class='option', option='restart' choosable chosen='false'>Restart</span>`
+}
+
+function renderKingdomViewer(): string {
+    return `<span id='viewKingdom' class='option', option='viewKingdom' choosable chosen='false'>Kingdom</span>`
 }
 
 function renderHotkeyToggle(): string {
@@ -682,6 +695,24 @@ function bindSpecials(
     bindHelp(state, renderer)
     bindRestart(state)
     bindRedo(state, accept)
+    bindViewKingdom(state)
+}
+
+function bindViewKingdom(state:State): void {
+    function onClick() {
+        const e = $('#kingdomViewSpot')
+        if (globalRendererState.viewingKingdom) {
+            e.html('')
+            globalRendererState.viewingKingdom = false
+        } else {
+            const contents = state.events.concat(state.supply).map(card => 
+                renderTooltip(card, state, globalRendererState.tokenRenderer)
+            ).join('')
+            e.html(`<div id='kingdomView'>${contents}</div>`)
+            globalRendererState.viewingKingdom = true
+        }
+    }
+    $(`[option='viewKingdom']`).on('click', onClick)
 }
 
 function bindHotkeyToggle(renderer: () => void) {
@@ -909,6 +940,7 @@ export function loadTutorial(){
 
 // ------------------------------------------ Help
 
+//TODO: should handle help and the kingdom view in the same way
 function bindHelp(state:State, renderer: () => void) {
     function attach(f: () => void) {
         $('#help').on('click', f)
@@ -919,28 +951,24 @@ function bindHelp(state:State, renderer: () => void) {
         const helpLines:string[] = [
             `Rules:`,
             `The goal of the game is to get to ${VP_GOAL} points (vp) using as little energy (@) as possible.`,
-            `When you buy a card, pay its buy cost then create a copy of it in your discard pile.`,
-            "When you play a card or use an event, pay its cost then follow its instructions.",
+            `To buy a card, pay its buy cost then create a copy of it in your discard pile.`,
+            "To play a card or use an event, pay its cost then follow its instructions.",
+            "If an effect instructs you to play or buy a card, you don't have to pay a cost.",
             "The symbols below a card's name indicate its cost or buy cost.",
-            "When a cost is measured in energy (@, @@, ...) then you use that much energy to play it.",
-            "When a cost is measured in coin ($) then you can only buy it if you have enough coin.",
+            "When a cost is measured in energy (@, @@, ...) then you use that much energy to pay it.",
+            "When a cost is measured in coin ($) then you can only pay it if you have enough coin.",
             'After playing a card, discard it.',
             "You can activate the abilities of cards in play, marked with (ability).",
+            "Effects marked with (effect) apply whenever the card is in play.",
             "Effects marked with (static) apply whenever the card is in the supply.",
-            "Effects marked with (trigger) apply whenever the card is in play.",
             `&nbsp;`,
             `Other help:`,
-            "Press 'z' or click the undo button to undo the last move.",
-            "Press '/' or click the hotkey button to turn on hotkeys.",
-            "You can use the current URL to link to the current state of this game.",
-            `You can play today's <a href='daily'>daily kingdom</a>, which refreshes midnight EDT.`,
-            `Visit <a href="play?${specToURL(state.spec)}">this link</a> to replay the current kingdom anytime.`,
-            `Or visit the <a href="picker.html">kingdom picker<a> to pick a kingdom.`,
+            "Click the 'Kingdom' button to view the text of all cards at once.",
+            "Press 'z' or click the 'Undo' button to undo the last move.",
+            "Press '/' or click the 'Hotkeys' button to turn on hotkeys.",
+            "Go <a href='index.html'>here</a> to see all the ways to play the game.",
+            `Check out the scoreboard <a href=${scoreboardURL(state.spec)}>here</a>.`,
         ]
-        if (submittable(state.spec))
-            helpLines.push(`Check out the scoreboard <a href=${scoreboardURL(state.spec)}>here</a>.`)
-        else
-            helpLines.push(`There is no scoreboard when you specify a kingdom manually.`)
         $('#choicePrompt').html('')
         $('#resolvingHeader').html('')
         $('#resolving').html(helpLines.map(x => `<div class='helpLine'>${x}</div class='helpline'>`).join(''))

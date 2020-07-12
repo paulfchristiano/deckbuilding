@@ -371,7 +371,7 @@ function renderAbility(card) {
     try {
         for (var _b = __values(card.abilityEffects()), _c = _b.next(); !_c.done; _c = _b.next()) {
             var effect = _c.value;
-            parts = parts.concat(effect.text.map(function (x) { return "<div>(use) " + x + "</div>"; }));
+            parts = parts.concat(effect.text.map(function (x) { return "<div>(ability) " + x + "</div>"; }));
         }
     }
     catch (e_9_1) { e_9 = { error: e_9_1 }; }
@@ -401,7 +401,7 @@ function renderCard(card, state, zone, options, tokenRenderer) {
     }
 }
 function renderTrigger(x, staticTrigger) {
-    var desc = (staticTrigger) ? '(static)' : '(trigger)';
+    var desc = (staticTrigger) ? '(static)' : '(effect)';
     return "<div>" + desc + " " + x.text + "</div>";
 }
 function renderCalculatedCost(c) {
@@ -442,6 +442,7 @@ function getIfDef(m, x) {
 }
 var globalRendererState = {
     hotkeysOn: false,
+    viewingKingdom: false,
     hotkeyMapper: new HotkeyMapper(),
     tokenRenderer: new TokenRenderer(),
 };
@@ -731,12 +732,20 @@ function renderStringOption(option, hotkey, pick) {
     return "<span class='option' option='" + option.value + "' choosable chosen='false'>" + picktext + hotkeyText + option.render + "</span>";
 }
 function renderSpecials(state) {
-    return renderUndo(state.undoable()) +
-        renderRedo(state.redo.length > 0) +
-        renderHotkeyToggle() + renderHelp() + renderRestart();
+    return [
+        renderUndo(state.undoable()),
+        renderRedo(state.redo.length > 0),
+        renderHotkeyToggle(),
+        renderKingdomViewer(),
+        renderHelp(),
+        renderRestart()
+    ].join('');
 }
 function renderRestart() {
     return "<span id='deeplink' class='option', option='restart' choosable chosen='false'>Restart</span>";
+}
+function renderKingdomViewer() {
+    return "<span id='viewKingdom' class='option', option='viewKingdom' choosable chosen='false'>Kingdom</span>";
 }
 function renderHotkeyToggle() {
     return "<span class='option', option='hotkeyToggle' choosable chosen='false'>" + renderHotkey('/') + " Hotkeys</span>";
@@ -761,6 +770,24 @@ function bindSpecials(state, accept, reject, renderer) {
     bindHelp(state, renderer);
     bindRestart(state);
     bindRedo(state, accept);
+    bindViewKingdom(state);
+}
+function bindViewKingdom(state) {
+    function onClick() {
+        var e = $('#kingdomViewSpot');
+        if (globalRendererState.viewingKingdom) {
+            e.html('');
+            globalRendererState.viewingKingdom = false;
+        }
+        else {
+            var contents = state.events.concat(state.supply).map(function (card) {
+                return renderTooltip(card, state, globalRendererState.tokenRenderer);
+            }).join('');
+            e.html("<div id='kingdomView'>" + contents + "</div>");
+            globalRendererState.viewingKingdom = true;
+        }
+    }
+    $("[option='viewKingdom']").on('click', onClick);
 }
 function bindHotkeyToggle(renderer) {
     function pick() {
@@ -947,6 +974,7 @@ export function loadTutorial() {
     startGame(state, new tutorialUI(tutorialStages));
 }
 // ------------------------------------------ Help
+//TODO: should handle help and the kingdom view in the same way
 function bindHelp(state, renderer) {
     function attach(f) {
         $('#help').on('click', f);
@@ -957,28 +985,24 @@ function bindHelp(state, renderer) {
         var helpLines = [
             "Rules:",
             "The goal of the game is to get to " + VP_GOAL + " points (vp) using as little energy (@) as possible.",
-            "When you buy a card, pay its buy cost then create a copy of it in your discard pile.",
-            "When you play a card or use an event, pay its cost then follow its instructions.",
+            "To buy a card, pay its buy cost then create a copy of it in your discard pile.",
+            "To play a card or use an event, pay its cost then follow its instructions.",
+            "If an effect instructs you to play or buy a card, you don't have to pay a cost.",
             "The symbols below a card's name indicate its cost or buy cost.",
-            "When a cost is measured in energy (@, @@, ...) then you use that much energy to play it.",
-            "When a cost is measured in coin ($) then you can only buy it if you have enough coin.",
+            "When a cost is measured in energy (@, @@, ...) then you use that much energy to pay it.",
+            "When a cost is measured in coin ($) then you can only pay it if you have enough coin.",
             'After playing a card, discard it.',
             "You can activate the abilities of cards in play, marked with (ability).",
+            "Effects marked with (effect) apply whenever the card is in play.",
             "Effects marked with (static) apply whenever the card is in the supply.",
-            "Effects marked with (trigger) apply whenever the card is in play.",
             "&nbsp;",
             "Other help:",
-            "Press 'z' or click the undo button to undo the last move.",
-            "Press '/' or click the hotkey button to turn on hotkeys.",
-            "You can use the current URL to link to the current state of this game.",
-            "You can play today's <a href='daily'>daily kingdom</a>, which refreshes midnight EDT.",
-            "Visit <a href=\"play?" + specToURL(state.spec) + "\">this link</a> to replay the current kingdom anytime.",
-            "Or visit the <a href=\"picker.html\">kingdom picker<a> to pick a kingdom.",
+            "Click the 'Kingdom' button to view the text of all cards at once.",
+            "Press 'z' or click the 'Undo' button to undo the last move.",
+            "Press '/' or click the 'Hotkeys' button to turn on hotkeys.",
+            "Go <a href='index.html'>here</a> to see all the ways to play the game.",
+            "Check out the scoreboard <a href=" + scoreboardURL(state.spec) + ">here</a>.",
         ];
-        if (submittable(state.spec))
-            helpLines.push("Check out the scoreboard <a href=" + scoreboardURL(state.spec) + ">here</a>.");
-        else
-            helpLines.push("There is no scoreboard when you specify a kingdom manually.");
         $('#choicePrompt').html('');
         $('#resolvingHeader').html('');
         $('#resolving').html(helpLines.map(function (x) { return "<div class='helpLine'>" + x + "</div class='helpline'>"; }).join(''));

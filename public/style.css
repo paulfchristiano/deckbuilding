@@ -44,6 +44,12 @@
 #scoreSubmitter[active='true'] {
     visibility:visible;
 }
+#kingdomView {
+    margin-top: 1em;
+    margin-bottom: 1em;
+    font-size: 1.25em;
+    max-width: 30em;
+}
 #tutorialText {
     padding-bottom: 1em;
 }
