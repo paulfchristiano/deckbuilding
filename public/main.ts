@@ -328,7 +328,7 @@ function renderTooltip(card:Card, state:State, tokenRenderer:TokenRenderer): str
 function renderSpec(spec:CardSpec): string {
     const buyText = isZero(spec.buyCost) ? '' : `(${renderCost(spec.buyCost as Cost)})&nbsp;`
     const costText = isZero(spec.fixedCost) ? '' : `&nbsp;(${renderCost(spec.fixedCost as Cost)})`
-    const header = `<div>${buyText}${spec.name}${costText}</div>`
+    const header = `<div>${buyText}<strong>${spec.name}</strong>${costText}</div>`
     const me = `<div class='spec'>${header}${cardText(spec)}</div>`
     const related:string[] = (spec.relatedCards || []).map(renderSpec)
     return [me].concat(related).join('')

@@ -33,7 +33,7 @@
     padding-bottom: 3px;
     margin-right: 3px;
     margin-top: 3px;
-    width: 20em;
+    width: 15em;
     cursor:default;
     text-align: center;
     position: relative;
@@ -68,7 +68,6 @@
     display:flex;
     margin-top: 1em;
     margin-bottom: 1em;
-    font-size: 1.25em;
     max-width: 65em;
 }
 #tutorialText {

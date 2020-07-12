@@ -443,7 +443,7 @@ function renderTooltip(card, state, tokenRenderer) {
 function renderSpec(spec) {
     var buyText = isZero(spec.buyCost) ? '' : "(" + renderCost(spec.buyCost) + ")&nbsp;";
     var costText = isZero(spec.fixedCost) ? '' : "&nbsp;(" + renderCost(spec.fixedCost) + ")";
-    var header = "<div>" + buyText + spec.name + costText + "</div>";
+    var header = "<div>" + buyText + "<strong>" + spec.name + "</strong>" + costText + "</div>";
     var me = "<div class='spec'>" + header + cardText(spec) + "</div>";
     var related = (spec.relatedCards || []).map(renderSpec);
     return [me].concat(related).join('');
