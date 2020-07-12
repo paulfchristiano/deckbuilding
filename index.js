@@ -449,49 +449,29 @@ express()
     });
 }); })
     .get('/recent', function (req, res) { return __awaiter(void 0, void 0, void 0, function () {
-    var results, recents, results_2, results_2_1, result, oldBest, err_5;
-    var e_6, _a;
-    return __generator(this, function (_b) {
-        switch (_b.label) {
+    var results, recents, err_5;
+    return __generator(this, function (_a) {
+        switch (_a.label) {
             case 0:
-                _b.trys.push([0, 2, , 3]);
+                _a.trys.push([0, 2, , 3]);
                 if (sql == null) {
                     res.send('Not connected to a database');
                     return [2 /*return*/];
                 }
-                return [4 /*yield*/, sql(templateObject_8 || (templateObject_8 = __makeTemplateObject(["\n              SELECT username, score, submitted, url, version FROM scoreboard\n              ORDER BY submitted DESC\n          "], ["\n              SELECT username, score, submitted, url, version FROM scoreboard\n              ORDER BY submitted DESC\n          "])))];
+                return [4 /*yield*/, sql(templateObject_8 || (templateObject_8 = __makeTemplateObject(["\n              SELECT username, score, submitted, url, version FROM scoreboard\n              ORDER BY submitted DESC\n              LIMIT 100\n          "], ["\n              SELECT username, score, submitted, url, version FROM scoreboard\n              ORDER BY submitted DESC\n              LIMIT 100\n          "])))];
             case 1:
-                results = _b.sent();
-                recents = new Map();
-                try {
-                    for (results_2 = __values(results), results_2_1 = results_2.next(); !results_2_1.done; results_2_1 = results_2.next()) {
-                        result = results_2_1.value;
-                        oldBest = recents.get(result.url);
-                        if (oldBest != undefined && oldBest.score > result.score && oldBest.version == result.version) {
-                            recents.delete(result.url);
-                        }
-                        if (!recents.has(result.url)) {
-                            recents.set(result.url, {
-                                url: result.url,
-                                version: result.version,
-                                age: renderTime(result.submitted),
-                                score: result.score,
-                                username: result.username
-                            });
-                        }
-                    }
-                }
-                catch (e_6_1) { e_6 = { error: e_6_1 }; }
-                finally {
-                    try {
-                        if (results_2_1 && !results_2_1.done && (_a = results_2.return)) _a.call(results_2);
-                    }
-                    finally { if (e_6) throw e_6.error; }
-                }
-                res.render('pages/recent', { recents: Array.from(recents.values()) });
+                results = _a.sent();
+                recents = results.map(function (result) { return ({
+                    url: result.url,
+                    version: result.version,
+                    age: renderTime(result.submitted),
+                    score: result.score,
+                    username: result.username
+                }); });
+                res.render('pages/recent', { recents: recents });
                 return [3 /*break*/, 3];
             case 2:
-                err_5 = _b.sent();
+                err_5 = _a.sent();
                 console.error(err_5);
                 res.send(err_5.toString());
                 return [3 /*break*/, 3];
@@ -535,7 +515,7 @@ express()
 }); })
     .get('/scoreboard', function (req, res) { return __awaiter(void 0, void 0, void 0, function () {
     var url, results, entries, entriesByVersion, entries_1, entries_1_1, entry, lastVersion, err_7;
-    var e_7, _a;
+    var e_6, _a;
     return __generator(this, function (_b) {
         switch (_b.label) {
             case 0:
@@ -566,12 +546,12 @@ express()
                         }
                     }
                 }
-                catch (e_7_1) { e_7 = { error: e_7_1 }; }
+                catch (e_6_1) { e_6 = { error: e_6_1 }; }
                 finally {
                     try {
                         if (entries_1_1 && !entries_1_1.done && (_a = entries_1.return)) _a.call(entries_1);
                     }
-                    finally { if (e_7) throw e_7.error; }
+                    finally { if (e_6) throw e_6.error; }
                 }
                 res.render('pages/scoreboard', { entriesByVersion: entriesByVersion, url: url, currentVersion: VERSION });
                 return [3 /*break*/, 3];

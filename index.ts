@@ -226,24 +226,17 @@ express()
           const results = await sql`
               SELECT username, score, submitted, url, version FROM scoreboard
               ORDER BY submitted DESC
+              LIMIT 100
           `
-          const recents:Map<string, RecentEntry> = new Map()
-          for (const result of results) {
-              const oldBest:RecentEntry|undefined = recents.get(result.url)
-              if (oldBest != undefined && oldBest.score > result.score && oldBest.version == result.version) {
-                  recents.delete(result.url)
-              }
-              if (!recents.has(result.url)) {
-                  recents.set(result.url, {
-                      url:result.url,
-                      version:result.version,
-                      age:renderTime(result.submitted),
-                      score:result.score,
-                      username:result.username
-                  })
-              }
-          }
-          res.render('pages/recent', {recents:Array.from(recents.values())})
+
+          const recents:RecentEntry[] = results.map((result:any) => ({
+                  url:result.url,
+                  version:result.version,
+                  age:renderTime(result.submitted),
+                  score:result.score,
+                  username:result.username
+              }))
+          res.render('pages/recent', {recents:recents})
       } catch(err) {
           console.error(err);
           res.send(err.toString())
