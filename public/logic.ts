@@ -1585,10 +1585,16 @@ function actChoice(state:State): Promise<[State, [Card, ActionKind]|null]> {
     const supply = state.supply.filter(available('buy')).map(asActChoice('buy'))
     const events = state.events.filter(available('use')).map(asActChoice('use'))
     const play = state.play.filter(available('activate')).map(asActChoice('activate'))
+    return choice(state, `Buy a card (costs 1 buy),
+        play a card from your hand (costs 1 action),
+        or use an event.`,
+        hand.concat(supply).concat(events).concat(play), ['actChoice'])
+    /*
     return choice(state, `Use an event or card in play,
         pay a buy to buy a card from the supply,
         or pay an action to play a card from your hand.`,
         hand.concat(supply).concat(events).concat(play), ['actChoice'])
+    */
 }
 
 // ------------------------------ Start the game

@@ -866,19 +866,20 @@ function clearChoice() {
 var tutorialStages = [
     {
         text: ["Welcome to the tutorial.\n        It will walk you through the first few actions of a simple game.\n        Press enter or click 'Next' to advance.",
-            "When you use an event or play a card, you first pay its cost\n        then follow its instructions.\n        After pressing 'Next',\n        hover over Refresh to see what it does, then click on it to use it."],
+            "When you use an event or play a card, you first pay its cost\n        then follow its instructions.",
+            "You can read what a card does by hovering over it,\n        or view all cards by clicking the 'Kingdom' button\n        at the top of the screen. After pressing 'Next',\n        read what Refresh does, then click on it to use it."],
         nextAction: 0,
     },
     {
-        text: ["When you used Refresh you spent @@@@,\n        because that's the cost of Refresh.\n         You can see how much @ you've spent at the top of the screen.\n         The goal of the game is to spend as little as possible.",
+        text: ["When you used Refresh you spent @@@@,\n        because that's the cost of Refresh.\n         You can see how much @ you've spent in the resources row,\n         directly above the events (it might be behind this popup).\n         The goal of the game is to spend as little as possible.",
             "After paying Refresh's cost, you put your discard pile into your hand.\n         These are the cards available to play.",
-            "Then you gained 5 actions, which you can use to play cards from your hand,\n         and 1 buy, which you can use to buy a card from the supply.\n         Your actions and buys are visible at the top of the screen.",
+            "Then you gained 5 actions, which you can use to play cards from your hand,\n         and 1 buy, which you can use to buy a card from the supply.\n         Your actions and buys are visible above the events.",
             "You have $0, so you can't buy much.\n         But you can use an action to play a Copper from your hand."],
         nextAction: 0,
     },
     {
         text: [
-            "When you play Copper, you follow its instructions and gain $1.\n             You can see your $ at the top of the screen.\n             You can also see that you've spent 1 action so have 4 remaining.",
+            "When you play Copper, you follow its instructions and gain $1.\n             You can see your $ above the events.\n             You can also see that you've spent 1 action so have 4 remaining.",
         ],
         nextAction: 0
     },

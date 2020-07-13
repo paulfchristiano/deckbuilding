@@ -1977,7 +1977,13 @@ function actChoice(state) {
     var supply = state.supply.filter(available('buy')).map(asActChoice('buy'));
     var events = state.events.filter(available('use')).map(asActChoice('use'));
     var play = state.play.filter(available('activate')).map(asActChoice('activate'));
-    return choice(state, "Use an event or card in play,\n        pay a buy to buy a card from the supply,\n        or pay an action to play a card from your hand.", hand.concat(supply).concat(events).concat(play), ['actChoice']);
+    return choice(state, "Buy a card (costs 1 buy),\n        play a card from your hand (costs 1 action),\n        or use an event.", hand.concat(supply).concat(events).concat(play), ['actChoice']);
+    /*
+    return choice(state, `Use an event or card in play,
+        pay a buy to buy a card from the supply,
+        or pay an action to play a card from your hand.`,
+        hand.concat(supply).concat(events).concat(play), ['actChoice'])
+    */
 }
 // ------------------------------ Start the game
 function supplyKey(spec) {
