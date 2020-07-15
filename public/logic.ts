@@ -450,11 +450,11 @@ export interface Kingdom {
     events: CardSpec[];
 }
 
-export type GameSpec = 
+export type GameSpec =
     { kind: 'test' } |
     { kind: 'pick', cards:CardSpec[], events:CardSpec[] } |
     { kind: 'pickR', cards:SlotSpec[], events:SlotSpec[], seed: string } |
-    { kind: 'full', seed: string} | 
+    { kind: 'full', seed: string} |
     { kind: 'half', seed: string} |
     { kind: 'mini', seed: string}
 
@@ -1804,7 +1804,7 @@ function pickRandoms(slots:SlotSpec[], source:CardSpec[], seed:string): CardSpec
         }
     }
     return result.concat(randomChoices(
-        source.filter(x => !taken.has(x.name)), 
+        source.filter(x => !taken.has(x.name)),
         randoms, hash(seed)
     ))
 }
@@ -2302,11 +2302,11 @@ const hallOfMirrors:CardSpec = {name: 'Hall of Mirrors',
     fixedCost: {...free, energy:1, coin:5},
     effects: [{
         text: ['Put a mirror token on each card in your hand.'],
-        transform: (state:State, card:Card) => 
+        transform: (state:State, card:Card) =>
             doAll(state.hand.map(c => addToken(c, 'mirror')))
     }],
     triggers: [{
-        text: `After playing a card with a mirror token on it 
+        text: `After playing a card with a mirror token on it
         other than with this, remove a mirror token and play it again.`,
         kind:'afterPlay',
         handles: (e, state, card) => {
@@ -2383,7 +2383,7 @@ const travelingFair:CardSpec = {name:'Traveling Fair',
         kind: 'create',
         handles: (e, state, card) => e.zone == 'discard'
             && state.find(card).charge >= 1,
-        replace: (x, state, card) => 
+        replace: (x, state, card) =>
             ({...x, zone:'hand', effects:x.effects.concat([charge(card, -1)])})
     }]
 }
@@ -2487,7 +2487,7 @@ const duplicate:CardSpec = {name: 'Duplicate',
             const target:Card = state.find(e.card);
             return target.count('duplicate') > 0
         },
-        transform: (e, state, card) => 
+        transform: (e, state, card) =>
             payToDo(removeToken(e.card, 'duplicate'), e.card.buy(card))
     }]
 }
@@ -2501,7 +2501,7 @@ const royalSeal:CardSpec = {name: 'Royal Seal',
         kind: 'create',
         handles: (e, state, card) => e.zone == 'discard'
             && state.find(card).place == 'play',
-        replace: (x, state, card) => 
+        replace: (x, state, card) =>
             ({...x, zone:'hand', effects:x.effects.concat([move(card, 'discard')])})
     }]
 }
@@ -2569,7 +2569,7 @@ const mobilization:CardSpec = {name: 'Mobilization',
         text: `${refresh.name} costs @ less to play for each charge token on this.`,
         kind:'cost',
         handles: x => (x.card.name == refresh.name),
-        replace: (x, state, card) => 
+        replace: (x, state, card) =>
             ({...x, cost:subtractCost(x.cost, {energy:state.find(card).charge})})
     }]
 }
@@ -3057,7 +3057,7 @@ const egg:CardSpec = {name: 'Egg',
     fixedCost: energy(2),
     relatedCards: [dragon],
     effects: [chargeEffect(), {
-        text: [`If this has three or more charge tokens on it, trash it and 
+        text: [`If this has three or more charge tokens on it, trash it and
         create ${a(dragon.name)} in your hand.`],
         transform: (state, card) => state.find(card).charge >= 3 ?
             doAll([trash(card), create(dragon, 'hand')]) : noop
@@ -3094,7 +3094,7 @@ const innovation:CardSpec = {name: Innovation,
         text: [`If you don't have any cards named ${Innovation} in play,
         put this in play.`],
         transform: (state, card) => move(
-            card, 
+            card,
             (state.play.some(x => x.name == Innovation)) ? 'discard' : 'play'
         )
     }],
