@@ -614,7 +614,7 @@ export class State {
         return [this.update({future:future,}), result]
     }
     // Invariant: starting from checkpoint and replaying the history gets you to the current state
-    // To maintain this invariant, we need to record history every energy there is a change
+    // To maintain this invariant, we need to record history every time there is a change
     setCheckpoint(): State {
         return this.update({history:[], future:this.future, checkpoint:this})
     }
