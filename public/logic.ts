@@ -2355,15 +2355,16 @@ const perpetualMotion:CardSpec = {name:'Perpetual Motion',
     }],
     effects: [{
         text: [`If you have no cards in your hand,
-        put your discard pile into your hand.`],
+        put your discard pile into your hand.  Trash all cards from supply.`],
         transform: () => async function(state) {
             if (state.hand.length == 0) {
                 state = await moveMany(state.discard, 'hand')(state)
                 state = sortHand(state)
             }
+            state = await (doAll(state.supply.map((card) => trash(card))))(state)
             return state
         }
-    }]
+    }],
 }
 registerEvent(perpetualMotion)
 

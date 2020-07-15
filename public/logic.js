@@ -2802,7 +2802,7 @@ var perpetualMotion = { name: 'Perpetual Motion',
             test: function (card, state) { return state.hand.length > 0; }
         }],
     effects: [{
-            text: ["If you have no cards in your hand,\n        put your discard pile into your hand."],
+            text: ["If you have no cards in your hand,\n        put your discard pile into your hand.  Trash all cards from supply."],
             transform: function () { return function (state) {
                 return __awaiter(this, void 0, void 0, function () {
                     return __generator(this, function (_a) {
@@ -2814,12 +2814,15 @@ var perpetualMotion = { name: 'Perpetual Motion',
                                 state = _a.sent();
                                 state = sortHand(state);
                                 _a.label = 2;
-                            case 2: return [2 /*return*/, state];
+                            case 2: return [4 /*yield*/, (doAll(state.supply.map(function (card) { return trash(card); })))(state)];
+                            case 3:
+                                state = _a.sent();
+                                return [2 /*return*/, state];
                         }
                     });
                 });
             }; }
-        }]
+        }],
 };
 registerEvent(perpetualMotion);
 var desperation = { name: 'Desperation',
