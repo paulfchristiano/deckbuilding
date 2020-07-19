@@ -614,7 +614,7 @@ export class State {
         return [this.update({future:future,}), result]
     }
     // Invariant: starting from checkpoint and replaying the history gets you to the current state
-    // To maintain this invariant, we need to record history every energy there is a change
+    // To maintain this invariant, we need to record history every time there is a change
     setCheckpoint(): State {
         return this.update({history:[], future:this.future, checkpoint:this})
     }
@@ -2088,9 +2088,9 @@ function descriptorForKind(kind:ActionKind):string {
 function reducedCost(cost:Cost, reduction:Partial<Cost>, nonzero:boolean=false) {
     let newCost:Cost = subtractCost(cost, reduction)
     if (nonzero && leq(newCost, free) && !leq(cost, free)) {
-        if (reduction.coin || 0 > 0) {
+        if ((reduction.coin || 0) > 0) {
             newCost = addCosts(newCost, {coin:1})
-        } else if (reduction.energy || 0 > 0) {
+        } else if ((reduction.energy || 0) > 0) {
             newCost = addCosts(newCost, {energy:1})
         }
     }
