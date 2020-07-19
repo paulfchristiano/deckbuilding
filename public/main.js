@@ -80,7 +80,7 @@ var numHotkeys = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
 var supplyAndPlayHotkeys = numHotkeys.concat(symbolHotkeys).concat(upperHotkeys);
 var handHotkeys = lowerHotkeys.concat(upperHotkeys);
 // want to put zones that are least likely to change earlier, to not distrupt assignment
-var hotkeys = supplyAndPlayHotkeys.concat(handHotkeys).concat(symbolHotkeys).concat([' ']);
+var hotkeys = supplyAndPlayHotkeys.concat(handHotkeys).concat(symbolHotkeys);
 var choiceHotkeys = handHotkeys.concat(supplyAndPlayHotkeys);
 $(document).keydown(function (e) {
     var listener = keyListeners.get(e.key);
@@ -453,6 +453,7 @@ function getIfDef(m, x) {
 }
 var globalRendererState = {
     hotkeysOn: false,
+    userURL: true,
     viewingKingdom: false,
     hotkeyMapper: new HotkeyMapper(),
     tokenRenderer: new TokenRenderer(),
@@ -476,6 +477,7 @@ function renderState(state, settings) {
         };
     }
     if (settings.updateURL === undefined || settings.updateURL) {
+        globalRendererState.userURL = false;
         window.history.replaceState(null, "", "play?" + specToURL(state.spec) + "#" + state.serializeHistory(false));
     }
     $('#resolvingHeader').html('Resolving:');
@@ -690,8 +692,7 @@ var webUI = /** @class */ (function () {
     };
     return webUI;
 }());
-function renderChoice(state, choicePrompt, options, resolve, reject, renderer, picks, extraRenderSettings) {
-    if (extraRenderSettings === void 0) { extraRenderSettings = {}; }
+function renderChoice(state, choicePrompt, options, resolve, reject, renderer, picks) {
     var optionsMap = new Map(); //map card ids to their position in the choice list
     var stringOptions = []; // values are indices into options
     for (var i = 0; i < options.length; i++) {
@@ -717,7 +718,12 @@ function renderChoice(state, choicePrompt, options, resolve, reject, renderer, p
     else {
         pickMap = new Map();
     }
-    renderState(state, __assign(__assign({}, extraRenderSettings), { hotkeyMap: hotkeyMap, optionsMap: optionsMap, pickMap: pickMap }));
+    renderState(state, {
+        hotkeyMap: hotkeyMap,
+        optionsMap: optionsMap,
+        pickMap: pickMap,
+        updateURL: (!globalRendererState.userURL || state.hasHistory())
+    });
     $('#choicePrompt').html(choicePrompt);
     $('#options').html(stringOptions.map(localRender).join(''));
     $('#undoArea').html(renderSpecials(state));
@@ -896,6 +902,7 @@ var tutorialStages = [
     },
     {
         text: ["You spent @ to play the estate, and gained 1 vp.\n        The goal of the game is to get to " + VP_GOAL + "vp\n        using as little @ as possible.",
+            "If you play an Estate using a Throne Room, you won't pay @. You only\n        pay a card's cost when you play or buy it the 'normal' way.\n        You also wouldn't pay an action, except that Throne Room tells you to.",
             "This is a very small kingdom for the purposes of learning.\n        The fastest win with these cards is 38@. Good luck!",
             "You can press '?' or click 'Help' to view the help at any time."],
     },
@@ -1012,6 +1019,8 @@ function bindHelp(state, renderer) {
             "Press '/' or click the 'Hotkeys' button to turn on hotkeys.",
             "Go <a href='index.html'>here</a> to see all the ways to play the game.",
             "Check out the scoreboard <a href=" + scoreboardURL(state.spec) + ">here</a>.",
+            "Copy <a href='play?" + specToURL(state.spec) + "'>this link</a> to replay this game any time.",
+            "You can use the URL in the address bar to link to the current state of this game.",
         ];
         $('#choicePrompt').html('');
         $('#resolvingHeader').html('');
@@ -1219,6 +1228,7 @@ function restart(state) {
     //TODO: clear hearatbeat? (currently assumes spec is the same...)
     var spec = state.spec;
     state = initialState(spec);
+    globalRendererState.userURL = false;
     window.history.pushState(null, "");
     playGame(state.attachUI(new webUI())).catch(function (e) {
         if (e instanceof InvalidHistory) {
@@ -1310,6 +1320,6 @@ export function loadPicker() {
     }); }).concat(state.events.map(function (card, i) { return ({
         render: card.id,
         value: function () { return pick(cards.length + i); }
-    }); })), trivial, trivial, trivial, undefined, { updateURL: false });
+    }); })), trivial, trivial, trivial, undefined);
 }
 //# sourceMappingURL=main.js.map

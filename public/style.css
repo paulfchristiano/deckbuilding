@@ -1,4 +1,4 @@
-#best, #resources, #choicePrompt, .header, #kingdomLink, .helpLine, .sizeDescription, .homeLine {
+#rightBox, #resources, #choicePrompt, .header, #kingdomLink, .helpLine, .sizeDescription, .homeLine {
     font-size: 1.25em;
 }
 .homeLine {
@@ -181,8 +181,9 @@
 #undoArea {
     min-height: 1em;
 }
-#best {
+#rightBox {
     float:right;
+    text-align:right;
 }
 #toparea {
     position: relative;

@@ -32,7 +32,7 @@ const numHotkeys:Key[] = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9']
 const supplyAndPlayHotkeys:Key[] = numHotkeys.concat(symbolHotkeys).concat(upperHotkeys)
 const handHotkeys = lowerHotkeys.concat(upperHotkeys)
 // want to put zones that are least likely to change earlier, to not distrupt assignment
-const hotkeys:Key[] = supplyAndPlayHotkeys.concat(handHotkeys).concat(symbolHotkeys).concat([' '])
+const hotkeys:Key[] = supplyAndPlayHotkeys.concat(handHotkeys).concat(symbolHotkeys)
 const choiceHotkeys:Key[] = handHotkeys.concat(supplyAndPlayHotkeys)
 
 $(document).keydown((e: any) => {
@@ -360,6 +360,7 @@ declare global {
 
 interface RendererState {
     hotkeysOn:boolean;
+    userURL:boolean;
     hotkeyMapper: HotkeyMapper;
     tokenRenderer: TokenRenderer;
     viewingKingdom: boolean,
@@ -367,6 +368,7 @@ interface RendererState {
 
 const globalRendererState:RendererState = {
     hotkeysOn:false,
+    userURL:true,
     viewingKingdom:false,
     hotkeyMapper: new HotkeyMapper(),
     tokenRenderer: new TokenRenderer(),
@@ -396,6 +398,7 @@ function renderState(
         }
     }
     if (settings.updateURL === undefined || settings.updateURL) {
+        globalRendererState.userURL = false
         window.history.replaceState(
             null,
             "",
@@ -605,7 +608,6 @@ function renderChoice(
     reject:((x:any) => void),
     renderer:() => void,
     picks?: () => Map<ID|string, number>,
-    extraRenderSettings: Partial<RenderSettings> = {}
 ): void {
 
     const optionsMap:Map<number,number> = new Map() //map card ids to their position in the choice list
@@ -634,10 +636,10 @@ function renderChoice(
     }
 
     renderState(state, {
-        ...extraRenderSettings,
         hotkeyMap: hotkeyMap,
         optionsMap:optionsMap,
-        pickMap:pickMap
+        pickMap:pickMap,
+        updateURL:(!globalRendererState.userURL || state.hasHistory())
     })
 
     $('#choicePrompt').html(choicePrompt)
@@ -869,6 +871,9 @@ const tutorialStages:tutorialStage[] = [
         text: [`You spent @ to play the estate, and gained 1 vp.
         The goal of the game is to get to ${VP_GOAL}vp
         using as little @ as possible.`,
+        `If you play an Estate using a Throne Room, you won't pay @. You only
+        pay a card's cost when you play or buy it the 'normal' way.
+        You also wouldn't pay an action, except that Throne Room tells you to.`,
         `This is a very small kingdom for the purposes of learning.
         The fastest win with these cards is 38@. Good luck!`,
         `You can press '?' or click 'Help' to view the help at any time.`],
@@ -995,6 +1000,8 @@ function bindHelp(state:State, renderer: () => void) {
             "Press '/' or click the 'Hotkeys' button to turn on hotkeys.",
             "Go <a href='index.html'>here</a> to see all the ways to play the game.",
             `Check out the scoreboard <a href=${scoreboardURL(state.spec)}>here</a>.`,
+            `Copy <a href='play?${specToURL(state.spec)}'>this link</a> to replay this game any time.`,
+            `You can use the URL in the address bar to link to the current state of this game.`,
         ]
         $('#choicePrompt').html('')
         $('#resolvingHeader').html('')
@@ -1196,6 +1203,7 @@ function restart(state:State): void {
     //TODO: clear hearatbeat? (currently assumes spec is the same...)
     const spec = state.spec
     state = initialState(spec)
+    globalRendererState.userURL = false
     window.history.pushState(null, "")
     playGame(state.attachUI(new webUI())).catch(e => {
         if (e instanceof InvalidHistory) {
@@ -1277,5 +1285,5 @@ export function loadPicker(): void {
         })).concat(state.events.map((card, i) => ({
             render: card.id,
             value: () => pick(cards.length + i)
-        }))), trivial, trivial, trivial, undefined, {updateURL:false})
+        }))), trivial, trivial, trivial, undefined)
 }
