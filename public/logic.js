@@ -2577,7 +2577,7 @@ function costReduce(kind, reduction, nonzero) {
     if (nonzero === void 0) { nonzero = false; }
     var descriptor = descriptorForKind(kind);
     return {
-        text: descriptor + " cost " + renderCost(reduction, true) + " less" + (nonzero ? ', but not zero.' : '.'),
+        text: descriptor + " cost " + renderCost(reduction, true) + "\n               less" + (nonzero ? ' unless it would make them free' : '') + ".",
         kind: 'cost',
         handles: function (x) { return x.actionKind == kind; },
         replace: function (x, state) {
@@ -2590,7 +2590,7 @@ function costReduceNext(kind, reduction, nonzero) {
     if (nonzero === void 0) { nonzero = false; }
     var descriptor = descriptorForKind(kind);
     return {
-        text: descriptor + " cost " + renderCost(reduction, true) + " less" + (nonzero ? ', but not zero.' : '.') + "\n        Whenever this reduces a cost, discard this.",
+        text: descriptor + " cost " + renderCost(reduction, true) + "\n               less" + (nonzero ? ' unless it would make them free' : '') + ".\n        Whenever this reduces a cost, discard it.",
         kind: 'cost',
         handles: function (x) { return x.actionKind == kind; },
         replace: function (x, state, card) {
@@ -2672,22 +2672,20 @@ var bridge = { name: 'Bridge',
 };
 buyable(bridge, 4);
 var coven = { name: 'Coven',
-    effects: [toPlay()],
+    effects: [gainCoinEffect(2), toPlay()],
     replacers: [{
-            text: 'Cards in your hand cost @ less if you have no card with the same name'
-                + ' in your discard pile or play.'
-                + ' Whenever this reduces a cost, discard this and +$2.',
+            text: "Cards you play cost @ less if they don't share a name\n               with a card in your discard pile or in play.\n               Whenever this reduces a cost, discard it.",
             kind: 'cost',
-            handles: function (e, state) { return (state.discard.concat(state.play).every(function (c) { return c.name != e.card.name; })); },
+            handles: function (x, state) { return (x.actionKind == 'play' && state.discard.concat(state.play).every(function (c) { return c.name != x.card.name; })); },
             replace: function (x, state, card) {
-                if (x.card.place == 'hand') {
-                    var newCost = subtractCost(x.cost, { energy: 1 });
-                    if (!eq(newCost, x.cost)) {
-                        newCost.effects = newCost.effects.concat([move(card, 'discard'), gainCoin(2)]);
-                        return __assign(__assign({}, x), { cost: newCost });
-                    }
+                var newCost = subtractCost(x.cost, { energy: 1 });
+                if (!eq(newCost, x.cost)) {
+                    newCost.effects = newCost.effects.concat([move(card, 'discard')]);
+                    return __assign(__assign({}, x), { cost: newCost });
                 }
-                return x;
+                else {
+                    return x;
+                }
             }
         }]
 };
@@ -2807,7 +2805,7 @@ var parallelize = { name: 'Parallelize',
             transform: function (state) { return doAll(state.hand.map(function (c) { return addToken(c, 'parallelize'); })); }
         }],
     replacers: [{
-            text: "Cards cost @ less to play for each parallelize token on them.\n            Whenever this reduces a card's cost by one or more @,\n            remove that many parallelize tokens from it.",
+            text: "Cards you play cost @ less to play for each parallelize token on them.\n            Whenever this reduces a card's cost by one or more @,\n            remove that many parallelize tokens from it.",
             kind: 'cost',
             handles: function (x, state, card) { return x.actionKind == 'play' && x.card.count('parallelize') > 0; },
             replace: function (x, state, card) {
@@ -3417,7 +3415,7 @@ var burden = { name: 'Burden',
         }],
     replacers: [{
             kind: 'cost',
-            text: 'Cards cost $1 more for each burden token on them.',
+            text: 'Cards cost $1 more to buy for each burden token on them.',
             handles: function (x) { return x.card.count('burden') > 0; },
             replace: function (x) { return (__assign(__assign({}, x), { cost: addCosts(x.cost, { coin: x.card.count('burden') }) })); }
         }]
@@ -3514,9 +3512,9 @@ var mastermind = {
 buyable(mastermind, 6);
 function chargeVillage() {
     return {
-        text: "Cards in your hand @ less to play for each charge token on this.\n            Whenever this reduces a cost by one or more @, remove that many charge tokens from this.",
+        text: "Cards you play cost @ less for each charge token on this.\n            Whenever this reduces a cost by one or more @, remove that many charge tokens from this.",
         kind: 'cost',
-        handles: function (x, state, card) { return (state.find(x.card).place == 'hand') && card.charge > 0; },
+        handles: function (x, state, card) { return (x.actionKind == 'play') && card.charge > 0; },
         replace: function (x, state, card) {
             card = state.find(card);
             var reduction = Math.min(x.cost.energy, card.charge);
@@ -3608,24 +3606,22 @@ var innovation = { name: Innovation,
 };
 buyable(innovation, 6);
 var formation = { name: 'Formation',
-    effects: [toPlay()],
+    effects: [gainCoinEffect(2), toPlay()],
     replacers: [{
-            text: 'Cards in your hand cost @ less if you have a card with the same name'
-                + ' in your discard pile or play.'
-                + ' Whenever this reduces a cost, discard this and +$2.',
+            text: 'Cards you play cost @ less if they share a name with a card in your discard pile or in play.'
+                + ' Whenever this reduces a cost, discard it.',
             kind: 'cost',
-            handles: function (e, state) { return e.card.place == 'hand'
-                && state.discard.concat(state.play).some(function (c) { return c.name == e.card.name; }); },
+            handles: function (x, state) { return x.actionKind == 'play'
+                && state.discard.concat(state.play).some(function (c) { return c.name == x.card.name; }); },
             replace: function (x, state, card) {
                 var newCost = subtractCost(x.cost, { energy: 1 });
                 if (!eq(newCost, x.cost)) {
-                    newCost.effects = newCost.effects.concat([
-                        move(card, 'discard'),
-                        gainCoin(2)
-                    ]);
+                    newCost.effects = newCost.effects.concat([move(card, 'discard')]);
                     return __assign(__assign({}, x), { cost: newCost });
                 }
-                return x;
+                else {
+                    return x;
+                }
             }
         }]
 };

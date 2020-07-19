@@ -187,6 +187,10 @@ async function serveTutorial(req:any, res:any) {
   res.render('pages/main', {url:undefined, tutorial:true})
 }
 
+function last<T>(xs:T[]): T {
+  return xs[xs.length -1]
+}
+
 express()
     .use(express.static('./public'))
     .set('view engine', 'ejs')
@@ -270,19 +274,22 @@ express()
               WHERE url=${url}
               ORDER BY version DESC, score ASC, submitted ASC
           `
-          const entries = results.map((x:any) => ({...x, timesince:renderTime(x.submitted)}))
+          const entries = results.map((x:any) => ({
+            ...x,
+            time:x.submitted,
+            renderedTime:renderTime(x.submitted)
+          }))
           const entriesByVersion: [string, object[]][] = [];
           for (const entry of entries) {
               if (entriesByVersion.length == 0) {
-                  entriesByVersion.push([entry.version, [entry]] as [string, object[]])
-              } else {
-                  let lastVersion:[string, object[]] = entriesByVersion[entriesByVersion.length-1]
-                  if (lastVersion[0] != entry.version) {
-                      lastVersion = [entry.version, []]
-                      entriesByVersion.push(lastVersion)
-                  }
-                  lastVersion[1].push(entry)
+                  entriesByVersion.push([entry.version, []])
+              } else if (last(entriesByVersion)[0] != entry.version) {
+                  entriesByVersion.push([entry.version, []])
               }
+              const versionEntries:any[] = last(entriesByVersion)[1]
+              entry['leader'] = (versionEntries.length == 0) ? true :
+                entry.time < last(versionEntries).time
+              versionEntries.push(entry)
           }
           res.render('pages/scoreboard', {entriesByVersion:entriesByVersion, url:url, currentVersion:VERSION});
       } catch(err) {

@@ -22,6 +22,12 @@
 .timehead {
     width: 10em;
 }
+[leader='true'] td {
+    font-weight: bold;
+}
+[leader='false'] td {
+    color: grey;
+}
 </style>
 <title>Scoreboard</title>
 </head>
@@ -45,10 +51,10 @@
     </thead>
     <tbody>
         <% entries.forEach(function(r) { %>
-        <tr> 
-            <td><%= r.username %></td>
-            <td><%= r.score %></td>
-            <td><%= r.timesince %></td>
+        <tr leader ='<%= r.leader %>'>
+                <td><%= r.username %></td>
+                <td><%= r.score %></td>
+                <td><%= r.renderedTime %></td>
         </tr>
         <% }); %>
     </tbody>

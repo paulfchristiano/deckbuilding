@@ -614,7 +614,7 @@ export class State {
         return [this.update({future:future,}), result]
     }
     // Invariant: starting from checkpoint and replaying the history gets you to the current state
-    // To maintain this invariant, we need to record history every time there is a change
+    // To maintain this invariant, we need to record history every energy there is a change
     setCheckpoint(): State {
         return this.update({history:[], future:this.future, checkpoint:this})
     }
@@ -2088,9 +2088,9 @@ function descriptorForKind(kind:ActionKind):string {
 function reducedCost(cost:Cost, reduction:Partial<Cost>, nonzero:boolean=false) {
     let newCost:Cost = subtractCost(cost, reduction)
     if (nonzero && leq(newCost, free) && !leq(cost, free)) {
-        if ((reduction.coin || 0) > 0) {
+        if (reduction.coin || 0 > 0) {
             newCost = addCosts(newCost, {coin:1})
-        } else if ((reduction.energy || 0) > 0) {
+        } else if (reduction.energy || 0 > 0) {
             newCost = addCosts(newCost, {energy:1})
         }
     }
@@ -2104,7 +2104,8 @@ function costReduce(
 ): Replacer<CostParams> {
     const descriptor = descriptorForKind(kind)
     return {
-        text: `${descriptor} cost ${renderCost(reduction, true)} less${nonzero ? ', but not zero.' : '.'}`,
+        text: `${descriptor} cost ${renderCost(reduction, true)}
+               less${nonzero ? ' unless it would make them free' : ''}.`,
         kind: 'cost',
         handles: x => x.actionKind == kind,
         replace: function(x:CostParams, state:State) {
@@ -2121,8 +2122,9 @@ function costReduceNext(
 ): Replacer<CostParams> {
     const descriptor = descriptorForKind(kind)
     return {
-        text: `${descriptor} cost ${renderCost(reduction, true)} less${nonzero ? ', but not zero.' : '.'}
-        Whenever this reduces a cost, discard this.`,
+        text: `${descriptor} cost ${renderCost(reduction, true)}
+               less${nonzero ? ' unless it would make them free' : ''}.
+        Whenever this reduces a cost, discard it.`,
         kind: 'cost',
         handles: x => x.actionKind == kind,
         replace: function(x:CostParams, state:State, card:Card) {
@@ -2208,22 +2210,21 @@ const bridge:CardSpec = {name: 'Bridge',
 buyable(bridge, 4)
 
 const coven:CardSpec = {name: 'Coven',
-    effects: [toPlay()],
+    effects: [gainCoinEffect(2), toPlay()],
     replacers: [{
-        text: 'Cards in your hand cost @ less if you have no card with the same name'
-         + ' in your discard pile or play.'
-         + ' Whenever this reduces a cost, discard this and +$2.',
+        text: `Cards you play cost @ less if they don't share a name
+               with a card in your discard pile or in play.
+               Whenever this reduces a cost, discard it.`,
         kind: 'cost',
-        handles: (e, state) => (state.discard.concat(state.play).every(c => c.name != e.card.name)),
+        handles: (x, state) => (x.actionKind == 'play' && state.discard.concat(state.play).every(c => c.name != x.card.name)),
         replace: function(x:CostParams, state:State, card:Card) {
-            if (x.card.place == 'hand') {
-                const newCost:Cost = subtractCost(x.cost, {energy:1})
-                if (!eq(newCost, x.cost)) {
-                    newCost.effects = newCost.effects.concat([move(card, 'discard'), gainCoin(2)])
-                    return {...x, cost:newCost}
-                }
+            const newCost:Cost = subtractCost(x.cost, {energy:1})
+            if (!eq(newCost, x.cost)) {
+                newCost.effects = newCost.effects.concat([move(card, 'discard')])
+                return {...x, cost:newCost}
+            } else {
+                return x
             }
-            return x
         }
     }]
 }
@@ -2363,7 +2364,7 @@ const parallelize:CardSpec = {name: 'Parallelize',
         transform: state => doAll(state.hand.map(c => addToken(c, 'parallelize')))
     }],
     replacers: [{
-        text: `Cards cost @ less to play for each parallelize token on them.
+        text: `Cards you play cost @ less to play for each parallelize token on them.
             Whenever this reduces a card's cost by one or more @,
             remove that many parallelize tokens from it.`,
         kind: 'cost',
@@ -2969,7 +2970,7 @@ const burden:CardSpec = {name: 'Burden',
     }],
     replacers: [{
         kind: 'cost',
-        text: 'Cards cost $1 more for each burden token on them.',
+        text: 'Cards cost $1 more to buy for each burden token on them.',
         handles: x => x.card.count('burden') > 0,
         replace: x => ({...x, cost: addCosts(x.cost, {coin:x.card.count('burden')})})
     }]
@@ -3076,10 +3077,10 @@ buyable(mastermind, 6)
 
 function chargeVillage(): Replacer<CostParams> {
     return {
-        text: `Cards in your hand @ less to play for each charge token on this.
+        text: `Cards you play cost @ less for each charge token on this.
             Whenever this reduces a cost by one or more @, remove that many charge tokens from this.`,
         kind: 'cost',
-        handles: (x, state, card) => (state.find(x.card).place == 'hand') && card.charge > 0,
+        handles: (x, state, card) => (x.actionKind == 'play') && card.charge > 0,
         replace: (x, state, card) => {
             card = state.find(card)
             const reduction = Math.min(x.cost.energy, card.charge)
@@ -3176,24 +3177,21 @@ const innovation:CardSpec = {name: Innovation,
 buyable(innovation, 6)
 
 const formation:CardSpec = {name: 'Formation',
-    effects: [toPlay()],
+    effects: [gainCoinEffect(2), toPlay()],
     replacers: [{
-        text: 'Cards in your hand cost @ less if you have a card with the same name'
-         + ' in your discard pile or play.'
-         + ' Whenever this reduces a cost, discard this and +$2.',
+        text: 'Cards you play cost @ less if they share a name with a card in your discard pile or in play.'
+         + ' Whenever this reduces a cost, discard it.',
         kind: 'cost',
-        handles: (e, state) => e.card.place == 'hand'
-            && state.discard.concat(state.play).some(c => c.name == e.card.name),
+        handles: (x, state) => x.actionKind == 'play'
+            && state.discard.concat(state.play).some(c => c.name == x.card.name),
         replace: function(x:CostParams, state:State, card:Card) {
             const newCost:Cost = subtractCost(x.cost, {energy:1})
             if (!eq(newCost, x.cost)) {
-                newCost.effects = newCost.effects.concat([
-                    move(card, 'discard'),
-                    gainCoin(2)
-                ])
+                newCost.effects = newCost.effects.concat([move(card, 'discard')])
                 return {...x, cost:newCost}
+            } else {
+                return x
             }
-            return x
         }
     }]
 }

@@ -411,6 +411,9 @@ function serveTutorial(req, res) {
         });
     });
 }
+function last(xs) {
+    return xs[xs.length - 1];
+}
 express()
     .use(express.static('./public'))
     .set('view engine', 'ejs')
@@ -514,7 +517,7 @@ express()
     });
 }); })
     .get('/scoreboard', function (req, res) { return __awaiter(void 0, void 0, void 0, function () {
-    var url, results, entries, entriesByVersion, entries_1, entries_1_1, entry, lastVersion, err_7;
+    var url, results, entries, entriesByVersion, entries_1, entries_1_1, entry, versionEntries, err_7;
     var e_6, _a;
     return __generator(this, function (_b) {
         switch (_b.label) {
@@ -528,22 +531,21 @@ express()
                 return [4 /*yield*/, sql(templateObject_9 || (templateObject_9 = __makeTemplateObject(["\n              SELECT username, score, submitted, version FROM scoreboard\n              WHERE url=", "\n              ORDER BY version DESC, score ASC, submitted ASC\n          "], ["\n              SELECT username, score, submitted, version FROM scoreboard\n              WHERE url=", "\n              ORDER BY version DESC, score ASC, submitted ASC\n          "])), url)];
             case 1:
                 results = _b.sent();
-                entries = results.map(function (x) { return (__assign(__assign({}, x), { timesince: renderTime(x.submitted) })); });
+                entries = results.map(function (x) { return (__assign(__assign({}, x), { time: x.submitted, renderedTime: renderTime(x.submitted) })); });
                 entriesByVersion = [];
                 try {
                     for (entries_1 = __values(entries), entries_1_1 = entries_1.next(); !entries_1_1.done; entries_1_1 = entries_1.next()) {
                         entry = entries_1_1.value;
                         if (entriesByVersion.length == 0) {
-                            entriesByVersion.push([entry.version, [entry]]);
+                            entriesByVersion.push([entry.version, []]);
                         }
-                        else {
-                            lastVersion = entriesByVersion[entriesByVersion.length - 1];
-                            if (lastVersion[0] != entry.version) {
-                                lastVersion = [entry.version, []];
-                                entriesByVersion.push(lastVersion);
-                            }
-                            lastVersion[1].push(entry);
+                        else if (last(entriesByVersion)[0] != entry.version) {
+                            entriesByVersion.push([entry.version, []]);
                         }
+                        versionEntries = last(entriesByVersion)[1];
+                        entry['leader'] = (versionEntries.length == 0) ? true :
+                            entry.time < last(versionEntries).time;
+                        versionEntries.push(entry);
                     }
                 }
                 catch (e_6_1) { e_6 = { error: e_6_1 }; }
