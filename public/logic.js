@@ -474,14 +474,14 @@ var allCostResources = ['coin', 'energy', 'actions', 'buys'];
 var allResources = allCostResources.concat(['points']);
 var notFound = { found: false, card: null, place: null };
 var noUI = {
-    choice: function (state, choicePrompt, options) {
+    choice: function (state, choicePrompt, options, info) {
         return __awaiter(this, void 0, void 0, function () {
             return __generator(this, function (_a) {
                 throw new ReplayEnded(state);
             });
         });
     },
-    multichoice: function (state, choicePrompt, options, validator) {
+    multichoice: function (state, choicePrompt, options, validator, info) {
         if (validator === void 0) { validator = (function (xs) { return true; }); }
         return __awaiter(this, void 0, void 0, function () {
             return __generator(this, function (_a) {
@@ -1762,14 +1762,15 @@ function doOrReplay(state, f) {
         });
     });
 }
-function multichoice(state, prompt, options, validator) {
+function multichoice(state, prompt, options, validator, info) {
     if (validator === void 0) { validator = (function (xs) { return true; }); }
+    if (info === void 0) { info = []; }
     return __awaiter(this, void 0, void 0, function () {
         var indices, newState;
         var _a;
         return __generator(this, function (_b) {
             switch (_b.label) {
-                case 0: return [4 /*yield*/, doOrReplay(state, function () { return state.ui.multichoice(state, prompt, options, validator); })];
+                case 0: return [4 /*yield*/, doOrReplay(state, function () { return state.ui.multichoice(state, prompt, options, validator, info); })];
                 case 1:
                     _a = __read.apply(void 0, [_b.sent(), 2]), newState = _a[0], indices = _a[1];
                     if (indices.some(function (x) { return x >= options.length; }))
@@ -1779,8 +1780,8 @@ function multichoice(state, prompt, options, validator) {
         });
     });
 }
-function choice(state, prompt, options, automate) {
-    if (automate === void 0) { automate = true; }
+function choice(state, prompt, options, info) {
+    if (info === void 0) { info = []; }
     return __awaiter(this, void 0, void 0, function () {
         var index, indices, newState;
         var _a;
@@ -1789,12 +1790,10 @@ function choice(state, prompt, options, automate) {
                 case 0:
                     if (options.length == 0)
                         return [2 /*return*/, [state, null]];
-                    if (automate && options.length == 1)
-                        return [2 /*return*/, [state, options[0].value]];
                     return [4 /*yield*/, doOrReplay(state, function () {
                             return __awaiter(this, void 0, void 0, function () { var x; return __generator(this, function (_a) {
                                 switch (_a.label) {
-                                    case 0: return [4 /*yield*/, state.ui.choice(state, prompt, options)];
+                                    case 0: return [4 /*yield*/, state.ui.choice(state, prompt, options, info)];
                                     case 1:
                                         x = _a.sent();
                                         return [2 /*return*/, [x]];
@@ -1978,7 +1977,13 @@ function actChoice(state) {
     var supply = state.supply.filter(available('buy')).map(asActChoice('buy'));
     var events = state.events.filter(available('use')).map(asActChoice('use'));
     var play = state.play.filter(available('activate')).map(asActChoice('activate'));
-    return choice(state, "Use an event or card in play,\n        pay a buy to buy a card from the supply,\n        or pay an action to play a card from your hand.", hand.concat(supply).concat(events).concat(play), false);
+    return choice(state, "Buy a card (costs 1 buy),\n        play a card from your hand (costs 1 action),\n        or use an event.", hand.concat(supply).concat(events).concat(play), ['actChoice']);
+    /*
+    return choice(state, `Use an event or card in play,
+        pay a buy to buy a card from the supply,
+        or pay an action to play a card from your hand.`,
+        hand.concat(supply).concat(events).concat(play), ['actChoice'])
+    */
 }
 // ------------------------------ Start the game
 function supplyKey(spec) {
@@ -2611,7 +2616,7 @@ function applyToTarget(f, text, options, isCost) {
             var _a;
             return __generator(this, function (_b) {
                 switch (_b.label) {
-                    case 0: return [4 /*yield*/, choice(state, text, options.map(asChoice), false)];
+                    case 0: return [4 /*yield*/, choice(state, text, options.map(asChoice), ['applyToTarget'])];
                     case 1:
                         _a = __read.apply(void 0, [_b.sent(), 2]), state = _a[0], target = _a[1];
                         if (!(target != null)) return [3 /*break*/, 3];
@@ -3965,7 +3970,7 @@ var composting = {
                         switch (_b.label) {
                             case 0:
                                 n = e.cost.energy;
-                                return [4 /*yield*/, multichoiceIfNeeded(state, "Choose " + num(n, 'card') + " to put into your hand.", state.discard.map(asChoice), n, true)];
+                                return [4 /*yield*/, multichoiceIfNeeded(state, "Choose up to " + num(n, 'card') + " to put into your hand.", state.discard.map(asChoice), n, true)];
                             case 1:
                                 _a = __read.apply(void 0, [_b.sent(), 2]), state = _a[0], targets = _a[1];
                                 return [2 /*return*/, moveMany(targets, 'hand')(state)];

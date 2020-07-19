@@ -30,6 +30,10 @@ function renderTimeSince(date:Date) {
     return 'Just now'
 }
 
+function renderTime(date:Date) {
+  return date.toLocaleString('en-US', {timeZone: 'America/New_York'})
+}
+
 const challengeTypes = ['full', 'mini']
 
 async function ensureNextMonth(): Promise<void> {
@@ -138,7 +142,6 @@ function dailyTypeFromReq(req:any): DailyType {
 async function serveDailyByType(type:DailyType, res:any) {
     try {
         const url = await dailyURL(type)
-        console.log(url)
         res.render('pages/main', {url:url, tutorial:false})
     } catch(err) {
         console.error(err);
@@ -223,24 +226,17 @@ express()
           const results = await sql`
               SELECT username, score, submitted, url, version FROM scoreboard
               ORDER BY submitted DESC
+              LIMIT 100
           `
-          const recents:Map<string, RecentEntry> = new Map()
-          for (const result of results) {
-              const oldBest:RecentEntry|undefined = recents.get(result.url)
-              if (oldBest != undefined && oldBest.score > result.score && oldBest.version == result.version) {
-                  recents.delete(result.url)
-              }
-              if (!recents.has(result.url)) {
-                  recents.set(result.url, {
-                      url:result.url,
-                      version:result.version,
-                      age:renderTimeSince(result.submitted),
-                      score:result.score,
-                      username:result.username
-                  })
-              }
-          }
-          res.render('pages/recent', {recents:Array.from(recents.values())})
+
+          const recents:RecentEntry[] = results.map((result:any) => ({
+                  url:result.url,
+                  version:result.version,
+                  age:renderTime(result.submitted),
+                  score:result.score,
+                  username:result.username
+              }))
+          res.render('pages/recent', {recents:recents})
       } catch(err) {
           console.error(err);
           res.send(err.toString())
@@ -264,7 +260,7 @@ express()
     })
     .get('/scoreboard', async (req:any, res:any) => {
       try {
-          const url = req._parsedUrl.query
+          const url = decodeURIComponent(req._parsedUrl.query)
           if (sql == null) {
               res.send('Not connected to a database.')
               return
@@ -274,7 +270,7 @@ express()
               WHERE url=${url}
               ORDER BY version DESC, score ASC, submitted ASC
           `
-          const entries = results.map((x:any) => ({...x, timesince:renderTimeSince(x.submitted)}))
+          const entries = results.map((x:any) => ({...x, timesince:renderTime(x.submitted)}))
           const entriesByVersion: [string, object[]][] = [];
           for (const entry of entries) {
               if (entriesByVersion.length == 0) {

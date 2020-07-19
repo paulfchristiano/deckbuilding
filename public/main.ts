@@ -199,13 +199,13 @@ function renderShadow(shadow:Shadow, state:State, tokenRenderer:TokenRenderer):s
     let tooltip:string;
     switch (shadow.spec.kind) {
         case 'ability':
-            tooltip = renderAbility(shadow.spec.card)
+            tooltip = renderAbility(shadow.spec.card.spec)
             break
         case 'trigger':
             tooltip = renderTrigger(shadow.spec.trigger, false)
             break
         case 'effect':
-            tooltip = renderEffects(shadow.spec.card)
+            tooltip = renderEffects(shadow.spec.card.spec)
             break
         case 'cost':
             tooltip = describeCost(shadow.spec.cost)
@@ -222,18 +222,18 @@ function renderShadow(shadow:Shadow, state:State, tokenRenderer:TokenRenderer):s
             `</div>`].join('')
 }
 
-function renderEffects(card:Card) {
+function renderEffects(spec:CardSpec) {
     let parts:string[] = []
-    for (const effect of card.effects()) {
+    for (const effect of spec.effects || []) {
         parts = parts.concat(effect.text)
     }
     return parts.map(x => `<div>${x}</div>`).join('')
 }
 
-function renderAbility(card:Card): string {
+function renderAbility(spec:CardSpec): string {
     let parts:string[] = []
-    for (const effect of card.abilityEffects()) {
-        parts = parts.concat(effect.text.map(x => `<div>(use) ${x}</div>`))
+    for (const effect of spec.ability || []) {
+        parts = parts.concat(effect.text.map(x => `<div>(ability) ${x}</div>`))
     }
     return parts.join('')
 }
@@ -267,7 +267,7 @@ function renderCard(
 }
 
 function renderTrigger(x:Trigger|Replacer, staticTrigger:boolean): string {
-    const desc:string = (staticTrigger) ? '(static)' : '(trigger)'
+    const desc:string = (staticTrigger) ? '(static)' : '(effect)'
     return `<div>${desc} ${x.text}</div>`
 }
 
@@ -285,29 +285,53 @@ function isZero(c:Cost|undefined) {
     return (c===undefined || renderCost(c) == '')
 }
 
+function cardText(spec:CardSpec): string {
+    const effectHtml:string = renderEffects(spec)
+    const buyableHtml:string = (spec.restrictions != undefined) ? renderBuyable(spec.restrictions) : ''
+    const costHtml:string = (spec.calculatedCost != undefined) ? renderCalculatedCost(spec.calculatedCost) : ''
+    const abilitiesHtml:string = renderAbility(spec)
+    const triggerHtml:string = (spec.triggers || []).map(
+        x => renderTrigger(x, false)
+    ).join('')
+    const replacerHtml:string = (spec.replacers || []).map(
+        x => renderTrigger(x, false)
+    ).join('')
+    const staticTriggerHtml:string = (spec.staticTriggers || []).map(
+        x => renderTrigger(x, true)
+    ).join('')
+    const staticReplacerHtml:string = (spec.staticReplacers || []).map(
+        x => renderTrigger(x, true)
+    ).join('')
+    return [buyableHtml, costHtml, effectHtml, abilitiesHtml,
+            triggerHtml, replacerHtml, staticTriggerHtml, staticReplacerHtml].join('')
+
+}
+
 function renderTooltip(card:Card, state:State, tokenRenderer:TokenRenderer): string {
     const buyStr = !isZero(card.spec.buyCost) ?
         `(${renderCost(card.spec.buyCost as Cost)})` : '---'
     const costStr = !isZero(card.spec.fixedCost) ?
         `(${renderCost(card.cost('play', emptyState) as Cost)})` : '---'
     const header = `<div>---${buyStr} ${card.name} ${costStr}---</div>`
-    const effectHtml:string = renderEffects(card)
-    const buyableHtml:string = (card.spec.restrictions != undefined) ? renderBuyable(card.spec.restrictions) : ''
-    const costHtml:string = (card.spec.calculatedCost != undefined) ? renderCalculatedCost(card.spec.calculatedCost) : ''
-    const abilitiesHtml:string = renderAbility(card)
-    const triggerHtml:string = card.triggers().map(x => renderTrigger(x, false)).join('')
-    const replacerHtml:string = card.replacers().map(x => renderTrigger(x, false)).join('')
-    const staticTriggerHtml:string = card.staticTriggers().map(x => renderTrigger(x, true)).join('')
-    const staticReplacerHtml:string = card.staticReplacers().map(x => renderTrigger(x, true)).join('')
-    const staticHtml:string = triggerHtml + replacerHtml + staticTriggerHtml + staticReplacerHtml
     const tokensHtml:string = tokenRenderer.renderTooltip(card.tokens)
-    const baseFilling:string = [header, costHtml, buyableHtml, effectHtml, abilitiesHtml, staticHtml, tokensHtml].join('')
+    const baseFilling:string = header + cardText(card.spec) + tokensHtml
+
     function renderRelated(spec:CardSpec) {
         const card:Card = new Card(spec, -1)
         return renderTooltip(card, state, tokenRenderer)
     }
     const relatedFilling:string = card.relatedCards().map(renderRelated).join('')
+
     return `${baseFilling}${relatedFilling}`
+}
+
+function renderSpec(spec:CardSpec): string {
+    const buyText = isZero(spec.buyCost) ? '' : `(${renderCost(spec.buyCost as Cost)})&nbsp;`
+    const costText = isZero(spec.fixedCost) ? '' : `&nbsp;(${renderCost(spec.fixedCost as Cost)})`
+    const header = `<div>${buyText}<strong>${spec.name}</strong>${costText}</div>`
+    const me = `<div class='spec'>${header}${cardText(spec)}</div>`
+    const related:string[] = (spec.relatedCards || []).map(renderSpec)
+    return [me].concat(related).join('')
 }
 
 
@@ -332,14 +356,18 @@ declare global {
     interface Window { renderedState: State; serverSeed?: string; }
 }
 
+//TODO: this is all a mess, this should be part of the webUI
+
 interface RendererState {
     hotkeysOn:boolean;
     hotkeyMapper: HotkeyMapper;
     tokenRenderer: TokenRenderer;
+    viewingKingdom: boolean,
 }
 
 const globalRendererState:RendererState = {
     hotkeysOn:false,
+    viewingKingdom:false,
     hotkeyMapper: new HotkeyMapper(),
     tokenRenderer: new TokenRenderer(),
 }
@@ -412,13 +440,27 @@ function renderLogs(logs:string[]) {
 
 // ------------------------------- Rendering choices
 
-const webUI:UI = {
+class webUI {
+    public undoing:boolean = false;
+    constructor() {}
     choice<T>(
         state: State,
         choicePrompt: string,
         options: Option<T>[],
+        info: string[],
     ): Promise<number> {
+        const ui:webUI = this;
+        const automate:number|null = this.automateChoice(state, options, info)
+        if (automate !== null) {
+            if (this.undoing) throw new Undo(state)
+            else return Promise.resolve(automate)
+        }
+        this.undoing = false;
         return new Promise(function(resolve, reject) {
+            function newReject(reason:any) {
+                if (reason instanceof Undo) ui.undoing = true
+                reject(reason)
+            }
             function pick(i:number) {
                 clearChoice()
                 resolve(i)
@@ -429,20 +471,42 @@ const webUI:UI = {
                     choicePrompt,
                     options.map((x, i) => ({...x, value:() => pick(i)})),
                     x => resolve(x[0]),
-                    reject,
+                    newReject,
                     renderer
                 )
             }
             renderer()
         })
-    },
+    }
+    automateChoice<T>(
+        state:State,
+        options: Option<T>[],
+        info: string[],
+    ): number|null {
+        if (info.indexOf('tutorial') != -1) return null
+        if (info.indexOf('actChoice') != -1) return null
+        if (options.length == 1) return 0
+        return null
+    }
     multichoice<T>(
         state: State,
         choicePrompt: string,
         options: Option<T>[],
-        validator:((xs:T[]) => boolean) = (xs => true)
+        validator:((xs:T[]) => boolean) = (xs => true),
+        info: string[],
     ): Promise<number[]> {
+        const ui:webUI = this;
+        const automate:number[]|null = this.automateMultichoice(state, options, info)
+        if (automate !== null) {
+            if (this.undoing) throw new Undo(state)
+            else return Promise.resolve(automate)
+        }
+        this.undoing = false;
         return new Promise(function(resolve, reject){
+            function newReject(reason:any) {
+                if (reason instanceof Undo) ui.undoing = true
+                reject(reason)
+            }
             const chosen:Set<number> = new Set()
             function chosenOptions(): T[] {
                 const result = []
@@ -493,12 +557,20 @@ const webUI:UI = {
             }})
             chosen.clear()
             function renderer() {
-                renderChoice(state, choicePrompt, newOptions, resolve, reject, renderer, picks)
+                renderChoice(state, choicePrompt, newOptions, resolve, newReject, renderer, picks)
                 for (const j of chosen) elem(j).attr('chosen', true)
             }
             renderer()
         })
-    },
+    }
+    automateMultichoice<T>(
+        state:State,
+        options: Option<T>[],
+        info: string[],
+    ): number[]|null {
+        if (options.length == 0) return []
+        return null
+    }
     async victory(state:State): Promise<void> {
         const submitOrUndo: () => Promise<void> = () =>
             new Promise(function (resolve, reject) {
@@ -598,13 +670,22 @@ function renderStringOption(option:StringOption<number>, hotkey?:Key, pick?:numb
 }
 
 function renderSpecials(state:State): string {
-    return renderUndo(state.undoable()) + 
-        renderRedo(state.redo.length > 0) +
-        renderHotkeyToggle() + renderHelp() + renderRestart()
+    return [
+        renderUndo(state.undoable()),
+        renderRedo(state.redo.length > 0),
+        renderHotkeyToggle(),
+        renderKingdomViewer(),
+        renderHelp(),
+        renderRestart()
+    ].join('')
 }
 
 function renderRestart(): string {
     return `<span id='deeplink' class='option', option='restart' choosable chosen='false'>Restart</span>`
+}
+
+function renderKingdomViewer(): string {
+    return `<span id='viewKingdom' class='option', option='viewKingdom' choosable chosen='false'>Kingdom</span>`
 }
 
 function renderHotkeyToggle(): string {
@@ -638,6 +719,24 @@ function bindSpecials(
     bindHelp(state, renderer)
     bindRestart(state)
     bindRedo(state, accept)
+    bindViewKingdom(state)
+}
+
+function bindViewKingdom(state:State): void {
+    function onClick() {
+        const e = $('#kingdomViewSpot')
+        if (globalRendererState.viewingKingdom) {
+            e.html('')
+            globalRendererState.viewingKingdom = false
+        } else {
+            const contents = state.events.concat(state.supply).map(
+                card => renderSpec(card.spec)
+            ).join('')
+            e.html(`<div id='kingdomView'>${contents}</div>`)
+            globalRendererState.viewingKingdom = true
+        }
+    }
+    $(`[option='viewKingdom']`).on('click', onClick)
 }
 
 function bindHotkeyToggle(renderer: () => void) {
@@ -723,21 +822,24 @@ const tutorialStages:tutorialStage[] = [
         It will walk you through the first few actions of a simple game.
         Press enter or click 'Next' to advance.`,
         `When you use an event or play a card, you first pay its cost
-        then follow its instructions.
-        After pressing 'Next',
-        hover over Refresh to see what it does, then click on it to use it.`],
+        then follow its instructions.`,
+        `You can read what a card does by hovering over it,
+        or view all cards by clicking the 'Kingdom' button
+        at the top of the screen. After pressing 'Next',
+        read what Refresh does, then click on it to use it.`],
         nextAction:0,
     },
     {
-        text: [`When you used Refresh you spent @4,
+        text: [`When you used Refresh you spent @@@@,
         because that's the cost of Refresh.
-         You can see how much @ you've spent at the top of the screen.
+         You can see how much @ you've spent in the resources row,
+         directly above the events (it might be behind this popup).
          The goal of the game is to spend as little as possible.`,
         `After paying Refresh's cost, you put your discard pile into your hand.
          These are the cards available to play.`,
         `Then you gained 5 actions, which you can use to play cards from your hand,
          and 1 buy, which you can use to buy a card from the supply.
-         Your actions and buys are visible at the top of the screen.`,
+         Your actions and buys are visible above the events.`,
         `You have $0, so you can't buy much.
          But you can use an action to play a Copper from your hand.`],
         nextAction:0,
@@ -745,7 +847,7 @@ const tutorialStages:tutorialStage[] = [
     {
         text: [
             `When you play Copper, you follow its instructions and gain $1.
-             You can see your $ at the top of the screen.
+             You can see your $ above the events.
              You can also see that you've spent 1 action so have 4 remaining.`,
         ],
         nextAction: 0
@@ -768,21 +870,22 @@ const tutorialStages:tutorialStage[] = [
         The goal of the game is to get to ${VP_GOAL}vp
         using as little @ as possible.`,
         `This is a very small kingdom for the purposes of learning.
-        The fastest win for using these cards is @38. Good luck!`,
+        The fastest win with these cards is 38@. Good luck!`,
         `You can press '?' or click 'Help' to view the help at any time.`],
     },
 ]
 
 class tutorialUI {
     public stage:number = 0;
-    public readonly innerUI:UI = webUI;
     constructor(
-        public readonly stages:tutorialStage[]
+        public readonly stages:tutorialStage[],
+        public readonly innerUI:UI = new webUI()
     ) {}
     async choice<T>(
         state: State,
         choicePrompt: string,
         options: Option<T>[],
+        info: string[],
     ): Promise<number> {
         if (this.stage < this.stages.length) {
             const stage = this.stages[this.stage]
@@ -792,7 +895,8 @@ class tutorialUI {
             const result = this.innerUI.choice(
                 state,
                 choicePrompt,
-                options
+                options,
+                info.concat(['tutorial'])
             ).then(x => {
                 this.stage += 1
                 return (validIndex != undefined) ? validIndex : x
@@ -806,15 +910,22 @@ class tutorialUI {
             renderTutorialMessage(stage.text)
             return result
         }
-        else return this.innerUI.choice(state, choicePrompt, options)
+        else return this.innerUI.choice(state, choicePrompt, options, info)
     }
     async multichoice<T>(
         state: State,
         choicePrompt: string,
         options: Option<T>[],
-        validator:((xs:T[]) => boolean) = (xs => true)
+        validator:((xs:T[]) => boolean) = (xs => true),
+        info: string[],
     ) {
-        return this.innerUI.multichoice(state, choicePrompt, options, validator)
+        return this.innerUI.multichoice(
+            state,
+            choicePrompt,
+            options,
+            validator,
+            info.concat(['tutorial'])
+        )
     }
     async victory(state:State) {
         return this.innerUI.victory(state)
@@ -856,6 +967,7 @@ export function loadTutorial(){
 
 // ------------------------------------------ Help
 
+//TODO: should handle help and the kingdom view in the same way
 function bindHelp(state:State, renderer: () => void) {
     function attach(f: () => void) {
         $('#help').on('click', f)
@@ -866,28 +978,24 @@ function bindHelp(state:State, renderer: () => void) {
         const helpLines:string[] = [
             `Rules:`,
             `The goal of the game is to get to ${VP_GOAL} points (vp) using as little energy (@) as possible.`,
-            `When you buy a card, pay its buy cost then create a copy of it in your discard pile.`,
-            "When you play a card or use an event, pay its cost then follow its instructions.",
+            `To buy a card, pay its buy cost then create a copy of it in your discard pile.`,
+            "To play a card or use an event, pay its cost then follow its instructions.",
+            "If an effect instructs you to play or buy a card, you don't have to pay a cost.",
             "The symbols below a card's name indicate its cost or buy cost.",
-            "When a cost is measured in energy (@, @@, ...) then you use that much energy to play it.",
-            "When a cost is measured in coin ($) then you can only buy it if you have enough coin.",
+            "When a cost is measured in energy (@, @@, ...) then you use that much energy to pay it.",
+            "When a cost is measured in coin ($) then you can only pay it if you have enough coin.",
             'After playing a card, discard it.',
             "You can activate the abilities of cards in play, marked with (ability).",
+            "Effects marked with (effect) apply whenever the card is in play.",
             "Effects marked with (static) apply whenever the card is in the supply.",
-            "Effects marked with (trigger) apply whenever the card is in play.",
             `&nbsp;`,
             `Other help:`,
-            "Press 'z' or click the undo button to undo the last move.",
-            "Press '/' or click the hotkey button to turn on hotkeys.",
-            "You can use the current URL to link to the current state of this game.",
-            `You can play today's <a href='daily'>daily kingdom</a>, which refreshes midnight EDT.`,
-            `Visit <a href="play?${specToURL(state.spec)}">this link</a> to replay the current kingdom anytime.`,
-            `Or visit the <a href="picker.html">kingdom picker<a> to pick a kingdom.`,
+            "Click the 'Kingdom' button to view the text of all cards at once.",
+            "Press 'z' or click the 'Undo' button to undo the last move.",
+            "Press '/' or click the 'Hotkeys' button to turn on hotkeys.",
+            "Go <a href='index.html'>here</a> to see all the ways to play the game.",
+            `Check out the scoreboard <a href=${scoreboardURL(state.spec)}>here</a>.`,
         ]
-        if (submittable(state.spec))
-            helpLines.push(`Check out the scoreboard <a href=${scoreboardURL(state.spec)}>here</a>.`)
-        else
-            helpLines.push(`There is no scoreboard when you specify a kingdom manually.`)
         $('#choicePrompt').html('')
         $('#resolvingHeader').html('')
         $('#resolving').html(helpLines.map(x => `<div class='helpLine'>${x}</div class='helpline'>`).join(''))
@@ -1009,10 +1117,10 @@ function heartbeat(spec:GameSpec, interval?:any): void {
 }
 
 function renderBest(best:number, spec:GameSpec): void {
-    $('#best').html(`Fastest win on this seed: ${best} (<a target='_blank' href='${scoreboardURL(spec)}'>scoreboard</a>)`)
+    $('#best').html(`Fastest win on this kingdom: ${best} (<a target='_blank' href='${scoreboardURL(spec)}'>scoreboard</a>)`)
 }
 function renderScoreboardLink(spec:GameSpec): void {
-    $('#best').html(`No wins yet for this seed (<a target='_blank' href='${scoreboardURL(spec)}'>scoreboard</a>)`)
+    $('#best').html(`No wins yet for this kingdom (<a target='_blank' href='${scoreboardURL(spec)}'>scoreboard</a>)`)
 }
 
 
@@ -1066,7 +1174,8 @@ export function load(fixedURL:string=''): void {
     startGame(state)
 }
 
-function startGame(state:State, ui:UI=webUI): void {
+function startGame(state:State, ui?:UI): void {
+    if (ui === undefined) ui = new webUI()
     heartbeat(state.spec)
     const interval:any = setInterval(() => heartbeat(state.spec, interval), 10000)
 
@@ -1088,7 +1197,7 @@ function restart(state:State): void {
     const spec = state.spec
     state = initialState(spec)
     window.history.pushState(null, "")
-    playGame(state.attachUI(webUI)).catch(e => {
+    playGame(state.attachUI(new webUI())).catch(e => {
         if (e instanceof InvalidHistory) {
             alert(e)
             playGame(e.state.clearFuture())

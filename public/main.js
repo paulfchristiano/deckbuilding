@@ -325,13 +325,13 @@ function renderShadow(shadow, state, tokenRenderer) {
     var tooltip;
     switch (shadow.spec.kind) {
         case 'ability':
-            tooltip = renderAbility(shadow.spec.card);
+            tooltip = renderAbility(shadow.spec.card.spec);
             break;
         case 'trigger':
             tooltip = renderTrigger(shadow.spec.trigger, false);
             break;
         case 'effect':
-            tooltip = renderEffects(shadow.spec.card);
+            tooltip = renderEffects(shadow.spec.card.spec);
             break;
         case 'cost':
             tooltip = describeCost(shadow.spec.cost);
@@ -347,11 +347,11 @@ function renderShadow(shadow, state, tokenRenderer) {
         "<span class='tooltip'>" + tooltip + "</span>",
         "</div>"].join('');
 }
-function renderEffects(card) {
+function renderEffects(spec) {
     var e_8, _a;
     var parts = [];
     try {
-        for (var _b = __values(card.effects()), _c = _b.next(); !_c.done; _c = _b.next()) {
+        for (var _b = __values(spec.effects || []), _c = _b.next(); !_c.done; _c = _b.next()) {
             var effect = _c.value;
             parts = parts.concat(effect.text);
         }
@@ -365,13 +365,13 @@ function renderEffects(card) {
     }
     return parts.map(function (x) { return "<div>" + x + "</div>"; }).join('');
 }
-function renderAbility(card) {
+function renderAbility(spec) {
     var e_9, _a;
     var parts = [];
     try {
-        for (var _b = __values(card.abilityEffects()), _c = _b.next(); !_c.done; _c = _b.next()) {
+        for (var _b = __values(spec.ability || []), _c = _b.next(); !_c.done; _c = _b.next()) {
             var effect = _c.value;
-            parts = parts.concat(effect.text.map(function (x) { return "<div>(use) " + x + "</div>"; }));
+            parts = parts.concat(effect.text.map(function (x) { return "<div>(ability) " + x + "</div>"; }));
         }
     }
     catch (e_9_1) { e_9 = { error: e_9_1 }; }
@@ -401,7 +401,7 @@ function renderCard(card, state, zone, options, tokenRenderer) {
     }
 }
 function renderTrigger(x, staticTrigger) {
-    var desc = (staticTrigger) ? '(static)' : '(trigger)';
+    var desc = (staticTrigger) ? '(static)' : '(effect)';
     return "<div>" + desc + " " + x.text + "</div>";
 }
 function renderCalculatedCost(c) {
@@ -413,23 +413,26 @@ function renderBuyable(bs) {
 function isZero(c) {
     return (c === undefined || renderCost(c) == '');
 }
+function cardText(spec) {
+    var effectHtml = renderEffects(spec);
+    var buyableHtml = (spec.restrictions != undefined) ? renderBuyable(spec.restrictions) : '';
+    var costHtml = (spec.calculatedCost != undefined) ? renderCalculatedCost(spec.calculatedCost) : '';
+    var abilitiesHtml = renderAbility(spec);
+    var triggerHtml = (spec.triggers || []).map(function (x) { return renderTrigger(x, false); }).join('');
+    var replacerHtml = (spec.replacers || []).map(function (x) { return renderTrigger(x, false); }).join('');
+    var staticTriggerHtml = (spec.staticTriggers || []).map(function (x) { return renderTrigger(x, true); }).join('');
+    var staticReplacerHtml = (spec.staticReplacers || []).map(function (x) { return renderTrigger(x, true); }).join('');
+    return [buyableHtml, costHtml, effectHtml, abilitiesHtml,
+        triggerHtml, replacerHtml, staticTriggerHtml, staticReplacerHtml].join('');
+}
 function renderTooltip(card, state, tokenRenderer) {
     var buyStr = !isZero(card.spec.buyCost) ?
         "(" + renderCost(card.spec.buyCost) + ")" : '---';
     var costStr = !isZero(card.spec.fixedCost) ?
         "(" + renderCost(card.cost('play', emptyState)) + ")" : '---';
     var header = "<div>---" + buyStr + " " + card.name + " " + costStr + "---</div>";
-    var effectHtml = renderEffects(card);
-    var buyableHtml = (card.spec.restrictions != undefined) ? renderBuyable(card.spec.restrictions) : '';
-    var costHtml = (card.spec.calculatedCost != undefined) ? renderCalculatedCost(card.spec.calculatedCost) : '';
-    var abilitiesHtml = renderAbility(card);
-    var triggerHtml = card.triggers().map(function (x) { return renderTrigger(x, false); }).join('');
-    var replacerHtml = card.replacers().map(function (x) { return renderTrigger(x, false); }).join('');
-    var staticTriggerHtml = card.staticTriggers().map(function (x) { return renderTrigger(x, true); }).join('');
-    var staticReplacerHtml = card.staticReplacers().map(function (x) { return renderTrigger(x, true); }).join('');
-    var staticHtml = triggerHtml + replacerHtml + staticTriggerHtml + staticReplacerHtml;
     var tokensHtml = tokenRenderer.renderTooltip(card.tokens);
-    var baseFilling = [header, costHtml, buyableHtml, effectHtml, abilitiesHtml, staticHtml, tokensHtml].join('');
+    var baseFilling = header + cardText(card.spec) + tokensHtml;
     function renderRelated(spec) {
         var card = new Card(spec, -1);
         return renderTooltip(card, state, tokenRenderer);
@@ -437,11 +440,20 @@ function renderTooltip(card, state, tokenRenderer) {
     var relatedFilling = card.relatedCards().map(renderRelated).join('');
     return "" + baseFilling + relatedFilling;
 }
+function renderSpec(spec) {
+    var buyText = isZero(spec.buyCost) ? '' : "(" + renderCost(spec.buyCost) + ")&nbsp;";
+    var costText = isZero(spec.fixedCost) ? '' : "&nbsp;(" + renderCost(spec.fixedCost) + ")";
+    var header = "<div>" + buyText + "<strong>" + spec.name + "</strong>" + costText + "</div>";
+    var me = "<div class='spec'>" + header + cardText(spec) + "</div>";
+    var related = (spec.relatedCards || []).map(renderSpec);
+    return [me].concat(related).join('');
+}
 function getIfDef(m, x) {
     return (m == undefined) ? undefined : m.get(x);
 }
 var globalRendererState = {
     hotkeysOn: false,
+    viewingKingdom: false,
     hotkeyMapper: new HotkeyMapper(),
     tokenRenderer: new TokenRenderer(),
 };
@@ -499,22 +511,62 @@ function renderLogs(logs) {
     return result.join('');
 }
 // ------------------------------- Rendering choices
-var webUI = {
-    choice: function (state, choicePrompt, options) {
+var webUI = /** @class */ (function () {
+    function webUI() {
+        this.undoing = false;
+    }
+    webUI.prototype.choice = function (state, choicePrompt, options, info) {
+        var ui = this;
+        var automate = this.automateChoice(state, options, info);
+        if (automate !== null) {
+            if (this.undoing)
+                throw new Undo(state);
+            else
+                return Promise.resolve(automate);
+        }
+        this.undoing = false;
         return new Promise(function (resolve, reject) {
+            function newReject(reason) {
+                if (reason instanceof Undo)
+                    ui.undoing = true;
+                reject(reason);
+            }
             function pick(i) {
                 clearChoice();
                 resolve(i);
             }
             function renderer() {
-                renderChoice(state, choicePrompt, options.map(function (x, i) { return (__assign(__assign({}, x), { value: function () { return pick(i); } })); }), function (x) { return resolve(x[0]); }, reject, renderer);
+                renderChoice(state, choicePrompt, options.map(function (x, i) { return (__assign(__assign({}, x), { value: function () { return pick(i); } })); }), function (x) { return resolve(x[0]); }, newReject, renderer);
             }
             renderer();
         });
-    },
-    multichoice: function (state, choicePrompt, options, validator) {
+    };
+    webUI.prototype.automateChoice = function (state, options, info) {
+        if (info.indexOf('tutorial') != -1)
+            return null;
+        if (info.indexOf('actChoice') != -1)
+            return null;
+        if (options.length == 1)
+            return 0;
+        return null;
+    };
+    webUI.prototype.multichoice = function (state, choicePrompt, options, validator, info) {
         if (validator === void 0) { validator = (function (xs) { return true; }); }
+        var ui = this;
+        var automate = this.automateMultichoice(state, options, info);
+        if (automate !== null) {
+            if (this.undoing)
+                throw new Undo(state);
+            else
+                return Promise.resolve(automate);
+        }
+        this.undoing = false;
         return new Promise(function (resolve, reject) {
+            function newReject(reason) {
+                if (reason instanceof Undo)
+                    ui.undoing = true;
+                reject(reason);
+            }
             var chosen = new Set();
             function chosenOptions() {
                 var e_10, _a;
@@ -590,7 +642,7 @@ var webUI = {
             chosen.clear();
             function renderer() {
                 var e_12, _a;
-                renderChoice(state, choicePrompt, newOptions, resolve, reject, renderer, picks);
+                renderChoice(state, choicePrompt, newOptions, resolve, newReject, renderer, picks);
                 try {
                     for (var chosen_3 = __values(chosen), chosen_3_1 = chosen_3.next(); !chosen_3_1.done; chosen_3_1 = chosen_3.next()) {
                         var j = chosen_3_1.value;
@@ -607,8 +659,13 @@ var webUI = {
             }
             renderer();
         });
-    },
-    victory: function (state) {
+    };
+    webUI.prototype.automateMultichoice = function (state, options, info) {
+        if (options.length == 0)
+            return [];
+        return null;
+    };
+    webUI.prototype.victory = function (state) {
         return __awaiter(this, void 0, void 0, function () {
             var submitOrUndo;
             return __generator(this, function (_a) {
@@ -630,8 +687,9 @@ var webUI = {
                 return [2 /*return*/, submitOrUndo()];
             });
         });
-    }
-};
+    };
+    return webUI;
+}());
 function renderChoice(state, choicePrompt, options, resolve, reject, renderer, picks, extraRenderSettings) {
     if (extraRenderSettings === void 0) { extraRenderSettings = {}; }
     var optionsMap = new Map(); //map card ids to their position in the choice list
@@ -685,12 +743,20 @@ function renderStringOption(option, hotkey, pick) {
     return "<span class='option' option='" + option.value + "' choosable chosen='false'>" + picktext + hotkeyText + option.render + "</span>";
 }
 function renderSpecials(state) {
-    return renderUndo(state.undoable()) +
-        renderRedo(state.redo.length > 0) +
-        renderHotkeyToggle() + renderHelp() + renderRestart();
+    return [
+        renderUndo(state.undoable()),
+        renderRedo(state.redo.length > 0),
+        renderHotkeyToggle(),
+        renderKingdomViewer(),
+        renderHelp(),
+        renderRestart()
+    ].join('');
 }
 function renderRestart() {
     return "<span id='deeplink' class='option', option='restart' choosable chosen='false'>Restart</span>";
+}
+function renderKingdomViewer() {
+    return "<span id='viewKingdom' class='option', option='viewKingdom' choosable chosen='false'>Kingdom</span>";
 }
 function renderHotkeyToggle() {
     return "<span class='option', option='hotkeyToggle' choosable chosen='false'>" + renderHotkey('/') + " Hotkeys</span>";
@@ -715,6 +781,22 @@ function bindSpecials(state, accept, reject, renderer) {
     bindHelp(state, renderer);
     bindRestart(state);
     bindRedo(state, accept);
+    bindViewKingdom(state);
+}
+function bindViewKingdom(state) {
+    function onClick() {
+        var e = $('#kingdomViewSpot');
+        if (globalRendererState.viewingKingdom) {
+            e.html('');
+            globalRendererState.viewingKingdom = false;
+        }
+        else {
+            var contents = state.events.concat(state.supply).map(function (card) { return renderSpec(card.spec); }).join('');
+            e.html("<div id='kingdomView'>" + contents + "</div>");
+            globalRendererState.viewingKingdom = true;
+        }
+    }
+    $("[option='viewKingdom']").on('click', onClick);
 }
 function bindHotkeyToggle(renderer) {
     function pick() {
@@ -784,19 +866,20 @@ function clearChoice() {
 var tutorialStages = [
     {
         text: ["Welcome to the tutorial.\n        It will walk you through the first few actions of a simple game.\n        Press enter or click 'Next' to advance.",
-            "When you use an event or play a card, you first pay its cost\n        then follow its instructions.\n        After pressing 'Next',\n        hover over Refresh to see what it does, then click on it to use it."],
+            "When you use an event or play a card, you first pay its cost\n        then follow its instructions.",
+            "You can read what a card does by hovering over it,\n        or view all cards by clicking the 'Kingdom' button\n        at the top of the screen. After pressing 'Next',\n        read what Refresh does, then click on it to use it."],
         nextAction: 0,
     },
     {
-        text: ["When you used Refresh you spent @4,\n        because that's the cost of Refresh.\n         You can see how much @ you've spent at the top of the screen.\n         The goal of the game is to spend as little as possible.",
+        text: ["When you used Refresh you spent @@@@,\n        because that's the cost of Refresh.\n         You can see how much @ you've spent in the resources row,\n         directly above the events (it might be behind this popup).\n         The goal of the game is to spend as little as possible.",
             "After paying Refresh's cost, you put your discard pile into your hand.\n         These are the cards available to play.",
-            "Then you gained 5 actions, which you can use to play cards from your hand,\n         and 1 buy, which you can use to buy a card from the supply.\n         Your actions and buys are visible at the top of the screen.",
+            "Then you gained 5 actions, which you can use to play cards from your hand,\n         and 1 buy, which you can use to buy a card from the supply.\n         Your actions and buys are visible above the events.",
             "You have $0, so you can't buy much.\n         But you can use an action to play a Copper from your hand."],
         nextAction: 0,
     },
     {
         text: [
-            "When you play Copper, you follow its instructions and gain $1.\n             You can see your $ at the top of the screen.\n             You can also see that you've spent 1 action so have 4 remaining.",
+            "When you play Copper, you follow its instructions and gain $1.\n             You can see your $ above the events.\n             You can also see that you've spent 1 action so have 4 remaining.",
         ],
         nextAction: 0
     },
@@ -813,17 +896,18 @@ var tutorialStages = [
     },
     {
         text: ["You spent @ to play the estate, and gained 1 vp.\n        The goal of the game is to get to " + VP_GOAL + "vp\n        using as little @ as possible.",
-            "This is a very small kingdom for the purposes of learning.\n        The fastest win for using these cards is @38. Good luck!",
+            "This is a very small kingdom for the purposes of learning.\n        The fastest win with these cards is 38@. Good luck!",
             "You can press '?' or click 'Help' to view the help at any time."],
     },
 ];
 var tutorialUI = /** @class */ (function () {
-    function tutorialUI(stages) {
+    function tutorialUI(stages, innerUI) {
+        if (innerUI === void 0) { innerUI = new webUI(); }
         this.stages = stages;
+        this.innerUI = innerUI;
         this.stage = 0;
-        this.innerUI = webUI;
     }
-    tutorialUI.prototype.choice = function (state, choicePrompt, options) {
+    tutorialUI.prototype.choice = function (state, choicePrompt, options, info) {
         return __awaiter(this, void 0, void 0, function () {
             var stage, validIndex_1, result;
             var _this = this;
@@ -833,7 +917,7 @@ var tutorialUI = /** @class */ (function () {
                     validIndex_1 = stage.nextAction;
                     if (validIndex_1 != undefined)
                         options = [options[validIndex_1]];
-                    result = this.innerUI.choice(state, choicePrompt, options).then(function (x) {
+                    result = this.innerUI.choice(state, choicePrompt, options, info.concat(['tutorial'])).then(function (x) {
                         _this.stage += 1;
                         return (validIndex_1 != undefined) ? validIndex_1 : x;
                     }).catch(function (e) {
@@ -849,16 +933,16 @@ var tutorialUI = /** @class */ (function () {
                     return [2 /*return*/, result];
                 }
                 else
-                    return [2 /*return*/, this.innerUI.choice(state, choicePrompt, options)];
+                    return [2 /*return*/, this.innerUI.choice(state, choicePrompt, options, info)];
                 return [2 /*return*/];
             });
         });
     };
-    tutorialUI.prototype.multichoice = function (state, choicePrompt, options, validator) {
+    tutorialUI.prototype.multichoice = function (state, choicePrompt, options, validator, info) {
         if (validator === void 0) { validator = (function (xs) { return true; }); }
         return __awaiter(this, void 0, void 0, function () {
             return __generator(this, function (_a) {
-                return [2 /*return*/, this.innerUI.multichoice(state, choicePrompt, options, validator)];
+                return [2 /*return*/, this.innerUI.multichoice(state, choicePrompt, options, validator, info.concat(['tutorial']))];
             });
         });
     };
@@ -900,6 +984,7 @@ export function loadTutorial() {
     startGame(state, new tutorialUI(tutorialStages));
 }
 // ------------------------------------------ Help
+//TODO: should handle help and the kingdom view in the same way
 function bindHelp(state, renderer) {
     function attach(f) {
         $('#help').on('click', f);
@@ -910,28 +995,24 @@ function bindHelp(state, renderer) {
         var helpLines = [
             "Rules:",
             "The goal of the game is to get to " + VP_GOAL + " points (vp) using as little energy (@) as possible.",
-            "When you buy a card, pay its buy cost then create a copy of it in your discard pile.",
-            "When you play a card or use an event, pay its cost then follow its instructions.",
+            "To buy a card, pay its buy cost then create a copy of it in your discard pile.",
+            "To play a card or use an event, pay its cost then follow its instructions.",
+            "If an effect instructs you to play or buy a card, you don't have to pay a cost.",
             "The symbols below a card's name indicate its cost or buy cost.",
-            "When a cost is measured in energy (@, @@, ...) then you use that much energy to play it.",
-            "When a cost is measured in coin ($) then you can only buy it if you have enough coin.",
+            "When a cost is measured in energy (@, @@, ...) then you use that much energy to pay it.",
+            "When a cost is measured in coin ($) then you can only pay it if you have enough coin.",
             'After playing a card, discard it.',
             "You can activate the abilities of cards in play, marked with (ability).",
+            "Effects marked with (effect) apply whenever the card is in play.",
             "Effects marked with (static) apply whenever the card is in the supply.",
-            "Effects marked with (trigger) apply whenever the card is in play.",
             "&nbsp;",
             "Other help:",
-            "Press 'z' or click the undo button to undo the last move.",
-            "Press '/' or click the hotkey button to turn on hotkeys.",
-            "You can use the current URL to link to the current state of this game.",
-            "You can play today's <a href='daily'>daily kingdom</a>, which refreshes midnight EDT.",
-            "Visit <a href=\"play?" + specToURL(state.spec) + "\">this link</a> to replay the current kingdom anytime.",
-            "Or visit the <a href=\"picker.html\">kingdom picker<a> to pick a kingdom.",
+            "Click the 'Kingdom' button to view the text of all cards at once.",
+            "Press 'z' or click the 'Undo' button to undo the last move.",
+            "Press '/' or click the 'Hotkeys' button to turn on hotkeys.",
+            "Go <a href='index.html'>here</a> to see all the ways to play the game.",
+            "Check out the scoreboard <a href=" + scoreboardURL(state.spec) + ">here</a>.",
         ];
-        if (submittable(state.spec))
-            helpLines.push("Check out the scoreboard <a href=" + scoreboardURL(state.spec) + ">here</a>.");
-        else
-            helpLines.push("There is no scoreboard when you specify a kingdom manually.");
         $('#choicePrompt').html('');
         $('#resolvingHeader').html('');
         $('#resolving').html(helpLines.map(function (x) { return "<div class='helpLine'>" + x + "</div class='helpline'>"; }).join(''));
@@ -1061,10 +1142,10 @@ function heartbeat(spec, interval) {
     }
 }
 function renderBest(best, spec) {
-    $('#best').html("Fastest win on this seed: " + best + " (<a target='_blank' href='" + scoreboardURL(spec) + "'>scoreboard</a>)");
+    $('#best').html("Fastest win on this kingdom: " + best + " (<a target='_blank' href='" + scoreboardURL(spec) + "'>scoreboard</a>)");
 }
 function renderScoreboardLink(spec) {
-    $('#best').html("No wins yet for this seed (<a target='_blank' href='" + scoreboardURL(spec) + "'>scoreboard</a>)");
+    $('#best').html("No wins yet for this kingdom (<a target='_blank' href='" + scoreboardURL(spec) + "'>scoreboard</a>)");
 }
 // Creating the game spec and starting the game ------------------------------
 function getHistory() {
@@ -1118,7 +1199,8 @@ export function load(fixedURL) {
     startGame(state);
 }
 function startGame(state, ui) {
-    if (ui === void 0) { ui = webUI; }
+    if (ui === undefined)
+        ui = new webUI();
     heartbeat(state.spec);
     var interval = setInterval(function () { return heartbeat(state.spec, interval); }, 10000);
     window.addEventListener("hashchange", function () { return load(); }, false);
@@ -1138,7 +1220,7 @@ function restart(state) {
     var spec = state.spec;
     state = initialState(spec);
     window.history.pushState(null, "");
-    playGame(state.attachUI(webUI)).catch(function (e) {
+    playGame(state.attachUI(new webUI())).catch(function (e) {
         if (e instanceof InvalidHistory) {
             alert(e);
             playGame(e.state.clearFuture());
