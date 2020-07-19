@@ -2090,9 +2090,9 @@ function descriptorForKind(kind:ActionKind):string {
 function reducedCost(cost:Cost, reduction:Partial<Cost>, nonzero:boolean=false) {
     let newCost:Cost = subtractCost(cost, reduction)
     if (nonzero && leq(newCost, free) && !leq(cost, free)) {
-        if (reduction.coin || 0 > 0) {
+        if ((reduction.coin || 0) > 0) {
             newCost = addCosts(newCost, {coin:1})
-        } else if (reduction.energy || 0 > 0) {
+        } else if ((reduction.energy || 0) > 0) {
             newCost = addCosts(newCost, {energy:1})
         }
     }
