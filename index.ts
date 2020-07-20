@@ -280,15 +280,21 @@ express()
             renderedTime:renderTime(x.submitted)
           }))
           const entriesByVersion: [string, object[]][] = [];
+          let bestTime:any = null
           for (const entry of entries) {
               if (entriesByVersion.length == 0) {
                   entriesByVersion.push([entry.version, []])
               } else if (last(entriesByVersion)[0] != entry.version) {
                   entriesByVersion.push([entry.version, []])
+                  bestTime = null
+              }
+              if (bestTime === null || bestTime > entry.time) {
+                  bestTime = entry.time
+                  entry['leader'] = true
+              } else {
+                  entry['leader'] = false
               }
               const versionEntries:any[] = last(entriesByVersion)[1]
-              entry['leader'] = (versionEntries.length == 0) ? true :
-                entry.time < last(versionEntries).time
               versionEntries.push(entry)
           }
           res.render('pages/scoreboard', {entriesByVersion:entriesByVersion, url:url, currentVersion:VERSION});

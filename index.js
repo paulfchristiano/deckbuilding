@@ -517,7 +517,7 @@ express()
     });
 }); })
     .get('/scoreboard', function (req, res) { return __awaiter(void 0, void 0, void 0, function () {
-    var url, results, entries, entriesByVersion, entries_1, entries_1_1, entry, versionEntries, err_7;
+    var url, results, entries, entriesByVersion, bestTime, entries_1, entries_1_1, entry, versionEntries, err_7;
     var e_6, _a;
     return __generator(this, function (_b) {
         switch (_b.label) {
@@ -533,6 +533,7 @@ express()
                 results = _b.sent();
                 entries = results.map(function (x) { return (__assign(__assign({}, x), { time: x.submitted, renderedTime: renderTime(x.submitted) })); });
                 entriesByVersion = [];
+                bestTime = null;
                 try {
                     for (entries_1 = __values(entries), entries_1_1 = entries_1.next(); !entries_1_1.done; entries_1_1 = entries_1.next()) {
                         entry = entries_1_1.value;
@@ -541,10 +542,16 @@ express()
                         }
                         else if (last(entriesByVersion)[0] != entry.version) {
                             entriesByVersion.push([entry.version, []]);
+                            bestTime = null;
+                        }
+                        if (bestTime === null || bestTime > entry.time) {
+                            bestTime = entry.time;
+                            entry['leader'] = true;
+                        }
+                        else {
+                            entry['leader'] = false;
                         }
                         versionEntries = last(entriesByVersion)[1];
-                        entry['leader'] = (versionEntries.length == 0) ? true :
-                            entry.time < last(versionEntries).time;
                         versionEntries.push(entry);
                     }
                 }
