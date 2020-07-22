@@ -3322,10 +3322,10 @@ const flourishing:CardSpec = {
         calculate: (card, state) => (state.points < 10) ? energy(1) : free
     },
     effects: [actionEffect(2), {
-        text: [`If you have at least 20 vp, +1 action.`],
+        text: [`If you have at least 20 vp, +$2.`],
         transform: (state, card) => (state.points < 20) ? noop : gainCoin(2)
     }, {
-        text: [`If you have at least 30 vp, +1 action.`],
+        text: [`If you have at least 30 vp, +$2.`],
         transform: (state, card) => (state.points < 30) ? noop : gainCoin(2)
     }]
 }

@@ -3749,10 +3749,10 @@ var flourishing = {
         calculate: function (card, state) { return (state.points < 10) ? energy(1) : free; }
     },
     effects: [actionEffect(2), {
-            text: ["If you have at least 20 vp, +1 action."],
+            text: ["If you have at least 20 vp, +$2."],
             transform: function (state, card) { return (state.points < 20) ? noop : gainCoin(2); }
         }, {
-            text: ["If you have at least 30 vp, +1 action."],
+            text: ["If you have at least 30 vp, +$2."],
             transform: function (state, card) { return (state.points < 30) ? noop : gainCoin(2); }
         }]
 };
