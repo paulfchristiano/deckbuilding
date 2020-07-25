@@ -1,4 +1,4 @@
-export const VERSION = "1.1"
+export const VERSION = "1.2"
 
 // ----------------------------- Formatting
 
@@ -1258,6 +1258,7 @@ function leq(cost1:Cost, cost2:Cost) {
     return cost1.coin <= cost2.coin && cost1.energy <= cost2.energy
 }
 
+
 // ----------------- Transforms for charge and tokens
 
 type Token = 'charge' | 'cost' | 'mirror' | 'duplicate' | 'twin' | 'synergy' |
@@ -2330,11 +2331,12 @@ const hallOfMirrors:CardSpec = {name: 'Hall of Mirrors',
 registerEvent(hallOfMirrors)
 
 function costPlus(initial:Cost, increment:Cost): CalculatedCost {
+    const extraStr:string = `${renderCost(increment, true)} for each cost token on this.`
     return {
         calculate: function(card:Card, state:State) {
             return addCosts(initial, multiplyCosts(increment, state.find(card).count('cost')))
         },
-        text: `${renderCost(initial, true)} plus ${renderCost(increment, true)} for each cost token on this.`,
+        text: eq(initial, free) ? extraStr : `${renderCost(initial, true)} plus ${extraStr}`
     }
 }
 
@@ -2345,11 +2347,26 @@ function incrementCost(): Effect {
     }
 }
 
+/*
 const restock:CardSpec = {name: 'Restock',
     calculatedCost: costPlus(energy(2), coin(1)),
     effects: [incrementCost(), refreshEffect(5)],
 }
 registerEvent(restock)
+*/
+
+const escalation:CardSpec = {name: 'Escalation',
+    calculatedCost: costPlus(coin(0), coin(1)),
+    effects: [
+        chargeEffect(),
+        {
+            text: ['Put a cost token on this for each charge token on it.'],
+            transform: (s:State, c:Card) => addToken(c, 'cost', s.find(c).charge)
+        },
+        refreshEffect(5),
+    ]
+}
+registerEvent(escalation)
 
 const scrapeBy:CardSpec = {name:'Scrape By',
     fixedCost: energy(2),
@@ -2625,8 +2642,9 @@ const feast:CardSpec = {name: 'Feast',
 }
 buyable(feast, 4)
 
+/*
 const mobilization:CardSpec = {name: 'Mobilization',
-    calculatedCost: costPlus(coin(10), coin(10)),
+    calculatedCost: costPlus(coin(10), coin(5)),
     effects: [chargeEffect(), incrementCost()],
     replacers: [{
         text: `${refresh.name} costs @ less to play for each charge token on this.`,
@@ -2637,6 +2655,30 @@ const mobilization:CardSpec = {name: 'Mobilization',
     }]
 }
 registerEvent(mobilization)
+*/
+
+const stables:CardSpec = {name: 'Stables',
+    effects: [{
+        text: [
+            'If there are any charge tokens on this, remove them all and gain that many actions.',
+            'Otherwise, lose all actions and put that many charge tokens on this.',
+        ],
+        transform: (state, card) => async function(state) {
+            const n = state.find(card).charge
+            const m = state.actions
+            if (n > 0) {
+                state = await discharge(card, n)(state)
+                state = await gainActions(n)(state)
+                return state
+            } else {
+                state = await gainActions(-m)(state)
+                state = await charge(card, m)(state)
+                return state
+            }
+        }
+    }]
+}
+registerEvent(stables)
 
 function recycleEffect(): Effect {
     return {
@@ -2761,8 +2803,9 @@ const synergy:CardSpec = {name: 'Synergy',
 }
 registerEvent(synergy)
 
+//TODO: test
 const shelter:CardSpec = {name: 'Shelter',
-    effects: [targetedEffect(
+    effects: [actionEffect(1), targetedEffect(
         target => addToken(target, 'shelter'),
         'Put a shelter token on a card in play.',
         state => state.play
@@ -2884,9 +2927,9 @@ buyable(kingsCourt, 10)
 const gardens:CardSpec = {name: "Gardens",
     fixedCost: energy(1),
     effects: [{
-        text: ['+1 vp per 10 cards in your hand, discard pile, and play.'],
+        text: ['+1 vp per 8 cards in your hand, discard pile, and play.'],
         transform: (state, card) => gainPoints(
-            Math.floor((state.hand.length + state.discard.length + state.play.length)/10),
+            Math.floor((state.hand.length + state.discard.length + state.play.length)/8),
             card
         )
     }]
@@ -2981,7 +3024,7 @@ const goldsmith:CardSpec = {name: 'Goldsmith',
     fixedCost: energy(1),
     effects: [actionEffect(2), gainCoinEffect(3)]
 }
-buyable(goldsmith, 7)
+buyable(goldsmith, 6)
 
 const publicWorks:CardSpec = {name: 'Public Works',
     effects: [toPlay()],
@@ -3253,14 +3296,14 @@ const chameleon:CardSpec = {
 }
 registerEvent(chameleon)
 
+//TODO: test
 const grandMarket:CardSpec = {
     name: 'Grand Market',
     restrictions: [{
         text: `You can't buy this if you have any
-        ${copper.name}s or ${silver.name}s
-        in your discard pile.`,
+        ${copper.name}s in your discard pile.`,
         test: (c:Card, s:State, k:ActionKind) => k == 'buy' &&
-            s.discard.some(x => x.name == copper.name || x.name == silver.name)
+            s.discard.some(x => x.name == copper.name)
     }],
     effects: [gainCoinEffect(2), actionEffect(1), buyEffect()],
 }
@@ -3317,19 +3360,13 @@ buyable(industry, 4)
 
 const flourishing:CardSpec = {
     name: 'Flourishing',
-    calculatedCost: {
-        text: `Costs @ if you have less than 10 vp.`,
-        calculate: (card, state) => (state.points < 10) ? energy(1) : free
-    },
+    fixedCost: energy(1),
     effects: [actionEffect(2), {
-        text: [`If you have at least 20 vp, +1 action.`],
-        transform: (state, card) => (state.points < 20) ? noop : gainCoin(2)
-    }, {
-        text: [`If you have at least 30 vp, +1 action.`],
-        transform: (state, card) => (state.points < 30) ? noop : gainCoin(2)
+        text: [`+1 action for each 5 vp you have, rounded down.`],
+        transform: (state, card) => gainActions(Math.floor(state.points / 5))
     }]
 }
-buyable(flourishing, 2)
+buyable(flourishing, 3)
 
 const banquet:CardSpec = {
     name: 'Banquet',
@@ -3531,18 +3568,19 @@ const reverberate:CardSpec = {
 }
 registerEvent(reverberate)
 
+//TODO: test
 const preparations:CardSpec = {
     name: 'Preparations',
     fixedCost: energy(1),
     effects: [toPlay()],
     replacers: [{
         text: `When you would move this to your hand,
-            instead move it to your discard pile and gain +1 buy and +4 actions.`,
+            instead move it to your discard pile and gain +1 buy, +$2, and +3 actions.`,
         kind: 'move',
         handles: (p, state, card) => (p.card.id == card.id && p.toZone == 'hand'),
         replace: p => ({...p, 
             toZone:'discard',
-            effects:p.effects.concat([gainBuys(1), gainActions(4)])
+            effects:p.effects.concat([gainBuys(1), gainCoin(2), gainActions(3)])
         })
     }]
 }
