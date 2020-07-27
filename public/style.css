@@ -1,4 +1,5 @@
-#rightBox, #resources, #choicePrompt, .header, #kingdomLink, .helpLine, .sizeDescription, .homeLine {
+#rightBox, #resources, #choicePrompt, .header, #requireLink, #pickLink,
+.helpLine, .sizeDescription, .homeLine {
     font-size: 1.25em;
 }
 .homeLine {

@@ -25,7 +25,7 @@ function a(s:string): string {
     return 'a ' + s
 }
 
-function lowercase(s:string): string {
+function lowercaseFirst(s:string): string {
     return s[0].toLowerCase() + s.slice(1)
 }
 
@@ -130,9 +130,6 @@ interface CardUpdate {
     zoneIndex?: number;
 }
 
-
-//TODO: should Token be a type? can avoid token name typos...
-//(could also have token rendering hints...)
 export class Card {
     readonly name: string;
     readonly charge: number;
@@ -454,6 +451,7 @@ export type GameSpec =
     { kind: 'test' } |
     { kind: 'pick', cards:CardSpec[], events:CardSpec[] } |
     { kind: 'pickR', cards:SlotSpec[], events:SlotSpec[], seed: string } |
+    { kind: 'require', cards:SlotSpec[], events:SlotSpec[], seed: string } |
     { kind: 'full', seed: string} | 
     { kind: 'half', seed: string} |
     { kind: 'mini', seed: string}
@@ -869,10 +867,6 @@ type Params = ResourceParams | CostParams | MoveParams | CreateParams
 type TypedReplacer = Replacer<ResourceParams> | Replacer<CostParams> |
     Replacer<MoveParams> | Replacer<CreateParams>
 
-//TODO: this should maybe be async and return a new state?
-//(e.g. the "put it into your hand" should maybe be replacement effects)
-//x is an event that is about to happen
-//each card in play or supply can change properties of x
 function replace<T extends Params>(x: T, state: State): T {
     const replacers:[Card, TypedReplacer][] = []
     for (const card of state.supply)
@@ -1616,6 +1610,11 @@ function hash(s:string):number{
     return hash
 }
 
+function fillTo<T>(n:number, filler:T, xs:T[]): T[] {
+    const m = n - xs.length
+    return (m > 0) ? xs.concat(Array(m).fill(filler)) : xs
+}
+
 export function cardsAndEvents(
     spec:GameSpec
 ): {cards:SlotSpec[], events:SlotSpec[]} {
@@ -1626,6 +1625,10 @@ export function cardsAndEvents(
         case 'test': return {cards: [], events: []}
         case 'pick': return {cards: [], events: []}
         case 'pickR': return {cards: spec.cards, events: spec.events}
+        case 'require': return {
+            cards: fillTo(10, RANDOM, spec.cards),
+            events: fillTo(4, RANDOM, spec.events)
+        }
         default: return assertNever(spec)
     }
 }
@@ -1667,9 +1670,13 @@ export function getTutorialSpec(): GameSpec {
     }
 }
 
+function normalize(s:string): string {
+    return s.split(' ').join('').toLowerCase()
+}
+
 function makeDictionary(xs:CardSpec[]): Map<string, CardSpec> {
     const result:Map<string, CardSpec> = new Map()
-    for (const x of xs) result.set(x.name, x);
+    for (const x of xs) result.set(normalize(x.name), x);
     return result
 }
 
@@ -1680,7 +1687,7 @@ function extractList(s:string, xs:CardSpec[]): SlotSpec[] {
     for (const name of s.split(',')) {
         if (name == RANDOM) result.push(RANDOM)
         else {
-            const lookup = dictionary.get(name)
+            const lookup = dictionary.get(normalize(name))
             if (lookup == undefined)
                 throw new MalformedSpec(`${name} is not a valid name`);
             result.push(lookup)
@@ -1714,6 +1721,7 @@ export function specToURL(spec:GameSpec): string {
             args.set('seed', spec.seed)
             break
         case 'pickR':
+        case 'require':
             args.set('seed', spec.seed)
             args.set('cards', renderSlots(spec.cards))
             args.set('events', renderSlots(spec.events))
@@ -1736,13 +1744,12 @@ export function specFromURL(search:string): GameSpec {
     const seed:string|null = searchParams.get('seed') || randomSeed()
     let kind:string
 
-    if ((cards === null) != (events === null)) {
-        throw new MalformedSpec('Must pick cards iff picking events.')
-    }
-
     if (urlKind !== null) {
         kind = urlKind
     } else {
+        if ((cards === null) != (events === null)) {
+            throw new MalformedSpec('Must pick cards iff picking events.')
+        }
         if (cards === null || events === null) kind = 'full';
         else if (cards.includes(RANDOM) || events.includes(RANDOM)) kind = 'pickR';
         else kind = 'pick';
@@ -1767,6 +1774,13 @@ export function specFromURL(search:string): GameSpec {
                 else eventSpecs.push(card)
             }
             return {kind:kind, cards:cardSpecs, events:eventSpecs}
+        case 'require':
+            return {
+                seed:seed,
+                kind:'require',
+                cards: (cards === null) ? [] : extractList(cards, mixins),
+                events: (events === null) ? [] : extractList(events, eventMixins),
+            }
         case 'pickR':
             if (cards === null) throw new MalformedSpec('Custom kingdoms must specify cards')
             if (events === null) throw new MalformedSpec('Custom kingdoms must specify events')
@@ -1879,7 +1893,7 @@ function supplyForCard(
             handles: (e, s, c) => e.card.name == c.name,
             transform: (e, s, c) => t.transform(s, c),
             //TODO: this is pretty sketchy...
-            text: `When you buy this, ${t.text.map(lowercase).join(', ')}`,
+            text: `When you buy this, ${t.text.map(lowercaseFirst).join(', ')}`,
         })
     )
     const triggers:TypedTrigger[] = (buyTriggers as TypedTrigger[])
@@ -2297,12 +2311,12 @@ buyable(plough, 4)
 
 const construction:CardSpec = {name: 'Construction',
     fixedCost: energy(1),
-    effects: [toPlay()],
+    effects: [actionEffect(2), toPlay()],
     triggers: [{
-        text: 'Whenever you pay @, +2 actions.',
+        text: 'Whenever you pay @, +1 action and +1 buy.',
         kind: 'cost',
         handles: () => true,
-        transform: e => gainActions(2 * e.cost.energy)
+        transform: e => doAll([gainActions(e.cost.energy), gainBuys(e.cost.energy)])
     }]
 }
 buyable(construction, 3)
@@ -2445,7 +2459,7 @@ const travelingFair:CardSpec = {name:'Traveling Fair',
 registerEvent(travelingFair)
 
 const philanthropy:CardSpec = {name: 'Philanthropy',
-    fixedCost: {...free, coin:4, energy:2},
+    fixedCost: {...free, coin:6, energy:1},
     effects: [{
         text: ['Lose all $.', '+1 vp per $ lost.'],
         transform: () => async function(state) {
@@ -2464,7 +2478,7 @@ const storytelling:CardSpec = {name: 'Storytelling',
         text: ['Lose all $.', '+1 action per $ lost.'],
         transform: () => async function(state) {
             const n = state.coin
-            state = await setResource('coin', 0)(state)
+            state = await gainCoin(-n)(state)
             state = await gainActions(n)(state)
             return state
         }
@@ -2600,9 +2614,8 @@ const shippingLane:CardSpec = {name: 'Shipping Lane',
     fixedCost: energy(1),
     effects: [gainCoinEffect(2), toPlay()],
     triggers: [{
-        text: `After buying a card in the supply,
-            if this is in play and was in play when you bought it,
-            then discard it and buy that card again.`,
+        text: `After buying a card while this is in play,
+            discard this to buy the card again.`,
         kind: 'afterBuy',
         handles: (e, state, card) => state.find(card).place == 'play'
             && e.before.find(card).place == 'play',
@@ -2816,8 +2829,8 @@ buyableAnd(shelter, 3, {
         kind: 'move',
         text: `Whenever you would move a card with a shelter token from play,
                instead remove a shelter token from it.`,
-        handles: (x, state) => (x.fromZone == 'play' && state.find(x.card).count('shelter') > 0),
-        replace: x => ({...x, toZone:'play', effects:x.effects.concat([removeToken(x.card, 'shelter')])})
+        handles: (x, state) => (x.fromZone == 'play' && x.skip == false, state.find(x.card).count('shelter') > 0),
+        replace: x => ({...x, skip:true, toZone:'play', effects:x.effects.concat([removeToken(x.card, 'shelter')])})
     }]
 })
 
@@ -2922,7 +2935,7 @@ const kingsCourt:CardSpec = {name: "King's Court",
     fixedCost: energy(2),
     effects: [KCEffect()]
 }
-buyable(kingsCourt, 10)
+buyable(kingsCourt, 9)
 
 const gardens:CardSpec = {name: "Gardens",
     fixedCost: energy(1),
@@ -3045,11 +3058,12 @@ function fragileEcho(): Trigger<MoveEvent> {
     }
 }
 
-//TODO: handle skip better, other things shouldn't replace it again...
+//TODO: test
 const echo:CardSpec = {name: 'Echo',
-    effects: [targetedEffect(echoEffect,
+    effects: [targetedEffect(
+        (target, card) => doAll([target.play(card), echoEffect(target)]),
         `Choose a card you have in play.
-        Create a fresh copy of it in play with an echo token on it.`,
+        Play it, then create a copy of it in play with an echo token on it.`,
         state => state.play
     )]
 }
@@ -3174,7 +3188,7 @@ const egg:CardSpec = {name: 'Egg',
             doAll([trash(card), create(dragon, 'hand')]) : noop
     }]
 }
-buyable(egg, 4)
+buyable(egg, 5)
 
 const looter:CardSpec = {name: 'Looter',
     effects: [{
@@ -3296,7 +3310,6 @@ const chameleon:CardSpec = {
 }
 registerEvent(chameleon)
 
-//TODO: test
 const grandMarket:CardSpec = {
     name: 'Grand Market',
     restrictions: [{
@@ -3360,13 +3373,13 @@ buyable(industry, 4)
 
 const flourishing:CardSpec = {
     name: 'Flourishing',
-    fixedCost: energy(1),
-    effects: [actionEffect(2), {
-        text: [`+1 action for each 5 vp you have, rounded down.`],
-        transform: (state, card) => gainActions(Math.floor(state.points / 5))
+    fixedCost: free,
+    effects: [actionEffect(1), {
+        text: [`+1 action for each 8 vp you have.`],
+        transform: (state, card) => gainActions(Math.floor(state.points / 8))
     }]
 }
-buyable(flourishing, 3)
+buyable(flourishing, 2)
 
 const banquet:CardSpec = {
     name: 'Banquet',
@@ -3409,13 +3422,13 @@ const harvest:CardSpec = {
     name:'Harvest',
     fixedCost: energy(1),
     effects: [{
-        text: [`+$1 for every differently-named card in your discard pile
-            up to a max of 5.`],
+        text: [`+$1 for every differently-named card in your discard pile.`],
         transform: state => gainCoin(countDistinct(state.discard.map(x => x.name)))
     }]
 }
 buyable(harvest, 3)
 
+/*
 const horseTraders:CardSpec = {
     name:'Horse Traders',
     fixedCost: energy(1),
@@ -3425,6 +3438,26 @@ const horseTraders:CardSpec = {
     }, gainCoinEffect(4), buyEffect()]
 }
 buyable(horseTraders, 4)
+*/
+
+const secretChamber:CardSpec = {
+    name: 'Secret Chamber',
+    fixedCost: energy(1),
+    effects: [{
+        text: [`Discard any number of cards from your hand.`,
+            `+$1 per card you discarded.`],
+        transform: () => async function(state) {
+            let targets; [state, targets] = await multichoice(state,
+                'Choose any number of cards to discard for +$1 each.',
+                state.hand.map(asChoice),
+                () => true),
+            state = await moveMany(targets, 'discard')(state)
+            state = await gainActions(targets.length)(state)
+            return state
+        }
+    }]
+}
+buyable(secretChamber, 3)
 
 const supplies:CardSpec = {
     name: 'Supplies',
@@ -3568,7 +3601,7 @@ const reverberate:CardSpec = {
 }
 registerEvent(reverberate)
 
-//TODO: test
+/*
 const preparations:CardSpec = {
     name: 'Preparations',
     fixedCost: energy(1),
@@ -3585,6 +3618,24 @@ const preparations:CardSpec = {
     }]
 }
 buyable(preparations, 3)
+*/
+
+const turnpike:CardSpec = {
+    name: 'Turnpike',
+    fixedCost: energy(2),
+    effects: [toPlay()],
+    triggers: [{
+        kind:'play',
+        text: `Whenever you play a card, put a charge token on this.
+        If it has two charge counters, remove them for +1vp.`,
+        handles: () => true,
+        transform: (e, state, card) => doAll([
+            charge(card, 1),
+            payToDo(discharge(card, 2), gainPoints(1))
+        ])
+    }]
+}
+buyable(turnpike, 5)
 
 const highway:CardSpec = {
     name: 'Highway',
@@ -3638,7 +3689,7 @@ const composting:CardSpec = {
         }
     }]
 }
-buyable(composting, 4)
+buyable(composting, 3)
 
 const fairyGold:CardSpec = {
     name: 'Fairy Gold',
@@ -3670,6 +3721,7 @@ const pathfinding:CardSpec = {
 }
 registerEvent(pathfinding)
 
+/*
 const fortune:CardSpec = {
     name: 'Fortune',
     effects: [{
@@ -3704,6 +3756,19 @@ buyableAnd(gladiator, 3, {
         transform: (e, state, card) => doAll([trash(card), create(fortuneSupply, 'supply')])
     }]
 })
+*/
+
+const fortune:CardSpec = {
+    name: 'Fortune',
+    effects: [{
+        text: [`Double your $.`],
+        transform: (state, card) => gainCoin(state.coin)
+    }, {
+        text: [`Double your buys.`],
+        transform: (state, card) => gainBuys(state.buys)
+    }]
+}
+buyableAnd(fortune, 12, {onBuy: [trashThis()]})
 
 
 

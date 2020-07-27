@@ -1242,8 +1242,8 @@ function restart(state) {
 }
 // ----------------------------------- Kingdom picker
 //
-function kingdomURL(cards, events) {
-    return "play?cards=" + cards.map(function (card) { return card.name; }).join(',') + "&events=" + events.map(function (card) { return card.name; });
+function kingdomURL(kindParam, cards, events) {
+    return "play?" + kindParam + "cards=" + cards.map(function (card) { return card.name; }).join(',') + "&events=" + events.map(function (card) { return card.name; });
 }
 function countIn(s, f) {
     var e_14, _a;
@@ -1292,8 +1292,9 @@ export function loadPicker() {
         var parts = s.split('/');
         return parts.slice(0, parts.length - 1).join('/');
     }
-    function kingdomLink() {
-        return kingdomURL(Array.from(chosen.values()).filter(function (i) { return i < cards.length; }).map(function (i) { return cards[i]; }), Array.from(chosen.values()).filter(function (i) { return i >= cards.length; }).map(function (i) { return events[i - cards.length]; }));
+    function kingdomLink(kind) {
+        if (kind === void 0) { kind = ''; }
+        return kingdomURL(kind, Array.from(chosen.values()).filter(function (i) { return i < cards.length; }).map(function (i) { return cards[i]; }), Array.from(chosen.values()).filter(function (i) { return i >= cards.length; }).map(function (i) { return events[i - cards.length]; }));
     }
     var chosen = new Set();
     function pick(i) {
@@ -1308,10 +1309,12 @@ export function loadPicker() {
         $('#cardCount').html(String(countIn(chosen, function (x) { return x < cards.length; })));
         $('#eventCount').html(String(countIn(chosen, function (x) { return x >= cards.length; })));
         if (chosen.size > 0) {
-            $('#kingdomLink').attr('href', kingdomLink());
+            $('#pickLink').attr('href', kingdomLink());
+            $('#requireLink').attr('href', kingdomLink('kind=require&'));
         }
         else {
-            $('#kingdomLink').removeAttr('href');
+            $('#pickLink').removeAttr('href');
+            $('#requireLink').removeAttr('href');
         }
     }
     renderChoice(state, 'Choose which events and cards to use.', state.supply.map(function (card, i) { return ({

@@ -1218,8 +1218,8 @@ function restart(state:State): void {
 // ----------------------------------- Kingdom picker
 //
 
-function kingdomURL(cards:CardSpec[], events:CardSpec[]) {
-    return `play?cards=${cards.map(card => card.name).join(',')}&events=${events.map(card => card.name)}`
+function kingdomURL(kindParam:string, cards:CardSpec[], events:CardSpec[]) {
+    return `play?${kindParam}cards=${cards.map(card => card.name).join(',')}&events=${events.map(card => card.name)}`
 }
 
 function countIn<T>(s:Set<T>, f:((t:T) => boolean)): number{
@@ -1254,8 +1254,8 @@ export function loadPicker(): void {
         const parts:string[] = s.split('/')
         return parts.slice(0, parts.length-1).join('/')
     }
-    function kingdomLink(): string {
-        return kingdomURL(
+    function kingdomLink(kind:string=''): string {
+        return kingdomURL(kind,
             Array.from(chosen.values()).filter(i => i < cards.length).map(i => cards[i]),
             Array.from(chosen.values()).filter(i => i >= cards.length).map(i => events[i - cards.length]),
         )
@@ -1272,9 +1272,11 @@ export function loadPicker(): void {
         $('#cardCount').html(String(countIn(chosen, x => x < cards.length)))
         $('#eventCount').html(String(countIn(chosen, x => x >= cards.length)))
         if (chosen.size > 0) {
-            $('#kingdomLink').attr('href', kingdomLink())
+            $('#pickLink').attr('href', kingdomLink())
+            $('#requireLink').attr('href', kingdomLink('kind=require&'))
         } else {
-            $('#kingdomLink').removeAttr('href')
+            $('#pickLink').removeAttr('href')
+            $('#requireLink').removeAttr('href')
         }
     }
     renderChoice(state,
