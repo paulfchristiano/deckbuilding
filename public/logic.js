@@ -3563,7 +3563,7 @@ var mastermind = {
             }
         }],
     ability: [{
-            text: ["Remove a charge counter from this, discard it, and pay 1 action\n        to play a card from your hand three times."],
+            text: ["Remove a charge token from this, discard it, and pay 1 action\n        to play a card from your hand three times."],
             transform: function (state, card) { return payToDo(payCost(__assign(__assign({}, free), { actions: 1, effects: [discharge(card, 1), discardFromPlay(card)] })), applyToTarget(function (target) { return doAll([
                 target.play(card),
                 tick(card),
@@ -4093,7 +4093,7 @@ var turnpike = {
     effects: [toPlay()],
     triggers: [{
             kind: 'play',
-            text: "Whenever you play a card, put a charge token on this.\n        If it has two charge counters, remove them for +1vp.",
+            text: "Whenever you play a card, put a charge token on this.\n        If it has two charge tokens, remove them for +1vp.",
             handles: function () { return true; },
             transform: function (e, state, card) { return doAll([
                 charge(card, 1),

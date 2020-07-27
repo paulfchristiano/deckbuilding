@@ -3111,7 +3111,7 @@ const mastermind:CardSpec = {
             ])})
     }],
     ability:[{
-        text: [`Remove a charge counter from this, discard it, and pay 1 action
+        text: [`Remove a charge token from this, discard it, and pay 1 action
         to play a card from your hand three times.`],
         transform: (state, card) => payToDo(payCost({
             ...free, actions:1, effects:[discharge(card, 1), discardFromPlay(card)]
@@ -3625,7 +3625,7 @@ const turnpike:CardSpec = {
     triggers: [{
         kind:'play',
         text: `Whenever you play a card, put a charge token on this.
-        If it has two charge counters, remove them for +1vp.`,
+        If it has two charge tokens, remove them for +1vp.`,
         handles: () => true,
         transform: (e, state, card) => doAll([
             charge(card, 1),
