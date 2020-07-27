@@ -2809,7 +2809,7 @@ const restock:CardSpec = {name: 'Restock',
 }
 registerEvent(restock)
 */
-var escalation = { name: 'Escalation',
+var escalate = { name: 'Escalate',
     calculatedCost: costPlus(coin(0), coin(1)),
     effects: [
         chargeEffect(),
@@ -2820,7 +2820,7 @@ var escalation = { name: 'Escalation',
         refreshEffect(5),
     ]
 };
-registerEvent(escalation);
+registerEvent(escalate);
 var scrapeBy = { name: 'Scrape By',
     fixedCost: energy(2),
     effects: [refreshEffect(1)],
@@ -3282,7 +3282,6 @@ var synergy = { name: 'Synergy',
         }]
 };
 registerEvent(synergy);
-//TODO: test
 var shelter = { name: 'Shelter',
     effects: [actionEffect(1), targetedEffect(function (target) { return addToken(target, 'shelter'); }, 'Put a shelter token on a card in play.', function (state) { return state.play; })]
 };
@@ -3508,7 +3507,6 @@ function fragileEcho() {
         transform: function (x) { return trash(x.card); }
     };
 }
-//TODO: test
 var echo = { name: 'Echo',
     effects: [targetedEffect(function (target, card) { return doAll([target.play(card), echoEffect(target)]); }, "Choose a card you have in play.\n        Play it, then create a copy of it in play with an echo token on it.", function (state) { return state.play; })]
 };

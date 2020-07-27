@@ -2369,7 +2369,7 @@ const restock:CardSpec = {name: 'Restock',
 registerEvent(restock)
 */
 
-const escalation:CardSpec = {name: 'Escalation',
+const escalate:CardSpec = {name: 'Escalate',
     calculatedCost: costPlus(coin(0), coin(1)),
     effects: [
         chargeEffect(),
@@ -2380,7 +2380,7 @@ const escalation:CardSpec = {name: 'Escalation',
         refreshEffect(5),
     ]
 }
-registerEvent(escalation)
+registerEvent(escalate)
 
 const scrapeBy:CardSpec = {name:'Scrape By',
     fixedCost: energy(2),
@@ -2816,7 +2816,6 @@ const synergy:CardSpec = {name: 'Synergy',
 }
 registerEvent(synergy)
 
-//TODO: test
 const shelter:CardSpec = {name: 'Shelter',
     effects: [actionEffect(1), targetedEffect(
         target => addToken(target, 'shelter'),
@@ -3058,7 +3057,6 @@ function fragileEcho(): Trigger<MoveEvent> {
     }
 }
 
-//TODO: test
 const echo:CardSpec = {name: 'Echo',
     effects: [targetedEffect(
         (target, card) => doAll([target.play(card), echoEffect(target)]),
