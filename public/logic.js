@@ -3801,7 +3801,7 @@ var chameleon = {
     replacers: [{
             text: "As long as this has a charge token on it,\n        whenever you would gain $ instead gain that many actions and vice versa.",
             kind: 'resource',
-            handles: function (x, state, card) { return state.find(card).charge > 0; },
+            handles: function (x, state, card) { return state.find(card).charge > 0 && x.amount > 0; },
             replace: function (x) { return (__assign(__assign({}, x), { resource: (x.resource == 'coin') ? 'actions' :
                     (x.resource == 'actions') ? 'coin' :
                         x.resource })); }

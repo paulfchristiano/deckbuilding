@@ -3376,7 +3376,7 @@ const chameleon:CardSpec = {
         text: `As long as this has a charge token on it,
         whenever you would gain $ instead gain that many actions and vice versa.`,
         kind: 'resource',
-        handles: (x, state, card) => state.find(card).charge > 0,
+        handles: (x, state, card) => state.find(card).charge > 0 && x.amount > 0,
         replace: x => ({...x, resource:
             (x.resource == 'coin') ? 'actions' :
             (x.resource == 'actions') ? 'coin' :
