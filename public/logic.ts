@@ -1257,7 +1257,8 @@ function leq(cost1:Cost, cost2:Cost) {
 
 type Token = 'charge' | 'cost' | 'mirror' | 'duplicate' | 'twin' | 'synergy' |
     'shelter' | 'echo' | 'decay' | 'burden' | 'pathfinding' | 'neglect' |
-    'reuse' | 'polish' | 'priority' | 'hesitation' | 'parallelize' | 'arts'
+    'reuse' | 'polish' | 'priority' | 'hesitation' | 'parallelize' | 'arts' |
+    'mire' | 'onslaught'
 
 function discharge(card:Card, n:number): Transform {
     return charge(card, -n, true)
@@ -2708,7 +2709,7 @@ const imitation:CardSpec = {name: 'Imitation',
         state => state.hand,
     )]
 }
-buyable(imitation, 4)
+buyable(imitation, 3)
 
 const feast:CardSpec = {name: 'Feast',
     fixedCost: energy(0),
@@ -2717,7 +2718,7 @@ const feast:CardSpec = {name: 'Feast',
         state => state.supply.filter(x => leq(x.cost('buy', state), coin(6)))
     ), trashThis()]
 }
-buyable(feast, 4)
+buyable(feast, 3)
 
 /*
 const mobilization:CardSpec = {name: 'Mobilization',
@@ -2930,7 +2931,21 @@ buyableAnd(spices, 5, {onBuy: [coinsEffect(4)]})
 const onslaught:CardSpec = {name: 'Onslaught',
     calculatedCost: costPlus(coin(6), energy(1)),
     effects: [incrementCost(), {
-        text: [`Set aside your hand, then play any number of those cards in any order
+        text: ['Put an onslaught token on each card in your hand.'],
+        transform: state => doAll(state.hand.map(c => addToken(c, 'onslaught')))
+    }],
+    replacers: [{
+        text: `If a card has an onslaught token on it,
+               play it by removing an onslaught token
+               rather than paying its normal cost and an action.`,
+        kind: 'cost',
+        handles: x => (x.actionKind == 'play' && x.card.count('onslaught') > 0),
+        replace: x => ({...x, cost: {...free, effects:[removeToken(x.card, 'onslaught', true, 1)]}})
+    }]
+/*
+
+    {
+        text: [`Play any number of cards in your hand 
         and discard the rest.`],
         transform: (state, card) => async function(state) {
             const cards:Card[] = state.hand
@@ -2951,6 +2966,7 @@ const onslaught:CardSpec = {name: 'Onslaught',
             }
         }
     }]
+    */
 }
 registerEvent(onslaught)
 
@@ -3076,11 +3092,10 @@ registerEvent(inflation)
 
 const burden:CardSpec = {name: 'Burden',
     fixedCost: energy(1),
-    effects: [targetedEffect(
-        target => removeToken(target, 'burden'),
-        'Remove a burden token from a card in the supply.',
-        state => state.supply
-    )],
+    effects: [{
+        text: ['Remove a burden token from each card in the supply.'],
+        transform: state => doAll(state.supply.map(c => removeToken(c, 'burden')))
+    }],
     triggers: [{
         text: 'Whenever you buy a card in the supply, put a burden token on it.',
         kind:'buy',
@@ -3089,9 +3104,9 @@ const burden:CardSpec = {name: 'Burden',
     }],
     replacers: [{
         kind: 'cost',
-        text: 'Cards cost $1 more to buy for each burden token on them.',
+        text: 'Cards cost $2 more to buy for each burden token on them.',
         handles: x => x.card.count('burden') > 0,
-        replace: x => ({...x, cost: addCosts(x.cost, {coin:x.card.count('burden')})})
+        replace: x => ({...x, cost: addCosts(x.cost, {coin:2 * x.card.count('burden')})})
     }]
 }
 registerEvent(burden)
@@ -3100,7 +3115,7 @@ const goldsmith:CardSpec = {name: 'Goldsmith',
     fixedCost: energy(1),
     effects: [actionsEffect(3), coinsEffect(3)]
 }
-buyable(goldsmith, 6)
+buyable(goldsmith, 7)
 
 const publicWorks:CardSpec = {name: 'Public Works',
     effects: [toPlay()],
@@ -3533,7 +3548,7 @@ const secretChamber:CardSpec = {
                 state.hand.map(asChoice),
                 () => true),
             state = await moveMany(targets, 'discard')(state)
-            state = await gainActions(targets.length)(state)
+            state = await gainCoins(targets.length)(state)
             return state
         }
     }]
@@ -3656,6 +3671,7 @@ const hesitation:CardSpec = {
 }
 registerEvent(hesitation)
 */
+/*
 const lostArts:CardSpec = {
     fixedCost: {...free, energy:1, coin:3},
     name: 'Lost Arts',
@@ -3703,6 +3719,38 @@ const lostArts:CardSpec = {
     }]
 }
 registerEvent(lostArts)
+*/
+const mire:CardSpec = {
+    name: 'Mire',
+    fixedCost: energy(3),
+    effects: [{
+        text: [`Remove all mire tokens from cards in your discard pile.`],
+        transform: (state:State) => doAll(state.discard.map(
+            c => removeToken(c, 'mire', false, 'all')
+        ))
+    }],
+    triggers: [{
+        text: `Whenever you discard a card, put a mire token on it.`,
+        kind: 'move',
+        handles: e => e.toZone == 'discard',
+        transform: e => addToken(e.card, 'mire')
+    }, {
+        text: `Whenever you create a card in your discard pile, put a mire token on it.`,
+        kind: 'create',
+        handles: e => e.zone == 'discard',
+        transform: e => addToken(e.card, 'mire')
+
+    }],
+    replacers: [{
+        text: `Whenever you'd move a card from your discard pile to your hand,
+               if it has a mire token then leave it there instead.`,
+        kind: 'move',
+        handles: x => (x.toZone == 'hand') && (x.fromZone == 'discard')
+            && (x.card.count('mire') > 0),
+        replace: x => ({...x, skip:true})
+    }]
+}
+registerEvent(mire)
 
 const commerce:CardSpec = {
     name: 'Commerce',
