@@ -2874,7 +2874,7 @@ const restock:CardSpec = {name: 'Restock',
 registerEvent(restock)
 */
 var escalate = { name: 'Escalate',
-    calculatedCost: costPlus(coin(0), coin(1)),
+    calculatedCost: costPlus(energy(1), coin(1)),
     effects: [
         chargeEffect(),
         {
