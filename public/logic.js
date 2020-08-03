@@ -2759,7 +2759,7 @@ var villager = {
         }, {
             text: "Whenever this reduces a cost or leaves play, trash it.",
             kind: 'move',
-            handles: function (x, state, card) { return x.card.id == card.id; },
+            handles: function (x, state, card) { return x.card.id == card.id && x.fromZone == 'play'; },
             replace: function (x) { return (__assign(__assign({}, x), { toZone: null })); }
         }]
 };
@@ -3310,7 +3310,7 @@ function removeAllSupplyTokens(token) {
     };
 }
 var synergy = { name: 'Synergy',
-    fixedCost: __assign(__assign({}, free), { coin: 5, energy: 1 }),
+    fixedCost: __assign(__assign({}, free), { coin: 4, energy: 1 }),
     effects: [removeAllSupplyTokens('synergy'), {
             text: ['Put synergy tokens on two cards in the supply.'],
             transform: function () { return function (state) {
@@ -4247,7 +4247,7 @@ var mire = {
     triggers: [{
             text: "Whenever you move a card, remove all mire tokens from it.",
             kind: 'move',
-            handles: function () { return true; },
+            handles: function (e, state) { return state.find(e.card).count('mire') > 0; },
             transform: function (e) { return removeToken(e.card, 'mire', 'all'); },
         }],
     replacers: [{

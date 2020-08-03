@@ -2287,7 +2287,7 @@ const villager:CardSpec = {
     }, {
         text: `Whenever this reduces a cost or leaves play, trash it.`,
         kind: 'move',
-        handles: (x, state, card) => x.card.id == card.id,
+        handles: (x, state, card) => x.card.id == card.id && x.fromZone == 'play',
         replace: x => ({...x, toZone:null})
     }]
 }
@@ -2873,7 +2873,7 @@ function removeAllSupplyTokens(token:Token): Effect {
 }
 
 const synergy:CardSpec = {name: 'Synergy',
-    fixedCost: {...free, coin:5, energy:1},
+    fixedCost: {...free, coin:4, energy:1},
     effects: [removeAllSupplyTokens('synergy'), {
         text: ['Put synergy tokens on two cards in the supply.'],
         transform: () => async function(state) {
@@ -3805,7 +3805,7 @@ const mire:CardSpec = {
     triggers: [{
         text: `Whenever you move a card, remove all mire tokens from it.`,
         kind: 'move',
-        handles: () => true,
+        handles: (e, state) => state.find(e.card).count('mire') > 0,
         transform: e => removeToken(e.card, 'mire', 'all'),
     }],
     replacers: [{
