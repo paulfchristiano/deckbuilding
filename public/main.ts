@@ -10,6 +10,7 @@ import { Trigger, Replacer, Ability, CalculatedCost } from './logic.js'
 import { ID } from './logic.js'
 import { renderCost, renderEnergy } from './logic.js'
 import { emptyState } from './logic.js'
+import { LogType, logTypes } from './logic.js'
 import { Option, OptionRender, HotkeyHint } from './logic.js'
 import { UI, Undo, Victory, InvalidHistory, ReplayEnded } from './logic.js'
 import { playGame, initialState, verifyScore} from './logic.js'
@@ -364,6 +365,7 @@ interface RendererState {
     hotkeyMapper: HotkeyMapper;
     tokenRenderer: TokenRenderer;
     viewingKingdom: boolean,
+    logType:LogType,
 }
 
 const globalRendererState:RendererState = {
@@ -372,6 +374,7 @@ const globalRendererState:RendererState = {
     viewingKingdom:false,
     hotkeyMapper: new HotkeyMapper(),
     tokenRenderer: new TokenRenderer(),
+    logType:'energy',
 }
 
 function resetGlobalRenderer() {
@@ -421,21 +424,42 @@ function renderState(
     $('#playsize').html('' + state.play.length)
     $('#handsize').html('' + state.hand.length)
     $('#discardsize').html('' + state.discard.length)
-    $('#log').html(renderLogs(state.logs))
+    setVisibleLog(state, globalRendererState.logType)
+    bindLogTypeButtons(state)
 }
 
-function renderLog(msg: string) {
-  return `<div class="log">${msg}</div>`
+function bindLogTypeButtons(state:State) {
+    const e = $(`input[name='logType']`)
+    e.off('change')
+    e.change(function() {
+        const logType = (this as any).value
+        globalRendererState.logType = logType
+        setVisibleLog(state, logType)
+    })
+}
+function setVisibleLog(state:State, logType:LogType) {
+    for (const logType of logTypes) {
+        const e = $(`.logOption[option=${logType}]`)
+        const choosable = e.attr('option') != globalRendererState.logType
+        e.attr('choosable', choosable ? 'true' : null)
+    }
+    $('#log').html(renderLogLines(state.logs[logType]))
 }
 
-function renderLogs(logs:string[]) {
+function renderLogLine(msg: string) {
+  return `<div class="logLine">${msg}</div>`
+}
+
+function renderLogLines(logs:string[]) {
     const result:string[] = []
     for (let i = logs.length-1; i >= 0; i--) {
-        result.push(renderLog(logs[i]))
+        result.push(renderLogLine(logs[i]))
+        /*
         if (i > 0 && result.length > 100) {
-            result.push(renderLog('... (earlier events truncated)'))
+            result.push(renderLogLine('... (earlier events truncated)'))
             break
         }
+        */
     }
     return result.join('')
 }
@@ -689,7 +713,6 @@ function renderRestart(): string {
 function renderKingdomViewer(): string {
     return `<span id='viewKingdom' class='option', option='viewKingdom' choosable chosen='false'>Kingdom</span>`
 }
-
 function renderHotkeyToggle(): string {
     return `<span class='option', option='hotkeyToggle' choosable chosen='false'>${renderHotkey('/')} Hotkeys</span>`
 }

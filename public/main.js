@@ -64,6 +64,7 @@ var __values = (this && this.__values) || function(o) {
 import { Shadow, State, Card } from './logic.js';
 import { renderCost, renderEnergy } from './logic.js';
 import { emptyState } from './logic.js';
+import { logTypes } from './logic.js';
 import { Undo, InvalidHistory } from './logic.js';
 import { playGame, initialState } from './logic.js';
 import { coerceReplayVersion, parseReplay, MalformedReplay } from './logic.js';
@@ -457,6 +458,7 @@ var globalRendererState = {
     viewingKingdom: false,
     hotkeyMapper: new HotkeyMapper(),
     tokenRenderer: new TokenRenderer(),
+    logType: 'energy',
 };
 function resetGlobalRenderer() {
     globalRendererState.hotkeyMapper = new HotkeyMapper();
@@ -496,19 +498,50 @@ function renderState(state, settings) {
     $('#playsize').html('' + state.play.length);
     $('#handsize').html('' + state.hand.length);
     $('#discardsize').html('' + state.discard.length);
-    $('#log').html(renderLogs(state.logs));
+    setVisibleLog(state, globalRendererState.logType);
+    bindLogTypeButtons(state);
 }
-function renderLog(msg) {
-    return "<div class=\"log\">" + msg + "</div>";
+function bindLogTypeButtons(state) {
+    var e = $("input[name='logType']");
+    e.off('change');
+    e.change(function () {
+        var logType = this.value;
+        globalRendererState.logType = logType;
+        setVisibleLog(state, logType);
+    });
 }
-function renderLogs(logs) {
+function setVisibleLog(state, logType) {
+    var e_10, _a;
+    try {
+        for (var logTypes_1 = __values(logTypes), logTypes_1_1 = logTypes_1.next(); !logTypes_1_1.done; logTypes_1_1 = logTypes_1.next()) {
+            var logType_1 = logTypes_1_1.value;
+            var e = $(".logOption[option=" + logType_1 + "]");
+            var choosable = e.attr('option') != globalRendererState.logType;
+            e.attr('choosable', choosable ? 'true' : null);
+        }
+    }
+    catch (e_10_1) { e_10 = { error: e_10_1 }; }
+    finally {
+        try {
+            if (logTypes_1_1 && !logTypes_1_1.done && (_a = logTypes_1.return)) _a.call(logTypes_1);
+        }
+        finally { if (e_10) throw e_10.error; }
+    }
+    $('#log').html(renderLogLines(state.logs[logType]));
+}
+function renderLogLine(msg) {
+    return "<div class=\"logLine\">" + msg + "</div>";
+}
+function renderLogLines(logs) {
     var result = [];
     for (var i = logs.length - 1; i >= 0; i--) {
-        result.push(renderLog(logs[i]));
+        result.push(renderLogLine(logs[i]));
+        /*
         if (i > 0 && result.length > 100) {
-            result.push(renderLog('... (earlier events truncated)'));
-            break;
+            result.push(renderLogLine('... (earlier events truncated)'))
+            break
         }
+        */
     }
     return result.join('');
 }
@@ -571,7 +604,7 @@ var webUI = /** @class */ (function () {
             }
             var chosen = new Set();
             function chosenOptions() {
-                var e_10, _a;
+                var e_11, _a;
                 var result = [];
                 try {
                     for (var chosen_1 = __values(chosen), chosen_1_1 = chosen_1.next(); !chosen_1_1.done; chosen_1_1 = chosen_1.next()) {
@@ -579,12 +612,12 @@ var webUI = /** @class */ (function () {
                         result.push(options[i].value);
                     }
                 }
-                catch (e_10_1) { e_10 = { error: e_10_1 }; }
+                catch (e_11_1) { e_11 = { error: e_11_1 }; }
                 finally {
                     try {
                         if (chosen_1_1 && !chosen_1_1.done && (_a = chosen_1.return)) _a.call(chosen_1);
                     }
-                    finally { if (e_10) throw e_10.error; }
+                    finally { if (e_11) throw e_11.error; }
                 }
                 return result;
             }
@@ -604,7 +637,7 @@ var webUI = /** @class */ (function () {
                 return $("[option='" + i + "']");
             }
             function picks() {
-                var e_11, _a;
+                var e_12, _a;
                 var result = new Map();
                 var i = 0;
                 try {
@@ -613,12 +646,12 @@ var webUI = /** @class */ (function () {
                         result.set(options[k].render, i++);
                     }
                 }
-                catch (e_11_1) { e_11 = { error: e_11_1 }; }
+                catch (e_12_1) { e_12 = { error: e_12_1 }; }
                 finally {
                     try {
                         if (chosen_2_1 && !chosen_2_1.done && (_a = chosen_2.return)) _a.call(chosen_2);
                     }
-                    finally { if (e_11) throw e_11.error; }
+                    finally { if (e_12) throw e_12.error; }
                 }
                 return result;
             }
@@ -643,7 +676,7 @@ var webUI = /** @class */ (function () {
                 } });
             chosen.clear();
             function renderer() {
-                var e_12, _a;
+                var e_13, _a;
                 renderChoice(state, choicePrompt, newOptions, resolve, newReject, renderer, picks);
                 try {
                     for (var chosen_3 = __values(chosen), chosen_3_1 = chosen_3.next(); !chosen_3_1.done; chosen_3_1 = chosen_3.next()) {
@@ -651,12 +684,12 @@ var webUI = /** @class */ (function () {
                         elem(j).attr('chosen', true);
                     }
                 }
-                catch (e_12_1) { e_12 = { error: e_12_1 }; }
+                catch (e_13_1) { e_13 = { error: e_13_1 }; }
                 finally {
                     try {
                         if (chosen_3_1 && !chosen_3_1.done && (_a = chosen_3.return)) _a.call(chosen_3);
                     }
-                    finally { if (e_12) throw e_12.error; }
+                    finally { if (e_13) throw e_13.error; }
                 }
             }
             renderer();
@@ -1043,7 +1076,7 @@ function setCookie(name, value) {
     document.cookie = name + "=" + value + "; max-age=315360000; path=/";
 }
 function getCookie(name) {
-    var e_13, _a;
+    var e_14, _a;
     var nameEQ = name + "=";
     var ca = document.cookie.split(';');
     try {
@@ -1055,12 +1088,12 @@ function getCookie(name) {
                 return c.substring(nameEQ.length, c.length);
         }
     }
-    catch (e_13_1) { e_13 = { error: e_13_1 }; }
+    catch (e_14_1) { e_14 = { error: e_14_1 }; }
     finally {
         try {
             if (_c && !_c.done && (_a = _b.return)) _a.call(_b);
         }
-        finally { if (e_13) throw e_13.error; }
+        finally { if (e_14) throw e_14.error; }
     }
     return null;
 }
@@ -1246,7 +1279,7 @@ function kingdomURL(kindParam, cards, events) {
     return "play?" + kindParam + "cards=" + cards.map(function (card) { return card.name; }).join(',') + "&events=" + events.map(function (card) { return card.name; });
 }
 function countIn(s, f) {
-    var e_14, _a;
+    var e_15, _a;
     var count = 0;
     try {
         for (var s_1 = __values(s), s_1_1 = s_1.next(); !s_1_1.done; s_1_1 = s_1.next()) {
@@ -1255,12 +1288,12 @@ function countIn(s, f) {
                 count += 1;
         }
     }
-    catch (e_14_1) { e_14 = { error: e_14_1 }; }
+    catch (e_15_1) { e_15 = { error: e_15_1 }; }
     finally {
         try {
             if (s_1_1 && !s_1_1.done && (_a = s_1.return)) _a.call(s_1);
         }
-        finally { if (e_14) throw e_14.error; }
+        finally { if (e_15) throw e_15.error; }
     }
     return count;
 }
