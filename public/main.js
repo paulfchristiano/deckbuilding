@@ -700,12 +700,17 @@ var webUI = /** @class */ (function () {
             return [];
         return null;
     };
+    //NOTE: we always undo after resolving the victory promise
+    //(and we won't catch an undo here)
+    //(would be nice to clean this up so you use undo to go back)
     webUI.prototype.victory = function (state) {
         return __awaiter(this, void 0, void 0, function () {
-            var submitOrUndo;
+            var ui, submitOrUndo;
             return __generator(this, function (_a) {
+                ui = this;
                 submitOrUndo = function () {
                     return new Promise(function (resolve, reject) {
+                        ui.undoing = true;
                         heartbeat(state.spec);
                         var submitDialog = function () {
                             keyListeners.clear();

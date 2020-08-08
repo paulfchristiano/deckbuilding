@@ -598,9 +598,14 @@ class webUI {
         if (options.length == 0) return []
         return null
     }
+    //NOTE: we always undo after resolving the victory promise
+    //(and we won't catch an undo here)
+    //(would be nice to clean this up so you use undo to go back)
     async victory(state:State): Promise<void> {
+        const ui:webUI = this;
         const submitOrUndo: () => Promise<void> = () =>
             new Promise(function (resolve, reject) {
+                ui.undoing = true;
                 heartbeat(state.spec)
                 const submitDialog = () => {
                     keyListeners.clear()
