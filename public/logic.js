@@ -480,14 +480,6 @@ var noUI = {
             });
         });
     },
-    multichoice: function (state, choicePrompt, options, validator, info) {
-        if (validator === void 0) { validator = (function (xs) { return true; }); }
-        return __awaiter(this, void 0, void 0, function () {
-            return __generator(this, function (_a) {
-                throw new ReplayEnded(state);
-            });
-        });
-    },
     victory: function (state) {
         return __awaiter(this, void 0, void 0, function () {
             return __generator(this, function (_a) {
@@ -664,7 +656,7 @@ var State = /** @class */ (function () {
         _a = __read(popLast(this.redo), 2), result = _a[0], redo = _a[1];
         if (result === null)
             return this;
-        return this.update({ redo: arrayEq(result, record) ? redo : [] });
+        return this.update({ redo: result == record ? redo : [] });
     };
     State.prototype.addHistory = function (record) {
         return this.update({ history: this.history.concat([record]) });
@@ -780,18 +772,17 @@ export function coerceReplayVersion(r) {
     return { version: VERSION, actions: r.actions };
 }
 export function serializeReplay(r) {
-    return [r.version].concat(r.actions.map(function (xs) { return xs.map(String).join(','); })).join(';');
+    return [r.version].concat(r.actions.map(function (x) { return x.toString(); })).join(';');
 }
 export function parseReplay(s) {
     var _a = __read(shiftFirst(s.split(';')), 2), version = _a[0], pieces = _a[1];
     if (version === null)
         throw new MalformedReplay('No version');
     function parsePiece(piece) {
-        if (piece == '')
-            return [];
-        var result = piece.split(',').map(function (x) { return parseInt(x); });
-        if (result.some(isNaN))
+        var result = parseInt(piece);
+        if (isNaN(result)) {
             throw new MalformedReplay(piece + " is not a valid action");
+        }
         return result;
     }
     return { version: version, actions: pieces.map(parsePiece) };
@@ -1282,7 +1273,7 @@ function discard(n) {
                         if (!(state.hand.length <= n)) return [3 /*break*/, 1];
                         _a = [state, state.hand];
                         return [3 /*break*/, 3];
-                    case 1: return [4 /*yield*/, multichoice(state, "Choose " + n + " cards to discard.", state.hand.map(asChoice), (function (xs) { return xs.length == n; }))];
+                    case 1: return [4 /*yield*/, multichoice(state, "Choose " + n + " cards to discard.", state.hand.map(asChoice), n, n)];
                     case 2:
                         _a = _c.sent();
                         _c.label = 3;
@@ -1734,9 +1725,9 @@ var ReplayEnded = /** @class */ (function (_super) {
 export { ReplayEnded };
 var InvalidHistory = /** @class */ (function (_super) {
     __extends(InvalidHistory, _super);
-    function InvalidHistory(indices, state) {
-        var _this = _super.call(this, "Indices " + indices + " do not correspond to a valid choice") || this;
-        _this.indices = indices;
+    function InvalidHistory(index, state) {
+        var _this = _super.call(this, "Index " + index + " does not correspond to a valid choice") || this;
+        _this.index = index;
         _this.state = state;
         Object.setPrototypeOf(_this, InvalidHistory.prototype);
         return _this;
@@ -1776,26 +1767,9 @@ function doOrReplay(state, f) {
         });
     });
 }
-function multichoice(state, prompt, options, validator, info) {
-    if (validator === void 0) { validator = (function (xs) { return true; }); }
+function choice(state, prompt, options, info, chosen) {
     if (info === void 0) { info = []; }
-    return __awaiter(this, void 0, void 0, function () {
-        var indices, newState;
-        var _a;
-        return __generator(this, function (_b) {
-            switch (_b.label) {
-                case 0: return [4 /*yield*/, doOrReplay(state, function () { return state.ui.multichoice(state, prompt, options, validator, info); })];
-                case 1:
-                    _a = __read.apply(void 0, [_b.sent(), 2]), newState = _a[0], indices = _a[1];
-                    if (indices.some(function (x) { return x >= options.length; }))
-                        throw new InvalidHistory(indices, state);
-                    return [2 /*return*/, [newState, indices.map(function (i) { return options[i].value; })]];
-            }
-        });
-    });
-}
-function choice(state, prompt, options, info) {
-    if (info === void 0) { info = []; }
+    if (chosen === void 0) { chosen = []; }
     return __awaiter(this, void 0, void 0, function () {
         var index, indices, newState;
         var _a;
@@ -1804,42 +1778,51 @@ function choice(state, prompt, options, info) {
                 case 0:
                     if (options.length == 0)
                         return [2 /*return*/, [state, null]];
-                    return [4 /*yield*/, doOrReplay(state, function () {
-                            return __awaiter(this, void 0, void 0, function () { var x; return __generator(this, function (_a) {
-                                switch (_a.label) {
-                                    case 0: return [4 /*yield*/, state.ui.choice(state, prompt, options, info)];
-                                    case 1:
-                                        x = _a.sent();
-                                        return [2 /*return*/, [x]];
-                                }
-                            }); });
-                        })];
+                    return [4 /*yield*/, doOrReplay(state, function () { return state.ui.choice(state, prompt, options, info, chosen); })];
                 case 1:
-                    _a = __read.apply(void 0, [_b.sent(), 2]), newState = _a[0], indices = _a[1];
-                    if (indices.length != 1 || indices[0] >= options.length)
-                        throw new InvalidHistory(indices, state);
-                    return [2 /*return*/, [newState, options[indices[0]].value]];
+                    _a = __read.apply(void 0, [_b.sent(), 2]), newState = _a[0], index = _a[1];
+                    if (index >= options.length || index < 0)
+                        throw new InvalidHistory(index, state);
+                    return [2 /*return*/, [newState, options[index].value]];
             }
         });
     });
 }
-function multichoiceIfNeeded(state, prompt, options, n, upto) {
+function multichoice(state, prompt, options, max, min, info) {
+    if (max === void 0) { max = null; }
+    if (min === void 0) { min = 0; }
+    if (info === void 0) { info = []; }
     return __awaiter(this, void 0, void 0, function () {
-        var x;
+        var chosen, nextOptions, next, k;
         var _a;
         return __generator(this, function (_b) {
             switch (_b.label) {
                 case 0:
-                    if (!(n == 0)) return [3 /*break*/, 1];
-                    return [2 /*return*/, [state, []]];
+                    chosen = [];
+                    _b.label = 1;
                 case 1:
-                    if (!(n == 1)) return [3 /*break*/, 3];
-                    x = void 0;
-                    return [4 /*yield*/, choice(state, prompt, upto ? allowNull(options) : options)];
+                    if (!true) return [3 /*break*/, 3];
+                    if (max != null && chosen.length == max)
+                        return [3 /*break*/, 3];
+                    nextOptions = options.map(function (option, i) { return (__assign(__assign({}, option), { value: i })); });
+                    if (chosen.length >= min) {
+                        nextOptions = allowNull(nextOptions, 'Done');
+                    }
+                    next = void 0;
+                    return [4 /*yield*/, choice(state, prompt, nextOptions, info, chosen)];
                 case 2:
-                    _a = __read.apply(void 0, [_b.sent(), 2]), state = _a[0], x = _a[1];
-                    return [2 /*return*/, (x == null) ? [state, []] : [state, [x]]];
-                case 3: return [2 /*return*/, multichoice(state, prompt, options, function (xs) { return (upto ? xs.length <= n : xs.length == n); })];
+                    _a = __read.apply(void 0, [_b.sent(), 2]), state = _a[0], next = _a[1];
+                    if (next === null)
+                        return [3 /*break*/, 3];
+                    k = chosen.indexOf(next);
+                    if (k == -1) {
+                        chosen.push(next);
+                    }
+                    else {
+                        chosen.splice(k, 1);
+                    }
+                    return [3 /*break*/, 1];
+                case 3: return [2 /*return*/, [state, chosen.map(function (i) { return options[i].value; })]];
             }
         });
     });
@@ -2796,7 +2779,7 @@ var herald = { name: Herald,
                     var _a;
                     return __generator(this, function (_b) {
                         switch (_b.label) {
-                            case 0: return [4 /*yield*/, multichoice(state, 'Choose up to three cards to put into your hand.', state.discard.filter(function (c) { return c.name != Herald; }).map(asChoice), function (xs) { return xs.length <= 3; })];
+                            case 0: return [4 /*yield*/, multichoice(state, 'Choose up to three cards to put into your hand.', state.discard.filter(function (c) { return c.name != Herald; }).map(asChoice), 3)];
                             case 1:
                                 _a = __read.apply(void 0, [_b.sent(), 2]), state = _a[0], targets = _a[1];
                                 return [4 /*yield*/, moveMany(targets, 'hand')(state)];
@@ -3370,7 +3353,7 @@ var synergy = { name: 'Synergy',
                     var _a, e_32, _b;
                     return __generator(this, function (_c) {
                         switch (_c.label) {
-                            case 0: return [4 /*yield*/, multichoiceIfNeeded(state, 'Choose two cards to synergize.', state.supply.map(asChoice), 2, false)];
+                            case 0: return [4 /*yield*/, multichoice(state, 'Choose two cards to synergize.', state.supply.map(asChoice), 2, 2)];
                             case 1:
                                 _a = __read.apply(void 0, [_c.sent(), 2]), state = _a[0], cards = _a[1];
                                 _c.label = 2;
@@ -3809,7 +3792,7 @@ var looter = { name: 'Looter',
                     var _a;
                     return __generator(this, function (_b) {
                         switch (_b.label) {
-                            case 0: return [4 /*yield*/, multichoice(state, 'Choose up to three cards to discard', state.hand.map(asChoice), function (xs) { return xs.length <= 3; })];
+                            case 0: return [4 /*yield*/, multichoice(state, 'Choose up to three cards to discard', state.hand.map(asChoice), 3)];
                             case 1:
                                 _a = __read.apply(void 0, [_b.sent(), 2]), state = _a[0], targets = _a[1];
                                 return [4 /*yield*/, moveMany(targets, 'discard')(state)];
@@ -4107,18 +4090,18 @@ var secretChamber = {
             transform: function () { return function (state) {
                 return __awaiter(this, void 0, void 0, function () {
                     var targets;
-                    var _a, _b;
-                    return __generator(this, function (_c) {
-                        switch (_c.label) {
-                            case 0: return [4 /*yield*/, multichoice(state, 'Choose up to 6 cards to discard for +$1 each.', state.hand.map(asChoice), function (xs) { return xs.length <= 8; })];
+                    var _a;
+                    return __generator(this, function (_b) {
+                        switch (_b.label) {
+                            case 0: return [4 /*yield*/, multichoice(state, 'Choose up to 8 cards to discard for +$1 each.', state.hand.map(asChoice), 8)];
                             case 1:
-                                _a = _c.sent(), _b = __read(_a, 2), state = _b[0], targets = _b[1], _a;
+                                _a = __read.apply(void 0, [_b.sent(), 2]), state = _a[0], targets = _a[1];
                                 return [4 /*yield*/, moveMany(targets, 'discard')(state)];
                             case 2:
-                                state = _c.sent();
+                                state = _b.sent();
                                 return [4 /*yield*/, gainCoins(targets.length)(state)];
                             case 3:
-                                state = _c.sent();
+                                state = _b.sent();
                                 return [2 /*return*/, state];
                         }
                     });
@@ -4441,7 +4424,7 @@ var composting = {
                         switch (_b.label) {
                             case 0:
                                 n = e.cost.energy;
-                                return [4 /*yield*/, multichoiceIfNeeded(state, "Choose up to " + num(n, 'card') + " to put into your hand.", state.discard.map(asChoice), n, true)];
+                                return [4 /*yield*/, multichoice(state, "Choose up to " + num(n, 'card') + " to put into your hand.", state.discard.map(asChoice), n)];
                             case 1:
                                 _a = __read.apply(void 0, [_b.sent(), 2]), state = _a[0], targets = _a[1];
                                 return [2 /*return*/, moveMany(targets, 'hand')(state)];
