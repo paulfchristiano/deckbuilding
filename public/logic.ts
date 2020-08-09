@@ -133,6 +133,7 @@ interface CardUpdate {
 export class Card {
     readonly name: string;
     readonly charge: number;
+    public readonly kind = 'card'
     constructor(
         public readonly spec:CardSpec,
         public readonly id:number,
@@ -573,6 +574,20 @@ export class State {
     setResources(resources:Resources): State {
         return this.update({resources:resources})
     }
+    idMap(): Map<number, Card> {
+        const byId:Map<number, Card> = new Map()
+        for (const [name, zone] of this.zones) {
+            for (const card of zone) {
+                byId.set(card.id, card)
+            }
+        }
+        for (const card of this.resolving) {
+            if (card.kind == 'card') {
+                byId.set(card.id, card)
+            }
+        }
+        return byId
+    }
     find(card:Card): Card {
         for (let [name, zone] of this.zones) {
             const matches:Card[] = zone.filter(c => c.id == card.id)
@@ -914,6 +929,7 @@ type ShadowSpec = ShadowEffectSpec | ShadowAbilitySpec |
 type TrackingSpec = ShadowSpec | NoShadowSpec
 
 export class Shadow {
+    public readonly kind = 'shadow'
     constructor(
         public readonly id:number,
         public readonly spec:ShadowSpec,

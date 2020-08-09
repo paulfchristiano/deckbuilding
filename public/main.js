@@ -512,13 +512,41 @@ function renderLogs(logs) {
     }
     return result.join('');
 }
+//TODO: sort by token agreement
+function matchMacro(macro, state, options) {
+    switch (macro.kind) {
+        case 'string':
+            var matches = options.filter(function (option) { return option.render == macro.string; });
+            return (matches.length > 0) ? matches[0] : null;
+        case 'card':
+            var idMap_1 = state.idMap();
+            var cards = options.map(function (option) { return [option, idMap_1.get(option.render)]; });
+            cards = cards.filter(function (x) { return x[1] !== undefined
+                && x[1].name == macro.card.name
+                && x[1].place == macro.card.place; });
+            return (cards.length > 0) ? cards[0][0] : null;
+    }
+}
 // ------------------------------- Rendering choices
 var webUI = /** @class */ (function () {
     function webUI() {
         this.undoing = false;
+        this.macros = [];
+        this.recordingMacro = null;
+        //invariant: whenever undoing = true, playingMacro = []
+        this.playingMacro = [];
     }
     webUI.prototype.choice = function (state, choicePrompt, options, info) {
         var ui = this;
+        if (playingMacro.length > 0) {
+            var macro = playingMacro.shift();
+            var option = matchMacro(macro, state, options);
+            if (option === null) {
+                playingMacro = [];
+                alert("Can't execute macro!");
+            }
+            return Promise.resolve;
+        }
         var automate = this.automateChoice(state, options, info);
         if (automate !== null) {
             if (this.undoing)

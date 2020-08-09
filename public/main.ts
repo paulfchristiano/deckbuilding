@@ -440,11 +440,47 @@ function renderLogs(logs:string[]) {
     return result.join('')
 }
 
+// ------------------------------- Macros
+
+type CardMacro = {kind: 'card', card: Card}
+type StringMacro = {kind: 'string', string: string}
+type Macro = CardMacro | StringMacro
+
+//TODO: sort by token agreement
+function matchMacro<T>(
+    macro:Macro,
+    state:State,
+    options:Option<T>[]
+): (Option<T>|null) {
+    switch (macro.kind) {
+        case 'string':
+            const matches = options.filter(
+                option => option.render == macro.string
+            )
+            return (matches.length > 0) ? matches[0] : null
+        case 'card':
+            const idMap:Map<string|number, Card> = state.idMap()
+            let cards:[Option<T>, Card|undefined][] = options.map(
+                option => [option, idMap.get(option.render)]
+            )
+            cards = cards.filter(x => x[1] !== undefined
+                && x[1].name == macro.card.name
+                && x[1].place == macro.card.place
+            )
+            return (cards.length > 0) ? cards[0][0] : null
+    }
+
+}
+
 
 // ------------------------------- Rendering choices
 
 class webUI {
     public undoing:boolean = false;
+    public macros: Array<Macro[]> = []
+    public recordingMacro: (Macro[]|null) = null
+    //invariant: whenever undoing = true, playingMacro = []
+    public playingMacro: Macro[] = []
     constructor() {}
     choice<T>(
         state: State,
@@ -453,6 +489,15 @@ class webUI {
         info: string[],
     ): Promise<number> {
         const ui:webUI = this;
+        if (playingMacro.length > 0) {
+            const macro = playingMacro.shift()
+            const option:Option<T>|null = matchMacro(macro, state, options)
+            if (option===null) {
+                playingMacro = []
+                alert(`Can't execute macro!`)
+            }
+            return Promise.resolve
+        }
         const automate:number|null = this.automateChoice(state, options, info)
         if (automate !== null) {
             if (this.undoing) throw new Undo(state)
