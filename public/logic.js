@@ -4012,15 +4012,15 @@ var duke = {
         }]
 };
 buyable(duke, 4);
-var hearth = {
-    name: 'Hearth',
+var carpenter = {
+    name: 'Carpenter',
     fixedCost: energy(1),
     effects: [buyEffect(), {
             text: ["+1 action per card in play."],
             transform: function (state, card) { return gainActions(state.play.length, card); }
         }]
 };
-buyable(hearth, 4);
+buyable(carpenter, 4);
 var flourishing_n = 5;
 var flourishing = {
     name: 'Flourishing',
@@ -4107,8 +4107,7 @@ var secretChamber = {
     name: 'Secret Chamber',
     fixedCost: energy(1),
     effects: [{
-            text: ["Discard up to 8 cards from your hand.",
-                "+$1 per card you discarded."],
+            text: ["Discard up to 8 cards from your hand for +$1 each."],
             transform: function () { return function (state) {
                 return __awaiter(this, void 0, void 0, function () {
                     var targets;

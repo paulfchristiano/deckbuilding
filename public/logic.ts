@@ -3623,15 +3623,15 @@ const duke:CardSpec = {
 }
 buyable(duke, 4)
 
-const hearth:CardSpec = {
-    name: 'Hearth',
+const carpenter:CardSpec = {
+    name: 'Carpenter',
     fixedCost: energy(1),
     effects: [buyEffect(), {
         text: [`+1 action per card in play.`],
         transform: (state, card) => gainActions(state.play.length, card)
     }]
 }
-buyable(hearth, 4)
+buyable(carpenter, 4)
 
 const flourishing_n = 5
 const flourishing:CardSpec = {
@@ -3714,8 +3714,7 @@ const secretChamber:CardSpec = {
     name: 'Secret Chamber',
     fixedCost: energy(1),
     effects: [{
-        text: [`Discard up to 8 cards from your hand.`,
-            `+$1 per card you discarded.`],
+        text: [`Discard up to 8 cards from your hand for +$1 each.`],
         transform: () => async function(state) {
             let targets; [state, targets] = await multichoice(state,
                 'Choose up to 8 cards to discard for +$1 each.',
