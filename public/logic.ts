@@ -133,6 +133,7 @@ interface CardUpdate {
 export class Card {
     readonly name: string;
     readonly charge: number;
+    public readonly kind = 'card'
     constructor(
         public readonly spec:CardSpec,
         public readonly id:number,
@@ -563,6 +564,20 @@ export class State {
     setResources(resources:Resources): State {
         return this.update({resources:resources})
     }
+    idMap(): Map<number, Card> {
+        const byId:Map<number, Card> = new Map()
+        for (const [name, zone] of this.zones) {
+            for (const card of zone) {
+                byId.set(card.id, card)
+            }
+        }
+        for (const card of this.resolving) {
+            if (card.kind == 'card') {
+                byId.set(card.id, card)
+            }
+        }
+        return byId
+    }
     find(card:Card): Card {
         for (let [name, zone] of this.zones) {
             const matches:Card[] = zone.filter(c => c.id == card.id)
@@ -906,6 +921,7 @@ type ShadowSpec = ShadowEffectSpec | ShadowAbilitySpec |
 type TrackingSpec = ShadowSpec | NoShadowSpec
 
 export class Shadow {
+    public readonly kind = 'shadow'
     constructor(
         public readonly id:number,
         public readonly spec:ShadowSpec,
@@ -1368,7 +1384,8 @@ function randomChoices<T>(
 
 export type ID = number
 
-export type OptionRender = ID | string
+export type OptionRender = {kind:'card', card:Card}
+                         | {kind:'string', string:string}
 
 type Key = string
 
@@ -1468,8 +1485,15 @@ async function multichoice<T>(
 
 
 const yesOrNo:Option<boolean>[] = [
-    {render:'Yes', value:true, hotkeyHint:{kind:'boolean', val:true}},
-    {render:'No', value:false, hotkeyHint:{kind:'boolean', val:false}}
+    {
+        render: {kind:'string', string:'Yes'},
+        value:true,
+        hotkeyHint:{kind:'boolean', val:true}
+    }, {
+        render: {kind:'string', string:'No'},
+        value:false,
+        hotkeyHint:{kind:'boolean', val:false}
+    }
 ]
 
 function range(n:number):number[] {
@@ -1479,22 +1503,32 @@ function range(n:number):number[] {
 }
 
 function chooseNatural(n:number):Option<number>[] {
-    return range(n).map(x => ({render:String(x), value:x, hotkeyHint:{kind:'number', val:x}}))
+    return range(n).map(x => ({
+        render:{kind:'string', string:String(x)},
+        value:x,
+        hotkeyHint:{kind:'number', val:x}
+    }))
 }
 
 function asChoice(x:Card): Option<Card> {
-    return {render:x.id, value:x}
+    return {render:{kind:'card', card:x}, value:x}
 }
 
 function asNumberedChoices(xs:Card[]): Option<Card>[] {
-    return xs.map((card, i) => (
-        {render:card.id, value:card, hotkeyHint:{kind:'number', val:i}}
-    ))
+    return xs.map((card, i) => ({
+        render:{kind:'card', card:card},
+        value:card,
+        hotkeyHint:{kind:'number', val:i}
+    }))
 }
 
 function allowNull<T>(options: Option<T>[], message:string="None"): Option<T|null>[] {
     const newOptions:Option<T|null>[] = options.slice()
-    newOptions.push({render:message, value:null, hotkeyHint:{kind:'none'}})
+    newOptions.push({
+        render:{kind:'string', string:message},
+        value:null,
+        hotkeyHint:{kind:'none'}
+    })
     return newOptions
 }
 
@@ -1509,24 +1543,6 @@ function undo(startState: State): State {
             if (state == null) throw Error("tried to undo past beginning of the game")
         } else {
             return state.addRedo(last)
-        }
-    }
-}
-
-async function mainLoop(state: State): Promise<State> {
-    state = state.setCheckpoint()
-    try {
-        state = await act(state)
-        return state
-    } catch (error) {
-        if (error instanceof Undo) {
-            return undo(error.state)
-        } else if (error instanceof Victory) {
-            state = error.state
-            await state.ui.victory(state)
-            return undo(state)
-        } else {
-            throw error
         }
     }
 }
@@ -1593,7 +1609,7 @@ function canPay(cost:Cost, state:State): boolean {
 function actChoice(state:State): Promise<[State, [Card, ActionKind]|null]> {
     function asActChoice(kind:ActionKind) {
         return function(c:Card): Option<[Card, ActionKind]> {
-            return {render:c.id, value:[c, kind]}
+            return {render:{kind:'card', card:c}, value:[c, kind]}
         }
     }
     function available(kind:ActionKind) { return (c:Card) => c.available(kind, state) }
@@ -1873,8 +1889,27 @@ export function initialState(spec:GameSpec): State {
 
 export async function playGame(state:State): Promise<void> {
     state = await trigger({kind:'gameStart'})(state)
+    let victorious:boolean = false
     while (true) {
-        state = await mainLoop(state)
+        state = state.setCheckpoint()
+        try {
+            if (victorious) {
+                //never returns, only outcome is raising Undo
+                await state.ui.victory(state)
+            } else {
+                state = await act(state)
+            }
+        } catch (error) {
+            if (error instanceof Undo) {
+                victorious = false
+                state = undo(error.state)
+            } else if (error instanceof Victory) {
+                state = error.state
+                victorious = true
+            } else {
+                throw error
+            }
+        }
     }
 }
 
