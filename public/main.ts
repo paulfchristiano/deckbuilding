@@ -255,7 +255,10 @@ function renderCard(
             renderCost(card.cost('buy', state)) || '&nbsp' :
             renderCost(card.cost(costType, state)) || '&nbsp'
         const picktext:string = (options.pick !== undefined) ? `<div class='pickorder'>${options.pick}</div>` : ''
-        const choosetext:string = (options.option !== undefined) ? `choosable chosen='false' option=${options.option}` : ''
+        const chosenText:string = (options.pick !== undefined) ? 'true' : 'false'
+        const choosetext:string = (options.option !== undefined)
+            ? `choosable chosen='${chosenText}' option=${options.option}`
+            : ''
         const hotkeytext:string = (options.hotkey !== undefined) ? renderHotkey(options.hotkey) : ''
         const ticktext:string = `tick=${card.ticks[card.ticks.length-1]}`
         return `<div class='card' ${ticktext} ${choosetext}> ${picktext}
@@ -451,6 +454,7 @@ class webUI {
         choicePrompt: string,
         options: Option<T>[],
         info: string[],
+        chosen: number[],
     ): Promise<number> {
         const ui:webUI = this;
         const automate:number|null = this.automateChoice(state, options, info)
@@ -475,7 +479,8 @@ class webUI {
                     options.map((x, i) => ({...x, value:() => pick(i)})),
                     x => resolve(x[0]),
                     newReject,
-                    renderer
+                    renderer,
+                    chosen.map(i => options[i].render)
                 )
             }
             renderer()
@@ -489,89 +494,6 @@ class webUI {
         if (info.indexOf('tutorial') != -1) return null
         if (info.indexOf('actChoice') != -1) return null
         if (options.length == 1) return 0
-        return null
-    }
-    multichoice<T>(
-        state: State,
-        choicePrompt: string,
-        options: Option<T>[],
-        validator:((xs:T[]) => boolean) = (xs => true),
-        info: string[],
-    ): Promise<number[]> {
-        const ui:webUI = this;
-        const automate:number[]|null = this.automateMultichoice(state, options, info)
-        if (automate !== null) {
-            if (this.undoing) throw new Undo(state)
-            else return Promise.resolve(automate)
-        }
-        this.undoing = false;
-        return new Promise(function(resolve, reject){
-            function newReject(reason:any) {
-                if (reason instanceof Undo) ui.undoing = true
-                reject(reason)
-            }
-            const chosen:Set<number> = new Set()
-            function chosenOptions(): T[] {
-                const result = []
-                for (let i of chosen) result.push(options[i].value)
-                return result
-            }
-            function isReady(): boolean {
-                return validator(chosenOptions())
-            }
-            const submitIndex = options.length
-            function setReady(): void {
-                if (isReady()) {
-                    $(`[option='${submitIndex}']`).attr('choosable', 'true')
-                } else {
-                    $(`[option='${submitIndex}']`).removeAttr('choosable')
-                }
-            }
-            function elem(i:number): any {
-                return $(`[option='${i}']`)
-            }
-            function picks(): Map<ID|string, number> {
-                const result = new Map<ID|string, number>()
-                var i = 0;
-                for (const k of chosen) {
-                    result.set(options[k].render, i++)
-                }
-                return result
-            }
-            function pick(i:number): void {
-                if (chosen.has(i)) {
-                    chosen.delete(i)
-                    elem(i).attr('chosen', false)
-                } else {
-                    chosen.add(i)
-                    elem(i).attr('chosen', true)
-                }
-                renderer()
-                setReady()
-            }
-            const newOptions:Option<() => void>[] = options.map(
-                (x, i) => ({...x, value: () => pick(i)})
-            )
-            const hint:HotkeyHint = {kind:'key', val:' '}
-            newOptions.push({render:'Done', hotkeyHint: hint, value: () => {
-                if (isReady()) {
-                    resolve(Array.from(chosen.values()))
-                }
-            }})
-            chosen.clear()
-            function renderer() {
-                renderChoice(state, choicePrompt, newOptions, resolve, newReject, renderer, picks)
-                for (const j of chosen) elem(j).attr('chosen', true)
-            }
-            renderer()
-        })
-    }
-    automateMultichoice<T>(
-        state:State,
-        options: Option<T>[],
-        info: string[],
-    ): number[]|null {
-        if (options.length == 0) return []
         return null
     }
     async victory(state:State): Promise<void> {
@@ -599,7 +521,6 @@ interface StringOption<T> {
     value: T
 }
 
-
 function renderChoice(
     state: State,
     choicePrompt: string,
@@ -607,7 +528,7 @@ function renderChoice(
     resolve:((x:any) => void),
     reject:((x:any) => void),
     renderer:() => void,
-    picks?: () => Map<ID|string, number>,
+    picks: Array<ID|string>=[],
 ): void {
 
     const optionsMap:Map<number,number> = new Map() //map card ids to their position in the choice list
@@ -629,12 +550,10 @@ function renderChoice(
     else {
         hotkeyMap = new Map()
     }
-    if (picks != undefined) {
-        pickMap = picks()
-    } else {
-        pickMap = new Map()
+    pickMap = new Map()
+    for (const [i, x] of picks.entries()) {
+        pickMap.set(x, i)
     }
-
     renderState(state, {
         hotkeyMap: hotkeyMap,
         optionsMap:optionsMap,
@@ -891,6 +810,7 @@ class tutorialUI {
         choicePrompt: string,
         options: Option<T>[],
         info: string[],
+        chosen: number[],
     ): Promise<number> {
         if (this.stage < this.stages.length) {
             const stage = this.stages[this.stage]
@@ -901,7 +821,8 @@ class tutorialUI {
                 state,
                 choicePrompt,
                 options,
-                info.concat(['tutorial'])
+                info.concat(['tutorial']),
+                chosen,
             ).then(x => {
                 this.stage += 1
                 return (validIndex != undefined) ? validIndex : x
@@ -915,22 +836,7 @@ class tutorialUI {
             renderTutorialMessage(stage.text)
             return result
         }
-        else return this.innerUI.choice(state, choicePrompt, options, info)
-    }
-    async multichoice<T>(
-        state: State,
-        choicePrompt: string,
-        options: Option<T>[],
-        validator:((xs:T[]) => boolean) = (xs => true),
-        info: string[],
-    ) {
-        return this.innerUI.multichoice(
-            state,
-            choicePrompt,
-            options,
-            validator,
-            info.concat(['tutorial'])
-        )
+        else return this.innerUI.choice(state, choicePrompt, options, info, chosen)
     }
     async victory(state:State) {
         return this.innerUI.victory(state)
@@ -1193,7 +1099,8 @@ function startGame(state:State, ui?:UI): void {
             alert(e)
             playGame(e.state.clearFuture())
         } else {
-            alert(e)
+            //alert(e)
+            throw e
         }
     })
 }
@@ -1287,5 +1194,5 @@ export function loadPicker(): void {
         })).concat(state.events.map((card, i) => ({
             render: card.id,
             value: () => pick(cards.length + i)
-        }))), trivial, trivial, trivial, undefined)
+        }))), trivial, trivial, trivial)
 }

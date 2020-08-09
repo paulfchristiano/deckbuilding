@@ -61,6 +61,22 @@ var __values = (this && this.__values) || function(o) {
     };
     throw new TypeError(s ? "Object is not iterable." : "Symbol.iterator is not defined.");
 };
+var __read = (this && this.__read) || function (o, n) {
+    var m = typeof Symbol === "function" && o[Symbol.iterator];
+    if (!m) return o;
+    var i = m.call(o), r, ar = [], e;
+    try {
+        while ((n === void 0 || n-- > 0) && !(r = i.next()).done) ar.push(r.value);
+    }
+    catch (error) { e = { error: error }; }
+    finally {
+        try {
+            if (r && !r.done && (m = i["return"])) m.call(i);
+        }
+        finally { if (e) throw e.error; }
+    }
+    return ar;
+};
 import { Shadow, State, Card } from './logic.js';
 import { renderCost, renderEnergy } from './logic.js';
 import { emptyState } from './logic.js';
@@ -394,7 +410,10 @@ function renderCard(card, state, zone, options, tokenRenderer) {
             renderCost(card.cost('buy', state)) || '&nbsp' :
             renderCost(card.cost(costType, state)) || '&nbsp';
         var picktext = (options.pick !== undefined) ? "<div class='pickorder'>" + options.pick + "</div>" : '';
-        var choosetext = (options.option !== undefined) ? "choosable chosen='false' option=" + options.option : '';
+        var chosenText = (options.pick !== undefined) ? 'true' : 'false';
+        var choosetext = (options.option !== undefined)
+            ? "choosable chosen='" + chosenText + "' option=" + options.option
+            : '';
         var hotkeytext = (options.hotkey !== undefined) ? renderHotkey(options.hotkey) : '';
         var ticktext = "tick=" + card.ticks[card.ticks.length - 1];
         return "<div class='card' " + ticktext + " " + choosetext + "> " + picktext + "\n                    <div class='cardbody'>" + hotkeytext + " " + card + tokenhtml + "</div>\n                    <div class='cardcost'>" + costhtml + "</div>\n                    <span class='tooltip'>" + renderTooltip(card, state, tokenRenderer) + "</span>\n                </div>";
@@ -517,7 +536,7 @@ var webUI = /** @class */ (function () {
     function webUI() {
         this.undoing = false;
     }
-    webUI.prototype.choice = function (state, choicePrompt, options, info) {
+    webUI.prototype.choice = function (state, choicePrompt, options, info, chosen) {
         var ui = this;
         var automate = this.automateChoice(state, options, info);
         if (automate !== null) {
@@ -538,7 +557,7 @@ var webUI = /** @class */ (function () {
                 resolve(i);
             }
             function renderer() {
-                renderChoice(state, choicePrompt, options.map(function (x, i) { return (__assign(__assign({}, x), { value: function () { return pick(i); } })); }), function (x) { return resolve(x[0]); }, newReject, renderer);
+                renderChoice(state, choicePrompt, options.map(function (x, i) { return (__assign(__assign({}, x), { value: function () { return pick(i); } })); }), function (x) { return resolve(x[0]); }, newReject, renderer, chosen.map(function (i) { return options[i].render; }));
             }
             renderer();
         });
@@ -550,121 +569,6 @@ var webUI = /** @class */ (function () {
             return null;
         if (options.length == 1)
             return 0;
-        return null;
-    };
-    webUI.prototype.multichoice = function (state, choicePrompt, options, validator, info) {
-        if (validator === void 0) { validator = (function (xs) { return true; }); }
-        var ui = this;
-        var automate = this.automateMultichoice(state, options, info);
-        if (automate !== null) {
-            if (this.undoing)
-                throw new Undo(state);
-            else
-                return Promise.resolve(automate);
-        }
-        this.undoing = false;
-        return new Promise(function (resolve, reject) {
-            function newReject(reason) {
-                if (reason instanceof Undo)
-                    ui.undoing = true;
-                reject(reason);
-            }
-            var chosen = new Set();
-            function chosenOptions() {
-                var e_10, _a;
-                var result = [];
-                try {
-                    for (var chosen_1 = __values(chosen), chosen_1_1 = chosen_1.next(); !chosen_1_1.done; chosen_1_1 = chosen_1.next()) {
-                        var i = chosen_1_1.value;
-                        result.push(options[i].value);
-                    }
-                }
-                catch (e_10_1) { e_10 = { error: e_10_1 }; }
-                finally {
-                    try {
-                        if (chosen_1_1 && !chosen_1_1.done && (_a = chosen_1.return)) _a.call(chosen_1);
-                    }
-                    finally { if (e_10) throw e_10.error; }
-                }
-                return result;
-            }
-            function isReady() {
-                return validator(chosenOptions());
-            }
-            var submitIndex = options.length;
-            function setReady() {
-                if (isReady()) {
-                    $("[option='" + submitIndex + "']").attr('choosable', 'true');
-                }
-                else {
-                    $("[option='" + submitIndex + "']").removeAttr('choosable');
-                }
-            }
-            function elem(i) {
-                return $("[option='" + i + "']");
-            }
-            function picks() {
-                var e_11, _a;
-                var result = new Map();
-                var i = 0;
-                try {
-                    for (var chosen_2 = __values(chosen), chosen_2_1 = chosen_2.next(); !chosen_2_1.done; chosen_2_1 = chosen_2.next()) {
-                        var k = chosen_2_1.value;
-                        result.set(options[k].render, i++);
-                    }
-                }
-                catch (e_11_1) { e_11 = { error: e_11_1 }; }
-                finally {
-                    try {
-                        if (chosen_2_1 && !chosen_2_1.done && (_a = chosen_2.return)) _a.call(chosen_2);
-                    }
-                    finally { if (e_11) throw e_11.error; }
-                }
-                return result;
-            }
-            function pick(i) {
-                if (chosen.has(i)) {
-                    chosen.delete(i);
-                    elem(i).attr('chosen', false);
-                }
-                else {
-                    chosen.add(i);
-                    elem(i).attr('chosen', true);
-                }
-                renderer();
-                setReady();
-            }
-            var newOptions = options.map(function (x, i) { return (__assign(__assign({}, x), { value: function () { return pick(i); } })); });
-            var hint = { kind: 'key', val: ' ' };
-            newOptions.push({ render: 'Done', hotkeyHint: hint, value: function () {
-                    if (isReady()) {
-                        resolve(Array.from(chosen.values()));
-                    }
-                } });
-            chosen.clear();
-            function renderer() {
-                var e_12, _a;
-                renderChoice(state, choicePrompt, newOptions, resolve, newReject, renderer, picks);
-                try {
-                    for (var chosen_3 = __values(chosen), chosen_3_1 = chosen_3.next(); !chosen_3_1.done; chosen_3_1 = chosen_3.next()) {
-                        var j = chosen_3_1.value;
-                        elem(j).attr('chosen', true);
-                    }
-                }
-                catch (e_12_1) { e_12 = { error: e_12_1 }; }
-                finally {
-                    try {
-                        if (chosen_3_1 && !chosen_3_1.done && (_a = chosen_3.return)) _a.call(chosen_3);
-                    }
-                    finally { if (e_12) throw e_12.error; }
-                }
-            }
-            renderer();
-        });
-    };
-    webUI.prototype.automateMultichoice = function (state, options, info) {
-        if (options.length == 0)
-            return [];
         return null;
     };
     webUI.prototype.victory = function (state) {
@@ -693,6 +597,8 @@ var webUI = /** @class */ (function () {
     return webUI;
 }());
 function renderChoice(state, choicePrompt, options, resolve, reject, renderer, picks) {
+    var e_10, _a;
+    if (picks === void 0) { picks = []; }
     var optionsMap = new Map(); //map card ids to their position in the choice list
     var stringOptions = []; // values are indices into options
     for (var i = 0; i < options.length; i++) {
@@ -712,11 +618,19 @@ function renderChoice(state, choicePrompt, options, resolve, reject, renderer, p
     else {
         hotkeyMap = new Map();
     }
-    if (picks != undefined) {
-        pickMap = picks();
+    pickMap = new Map();
+    try {
+        for (var _b = __values(picks.entries()), _c = _b.next(); !_c.done; _c = _b.next()) {
+            var _d = __read(_c.value, 2), i = _d[0], x = _d[1];
+            pickMap.set(x, i);
+        }
     }
-    else {
-        pickMap = new Map();
+    catch (e_10_1) { e_10 = { error: e_10_1 }; }
+    finally {
+        try {
+            if (_c && !_c.done && (_a = _b.return)) _a.call(_b);
+        }
+        finally { if (e_10) throw e_10.error; }
     }
     renderState(state, {
         hotkeyMap: hotkeyMap,
@@ -914,7 +828,7 @@ var tutorialUI = /** @class */ (function () {
         this.innerUI = innerUI;
         this.stage = 0;
     }
-    tutorialUI.prototype.choice = function (state, choicePrompt, options, info) {
+    tutorialUI.prototype.choice = function (state, choicePrompt, options, info, chosen) {
         return __awaiter(this, void 0, void 0, function () {
             var stage, validIndex_1, result;
             var _this = this;
@@ -924,7 +838,7 @@ var tutorialUI = /** @class */ (function () {
                     validIndex_1 = stage.nextAction;
                     if (validIndex_1 != undefined)
                         options = [options[validIndex_1]];
-                    result = this.innerUI.choice(state, choicePrompt, options, info.concat(['tutorial'])).then(function (x) {
+                    result = this.innerUI.choice(state, choicePrompt, options, info.concat(['tutorial']), chosen).then(function (x) {
                         _this.stage += 1;
                         return (validIndex_1 != undefined) ? validIndex_1 : x;
                     }).catch(function (e) {
@@ -940,16 +854,8 @@ var tutorialUI = /** @class */ (function () {
                     return [2 /*return*/, result];
                 }
                 else
-                    return [2 /*return*/, this.innerUI.choice(state, choicePrompt, options, info)];
+                    return [2 /*return*/, this.innerUI.choice(state, choicePrompt, options, info, chosen)];
                 return [2 /*return*/];
-            });
-        });
-    };
-    tutorialUI.prototype.multichoice = function (state, choicePrompt, options, validator, info) {
-        if (validator === void 0) { validator = (function (xs) { return true; }); }
-        return __awaiter(this, void 0, void 0, function () {
-            return __generator(this, function (_a) {
-                return [2 /*return*/, this.innerUI.multichoice(state, choicePrompt, options, validator, info.concat(['tutorial']))];
             });
         });
     };
@@ -1043,7 +949,7 @@ function setCookie(name, value) {
     document.cookie = name + "=" + value + "; max-age=315360000; path=/";
 }
 function getCookie(name) {
-    var e_13, _a;
+    var e_11, _a;
     var nameEQ = name + "=";
     var ca = document.cookie.split(';');
     try {
@@ -1055,12 +961,12 @@ function getCookie(name) {
                 return c.substring(nameEQ.length, c.length);
         }
     }
-    catch (e_13_1) { e_13 = { error: e_13_1 }; }
+    catch (e_11_1) { e_11 = { error: e_11_1 }; }
     finally {
         try {
             if (_c && !_c.done && (_a = _b.return)) _a.call(_b);
         }
-        finally { if (e_13) throw e_13.error; }
+        finally { if (e_11) throw e_11.error; }
     }
     return null;
 }
@@ -1219,7 +1125,8 @@ function startGame(state, ui) {
             playGame(e.state.clearFuture());
         }
         else {
-            alert(e);
+            //alert(e)
+            throw e;
         }
     });
 }
@@ -1246,7 +1153,7 @@ function kingdomURL(kindParam, cards, events) {
     return "play?" + kindParam + "cards=" + cards.map(function (card) { return card.name; }).join(',') + "&events=" + events.map(function (card) { return card.name; });
 }
 function countIn(s, f) {
-    var e_14, _a;
+    var e_12, _a;
     var count = 0;
     try {
         for (var s_1 = __values(s), s_1_1 = s_1.next(); !s_1_1.done; s_1_1 = s_1.next()) {
@@ -1255,12 +1162,12 @@ function countIn(s, f) {
                 count += 1;
         }
     }
-    catch (e_14_1) { e_14 = { error: e_14_1 }; }
+    catch (e_12_1) { e_12 = { error: e_12_1 }; }
     finally {
         try {
             if (s_1_1 && !s_1_1.done && (_a = s_1.return)) _a.call(s_1);
         }
-        finally { if (e_14) throw e_14.error; }
+        finally { if (e_12) throw e_12.error; }
     }
     return count;
 }
@@ -1323,6 +1230,6 @@ export function loadPicker() {
     }); }).concat(state.events.map(function (card, i) { return ({
         render: card.id,
         value: function () { return pick(cards.length + i); }
-    }); })), trivial, trivial, trivial, undefined);
+    }); })), trivial, trivial, trivial);
 }
 //# sourceMappingURL=main.js.map

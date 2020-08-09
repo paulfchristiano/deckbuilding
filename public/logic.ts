@@ -361,7 +361,7 @@ type Zone = Card[]
 
 type Resolving = (Card|Shadow)[]
 
-export type Replayable = number[]
+export type Replayable = number
 
 interface Resources {
     coin:number;
@@ -397,14 +397,8 @@ export interface UI {
         prompt:string,
         options:Option<T>[],
         info: string[],
+        chosen: number[],
     ): Promise<number>;
-    multichoice<T>(
-        s:State,
-        prompt:string,
-        options:Option<T>[],
-        validator: ((xs:T[]) => boolean),
-        info: string[],
-    ): Promise<number[]>;
     victory(s:State): Promise<void>;
 }
 
@@ -415,15 +409,6 @@ const noUI:UI = {
         options: Option<T>[],
         info: string[],
     ): Promise<number> {
-        throw new ReplayEnded(state)
-    },
-    async multichoice<T>(
-        state: State,
-        choicePrompt: string,
-        options: Option<T>[],
-        validator:((xs:T[]) => boolean) = (xs => true),
-        info: string[],
-    ): Promise<number[]> {
         throw new ReplayEnded(state)
     },
     async victory(state:State): Promise<void> {
@@ -594,7 +579,7 @@ export class State {
             redo:Replayable[];
         [result, redo] = popLast(this.redo)
         if (result === null) return this;
-        return this.update({redo: arrayEq(result, record) ? redo : []})
+        return this.update({redo: result == record ? redo : []})
     }
     addHistory(record:Replayable): State {
         return this.update({history: this.history.concat([record])})
@@ -702,18 +687,17 @@ export function coerceReplayVersion(r:Replay): Replay {
 }
 
 export function serializeReplay(r:Replay): string {
-    return [r.version].concat(
-        r.actions.map(xs => xs.map(String).join(','))
-    ).join(';')
+    return [r.version].concat(r.actions.map(x => x.toString())).join(';')
 }
 
 export function parseReplay(s:string): Replay {
     const [version, pieces] = shiftFirst(s.split(';'))
     if (version === null) throw new MalformedReplay('No version');
-    function parsePiece(piece:string): number[] {
-        if (piece == '') return [];
-        const result:number[] = piece.split(',').map(x => parseInt(x))
-        if (result.some(isNaN)) throw new MalformedReplay(`${piece} is not a valid action`);
+    function parsePiece(piece:string): number {
+        const result = parseInt(piece)
+        if (isNaN(result)) {
+            throw new MalformedReplay(`${piece} is not a valid action`);
+        }
         return result
     }
     return {version:version, actions: pieces.map(parsePiece)}
@@ -1048,8 +1032,7 @@ function discard(n:number): Transform {
         let cards:Card[];
         [state, cards] = (state.hand.length <= n) ? [state, state.hand] :
             await multichoice(state, `Choose ${n} cards to discard.`,
-                state.hand.map(asChoice),
-                (xs => xs.length == n))
+                state.hand.map(asChoice), n, n)
         state = await moveMany(cards, 'discard')(state)
         return trigger({kind:'discard', cards:cards})(state)
     }
@@ -1390,8 +1373,8 @@ export class ReplayEnded extends Error {
 }
 
 export class InvalidHistory extends Error {
-    constructor(public indices:Replayable, public state:State) {
-        super(`Indices ${indices} do not correspond to a valid choice`)
+    constructor(public index:Replayable, public state:State) {
+        super(`Index ${index} does not correspond to a valid choice`)
         Object.setPrototypeOf(this, InvalidHistory.prototype)
     }
 }
@@ -1418,55 +1401,55 @@ async function doOrReplay(
     return [state.addHistory(x), x]
 }
 
-
-async function multichoice<T>(
-    state:State,
-    prompt:string,
-    options:Option<T>[],
-    validator:(xs:T[]) => boolean = (xs => true),
-    info:string[] = [],
-): Promise<[State, T[]]> {
-    let indices:number[], newState:State; [newState, indices] = await doOrReplay(
-        state,
-        () => state.ui.multichoice(state, prompt, options, validator, info),
-    )
-    if (indices.some(x => x >= options.length))
-        throw new InvalidHistory(indices, state)
-    return [newState, indices.map(i => options[i].value)]
-}
-
 async function choice<T>(
     state:State,
     prompt:string,
     options:Option<T>[],
     info:string[] = [],
+    chosen:number[] = [],
 ): Promise<[State, T|null]> {
     let index:number;
     if (options.length == 0) return [state, null];
-    let indices:number[], newState:State; [newState, indices] = await doOrReplay(
+    let indices:number[], newState:State; [newState, index] = await doOrReplay(
         state,
-        async function() {const x = await state.ui.choice(state, prompt, options, info); return [x]},
+        () => state.ui.choice(state, prompt, options, info, chosen)
     )
-    if (indices.length != 1 || indices[0] >= options.length)
-        throw new InvalidHistory(indices, state)
-    return [newState, options[indices[0]].value]
+    if (index >= options.length || index < 0)
+        throw new InvalidHistory(index, state)
+    return [newState, options[index].value]
 }
 
-async function multichoiceIfNeeded<T>(
+async function multichoice<T>(
     state:State,
     prompt:string,
     options:Option<T>[],
-    n:number,
-    upto:boolean,
+    max:number|null=null,
+    min:number=0,
+    info:string[] = [],
 ): Promise<[State, T[]]> {
-    if (n == 0) return [state, []]
-    else if (n == 1) {
-        let x:T|null; [state, x] = await choice(state, prompt, upto ? allowNull(options) : options)
-        return (x == null) ? [state, []] : [state, [x]]
-    } else {
-        return multichoice(state, prompt, options, xs => (upto ? xs.length <= n : xs.length == n))
+    const chosen:number[] = []
+    while (true) {
+        if (max != null && chosen.length == max) break
+        let nextOptions:Option<number|null>[] = options.map(
+            (option, i) => ({...option, value:i})
+        )
+        if (chosen.length >= min) {
+            nextOptions = allowNull(nextOptions, 'Done')
+        }
+        let next:number|null; [state, next] = await choice(
+            state, prompt, nextOptions, info, chosen
+        )
+        if (next === null) break
+        const k = chosen.indexOf(next)
+        if (k == -1) {
+            chosen.push(next)
+        } else {
+            chosen.splice(k, 1)
+        }
     }
+    return [state, chosen.map(i => options[i].value)]
 }
+
 
 const yesOrNo:Option<boolean>[] = [
     {render:'Yes', value:true, hotkeyHint:{kind:'boolean', val:true}},
@@ -2260,7 +2243,7 @@ const herald:CardSpec = {name: Herald,
             let targets; [state, targets] = await multichoice(state,
                 'Choose up to three cards to put into your hand.',
                 state.discard.filter(c => c.name != Herald).map(asChoice),
-                xs => xs.length <= 3)
+                3)
             state = await moveMany(targets, 'hand')(state)
             return state
         }
@@ -2877,9 +2860,9 @@ const synergy:CardSpec = {name: 'Synergy',
     effects: [removeAllSupplyTokens('synergy'), {
         text: ['Put synergy tokens on two cards in the supply.'],
         transform: () => async function(state) {
-            let cards:Card[]; [state, cards] = await multichoiceIfNeeded(state,
+            let cards:Card[]; [state, cards] = await multichoice(state,
                 'Choose two cards to synergize.',
-                state.supply.map(asChoice), 2, false)
+                state.supply.map(asChoice), 2, 2)
             for (const card of cards) state = await addToken(card, 'synergy')(state)
             return state
         }
@@ -3313,8 +3296,7 @@ const looter:CardSpec = {name: 'Looter',
         transform: () => async function(state) {
             let targets; [state, targets] = await multichoice(state,
                 'Choose up to three cards to discard',
-                state.hand.map(asChoice),
-                xs => xs.length <= 3)
+                state.hand.map(asChoice), 3)
             state = await moveMany(targets, 'discard')(state)
             state = await gainActions(targets.length)(state)
             return state
@@ -3618,8 +3600,7 @@ const secretChamber:CardSpec = {
         transform: () => async function(state) {
             let targets; [state, targets] = await multichoice(state,
                 'Choose any number of cards to discard for +$1 each.',
-                state.hand.map(asChoice),
-                () => true),
+                state.hand.map(asChoice))
             state = await moveMany(targets, 'discard')(state)
             state = await gainCoins(targets.length)(state)
             return state
@@ -3939,9 +3920,9 @@ const composting:CardSpec = {
         handles: e => e.cost.energy > 0,
         transform: e => async function(state) {
             const n = e.cost.energy;
-            let targets:Card[]; [state, targets] = await multichoiceIfNeeded(state,
+            let targets:Card[]; [state, targets] = await multichoice(state,
                 `Choose up to ${num(n, 'card')} to put into your hand.`,
-                state.discard.map(asChoice), n, true)
+                state.discard.map(asChoice), n)
             return moveMany(targets, 'hand')(state)
         }
     }]
