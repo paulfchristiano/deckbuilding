@@ -22,6 +22,9 @@
 .timehead {
     width: 10em;
 }
+.replayhead {
+    width: 5em;
+}
 [leader='true'] td {
     font-weight: bold;
 }
@@ -47,6 +50,7 @@
             <td class='userhead'> Username </td>
             <td class='scorehead'> Score </td>
             <td class='timehead'> Time </td>
+            <td class='replayhead'> Replay </td>
         </tr>
     </thead>
     <tbody>
@@ -55,6 +59,13 @@
                 <td><%= r.username %></td>
                 <td><%= r.score %></td>
                 <td><%= r.renderedTime %></td>
+                <% if (r.history == '') { %>
+                    <td>(hidden)</td>
+                <% } else if (version != currentVersion) { %>
+                    <td>(old)</td>
+                <% } else { %>
+                    <td><a href='play?<%= url %>#<%= r.history %>'>(link)</a></td>
+                <% } %>
         </tr>
         <% }); %>
     </tbody>

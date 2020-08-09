@@ -163,6 +163,13 @@ async function serveDaily(req:any, res:any) {
     }
 }
 
+async function freeToSpoil(url:string) {
+  for (const type of dailyTypes) {
+    const dailyURLs:string[] = await Promise.all(dailyTypes.map(dailyURL))
+    return dailyURLs.every(x => x != url)
+  }
+}
+
 async function serveDailiesByType(type:DailyType, res:any) {
   try {
       //TODO: this assumes that key is a date, remove assumption
@@ -270,14 +277,16 @@ express()
               return
           }
           const results = await sql`
-              SELECT username, score, submitted, version FROM scoreboard
+              SELECT username, score, submitted, version, history FROM scoreboard
               WHERE url=${url}
               ORDER BY version DESC, score ASC, submitted ASC
           `
+          const spoilers = await freeToSpoil(url)
           const entries = results.map((x:any) => ({
             ...x,
             time:x.submitted,
-            renderedTime:renderTime(x.submitted)
+            renderedTime:renderTime(x.submitted),
+            history: spoilers ? x.history : ''
           }))
           const entriesByVersion: [string, object[]][] = [];
           let bestTime:any = null
