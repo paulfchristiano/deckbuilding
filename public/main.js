@@ -847,8 +847,8 @@ function renderRedo(redoable) {
     return "<span class='option', option='redo' " + (redoable ? 'choosable' : '') + " chosen='false'>" + hotkeyText + "Redo</span>";
 }
 function bindSpecials(state, ui) {
-    bindHotkeyToggle(ui.render);
-    bindHelp(state, ui.render);
+    bindHotkeyToggle(ui);
+    bindHelp(state, ui);
     bindRestart(state);
     bindUndo(state, ui);
     bindRedo(state, ui);
@@ -974,10 +974,10 @@ function unbindPlayMacroButtons(ui) {
         finally { if (e_13) throw e_13.error; }
     }
 }
-function bindHotkeyToggle(renderer) {
+function bindHotkeyToggle(ui) {
     function pick() {
         globalRendererState.hotkeysOn = !globalRendererState.hotkeysOn;
-        renderer();
+        ui.render();
     }
     keyListeners.set('/', pick);
     $("[option='hotkeyToggle']").on('click', pick);
@@ -1156,13 +1156,13 @@ export function loadTutorial() {
 }
 // ------------------------------------------ Help
 //TODO: should handle help and the kingdom view in the same way
-function bindHelp(state, renderer) {
+function bindHelp(state, ui) {
     function attach(f) {
         $('#help').on('click', f);
         keyListeners.set('?', f);
     }
     function pick() {
-        attach(renderer);
+        attach(function () { return ui.render(); });
         var helpLines = [
             "Rules:",
             "The goal of the game is to get to " + VP_GOAL + " points (vp) using as little energy (@) as possible.",

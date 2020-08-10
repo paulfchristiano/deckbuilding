@@ -804,8 +804,8 @@ function bindSpecials(
     state:State,
     ui:webUI
 ): void {
-    bindHotkeyToggle(ui.render)
-    bindHelp(state, ui.render)
+    bindHotkeyToggle(ui)
+    bindHelp(state, ui)
     bindRestart(state)
     bindUndo(state, ui)
     bindRedo(state, ui)
@@ -923,10 +923,10 @@ function unbindPlayMacroButtons(ui:webUI) {
 }
 
 
-function bindHotkeyToggle(renderer: () => void) {
+function bindHotkeyToggle(ui:webUI) {
     function pick() {
         globalRendererState.hotkeysOn = !globalRendererState.hotkeysOn
-        renderer()
+        ui.render()
     }
     keyListeners.set('/', pick)
     $(`[option='hotkeyToggle']`).on('click', pick)
@@ -1146,13 +1146,13 @@ export function loadTutorial(){
 // ------------------------------------------ Help
 
 //TODO: should handle help and the kingdom view in the same way
-function bindHelp(state:State, renderer: () => void) {
+function bindHelp(state:State, ui:webUI) {
     function attach(f: () => void) {
         $('#help').on('click', f)
         keyListeners.set('?', f)
     }
     function pick() {
-        attach(renderer)
+        attach(() => ui.render())
         const helpLines:string[] = [
             `Rules:`,
             `The goal of the game is to get to ${VP_GOAL} points (vp) using as little energy (@) as possible.`,
