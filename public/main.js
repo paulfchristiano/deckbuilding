@@ -61,9 +61,26 @@ var __values = (this && this.__values) || function(o) {
     };
     throw new TypeError(s ? "Object is not iterable." : "Symbol.iterator is not defined.");
 };
+var __read = (this && this.__read) || function (o, n) {
+    var m = typeof Symbol === "function" && o[Symbol.iterator];
+    if (!m) return o;
+    var i = m.call(o), r, ar = [], e;
+    try {
+        while ((n === void 0 || n-- > 0) && !(r = i.next()).done) ar.push(r.value);
+    }
+    catch (error) { e = { error: error }; }
+    finally {
+        try {
+            if (r && !r.done && (m = i["return"])) m.call(i);
+        }
+        finally { if (e) throw e.error; }
+    }
+    return ar;
+};
 import { Shadow, State, Card } from './logic.js';
 import { renderCost, renderEnergy } from './logic.js';
 import { emptyState } from './logic.js';
+import { logTypes } from './logic.js';
 import { Undo, InvalidHistory } from './logic.js';
 import { playGame, initialState } from './logic.js';
 import { coerceReplayVersion, parseReplay, MalformedReplay } from './logic.js';
@@ -119,6 +136,13 @@ function interpretHint(hint) {
         default: assertNever(hint);
     }
 }
+function renderKey(x) {
+    switch (x.kind) {
+        case 'card': return x.card.id;
+        case 'string': return x.string;
+        default: assertNever(x);
+    }
+}
 var HotkeyMapper = /** @class */ (function () {
     function HotkeyMapper() {
     }
@@ -130,7 +154,7 @@ var HotkeyMapper = /** @class */ (function () {
         try {
             for (var options_1 = __values(options), options_1_1 = options_1.next(); !options_1_1.done; options_1_1 = options_1.next()) {
                 var option = options_1_1.value;
-                pickable.add(option.render);
+                pickable.add(renderKey(option.render));
             }
         }
         catch (e_1_1) { e_1 = { error: e_1_1 }; }
@@ -179,9 +203,10 @@ var HotkeyMapper = /** @class */ (function () {
             for (var options_2 = __values(options), options_2_1 = options_2.next(); !options_2_1.done; options_2_1 = options_2.next()) {
                 var option = options_2_1.value;
                 var hint = interpretHint(option.hotkeyHint);
-                if (hint != undefined && !result.has(option.render)) {
+                if (hint != undefined &&
+                    !result.has(renderKey(option.render))) {
                     if (!takenByPickable(hint))
-                        set(option.render, hint);
+                        set(renderKey(option.render), hint);
                 }
             }
         }
@@ -206,10 +231,10 @@ var HotkeyMapper = /** @class */ (function () {
         try {
             for (var options_3 = __values(options), options_3_1 = options_3.next(); !options_3_1.done; options_3_1 = options_3.next()) {
                 var option = options_3_1.value;
-                if (!result.has(option.render)) {
+                if (!result.has(renderKey(option.render))) {
                     var key = nextHotkey();
                     if (key != null)
-                        set(option.render, key);
+                        set(renderKey(option.render), key);
                 }
             }
         }
@@ -394,7 +419,10 @@ function renderCard(card, state, zone, options, tokenRenderer) {
             renderCost(card.cost('buy', state)) || '&nbsp' :
             renderCost(card.cost(costType, state)) || '&nbsp';
         var picktext = (options.pick !== undefined) ? "<div class='pickorder'>" + options.pick + "</div>" : '';
-        var choosetext = (options.option !== undefined) ? "choosable chosen='false' option=" + options.option : '';
+        var chosenText = (options.pick !== undefined) ? 'true' : 'false';
+        var choosetext = (options.option !== undefined)
+            ? "choosable chosen='" + chosenText + "' option=" + options.option
+            : '';
         var hotkeytext = (options.hotkey !== undefined) ? renderHotkey(options.hotkey) : '';
         var ticktext = "tick=" + card.ticks[card.ticks.length - 1];
         return "<div class='card' " + ticktext + " " + choosetext + "> " + picktext + "\n                    <div class='cardbody'>" + hotkeytext + " " + card + tokenhtml + "</div>\n                    <div class='cardcost'>" + costhtml + "</div>\n                    <span class='tooltip'>" + renderTooltip(card, state, tokenRenderer) + "</span>\n                </div>";
@@ -455,8 +483,10 @@ var globalRendererState = {
     hotkeysOn: false,
     userURL: true,
     viewingKingdom: false,
+    viewingMacros: false,
     hotkeyMapper: new HotkeyMapper(),
     tokenRenderer: new TokenRenderer(),
+    logType: 'energy',
 };
 function resetGlobalRenderer() {
     globalRendererState.hotkeyMapper = new HotkeyMapper();
@@ -496,54 +526,162 @@ function renderState(state, settings) {
     $('#playsize').html('' + state.play.length);
     $('#handsize').html('' + state.hand.length);
     $('#discardsize').html('' + state.discard.length);
-    $('#log').html(renderLogs(state.logs));
+    setVisibleLog(state, globalRendererState.logType);
+    bindLogTypeButtons(state);
 }
-function renderLog(msg) {
-    return "<div class=\"log\">" + msg + "</div>";
+function bindLogTypeButtons(state) {
+    var e = $("input[name='logType']");
+    e.off('change');
+    e.change(function () {
+        var logType = this.value;
+        globalRendererState.logType = logType;
+        setVisibleLog(state, logType);
+    });
 }
-function renderLogs(logs) {
+function setVisibleLog(state, logType) {
+    var e_10, _a;
+    try {
+        for (var logTypes_1 = __values(logTypes), logTypes_1_1 = logTypes_1.next(); !logTypes_1_1.done; logTypes_1_1 = logTypes_1.next()) {
+            var logType_1 = logTypes_1_1.value;
+            var e = $(".logOption[option=" + logType_1 + "]");
+            var choosable = e.attr('option') != globalRendererState.logType;
+            e.attr('choosable', choosable ? 'true' : null);
+        }
+    }
+    catch (e_10_1) { e_10 = { error: e_10_1 }; }
+    finally {
+        try {
+            if (logTypes_1_1 && !logTypes_1_1.done && (_a = logTypes_1.return)) _a.call(logTypes_1);
+        }
+        finally { if (e_10) throw e_10.error; }
+    }
+    $('#log').html(renderLogLines(state.logs[logType]));
+}
+function renderLogLine(msg) {
+    return "<div class=\"logLine\">" + msg + "</div>";
+}
+function renderLogLines(logs) {
     var result = [];
     for (var i = logs.length - 1; i >= 0; i--) {
-        result.push(renderLog(logs[i]));
+        result.push(renderLogLine(logs[i]));
+        /*
         if (i > 0 && result.length > 100) {
-            result.push(renderLog('... (earlier events truncated)'));
-            break;
+            result.push(renderLogLine('... (earlier events truncated)'))
+            break
         }
+        */
     }
     return result.join('');
 }
-// ------------------------------- Rendering choices
+//TODO: prefer better card matches
+function matchMacro(macro, state, options) {
+    var renders;
+    renders = options.map(function (x, i) { return [x.render, i]; });
+    switch (macro.kind) {
+        case 'string':
+            renders = renders.filter(function (x) {
+                return x[0].kind == 'string'
+                    && x[0].string == macro.string;
+            });
+            return (renders.length > 0) ? renders[0][1] : null;
+        case 'card':
+            renders = renders.filter(function (x) {
+                return x[0].kind == 'card'
+                    && x[0].card.name == macro.card.name
+                    && x[0].card.place == macro.card.place;
+            });
+            return (renders.length > 0) ? renders[0][1] : null;
+    }
+}
 var webUI = /** @class */ (function () {
     function webUI() {
         this.undoing = false;
+        this.macros = [];
+        this.recordingMacro = null;
+        //invariant: whenever undoing = true, playingMacro = []
+        this.playingMacro = [];
+        //If the game is paused, these are the continuation
+        //(resolve is used to give an answer, reject to Undo)
+        //render is used to refresh the state
+        this.choiceState = null;
     }
-    webUI.prototype.choice = function (state, choicePrompt, options, info) {
-        var ui = this;
-        var automate = this.automateChoice(state, options, info);
-        if (automate !== null) {
-            if (this.undoing)
-                throw new Undo(state);
-            else
-                return Promise.resolve(automate);
+    webUI.prototype.recordStep = function (x) {
+        if (this.recordingMacro === null)
+            return;
+        this.recordingMacro.push(x);
+    };
+    webUI.prototype.matchNextMacroStep = function () {
+        var macro = this.playingMacro.shift();
+        if (macro !== undefined && this.choiceState != null) {
+            var option = matchMacro(macro, this.choiceState.state, this.choiceState.options);
+            if (option === null)
+                this.playingMacro = [];
+            return option;
         }
-        this.undoing = false;
+        else {
+            return null;
+        }
+    };
+    webUI.prototype.clearChoice = function () {
+        this.choiceState = null;
+        clearChoice();
+    };
+    webUI.prototype.resolveWithMacro = function () {
+        if (this.choiceState !== null) {
+            var option = this.matchNextMacroStep();
+            if (option !== null)
+                this.choiceState.resolve(option);
+        }
+    };
+    webUI.prototype.render = function () {
+        if (this.choiceState != null) {
+            var cs_1 = this.choiceState;
+            renderChoice(this, cs_1.state, cs_1.choicePrompt, cs_1.options.map(function (x, i) { return (__assign(__assign({}, x), { value: function () { return cs_1.resolve(i); } })); }), cs_1.chosen.map(function (i) { return cs_1.options[i].render; }));
+        }
+    };
+    webUI.prototype.choice = function (state, choicePrompt, options, info, chosen) {
+        var ui = this;
         return new Promise(function (resolve, reject) {
+            function newResolve(n) {
+                ui.clearChoice();
+                ui.recordStep(options[n].render);
+                resolve(n);
+            }
             function newReject(reason) {
                 if (reason instanceof Undo)
                     ui.undoing = true;
+                ui.clearChoice();
                 reject(reason);
             }
-            function pick(i) {
-                clearChoice();
-                resolve(i);
+            ui.choiceState = {
+                state: state,
+                choicePrompt: choicePrompt,
+                options: options,
+                info: info,
+                chosen: chosen,
+                resolve: newResolve,
+                reject: newReject,
+            };
+            var option = ui.matchNextMacroStep();
+            var chooseTrivial = ui.chooseTrivial(state, options, info);
+            if (option != null) {
+                newResolve(option);
             }
-            function renderer() {
-                renderChoice(state, choicePrompt, options.map(function (x, i) { return (__assign(__assign({}, x), { value: function () { return pick(i); } })); }), function (x) { return resolve(x[0]); }, newReject, renderer);
+            else if (chooseTrivial !== null) {
+                if (ui.undoing) {
+                    newReject(new Undo(state));
+                }
+                else {
+                    newResolve(chooseTrivial);
+                }
             }
-            renderer();
+            else {
+                ui.undoing = false;
+                ui.render();
+            }
         });
     };
-    webUI.prototype.automateChoice = function (state, options, info) {
+    webUI.prototype.chooseTrivial = function (state, options, info) {
         if (info.indexOf('tutorial') != -1)
             return null;
         if (info.indexOf('actChoice') != -1)
@@ -552,138 +690,28 @@ var webUI = /** @class */ (function () {
             return 0;
         return null;
     };
-    webUI.prototype.multichoice = function (state, choicePrompt, options, validator, info) {
-        if (validator === void 0) { validator = (function (xs) { return true; }); }
-        var ui = this;
-        var automate = this.automateMultichoice(state, options, info);
-        if (automate !== null) {
-            if (this.undoing)
-                throw new Undo(state);
-            else
-                return Promise.resolve(automate);
-        }
-        this.undoing = false;
-        return new Promise(function (resolve, reject) {
-            function newReject(reason) {
-                if (reason instanceof Undo)
-                    ui.undoing = true;
-                reject(reason);
-            }
-            var chosen = new Set();
-            function chosenOptions() {
-                var e_10, _a;
-                var result = [];
-                try {
-                    for (var chosen_1 = __values(chosen), chosen_1_1 = chosen_1.next(); !chosen_1_1.done; chosen_1_1 = chosen_1.next()) {
-                        var i = chosen_1_1.value;
-                        result.push(options[i].value);
-                    }
-                }
-                catch (e_10_1) { e_10 = { error: e_10_1 }; }
-                finally {
-                    try {
-                        if (chosen_1_1 && !chosen_1_1.done && (_a = chosen_1.return)) _a.call(chosen_1);
-                    }
-                    finally { if (e_10) throw e_10.error; }
-                }
-                return result;
-            }
-            function isReady() {
-                return validator(chosenOptions());
-            }
-            var submitIndex = options.length;
-            function setReady() {
-                if (isReady()) {
-                    $("[option='" + submitIndex + "']").attr('choosable', 'true');
-                }
-                else {
-                    $("[option='" + submitIndex + "']").removeAttr('choosable');
-                }
-            }
-            function elem(i) {
-                return $("[option='" + i + "']");
-            }
-            function picks() {
-                var e_11, _a;
-                var result = new Map();
-                var i = 0;
-                try {
-                    for (var chosen_2 = __values(chosen), chosen_2_1 = chosen_2.next(); !chosen_2_1.done; chosen_2_1 = chosen_2.next()) {
-                        var k = chosen_2_1.value;
-                        result.set(options[k].render, i++);
-                    }
-                }
-                catch (e_11_1) { e_11 = { error: e_11_1 }; }
-                finally {
-                    try {
-                        if (chosen_2_1 && !chosen_2_1.done && (_a = chosen_2.return)) _a.call(chosen_2);
-                    }
-                    finally { if (e_11) throw e_11.error; }
-                }
-                return result;
-            }
-            function pick(i) {
-                if (chosen.has(i)) {
-                    chosen.delete(i);
-                    elem(i).attr('chosen', false);
-                }
-                else {
-                    chosen.add(i);
-                    elem(i).attr('chosen', true);
-                }
-                renderer();
-                setReady();
-            }
-            var newOptions = options.map(function (x, i) { return (__assign(__assign({}, x), { value: function () { return pick(i); } })); });
-            var hint = { kind: 'key', val: ' ' };
-            newOptions.push({ render: 'Done', hotkeyHint: hint, value: function () {
-                    if (isReady()) {
-                        resolve(Array.from(chosen.values()));
-                    }
-                } });
-            chosen.clear();
-            function renderer() {
-                var e_12, _a;
-                renderChoice(state, choicePrompt, newOptions, resolve, newReject, renderer, picks);
-                try {
-                    for (var chosen_3 = __values(chosen), chosen_3_1 = chosen_3.next(); !chosen_3_1.done; chosen_3_1 = chosen_3.next()) {
-                        var j = chosen_3_1.value;
-                        elem(j).attr('chosen', true);
-                    }
-                }
-                catch (e_12_1) { e_12 = { error: e_12_1 }; }
-                finally {
-                    try {
-                        if (chosen_3_1 && !chosen_3_1.done && (_a = chosen_3.return)) _a.call(chosen_3);
-                    }
-                    finally { if (e_12) throw e_12.error; }
-                }
-            }
-            renderer();
-        });
-    };
-    webUI.prototype.automateMultichoice = function (state, options, info) {
-        if (options.length == 0)
-            return [];
-        return null;
-    };
+    //NOTE: we always undo after resolving the victory promise
+    //(and we won't catch an undo here)
+    //(would be nice to clean this up so you use undo to go back)
     webUI.prototype.victory = function (state) {
         return __awaiter(this, void 0, void 0, function () {
-            var submitOrUndo;
+            var ui, submitOrUndo;
             return __generator(this, function (_a) {
+                ui = this;
                 submitOrUndo = function () {
                     return new Promise(function (resolve, reject) {
+                        ui.undoing = true;
                         heartbeat(state.spec);
                         var submitDialog = function () {
                             keyListeners.clear();
                             renderScoreSubmission(state, function () { return submitOrUndo().then(resolve, reject); });
                         };
                         var options = (!submittable(state.spec)) ? [] : [{
-                                render: 'Submit',
+                                render: { kind: 'string', string: 'Submit' },
                                 value: submitDialog,
                                 hotkeyHint: { kind: 'key', val: '!' }
                             }];
-                        renderChoice(state, "You won using " + state.energy + " energy!", options, resolve, resolve, function () { });
+                        renderChoice(ui, state, "You won using " + state.energy + " energy!", options);
                     });
                 };
                 return [2 /*return*/, submitOrUndo()];
@@ -692,16 +720,25 @@ var webUI = /** @class */ (function () {
     };
     return webUI;
 }());
-function renderChoice(state, choicePrompt, options, resolve, reject, renderer, picks) {
+function renderChoice(ui, state, choicePrompt, options, picks) {
+    var e_11, _a;
+    if (picks === void 0) { picks = []; }
     var optionsMap = new Map(); //map card ids to their position in the choice list
     var stringOptions = []; // values are indices into options
     for (var i = 0; i < options.length; i++) {
         var rendered = options[i].render;
+        switch (rendered.kind) {
+            case 'string':
+                stringOptions.push({ render: rendered.string, value: i });
+                break;
+            case 'card':
+                optionsMap.set(rendered.card.id, i);
+                break;
+            default: assertNever(rendered);
+        }
         if (typeof rendered == 'string') {
-            stringOptions.push({ render: rendered, value: i });
         }
         else if (typeof rendered === 'number') {
-            optionsMap.set(rendered, i);
         }
     }
     var hotkeyMap;
@@ -712,11 +749,19 @@ function renderChoice(state, choicePrompt, options, resolve, reject, renderer, p
     else {
         hotkeyMap = new Map();
     }
-    if (picks != undefined) {
-        pickMap = picks();
+    pickMap = new Map();
+    try {
+        for (var _b = __values(picks.entries()), _c = _b.next(); !_c.done; _c = _b.next()) {
+            var _d = __read(_c.value, 2), i = _d[0], x = _d[1];
+            pickMap.set(renderKey(x), i);
+        }
     }
-    else {
-        pickMap = new Map();
+    catch (e_11_1) { e_11 = { error: e_11_1 }; }
+    finally {
+        try {
+            if (_c && !_c.done && (_a = _b.return)) _a.call(_b);
+        }
+        finally { if (e_11) throw e_11.error; }
     }
     renderState(state, {
         hotkeyMap: hotkeyMap,
@@ -727,7 +772,8 @@ function renderChoice(state, choicePrompt, options, resolve, reject, renderer, p
     $('#choicePrompt').html(choicePrompt);
     $('#options').html(stringOptions.map(localRender).join(''));
     $('#undoArea').html(renderSpecials(state));
-    bindSpecials(state, resolve, reject, renderer);
+    if (ui !== null)
+        bindSpecials(state, ui);
     function elem(i) {
         return $("[option='" + i + "']");
     }
@@ -735,7 +781,7 @@ function renderChoice(state, choicePrompt, options, resolve, reject, renderer, p
         var option = options[i];
         var f = option.value;
         elem(i).on('click', f);
-        var hotkey = hotkeyMap.get(option.render);
+        var hotkey = hotkeyMap.get(renderKey(option.render));
         if (hotkey != undefined)
             keyListeners.set(hotkey, f);
     }
@@ -753,6 +799,7 @@ function renderSpecials(state) {
         renderUndo(state.undoable()),
         renderRedo(state.redo.length > 0),
         renderHotkeyToggle(),
+        renderMacroToggle(),
         renderKingdomViewer(),
         renderHelp(),
         renderRestart()
@@ -763,6 +810,9 @@ function renderRestart() {
 }
 function renderKingdomViewer() {
     return "<span id='viewKingdom' class='option', option='viewKingdom' choosable chosen='false'>Kingdom</span>";
+}
+function renderMacroToggle() {
+    return "<span id='macroToggle' class='option', option='macroToggle' choosable chosen='false'>Macros</span>";
 }
 function renderHotkeyToggle() {
     return "<span class='option', option='hotkeyToggle' choosable chosen='false'>" + renderHotkey('/') + " Hotkeys</span>";
@@ -781,12 +831,14 @@ function renderRedo(redoable) {
     var hotkeyText = renderHotkey('Z');
     return "<span class='option', option='redo' " + (redoable ? 'choosable' : '') + " chosen='false'>" + hotkeyText + "Redo</span>";
 }
-function bindSpecials(state, accept, reject, renderer) {
-    bindHotkeyToggle(renderer);
-    bindUndo(state, reject);
-    bindHelp(state, renderer);
+function bindSpecials(state, ui) {
+    bindHotkeyToggle(ui.render);
+    bindHelp(state, ui.render);
     bindRestart(state);
-    bindRedo(state, accept);
+    bindUndo(state, ui);
+    bindRedo(state, ui);
+    if (ui !== null)
+        bindMacroToggle(ui);
     bindViewKingdom(state);
 }
 function bindViewKingdom(state) {
@@ -804,6 +856,109 @@ function bindViewKingdom(state) {
     }
     $("[option='viewKingdom']").on('click', onClick);
 }
+//TODO: move globalRendererState into the webUI...
+//TODO: these should probably all be webUI methods...
+function bindMacroToggle(ui) {
+    function onClick() {
+        var e = $('#macroSpot');
+        if (globalRendererState.viewingMacros) {
+            e.html('');
+            globalRendererState.viewingMacros = false;
+        }
+        else {
+            makeMacroButtons(ui, e);
+            globalRendererState.viewingMacros = true;
+        }
+    }
+    var e = $("[option='macroToggle']");
+    e.off('click');
+    e.on('click', onClick);
+}
+function makeMacroButtons(ui, e) {
+    var contents = [renderRecordMacroButton(ui)].concat(ui.macros.map(renderPlayMacroButton)).join('');
+    e.html("<div id='macros'>" + contents + "</div>");
+    bindRecordMacroButton(ui);
+    bindPlayMacroButtons(ui);
+}
+function renderRecordMacroButton(ui) {
+    var buttonText = (ui.recordingMacro === null)
+        ? 'Start recording'
+        : 'Stop recording';
+    return "<span id='recordMacro' class='option'\n             option='recordMacro' choosable chosen='false'>\n                 " + buttonText + "\n             </span>";
+}
+function renderPlayMacroButton(macro, index) {
+    var optionText = "macro" + index;
+    var firstStep = macro[0];
+    var firstStepText = (firstStep.kind == 'card')
+        ? firstStep.card.name
+        : firstStep.string;
+    var buttonText = firstStepText + "...";
+    return "<span id='playMacro' class='option'\n             option='" + optionText + "' choosable chosen='false'>\n                 " + buttonText + "\n             </span>";
+}
+function bindRecordMacroButton(ui) {
+    function onClick() {
+        if (ui.recordingMacro === null) {
+            ui.recordingMacro = [];
+        }
+        else if (ui.recordingMacro.length == 0) {
+            ui.recordingMacro = null;
+        }
+        else {
+            ui.macros.push(ui.recordingMacro);
+            ui.recordingMacro = null;
+        }
+        makeMacroButtons(ui, $('#macroSpot'));
+    }
+    var e = $("[option='recordMacro'");
+    e.off('click');
+    e.on('click', onClick);
+}
+function bindPlayMacroButtons(ui) {
+    var e_12, _a;
+    function onClick(i) {
+        console.log('?');
+        if (ui.choiceState !== null && ui.playingMacro.length == 0) {
+            console.log('!');
+            ui.playingMacro = ui.macros[i].slice();
+            ui.resolveWithMacro();
+        }
+    }
+    var _loop_1 = function (i, macro) {
+        var e = $("[option='macro" + i + "'");
+        e.off('click');
+        e.on('click', function () { return onClick(i); });
+    };
+    try {
+        for (var _b = __values(ui.macros.entries()), _c = _b.next(); !_c.done; _c = _b.next()) {
+            var _d = __read(_c.value, 2), i = _d[0], macro = _d[1];
+            _loop_1(i, macro);
+        }
+    }
+    catch (e_12_1) { e_12 = { error: e_12_1 }; }
+    finally {
+        try {
+            if (_c && !_c.done && (_a = _b.return)) _a.call(_b);
+        }
+        finally { if (e_12) throw e_12.error; }
+    }
+}
+function unbindPlayMacroButtons(ui) {
+    var e_13, _a;
+    try {
+        for (var _b = __values(ui.macros.entries()), _c = _b.next(); !_c.done; _c = _b.next()) {
+            var _d = __read(_c.value, 2), i = _d[0], macro = _d[1];
+            var e = $("[option='macro" + i + "'");
+            e.off('click');
+        }
+    }
+    catch (e_13_1) { e_13 = { error: e_13_1 }; }
+    finally {
+        try {
+            if (_c && !_c.done && (_a = _b.return)) _a.call(_b);
+        }
+        finally { if (e_13) throw e_13.error; }
+    }
+}
 function bindHotkeyToggle(renderer) {
     function pick() {
         globalRendererState.hotkeysOn = !globalRendererState.hotkeysOn;
@@ -815,18 +970,20 @@ function bindHotkeyToggle(renderer) {
 function bindRestart(state) {
     $("[option='restart']").on('click', function () { return restart(state); });
 }
-function bindRedo(state, accept) {
+function bindRedo(state, ui) {
     function pick() {
-        if (state.redo.length > 0)
-            accept(state.redo[state.redo.length - 1]);
+        if (ui.choiceState != null && state.redo.length > 0) {
+            ui.choiceState.resolve(state.redo[state.redo.length - 1]);
+        }
     }
     keyListeners.set('Z', pick);
     $("[option='redo']").on('click', pick);
 }
-function bindUndo(state, reject) {
+function bindUndo(state, ui) {
     function pick() {
-        if (state.undoable())
-            reject(new Undo(state));
+        if (ui.choiceState != null && state.undoable()) {
+            ui.choiceState.reject(new Undo(state));
+        }
     }
     keyListeners.set('z', pick);
     $("[option='undo']").on('click', pick);
@@ -914,7 +1071,7 @@ var tutorialUI = /** @class */ (function () {
         this.innerUI = innerUI;
         this.stage = 0;
     }
-    tutorialUI.prototype.choice = function (state, choicePrompt, options, info) {
+    tutorialUI.prototype.choice = function (state, choicePrompt, options, info, chosen) {
         return __awaiter(this, void 0, void 0, function () {
             var stage, validIndex_1, result;
             var _this = this;
@@ -924,7 +1081,7 @@ var tutorialUI = /** @class */ (function () {
                     validIndex_1 = stage.nextAction;
                     if (validIndex_1 != undefined)
                         options = [options[validIndex_1]];
-                    result = this.innerUI.choice(state, choicePrompt, options, info.concat(['tutorial'])).then(function (x) {
+                    result = this.innerUI.choice(state, choicePrompt, options, info.concat(['tutorial']), chosen).then(function (x) {
                         _this.stage += 1;
                         return (validIndex_1 != undefined) ? validIndex_1 : x;
                     }).catch(function (e) {
@@ -940,16 +1097,8 @@ var tutorialUI = /** @class */ (function () {
                     return [2 /*return*/, result];
                 }
                 else
-                    return [2 /*return*/, this.innerUI.choice(state, choicePrompt, options, info)];
+                    return [2 /*return*/, this.innerUI.choice(state, choicePrompt, options, info, chosen)];
                 return [2 /*return*/];
-            });
-        });
-    };
-    tutorialUI.prototype.multichoice = function (state, choicePrompt, options, validator, info) {
-        if (validator === void 0) { validator = (function (xs) { return true; }); }
-        return __awaiter(this, void 0, void 0, function () {
-            return __generator(this, function (_a) {
-                return [2 /*return*/, this.innerUI.multichoice(state, choicePrompt, options, validator, info.concat(['tutorial']))];
             });
         });
     };
@@ -1043,7 +1192,7 @@ function setCookie(name, value) {
     document.cookie = name + "=" + value + "; max-age=315360000; path=/";
 }
 function getCookie(name) {
-    var e_13, _a;
+    var e_14, _a;
     var nameEQ = name + "=";
     var ca = document.cookie.split(';');
     try {
@@ -1055,12 +1204,12 @@ function getCookie(name) {
                 return c.substring(nameEQ.length, c.length);
         }
     }
-    catch (e_13_1) { e_13 = { error: e_13_1 }; }
+    catch (e_14_1) { e_14 = { error: e_14_1 }; }
     finally {
         try {
             if (_c && !_c.done && (_a = _b.return)) _a.call(_b);
         }
-        finally { if (e_13) throw e_13.error; }
+        finally { if (e_14) throw e_14.error; }
     }
     return null;
 }
@@ -1093,7 +1242,6 @@ function renderScoreSubmission(state, done) {
         var username = $('#username').val();
         if (username.length > 0) {
             rememberUsername(username);
-            console.log(url);
             var query = [
                 "url=" + encodeURIComponent(url),
                 "score=" + score,
@@ -1219,7 +1367,8 @@ function startGame(state, ui) {
             playGame(e.state.clearFuture());
         }
         else {
-            alert(e);
+            //alert(e)
+            throw e;
         }
     });
 }
@@ -1246,7 +1395,7 @@ function kingdomURL(kindParam, cards, events) {
     return "play?" + kindParam + "cards=" + cards.map(function (card) { return card.name; }).join(',') + "&events=" + events.map(function (card) { return card.name; });
 }
 function countIn(s, f) {
-    var e_14, _a;
+    var e_15, _a;
     var count = 0;
     try {
         for (var s_1 = __values(s), s_1_1 = s_1.next(); !s_1_1.done; s_1_1 = s_1.next()) {
@@ -1255,12 +1404,12 @@ function countIn(s, f) {
                 count += 1;
         }
     }
-    catch (e_14_1) { e_14 = { error: e_14_1 }; }
+    catch (e_15_1) { e_15 = { error: e_15_1 }; }
     finally {
         try {
             if (s_1_1 && !s_1_1.done && (_a = s_1.return)) _a.call(s_1);
         }
-        finally { if (e_14) throw e_14.error; }
+        finally { if (e_15) throw e_15.error; }
     }
     return count;
 }
@@ -1317,12 +1466,12 @@ export function loadPicker() {
             $('#requireLink').removeAttr('href');
         }
     }
-    renderChoice(state, 'Choose which events and cards to use.', state.supply.map(function (card, i) { return ({
-        render: card.id,
-        value: function () { return pick(i); }
-    }); }).concat(state.events.map(function (card, i) { return ({
-        render: card.id,
-        value: function () { return pick(cards.length + i); }
-    }); })), trivial, trivial, trivial, undefined);
+    function makeOption(card, i) {
+        return {
+            value: function () { return pick(i); },
+            render: { kind: 'card', card: card }
+        };
+    }
+    renderChoice(null, state, 'Choose which events and cards to use.', state.supply.map(function (card, i) { return makeOption(card, i); }).concat(state.events.map(function (card, i) { return makeOption(card, cards.length + i); })));
 }
 //# sourceMappingURL=main.js.map

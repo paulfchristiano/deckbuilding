@@ -31,6 +31,7 @@
     <div id='undoArea'> </div>
 </div>
 <div id='kingdomViewSpot'></div>
+<div id='macroSpot'></div>
 <div> &nbsp; </div>
 <div class='header' id='resolvingHeader'> Resolving: </div>
 <div id='toparea'>
@@ -76,7 +77,16 @@
 -->
 
 <div> &nbsp; </div>
-<div class='header'> History: </div>
+<div class='header'>
+    History:
+    <span class='logTypes'>
+        <input type='radio' name='logType' value='energy' checked='checked'>
+            @
+        <input type='radio' name='logType' value='costs'> costs
+        <input type='radio' name='logType' value='acts'> acts
+        <input type='radio' name='logType' value='all'> all
+    </span>
+</div>
 <div> &nbsp; </div>
 <div id='log'> </div>
 

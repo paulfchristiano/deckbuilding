@@ -10,6 +10,7 @@ import { Trigger, Replacer, Ability, CalculatedCost } from './logic.js'
 import { ID } from './logic.js'
 import { renderCost, renderEnergy } from './logic.js'
 import { emptyState } from './logic.js'
+import { LogType, logTypes } from './logic.js'
 import { Option, OptionRender, HotkeyHint } from './logic.js'
 import { UI, Undo, Victory, InvalidHistory, ReplayEnded } from './logic.js'
 import { playGame, initialState, verifyScore} from './logic.js'
@@ -70,19 +71,33 @@ function interpretHint(hint:HotkeyHint|undefined): Key|undefined {
     }
 }
 
+//hashable version of optionRender
+//must be distinct amongst options available at any given time
+type RenderKey = string | ID
+
+function renderKey(x:OptionRender): RenderKey {
+    switch (x.kind) {
+        case 'card': return x.card.id
+        case 'string': return x.string
+        default: assertNever(x)
+    }
+}
+
 class HotkeyMapper {
     constructor() {
     }
-    map(state:State, options:Option<any>[]): Map<OptionRender, Key> {
-        const result:Map<OptionRender, Key> = new Map()
-        const taken:Map<Key, OptionRender> = new Map()
-        const pickable:Set<OptionRender> = new Set()
-        for (const option of options) pickable.add(option.render)
+    map(state:State, options:Option<any>[]): Map<RenderKey, Key> {
+        const result:Map<RenderKey, Key> = new Map()
+        const taken:Map<Key, RenderKey> = new Map()
+        const pickable:Set<RenderKey> = new Set()
+        for (const option of options) {
+            pickable.add(renderKey(option.render))
+        }
         function takenByPickable(key:Key): boolean {
-            const takenBy:OptionRender|undefined = taken.get(key)
+            const takenBy:RenderKey|undefined = taken.get(key)
             return (takenBy != undefined && pickable.has(takenBy))
         }
-        function set(x:OptionRender, k:Key): void {
+        function set(x:RenderKey, k:Key): void {
             result.set(x, k)
             taken.set(k, x)
         }
@@ -104,9 +119,12 @@ class HotkeyMapper {
         setFrom(state.play, supplyAndPlayHotkeys)
         for (const option of options) {
             const hint:Key|undefined = interpretHint(option.hotkeyHint);
-            if (hint != undefined && !result.has(option.render)) {
+            if (
+                hint != undefined &&
+                !result.has(renderKey(option.render))
+            ) {
                 if (!takenByPickable(hint))
-                    set(option.render, hint)
+                    set(renderKey(option.render), hint)
             }
         }
         let index = 0
@@ -119,9 +137,9 @@ class HotkeyMapper {
             return hotkeys[index]
         }
         for (const option of options) {
-            if (!result.has(option.render)) {
+            if (!result.has(renderKey(option.render))) {
                 const key = nextHotkey()
-                if (key != null) set(option.render, key)
+                if (key != null) set(renderKey(option.render), key)
             }
         }
         return result
@@ -255,7 +273,10 @@ function renderCard(
             renderCost(card.cost('buy', state)) || '&nbsp' :
             renderCost(card.cost(costType, state)) || '&nbsp'
         const picktext:string = (options.pick !== undefined) ? `<div class='pickorder'>${options.pick}</div>` : ''
-        const choosetext:string = (options.option !== undefined) ? `choosable chosen='false' option=${options.option}` : ''
+        const chosenText:string = (options.pick !== undefined) ? 'true' : 'false'
+        const choosetext:string = (options.option !== undefined)
+            ? `choosable chosen='${chosenText}' option=${options.option}`
+            : ''
         const hotkeytext:string = (options.hotkey !== undefined) ? renderHotkey(options.hotkey) : ''
         const ticktext:string = `tick=${card.ticks[card.ticks.length-1]}`
         return `<div class='card' ${ticktext} ${choosetext}> ${picktext}
@@ -353,7 +374,10 @@ interface RenderSettings {
 }
 
 declare global {
-    interface Window { renderedState: State; serverSeed?: string; }
+    interface Window {
+        renderedState: State;
+        serverSeed?: string; 
+    }
 }
 
 //TODO: this is all a mess, this should be part of the webUI
@@ -364,14 +388,18 @@ interface RendererState {
     hotkeyMapper: HotkeyMapper;
     tokenRenderer: TokenRenderer;
     viewingKingdom: boolean,
+    viewingMacros: boolean,
+    logType:LogType,
 }
 
 const globalRendererState:RendererState = {
     hotkeysOn:false,
     userURL:true,
     viewingKingdom:false,
+    viewingMacros:false,
     hotkeyMapper: new HotkeyMapper(),
     tokenRenderer: new TokenRenderer(),
+    logType:'energy',
 }
 
 function resetGlobalRenderer() {
@@ -421,69 +449,191 @@ function renderState(
     $('#playsize').html('' + state.play.length)
     $('#handsize').html('' + state.hand.length)
     $('#discardsize').html('' + state.discard.length)
-    $('#log').html(renderLogs(state.logs))
+    setVisibleLog(state, globalRendererState.logType)
+    bindLogTypeButtons(state)
 }
 
-function renderLog(msg: string) {
-  return `<div class="log">${msg}</div>`
+function bindLogTypeButtons(state:State) {
+    const e = $(`input[name='logType']`)
+    e.off('change')
+    e.change(function() {
+        const logType = (this as any).value
+        globalRendererState.logType = logType
+        setVisibleLog(state, logType)
+    })
+}
+function setVisibleLog(state:State, logType:LogType) {
+    for (const logType of logTypes) {
+        const e = $(`.logOption[option=${logType}]`)
+        const choosable = e.attr('option') != globalRendererState.logType
+        e.attr('choosable', choosable ? 'true' : null)
+    }
+    $('#log').html(renderLogLines(state.logs[logType]))
 }
 
-function renderLogs(logs:string[]) {
+function renderLogLine(msg: string) {
+  return `<div class="logLine">${msg}</div>`
+}
+
+function renderLogLines(logs:string[]) {
     const result:string[] = []
     for (let i = logs.length-1; i >= 0; i--) {
-        result.push(renderLog(logs[i]))
+        result.push(renderLogLine(logs[i]))
+        /*
         if (i > 0 && result.length > 100) {
-            result.push(renderLog('... (earlier events truncated)'))
+            result.push(renderLogLine('... (earlier events truncated)'))
             break
         }
+        */
     }
     return result.join('')
+}
+
+// ------------------------------- Macros
+
+type CardMacro = {kind: 'card', card: Card}
+type StringMacro = {kind: 'string', string: string}
+type MacroStep = OptionRender
+type Macro = MacroStep[]
+
+//TODO: prefer better card matches
+function matchMacro<T>(
+    macro:MacroStep,
+    state:State,
+    options:Option<T>[]
+): (number|null) {
+    let renders:[OptionRender, number][];
+    renders = options.map((x, i) => [x.render, i]);
+    switch (macro.kind) {
+        case 'string':
+            renders = renders.filter(x =>
+                x[0].kind == 'string'
+                && x[0].string == macro.string
+            )
+            return (renders.length > 0) ? renders[0][1] : null
+        case 'card':
+            renders = renders.filter(x =>
+                x[0].kind == 'card'
+                && x[0].card.name == macro.card.name
+                && x[0].card.place == macro.card.place
+            )
+            return (renders.length > 0) ? renders[0][1] : null
+    }
 }
 
 
 // ------------------------------- Rendering choices
 
+interface ChoiceState {
+    state:State;
+    choicePrompt: string;
+    options: Option<any>[];
+    info: string[];
+    chosen: number[];
+    resolve: (n:number) => void;
+    reject: (x:any) => void;
+}
+
 class webUI {
     public undoing:boolean = false;
+    public macros: Macro[] = []
+    public recordingMacro: (MacroStep[]|null) = null
+    //invariant: whenever undoing = true, playingMacro = []
+    public playingMacro: MacroStep[] = []
+    //If the game is paused, these are the continuation
+    //(resolve is used to give an answer, reject to Undo)
+    //render is used to refresh the state
+    public choiceState:ChoiceState|null = null
     constructor() {}
-    choice<T>(
+    recordStep(x:OptionRender): void {
+        if(this.recordingMacro === null) return
+        this.recordingMacro.push(x)
+    }
+    matchNextMacroStep(): number|null {
+        const macro = this.playingMacro.shift()
+        if (macro !== undefined && this.choiceState != null) {
+            const option:number|null = matchMacro(
+                macro,
+                this.choiceState.state,
+                this.choiceState.options
+            )
+            if (option===null) this.playingMacro = []
+            return option
+        } else {
+            return null
+        }
+    }
+    clearChoice() {
+        this.choiceState = null
+        clearChoice()
+    }
+    resolveWithMacro() {
+        if (this.choiceState !== null) {
+            const option = this.matchNextMacroStep()
+            if (option !== null) this.choiceState.resolve(option)
+        }
+    }
+    render() {
+        if (this.choiceState != null) {
+            const cs = this.choiceState
+            renderChoice(
+                this,
+                cs.state,
+                cs.choicePrompt,
+                cs.options.map((x, i) => ({...x, value:() => cs.resolve(i)})),
+                cs.chosen.map(i => cs.options[i].render)
+            )
+        }
+    }
+    choice(
         state: State,
         choicePrompt: string,
-        options: Option<T>[],
+        options: Option<any>[],
         info: string[],
+        chosen: number[],
     ): Promise<number> {
         const ui:webUI = this;
-        const automate:number|null = this.automateChoice(state, options, info)
-        if (automate !== null) {
-            if (this.undoing) throw new Undo(state)
-            else return Promise.resolve(automate)
-        }
-        this.undoing = false;
         return new Promise(function(resolve, reject) {
+            function newResolve(n:number) {
+                ui.clearChoice()
+                ui.recordStep(options[n].render)
+                resolve(n)
+            }
             function newReject(reason:any) {
                 if (reason instanceof Undo) ui.undoing = true
+                ui.clearChoice()
                 reject(reason)
             }
-            function pick(i:number) {
-                clearChoice()
-                resolve(i)
+
+            ui.choiceState = {
+                state:state,
+                choicePrompt:choicePrompt,
+                options:options,
+                info:info,
+                chosen:chosen,
+                resolve:newResolve,
+                reject:newReject,
             }
-            function renderer() {
-                renderChoice(
-                    state,
-                    choicePrompt,
-                    options.map((x, i) => ({...x, value:() => pick(i)})),
-                    x => resolve(x[0]),
-                    newReject,
-                    renderer
-                )
+
+            const option:number|null = ui.matchNextMacroStep()
+            const chooseTrivial:number|null = ui.chooseTrivial(state, options, info)
+            if (option != null) {
+                newResolve(option)
+            } else if (chooseTrivial !== null) {
+                if (ui.undoing) {
+                    newReject(new Undo(state))
+                } else {
+                    newResolve(chooseTrivial)
+                }
+            } else {
+                ui.undoing = false;
+                ui.render()
             }
-            renderer()
         })
     }
-    automateChoice<T>(
+    chooseTrivial(
         state:State,
-        options: Option<T>[],
+        options: Option<any>[],
         info: string[],
     ): number|null {
         if (info.indexOf('tutorial') != -1) return null
@@ -491,104 +641,25 @@ class webUI {
         if (options.length == 1) return 0
         return null
     }
-    multichoice<T>(
-        state: State,
-        choicePrompt: string,
-        options: Option<T>[],
-        validator:((xs:T[]) => boolean) = (xs => true),
-        info: string[],
-    ): Promise<number[]> {
-        const ui:webUI = this;
-        const automate:number[]|null = this.automateMultichoice(state, options, info)
-        if (automate !== null) {
-            if (this.undoing) throw new Undo(state)
-            else return Promise.resolve(automate)
-        }
-        this.undoing = false;
-        return new Promise(function(resolve, reject){
-            function newReject(reason:any) {
-                if (reason instanceof Undo) ui.undoing = true
-                reject(reason)
-            }
-            const chosen:Set<number> = new Set()
-            function chosenOptions(): T[] {
-                const result = []
-                for (let i of chosen) result.push(options[i].value)
-                return result
-            }
-            function isReady(): boolean {
-                return validator(chosenOptions())
-            }
-            const submitIndex = options.length
-            function setReady(): void {
-                if (isReady()) {
-                    $(`[option='${submitIndex}']`).attr('choosable', 'true')
-                } else {
-                    $(`[option='${submitIndex}']`).removeAttr('choosable')
-                }
-            }
-            function elem(i:number): any {
-                return $(`[option='${i}']`)
-            }
-            function picks(): Map<ID|string, number> {
-                const result = new Map<ID|string, number>()
-                var i = 0;
-                for (const k of chosen) {
-                    result.set(options[k].render, i++)
-                }
-                return result
-            }
-            function pick(i:number): void {
-                if (chosen.has(i)) {
-                    chosen.delete(i)
-                    elem(i).attr('chosen', false)
-                } else {
-                    chosen.add(i)
-                    elem(i).attr('chosen', true)
-                }
-                renderer()
-                setReady()
-            }
-            const newOptions:Option<() => void>[] = options.map(
-                (x, i) => ({...x, value: () => pick(i)})
-            )
-            const hint:HotkeyHint = {kind:'key', val:' '}
-            newOptions.push({render:'Done', hotkeyHint: hint, value: () => {
-                if (isReady()) {
-                    resolve(Array.from(chosen.values()))
-                }
-            }})
-            chosen.clear()
-            function renderer() {
-                renderChoice(state, choicePrompt, newOptions, resolve, newReject, renderer, picks)
-                for (const j of chosen) elem(j).attr('chosen', true)
-            }
-            renderer()
-        })
-    }
-    automateMultichoice<T>(
-        state:State,
-        options: Option<T>[],
-        info: string[],
-    ): number[]|null {
-        if (options.length == 0) return []
-        return null
-    }
+    //NOTE: we always undo after resolving the victory promise
+    //(and we won't catch an undo here)
+    //(would be nice to clean this up so you use undo to go back)
     async victory(state:State): Promise<void> {
+        const ui:webUI = this;
         const submitOrUndo: () => Promise<void> = () =>
             new Promise(function (resolve, reject) {
+                ui.undoing = true;
                 heartbeat(state.spec)
                 const submitDialog = () => {
                     keyListeners.clear()
                     renderScoreSubmission(state, () => submitOrUndo().then(resolve, reject))
                 }
                 const options:Option<() => void>[] = (!submittable(state.spec)) ? [] : [{
-                        render: 'Submit',
+                        render: {kind:'string', string:'Submit'},
                         value: submitDialog,
                         hotkeyHint: {kind:'key', val:'!'}
                     }]
-                renderChoice(state, `You won using ${state.energy} energy!`,
-                    options, resolve, resolve, () => {})
+                renderChoice(ui, state, `You won using ${state.energy} energy!`, options)
             })
         return submitOrUndo()
     }
@@ -599,42 +670,44 @@ interface StringOption<T> {
     value: T
 }
 
-
 function renderChoice(
+    ui:webUI|null,
     state: State,
     choicePrompt: string,
     options: Option<() => void>[],
-    resolve:((x:any) => void),
-    reject:((x:any) => void),
-    renderer:() => void,
-    picks?: () => Map<ID|string, number>,
+    picks: Array<OptionRender>=[],
 ): void {
 
     const optionsMap:Map<number,number> = new Map() //map card ids to their position in the choice list
     const stringOptions:StringOption<number>[] = [] // values are indices into options
     for (let i = 0; i < options.length; i++) {
         const rendered:OptionRender = options[i].render
+        switch (rendered.kind) {
+            case 'string':
+                stringOptions.push({render:rendered.string, value:i})
+                break
+            case 'card':
+                optionsMap.set(rendered.card.id, i)
+                break
+            default: assertNever(rendered)
+        }
         if (typeof rendered == 'string') {
-            stringOptions.push({render:(rendered as string), value:i})
         } else if (typeof rendered === 'number') {
-            optionsMap.set((rendered as ID), i)
         }
     }
 
-    let hotkeyMap:Map<OptionRender,Key>;
-    let pickMap:Map<OptionRender,number>;
+    let hotkeyMap:Map<RenderKey,Key>;
+    let pickMap:Map<RenderKey,number>;
     if (globalRendererState.hotkeysOn) {
         hotkeyMap = globalRendererState.hotkeyMapper.map(state, options)
     }
     else {
         hotkeyMap = new Map()
     }
-    if (picks != undefined) {
-        pickMap = picks()
-    } else {
-        pickMap = new Map()
+    pickMap = new Map()
+    for (const [i, x] of picks.entries()) {
+        pickMap.set(renderKey(x), i)
     }
-
     renderState(state, {
         hotkeyMap: hotkeyMap,
         optionsMap:optionsMap,
@@ -645,7 +718,7 @@ function renderChoice(
     $('#choicePrompt').html(choicePrompt)
     $('#options').html(stringOptions.map(localRender).join(''))
     $('#undoArea').html(renderSpecials(state))
-    bindSpecials(state, resolve, reject, renderer)
+    if (ui !== null) bindSpecials(state, ui)
 
     function elem(i:number): any {
         return $(`[option='${i}']`)
@@ -654,7 +727,7 @@ function renderChoice(
         const option = options[i];
         const f: () => void = option.value;
         elem(i).on('click', f)
-        let hotkey:Key|undefined = hotkeyMap.get(option.render)
+        let hotkey:Key|undefined = hotkeyMap.get(renderKey(option.render))
         if (hotkey != undefined) keyListeners.set(hotkey, f)
     }
 
@@ -676,6 +749,7 @@ function renderSpecials(state:State): string {
         renderUndo(state.undoable()),
         renderRedo(state.redo.length > 0),
         renderHotkeyToggle(),
+        renderMacroToggle(),
         renderKingdomViewer(),
         renderHelp(),
         renderRestart()
@@ -689,7 +763,9 @@ function renderRestart(): string {
 function renderKingdomViewer(): string {
     return `<span id='viewKingdom' class='option', option='viewKingdom' choosable chosen='false'>Kingdom</span>`
 }
-
+function renderMacroToggle(): string {
+    return `<span id='macroToggle' class='option', option='macroToggle' choosable chosen='false'>Macros</span>`
+}
 function renderHotkeyToggle(): string {
     return `<span class='option', option='hotkeyToggle' choosable chosen='false'>${renderHotkey('/')} Hotkeys</span>`
 }
@@ -712,15 +788,14 @@ function renderRedo(redoable:boolean): string {
 
 function bindSpecials(
     state:State,
-    accept: ((x:any) => void),
-    reject: ((x:any) => void),
-    renderer: () => void
+    ui:webUI
 ): void {
-    bindHotkeyToggle(renderer)
-    bindUndo(state, reject)
-    bindHelp(state, renderer)
+    bindHotkeyToggle(ui.render)
+    bindHelp(state, ui.render)
     bindRestart(state)
-    bindRedo(state, accept)
+    bindUndo(state, ui)
+    bindRedo(state, ui)
+    if (ui !== null) bindMacroToggle(ui)
     bindViewKingdom(state)
 }
 
@@ -739,7 +814,100 @@ function bindViewKingdom(state:State): void {
         }
     }
     $(`[option='viewKingdom']`).on('click', onClick)
+
 }
+
+//TODO: move globalRendererState into the webUI...
+//TODO: these should probably all be webUI methods...
+function bindMacroToggle(ui:webUI) {
+    function onClick() {
+        const e = $('#macroSpot')
+        if (globalRendererState.viewingMacros) {
+            e.html('')
+            globalRendererState.viewingMacros = false
+        } else {
+            makeMacroButtons(ui, e)
+            globalRendererState.viewingMacros = true
+        }
+    }
+    const e = $(`[option='macroToggle']`)
+    e.off('click')
+    e.on('click', onClick)
+}
+
+function makeMacroButtons(ui:webUI, e:any) {
+    const contents = [renderRecordMacroButton(ui)].concat(
+        ui.macros.map(renderPlayMacroButton)
+    ).join('')
+    e.html(`<div id='macros'>${contents}</div>`)
+    bindRecordMacroButton(ui)
+    bindPlayMacroButtons(ui)
+}
+
+function renderRecordMacroButton(ui:webUI): string {
+    const buttonText = (ui.recordingMacro === null)
+        ? 'Start recording'
+        : 'Stop recording'
+    return `<span id='recordMacro' class='option'
+             option='recordMacro' choosable chosen='false'>
+                 ${buttonText}
+             </span>`
+}
+
+function renderPlayMacroButton(macro:Macro, index:number): string {
+    const optionText = `macro${index}`
+    const firstStep = macro[0]
+    const firstStepText = (firstStep.kind == 'card')
+        ? firstStep.card.name
+        : firstStep.string
+    const buttonText = `${firstStepText}...`
+    return `<span id='playMacro' class='option'
+             option='${optionText}' choosable chosen='false'>
+                 ${buttonText}
+             </span>`
+}
+
+function bindRecordMacroButton(ui:webUI) {
+    function onClick() {
+        if (ui.recordingMacro === null) {
+            ui.recordingMacro = []
+        } else if (ui.recordingMacro.length == 0) {
+            ui.recordingMacro = null
+        } else {
+            ui.macros.push(ui.recordingMacro)
+            ui.recordingMacro = null
+        }
+        makeMacroButtons(ui, $('#macroSpot'))
+    }
+    const e = $(`[option='recordMacro'`)
+    e.off('click')
+    e.on('click', onClick)
+}
+
+
+function bindPlayMacroButtons(ui:webUI): void {
+    function onClick(i:number) {
+        console.log('?')
+        if (ui.choiceState !== null && ui.playingMacro.length == 0) {
+            console.log('!')
+            ui.playingMacro = ui.macros[i].slice()
+            ui.resolveWithMacro()
+        }
+    }
+    for (const [i, macro] of ui.macros.entries()) {
+        const e = $(`[option='macro${i}'`)
+        e.off('click')
+        e.on('click', () => onClick(i))
+    }
+}
+
+function unbindPlayMacroButtons(ui:webUI) {
+    for (const [i, macro] of ui.macros.entries()) {
+        const e = $(`[option='macro${i}'`)
+        e.off('click')
+    }
+}
+
 
 function bindHotkeyToggle(renderer: () => void) {
     function pick() {
@@ -754,17 +922,21 @@ function bindRestart(state:State): void {
     $(`[option='restart']`).on('click', () => restart(state))
 }
 
-function bindRedo(state:State, accept: ((x:any) => void)): void {
+function bindRedo(state:State, ui:webUI): void {
     function pick() {
-        if (state.redo.length > 0) accept(state.redo[state.redo.length - 1])
+        if (ui.choiceState != null && state.redo.length > 0) {
+            ui.choiceState.resolve(state.redo[state.redo.length - 1])
+        }
     }
     keyListeners.set('Z', pick)
     $(`[option='redo']`).on('click', pick)
 }
 
-function bindUndo(state:State, reject: ((x:any) => void)): void {
+function bindUndo(state:State, ui:webUI): void {
     function pick() {
-        if (state.undoable()) reject(new Undo(state))
+        if (ui.choiceState != null && state.undoable()) {
+            ui.choiceState.reject(new Undo(state))
+        }
     }
     keyListeners.set('z', pick)
     $(`[option='undo']`).on('click', pick)
@@ -891,6 +1063,7 @@ class tutorialUI {
         choicePrompt: string,
         options: Option<T>[],
         info: string[],
+        chosen: number[],
     ): Promise<number> {
         if (this.stage < this.stages.length) {
             const stage = this.stages[this.stage]
@@ -901,7 +1074,8 @@ class tutorialUI {
                 state,
                 choicePrompt,
                 options,
-                info.concat(['tutorial'])
+                info.concat(['tutorial']),
+                chosen,
             ).then(x => {
                 this.stage += 1
                 return (validIndex != undefined) ? validIndex : x
@@ -915,22 +1089,7 @@ class tutorialUI {
             renderTutorialMessage(stage.text)
             return result
         }
-        else return this.innerUI.choice(state, choicePrompt, options, info)
-    }
-    async multichoice<T>(
-        state: State,
-        choicePrompt: string,
-        options: Option<T>[],
-        validator:((xs:T[]) => boolean) = (xs => true),
-        info: string[],
-    ) {
-        return this.innerUI.multichoice(
-            state,
-            choicePrompt,
-            options,
-            validator,
-            info.concat(['tutorial'])
-        )
+        else return this.innerUI.choice(state, choicePrompt, options, info, chosen)
     }
     async victory(state:State) {
         return this.innerUI.victory(state)
@@ -1070,7 +1229,6 @@ function renderScoreSubmission(state:State, done:() => void) {
         const username:string = $('#username').val() as string
         if (username.length > 0) {
             rememberUsername(username)
-            console.log(url)
             const query = [
                 `url=${encodeURIComponent(url)}`,
                 `score=${score}`,
@@ -1193,7 +1351,8 @@ function startGame(state:State, ui?:UI): void {
             alert(e)
             playGame(e.state.clearFuture())
         } else {
-            alert(e)
+            //alert(e)
+            throw e
         }
     })
 }
@@ -1279,13 +1438,17 @@ export function loadPicker(): void {
             $('#requireLink').removeAttr('href')
         }
     }
-    renderChoice(state,
+    function makeOption(card:Card, i:number):Option<() => void>{
+        return {
+            value: () => pick(i),
+            render: {kind:'card', card:card}
+        }
+    }
+    renderChoice(null, state,
         'Choose which events and cards to use.',
-        state.supply.map((card, i) => ({
-            render: card.id,
-            value: () => pick(i)
-        })).concat(state.events.map((card, i) => ({
-            render: card.id,
-            value: () => pick(cards.length + i)
-        }))), trivial, trivial, trivial, undefined)
+        state.supply.map(
+            (card, i) => makeOption(card, i)
+        ).concat(state.events.map(
+            (card, i) => makeOption(card, cards.length+i)
+        )))
 }

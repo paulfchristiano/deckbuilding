@@ -2,6 +2,12 @@
 .helpLine, .sizeDescription, .homeLine {
     font-size: 1.25em;
 }
+.logTypes {
+    font-size: 1em;
+}
+.logLine {
+    font-size: 1em;
+}
 .homeLine {
     max-width: 30em;
     margin-bottom: 1em;
