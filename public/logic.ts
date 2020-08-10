@@ -1,4 +1,4 @@
-export const VERSION = "1.4"
+export const VERSION = "1.4.1"
 
 // ----------------------------- Formatting
 
@@ -2362,7 +2362,7 @@ const herald:CardSpec = {name: Herald,
 buyable(herald, 3)
 
 const village:CardSpec = {name: 'Village',
-    effects:  [actionsEffect(1), createEffect(villager)]
+    effects:  [actionsEffect(1), villagerEffect()]
 }
 buyable(village, 4)
 
