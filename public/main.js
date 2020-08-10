@@ -723,7 +723,7 @@ var webUI = /** @class */ (function () {
                             options: options,
                             info: ["victory"],
                             chosen: [],
-                            resolve: function () { },
+                            resolve: submitDialog,
                             reject: newReject,
                         };
                         ui.render();

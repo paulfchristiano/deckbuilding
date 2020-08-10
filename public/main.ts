@@ -670,7 +670,7 @@ class webUI {
                     options:options,
                     info:["victory"],
                     chosen:[],
-                    resolve:() => {},
+                    resolve:submitDialog,
                     reject:newReject,
                 }
                 ui.render()
