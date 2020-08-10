@@ -706,12 +706,27 @@ var webUI = /** @class */ (function () {
                             keyListeners.clear();
                             renderScoreSubmission(state, function () { return submitOrUndo().then(resolve, reject); });
                         };
+                        function newReject(reason) {
+                            if (reason instanceof Undo)
+                                ui.undoing = true;
+                            ui.clearChoice();
+                            reject(reason);
+                        }
                         var options = (!submittable(state.spec)) ? [] : [{
                                 render: { kind: 'string', string: 'Submit' },
                                 value: submitDialog,
                                 hotkeyHint: { kind: 'key', val: '!' }
                             }];
-                        renderChoice(ui, state, "You won using " + state.energy + " energy!", options);
+                        ui.choiceState = {
+                            state: state,
+                            choicePrompt: "You won using " + state.energy + " energy!",
+                            options: options,
+                            info: ["victory"],
+                            chosen: [],
+                            resolve: function () { },
+                            reject: newReject,
+                        };
+                        ui.render();
                     });
                 };
                 return [2 /*return*/, submitOrUndo()];

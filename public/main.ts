@@ -654,12 +654,26 @@ class webUI {
                     keyListeners.clear()
                     renderScoreSubmission(state, () => submitOrUndo().then(resolve, reject))
                 }
+                function newReject(reason:any) {
+                    if (reason instanceof Undo) ui.undoing = true
+                    ui.clearChoice()
+                    reject(reason)
+                }
                 const options:Option<() => void>[] = (!submittable(state.spec)) ? [] : [{
                         render: {kind:'string', string:'Submit'},
                         value: submitDialog,
                         hotkeyHint: {kind:'key', val:'!'}
                     }]
-                renderChoice(ui, state, `You won using ${state.energy} energy!`, options)
+                ui.choiceState = {
+                    state:state,
+                    choicePrompt:`You won using ${state.energy} energy!`,
+                    options:options,
+                    info:["victory"],
+                    chosen:[],
+                    resolve:() => {},
+                    reject:newReject,
+                }
+                ui.render()
             })
         return submitOrUndo()
     }
