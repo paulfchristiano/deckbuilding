@@ -414,7 +414,7 @@ const noUI:UI = {
         throw new ReplayEnded(state)
     },
     async victory(state:State): Promise<void> {
-        throw new Victory(state)
+        throw new ReplayVictory(state)
     }
 }
 
@@ -1165,6 +1165,13 @@ export class Victory extends Error {
     }
 }
 
+export class ReplayVictory extends Error {
+    constructor(public state:State) {
+        super('ReplayVictory')
+        Object.setPrototypeOf(this, ReplayVictory.prototype)
+    }
+}
+
 function gainEnergy(n:number, source:Source=unk): Transform {
     return gainResource('energy', n, source)
 }
@@ -1552,7 +1559,7 @@ export async function verifyScore(spec:GameSpec, history:string, score:number): 
         await playGame(State.fromReplayString(history, spec))
         return [true, ""] //unreachable
     } catch(e) {
-        if (e instanceof Victory) {
+        if (e instanceof ReplayVictory) {
             if (e.state.energy == score)
                 return [true, ""]
             else

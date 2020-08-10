@@ -484,7 +484,7 @@ var noUI = {
     victory: function (state) {
         return __awaiter(this, void 0, void 0, function () {
             return __generator(this, function (_a) {
-                throw new Victory(state);
+                throw new ReplayVictory(state);
             });
         });
     }
@@ -1488,6 +1488,17 @@ var Victory = /** @class */ (function (_super) {
     return Victory;
 }(Error));
 export { Victory };
+var ReplayVictory = /** @class */ (function (_super) {
+    __extends(ReplayVictory, _super);
+    function ReplayVictory(state) {
+        var _this = _super.call(this, 'ReplayVictory') || this;
+        _this.state = state;
+        Object.setPrototypeOf(_this, ReplayVictory.prototype);
+        return _this;
+    }
+    return ReplayVictory;
+}(Error));
+export { ReplayVictory };
 function gainEnergy(n, source) {
     if (source === void 0) { source = unk; }
     return gainResource('energy', n, source);
@@ -1948,7 +1959,7 @@ export function verifyScore(spec, history, score) {
                     return [2 /*return*/, [true, ""]]; //unreachable
                 case 2:
                     e_26 = _a.sent();
-                    if (e_26 instanceof Victory) {
+                    if (e_26 instanceof ReplayVictory) {
                         if (e_26.state.energy == score)
                             return [2 /*return*/, [true, ""]];
                         else
