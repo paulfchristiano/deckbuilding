@@ -874,16 +874,19 @@ function bindViewKingdom(state) {
 //TODO: move globalRendererState into the webUI...
 //TODO: these should probably all be webUI methods...
 function bindMacroToggle(ui) {
-    function onClick() {
+    function makeMacroButtonsIfNeeded() {
         var e = $('#macroSpot');
         if (globalRendererState.viewingMacros) {
-            e.html('');
-            globalRendererState.viewingMacros = false;
+            makeMacroButtons(ui, e);
         }
         else {
-            makeMacroButtons(ui, e);
-            globalRendererState.viewingMacros = true;
+            e.html('');
         }
+    }
+    makeMacroButtonsIfNeeded();
+    function onClick() {
+        globalRendererState.viewingMacros = !globalRendererState.viewingMacros;
+        makeMacroButtonsIfNeeded();
     }
     var e = $("[option='macroToggle']");
     e.off('click');
@@ -1391,10 +1394,11 @@ function restart(state) {
     //TODO: detach the UI to avoid a race?
     //TODO: clear hearatbeat? (currently assumes spec is the same...)
     var spec = state.spec;
+    var ui = state.ui;
     state = initialState(spec);
     globalRendererState.userURL = false;
     window.history.pushState(null, "");
-    playGame(state.attachUI(new webUI())).catch(function (e) {
+    playGame(state.attachUI(ui)).catch(function (e) {
         if (e instanceof InvalidHistory) {
             alert(e);
             playGame(e.state.clearFuture());
