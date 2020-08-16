@@ -2875,7 +2875,8 @@ var herald = { name: Herald,
 };
 buyable(herald, 3);
 var village = { name: 'Village',
-    effects: [actionsEffect(1), villagerEffect()]
+    effects: [actionsEffect(1), villagerEffect()],
+    relatedCards: [villager],
 };
 buyable(village, 4);
 var bridge = { name: 'Bridge',
@@ -3187,7 +3188,7 @@ var finance = { name: 'Finance',
 registerEvent(finance);
 var territory = { name: 'Territory',
     fixedCost: energy(1),
-    effects: [coinsEffect(3), pointsEffect(2), buyEffect()],
+    effects: [coinsEffect(2), pointsEffect(2), buyEffect()],
 };
 buyable(territory, 5);
 /*
@@ -4424,14 +4425,76 @@ var haggler = {
     name: 'Haggler',
     fixedCost: energy(1),
     effects: [coinsEffect(2), toPlay()],
-    triggers: [{
-            text: "Whenever you buy a card the normal way,\n        buy a card in the supply costing at least $1 less.",
-            kind: 'buy',
-            handles: function (p) { return p.source.name == 'act'; },
-            transform: function (p, state, card) { return applyToTarget(function (target) { return target.buy(card); }, "Choose a cheaper card to buy.", function (s) { return s.supply.filter(function (c) { return leq(addCosts(c.cost('buy', s), { coin: 1 }), p.card.cost('buy', s)); }); }); }
-        }]
 };
-buyable(haggler, 6);
+buyableAnd(haggler, 6, {
+    triggers: [{
+            text: "After buying a card the normal way,\n        buy an additional card for each " + haggler.name + " in play.\n        Each card you buy this way must cost at least $1 less than the previous one.",
+            kind: 'afterBuy',
+            handles: function (p) { return p.source.name == 'act'; },
+            transform: function (p, state, card) { return function (state) {
+                return __awaiter(this, void 0, void 0, function () {
+                    var lastCard, lastCost, hagglers, haggler_1, target;
+                    var _a;
+                    return __generator(this, function (_b) {
+                        switch (_b.label) {
+                            case 0:
+                                lastCard = p.card;
+                                lastCost = lastCard.cost('buy', p.before);
+                                hagglers = state.play.filter(function (c) { return c.name == haggler.name; });
+                                _b.label = 1;
+                            case 1:
+                                if (!true) return [3 /*break*/, 5];
+                                haggler_1 = hagglers.shift();
+                                if (haggler_1 === undefined) {
+                                    return [2 /*return*/, state];
+                                }
+                                state = state.startTicker(haggler_1);
+                                target = void 0;
+                                return [4 /*yield*/, choice(state, "Choose a cheaper card than " + lastCard.name + " to buy.", state.supply.filter(function (c) { return leq(addCosts(c.cost('buy', state), { coin: 1 }), lastCost); }).map(asChoice))];
+                            case 2:
+                                _a = __read.apply(void 0, [_b.sent(), 2]), state = _a[0], target = _a[1];
+                                if (!(target !== null)) return [3 /*break*/, 4];
+                                lastCard = target;
+                                lastCost = lastCard.cost('buy', state);
+                                return [4 /*yield*/, target.buy(card)(state)];
+                            case 3:
+                                state = _b.sent();
+                                _b.label = 4;
+                            case 4:
+                                state = state.endTicker(haggler_1);
+                                hagglers = hagglers.filter(function (c) { return state.find(c).place == 'play'; });
+                                return [3 /*break*/, 1];
+                            case 5: return [2 /*return*/];
+                        }
+                    });
+                });
+            }; }
+        }]
+});
+/*
+const haggler:CardSpec = {
+    name: 'Haggler',
+    fixedCost: energy(1),
+    effects: [coinsEffect(2), toPlay()],
+    triggers: [{
+        text: `Whenever you buy a card the normal way,
+        buy a card in the supply costing at least $1 less.`,
+        kind: 'buy',
+        handles: p => p.source.name == 'act',
+        transform: (p, state, card) => applyToTarget(
+            target => target.buy(card),
+            "Choose a cheaper card to buy.",
+            s => s.supply.filter(
+                c => leq(
+                    addCosts(c.cost('buy', s), {coin:1}),
+                    p.card.cost('buy', s)
+                )
+            )
+        )
+    }]
+}
+buyable(haggler, 6)
+*/
 var reuse = {
     name: 'Reuse',
     fixedCost: energy(2),

@@ -2376,7 +2376,8 @@ const herald:CardSpec = {name: Herald,
 buyable(herald, 3)
 
 const village:CardSpec = {name: 'Village',
-    effects:  [actionsEffect(1), villagerEffect()]
+    effects:  [actionsEffect(1), villagerEffect()],
+    relatedCards: [villager],
 }
 buyable(village, 4)
 
@@ -2687,7 +2688,7 @@ registerEvent(finance)
 
 const territory:CardSpec = {name: 'Territory',
     fixedCost: energy(1),
-    effects: [coinsEffect(3), pointsEffect(2), buyEffect()],
+    effects: [coinsEffect(2), pointsEffect(2), buyEffect()],
 }
 buyable(territory, 5)
 
@@ -3892,6 +3893,47 @@ const haggler:CardSpec = {
     name: 'Haggler',
     fixedCost: energy(1),
     effects: [coinsEffect(2), toPlay()],
+}
+buyableAnd(haggler, 6, {
+    triggers: [{
+        text: `After buying a card the normal way,
+        buy an additional card for each ${haggler.name} in play.
+        Each card you buy this way must cost at least $1 less than the previous one.`,
+        kind: 'afterBuy',
+        handles: p => p.source.name == 'act',
+        transform: (p, state, card) => async function(state) {
+            let lastCard:Card = p.card
+            let lastCost:Cost = lastCard.cost('buy', p.before)
+            let hagglers:Card[] = state.play.filter(c => c.name == haggler.name)
+            while (true) {
+                const haggler:Card|undefined = hagglers.shift()
+                if (haggler === undefined) {
+                    return state
+                }
+                state = state.startTicker(haggler)
+                let target:Card|null; [state, target] = await choice(state,
+                    `Choose a cheaper card than ${lastCard.name} to buy.`,
+                     state.supply.filter(c => leq(
+                        addCosts(c.cost('buy', state), {coin:1}),
+                        lastCost
+                    )).map(asChoice)
+                )
+                if (target !== null) {
+                    lastCard = target
+                    lastCost = lastCard.cost('buy', state)
+                    state = await target.buy(card)(state)
+                }
+                state = state.endTicker(haggler)
+                hagglers = hagglers.filter(c => state.find(c).place=='play')
+            }
+        }
+    }]
+})
+/*
+const haggler:CardSpec = {
+    name: 'Haggler',
+    fixedCost: energy(1),
+    effects: [coinsEffect(2), toPlay()],
     triggers: [{
         text: `Whenever you buy a card the normal way,
         buy a card in the supply costing at least $1 less.`,
@@ -3910,6 +3952,7 @@ const haggler:CardSpec = {
     }]
 }
 buyable(haggler, 6)
+*/
 
 const reuse:CardSpec = {
     name: 'Reuse',
