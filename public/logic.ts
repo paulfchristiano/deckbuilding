@@ -2686,22 +2686,17 @@ const finance:CardSpec = {name: 'Finance',
 }
 registerEvent(finance)
 
+const flowerMarket:CardSpec = {
+    name: 'Flower Market',
+    effects: [buyEffect(), pointsEffect(1)],
+}
+buyableAnd(flowerMarket, 2, {onBuy: [pointsEffect(1)]})
+/*
 const territory:CardSpec = {name: 'Territory',
     fixedCost: energy(1),
     effects: [coinsEffect(2), pointsEffect(2), buyEffect()],
 }
 buyable(territory, 5)
-
-/*
-const repurpose:CardSpec = {name: 'Repurpose',
-    fixedCost: energy(2),
-    effects: [{
-        text: ['Lose all $ and buys.'],
-        transform: (state, card) => doAll([setResource('coin', 0, card),
-                                 setResource('buys', 0, card)])
-    }, ploughEffect(), buyEffect()]
-}
-registerEvent(repurpose)
 */
 
 const coffers:CardSpec = {name: 'Coffers',
@@ -2730,7 +2725,7 @@ registerEvent(coffers)
 const vibrantCity:CardSpec = {name: 'Vibrant City',
     effects: [pointsEffect(1), actionsEffect(1)],
 }
-buyable(vibrantCity, 6)
+buyable(vibrantCity, 4)
 
 function chargeUpTo(max:number): Effect {
     return {
@@ -3465,7 +3460,7 @@ const dragon:CardSpec = {name: 'Dragon',
               actionsEffect(4), coinsEffect(4), buyEffect()]
 }
 const egg:CardSpec = {name: 'Egg',
-    fixedCost: energy(2),
+    fixedCost: energy(1),
     relatedCards: [dragon],
     effects: [chargeEffect(), {
         text: [`If this has three or more charge tokens on it, trash it and 
@@ -3474,7 +3469,7 @@ const egg:CardSpec = {name: 'Egg',
             doAll([trash(card), create(dragon, 'hand')]) : noop
     }]
 }
-buyable(egg, 5)
+buyable(egg, 4)
 
 const looter:CardSpec = {name: 'Looter',
     effects: [{
@@ -3492,11 +3487,11 @@ const looter:CardSpec = {name: 'Looter',
 }
 buyable(looter, 5)
 
-const empire:CardSpec = {name: 'Empire',
+const palace:CardSpec = {name: 'Palace',
     fixedCost: energy(1),
     effects: [actionsEffect(3), pointsEffect(3), coinsEffect(3)]
 }
-buyable(empire, 10)
+buyable(palace, 10)
 
 const Innovation:string = 'Innovation'
 const innovation:CardSpec = {name: Innovation,
@@ -3894,7 +3889,7 @@ const haggler:CardSpec = {
     fixedCost: energy(1),
     effects: [coinsEffect(2), toPlay()],
 }
-buyableAnd(haggler, 6, {
+buyableAnd(haggler, 5, {
     triggers: [{
         text: `After buying a card the normal way,
         buy an additional card for each ${haggler.name} in play.

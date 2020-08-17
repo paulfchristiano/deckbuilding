@@ -3186,21 +3186,17 @@ var finance = { name: 'Finance',
     effects: [actionsEffect(1)],
 };
 registerEvent(finance);
-var territory = { name: 'Territory',
+var flowerMarket = {
+    name: 'Flower Market',
+    effects: [buyEffect(), pointsEffect(1)],
+};
+buyableAnd(flowerMarket, 2, { onBuy: [pointsEffect(1)] });
+/*
+const territory:CardSpec = {name: 'Territory',
     fixedCost: energy(1),
     effects: [coinsEffect(2), pointsEffect(2), buyEffect()],
-};
-buyable(territory, 5);
-/*
-const repurpose:CardSpec = {name: 'Repurpose',
-    fixedCost: energy(2),
-    effects: [{
-        text: ['Lose all $ and buys.'],
-        transform: (state, card) => doAll([setResource('coin', 0, card),
-                                 setResource('buys', 0, card)])
-    }, ploughEffect(), buyEffect()]
 }
-registerEvent(repurpose)
+buyable(territory, 5)
 */
 var coffers = { name: 'Coffers',
     effects: [{
@@ -3241,7 +3237,7 @@ registerEvent(coffers);
 var vibrantCity = { name: 'Vibrant City',
     effects: [pointsEffect(1), actionsEffect(1)],
 };
-buyable(vibrantCity, 6);
+buyable(vibrantCity, 4);
 function chargeUpTo(max) {
     return {
         text: ["Put a charge token on this if it has less than " + max + "."],
@@ -3969,7 +3965,7 @@ var dragon = { name: 'Dragon',
         actionsEffect(4), coinsEffect(4), buyEffect()]
 };
 var egg = { name: 'Egg',
-    fixedCost: energy(2),
+    fixedCost: energy(1),
     relatedCards: [dragon],
     effects: [chargeEffect(), {
             text: ["If this has three or more charge tokens on it, trash it and \n        create " + a(dragon.name) + " in your hand."],
@@ -3977,7 +3973,7 @@ var egg = { name: 'Egg',
                 doAll([trash(card), create(dragon, 'hand')]) : noop; }
         }]
 };
-buyable(egg, 5);
+buyable(egg, 4);
 var looter = { name: 'Looter',
     effects: [{
             text: ["Discard up to three cards from your hand.",
@@ -4005,11 +4001,11 @@ var looter = { name: 'Looter',
         }]
 };
 buyable(looter, 5);
-var empire = { name: 'Empire',
+var palace = { name: 'Palace',
     fixedCost: energy(1),
     effects: [actionsEffect(3), pointsEffect(3), coinsEffect(3)]
 };
-buyable(empire, 10);
+buyable(palace, 10);
 var Innovation = 'Innovation';
 var innovation = { name: Innovation,
     effects: [actionsEffect(1), toPlay()],
@@ -4426,7 +4422,7 @@ var haggler = {
     fixedCost: energy(1),
     effects: [coinsEffect(2), toPlay()],
 };
-buyableAnd(haggler, 6, {
+buyableAnd(haggler, 5, {
     triggers: [{
             text: "After buying a card the normal way,\n        buy an additional card for each " + haggler.name + " in play.\n        Each card you buy this way must cost at least $1 less than the previous one.",
             kind: 'afterBuy',
