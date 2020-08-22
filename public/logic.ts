@@ -1926,7 +1926,6 @@ export async function playGame(state:State): Promise<void> {
                 state = undo(error.state)
             } else if (error instanceof SetState) {
                 state = undoOrSet(error.state, state)
-                console.log(state.redo)
             } else if (error instanceof Victory) {
                 state = error.state
                 victorious = true
@@ -1956,7 +1955,6 @@ function undoOrSet(to:State, from:State): State {
             if (i >= newHistory.length) {
                 newRedo.push(e)
             } else if (newHistory[i] != e) {
-                console.log(`failing because ${newHistory[i]} = newHistory[${i}] != ${e}`)
                 predecessor = false;
             }
         }

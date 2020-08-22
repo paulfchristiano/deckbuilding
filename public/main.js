@@ -492,6 +492,9 @@ function resetGlobalRenderer() {
     globalRendererState.hotkeyMapper = new HotkeyMapper();
     globalRendererState.tokenRenderer = new TokenRenderer();
 }
+function linkForState(state) {
+    return "play?" + specToURL(state.spec) + "#" + state.serializeHistory(false);
+}
 function renderState(state, settings) {
     if (settings === void 0) { settings = {}; }
     window.renderedState = state;
@@ -508,7 +511,7 @@ function renderState(state, settings) {
     }
     if (settings.updateURL === undefined || settings.updateURL) {
         globalRendererState.userURL = false;
-        window.history.replaceState(null, "", "play?" + specToURL(state.spec) + "#" + state.serializeHistory(false));
+        window.history.replaceState(null, "", linkForState(state));
     }
     $('#resolvingHeader').html('Resolving:');
     $('#energy').html(state.energy.toString());
@@ -837,11 +840,12 @@ function renderSpecials(state) {
         renderMacroToggle(),
         renderKingdomViewer(),
         renderHelp(),
-        renderRestart()
+        renderRestart(),
+        renderDeepLink()
     ].join('');
 }
 function renderRestart() {
-    return "<span id='deeplink' class='option', option='restart' choosable chosen='false'>Restart</span>";
+    return "<span id='restart' class='option', option='restart' choosable chosen='false'>Restart</span>";
 }
 function renderKingdomViewer() {
     return "<span id='viewKingdom' class='option', option='viewKingdom' choosable chosen='false'>Kingdom</span>";
@@ -875,6 +879,7 @@ function bindSpecials(state, ui) {
     if (ui !== null)
         bindMacroToggle(ui);
     bindViewKingdom(state);
+    bindDeepLink(state);
 }
 function bindViewKingdom(state) {
     function onClick() {
@@ -1034,6 +1039,16 @@ function bindUndo(state, ui) {
     keyListeners.set('z', pick);
     $("[option='undo']").on('click', pick);
 }
+function bindDeepLink(state) {
+    $('#deeplink').click(function () { return showLinkDialog(linkForState(state)); });
+}
+function randomString() {
+    return Math.random().toString(36).substring(2, 8);
+}
+function baseURL() {
+    var url = window.location;
+    return url.protocol + '//' + url.host;
+}
 function showLinkDialog(url) {
     $('#scoreSubmitter').attr('active', 'true');
     $('#scoreSubmitter').html("<label for=\"link\">Link:</label>" +
@@ -1042,8 +1057,15 @@ function showLinkDialog(url) {
         ("<span class=\"option\" choosable id=\"copyLink\">" + renderHotkey('⏎') + "Copy</span>") +
         ("<span class=\"option\" choosable id=\"cancel\">" + renderHotkey('Esc') + "Cancel</span>") +
         "</div>");
-    $('#link').val(url);
+    var id = randomString();
+    //TOOD: include base URL
+    $('#link').val(baseURL() + "/g/" + id);
     $('#link').select();
+    $.get("link?id=" + id + "&url=" + encodeURIComponent(url)).done(function (x) {
+        if (x != 'ok') {
+            alert(x);
+        }
+    });
     function exit() {
         $('#link').blur();
         $('#scoreSubmitter').attr('active', 'false');
@@ -1212,6 +1234,7 @@ function bindHelp(state, ui) {
             "Click the 'Kingdom' button to view the text of all cards at once.",
             "Press 'z' or click the 'Undo' button to undo the last move.",
             "Press '/' or click the 'Hotkeys' button to turn on hotkeys.",
+            "Click the 'Link' button to copy a shortlink to the current state.",
             "Go <a href='index.html'>here</a> to see all the ways to play the game.",
             "Check out the scoreboard <a href=" + scoreboardURL(state.spec) + ">here</a>.",
             "Copy <a href='play?" + specToURL(state.spec) + "'>this link</a> to replay this game any time.",
