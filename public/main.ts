@@ -449,44 +449,46 @@ function renderState(
     $('#playsize').html('' + state.play.length)
     $('#handsize').html('' + state.hand.length)
     $('#discardsize').html('' + state.discard.length)
-    setVisibleLog(state, globalRendererState.logType)
-    bindLogTypeButtons(state)
 }
 
-function bindLogTypeButtons(state:State) {
+function bindLogTypeButtons(state:State, ui:webUI) {
     const e = $(`input[name='logType']`)
     e.off('change')
     e.change(function() {
         const logType = (this as any).value
         globalRendererState.logType = logType
-        setVisibleLog(state, logType)
+        setVisibleLog(state, logType, ui)
     })
 }
-function setVisibleLog(state:State, logType:LogType) {
+function setVisibleLog(state:State, logType:LogType, ui:webUI) {
     for (const logType of logTypes) {
         const e = $(`.logOption[option=${logType}]`)
         const choosable = e.attr('option') != globalRendererState.logType
         e.attr('choosable', choosable ? 'true' : null)
     }
-    $('#log').html(renderLogLines(state.logs[logType]))
+    displayLogLines(state.logs[logType], ui)
 }
 
-function renderLogLine(msg: string) {
-  return `<div class="logLine">${msg}</div>`
+function renderLogLine(msg: string, i:number) {
+  return `<div class="logLine" pos=${i}>${msg}</div>`
 }
 
-function renderLogLines(logs:string[]) {
+function displayLogLines(logs:[string, State|null][], ui:webUI) {
     const result:string[] = []
     for (let i = logs.length-1; i >= 0; i--) {
-        result.push(renderLogLine(logs[i]))
-        /*
-        if (i > 0 && result.length > 100) {
-            result.push(renderLogLine('... (earlier events truncated)'))
-            break
-        }
-        */
+        result.push(renderLogLine(logs[i][0], i))
     }
-    return result.join('')
+    $('#log').html(result.join(''))
+    for (const [i, e] of logs.entries()) {
+        const state:State|null = e[1]
+        if (state !== null) {
+            $(`.logLine[pos=${i}]`).click(function() {
+                if (ui.choiceState !== null) {
+                    ui.choiceState.reject(new SetState(state))
+                }
+            })
+        }
+    }
 }
 
 // ------------------------------- Macros
@@ -728,6 +730,11 @@ function renderChoice(
         pickMap:pickMap,
         updateURL:(!globalRendererState.userURL || state.hasHistory())
     })
+
+    if (ui != null) {
+        setVisibleLog(state, globalRendererState.logType, ui)
+        bindLogTypeButtons(state, ui)
+    }
 
     $('#choicePrompt').html(choicePrompt)
     $('#options').html(stringOptions.map(localRender).join(''))

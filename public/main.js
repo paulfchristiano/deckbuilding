@@ -526,19 +526,17 @@ function renderState(state, settings) {
     $('#playsize').html('' + state.play.length);
     $('#handsize').html('' + state.hand.length);
     $('#discardsize').html('' + state.discard.length);
-    setVisibleLog(state, globalRendererState.logType);
-    bindLogTypeButtons(state);
 }
-function bindLogTypeButtons(state) {
+function bindLogTypeButtons(state, ui) {
     var e = $("input[name='logType']");
     e.off('change');
     e.change(function () {
         var logType = this.value;
         globalRendererState.logType = logType;
-        setVisibleLog(state, logType);
+        setVisibleLog(state, logType, ui);
     });
 }
-function setVisibleLog(state, logType) {
+function setVisibleLog(state, logType, ui) {
     var e_10, _a;
     try {
         for (var logTypes_1 = __values(logTypes), logTypes_1_1 = logTypes_1.next(); !logTypes_1_1.done; logTypes_1_1 = logTypes_1.next()) {
@@ -555,23 +553,41 @@ function setVisibleLog(state, logType) {
         }
         finally { if (e_10) throw e_10.error; }
     }
-    $('#log').html(renderLogLines(state.logs[logType]));
+    displayLogLines(state.logs[logType], ui);
 }
-function renderLogLine(msg) {
-    return "<div class=\"logLine\">" + msg + "</div>";
+function renderLogLine(msg, i) {
+    return "<div class=\"logLine\" pos=" + i + ">" + msg + "</div>";
 }
-function renderLogLines(logs) {
+function displayLogLines(logs, ui) {
+    var e_11, _a;
     var result = [];
     for (var i = logs.length - 1; i >= 0; i--) {
-        result.push(renderLogLine(logs[i]));
-        /*
-        if (i > 0 && result.length > 100) {
-            result.push(renderLogLine('... (earlier events truncated)'))
-            break
-        }
-        */
+        result.push(renderLogLine(logs[i][0], i));
     }
-    return result.join('');
+    $('#log').html(result.join(''));
+    var _loop_1 = function (i, e) {
+        var state = e[1];
+        if (state !== null) {
+            $(".logLine[pos=" + i + "]").click(function () {
+                if (ui.choiceState !== null) {
+                    ui.choiceState.reject(new SetState(state));
+                }
+            });
+        }
+    };
+    try {
+        for (var _b = __values(logs.entries()), _c = _b.next(); !_c.done; _c = _b.next()) {
+            var _d = __read(_c.value, 2), i = _d[0], e = _d[1];
+            _loop_1(i, e);
+        }
+    }
+    catch (e_11_1) { e_11 = { error: e_11_1 }; }
+    finally {
+        try {
+            if (_c && !_c.done && (_a = _b.return)) _a.call(_b);
+        }
+        finally { if (e_11) throw e_11.error; }
+    }
 }
 //TODO: prefer better card matches
 function matchMacro(macro, state, options) {
@@ -736,7 +752,7 @@ var webUI = /** @class */ (function () {
     return webUI;
 }());
 function renderChoice(ui, state, choicePrompt, options, picks) {
-    var e_11, _a;
+    var e_12, _a;
     if (picks === void 0) { picks = []; }
     var optionsMap = new Map(); //map card ids to their position in the choice list
     var stringOptions = []; // values are indices into options
@@ -771,12 +787,12 @@ function renderChoice(ui, state, choicePrompt, options, picks) {
             pickMap.set(renderKey(x), i);
         }
     }
-    catch (e_11_1) { e_11 = { error: e_11_1 }; }
+    catch (e_12_1) { e_12 = { error: e_12_1 }; }
     finally {
         try {
             if (_c && !_c.done && (_a = _b.return)) _a.call(_b);
         }
-        finally { if (e_11) throw e_11.error; }
+        finally { if (e_12) throw e_12.error; }
     }
     renderState(state, {
         hotkeyMap: hotkeyMap,
@@ -784,6 +800,10 @@ function renderChoice(ui, state, choicePrompt, options, picks) {
         pickMap: pickMap,
         updateURL: (!globalRendererState.userURL || state.hasHistory())
     });
+    if (ui != null) {
+        setVisibleLog(state, globalRendererState.logType, ui);
+        bindLogTypeButtons(state, ui);
+    }
     $('#choicePrompt').html(choicePrompt);
     $('#options').html(stringOptions.map(localRender).join(''));
     $('#undoArea').html(renderSpecials(state));
@@ -932,7 +952,7 @@ function bindRecordMacroButton(ui) {
     e.on('click', onClick);
 }
 function bindPlayMacroButtons(ui) {
-    var e_12, _a;
+    var e_13, _a;
     function onClick(i) {
         console.log('?');
         if (ui.choiceState !== null && ui.playingMacro.length == 0) {
@@ -941,7 +961,7 @@ function bindPlayMacroButtons(ui) {
             ui.resolveWithMacro();
         }
     }
-    var _loop_1 = function (i, macro) {
+    var _loop_2 = function (i, macro) {
         var e = $("[option='macro" + i + "'");
         e.off('click');
         e.on('click', function () { return onClick(i); });
@@ -949,24 +969,7 @@ function bindPlayMacroButtons(ui) {
     try {
         for (var _b = __values(ui.macros.entries()), _c = _b.next(); !_c.done; _c = _b.next()) {
             var _d = __read(_c.value, 2), i = _d[0], macro = _d[1];
-            _loop_1(i, macro);
-        }
-    }
-    catch (e_12_1) { e_12 = { error: e_12_1 }; }
-    finally {
-        try {
-            if (_c && !_c.done && (_a = _b.return)) _a.call(_b);
-        }
-        finally { if (e_12) throw e_12.error; }
-    }
-}
-function unbindPlayMacroButtons(ui) {
-    var e_13, _a;
-    try {
-        for (var _b = __values(ui.macros.entries()), _c = _b.next(); !_c.done; _c = _b.next()) {
-            var _d = __read(_c.value, 2), i = _d[0], macro = _d[1];
-            var e = $("[option='macro" + i + "'");
-            e.off('click');
+            _loop_2(i, macro);
         }
     }
     catch (e_13_1) { e_13 = { error: e_13_1 }; }
@@ -975,6 +978,23 @@ function unbindPlayMacroButtons(ui) {
             if (_c && !_c.done && (_a = _b.return)) _a.call(_b);
         }
         finally { if (e_13) throw e_13.error; }
+    }
+}
+function unbindPlayMacroButtons(ui) {
+    var e_14, _a;
+    try {
+        for (var _b = __values(ui.macros.entries()), _c = _b.next(); !_c.done; _c = _b.next()) {
+            var _d = __read(_c.value, 2), i = _d[0], macro = _d[1];
+            var e = $("[option='macro" + i + "'");
+            e.off('click');
+        }
+    }
+    catch (e_14_1) { e_14 = { error: e_14_1 }; }
+    finally {
+        try {
+            if (_c && !_c.done && (_a = _b.return)) _a.call(_b);
+        }
+        finally { if (e_14) throw e_14.error; }
     }
 }
 function bindHotkeyToggle(ui) {
@@ -1218,7 +1238,7 @@ function setCookie(name, value) {
     document.cookie = name + "=" + value + "; max-age=315360000; path=/";
 }
 function getCookie(name) {
-    var e_14, _a;
+    var e_15, _a;
     var nameEQ = name + "=";
     var ca = document.cookie.split(';');
     try {
@@ -1230,12 +1250,12 @@ function getCookie(name) {
                 return c.substring(nameEQ.length, c.length);
         }
     }
-    catch (e_14_1) { e_14 = { error: e_14_1 }; }
+    catch (e_15_1) { e_15 = { error: e_15_1 }; }
     finally {
         try {
             if (_c && !_c.done && (_a = _b.return)) _a.call(_b);
         }
-        finally { if (e_14) throw e_14.error; }
+        finally { if (e_15) throw e_15.error; }
     }
     return null;
 }
@@ -1422,7 +1442,7 @@ function kingdomURL(kindParam, cards, events) {
     return "play?" + kindParam + "cards=" + cards.map(function (card) { return card.name; }).join(',') + "&events=" + events.map(function (card) { return card.name; });
 }
 function countIn(s, f) {
-    var e_15, _a;
+    var e_16, _a;
     var count = 0;
     try {
         for (var s_1 = __values(s), s_1_1 = s_1.next(); !s_1_1.done; s_1_1 = s_1.next()) {
@@ -1431,12 +1451,12 @@ function countIn(s, f) {
                 count += 1;
         }
     }
-    catch (e_15_1) { e_15 = { error: e_15_1 }; }
+    catch (e_16_1) { e_16 = { error: e_16_1 }; }
     finally {
         try {
             if (s_1_1 && !s_1_1.done && (_a = s_1.return)) _a.call(s_1);
         }
-        finally { if (e_15) throw e_15.error; }
+        finally { if (e_16) throw e_16.error; }
     }
     return count;
 }
