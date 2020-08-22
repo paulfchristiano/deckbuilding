@@ -574,7 +574,7 @@ function renderLogLines(logs) {
     return result.join('');
 }
 //TODO: prefer better card matches
-function matchMacro(macro, state, options) {
+function matchMacro(macro, state, options, chosen) {
     var renders;
     renders = options.map(function (x, i) { return [x.render, i]; });
     switch (macro.kind) {
@@ -613,7 +613,7 @@ var webUI = /** @class */ (function () {
     webUI.prototype.matchNextMacroStep = function () {
         var macro = this.playingMacro.shift();
         if (macro !== undefined && this.choiceState != null) {
-            var option = matchMacro(macro, this.choiceState.state, this.choiceState.options);
+            var option = matchMacro(macro, this.choiceState.state, this.choiceState.options, this.choiceState.chosen);
             if (option === null)
                 this.playingMacro = [];
             return option;

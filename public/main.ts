@@ -492,7 +492,7 @@ function renderLogLines(logs:string[]) {
 // ------------------------------- Macros
 
 type CardMacro = {kind: 'card', card: Card}
-type StringMacro = {kind: 'string', string: string}
+type StringMacro = {kind: 'string', string: string, chosen: boolean}
 type MacroStep = OptionRender
 type Macro = MacroStep[]
 
@@ -500,7 +500,8 @@ type Macro = MacroStep[]
 function matchMacro<T>(
     macro:MacroStep,
     state:State,
-    options:Option<T>[]
+    options:Option<T>[],
+    chosen:number[],
 ): (number|null) {
     let renders:[OptionRender, number][];
     renders = options.map((x, i) => [x.render, i]);
@@ -555,7 +556,8 @@ class webUI {
             const option:number|null = matchMacro(
                 macro,
                 this.choiceState.state,
-                this.choiceState.options
+                this.choiceState.options,
+                this.choiceState.chosen
             )
             if (option===null) this.playingMacro = []
             return option
