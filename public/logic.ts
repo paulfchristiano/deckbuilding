@@ -2424,6 +2424,13 @@ buyable(lab, 4)
 
 const payAction = payCost({...free, actions:1})
 
+function tickEffect(): Effect {
+    return {
+        text: [],
+        transform: (state, card) => tick(card)
+    }
+}
+
 function playTwice(): Effect {
     return {
         text: [`Pay an action to play a card in your hand twice.`],
@@ -3579,7 +3586,7 @@ const traveler:CardSpec = {
 }
 buyable(
     traveler, 7,
-    {triggers:[startsWithCharge(traveler.name, 3)]}
+    {triggers:[startsWithCharge(traveler.name, 1)]}
 )
 
 const fountain:CardSpec = {
@@ -3727,7 +3734,7 @@ function industryEffect(n:number):Effect {
 const industry:CardSpec = {
     name: Industry,
     fixedCost: energy(2),
-    effects: [industryEffect(8), industryEffect(8)],
+    effects: [industryEffect(8), tickEffect(), industryEffect(8)],
 }
 buyable(industry, 6)
 

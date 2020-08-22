@@ -588,7 +588,8 @@ function matchMacro(macro, state, options, chosen) {
             renders = renders.filter(function (x) {
                 return x[0].kind == 'card'
                     && x[0].card.name == macro.card.name
-                    && x[0].card.place == macro.card.place;
+                    && x[0].card.place == macro.card.place
+                    && ((chosen.indexOf(x[1]) >= 0) == macro.chosen);
             });
             return (renders.length > 0) ? renders[0][1] : null;
     }
@@ -605,10 +606,19 @@ var webUI = /** @class */ (function () {
         //render is used to refresh the state
         this.choiceState = null;
     }
-    webUI.prototype.recordStep = function (x) {
+    webUI.prototype.recordStep = function (x, chosen) {
         if (this.recordingMacro === null)
             return;
-        this.recordingMacro.push(x);
+        switch (x.kind) {
+            case 'string':
+                this.recordingMacro.push(x);
+                break;
+            case 'card':
+                this.recordingMacro.push(__assign(__assign({}, x), { chosen: chosen }));
+                break;
+            default:
+                assertNever(x);
+        }
     };
     webUI.prototype.matchNextMacroStep = function () {
         var macro = this.playingMacro.shift();
@@ -644,7 +654,7 @@ var webUI = /** @class */ (function () {
         return new Promise(function (resolve, reject) {
             function newResolve(n) {
                 ui.clearChoice();
-                ui.recordStep(options[n].render);
+                ui.recordStep(options[n].render, chosen.indexOf(n) >= 0);
                 resolve(n);
             }
             function newReject(reason) {
@@ -910,7 +920,7 @@ function renderPlayMacroButton(macro, index) {
     var firstStepText = (firstStep.kind == 'card')
         ? firstStep.card.name
         : firstStep.string;
-    var buttonText = firstStepText + "...";
+    var buttonText = firstStepText + " (" + macro.length + ")";
     return "<span id='playMacro' class='option'\n             option='" + optionText + "' choosable chosen='false'>\n                 " + buttonText + "\n             </span>";
 }
 function bindRecordMacroButton(ui) {

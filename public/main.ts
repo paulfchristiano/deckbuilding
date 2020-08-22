@@ -491,9 +491,9 @@ function renderLogLines(logs:string[]) {
 
 // ------------------------------- Macros
 
-type CardMacro = {kind: 'card', card: Card}
-type StringMacro = {kind: 'string', string: string, chosen: boolean}
-type MacroStep = OptionRender
+type CardMacro = {kind: 'card', card: Card, chosen:boolean}
+type StringMacro = {kind: 'string', string: string}
+type MacroStep = CardMacro | StringMacro
 type Macro = MacroStep[]
 
 //TODO: prefer better card matches
@@ -517,6 +517,7 @@ function matchMacro<T>(
                 x[0].kind == 'card'
                 && x[0].card.name == macro.card.name
                 && x[0].card.place == macro.card.place
+                && ((chosen.indexOf(x[1]) >= 0) == macro.chosen)
             )
             return (renders.length > 0) ? renders[0][1] : null
     }
@@ -546,9 +547,19 @@ class webUI {
     //render is used to refresh the state
     public choiceState:ChoiceState|null = null
     constructor() {}
-    recordStep(x:OptionRender): void {
+    recordStep(x:OptionRender, chosen:boolean): void {
         if(this.recordingMacro === null) return
-        this.recordingMacro.push(x)
+        switch (x.kind) {
+            case 'string':
+                this.recordingMacro.push(x)
+                break
+            case 'card':
+                this.recordingMacro.push({...x, chosen:chosen})
+                break
+            default:
+                assertNever(x)
+
+        }
     }
     matchNextMacroStep(): number|null {
         const macro = this.playingMacro.shift()
@@ -598,7 +609,7 @@ class webUI {
         return new Promise(function(resolve, reject) {
             function newResolve(n:number) {
                 ui.clearChoice()
-                ui.recordStep(options[n].render)
+                ui.recordStep(options[n].render, chosen.indexOf(n) >= 0)
                 resolve(n)
             }
             function newReject(reason:any) {
@@ -879,7 +890,7 @@ function renderPlayMacroButton(macro:Macro, index:number): string {
     const firstStepText = (firstStep.kind == 'card')
         ? firstStep.card.name
         : firstStep.string
-    const buttonText = `${firstStepText}...`
+    const buttonText = `${firstStepText} (${macro.length})`
     return `<span id='playMacro' class='option'
              option='${optionText}' choosable chosen='false'>
                  ${buttonText}

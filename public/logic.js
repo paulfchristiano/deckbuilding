@@ -2929,6 +2929,12 @@ var lab = { name: 'Lab',
 };
 buyable(lab, 4);
 var payAction = payCost(__assign(__assign({}, free), { actions: 1 }));
+function tickEffect() {
+    return {
+        text: [],
+        transform: function (state, card) { return tick(card); }
+    };
+}
 function playTwice() {
     return {
         text: ["Pay an action to play a card in your hand twice."],
@@ -4090,7 +4096,7 @@ var traveler = {
             }; }, "Choose a card to play with " + Traveler + ".", function (s) { return s.hand; })); }
         }, chargeUpTo(3)]
 };
-buyable(traveler, 7, { triggers: [startsWithCharge(traveler.name, 3)] });
+buyable(traveler, 7, { triggers: [startsWithCharge(traveler.name, 1)] });
 var fountain = {
     name: 'Fountain',
     fixedCost: energy(1),
@@ -4237,7 +4243,7 @@ function industryEffect(n) {
 var industry = {
     name: Industry,
     fixedCost: energy(2),
-    effects: [industryEffect(8), industryEffect(8)],
+    effects: [industryEffect(8), tickEffect(), industryEffect(8)],
 };
 buyable(industry, 6);
 var homesteading = {
