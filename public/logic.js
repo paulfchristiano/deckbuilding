@@ -3445,7 +3445,7 @@ var twin = { name: 'Twin',
 registerEvent(twin);
 function startsWithCharge(name, n) {
     return {
-        text: "Whenever you create a " + name + ", put " + aOrNum(n, 'charge counter') + " on it.",
+        text: "When you create a " + name + ",\n               put " + aOrNum(n, 'charge counter') + " on it.",
         kind: 'create',
         handles: function (e) { return e.card.name == name; },
         transform: function (e) { return charge(e.card, n); }
@@ -4802,16 +4802,11 @@ var fairyGold = {
         }],
 };
 buyable(fairyGold, 3, {
-    triggers: [{
-            kind: 'create',
-            text: "Whenever you create a " + FairyGold + ", put 3 charge tokens on it.",
-            handles: function (e) { return e.card.name == FairyGold; },
-            transform: function (e) { return charge(e.card, 3); }
-        }]
+    triggers: [startsWithCharge(fairyGold.name, 3)]
 });
 var pathfinding = {
     name: 'Pathfinding',
-    fixedCost: __assign(__assign({}, free), { coin: 8, energy: 1 }),
+    fixedCost: __assign(__assign({}, free), { coin: 7, energy: 1 }),
     effects: [removeAllSupplyTokens('pathfinding'), targetedEffect(function (target) { return addToken(target, 'pathfinding'); }, "Put a pathfinding token on a card in the supply other than Copper.", function (state) { return state.supply.filter(function (target) { return target.name != copper.name; }); })],
     triggers: [{
             kind: 'play',

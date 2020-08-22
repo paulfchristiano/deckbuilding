@@ -2936,7 +2936,8 @@ registerEvent(twin)
 
 function startsWithCharge(name:string, n:number):Trigger<CreateEvent> {
     return {
-        text: `Whenever you create a ${name}, put ${aOrNum(n, 'charge counter')} on it.`,
+        text: `When you create a ${name},
+               put ${aOrNum(n, 'charge counter')} on it.`,
         kind: 'create',
         handles: e => e.card.name == name,
         transform: e => charge(e.card, n)
@@ -4241,17 +4242,12 @@ const fairyGold:CardSpec = {
     }],
 }
 buyable(fairyGold, 3, {
-    triggers: [{
-        kind: 'create',
-        text: `Whenever you create a ${FairyGold}, put 3 charge tokens on it.`,
-        handles: e => e.card.name == FairyGold,
-        transform: e => charge(e.card, 3)
-    }]
+    triggers: [startsWithCharge(fairyGold.name, 3)]
 })
 
 const pathfinding:CardSpec = {
     name: 'Pathfinding',
-    fixedCost: {...free, coin:8, energy:1},
+    fixedCost: {...free, coin:7, energy:1},
     effects: [removeAllSupplyTokens('pathfinding'), targetedEffect(
         target => addToken(target, 'pathfinding'),
         `Put a pathfinding token on a card in the supply other than Copper.`,
