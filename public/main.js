@@ -81,7 +81,7 @@ import { Shadow, State, Card } from './logic.js';
 import { renderCost, renderEnergy } from './logic.js';
 import { emptyState } from './logic.js';
 import { logTypes } from './logic.js';
-import { Undo, InvalidHistory } from './logic.js';
+import { SetState, Undo, InvalidHistory } from './logic.js';
 import { playGame, initialState } from './logic.js';
 import { coerceReplayVersion, parseReplay, MalformedReplay } from './logic.js';
 import { mixins, eventMixins, randomPlaceholder } from './logic.js';
@@ -849,7 +849,7 @@ function renderRedo(redoable) {
 function bindSpecials(state, ui) {
     bindHotkeyToggle(ui);
     bindHelp(state, ui);
-    bindRestart(state);
+    bindRestart(state, ui);
     bindUndo(state, ui);
     bindRedo(state, ui);
     if (ui !== null)
@@ -985,8 +985,16 @@ function bindHotkeyToggle(ui) {
     keyListeners.set('/', pick);
     $("[option='hotkeyToggle']").on('click', pick);
 }
-function bindRestart(state) {
-    $("[option='restart']").on('click', function () { return restart(state); });
+function startState(state) {
+    return state.origin().update({ future: [] });
+}
+function bindRestart(state, ui) {
+    function pick() {
+        if (ui.choiceState !== null) {
+            ui.choiceState.reject(new SetState(startState(state)));
+        }
+    }
+    $("[option='restart']").on('click', pick);
 }
 function bindRedo(state, ui) {
     function pick() {

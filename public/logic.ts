@@ -491,7 +491,7 @@ export class State {
         this.aside = zones.get('aside') || []
         this.events = zones.get('events') || []
     }
-    private update(stateUpdate:Partial<State>) {
+    update(stateUpdate:Partial<State>) {
         return new State(
             this.spec,
             get(stateUpdate, 'ui', this),
@@ -1429,6 +1429,13 @@ export class Undo extends Error {
     }
 }
 
+export class SetState extends Error {
+    constructor(public state:State) {
+        super('Undo')
+        Object.setPrototypeOf(this, SetState.prototype)
+    }
+}
+
 async function doOrReplay(
     state: State,
     f: () => Promise<Replayable>,
@@ -1910,9 +1917,12 @@ export async function playGame(state:State): Promise<void> {
                 state = await act(state)
             }
         } catch (error) {
+            victorious = false
             if (error instanceof Undo) {
-                victorious = false
                 state = undo(error.state)
+            } else if (error instanceof SetState) {
+                state = undoOrSet(error.state, state)
+                console.log(state.redo)
             } else if (error instanceof Victory) {
                 state = error.state
                 victorious = true
@@ -1922,6 +1932,27 @@ export async function playGame(state:State): Promise<void> {
         }
     }
 }
+
+// ------------------------- Browsing
+
+//TODO: if to is a prefix of from, set the future appropriately
+function undoOrSet(to:State, from:State): State {
+    const newHistory = to.origin().future
+    const oldHistory = from.origin().future
+    const newRedo = from.redo.slice()
+    let predecessor = to.spec == from.spec
+    if (predecessor) {
+        for (const [i, e] of oldHistory.slice().reverse().entries()) {
+            if (i >= newHistory.length) {
+                newRedo.push(e)
+            } else if (newHistory[i] != e) {
+                predecessor = false;
+            }
+        }
+    }
+    return predecessor ? to.update({redo: newRedo}) : to
+}
+
 
 
 //

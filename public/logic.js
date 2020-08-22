@@ -1807,6 +1807,17 @@ var Undo = /** @class */ (function (_super) {
     return Undo;
 }(Error));
 export { Undo };
+var SetState = /** @class */ (function (_super) {
+    __extends(SetState, _super);
+    function SetState(state) {
+        var _this = _super.call(this, 'Undo') || this;
+        _this.state = state;
+        Object.setPrototypeOf(_this, SetState.prototype);
+        return _this;
+    }
+    return SetState;
+}(Error));
+export { SetState };
 function doOrReplay(state, f) {
     return __awaiter(this, void 0, void 0, function () {
         var record, x;
@@ -2415,9 +2426,13 @@ export function playGame(state) {
                 case 7: return [3 /*break*/, 9];
                 case 8:
                     error_2 = _a.sent();
+                    victorious = false;
                     if (error_2 instanceof Undo) {
-                        victorious = false;
                         state = undo(error_2.state);
+                    }
+                    else if (error_2 instanceof SetState) {
+                        state = undoOrSet(error_2.state, state);
+                        console.log(state.redo);
                     }
                     else if (error_2 instanceof Victory) {
                         state = error_2.state;
@@ -2432,6 +2447,36 @@ export function playGame(state) {
             }
         });
     });
+}
+// ------------------------- Browsing
+//TODO: if to is a prefix of from, set the future appropriately
+function undoOrSet(to, from) {
+    var e_35, _a;
+    var newHistory = to.origin().future;
+    var oldHistory = from.origin().future;
+    var newRedo = from.redo.slice();
+    var predecessor = to.spec == from.spec;
+    if (predecessor) {
+        try {
+            for (var _b = __values(oldHistory.slice().reverse().entries()), _c = _b.next(); !_c.done; _c = _b.next()) {
+                var _d = __read(_c.value, 2), i = _d[0], e = _d[1];
+                if (i >= newHistory.length) {
+                    newRedo.push(e);
+                }
+                else if (newHistory[i] != e) {
+                    predecessor = false;
+                }
+            }
+        }
+        catch (e_35_1) { e_35 = { error: e_35_1 }; }
+        finally {
+            try {
+                if (_c && !_c.done && (_a = _b.return)) _a.call(_b);
+            }
+            finally { if (e_35) throw e_35.error; }
+        }
+    }
+    return predecessor ? to.update({ redo: newRedo }) : to;
 }
 //
 // ----------------- CARDS -----------------
@@ -3492,8 +3537,8 @@ var synergy = { name: 'Synergy',
             text: ['Put synergy tokens on two cards in the supply.'],
             transform: function () { return function (state) {
                 return __awaiter(this, void 0, void 0, function () {
-                    var cards, cards_1, cards_1_1, card, e_35_1;
-                    var _a, e_35, _b;
+                    var cards, cards_1, cards_1_1, card, e_36_1;
+                    var _a, e_36, _b;
                     return __generator(this, function (_c) {
                         switch (_c.label) {
                             case 0: return [4 /*yield*/, multichoice(state, 'Choose two cards to synergize.', state.supply.map(asChoice), 2, 2)];
@@ -3516,14 +3561,14 @@ var synergy = { name: 'Synergy',
                                 return [3 /*break*/, 3];
                             case 6: return [3 /*break*/, 9];
                             case 7:
-                                e_35_1 = _c.sent();
-                                e_35 = { error: e_35_1 };
+                                e_36_1 = _c.sent();
+                                e_36 = { error: e_36_1 };
                                 return [3 /*break*/, 9];
                             case 8:
                                 try {
                                     if (cards_1_1 && !cards_1_1.done && (_b = cards_1.return)) _b.call(cards_1);
                                 }
-                                finally { if (e_35) throw e_35.error; }
+                                finally { if (e_36) throw e_36.error; }
                                 return [7 /*endfinally*/];
                             case 9: return [2 /*return*/, state];
                         }
@@ -3818,7 +3863,7 @@ function fragileEcho() {
     };
 }
 function dedupBy(xs, f) {
-    var e_36, _a;
+    var e_37, _a;
     var result = [];
     var _loop_3 = function (x) {
         if (result.every(function (r) { return f(r) != f(x); })) {
@@ -3831,12 +3876,12 @@ function dedupBy(xs, f) {
             _loop_3(x);
         }
     }
-    catch (e_36_1) { e_36 = { error: e_36_1 }; }
+    catch (e_37_1) { e_37 = { error: e_37_1 }; }
     finally {
         try {
             if (xs_2_1 && !xs_2_1.done && (_a = xs_2.return)) _a.call(xs_2);
         }
-        finally { if (e_36) throw e_36.error; }
+        finally { if (e_37) throw e_37.error; }
     }
     return result;
 }
@@ -4135,8 +4180,8 @@ var lostArts = {
     name: 'Lost Arts',
     effects: [targetedEffect(function (card) { return function (state) {
             return __awaiter(this, void 0, void 0, function () {
-                var _a, _b, c, e_37_1;
-                var e_37, _c;
+                var _a, _b, c, e_38_1;
+                var e_38, _c;
                 return __generator(this, function (_d) {
                     switch (_d.label) {
                         case 0: return [4 /*yield*/, addToken(card, 'art', 8)(state)];
@@ -4160,14 +4205,14 @@ var lostArts = {
                             return [3 /*break*/, 3];
                         case 6: return [3 /*break*/, 9];
                         case 7:
-                            e_37_1 = _d.sent();
-                            e_37 = { error: e_37_1 };
+                            e_38_1 = _d.sent();
+                            e_38 = { error: e_38_1 };
                             return [3 /*break*/, 9];
                         case 8:
                             try {
                                 if (_b && !_b.done && (_c = _a.return)) _c.call(_a);
                             }
-                            finally { if (e_37) throw e_37.error; }
+                            finally { if (e_38) throw e_38.error; }
                             return [7 /*endfinally*/];
                         case 9: return [2 /*return*/, state];
                     }
@@ -4333,7 +4378,7 @@ var banquet = {
 };
 buyable(banquet, 3);
 function countDistinct(xs) {
-    var e_38, _a;
+    var e_39, _a;
     var distinct = new Set();
     var result = 0;
     try {
@@ -4345,12 +4390,12 @@ function countDistinct(xs) {
             }
         }
     }
-    catch (e_38_1) { e_38 = { error: e_38_1 }; }
+    catch (e_39_1) { e_39 = { error: e_39_1 }; }
     finally {
         try {
             if (xs_3_1 && !xs_3_1.done && (_a = xs_3.return)) _a.call(xs_3);
         }
-        finally { if (e_38) throw e_38.error; }
+        finally { if (e_39) throw e_39.error; }
     }
     return result;
 }
