@@ -429,10 +429,13 @@ function get<T, K extends keyof T>(
     return (stateUpdate[k] === undefined) ? state[k] : stateUpdate[k]
 }
 
-export type SlotSpec = CardSpec|'Random'
+type RANDOMType = 'random'
+export const RANDOM:RANDOMType = 'random'
+export type SlotSpec = CardSpec|RANDOMType
+
+
 export type LogType = 'all' | 'energy' | 'acts' | 'costs'
 export const logTypes:LogType[] = ['all', 'energy', 'acts', 'costs']
-export const RANDOM = 'Random'
 type SingleLog = [string, State|null][]
 interface Log {
     'all': SingleLog, 'energy':SingleLog,
@@ -1739,7 +1742,7 @@ export function getTutorialSpec(): GameSpec {
 }
 
 function normalize(s:string): string {
-    return s.split(' ').join('').toLowerCase()
+    return s.split('').filter(c => c != ' ' && c != "'").join('').toLowerCase()
 }
 
 function makeDictionary(xs:CardSpec[]): Map<string, CardSpec> {
@@ -1748,12 +1751,11 @@ function makeDictionary(xs:CardSpec[]): Map<string, CardSpec> {
     return result
 }
 
-function extractList(s:string, xs:CardSpec[]): SlotSpec[] {
-    if (s.length == 0) return []
+function extractList(names:string[], xs:CardSpec[]): SlotSpec[] {
     const dictionary = makeDictionary(xs)
     const result:SlotSpec[] = []
-    for (const name of s.split(',')) {
-        if (name == RANDOM) result.push(RANDOM)
+    for (const name of names) {
+        if (normalize(name) == normalize(RANDOM)) result.push(RANDOM)
         else {
             const lookup = dictionary.get(normalize(name))
             if (lookup == undefined)
@@ -1807,20 +1809,30 @@ export function specToURL(spec:GameSpec): string {
 export function specFromURL(search:string): GameSpec {
     const searchParams = new URLSearchParams(search)
     const urlKind:string|null = searchParams.get('kind')
-    const cards:string|null = searchParams.get('cards')
-    const events:string|null = searchParams.get('events')
+    const cardsString:string|null = searchParams.get('cards')
+    const cards:string[] = (cardsString === null) ? []
+        : cardsString.split(',').map(normalize)
+    const eventsString:string|null = searchParams.get('events')
+    const events:string[] = (eventsString === null) ? []
+        : eventsString.split(',').map(normalize)
     const seed:string|null = searchParams.get('seed') || randomSeed()
     let kind:string
 
-    if (urlKind !== null) {
-        kind = urlKind
-    } else {
-        if ((cards === null) != (events === null)) {
-            throw new MalformedSpec('Must pick cards iff picking events.')
+    function pickOrPickR() {
+        if (cards.indexOf(RANDOM) >= 0 || events.indexOf(RANDOM) >= 0) {
+            return 'pickR'
+        } else {
+            return 'pick'
         }
-        if (cards === null || events === null) kind = 'full';
-        else if (cards.includes(RANDOM) || events.includes(RANDOM)) kind = 'pickR';
-        else kind = 'pick';
+
+    }
+
+    if (urlKind !== null) {
+        if (urlKind == 'pick' || urlKind == 'pickR') kind = pickOrPickR()
+        else kind = urlKind
+    } else {
+        if (cards === null && events === null) kind = 'full';
+        else kind = pickOrPickR()
     }
 
     switch(kind) {
@@ -1831,15 +1843,17 @@ export function specFromURL(search:string): GameSpec {
         case 'pick':
             const cardSpecs:CardSpec[] = [];
             const eventSpecs:CardSpec[] = [];
-            if (cards === null) throw new MalformedSpec('Custom kingdoms must pick cards')
-            if (events === null) throw new MalformedSpec('Custom kingdoms must pick events')
-            for (const card of extractList(cards, mixins)) {
-                if (card == RANDOM) throw new MalformedSpec('Random card is only allowable in type pickR');
-                else cardSpecs.push(card)
+            if (cards !== null) {
+                for (const card of extractList(cards, mixins)) {
+                    if (card == RANDOM) throw new MalformedSpec('Random card is only allowable in type pickR');
+                    else cardSpecs.push(card)
+                }
             }
-            for (const card of extractList(events, eventMixins)) {
-                if (card == RANDOM) throw new MalformedSpec('Random card is only allowable in type pickR');
-                else eventSpecs.push(card)
+            if (events !== null) {
+                for (const card of extractList(events, eventMixins)) {
+                    if (card == RANDOM) throw new MalformedSpec('Random card is only allowable in type pickR');
+                    else eventSpecs.push(card)
+                }
             }
             return {kind:kind, cards:cardSpecs, events:eventSpecs}
         case 'require':
@@ -1850,11 +1864,9 @@ export function specFromURL(search:string): GameSpec {
                 events: (events === null) ? [] : extractList(events, eventMixins),
             }
         case 'pickR':
-            if (cards === null) throw new MalformedSpec('Custom kingdoms must specify cards')
-            if (events === null) throw new MalformedSpec('Custom kingdoms must specify events')
             return {kind:kind, seed:seed,
-                    cards:extractList(cards, mixins),
-                    events:extractList(events, eventMixins)}
+                    cards:(cards === null) ? [] : extractList(cards, mixins),
+                    events:(events === null) ? [] : extractList(events, eventMixins)}
         case 'test': return {kind: 'test'}
         default: throw new MalformedSpec(`Invalid kind ${kind}`)
     }
