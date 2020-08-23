@@ -1834,7 +1834,7 @@ export function specFromURL(search:string): GameSpec {
         if (urlKind == 'pick' || urlKind == 'pickR') kind = pickOrPickR()
         else kind = urlKind
     } else {
-        if (cards === null && events === null) kind = 'full';
+        if (cards.length == 0 && events.length == 0) kind = 'full';
         else kind = pickOrPickR()
     }
 

@@ -1256,9 +1256,6 @@ function bindHelp(state, ui) {
     }
     attach(pick);
 }
-//TODO: many of the URLs seem wrong
-//TODO: play is not successfuly defaulting to a random seed
-//TODO: make it so that you combine the daily seed
 function dateString() {
     var date = new Date();
     return (String(date.getMonth() + 1)) + String(date.getDate()).padStart(2, '0') + date.getFullYear();
@@ -1393,6 +1390,8 @@ export function load(fixedURL) {
     var spec;
     try {
         spec = specFromURL(url);
+        console.log(url);
+        console.log(spec);
     }
     catch (e) {
         if (e instanceof MalformedSpec) {
