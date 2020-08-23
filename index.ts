@@ -34,8 +34,6 @@ function renderTime(date:Date) {
   return date.toLocaleString('en-US', {timeZone: 'America/New_York'})
 }
 
-const challengeTypes = ['full', 'mini']
-
 async function ensureNextMonth(): Promise<void> {
     if (sql == null) return
     const d:Date = new Date()
@@ -62,8 +60,8 @@ async function ensureNextMonth(): Promise<void> {
     }
 }
 
-type DailyType = 'weekly' | 'full'
-const dailyTypes:DailyType[] = ['weekly', 'full']
+type DailyType = 'weekly' | 'daily'
+const dailyTypes:DailyType[] = ['weekly', 'daily']
 
 function makeDailyKey(type:DailyType, inputDate:Date|null=null): string {
   const d:Date = (inputDate == null) ? new Date() : new Date(inputDate)
@@ -74,7 +72,7 @@ function makeDailyKey(type:DailyType, inputDate:Date|null=null): string {
       //new weekly challenges only at beginning of Monday
       while (d.getDay() != 1) d.setDate(d.getDate() - 1)
       return d.toLocaleDateString().split('/').join('.')
-    case 'full':
+    case 'daily':
       return d.toLocaleDateString().split('/').join('.')
   }
 
@@ -134,7 +132,7 @@ function dailyTypeFromReq(req:any): DailyType {
   for (const dailyType of dailyTypes) {
     if (typeString == dailyType) type = dailyType
   }
-  if (typeString === undefined) type = 'full';
+  if (typeString === undefined) type = 'daily';
   if (type === undefined) throw Error(`Invalid daily type ${typeString}`)
   return type
 }
@@ -202,6 +200,29 @@ express()
     .use(express.static('./public'))
     .set('view engine', 'ejs')
     .set('views', './views')
+    .get('/link', async (req: any, res:any) => {
+      const id = req.query.id;
+      try{
+        const results = await sql`
+          INSERT INTO links (id, url)
+          VALUES (${id}, ${decodeURIComponent(req.query.url)})
+        `
+        res.send('ok')
+      } catch(err) {
+        res.send(err)
+      }
+    })
+    .get('/g/:id', async (req:any, res:any) => {
+      const results = await sql`
+        SELECT id, url FROM links
+        WHERE id=${req.params.id}
+      `
+      if (results.length < 1) {
+        res.send("link not found")
+      } else {
+        res.redirect(`../${results[0].url}`)
+      }
+    })
     .get('/topScore', async (req:any, res:any) => {
       try {
           if (sql == null) {

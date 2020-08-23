@@ -1,3 +1,14 @@
+### migration 8/22/2020
+
+# move full -> daily
+
+UPDATE dailies SET type = 'daily' WHERE type = 'full';
+
+# add URL shortener
+
+CREATE TABLE links (id TEXT PRIMARY KEY, url TEXT NOT NULL);
+ALTER TABLE links ADD CONSTRAINT unique_id UNIQUE (id);
+
 ### migration 7/5/2020
 
 #create secrets table

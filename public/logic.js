@@ -735,7 +735,7 @@ var State = /** @class */ (function () {
         var logs = __assign({}, this.logs);
         if (logType == 'all')
             msg = indent(this.logIndent, msg);
-        logs[logType] = logs[logType].concat([msg]);
+        logs[logType] = logs[logType].concat([[msg, this.backup()]]);
         return this.update({ logs: logs });
     };
     State.prototype.shiftFuture = function () {
@@ -751,7 +751,7 @@ var State = /** @class */ (function () {
         return [this.update({ future: future, }), result];
     };
     // Invariant: starting from checkpoint and replaying the history gets you to the current state
-    // To maintain this invariant, we need to record history every energy there is a change
+    // To maintain this invariant, we need to record history every time there is a change
     State.prototype.setCheckpoint = function () {
         return this.update({ history: [], future: this.future, checkpoint: this });
     };
@@ -1826,6 +1826,17 @@ var Undo = /** @class */ (function (_super) {
     return Undo;
 }(Error));
 export { Undo };
+var SetState = /** @class */ (function (_super) {
+    __extends(SetState, _super);
+    function SetState(state) {
+        var _this = _super.call(this, 'Undo') || this;
+        _this.state = state;
+        Object.setPrototypeOf(_this, SetState.prototype);
+        return _this;
+    }
+    return SetState;
+}(Error));
+export { SetState };
 function doOrReplay(state, f) {
     return __awaiter(this, void 0, void 0, function () {
         var record, x;
@@ -2434,9 +2445,12 @@ export function playGame(state) {
                 case 7: return [3 /*break*/, 9];
                 case 8:
                     error_2 = _a.sent();
+                    victorious = false;
                     if (error_2 instanceof Undo) {
-                        victorious = false;
                         state = undo(error_2.state);
+                    }
+                    else if (error_2 instanceof SetState) {
+                        state = undoOrSet(error_2.state, state);
                     }
                     else if (error_2 instanceof Victory) {
                         state = error_2.state;
@@ -2451,6 +2465,41 @@ export function playGame(state) {
             }
         });
     });
+}
+function reversed(it) {
+    var xs = Array.from(it);
+    xs.reverse();
+    return xs.values();
+}
+// ------------------------- Browsing
+//TODO: if to is a prefix of from, set the future appropriately
+function undoOrSet(to, from) {
+    var e_35, _a;
+    var newHistory = to.origin().future;
+    var oldHistory = from.origin().future;
+    var newRedo = from.redo.slice();
+    var predecessor = to.spec == from.spec;
+    if (predecessor) {
+        try {
+            for (var _b = __values(reversed(oldHistory.entries())), _c = _b.next(); !_c.done; _c = _b.next()) {
+                var _d = __read(_c.value, 2), i = _d[0], e = _d[1];
+                if (i >= newHistory.length) {
+                    newRedo.push(e);
+                }
+                else if (newHistory[i] != e) {
+                    predecessor = false;
+                }
+            }
+        }
+        catch (e_35_1) { e_35 = { error: e_35_1 }; }
+        finally {
+            try {
+                if (_c && !_c.done && (_a = _b.return)) _a.call(_b);
+            }
+            finally { if (e_35) throw e_35.error; }
+        }
+    }
+    return predecessor ? to.update({ redo: newRedo }) : to;
 }
 //
 // ----------------- CARDS -----------------

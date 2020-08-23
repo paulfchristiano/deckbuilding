@@ -433,7 +433,11 @@ export type SlotSpec = CardSpec|'Random'
 export type LogType = 'all' | 'energy' | 'acts' | 'costs'
 export const logTypes:LogType[] = ['all', 'energy', 'acts', 'costs']
 export const RANDOM = 'Random'
-interface Log {'all': string[], 'energy':string[], 'acts':string[], 'costs':string[]}
+type SingleLog = [string, State|null][]
+interface Log {
+    'all': SingleLog, 'energy':SingleLog,
+    'acts':SingleLog, 'costs':SingleLog
+}
 const emptyLog:Log = {'all':[], 'energy':[], 'acts':[], 'costs':[]}
 
 export interface Kingdom {
@@ -491,7 +495,7 @@ export class State {
         this.aside = zones.get('aside') || []
         this.events = zones.get('events') || []
     }
-    private update(stateUpdate:Partial<State>) {
+    update(stateUpdate:Partial<State>) {
         return new State(
             this.spec,
             get(stateUpdate, 'ui', this),
@@ -619,7 +623,7 @@ export class State {
         //return this
         const logs:Log = {...this.logs}
         if (logType == 'all') msg = indent(this.logIndent, msg)
-        logs[logType] = logs[logType].concat([msg])
+        logs[logType] = logs[logType].concat([[msg, this.backup()]])
         return this.update({logs: logs})
     }
     shiftFuture(): [State, Replayable|null] {
@@ -631,7 +635,7 @@ export class State {
         return [this.update({future:future,}), result]
     }
     // Invariant: starting from checkpoint and replaying the history gets you to the current state
-    // To maintain this invariant, we need to record history every energy there is a change
+    // To maintain this invariant, we need to record history every time there is a change
     setCheckpoint(): State {
         return this.update({history:[], future:this.future, checkpoint:this})
     }
@@ -1437,6 +1441,13 @@ export class Undo extends Error {
     }
 }
 
+export class SetState extends Error {
+    constructor(public state:State) {
+        super('Undo')
+        Object.setPrototypeOf(this, SetState.prototype)
+    }
+}
+
 async function doOrReplay(
     state: State,
     f: () => Promise<Replayable>,
@@ -1918,9 +1929,11 @@ export async function playGame(state:State): Promise<void> {
                 state = await act(state)
             }
         } catch (error) {
+            victorious = false
             if (error instanceof Undo) {
-                victorious = false
                 state = undo(error.state)
+            } else if (error instanceof SetState) {
+                state = undoOrSet(error.state, state)
             } else if (error instanceof Victory) {
                 state = error.state
                 victorious = true
@@ -1930,6 +1943,33 @@ export async function playGame(state:State): Promise<void> {
         }
     }
 }
+
+function reversed<T>(it:IterableIterator<T>): IterableIterator<T> {
+    const xs = Array.from(it)
+    xs.reverse()
+    return xs.values()
+}
+
+// ------------------------- Browsing
+
+//TODO: if to is a prefix of from, set the future appropriately
+function undoOrSet(to:State, from:State): State {
+    const newHistory = to.origin().future
+    const oldHistory = from.origin().future
+    const newRedo = from.redo.slice()
+    let predecessor = to.spec == from.spec
+    if (predecessor) {
+        for (const [i, e] of reversed(oldHistory.entries())) {
+            if (i >= newHistory.length) {
+                newRedo.push(e)
+            } else if (newHistory[i] != e) {
+                predecessor = false;
+            }
+        }
+    }
+    return predecessor ? to.update({redo: newRedo}) : to
+}
+
 
 
 //

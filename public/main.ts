@@ -12,7 +12,7 @@ import { renderCost, renderEnergy } from './logic.js'
 import { emptyState } from './logic.js'
 import { LogType, logTypes } from './logic.js'
 import { Option, OptionRender, HotkeyHint } from './logic.js'
-import { UI, Undo, Victory, InvalidHistory, ReplayEnded } from './logic.js'
+import { UI, SetState, Undo, Victory, InvalidHistory, ReplayEnded } from './logic.js'
 import { playGame, initialState, verifyScore} from './logic.js'
 import { Replay, coerceReplayVersion, parseReplay, MalformedReplay } from './logic.js'
 import { mixins, eventMixins, randomPlaceholder } from './logic.js'
@@ -407,6 +407,10 @@ function resetGlobalRenderer() {
     globalRendererState.tokenRenderer = new TokenRenderer()
 }
 
+function linkForState(state:State) {
+    return `play?${specToURL(state.spec)}#${state.serializeHistory(false)}`
+}
+
 function renderState(
     state:State,
     settings:RenderSettings = {},
@@ -427,11 +431,7 @@ function renderState(
     }
     if (settings.updateURL === undefined || settings.updateURL) {
         globalRendererState.userURL = false
-        window.history.replaceState(
-            null,
-            "",
-            `play?${specToURL(state.spec)}#${state.serializeHistory(false)}`
-        );
+        window.history.replaceState(null, "", linkForState(state))
     }
     $('#resolvingHeader').html('Resolving:')
     $('#energy').html(state.energy.toString())
@@ -449,44 +449,46 @@ function renderState(
     $('#playsize').html('' + state.play.length)
     $('#handsize').html('' + state.hand.length)
     $('#discardsize').html('' + state.discard.length)
-    setVisibleLog(state, globalRendererState.logType)
-    bindLogTypeButtons(state)
 }
 
-function bindLogTypeButtons(state:State) {
+function bindLogTypeButtons(state:State, ui:webUI) {
     const e = $(`input[name='logType']`)
     e.off('change')
     e.change(function() {
         const logType = (this as any).value
         globalRendererState.logType = logType
-        setVisibleLog(state, logType)
+        setVisibleLog(state, logType, ui)
     })
 }
-function setVisibleLog(state:State, logType:LogType) {
+function setVisibleLog(state:State, logType:LogType, ui:webUI) {
     for (const logType of logTypes) {
         const e = $(`.logOption[option=${logType}]`)
         const choosable = e.attr('option') != globalRendererState.logType
         e.attr('choosable', choosable ? 'true' : null)
     }
-    $('#log').html(renderLogLines(state.logs[logType]))
+    displayLogLines(state.logs[logType], ui)
 }
 
-function renderLogLine(msg: string) {
-  return `<div class="logLine">${msg}</div>`
+function renderLogLine(msg: string, i:number) {
+  return `<div class="logLine" pos=${i}>${msg}</div>`
 }
 
-function renderLogLines(logs:string[]) {
+function displayLogLines(logs:[string, State|null][], ui:webUI) {
     const result:string[] = []
     for (let i = logs.length-1; i >= 0; i--) {
-        result.push(renderLogLine(logs[i]))
-        /*
-        if (i > 0 && result.length > 100) {
-            result.push(renderLogLine('... (earlier events truncated)'))
-            break
-        }
-        */
+        result.push(renderLogLine(logs[i][0], i))
     }
-    return result.join('')
+    $('#log').html(result.join(''))
+    for (const [i, e] of logs.entries()) {
+        const state:State|null = e[1]
+        if (state !== null) {
+            $(`.logLine[pos=${i}]`).click(function() {
+                if (ui.choiceState !== null) {
+                    ui.choiceState.reject(new SetState(state))
+                }
+            })
+        }
+    }
 }
 
 // ------------------------------- Macros
@@ -742,6 +744,11 @@ function renderChoice(
         updateURL:(!globalRendererState.userURL || state.hasHistory())
     })
 
+    if (ui != null) {
+        setVisibleLog(state, globalRendererState.logType, ui)
+        bindLogTypeButtons(state, ui)
+    }
+
     $('#choicePrompt').html(choicePrompt)
     $('#options').html(stringOptions.map(localRender).join(''))
     $('#undoArea').html(renderSpecials(state))
@@ -779,12 +786,13 @@ function renderSpecials(state:State): string {
         renderMacroToggle(),
         renderKingdomViewer(),
         renderHelp(),
-        renderRestart()
+        renderRestart(),
+        renderDeepLink()
     ].join('')
 }
 
 function renderRestart(): string {
-    return `<span id='deeplink' class='option', option='restart' choosable chosen='false'>Restart</span>`
+    return `<span id='restart' class='option', option='restart' choosable chosen='false'>Restart</span>`
 }
 
 function renderKingdomViewer(): string {
@@ -819,11 +827,12 @@ function bindSpecials(
 ): void {
     bindHotkeyToggle(ui)
     bindHelp(state, ui)
-    bindRestart(state)
+    bindRestart(state, ui)
     bindUndo(state, ui)
     bindRedo(state, ui)
     if (ui !== null) bindMacroToggle(ui)
     bindViewKingdom(state)
+    bindDeepLink(state)
 }
 
 function bindViewKingdom(state:State): void {
@@ -948,8 +957,17 @@ function bindHotkeyToggle(ui:webUI) {
     $(`[option='hotkeyToggle']`).on('click', pick)
 }
 
-function bindRestart(state:State): void {
-    $(`[option='restart']`).on('click', () => restart(state))
+function startState(state:State) {
+    return state.origin().update({future:[]})
+}
+
+function bindRestart(state:State, ui:webUI): void {
+    function pick() {
+        if (ui.choiceState !== null) {
+            ui.choiceState.reject(new SetState(startState(state)))
+        }
+    }
+    $(`[option='restart']`).on('click', pick)
 }
 
 function bindRedo(state:State, ui:webUI): void {
@@ -972,6 +990,20 @@ function bindUndo(state:State, ui:webUI): void {
     $(`[option='undo']`).on('click', pick)
 }
 
+function bindDeepLink(state:State): void {
+    $('#deeplink').click(() => showLinkDialog(linkForState(state)))
+}
+
+
+function randomString(): string {
+    return Math.random().toString(36).substring(2, 8)
+}
+
+function baseURL(): string {
+    const url = window.location;
+    return url.protocol + '//' + url.host
+}
+
 function showLinkDialog(url:string) {
     $('#scoreSubmitter').attr('active', 'true')
     $('#scoreSubmitter').html(
@@ -982,8 +1014,15 @@ function showLinkDialog(url:string) {
         `<span class="option" choosable id="cancel">${renderHotkey('Esc')}Cancel</span>` +
         `</div>`
     )
-    $('#link').val(url)
+    const id:string = randomString()
+    //TOOD: include base URL
+    $('#link').val(`${baseURL()}/g/${id}`)
     $('#link').select()
+    $.get(`link?id=${id}&url=${encodeURIComponent(url)}`).done(function(x:string) {
+        if (x != 'ok') {
+            alert(x)
+        }
+    })
     function exit() {
         $('#link').blur()
         $('#scoreSubmitter').attr('active', 'false')
@@ -1187,6 +1226,7 @@ function bindHelp(state:State, ui:webUI) {
             "Click the 'Kingdom' button to view the text of all cards at once.",
             "Press 'z' or click the 'Undo' button to undo the last move.",
             "Press '/' or click the 'Hotkeys' button to turn on hotkeys.",
+            "Click the 'Link' button to copy a shortlink to the current state.",
             "Go <a href='index.html'>here</a> to see all the ways to play the game.",
             `Check out the scoreboard <a href=${scoreboardURL(state.spec)}>here</a>.`,
             `Copy <a href='play?${specToURL(state.spec)}'>this link</a> to replay this game any time.`,

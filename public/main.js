@@ -81,7 +81,7 @@ import { Shadow, State, Card } from './logic.js';
 import { renderCost, renderEnergy } from './logic.js';
 import { emptyState } from './logic.js';
 import { logTypes } from './logic.js';
-import { Undo, InvalidHistory } from './logic.js';
+import { SetState, Undo, InvalidHistory } from './logic.js';
 import { playGame, initialState } from './logic.js';
 import { coerceReplayVersion, parseReplay, MalformedReplay } from './logic.js';
 import { mixins, eventMixins, randomPlaceholder } from './logic.js';
@@ -492,6 +492,9 @@ function resetGlobalRenderer() {
     globalRendererState.hotkeyMapper = new HotkeyMapper();
     globalRendererState.tokenRenderer = new TokenRenderer();
 }
+function linkForState(state) {
+    return "play?" + specToURL(state.spec) + "#" + state.serializeHistory(false);
+}
 function renderState(state, settings) {
     if (settings === void 0) { settings = {}; }
     window.renderedState = state;
@@ -508,7 +511,7 @@ function renderState(state, settings) {
     }
     if (settings.updateURL === undefined || settings.updateURL) {
         globalRendererState.userURL = false;
-        window.history.replaceState(null, "", "play?" + specToURL(state.spec) + "#" + state.serializeHistory(false));
+        window.history.replaceState(null, "", linkForState(state));
     }
     $('#resolvingHeader').html('Resolving:');
     $('#energy').html(state.energy.toString());
@@ -526,19 +529,17 @@ function renderState(state, settings) {
     $('#playsize').html('' + state.play.length);
     $('#handsize').html('' + state.hand.length);
     $('#discardsize').html('' + state.discard.length);
-    setVisibleLog(state, globalRendererState.logType);
-    bindLogTypeButtons(state);
 }
-function bindLogTypeButtons(state) {
+function bindLogTypeButtons(state, ui) {
     var e = $("input[name='logType']");
     e.off('change');
     e.change(function () {
         var logType = this.value;
         globalRendererState.logType = logType;
-        setVisibleLog(state, logType);
+        setVisibleLog(state, logType, ui);
     });
 }
-function setVisibleLog(state, logType) {
+function setVisibleLog(state, logType, ui) {
     var e_10, _a;
     try {
         for (var logTypes_1 = __values(logTypes), logTypes_1_1 = logTypes_1.next(); !logTypes_1_1.done; logTypes_1_1 = logTypes_1.next()) {
@@ -555,23 +556,41 @@ function setVisibleLog(state, logType) {
         }
         finally { if (e_10) throw e_10.error; }
     }
-    $('#log').html(renderLogLines(state.logs[logType]));
+    displayLogLines(state.logs[logType], ui);
 }
-function renderLogLine(msg) {
-    return "<div class=\"logLine\">" + msg + "</div>";
+function renderLogLine(msg, i) {
+    return "<div class=\"logLine\" pos=" + i + ">" + msg + "</div>";
 }
-function renderLogLines(logs) {
+function displayLogLines(logs, ui) {
+    var e_11, _a;
     var result = [];
     for (var i = logs.length - 1; i >= 0; i--) {
-        result.push(renderLogLine(logs[i]));
-        /*
-        if (i > 0 && result.length > 100) {
-            result.push(renderLogLine('... (earlier events truncated)'))
-            break
-        }
-        */
+        result.push(renderLogLine(logs[i][0], i));
     }
-    return result.join('');
+    $('#log').html(result.join(''));
+    var _loop_1 = function (i, e) {
+        var state = e[1];
+        if (state !== null) {
+            $(".logLine[pos=" + i + "]").click(function () {
+                if (ui.choiceState !== null) {
+                    ui.choiceState.reject(new SetState(state));
+                }
+            });
+        }
+    };
+    try {
+        for (var _b = __values(logs.entries()), _c = _b.next(); !_c.done; _c = _b.next()) {
+            var _d = __read(_c.value, 2), i = _d[0], e = _d[1];
+            _loop_1(i, e);
+        }
+    }
+    catch (e_11_1) { e_11 = { error: e_11_1 }; }
+    finally {
+        try {
+            if (_c && !_c.done && (_a = _b.return)) _a.call(_b);
+        }
+        finally { if (e_11) throw e_11.error; }
+    }
 }
 //TODO: prefer better card matches
 function matchMacro(macro, state, options, chosen) {
@@ -746,7 +765,7 @@ var webUI = /** @class */ (function () {
     return webUI;
 }());
 function renderChoice(ui, state, choicePrompt, options, picks) {
-    var e_11, _a;
+    var e_12, _a;
     if (picks === void 0) { picks = []; }
     var optionsMap = new Map(); //map card ids to their position in the choice list
     var stringOptions = []; // values are indices into options
@@ -781,12 +800,12 @@ function renderChoice(ui, state, choicePrompt, options, picks) {
             pickMap.set(renderKey(x), i);
         }
     }
-    catch (e_11_1) { e_11 = { error: e_11_1 }; }
+    catch (e_12_1) { e_12 = { error: e_12_1 }; }
     finally {
         try {
             if (_c && !_c.done && (_a = _b.return)) _a.call(_b);
         }
-        finally { if (e_11) throw e_11.error; }
+        finally { if (e_12) throw e_12.error; }
     }
     renderState(state, {
         hotkeyMap: hotkeyMap,
@@ -794,6 +813,10 @@ function renderChoice(ui, state, choicePrompt, options, picks) {
         pickMap: pickMap,
         updateURL: (!globalRendererState.userURL || state.hasHistory())
     });
+    if (ui != null) {
+        setVisibleLog(state, globalRendererState.logType, ui);
+        bindLogTypeButtons(state, ui);
+    }
     $('#choicePrompt').html(choicePrompt);
     $('#options').html(stringOptions.map(localRender).join(''));
     $('#undoArea').html(renderSpecials(state));
@@ -827,11 +850,12 @@ function renderSpecials(state) {
         renderMacroToggle(),
         renderKingdomViewer(),
         renderHelp(),
-        renderRestart()
+        renderRestart(),
+        renderDeepLink()
     ].join('');
 }
 function renderRestart() {
-    return "<span id='deeplink' class='option', option='restart' choosable chosen='false'>Restart</span>";
+    return "<span id='restart' class='option', option='restart' choosable chosen='false'>Restart</span>";
 }
 function renderKingdomViewer() {
     return "<span id='viewKingdom' class='option', option='viewKingdom' choosable chosen='false'>Kingdom</span>";
@@ -859,12 +883,13 @@ function renderRedo(redoable) {
 function bindSpecials(state, ui) {
     bindHotkeyToggle(ui);
     bindHelp(state, ui);
-    bindRestart(state);
+    bindRestart(state, ui);
     bindUndo(state, ui);
     bindRedo(state, ui);
     if (ui !== null)
         bindMacroToggle(ui);
     bindViewKingdom(state);
+    bindDeepLink(state);
 }
 function bindViewKingdom(state) {
     function onClick() {
@@ -942,7 +967,7 @@ function bindRecordMacroButton(ui) {
     e.on('click', onClick);
 }
 function bindPlayMacroButtons(ui) {
-    var e_12, _a;
+    var e_13, _a;
     function onClick(i) {
         console.log('?');
         if (ui.choiceState !== null && ui.playingMacro.length == 0) {
@@ -951,7 +976,7 @@ function bindPlayMacroButtons(ui) {
             ui.resolveWithMacro();
         }
     }
-    var _loop_1 = function (i, macro) {
+    var _loop_2 = function (i, macro) {
         var e = $("[option='macro" + i + "'");
         e.off('click');
         e.on('click', function () { return onClick(i); });
@@ -959,24 +984,7 @@ function bindPlayMacroButtons(ui) {
     try {
         for (var _b = __values(ui.macros.entries()), _c = _b.next(); !_c.done; _c = _b.next()) {
             var _d = __read(_c.value, 2), i = _d[0], macro = _d[1];
-            _loop_1(i, macro);
-        }
-    }
-    catch (e_12_1) { e_12 = { error: e_12_1 }; }
-    finally {
-        try {
-            if (_c && !_c.done && (_a = _b.return)) _a.call(_b);
-        }
-        finally { if (e_12) throw e_12.error; }
-    }
-}
-function unbindPlayMacroButtons(ui) {
-    var e_13, _a;
-    try {
-        for (var _b = __values(ui.macros.entries()), _c = _b.next(); !_c.done; _c = _b.next()) {
-            var _d = __read(_c.value, 2), i = _d[0], macro = _d[1];
-            var e = $("[option='macro" + i + "'");
-            e.off('click');
+            _loop_2(i, macro);
         }
     }
     catch (e_13_1) { e_13 = { error: e_13_1 }; }
@@ -987,6 +995,23 @@ function unbindPlayMacroButtons(ui) {
         finally { if (e_13) throw e_13.error; }
     }
 }
+function unbindPlayMacroButtons(ui) {
+    var e_14, _a;
+    try {
+        for (var _b = __values(ui.macros.entries()), _c = _b.next(); !_c.done; _c = _b.next()) {
+            var _d = __read(_c.value, 2), i = _d[0], macro = _d[1];
+            var e = $("[option='macro" + i + "'");
+            e.off('click');
+        }
+    }
+    catch (e_14_1) { e_14 = { error: e_14_1 }; }
+    finally {
+        try {
+            if (_c && !_c.done && (_a = _b.return)) _a.call(_b);
+        }
+        finally { if (e_14) throw e_14.error; }
+    }
+}
 function bindHotkeyToggle(ui) {
     function pick() {
         globalRendererState.hotkeysOn = !globalRendererState.hotkeysOn;
@@ -995,8 +1020,16 @@ function bindHotkeyToggle(ui) {
     keyListeners.set('/', pick);
     $("[option='hotkeyToggle']").on('click', pick);
 }
-function bindRestart(state) {
-    $("[option='restart']").on('click', function () { return restart(state); });
+function startState(state) {
+    return state.origin().update({ future: [] });
+}
+function bindRestart(state, ui) {
+    function pick() {
+        if (ui.choiceState !== null) {
+            ui.choiceState.reject(new SetState(startState(state)));
+        }
+    }
+    $("[option='restart']").on('click', pick);
 }
 function bindRedo(state, ui) {
     function pick() {
@@ -1016,6 +1049,16 @@ function bindUndo(state, ui) {
     keyListeners.set('z', pick);
     $("[option='undo']").on('click', pick);
 }
+function bindDeepLink(state) {
+    $('#deeplink').click(function () { return showLinkDialog(linkForState(state)); });
+}
+function randomString() {
+    return Math.random().toString(36).substring(2, 8);
+}
+function baseURL() {
+    var url = window.location;
+    return url.protocol + '//' + url.host;
+}
 function showLinkDialog(url) {
     $('#scoreSubmitter').attr('active', 'true');
     $('#scoreSubmitter').html("<label for=\"link\">Link:</label>" +
@@ -1024,8 +1067,15 @@ function showLinkDialog(url) {
         ("<span class=\"option\" choosable id=\"copyLink\">" + renderHotkey('⏎') + "Copy</span>") +
         ("<span class=\"option\" choosable id=\"cancel\">" + renderHotkey('Esc') + "Cancel</span>") +
         "</div>");
-    $('#link').val(url);
+    var id = randomString();
+    //TOOD: include base URL
+    $('#link').val(baseURL() + "/g/" + id);
     $('#link').select();
+    $.get("link?id=" + id + "&url=" + encodeURIComponent(url)).done(function (x) {
+        if (x != 'ok') {
+            alert(x);
+        }
+    });
     function exit() {
         $('#link').blur();
         $('#scoreSubmitter').attr('active', 'false');
@@ -1194,6 +1244,7 @@ function bindHelp(state, ui) {
             "Click the 'Kingdom' button to view the text of all cards at once.",
             "Press 'z' or click the 'Undo' button to undo the last move.",
             "Press '/' or click the 'Hotkeys' button to turn on hotkeys.",
+            "Click the 'Link' button to copy a shortlink to the current state.",
             "Go <a href='index.html'>here</a> to see all the ways to play the game.",
             "Check out the scoreboard <a href=" + scoreboardURL(state.spec) + ">here</a>.",
             "Copy <a href='play?" + specToURL(state.spec) + "'>this link</a> to replay this game any time.",
@@ -1220,7 +1271,7 @@ function setCookie(name, value) {
     document.cookie = name + "=" + value + "; max-age=315360000; path=/";
 }
 function getCookie(name) {
-    var e_14, _a;
+    var e_15, _a;
     var nameEQ = name + "=";
     var ca = document.cookie.split(';');
     try {
@@ -1232,12 +1283,12 @@ function getCookie(name) {
                 return c.substring(nameEQ.length, c.length);
         }
     }
-    catch (e_14_1) { e_14 = { error: e_14_1 }; }
+    catch (e_15_1) { e_15 = { error: e_15_1 }; }
     finally {
         try {
             if (_c && !_c.done && (_a = _b.return)) _a.call(_b);
         }
-        finally { if (e_14) throw e_14.error; }
+        finally { if (e_15) throw e_15.error; }
     }
     return null;
 }
@@ -1424,7 +1475,7 @@ function kingdomURL(kindParam, cards, events) {
     return "play?" + kindParam + "cards=" + cards.map(function (card) { return card.name; }).join(',') + "&events=" + events.map(function (card) { return card.name; });
 }
 function countIn(s, f) {
-    var e_15, _a;
+    var e_16, _a;
     var count = 0;
     try {
         for (var s_1 = __values(s), s_1_1 = s_1.next(); !s_1_1.done; s_1_1 = s_1.next()) {
@@ -1433,12 +1484,12 @@ function countIn(s, f) {
                 count += 1;
         }
     }
-    catch (e_15_1) { e_15 = { error: e_15_1 }; }
+    catch (e_16_1) { e_16 = { error: e_16_1 }; }
     finally {
         try {
             if (s_1_1 && !s_1_1.done && (_a = s_1.return)) _a.call(s_1);
         }
-        finally { if (e_15) throw e_15.error; }
+        finally { if (e_16) throw e_16.error; }
     }
     return count;
 }

@@ -7,6 +7,7 @@
 }
 .logLine {
     font-size: 1em;
+    cursor:pointer;
 }
 .homeLine {
     max-width: 30em;
@@ -219,9 +220,13 @@
   top: 3em;
   left: 0px;
 }
-.card:hover .tooltip {
-    visibility: visible;
-    transition-delay: 0.5s;
+
+
+@media (hover: hover) {
+    .card:hover .tooltip {
+        visibility: visible;
+        transition-delay: 0.5s;
+    }
 }
 .hotkey {
   font-family: "Lucida Console", Courier, monospace;
