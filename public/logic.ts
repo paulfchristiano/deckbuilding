@@ -626,7 +626,10 @@ export class State {
         //return this
         const logs:Log = {...this.logs}
         if (logType == 'all') msg = indent(this.logIndent, msg)
-        logs[logType] = logs[logType].concat([[msg, this.backup()]])
+        //we need to obliterate future, since we want to log what's happening now
+        //we need to backup since we won't remember where we are in the code
+        const state:State|null = this.update({future:[]}).backup()
+        logs[logType] = logs[logType].concat([[msg, state]])
         return this.update({logs: logs})
     }
     shiftFuture(): [State, Replayable|null] {
@@ -1964,7 +1967,6 @@ function reversed<T>(it:IterableIterator<T>): IterableIterator<T> {
 
 // ------------------------- Browsing
 
-//TODO: if to is a prefix of from, set the future appropriately
 function undoOrSet(to:State, from:State): State {
     const newHistory = to.origin().future
     const oldHistory = from.origin().future
@@ -1979,7 +1981,7 @@ function undoOrSet(to:State, from:State): State {
             }
         }
     }
-    return predecessor ? to.update({redo: newRedo}) : to
+    return predecessor ? to.update({redo: newRedo, ui:from.ui}) : to
 }
 
 

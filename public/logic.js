@@ -735,7 +735,10 @@ var State = /** @class */ (function () {
         var logs = __assign({}, this.logs);
         if (logType == 'all')
             msg = indent(this.logIndent, msg);
-        logs[logType] = logs[logType].concat([[msg, this.backup()]]);
+        //we need to obliterate future, since we want to log what's happening now
+        //we need to backup since we won't remember where we are in the code
+        var state = this.update({ future: [] }).backup();
+        logs[logType] = logs[logType].concat([[msg, state]]);
         return this.update({ logs: logs });
     };
     State.prototype.shiftFuture = function () {
@@ -2476,7 +2479,6 @@ function reversed(it) {
     return xs.values();
 }
 // ------------------------- Browsing
-//TODO: if to is a prefix of from, set the future appropriately
 function undoOrSet(to, from) {
     var e_36, _a;
     var newHistory = to.origin().future;
@@ -2503,7 +2505,7 @@ function undoOrSet(to, from) {
             finally { if (e_36) throw e_36.error; }
         }
     }
-    return predecessor ? to.update({ redo: newRedo }) : to;
+    return predecessor ? to.update({ redo: newRedo, ui: from.ui }) : to;
 }
 //
 // ----------------- CARDS -----------------
