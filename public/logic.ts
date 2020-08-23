@@ -2325,21 +2325,14 @@ const villager:CardSpec = {
     }]
 }
 
-function createInPlayEffect(spec:CardSpec) {
-    return {
-        text: [`Create a ${spec.name} in play.`],
-        transform: () => create(spec, 'play')
-    }
+function repeat(t:Transform, n:number): Transform {
+    return doAll(Array(n).fill(t))
 }
 
-function villagerEffect() {
-    return createInPlayEffect(villager)
-}
-
-function villagersEffect(n:number): Effect {
+function createInPlayEffect(spec:CardSpec, n:number=1) {
     return {
-        text: [`Create ${num(n, 'Villager')} in play.`],
-        transform: () => doAll(Array(n).fill(create(villager, 'play')))
+        text: [`Create ${aOrNum(n, spec.name)} in play.`],
+        transform: () => repeat(create(spec, 'play'), n)
     }
 }
 
@@ -2351,7 +2344,7 @@ const necropolis:CardSpec = {name: 'Necropolis',
 buyableAnd(necropolis, 2, {onBuy: [villagerEffect()]})
 */
 const ghostTown:CardSpec = {name: 'Ghost Town',
-    effects: [villagerEffect()],
+    effects: [createInPlayEffect(villager)],
     relatedCards: [villager]
 }
 buyable(ghostTown, 3, {onBuy: [actionsEffect(2)]})
@@ -2403,25 +2396,25 @@ const smithy:CardSpec = {name: 'Smithy',
 }
 buyable(smithy, 4)
 */
-const Herald = 'Herald'
-const herald:CardSpec = {name: Herald,
+const Till = 'Till'
+const till:CardSpec = {name: Till,
     effects: [{
-        text: [`Put up to 3 cards not named ${Herald} from your
+        text: [`Put up to 3 non-${Till} from your
                discard into your hand.`],
         transform: () => async function(state) {
             let targets; [state, targets] = await multichoice(state,
                 'Choose up to three cards to put into your hand.',
-                state.discard.filter(c => c.name != Herald).map(asChoice),
+                state.discard.filter(c => c.name != Till).map(asChoice),
                 3)
             state = await moveMany(targets, 'hand')(state)
             return state
         }
     }]
 }
-buyable(herald, 3)
+buyable(till, 3)
 
 const village:CardSpec = {name: 'Village',
-    effects:  [actionsEffect(1), villagerEffect()],
+    effects:  [actionsEffect(1), createInPlayEffect(villager)],
     relatedCards: [villager],
 }
 buyable(village, 4)
@@ -2491,7 +2484,7 @@ buyable(throneRoom, 5)
 
 const coppersmith:CardSpec = {name: 'Coppersmith',
     fixedCost: energy(1),
-    effects: [toPlay(), buyEffect()],
+    effects: [toPlay()],
     triggers: [{
         kind: 'play',
         text: `When you play a copper, +$1.`,
@@ -2501,7 +2494,7 @@ const coppersmith:CardSpec = {name: 'Coppersmith',
 }
 buyable(coppersmith, 3)
 
-const scavenger:CardSpec = {name: 'Scavenger',
+const unearth:CardSpec = {name: 'Unearth',
     fixedCost: energy(1),
     effects: [coinsEffect(2), actionsEffect(1), targetedEffect(
             target => move(target, 'hand'),
@@ -2510,7 +2503,7 @@ const scavenger:CardSpec = {name: 'Scavenger',
         )
     ]
 }
-buyable(scavenger, 5)
+buyable(unearth, 5)
 
 const celebration:CardSpec = {name: 'Celebration',
     fixedCost: energy(2),
@@ -2519,14 +2512,17 @@ const celebration:CardSpec = {name: 'Celebration',
 }
 buyable(celebration, 8)
 
-const plough:CardSpec = {name: 'Plough',
-    fixedCost: energy(2),
+const Plow = 'Plow'
+const plow:CardSpec = {name: Plow,
+    fixedCost: energy(1),
     effects: [{
-        text: ['Put your discard and play into your hand.'],
-        transform: () => ploughTransform
+        text: [`Put all non-${Plow} cards from your discard into your hand.`],
+        transform: state => moveMany(state.discard.filter(
+            c => c.name != Plow
+        ), 'hand')
     }]
 }
-buyable(plough, 5)
+buyable(plow, 4)
 
 const construction:CardSpec = {name: 'Construction',
     fixedCost: energy(1),
@@ -2699,10 +2695,13 @@ const fair:CardSpec = {
     name: 'Fair',
     replacers: [{
         text: `Whenever you would create a card in your discard,
-        instead create the card in your hand.`,
+        instead trash this to create the card in your hand.`,
         kind: 'create',
-        handles: (e, state, card) => e.zone == 'discard',
-        replace: (x, state, card) => ({...x, zone:'hand'})
+        handles: (e, state, card) => e.zone == 'discard'
+            && state.find(card).place == 'play',
+        replace: (x, state, card) => ({
+            ...x, zone:'hand', effects:x.effects.concat(trash(card))
+        })
     }, {
         text: `Whenever this would leave play, trash it.`,
         kind: 'move',
@@ -2712,7 +2711,7 @@ const fair:CardSpec = {
 }
 
 const travelingFair:CardSpec = {name:'Traveling Fair',
-    fixedCost: coin(2),
+    fixedCost: coin(1),
     effects: [buyEffect(), createInPlayEffect(fair)],
     relatedCards: [fair],
 }
@@ -2838,18 +2837,10 @@ const duplicate:CardSpec = {name: 'Duplicate',
 registerEvent(duplicate)
 
 const royalSeal:CardSpec = {name: 'Royal Seal',
-    effects: [coinsEffect(2), toPlay()],
-    replacers: [{
-        text: `Whenever you would create a card in your discard,
-        discard this to create the card in your hand instead.`,
-        kind: 'create',
-        handles: (e, state, card) => e.zone == 'discard'
-            && state.find(card).place == 'play',
-        replace: (x, state, card) => 
-            ({...x, zone:'hand', effects:x.effects.concat([move(card, 'discard')])})
-    }]
+    effects: [coinsEffect(2), createInPlayEffect(fair, 2)],
+    relatedCards: [fair]
 }
-buyable(royalSeal, 4)
+buyable(royalSeal, 5)
 
 function workshopEffect(n:number):Effect {
     return targetedEffect(
@@ -2977,7 +2968,7 @@ registerEvent(twin)
 function startsWithCharge(name:string, n:number):Trigger<CreateEvent> {
     return {
         text: `When you create a ${name},
-               put ${aOrNum(n, 'charge counter')} on it.`,
+               put ${aOrNum(n, 'charge token')} on it.`,
         kind: 'create',
         handles: e => e.card.name == name,
         transform: e => charge(e.card, n)
@@ -3008,7 +2999,7 @@ const lackeys:CardSpec = {name: 'Lackeys',
     effects: [actionsEffect(3)],
     relatedCards: [villager],
 }
-buyable(lackeys, 3, {onBuy:[villagerEffect()]})
+buyable(lackeys, 3, {onBuy:[createInPlayEffect(villager)]})
 
 const goldMine:CardSpec = {name: 'Gold Mine',
     fixedCost: energy(1),
@@ -3080,9 +3071,9 @@ const synergy:CardSpec = {name: 'Synergy',
         }
     }],
     triggers: [{
-        text: 'Whenever you buy a card with a synergy token other than with this,'
+        text: 'After buying a card with a synergy token other than with this,'
         + ' buy a different card with a synergy token with equal or lesser cost.',
-        kind:'buy',
+        kind:'afterBuy',
         handles: (e, state, card) => (e.source.id != card.id && e.card.count('synergy') > 0),
         transform: (e, state, card) => applyToTarget(
             target => target.buy(card),
@@ -3515,8 +3506,8 @@ const recruitment:CardSpec = {
         text: `Whenever you pay @, create that many ${villager.name}s in play.`,
         kind: 'cost',
         handles: (e, state, card) => e.cost.energy > 0,
-        transform: (e, state, card) => doAll(
-            Array(e.cost.energy).fill(create(villager, 'play'))
+        transform: (e, state, card) => repeat(
+            create(villager, 'play'), e.cost.energy
         )
     }]
 }
@@ -3720,7 +3711,7 @@ const lostArts:CardSpec = {
             )
             return {...x, cost:{...x.cost,
                 energy:x.cost.energy-reduction,
-                effects:x.cost.effects.concat(Array(reduction).fill(
+                effects:x.cost.effects.concat([repeat(
                     applyToTarget(
                         target => removeToken(target, 'art'),
                         'Remove an art token for a supply pile.',
@@ -3728,7 +3719,8 @@ const lostArts:CardSpec = {
                             c => c.name == x.card.name && c.count('art') > 0
                         )
                     )
-                ))
+                    , reduction
+                )])
             }}
         }
     }]
