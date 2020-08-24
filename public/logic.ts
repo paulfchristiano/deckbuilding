@@ -1809,15 +1809,23 @@ export function specToURL(spec:GameSpec): string {
     return mapToURL(args)
 }
 
+function split(s:string, sep:string): string[] {
+    if (s.length == 0) {
+        return []
+    } else  {
+        return s.split(sep)
+    }
+}
+
 export function specFromURL(search:string): GameSpec {
     const searchParams = new URLSearchParams(search)
     const urlKind:string|null = searchParams.get('kind')
     const cardsString:string|null = searchParams.get('cards')
     const cards:string[] = (cardsString === null) ? []
-        : cardsString.split(',').map(normalize)
+        : split(cardsString, ',').map(normalize)
     const eventsString:string|null = searchParams.get('events')
     const events:string[] = (eventsString === null) ? []
-        : eventsString.split(',').map(normalize)
+        : split(eventsString, ',').map(normalize)
     const seed:string|null = searchParams.get('seed') || randomSeed()
     let kind:string
 

@@ -2247,16 +2247,24 @@ export function specToURL(spec) {
     }
     return mapToURL(args);
 }
+function split(s, sep) {
+    if (s.length == 0) {
+        return [];
+    }
+    else {
+        return s.split(sep);
+    }
+}
 export function specFromURL(search) {
     var e_31, _a, e_32, _b;
     var searchParams = new URLSearchParams(search);
     var urlKind = searchParams.get('kind');
     var cardsString = searchParams.get('cards');
     var cards = (cardsString === null) ? []
-        : cardsString.split(',').map(normalize);
+        : split(cardsString, ',').map(normalize);
     var eventsString = searchParams.get('events');
     var events = (eventsString === null) ? []
-        : eventsString.split(',').map(normalize);
+        : split(eventsString, ',').map(normalize);
     var seed = searchParams.get('seed') || randomSeed();
     var kind;
     function pickOrPickR() {
