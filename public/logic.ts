@@ -1667,27 +1667,30 @@ function actChoice(state:State): Promise<[State, [Card, ActionKind]|null]> {
 
 // ------------------------------ Start the game
 
-function coinKey(spec:CardSpec): number {
+export function coinKey(spec:CardSpec): number {
     if (spec.buyCost !== undefined)
         return spec.buyCost.coin
+    return 0
+}
+export function coinEventKey(spec:CardSpec): number {
     if (spec.fixedCost !== undefined)
         return spec.fixedCost.coin
     if (spec.calculatedCost !== undefined)
         return spec.calculatedCost.initial.coin
     return 0
 }
-function energyKey(spec:CardSpec): number {
+export function energyEventKey(spec:CardSpec): number {
     if (spec.fixedCost !== undefined)
         return spec.fixedCost.energy
     if (spec.calculatedCost !== undefined)
         return spec.calculatedCost.initial.energy
     return 0
 }
-type Comp<T> = (a:T, b:T) => number
-function toComp<T>(key:(x:T) => number): Comp<T> {
+export type Comp<T> = (a:T, b:T) => number
+export function toComp<T>(key:(x:T) => number): Comp<T> {
     return (a, b) => key(a) - key(b)
 }
-function nameComp(a:CardSpec, b:CardSpec): number {
+export function nameComp(a:CardSpec, b:CardSpec): number {
     return a.name.localeCompare(b.name, 'en')
 }
 function lexical<T>(comps:Comp<T>[]): Comp<T> {
@@ -1699,8 +1702,11 @@ function lexical<T>(comps:Comp<T>[]): Comp<T> {
         return 0
     }
 }
-const supplySort:Comp<CardSpec> = lexical([
-    toComp(coinKey), toComp(energyKey), nameComp
+export const supplyComp:Comp<CardSpec> = lexical([
+    toComp(coinKey), nameComp
+])
+export const eventComp:Comp<CardSpec> = lexical([
+    toComp(coinEventKey), toComp(energyEventKey), nameComp
 ])
 
 // Source: https://werxltd.com/wp/2010/05/13/javascript-implementation-of-javas-string-hashcode-method/
@@ -1969,8 +1975,8 @@ export function initialState(spec:GameSpec): State {
 
     const variableSupplies = kingdom.cards.slice()
     const variableEvents = kingdom.events.slice()
-    variableSupplies.sort(supplySort)
-    variableEvents.sort(supplySort)
+    variableSupplies.sort(supplyComp)
+    variableEvents.sort(supplyComp)
 
     const supply = coreSupplies.concat(variableSupplies)
     const events = coreEvents.concat(variableEvents)
