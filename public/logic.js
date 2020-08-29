@@ -3727,9 +3727,22 @@ var synergy = { name: 'Synergy',
 };
 registerEvent(synergy);
 var shelter = { name: 'Shelter',
-    effects: [actionsEffect(1), targetedEffect(function (target) { return addToken(target, 'shelter'); }, 'Put a shelter token on a card in play or in your hand.', function (state) { return state.play.concat(state.hand); })]
+    effects: [actionsEffect(1), targetedEffect(function (target) { return addToken(target, 'shelter'); }, 'Put a shelter token on a card.', function (state) { return state.play.concat(state.hand).concat(state.discard)
+            .concat(state.supply).concat(state.events); })]
 };
 buyable(shelter, 3, {
+    /*
+    replacers: [{
+        kind: 'move',
+        text: `Whenever you would move a card with a shelter token,
+               instead remove a shelter token from it.`,
+        handles: (x, state) => x.skip == false
+            && state.find(x.card).count('shelter') > 0,
+        replace: x => ({...x, skip:true,
+            effects:x.effects.concat([removeToken(x.card, 'shelter')])
+        })
+    }]
+    */
     replacers: [{
             kind: 'move',
             text: "Whenever you would move a card with a shelter token from play,\n               instead remove a shelter token from it.",
@@ -3737,15 +3750,19 @@ buyable(shelter, 3, {
                 && x.skip == false
                 && state.find(x.card).count('shelter') > 0; },
             replace: function (x) { return (__assign(__assign({}, x), { skip: true, toZone: 'play', effects: x.effects.concat([removeToken(x.card, 'shelter')]) })); }
-        }, {
-            kind: 'move',
-            text: "Whenever you would discard a card with a shelter token after playing it,\n               instead put it in your hand and remove a shelter token.",
-            handles: function (x, state) { return x.fromZone == 'resolving'
-                && x.toZone == 'discard'
-                && x.skip == false
-                && state.find(x.card).count('shelter') > 0; },
-            replace: function (x) { return (__assign(__assign({}, x), { toZone: 'hand', effects: x.effects.concat([removeToken(x.card, 'shelter')]) })); }
         }]
+    /*
+    }, {
+        kind: 'move',
+        text: `Whenever you would discard a card with a shelter token after playing it,
+               instead put it in your hand and remove a shelter token.`,
+        handles: (x, state) => x.fromZone == 'resolving'
+            && x.toZone == 'discard'
+            && x.skip == false
+            && state.find(x.card).count('shelter') > 0,
+        replace: x => ({...x, toZone:'hand', effects:x.effects.concat([removeToken(x.card, 'shelter')])})
+    }]
+    */
 });
 var market = {
     name: 'Market',

@@ -3176,11 +3176,24 @@ registerEvent(synergy)
 const shelter:CardSpec = {name: 'Shelter',
     effects: [actionsEffect(1), targetedEffect(
         target => addToken(target, 'shelter'),
-        'Put a shelter token on a card in play or in your hand.',
-        state => state.play.concat(state.hand)
+        'Put a shelter token on a card.',
+        state => state.play.concat(state.hand).concat(state.discard)
+            .concat(state.supply).concat(state.events)
     )]
 }
 buyable(shelter, 3, {
+    /*
+    replacers: [{
+        kind: 'move',
+        text: `Whenever you would move a card with a shelter token,
+               instead remove a shelter token from it.`,
+        handles: (x, state) => x.skip == false
+            && state.find(x.card).count('shelter') > 0,
+        replace: x => ({...x, skip:true,
+            effects:x.effects.concat([removeToken(x.card, 'shelter')])
+        })
+    }]
+    */
     replacers: [{
         kind: 'move',
         text: `Whenever you would move a card with a shelter token from play,
@@ -3192,6 +3205,8 @@ buyable(shelter, 3, {
             skip:true, toZone:'play',
             effects:x.effects.concat([removeToken(x.card, 'shelter')])
         })
+    }]
+    /*
     }, {
         kind: 'move',
         text: `Whenever you would discard a card with a shelter token after playing it,
@@ -3202,6 +3217,7 @@ buyable(shelter, 3, {
             && state.find(x.card).count('shelter') > 0,
         replace: x => ({...x, toZone:'hand', effects:x.effects.concat([removeToken(x.card, 'shelter')])})
     }]
+    */
 })
 
 const market:CardSpec = {
