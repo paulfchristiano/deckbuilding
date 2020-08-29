@@ -2077,26 +2077,29 @@ function actChoice(state) {
     */
 }
 // ------------------------------ Start the game
-function coinKey(spec) {
+export function coinKey(spec) {
     if (spec.buyCost !== undefined)
         return spec.buyCost.coin;
+    return 0;
+}
+export function coinEventKey(spec) {
     if (spec.fixedCost !== undefined)
         return spec.fixedCost.coin;
     if (spec.calculatedCost !== undefined)
         return spec.calculatedCost.initial.coin;
     return 0;
 }
-function energyKey(spec) {
+export function energyEventKey(spec) {
     if (spec.fixedCost !== undefined)
         return spec.fixedCost.energy;
     if (spec.calculatedCost !== undefined)
         return spec.calculatedCost.initial.energy;
     return 0;
 }
-function toComp(key) {
+export function toComp(key) {
     return function (a, b) { return key(a) - key(b); };
 }
-function nameComp(a, b) {
+export function nameComp(a, b) {
     return a.name.localeCompare(b.name, 'en');
 }
 function lexical(comps) {
@@ -2120,8 +2123,11 @@ function lexical(comps) {
         return 0;
     };
 }
-var supplySort = lexical([
-    toComp(coinKey), toComp(energyKey), nameComp
+export var supplyComp = lexical([
+    toComp(coinKey), nameComp
+]);
+export var eventComp = lexical([
+    toComp(coinEventKey), toComp(energyEventKey), nameComp
 ]);
 // Source: https://werxltd.com/wp/2010/05/13/javascript-implementation-of-javas-string-hashcode-method/
 // (definitely not a PRF)
@@ -2471,8 +2477,8 @@ export function initialState(spec) {
     var kingdom = makeKingdom(spec);
     var variableSupplies = kingdom.cards.slice();
     var variableEvents = kingdom.events.slice();
-    variableSupplies.sort(supplySort);
-    variableEvents.sort(supplySort);
+    variableSupplies.sort(supplyComp);
+    variableEvents.sort(supplyComp);
     var supply = coreSupplies.concat(variableSupplies);
     var events = coreEvents.concat(variableEvents);
     var state = new State(spec);
