@@ -1390,8 +1390,6 @@ export function load(fixedURL) {
     var spec;
     try {
         spec = specFromURL(url);
-        console.log(url);
-        console.log(spec);
     }
     catch (e) {
         if (e instanceof MalformedSpec) {

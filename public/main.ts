@@ -1367,8 +1367,6 @@ export function load(fixedURL:string=''): void {
     let spec:GameSpec;
     try {
         spec = specFromURL(url)
-        console.log(url)
-        console.log(spec)
     } catch(e) {
         if (e instanceof MalformedSpec) {
             alert(e)

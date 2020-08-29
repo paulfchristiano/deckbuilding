@@ -91,6 +91,7 @@ interface Restriction {
 }
 
 export interface CalculatedCost {
+    initial: Cost; //used for sorting
     calculate: (card:Card, state:State) => Cost;
     text: string;
 }
@@ -1666,13 +1667,41 @@ function actChoice(state:State): Promise<[State, [Card, ActionKind]|null]> {
 
 // ------------------------------ Start the game
 
-function supplyKey(spec:CardSpec): number {
-    if (spec.buyCost === undefined) return 0;
-    return spec.buyCost.coin
+function coinKey(spec:CardSpec): number {
+    if (spec.buyCost !== undefined)
+        return spec.buyCost.coin
+    if (spec.fixedCost !== undefined)
+        return spec.fixedCost.coin
+    if (spec.calculatedCost !== undefined)
+        return spec.calculatedCost.initial.coin
+    return 0
 }
-function supplySort(card1:CardSpec, card2:CardSpec): number {
-    return supplyKey(card1) - supplyKey(card2)
+function energyKey(spec:CardSpec): number {
+    if (spec.fixedCost !== undefined)
+        return spec.fixedCost.energy
+    if (spec.calculatedCost !== undefined)
+        return spec.calculatedCost.initial.energy
+    return 0
 }
+type Comp<T> = (a:T, b:T) => number
+function toComp<T>(key:(x:T) => number): Comp<T> {
+    return (a, b) => key(a) - key(b)
+}
+function nameComp(a:CardSpec, b:CardSpec): number {
+    return a.name.localeCompare(b.name, 'en')
+}
+function lexical<T>(comps:Comp<T>[]): Comp<T> {
+    return function(a:T, b:T){
+        for (const comp of comps) {
+            const result:number = comp(a, b)
+            if (result != 0) return result
+        }
+        return 0
+    }
+}
+const supplySort:Comp<CardSpec> = lexical([
+    toComp(coinKey), toComp(energyKey), nameComp
+])
 
 // Source: https://werxltd.com/wp/2010/05/13/javascript-implementation-of-javas-string-hashcode-method/
 // (definitely not a PRF)
@@ -1744,13 +1773,26 @@ export function getTutorialSpec(): GameSpec {
     }
 }
 
-function normalize(s:string): string {
+function stringComp(a:string, b:string): number {
+    return a.toLowerCase().localeCompare(b.toLowerCase(), 'en')
+}
+
+function normalizeString(s:string): string {
     return s.split('').filter(c => c != ' ' && c != "'").join('').toLowerCase()
+}
+function normalizePreservingCase(xs:string[]): string[] {
+    function f(s:string) {
+        return s.split('').filter(c => c != ' ' && c != "'").join('')
+    }
+    return xs.map(f).sort(stringComp)
+}
+function normalize(xs:string[]): string[] {
+    return xs.map(normalizeString).sort(stringComp)
 }
 
 function makeDictionary(xs:CardSpec[]): Map<string, CardSpec> {
     const result:Map<string, CardSpec> = new Map()
-    for (const x of xs) result.set(normalize(x.name), x);
+    for (const x of xs) result.set(normalizeString(x.name), x);
     return result
 }
 
@@ -1758,9 +1800,10 @@ function extractList(names:string[], xs:CardSpec[]): SlotSpec[] {
     const dictionary = makeDictionary(xs)
     const result:SlotSpec[] = []
     for (const name of names) {
-        if (normalize(name) == normalize(RANDOM)) result.push(RANDOM)
-        else {
-            const lookup = dictionary.get(normalize(name))
+        if (normalizeString(name) == normalizeString(RANDOM)) {
+            result.push(RANDOM)
+        } else {
+            const lookup = dictionary.get(normalizeString(name))
             if (lookup == undefined)
                 throw new MalformedSpec(`${name} is not a valid name`);
             result.push(lookup)
@@ -1779,7 +1822,7 @@ function renderSlots(slots:SlotSpec[]) {
         if (slot == RANDOM) result.push(slot);
         else result.push(slot.name);
     }
-    return result.join(',')
+    return normalizePreservingCase(result).join(',')
 
 }
 
@@ -1822,10 +1865,10 @@ export function specFromURL(search:string): GameSpec {
     const urlKind:string|null = searchParams.get('kind')
     const cardsString:string|null = searchParams.get('cards')
     const cards:string[] = (cardsString === null) ? []
-        : split(cardsString, ',').map(normalize)
+        : normalize(split(cardsString, ','))
     const eventsString:string|null = searchParams.get('events')
     const events:string[] = (eventsString === null) ? []
-        : split(eventsString, ',').map(normalize)
+        : normalize(split(eventsString, ','))
     const seed:string|null = searchParams.get('seed') || randomSeed()
     let kind:string
 
@@ -2591,7 +2634,8 @@ function costPlus(initial:Cost, increment:Cost): CalculatedCost {
         calculate: function(card:Card, state:State) {
             return addCosts(initial, multiplyCosts(increment, state.find(card).count('cost')))
         },
-        text: eq(initial, free) ? extraStr : `${renderCost(initial, true)} plus ${extraStr}`
+        text: eq(initial, free) ? extraStr : `${renderCost(initial, true)} plus ${extraStr}`,
+        initial: initial,
     }
 }
 
