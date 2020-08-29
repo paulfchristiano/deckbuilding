@@ -1,4 +1,4 @@
-export const VERSION = "1.5.1"
+export const VERSION = "1.5.2"
 
 // ----------------------------- Formatting
 
@@ -1311,7 +1311,7 @@ function leq(cost1:Cost, cost2:Cost) {
 type Token = 'charge' | 'cost' | 'mirror' | 'duplicate' | 'twin' | 'synergy' |
     'shelter' | 'echo' | 'decay' | 'burden' | 'pathfinding' | 'neglect' |
     'reuse' | 'polish' | 'priority' | 'hesitation' | 'parallelize' | 'art' |
-    'mire' | 'onslaught' | 'expedite'
+    'mire' | 'onslaught' | 'expedite' | 'replicate'
 
 function discharge(card:Card, n:number): Transform {
     return charge(card, -n, true)
@@ -2572,10 +2572,16 @@ buyable(unearth, 5)
 
 const celebration:CardSpec = {name: 'Celebration',
     fixedCost: energy(2),
-    effects: [toPlay()],
+    effects: [actionsEffect(4), toPlay()],
     replacers: [costReduce('play', {energy:1})]
 }
-buyable(celebration, 8)
+buyable(celebration, 8, {replacers: [{
+    text: `Whenever you would create a ${celebration.name} in your discard,
+    instead create it in play.`,
+    kind:'create',
+    handles: p => p.spec.name == celebration.name && p.zone == 'discard',
+    replace: p => ({...p, zone:'play'})
+}]})
 
 const Plow = 'Plow'
 const plow:CardSpec = {name: Plow,
@@ -2873,10 +2879,18 @@ const investment:CardSpec = {name: 'Investment',
 buyable(investment, 4, {triggers: [startsWithCharge(investment.name, 2)]})
 
 const populate:CardSpec = {name: 'Populate',
-    fixedCost: {...free, coin:12, energy:3},
+    fixedCost: {...free, coin:8, energy:2},
     effects: [{
-        text: ['Buy each card in the supply.'],
-        transform: (state, card) => doAll(state.supply.map(s => s.buy(card)))
+        text: ['Buy up to 6 cards in the supply.'],
+        transform: (s, card) => async function(state) {
+            let targets; [state, targets] = await multichoice(state,
+                'Choose up to 6 cards to buy',
+                state.supply.map(asChoice), 6)
+            for (const target of targets) {
+                state = await target.buy(card)(state)
+            }
+            return state
+        }
     }]
 }
 registerEvent(populate)
@@ -2927,11 +2941,10 @@ const shippingLane:CardSpec = {name: 'Shipping Lane',
     fixedCost: energy(1),
     effects: [coinsEffect(2), toPlay()],
     triggers: [{
-        text: `After buying a card while this is in play,
+        text: `Whenever you buy a card,
             discard this to buy the card again.`,
-        kind: 'afterBuy',
-        handles: (e, state, card) => state.find(card).place == 'play'
-            && e.before.find(card).place == 'play',
+        kind: 'buy',
+        handles: () => true,
         transform: (e, state, card) => async function(state) {
             state = await move(card, 'discard')(state)
             return e.card.buy(card)(state)
@@ -3017,7 +3030,7 @@ const recycle:CardSpec = {name: 'Recycle',
 registerEvent(recycle)
 
 const twin:CardSpec = {name: 'Twin',
-    fixedCost: {...free, energy:1, coin:8},
+    fixedCost: {...free, energy:1, coin:5},
     effects: [targetedEffect(
         target => addToken(target, 'twin'),
         'Put a twin token on a card in your hand.',
@@ -3157,8 +3170,8 @@ registerEvent(synergy)
 const shelter:CardSpec = {name: 'Shelter',
     effects: [actionsEffect(1), targetedEffect(
         target => addToken(target, 'shelter'),
-        'Put a shelter token on a card in play.',
-        state => state.play
+        'Put a shelter token on a card in play or in your hand.',
+        state => state.play.concat(state.hand)
     )]
 }
 buyable(shelter, 3, {
@@ -3166,8 +3179,22 @@ buyable(shelter, 3, {
         kind: 'move',
         text: `Whenever you would move a card with a shelter token from play,
                instead remove a shelter token from it.`,
-        handles: (x, state) => (x.fromZone == 'play' && x.skip == false, state.find(x.card).count('shelter') > 0),
-        replace: x => ({...x, skip:true, toZone:'play', effects:x.effects.concat([removeToken(x.card, 'shelter')])})
+        handles: (x, state) => x.fromZone == 'play'
+            && x.skip == false
+            && state.find(x.card).count('shelter') > 0,
+        replace: x => ({...x,
+            skip:true, toZone:'play',
+            effects:x.effects.concat([removeToken(x.card, 'shelter')])
+        })
+    }, {
+        kind: 'move',
+        text: `Whenever you would discard a card with a shelter token after playing it,
+               instead put it in your hand and remove a shelter token.`,
+        handles: (x, state) => x.fromZone == 'resolving'
+            && x.toZone == 'discard'
+            && x.skip == false
+            && state.find(x.card).count('shelter') > 0,
+        replace: x => ({...x, skip:true, toZone:'hand', effects:x.effects.concat([removeToken(x.card, 'shelter')])})
     }]
 })
 
@@ -3341,10 +3368,22 @@ registerEvent(reflect)
 const replicate:CardSpec = {name: 'Replicate',
     calculatedCost: costPlus(energy(1), coin(1)),
     effects: [incrementCost(), targetedEffect(
-        (target, card) => create(target.spec, 'hand'),
-        'Choose a card in your hand. Create a fresh copy of it in your hand.',
-        state => state.hand,
-    )]
+        card => addToken(card, 'replicate', 1),
+        'Put a replicate token on a card in the supply.',
+        state => state.supply,
+    )],
+    triggers: [{
+        text: `After buying a card with a replicate token on it other than with this,
+        remove a replicate token from it to buy it again.`,
+        kind:'afterBuy',
+        handles: (e, state, card) => {
+            if (e.source.name == card.name) return false
+            const target:Card = state.find(e.card);
+            return target.count('replicate') > 0
+        },
+        transform: (e, state, card) => 
+            payToDo(removeToken(e.card, 'replicate'), e.card.buy(card))
+    }]
 }
 registerEvent(replicate)
 
@@ -3406,7 +3445,8 @@ const procession:CardSpec = {name: 'Procession',
     fixedCost: energy(1),
     effects: [{
         text: [`Pay one action to play a card in your hand twice,
-                then trash it and buy a card in the supply costing exactly $1 more.`],
+                then trash it and buy a card in the supply
+                costing exactly $1 or $2 more.`],
         transform: (state, card) => payToDo(payAction, applyToTarget(
             target => doAll([
                 target.play(card),
@@ -3419,6 +3459,9 @@ const procession:CardSpec = {name: 'Procession',
                     s => s.supply.filter(c => eq(
                         c.cost('buy', s),
                         addCosts(target.cost('buy', s), {coin:1})
+                    ) || eq(
+                        c.cost('buy', s),
+                        addCosts(target.cost('buy', s), {coin:2})
                     ))
                 )
             ]), 'Choose a card to play twice.', s => s.hand
@@ -3698,7 +3741,7 @@ const fountain:CardSpec = {
         ])
     }, actionsEffect(7)]
 }
-buyable(fountain, 5)
+buyable(fountain, 4)
 
 /*
 const chameleon:CardSpec = {
@@ -3996,20 +4039,19 @@ const secretChamber:CardSpec = {
 }
 buyable(secretChamber, 3)
 
-const supplies:CardSpec = {
-    name: 'Supplies',
+const hirelings:CardSpec = {
+    name: 'Hirelings',
     effects: [coinsEffect(1), toPlay()],
     replacers: [{
-        text: 'Whenever you would move this to your hand, first +1 action and +$1.',
+        text: 'Whenever you move this to your hand, +3 actions.',
         kind: 'move',
         handles: (p, s, c) => p.card.id == c.id && p.toZone == 'hand',
         replace: (p, s, c) => ({...p, effects:p.effects.concat([
-            gainActions(1, c),
-            gainCoins(1, c)
+            gainActions(3, c),
         ])})
     }]
 }
-buyable(supplies, 2)
+buyable(hirelings, 3)
 
 //TODO: "buy normal way" should maybe be it's own trigger with a cost field?
 const haggler:CardSpec = {
