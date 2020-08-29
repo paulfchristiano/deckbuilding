@@ -3200,7 +3200,7 @@ buyable(shelter, 3, {
             && x.toZone == 'discard'
             && x.skip == false
             && state.find(x.card).count('shelter') > 0,
-        replace: x => ({...x, skip:true, toZone:'hand', effects:x.effects.concat([removeToken(x.card, 'shelter')])})
+        replace: x => ({...x, toZone:'hand', effects:x.effects.concat([removeToken(x.card, 'shelter')])})
     }]
 })
 

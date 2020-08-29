@@ -3744,7 +3744,7 @@ buyable(shelter, 3, {
                 && x.toZone == 'discard'
                 && x.skip == false
                 && state.find(x.card).count('shelter') > 0; },
-            replace: function (x) { return (__assign(__assign({}, x), { skip: true, toZone: 'hand', effects: x.effects.concat([removeToken(x.card, 'shelter')]) })); }
+            replace: function (x) { return (__assign(__assign({}, x), { toZone: 'hand', effects: x.effects.concat([removeToken(x.card, 'shelter')]) })); }
         }]
 });
 var market = {
