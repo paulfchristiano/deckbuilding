@@ -854,10 +854,10 @@ function trigger<T extends GameEvent>(e:T): Transform {
     return async function(state:State): Promise<State> {
         const initialState = state;
         const triggers:[Card, TypedTrigger][] = [];
-        for (const card of state.supply)
+        for (const card of state.events.concat(state.supply))
             for (const trigger of card.staticTriggers())
                 triggers.push([card, trigger])
-        for (const card of state.events.concat(state.play))
+        for (const card of state.play)
             for (const trigger of card.triggers())
                 triggers.push([card, trigger])
         for (const [card, rawTrigger] of triggers) {
@@ -890,10 +890,10 @@ type TypedReplacer = Replacer<ResourceParams> | Replacer<CostParams> |
 
 function replace<T extends Params>(x: T, state: State): T {
     const replacers:[Card, TypedReplacer][] = []
-    for (const card of state.supply)
+    for (const card of state.events.concat(state.supply))
         for (const replacer of card.staticReplacers())
             replacers.push([card, replacer])
-    for (const card of state.events.concat(state.play))
+    for (const card of state.play)
         for (const replacer of card.replacers())
             replacers.push([card, replacer])
     for (const [card, rawReplacer] of replacers) {
@@ -2565,16 +2565,18 @@ const coppersmith:CardSpec = {name: 'Coppersmith',
 }
 buyable(coppersmith, 3)
 
-const unearth:CardSpec = {name: 'Unearth',
+const Unearth = 'Unearth'
+const unearth:CardSpec = {name: Unearth,
     fixedCost: energy(1),
     effects: [coinsEffect(2), actionsEffect(1), targetedEffect(
             target => move(target, 'hand'),
-            'Put a card from your discard into your hand.',
-            state => state.discard
+            `Put a card non-${Unearth} card
+             from your discard into your hand.`,
+            state => state.discard.filter(c => c.name != Unearth)
         )
     ]
 }
-buyable(unearth, 5)
+buyable(unearth, 4)
 
 const celebration:CardSpec = {name: 'Celebration',
     fixedCost: energy(2),
@@ -2624,7 +2626,7 @@ const hallOfMirrors:CardSpec = {name: 'Hall of Mirrors',
         transform: (state:State, card:Card) => 
             doAll(state.hand.map(c => addToken(c, 'mirror')))
     }],
-    triggers: [{
+    staticTriggers: [{
         text: `After playing a card with a mirror token on it 
         other than with this, remove a mirror token and play it again.`,
         kind:'afterPlay',
@@ -2741,7 +2743,7 @@ const parallelize:CardSpec = {name: 'Parallelize',
         text: [`Put a parallelize token on each card in your hand.`],
         transform: state => doAll(state.hand.map(c => addToken(c, 'parallelize')))
     }],
-    replacers: [{
+    staticReplacers: [{
         text: `Cards you play cost @ less to play for each parallelize token on them.
             Whenever this reduces a card's cost by one or more @,
             remove that many parallelize tokens from it.`,
@@ -2907,7 +2909,7 @@ const duplicate:CardSpec = {name: 'Duplicate',
         text: [`Put a duplicate token on each card in the supply.`],
         transform: (state, card) => doAll(state.supply.map(c => addToken(c, 'duplicate')))
     }],
-    triggers: [{
+    staticTriggers: [{
         text: `After buying a card with a duplicate token on it other than with this,
         remove a duplicate token from it to buy it again.`,
         kind:'afterBuy',
@@ -3041,7 +3043,7 @@ const twin:CardSpec = {name: 'Twin',
         target => addToken(target, 'twin'),
         'Put a twin token on a card in your hand.',
         state => state.hand)],
-    triggers: [{
+    staticTriggers: [{
         text: `After playing a card with a twin token other than with this, play it again.`,
         kind: 'afterPlay',
         handles: (e, state, card) => (e.card.count('twin') > 0 && e.source.id != card.id),
@@ -3120,7 +3122,7 @@ const expedite: CardSpec = {
         'Put an expedite token on a card in the supply.',
         state => state.supply,
     )],
-    triggers: [{
+    staticTriggers: [{
         text: `Whenever you create a card with the same name
             as a card in the supply with an expedite token,
             remove an expedite token to play the card.`,
@@ -3155,7 +3157,7 @@ const synergy:CardSpec = {name: 'Synergy',
             return state
         }
     }],
-    triggers: [{
+    staticTriggers: [{
         text: 'After buying a card with a synergy token other than with this,'
         + ' buy a different card with a synergy token with equal or lesser cost.',
         kind:'afterBuy',
@@ -3370,7 +3372,7 @@ const decay:CardSpec = {name: 'Decay',
             map(x => removeToken(x, 'decay'))
         )
     }],
-    triggers: [{
+    staticTriggers: [{
         text: 'Whenever you move a card to your hand, if it has 3 or more decay tokens on it trash it,'+
             ' otherwise put a decay token on it.',
         kind: 'move',
@@ -3394,7 +3396,7 @@ const replicate:CardSpec = {name: 'Replicate',
         'Put a replicate token on a card in the supply.',
         state => state.supply,
     )],
-    triggers: [{
+    staticTriggers: [{
         text: `After buying a card with a replicate token on it other than with this,
         remove a replicate token from it to buy it again.`,
         kind:'afterBuy',
@@ -3426,7 +3428,7 @@ function setBuyEffect(n:number) {
 const inflation:CardSpec = {name: 'Inflation',
     calculatedCost: costPlus(energy(3), energy(1)),
     effects: [incrementCost(), setCoinEffect(15), setBuyEffect(5)],
-    replacers: [{
+    staticReplacers: [{
         text: `All costs of $1 or more are increased by $1 per cost token on this.`,
         kind: 'cost',
         handles: (p, state) => p.cost.coin > 0,
@@ -3441,13 +3443,13 @@ const burden:CardSpec = {name: 'Burden',
         text: ['Remove a burden token from each card in the supply.'],
         transform: state => doAll(state.supply.map(c => removeToken(c, 'burden')))
     }],
-    triggers: [{
+    staticTriggers: [{
         text: 'Whenever you buy a card in the supply, put a burden token on it.',
         kind:'buy',
         handles: (e, state) => (state.find(e.card).place == 'supply'),
         transform: e => addToken(e.card, 'burden')
     }],
-    replacers: [{
+    staticReplacers: [{
         kind: 'cost',
         text: 'Cards cost $2 more to buy for each burden token on them.',
         handles: x => x.card.count('burden') > 0,
@@ -3826,7 +3828,7 @@ const lostArts:CardSpec = {
         Remove all art tokens from other cards in the supply.`,
         s => s.supply
     )],
-    replacers: [{
+    staticReplacers: [{
         text: `Cards you play cost @ less for each art token on a card
                in the supply with the same name.
                Whenever this reduces a cost by one or more @,
@@ -4178,7 +4180,7 @@ const polish:CardSpec = {
         text: [`Put a polish token on each card in your hand.`],
         transform: state => doAll(state.hand.map(c => addToken(c, 'polish')))
     }],
-    triggers: [{
+    staticTriggers: [{
         text: `Whenever you play a card with a polish token on it,
         remove a polish token from it and +$1.`,
         kind: 'play',
@@ -4232,13 +4234,13 @@ const mire:CardSpec = {
             c => removeToken(c, 'mire', 'all'),
         ))
     }],
-    triggers: [{
+    staticTriggers: [{
         text: `Whenever a card leaves your hand, put a mire token on it.`,
         kind: 'move',
         handles: (e, state) => e.fromZone == 'hand',
         transform: e => addToken(e.card, 'mire'),
     }],
-    replacers: [{
+    staticReplacers: [{
         text: `Cards with mire tokens can't move to your hand.`,
         kind: 'move',
         handles: x => (x.toZone == 'hand') && x.card.count('mire') > 0,
@@ -4259,7 +4261,7 @@ const commerce:CardSpec = {
             return state
         }
     }],
-    replacers: [chargeVillage()]
+    staticReplacers: [chargeVillage()]
 }
 registerEvent(commerce)
 
@@ -4273,7 +4275,7 @@ const reverberate:CardSpec = {
             state.play.filter(c => c.count('echo') == 0).map(echoEffect)
         )
     }],
-    triggers: [fragileEcho()]
+    staticTriggers: [fragileEcho()]
 }
 registerEvent(reverberate)
 
@@ -4349,7 +4351,7 @@ const prioritize:CardSpec = {
         'Put six priority tokens on a card in the supply.',
         state => state.supply,
     )],
-    triggers: [{
+    staticTriggers: [{
         text: `Whenever you create a card with the same name
             as a card in the supply with a priority token,
             remove a priority token to play the card.`,
@@ -4415,7 +4417,7 @@ const pathfinding:CardSpec = {
         `Put a pathfinding token on a card in the supply other than Copper.`,
         state => state.supply.filter(target => target.name != copper.name)
     )],
-    triggers: [{
+    staticTriggers: [{
         kind: 'play',
         text: `Whenever you play a card that has the same name as a card in the supply
         with a  pathfinding token on it, +1 action.`,
