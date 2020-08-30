@@ -2570,8 +2570,7 @@ const unearth:CardSpec = {name: Unearth,
     fixedCost: energy(1),
     effects: [coinsEffect(2), actionsEffect(1), targetedEffect(
             target => move(target, 'hand'),
-            `Put a card non-${Unearth} card
-             from your discard into your hand.`,
+            `Put a non-${Unearth} card from your discard into your hand.`,
             state => state.discard.filter(c => c.name != Unearth)
         )
     ]
