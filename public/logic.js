@@ -2478,7 +2478,7 @@ export function initialState(spec) {
     var variableSupplies = kingdom.cards.slice();
     var variableEvents = kingdom.events.slice();
     variableSupplies.sort(supplyComp);
-    variableEvents.sort(supplyComp);
+    variableEvents.sort(eventComp);
     var supply = coreSupplies.concat(variableSupplies);
     var events = coreEvents.concat(variableEvents);
     var state = new State(spec);

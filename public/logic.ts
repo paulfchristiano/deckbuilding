@@ -1976,7 +1976,7 @@ export function initialState(spec:GameSpec): State {
     const variableSupplies = kingdom.cards.slice()
     const variableEvents = kingdom.events.slice()
     variableSupplies.sort(supplyComp)
-    variableEvents.sort(supplyComp)
+    variableEvents.sort(eventComp)
 
     const supply = coreSupplies.concat(variableSupplies)
     const events = coreEvents.concat(variableEvents)
