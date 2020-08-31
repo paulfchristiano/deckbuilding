@@ -1,4 +1,4 @@
-export const VERSION = "1.5.2"
+export const VERSION = "1.6"
 
 // ----------------------------- Formatting
 
@@ -4064,7 +4064,7 @@ buyable(secretChamber, 3)
 
 const hirelings:CardSpec = {
     name: 'Hirelings',
-    effects: [coinsEffect(1), toPlay()],
+    effects: [toPlay()],
     replacers: [{
         text: 'Whenever you move this to your hand, +3 actions.',
         kind: 'move',

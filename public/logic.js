@@ -85,7 +85,7 @@ var __read = (this && this.__read) || function (o, n) {
     }
     return ar;
 };
-export var VERSION = "1.5.2";
+export var VERSION = "1.6";
 // ----------------------------- Formatting
 export function renderCost(cost, full) {
     var e_1, _a;
@@ -4621,7 +4621,7 @@ var secretChamber = {
 buyable(secretChamber, 3);
 var hirelings = {
     name: 'Hirelings',
-    effects: [coinsEffect(1), toPlay()],
+    effects: [toPlay()],
     replacers: [{
             text: 'Whenever you move this to your hand, +3 actions.',
             kind: 'move',
