@@ -1,4 +1,4 @@
-export const VERSION = "1.6"
+export const VERSION = "1.6.1"
 
 // ----------------------------- Formatting
 
@@ -2951,7 +2951,7 @@ const shippingLane:CardSpec = {name: 'Shipping Lane',
         text: `Whenever you buy a card,
             discard this to buy the card again.`,
         kind: 'buy',
-        handles: () => true,
+        handles: (e, state, card) => state.find(card).place == 'play',
         transform: (e, state, card) => async function(state) {
             state = await move(card, 'discard')(state)
             return e.card.buy(card)(state)

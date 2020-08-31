@@ -85,7 +85,7 @@ var __read = (this && this.__read) || function (o, n) {
     }
     return ar;
 };
-export var VERSION = "1.6";
+export var VERSION = "1.6.1";
 // ----------------------------- Formatting
 export function renderCost(cost, full) {
     var e_1, _a;
@@ -3494,7 +3494,7 @@ var shippingLane = { name: 'Shipping Lane',
     triggers: [{
             text: "Whenever you buy a card,\n            discard this to buy the card again.",
             kind: 'buy',
-            handles: function () { return true; },
+            handles: function (e, state, card) { return state.find(card).place == 'play'; },
             transform: function (e, state, card) { return function (state) {
                 return __awaiter(this, void 0, void 0, function () {
                     return __generator(this, function (_a) {
