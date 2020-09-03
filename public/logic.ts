@@ -1,4 +1,4 @@
-export const VERSION = "1.6.1"
+export const VERSION = "1.6.2"
 
 // ----------------------------- Formatting
 
@@ -2881,9 +2881,9 @@ const investment:CardSpec = {name: 'Investment',
     effects: [{
         text: ['+$1 per charge token on this.'],
         transform: (state, card) => gainCoins(state.find(card).charge, card),
-    }, chargeUpTo(5)]
+    }, chargeEffect()]
 }
-buyable(investment, 4, {triggers: [startsWithCharge(investment.name, 2)]})
+buyable(investment, 3, {triggers: [startsWithCharge(investment.name, 1)]})
 
 const populate:CardSpec = {name: 'Populate',
     fixedCost: {...free, coin:8, energy:2},
@@ -3066,7 +3066,7 @@ const youngSmith:CardSpec = {name: 'Young Smith',
     effects: [{
         text: ['+1 action per charge token on this.'],
         transform: (state, card) => gainActions(state.find(card).charge, card)
-    }, chargeUpTo(5)]
+    }, chargeEffect()]
 }
 buyable(youngSmith, 3, {triggers: [startsWithCharge(youngSmith.name, 2)]})
 
@@ -4026,7 +4026,7 @@ function countDistinct<T>(xs:T[]): number {
 const harvest:CardSpec = {
     name:'Harvest',
     fixedCost: energy(1),
-    effects: [{
+    effects: [buyEffect(), {
         text: [`+$1 for every differently-named card in your discard.`],
         transform: state => gainCoins(countDistinct(state.discard.map(x => x.name)))
     }]

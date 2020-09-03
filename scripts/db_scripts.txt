@@ -1,3 +1,8 @@
+### resetting daily
+
+UPDATE dailies SET best_user = NULL,
+best_score = NULL, version = NULL WHERE key='8.31.2020';
+
 ### migration 8/22/2020
 
 # move full -> daily
