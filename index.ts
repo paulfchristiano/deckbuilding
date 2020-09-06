@@ -2,12 +2,15 @@ import express from 'express'
 import path from 'path'
 const PORT = process.env.PORT || 5000
 import {verifyScore, VERSION, specFromURL, specToURL } from './public/logic.js'
+import {hashPassword} from './public/password.js'
+import {Credentials} from './public/campaign.js'
 
 import postgres from 'postgres'
 const sql = (process.env.DATABASE_URL == undefined) ? null : postgres(process.env.DATABASE_URL)
 
 //TODO: get rid of these any's
 //TODO: this is probably horribly insecure
+//TODO: fix parameter parsing
 
 function randomString(): string {
     return Math.random().toString(36).substring(2, 7)
@@ -33,6 +36,18 @@ function renderTimeSince(date:Date) {
 function renderTime(date:Date) {
   return date.toLocaleString('en-US', {timeZone: 'America/New_York'})
 }
+
+async function signup(credentials:Credentials): Promise<void> {
+  await sql`INSERT INTO campaign_users (name, password_hash)
+                   VALUES (${credentials.username}, ${credentials.hashedPassword})`
+}
+
+//TODO: deal with the login logic
+async function login(credentials:Credentials): Promise<boolean> {
+  const results = await sql`SELECT () FROM campaign_users WHERE TRUE`
+  return (results.length > 0)
+}
+
 
 async function ensureNextMonth(): Promise<void> {
     if (sql == null) return
@@ -200,6 +215,39 @@ express()
     .use(express.static('./public'))
     .set('view engine', 'ejs')
     .set('views', './views')
+    .post('/signup', async (req: any, res:any) => {
+      const credentials:Credentials = {
+        username:req.query.username,
+        hashedPassword:req.query.hashedPassword
+      }
+      if (credentials.username.length < 1) {
+        res.send('Non-empty username required')
+      } else if (credentials.hashedPassword.length < 1) {
+        res.send("Non-empty password hash required (shouldn't be possible)")
+      } else {
+        try {
+          signup(credentials)
+        } catch (e) {
+          res.send(e)
+        }
+      }
+    })
+    .post('/login', async (req: any, res:any) => {
+      const credentials:Credentials = {
+        username:req.query.username,
+        hashedPassword:req.query.hashedPassword
+      }
+      try {
+        const success = login(credentials)
+        if (success) {
+          res.send('ok')
+        } else {
+          res.send('username+password not found')
+        }
+      } catch (e) {
+        res.send(e)
+      }
+    })
     .get('/link', async (req: any, res:any) => {
       const id = req.query.id;
       try{

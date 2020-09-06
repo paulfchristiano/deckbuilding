@@ -1267,36 +1267,11 @@ function dateString() {
 function submittable(spec) {
     return true;
 }
-function setCookie(name, value) {
-    document.cookie = name + "=" + value + "; max-age=315360000; path=/";
-}
-function getCookie(name) {
-    var e_15, _a;
-    var nameEQ = name + "=";
-    var ca = document.cookie.split(';');
-    try {
-        for (var _b = __values(document.cookie.split(';')), _c = _b.next(); !_c.done; _c = _b.next()) {
-            var c = _c.value;
-            while (c.charAt(0) == ' ')
-                c = c.substring(1, c.length);
-            if (c.indexOf(nameEQ) == 0)
-                return c.substring(nameEQ.length, c.length);
-        }
-    }
-    catch (e_15_1) { e_15 = { error: e_15_1 }; }
-    finally {
-        try {
-            if (_c && !_c.done && (_a = _b.return)) _a.call(_b);
-        }
-        finally { if (e_15) throw e_15.error; }
-    }
-    return null;
-}
 function rememberUsername(username) {
-    setCookie('username', username);
+    localStorage.setItem('username', username);
 }
 function getUsername() {
-    return getCookie('username');
+    return localStorage.username;
 }
 function renderScoreSubmission(state, done) {
     var score = state.energy;
@@ -1475,7 +1450,7 @@ function kingdomURL(kindParam, cards, events) {
     return "play?" + kindParam + "cards=" + cards.map(function (card) { return card.name; }).join(',') + "&events=" + events.map(function (card) { return card.name; });
 }
 function countIn(s, f) {
-    var e_16, _a;
+    var e_15, _a;
     var count = 0;
     try {
         for (var s_1 = __values(s), s_1_1 = s_1.next(); !s_1_1.done; s_1_1 = s_1.next()) {
@@ -1484,12 +1459,12 @@ function countIn(s, f) {
                 count += 1;
         }
     }
-    catch (e_16_1) { e_16 = { error: e_16_1 }; }
+    catch (e_15_1) { e_15 = { error: e_15_1 }; }
     finally {
         try {
             if (s_1_1 && !s_1_1.done && (_a = s_1.return)) _a.call(s_1);
         }
-        finally { if (e_16) throw e_16.error; }
+        finally { if (e_15) throw e_15.error; }
     }
     return count;
 }

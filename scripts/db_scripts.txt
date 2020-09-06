@@ -1,3 +1,52 @@
+##### campaign migrations
+
+### tables
+
+CREATE TABLE campaign_levels (
+key TEXT PRIMARY KEY,
+url TEXT NOT NULL,
+points_required INTEGER
+)
+
+CREATE TABLE campaign_awards (
+level TEXT references campaign_levels(key),
+core BOOLEAN NOT NULL,
+threshold INTEGER NOT NULL
+)
+
+CREATE TABLE campaign_scores (
+level TEXT references campaign_levels(key),
+username TEXT references campaign_users(name),
+score INTEGER NOT NULL
+)
+
+CREATE TABLE campaign_users(
+name TEXT PRIMARY KEY,
+password_hash TEXT NOT NULL
+)
+
+CREATE TABLE campaign_requirements(
+destination TEXT references campaign_levels(key),
+req TEXT references campaign_levels(key)
+)
+
+### test campaign
+
+INSERT INTO campaign_levels (key, url, points_required)
+VALUES ('lines.a1', 'cards=ghosttown', 0);
+
+INSERT INTO campaign_levels (key, url, points_required)
+VALUES ('lines.a2', 'cards=ghosttown,bridge', 0);
+
+INSERT INTO campaign_requirements(destination, req)
+VALUES ('lines.a1', 'lines.a2')
+
+INSERT INTO campaign_awards (level, core, threshold)
+VALUES ('lines.a1', TRUE, 40)
+
+INSERT INTO campaign_awards (level, core, threshold)
+VALUES ('lines.a1', FALSE, 38)
+
 ### resetting daily
 
 UPDATE dailies SET best_user = NULL,

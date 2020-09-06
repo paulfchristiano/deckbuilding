@@ -1254,23 +1254,11 @@ function submittable(spec:GameSpec): boolean {
 }
 
 
-function setCookie(name:string,value:string) {
-    document.cookie = `${name}=${value}; max-age=315360000; path=/`
-}
-function getCookie(name:string): string|null {
-    let nameEQ:string = name + "=";
-    let ca:string[] = document.cookie.split(';');
-    for(let c of document.cookie.split(';')) {
-        while (c.charAt(0)==' ') c = c.substring(1,c.length);
-        if (c.indexOf(nameEQ) == 0) return c.substring(nameEQ.length,c.length);
-    }
-    return null;
-}
 function rememberUsername(username:string) {
-    setCookie('username', username)
+    localStorage.setItem('username', username)
 }
 function getUsername():string|null {
-    return getCookie('username')
+    return localStorage.username
 }
 
 
