@@ -24,7 +24,6 @@
   },
   "files": [
     "public/main.ts",
-    "public/password.ts",
     "public/campaign.ts",
     "index.ts",
     "public/logic.ts",

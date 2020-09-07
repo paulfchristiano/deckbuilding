@@ -667,7 +667,11 @@ class webUI {
                 heartbeat(state.spec)
                 const submitDialog = () => {
                     keyListeners.clear()
-                    renderScoreSubmission(state, () => submitOrUndo().then(resolve, reject))
+                    if (state.spec.kind == 'campaign') {
+                        renderCampaignSubmission(state, () => submitOrUndo().then(resolve, reject))
+                    } else {
+                        renderScoreSubmission(state, () => submitOrUndo().then(resolve, reject))
+                    }
                 }
                 function newReject(reason:any) {
                     if (reason instanceof Undo) ui.undoing = true
@@ -926,9 +930,7 @@ function bindRecordMacroButton(ui:webUI) {
 
 function bindPlayMacroButtons(ui:webUI): void {
     function onClick(i:number) {
-        console.log('?')
         if (ui.choiceState !== null && ui.playingMacro.length == 0) {
-            console.log('!')
             ui.playingMacro = ui.macros[i].slice()
             ui.resolveWithMacro()
         }
@@ -1261,6 +1263,49 @@ function getUsername():string|null {
     return localStorage.username
 }
 
+function credentialParams(): string {
+    return `username=${localStorage.campaignUsername}&hashedPassword=${localStorage.hashedPassword}`
+}
+
+//TODO: should factor credentials differently
+function renderCampaignSubmission(state:State, done:() => void) {
+    const score = state.energy
+    const url = specToURL(state.spec)
+    $('#campaignSubmitter').attr('active', 'true')
+    function exit() {
+        $('#campaignSubmitter').attr('active', 'false')
+    }
+    async function submit() {
+        const query = [
+            credentialParams(),
+            `url=${encodeURIComponent(url)}`,
+            `score=${score}`,
+            `history=${state.serializeHistory()}`
+        ].join('&')
+        console.log(query)
+        return $.post(`campaignSubmit?${query}`)
+    }
+    //TODO: handle bad submissions here
+    submit().then(data => {
+        console.log(data)
+        $('#newbest').text(score)
+        $('#priorbest').text(data.priorBest)
+        $('#awards').text(data.newAwards)
+        $('#nextAward').text(data.nextAward)
+        heartbeat(state.spec)
+    })
+    $('#campaignSubmitter').focus()
+    $('#campaignSubmitter').keydown((e:any) => {
+        if (e.keyCode == 13) {
+            exit()
+            e.preventDefault()
+        } else if (e.keyCode == 27) {
+            exit()
+            e.preventDefault()
+        }
+    })
+    $('#campaignSubmitter').on('click', exit)
+}
 
 function renderScoreSubmission(state:State, done:() => void) {
     const score = state.energy
@@ -1323,9 +1368,36 @@ function scoreboardURL(spec:GameSpec) {
     return `scoreboard?${specToURL(spec)}`
 }
 
-//TODO: live updates?
+//TODO: change the sidebar based on whether you are in a campaign
+function campaignHeartbeat(spec:GameSpec, interval?:any): void {
+    const queryStr = `campaignHeartbeat?${credentialParams()}&url=${encodeURIComponent(specToURL(spec))}&version=${VERSION}`
+    console.log(queryStr)
+    $.get(queryStr).done(function(x) {
+        if (x == 'version mismatch') {
+            clearInterval(interval)
+            alert("The server has updated to a new version, please refresh. You will get an error and your game will restart if the history is no longer valid.")
+            return
+        }
+        if (x == 'user not found') {
+            clearInterval(interval)
+            alert("Your username+password were not recognized")
+            return
+        }
+        let [personalBest, nextAward] = x
+        const personalBestStr = personalBest !== null
+            ? `<div>Your best: ${personalBest}</div>`
+            : ``
+        const nextAwardStr = nextAward !== null
+            ? `<div>Next award: ${nextAward}</div>`
+            : `<div>Kingdom complete!</div>`
+        $('#best').html(personalBestStr+nextAwardStr)
+    })
+}
+
 function heartbeat(spec:GameSpec, interval?:any): void {
-    if (submittable(spec)) {
+    if (spec.kind == 'campaign') {
+        campaignHeartbeat(spec, interval)
+    } else if (submittable(spec)) {
         $.get(`topScore?url=${encodeURIComponent(specToURL(spec))}&version=${VERSION}`).done(function(x:string) {
             if (x == 'version mismatch') {
                 clearInterval(interval)

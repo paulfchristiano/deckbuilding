@@ -61,7 +61,6 @@ var __read = (this && this.__read) || function (o, n) {
     }
     return ar;
 };
-import { hashPassword } from './password.js';
 function makeCredentials(username, password) {
     return { username: username, hashedPassword: hashPassword(username, password) };
 }
@@ -69,10 +68,17 @@ function loginLocal(credentials) {
     localStorage.setItem('campaignUsername', credentials.username);
     localStorage.setItem('hashedPassword', credentials.hashedPassword);
 }
-function getCredentials() {
+function logout() {
+    delete localStorage.campaignUsername;
+    delete localStorage.hashedPassword;
+}
+function escapePeriods(id) {
+    return id.replace('.', '\\.');
+}
+export function getCredentials() {
     var username = localStorage.campaignUsername;
     var hashedPassword = localStorage.hashedPassword;
-    if (username !== null && hashedPassword !== null) {
+    if (username !== undefined && hashedPassword !== undefined) {
         return {
             username: username,
             hashedPassword: hashedPassword
@@ -83,68 +89,88 @@ function getCredentials() {
     }
 }
 //TODO: handle bad login information
-function load() {
+export function load() {
     return __awaiter(this, void 0, void 0, function () {
-        var credentials, levels, _a, _b, _c, name_1, url;
-        var e_1, _d;
-        return __generator(this, function (_e) {
-            switch (_e.label) {
+        var credentials, info, _a, _b, _c, name_1, url, _d, _e, _f, name_2, score;
+        var e_1, _g, e_2, _h;
+        return __generator(this, function (_j) {
+            switch (_j.label) {
                 case 0:
                     credentials = getCredentials();
+                    $('#logoutButton').click(logout);
                     if (!(credentials === null)) return [3 /*break*/, 1];
                     displayLogin();
                     return [3 /*break*/, 3];
-                case 1: return [4 /*yield*/, getUnlockedLevels(credentials)];
+                case 1: return [4 /*yield*/, getCampaignInfo(credentials)];
                 case 2:
-                    levels = _e.sent();
+                    info = _j.sent();
+                    console.log(info);
+                    $('#numAwards').text(info.numAwards);
                     try {
-                        for (_a = __values(levels.entries()), _b = _a.next(); !_b.done; _b = _a.next()) {
+                        for (_a = __values(info.urls), _b = _a.next(); !_b.done; _b = _a.next()) {
                             _c = __read(_b.value, 2), name_1 = _c[0], url = _c[1];
-                            $("#" + name_1).attr('href', "play?" + url);
+                            if (url !== null) {
+                                $("#" + escapePeriods(name_1)).attr('href', "play?kind=campaign&" + url);
+                            }
                         }
                     }
                     catch (e_1_1) { e_1 = { error: e_1_1 }; }
                     finally {
                         try {
-                            if (_b && !_b.done && (_d = _a.return)) _d.call(_a);
+                            if (_b && !_b.done && (_g = _a.return)) _g.call(_a);
                         }
                         finally { if (e_1) throw e_1.error; }
                     }
-                    _e.label = 3;
+                    try {
+                        for (_d = __values(info.scores), _e = _d.next(); !_e.done; _e = _d.next()) {
+                            _f = __read(_e.value, 2), name_2 = _f[0], score = _f[1];
+                            if (score !== null) {
+                                $("#" + escapePeriods(name_2)).text(name_2 + " (" + score + ")");
+                            }
+                        }
+                    }
+                    catch (e_2_1) { e_2 = { error: e_2_1 }; }
+                    finally {
+                        try {
+                            if (_e && !_e.done && (_h = _d.return)) _h.call(_d);
+                        }
+                        finally { if (e_2) throw e_2.error; }
+                    }
+                    _j.label = 3;
                 case 3: return [2 /*return*/];
             }
         });
     });
 }
 function loginRemote(credentials) {
-    return __awaiter(this, void 0, void 0, function () {
-        return __generator(this, function (_a) {
-            return [2 /*return*/, new Promise(function (resolve) {
-                    $.get("login?" + credentialParams(credentials), function (data) {
-                        console.log(data);
-                        //TODO use the endpoint to actually figure out if they are logged in
-                        resolve(true);
-                    });
-                })];
+    return new Promise(function (resolve) {
+        $.post("login?" + credentialParams(credentials), function (data) {
+            if (data != 'ok') {
+                console.log(data);
+                resolve(false);
+            }
+            else {
+                resolve(true);
+            }
         });
     });
 }
 function signupRemote(credentials) {
-    return __awaiter(this, void 0, void 0, function () {
-        return __generator(this, function (_a) {
-            return [2 /*return*/, new Promise(function (resolve) {
-                    $.get("signup?" + credentialParams(credentials), function (data) {
-                        console.log(data);
-                        //TODO use the endpoint to actually figure out if they are logged in
-                        resolve(true);
-                    });
-                })];
+    return new Promise(function (resolve) {
+        $.post("signup?" + credentialParams(credentials), function (data) {
+            if (data != 'ok') {
+                console.log(data);
+                resolve(false);
+            }
+            else {
+                resolve(true);
+            }
         });
     });
 }
 function displayLogin() {
-    $('#loginDialog').html("<label for=\"username\">Name:</label>" +
-        "<textarea id=\"username\"></textarea>" +
+    $('#loginDialog').html("<label for=\"name\">Name:</label>" +
+        "<input type='text' id=\"name\"></textarea>" +
         "<div>" +
         "<label for=\"password\">Password:</label>" +
         "<input type='password' id=\"password\"></textarea>" +
@@ -155,10 +181,10 @@ function displayLogin() {
         "</div>");
     //TODO: alert when credentials are no good
     function credentialsFromForm() {
-        return makeCredentials($('#username').val(), $('#password').val());
+        return makeCredentials($('#name').val(), $('#password').val());
     }
     function exit() {
-        $('#scoreSubmitter').attr('active', 'false');
+        $('#loginDialog').attr('active', 'false');
     }
     function login() {
         return __awaiter(this, void 0, void 0, function () {
@@ -211,21 +237,44 @@ function displayLogin() {
             });
         });
     }
+    $('#loginDialog').attr('active', 'true');
+    $('.option[id="login"]').click(login);
+    $('.option[id="signup"]').click(signup);
 }
 function credentialParams(credentials) {
     return "username=" + credentials.username + "&hashedPassword=" + credentials.hashedPassword;
 }
-function getUnlockedLevels(credentials) {
+function getCampaignInfo(credentials) {
     return __awaiter(this, void 0, void 0, function () {
         return __generator(this, function (_a) {
-            return [2 /*return*/, new Promise(function (resolve) {
-                    $.get("unlockedLevels?" + credentialParams(credentials), function (data) {
+            return [2 /*return*/, new Promise(function (resolve, reject) {
+                    $.get("campaignInfo?" + credentialParams(credentials), function (data) {
                         console.log(data);
+                        if (data == 'error') {
+                            alert('invalid credentials');
+                            logout();
+                            reject();
+                            return;
+                        }
                         //TODO: resolve with the right thing
                         resolve(data);
                     });
                 })];
         });
     });
+}
+//this is intended only to prevent dev from seeing plaintext passwords
+//(hopefully no users reuse passwords anyway, but might as well)
+export function hashPassword(username, password) {
+    return hash(password).toString(16);
+}
+// Source: https://werxltd.com/wp/2010/05/13/javascript-implementation-of-javas-string-hashcode-method/
+// (definitely not a PRF)
+function hash(s) {
+    var hash = 0;
+    for (var i = 0; i < s.length; i++) {
+        hash = ((hash << 5) - hash) + s.charCodeAt(i);
+    }
+    return hash;
 }
 //# sourceMappingURL=campaign.js.map

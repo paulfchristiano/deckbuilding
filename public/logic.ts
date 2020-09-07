@@ -449,9 +449,12 @@ export interface Kingdom {
     events: CardSpec[];
 }
 
+//TODO: campaign probably shouldn't be a GameSpec...
+//(maybe shoudl handle like tutorial?)
 export type GameSpec = 
     { kind: 'test' } |
     { kind: 'pick', cards:CardSpec[], events:CardSpec[] } |
+    { kind: 'campaign', cards:CardSpec[], events:CardSpec[] } |
     { kind: 'pickR', cards:SlotSpec[], events:SlotSpec[], seed: string } |
     { kind: 'require', cards:SlotSpec[], events:SlotSpec[], seed: string } |
     { kind: 'full', seed: string} | 
@@ -1733,6 +1736,7 @@ export function cardsAndEvents(
         case 'mini': return {cards: Array(3).fill(RANDOM), events:Array(1).fill(RANDOM)}
         case 'test': return {cards: [], events: []}
         case 'pick': return {cards: [], events: []}
+        case 'campaign': return {cards: [], events: []}
         case 'pickR': return {cards: spec.cards, events: spec.events}
         case 'require': return {
             cards: fillTo(10, RANDOM, spec.cards),
@@ -1750,6 +1754,7 @@ export function makeKingdom(spec:GameSpec): Kingdom {
                 events:eventMixins.concat(cheats),
             }
         case 'pick':
+        case 'campaign':
             return {cards:spec.cards, events:spec.events}
         default:
             const kingdom = cardsAndEvents(spec)
@@ -1848,6 +1853,7 @@ export function specToURL(spec:GameSpec): string {
             args.set('events', renderSlots(spec.events))
             args.set('seed', spec.seed)
             break
+        case 'campaign':
         case 'pick':
             args.set('cards', renderSlots(spec.cards))
             args.set('events', renderSlots(spec.events))
@@ -1900,6 +1906,7 @@ export function specFromURL(search:string): GameSpec {
         case 'half':
         case 'mini':
             return {kind:kind, seed:seed}
+        case 'campaign':
         case 'pick':
             const cardSpecs:CardSpec[] = [];
             const eventSpecs:CardSpec[] = [];

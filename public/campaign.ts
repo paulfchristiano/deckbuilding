@@ -1,5 +1,3 @@
-import { hashPassword } from './password.js'
-
 export type Credentials = {username: string, hashedPassword: string}
 
 function makeCredentials(username:string, password:string): Credentials {
@@ -11,12 +9,19 @@ function loginLocal(credentials:Credentials): void {
 	localStorage.setItem('hashedPassword', credentials.hashedPassword)
 }
 
+function logout() {
+	delete localStorage.campaignUsername
+	delete localStorage.hashedPassword
+}
 
+function escapePeriods(id:string): string {
+	return id.replace('.', '\\.')
+}
 
-function getCredentials(): Credentials|null {
+export function getCredentials(): Credentials|null {
 	const username = localStorage.campaignUsername
 	const hashedPassword = localStorage.hashedPassword
-	if (username !== null && hashedPassword !== null) {
+	if (username !== undefined && hashedPassword !== undefined) {
 		return {
 			username:username,
 			hashedPassword:hashedPassword
@@ -26,42 +31,58 @@ function getCredentials(): Credentials|null {
 	}
 }
 //TODO: handle bad login information
-async function load() {
+export async function load() {
 	const credentials:Credentials|null = getCredentials()
+	$('#logoutButton').click(logout)
 	if (credentials === null) {
 		displayLogin()
 	} else {
-		const levels = await getUnlockedLevels(credentials)
-		for (const [name, url] of levels.entries()) {
-			$(`#${name}`).attr('href', `play?${url}`)
+		const info = await getCampaignInfo(credentials)
+		console.log(info)
+		$('#numAwards').text(info.numAwards)
+		for (const [name, url] of info.urls) {
+			if (url !== null) {
+				$(`#${escapePeriods(name)}`).attr('href', `play?kind=campaign&${url}`)
+			}
+		}
+		for (const [name, score] of info.scores) {
+			if (score !== null) {
+				$(`#${escapePeriods(name)}`).text(`${name} (${score})`)
+			}
 		}
 	}
 }
 
-async function loginRemote(credentials:Credentials): Promise<boolean> {
+function loginRemote(credentials:Credentials): Promise<boolean> {
 	return new Promise(resolve => {
-		$.get(`login?${credentialParams(credentials)}`, function(data) {
-			console.log(data)
-			//TODO use the endpoint to actually figure out if they are logged in
-			resolve(true)
+		$.post(`login?${credentialParams(credentials)}`, function(data) {
+			if (data != 'ok') {
+				console.log(data)
+				resolve(false)
+			} else {
+				resolve(true)
+			}
 		})
 	})
 }
 
-async function signupRemote(credentials:Credentials): Promise<boolean> {
+function signupRemote(credentials:Credentials): Promise<boolean> {
 	return new Promise(resolve => {
-		$.get(`signup?${credentialParams(credentials)}`, function(data) {
-			console.log(data)
-			//TODO use the endpoint to actually figure out if they are logged in
-			resolve(true)
+		$.post(`signup?${credentialParams(credentials)}`, function(data) {
+			if (data != 'ok') {
+				console.log(data)
+				resolve(false)
+			} else {
+				resolve(true)
+			}
 		})
 	})
 }
 
 function displayLogin() {
     $('#loginDialog').html(
-        `<label for="username">Name:</label>` +
-        `<textarea id="username"></textarea>` +
+        `<label for="name">Name:</label>` +
+        `<input type='text' id="name"></textarea>` +
         `<div>` +
         `<label for="password">Password:</label>` +
         `<input type='password' id="password"></textarea>` +
@@ -74,12 +95,12 @@ function displayLogin() {
     //TODO: alert when credentials are no good
     function credentialsFromForm(): Credentials|null {
     	return makeCredentials(
-    		$('#username').val() as string, 
+    		$('#name').val() as string, 
     		$('#password').val() as string
 		)
     }
     function exit() {
-        $('#scoreSubmitter').attr('active', 'false')
+        $('#loginDialog').attr('active', 'false')
     }
     async function login() {
     	const credentials = credentialsFromForm();
@@ -106,19 +127,53 @@ function displayLogin() {
 	    	}
     	}
     }
+    $('#loginDialog').attr('active', 'true')
+    $('.option[id="login"]').click(login)
+    $('.option[id="signup"]').click(signup)
 }
 
 function credentialParams(credentials:Credentials): string {
 	return `username=${credentials.username}&hashedPassword=${credentials.hashedPassword}`
 }
 
-async function getUnlockedLevels(credentials:Credentials): Promise<[string, string][]> {
-	return new Promise(resolve => {
-		$.get(`unlockedLevels?${credentialParams(credentials)}`, function(data) {
+export interface CampaignInfo {
+	urls: [string, string|null][], //list of level names -> level urls
+	scores: [string, number|null][], //scores per level
+	awardsByLevels: [string, number][],
+	numAwards: number,
+}
+
+async function getCampaignInfo(
+	credentials:Credentials
+): Promise<CampaignInfo> {
+	return new Promise((resolve, reject) => {
+		$.get(`campaignInfo?${credentialParams(credentials)}`, function(data:CampaignInfo|'error') {
 			console.log(data)
+			if (data == 'error') {
+				alert('invalid credentials')
+				logout()
+				reject()
+				return
+			}
 			//TODO: resolve with the right thing
 			resolve(data)
 		})
 	})
 }
 
+//this is intended only to prevent dev from seeing plaintext passwords
+//(hopefully no users reuse passwords anyway, but might as well)
+
+export function hashPassword(username:string, password:string ):string {
+	return hash(password).toString(16)
+}
+
+// Source: https://werxltd.com/wp/2010/05/13/javascript-implementation-of-javas-string-hashcode-method/
+// (definitely not a PRF)
+function hash(s:string):number{
+    var hash:number = 0;
+    for (var i = 0; i < s.length; i++) {
+        hash = ((hash<<5)-hash)+s.charCodeAt(i)
+    }
+    return hash
+}
