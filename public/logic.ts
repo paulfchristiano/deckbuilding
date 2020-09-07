@@ -882,7 +882,12 @@ function trigger<T extends GameEvent>(e:T): Transform {
 interface ResourceParams {kind:'resource', resource:ResourceName, amount:number, source:Source}
 interface CostParams {kind:'cost', actionKind: ActionKind, card:Card, cost:Cost}
 interface MoveParams {kind:'move', card:Card, fromZone:PlaceName, toZone:PlaceName, effects:Transform[], skip:boolean}
-interface CreateParams {kind:'create', spec:CardSpec, zone:ZoneName, effects:Transform[]}
+interface CreateParams {
+    kind:'create',
+    spec:CardSpec,
+    zone:ZoneName,
+    effects:Array<(c:Card) => Transform>
+}
 
 type Params = ResourceParams | CostParams | MoveParams | CreateParams
 type TypedReplacer = Replacer<ResourceParams> | Replacer<CostParams> |
@@ -1014,8 +1019,8 @@ function createAndTrack(
         params = replace(params, state)
         spec = params.spec
         zone = params.zone
-        for (const effect of params.effects) state = await effect(state)
         let card:Card; [state, card] = createRaw(state, spec, zone)
+        for (const effect of params.effects) state = await effect(card)(state)
         state = state.log(`Created ${a(card.name)} in ${zone}`)
         state = await trigger({kind:'create', card:card, zone:zone})(state)
         return [card, state]
@@ -2774,12 +2779,12 @@ const fair:CardSpec = {
     name: 'Fair',
     replacers: [{
         text: `Whenever you would create a card in your discard,
-        instead trash this to create the card in your hand.`,
+        instead create the card in your hand and trash this.`,
         kind: 'create',
         handles: (e, state, card) => e.zone == 'discard'
             && state.find(card).place == 'play',
         replace: (x, state, card) => ({
-            ...x, zone:'hand', effects:x.effects.concat(trash(card))
+            ...x, zone:'hand', effects:x.effects.concat(() => trash(card))
         })
     }, {
         text: `Whenever this would leave play, trash it.`,
@@ -2789,9 +2794,27 @@ const fair:CardSpec = {
     }]
 }
 
+function costPlusPer(initial:Cost, increment:Cost, n:number): CalculatedCost {
+    const extraStr:string = `${renderCost(increment, true)} for every ${n} cost tokens on this.`
+    return {
+        calculate: function(card:Card, state:State) {
+            return addCosts(
+                initial,
+                multiplyCosts(
+                    increment,
+                    Math.floor(state.find(card).count('cost') / n)
+                )
+            )
+        },
+        text: eq(initial, free) ? extraStr : `${renderCost(initial, true)} plus ${extraStr}`,
+        initial: initial,
+    }
+}
+
 const travelingFair:CardSpec = {name:'Traveling Fair',
-    fixedCost: coin(1),
-    effects: [buyEffect(), createInPlayEffect(fair)],
+    calculatedCost: costPlusPer(coin(1), coin(1), 8),
+    //fixedCost: coin(1),
+    effects: [incrementCost(), buyEffect(), createInPlayEffect(fair)],
     relatedCards: [fair],
 }
 registerEvent(travelingFair)
@@ -2873,7 +2896,7 @@ const frontier:CardSpec = {name: 'Frontier',
 }
 buyable(
     frontier, 7,
-    {triggers: [startsWithCharge(frontier.name, 2)]}
+    {replacers: [startsWithCharge(frontier.name, 2)]}
 )
 
 const investment:CardSpec = {name: 'Investment',
@@ -2883,7 +2906,7 @@ const investment:CardSpec = {name: 'Investment',
         transform: (state, card) => gainCoins(state.find(card).charge, card),
     }, chargeEffect()]
 }
-buyable(investment, 3, {triggers: [startsWithCharge(investment.name, 1)]})
+buyable(investment, 3, {replacers: [startsWithCharge(investment.name, 1)]})
 
 const populate:CardSpec = {name: 'Populate',
     fixedCost: {...free, coin:8, energy:2},
@@ -3051,13 +3074,12 @@ const twin:CardSpec = {name: 'Twin',
 }
 registerEvent(twin)
 
-function startsWithCharge(name:string, n:number):Trigger<CreateEvent> {
+function startsWithCharge(name:string, n:number):Replacer<CreateParams> {
     return {
-        text: `When you create a ${name},
-               put ${aOrNum(n, 'charge token')} on it.`,
+        text: `Each ${name} starts with ${aOrNum(n, 'charge token')} on it.`,
         kind: 'create',
-        handles: e => e.card.name == name,
-        transform: e => charge(e.card, n)
+        handles: p => p.spec.name == name,
+        replace: p => ({...p, effects:p.effects.concat([c => charge(c, n)])})
     }
 }
 
@@ -3068,7 +3090,7 @@ const youngSmith:CardSpec = {name: 'Young Smith',
         transform: (state, card) => gainActions(state.find(card).charge, card)
     }, chargeEffect()]
 }
-buyable(youngSmith, 3, {triggers: [startsWithCharge(youngSmith.name, 2)]})
+buyable(youngSmith, 3, {replacers: [startsWithCharge(youngSmith.name, 2)]})
 
 /*
 const oldSmith:CardSpec = {name: 'Old Smith',
@@ -3750,7 +3772,7 @@ const traveler:CardSpec = {
 }
 buyable(
     traveler, 7,
-    {triggers:[startsWithCharge(traveler.name, 1)]}
+    {replacers:[startsWithCharge(traveler.name, 1)]}
 )
 
 const fountain:CardSpec = {
@@ -4091,7 +4113,6 @@ buyable(haggler, 5, {
         handles: p => p.source.name == 'act',
         transform: (p, state, card) => async function(state) {
             let lastCard:Card = p.card
-            let lastCost:Cost = lastCard.cost('buy', p.before)
             let hagglers:Card[] = state.play.filter(c => c.name == haggler.name)
             while (true) {
                 const haggler:Card|undefined = hagglers.shift()
@@ -4099,16 +4120,16 @@ buyable(haggler, 5, {
                     return state
                 }
                 state = state.startTicker(haggler)
+                lastCard = state.find(lastCard)
                 let target:Card|null; [state, target] = await choice(state,
                     `Choose a cheaper card than ${lastCard.name} to buy.`,
                      state.supply.filter(c => leq(
                         addCosts(c.cost('buy', state), {coin:1}),
-                        lastCost
+                        lastCard.cost('buy', state)
                     )).map(asChoice)
                 )
                 if (target !== null) {
                     lastCard = target
-                    lastCost = lastCard.cost('buy', state)
                     state = await target.buy(card)(state)
                 }
                 state = state.endTicker(haggler)
@@ -4405,7 +4426,7 @@ const fairyGold:CardSpec = {
     }],
 }
 buyable(fairyGold, 3, {
-    triggers: [startsWithCharge(fairyGold.name, 3)]
+    replacers: [startsWithCharge(fairyGold.name, 3)]
 })
 
 const pathfinding:CardSpec = {
