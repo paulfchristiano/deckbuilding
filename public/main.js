@@ -559,7 +559,7 @@ function setVisibleLog(state, logType, ui) {
     displayLogLines(state.logs[logType], ui);
 }
 function renderLogLine(msg, i) {
-    return "<div class=\"logLine\" pos=" + i + ">" + msg + "</div>";
+    return "<div><span class=\"logLine\" pos=" + i + ">" + msg + "</span></div>";
 }
 function displayLogLines(logs, ui) {
     var e_11, _a;
