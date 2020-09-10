@@ -30,7 +30,14 @@ export function getCredentials(): Credentials|null {
 		return null
 	}
 }
-//TODO: handle bad login information
+
+export interface CampaignInfo {
+	urls: [string, string|null][], //list of level names -> level urls
+	scores: [string, number|null][], //scores per level
+	awardsByLevels: [string, number][],
+	numAwards: number,
+}
+
 export async function load() {
 	const credentials:Credentials|null = getCredentials()
 	$('#logoutButton').click(logout)
@@ -42,15 +49,19 @@ export async function load() {
 		$('#numAwards').text(info.numAwards)
 		for (const [name, url] of info.urls) {
 			if (url !== null) {
-				$(`#${escapePeriods(name)}`).attr('href', `play?kind=campaign&${url}`)
+				$(`#${escapePeriods(name)} a`).attr('href', `play?kind=campaign&${url}`)
 			}
 		}
-		for (const [name, score] of info.scores) {
-			if (score !== null) {
-				$(`#${escapePeriods(name)}`).text(`${name} (${score})`)
-			}
+		for (const [name, awards] of info.awardsByLevels) {
+			$(`#${escapePeriods(name)} .stars`).text(renderStars(awards))
 		}
 	}
+}
+
+function renderStars(n:number): string {
+	if (n == 0) return ''
+	return `(${Array(n).fill('*').join('')})`
+
 }
 
 function loginRemote(credentials:Credentials): Promise<boolean> {
@@ -134,13 +145,6 @@ function displayLogin() {
 
 function credentialParams(credentials:Credentials): string {
 	return `username=${credentials.username}&hashedPassword=${credentials.hashedPassword}`
-}
-
-export interface CampaignInfo {
-	urls: [string, string|null][], //list of level names -> level urls
-	scores: [string, number|null][], //scores per level
-	awardsByLevels: [string, number][],
-	numAwards: number,
 }
 
 async function getCampaignInfo(

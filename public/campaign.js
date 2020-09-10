@@ -88,10 +88,9 @@ export function getCredentials() {
         return null;
     }
 }
-//TODO: handle bad login information
 export function load() {
     return __awaiter(this, void 0, void 0, function () {
-        var credentials, info, _a, _b, _c, name_1, url, _d, _e, _f, name_2, score;
+        var credentials, info, _a, _b, _c, name_1, url, _d, _e, _f, name_2, awards;
         var e_1, _g, e_2, _h;
         return __generator(this, function (_j) {
             switch (_j.label) {
@@ -110,7 +109,7 @@ export function load() {
                         for (_a = __values(info.urls), _b = _a.next(); !_b.done; _b = _a.next()) {
                             _c = __read(_b.value, 2), name_1 = _c[0], url = _c[1];
                             if (url !== null) {
-                                $("#" + escapePeriods(name_1)).attr('href', "play?kind=campaign&" + url);
+                                $("#" + escapePeriods(name_1) + " a").attr('href', "play?kind=campaign&" + url);
                             }
                         }
                     }
@@ -122,11 +121,9 @@ export function load() {
                         finally { if (e_1) throw e_1.error; }
                     }
                     try {
-                        for (_d = __values(info.scores), _e = _d.next(); !_e.done; _e = _d.next()) {
-                            _f = __read(_e.value, 2), name_2 = _f[0], score = _f[1];
-                            if (score !== null) {
-                                $("#" + escapePeriods(name_2)).text(name_2 + " (" + score + ")");
-                            }
+                        for (_d = __values(info.awardsByLevels), _e = _d.next(); !_e.done; _e = _d.next()) {
+                            _f = __read(_e.value, 2), name_2 = _f[0], awards = _f[1];
+                            $("#" + escapePeriods(name_2) + " .stars").text(renderStars(awards));
                         }
                     }
                     catch (e_2_1) { e_2 = { error: e_2_1 }; }
@@ -141,6 +138,11 @@ export function load() {
             }
         });
     });
+}
+function renderStars(n) {
+    if (n == 0)
+        return '';
+    return "(" + Array(n).fill('*').join('') + ")";
 }
 function loginRemote(credentials) {
     return new Promise(function (resolve) {
