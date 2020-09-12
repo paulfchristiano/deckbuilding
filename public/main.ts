@@ -470,7 +470,7 @@ function setVisibleLog(state:State, logType:LogType, ui:webUI) {
 }
 
 function renderLogLine(msg: string, i:number) {
-  return `<div class="logLine" pos=${i}>${msg}</div>`
+  return `<div><span class="logLine" pos=${i}>${msg}</span></div>`
 }
 
 function displayLogLines(logs:[string, State|null][], ui:webUI) {
