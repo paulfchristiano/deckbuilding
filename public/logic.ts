@@ -2742,7 +2742,7 @@ registerEvent(volley)
 
 
 const parallelize:CardSpec = {name: 'Parallelize',
-    fixedCost: {...free, coin:2, energy:1},
+    fixedCost: {...free, coin:1, energy:1},
     effects: [{
         text: [`Put a parallelize token on each card in your hand.`],
         transform: state => doAll(state.hand.map(c => addToken(c, 'parallelize')))
@@ -3273,7 +3273,7 @@ const spices:CardSpec = {name: 'Spices',
 buyable(spices, 5, {onBuy: [coinsEffect(4)]})
 
 const onslaught:CardSpec = {name: 'Onslaught',
-    calculatedCost: costPlus(coin(6), energy(1)),
+	calculatedCost: costPlus({...free, coin:3, energy:1}, coin(3)),
     effects: [incrementCost(), {
         text: [`Play any number of cards in your hand.`],
         transform: (state, card) => async function(state) {
@@ -3462,6 +3462,7 @@ function setBuyEffect(n:number) {
     }
 }
 
+/*
 const inflation:CardSpec = {name: 'Inflation',
     calculatedCost: costPlus(energy(3), energy(1)),
     effects: [incrementCost(), setCoinEffect(15), setBuyEffect(5)],
@@ -3469,6 +3470,23 @@ const inflation:CardSpec = {name: 'Inflation',
         text: `All costs of $1 or more are increased by $1 per cost token on this.`,
         kind: 'cost',
         handles: (p, state) => p.cost.coin > 0,
+        replace: (p, state, card) => ({...p, cost:addCosts(p.cost, {coin:card.count('cost')})})
+    }]
+}
+registerEvent(inflation)
+*/
+const inflation:CardSpec = {name: 'Inflation',
+    fixedCost: energy(5),
+    effects: [setCoinEffect(15), setBuyEffect(5), incrementCost()],
+    staticReplacers: [{
+        text: `Cards cost $1 more to buy for each cost token on this.`,
+        kind: 'cost',
+        handles: (p, state) => p.actionKind == 'buy',
+        replace: (p, state, card) => ({...p, cost:addCosts(p.cost, {coin:card.count('cost')})})
+    }, {
+        text: `Events that cost at least $1 cost $1 more to use for each cost token on this.`,
+        kind: 'cost',
+        handles: (p, state) => p.actionKind == 'use' && p.cost.coin > 0,
         replace: (p, state, card) => ({...p, cost:addCosts(p.cost, {coin:card.count('cost')})})
     }]
 }
@@ -3535,7 +3553,7 @@ const publicWorks:CardSpec = {name: 'Public Works',
     effects: [toPlay()],
     replacers: [costReduceNext('use', {energy:1}, true)],
 }
-buyable(publicWorks, 5)
+buyable(publicWorks, 6)
 
 function fragileEcho(t:Token): Trigger<MoveEvent> {
     return {
@@ -3721,7 +3739,7 @@ const Innovation:string = 'Innovation'
 const innovation:CardSpec = {name: Innovation,
     effects: [actionsEffect(1), toPlay()],
 }
-buyable(innovation, 5, {triggers: [{
+buyable(innovation, 6, {triggers: [{
     text: `When you create a card in your discard,
     discard an ${innovation.name} from play in order to play it.
     (If you have multiple, discard the oldest.)`,
@@ -4098,13 +4116,13 @@ buyable(secretChamber, 3)
 
 const hirelings:CardSpec = {
     name: 'Hirelings',
-    effects: [toPlay()],
+    effects: [buyEffect(), toPlay()],
     replacers: [{
-        text: 'Whenever you move this to your hand, +3 actions.',
+        text: 'Whenever you would move this to your hand, instead +2 actions and +1 buy.',
         kind: 'move',
-        handles: (p, s, c) => p.card.id == c.id && p.toZone == 'hand',
-        replace: (p, s, c) => ({...p, effects:p.effects.concat([
-            gainActions(3, c),
+        handles: (p, s, c) => p.card.id == c.id && p.toZone == 'hand' && p.skip == false,
+        replace: (p, s, c) => ({...p, skip:true, effects:p.effects.concat([
+            gainActions(2, c), gainBuys(1, c)
         ])})
     }]
 }

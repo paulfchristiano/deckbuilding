@@ -3259,7 +3259,7 @@ var volley = {
 };
 registerEvent(volley);
 var parallelize = { name: 'Parallelize',
-    fixedCost: __assign(__assign({}, free), { coin: 2, energy: 1 }),
+    fixedCost: __assign(__assign({}, free), { coin: 1, energy: 1 }),
     effects: [{
             text: ["Put a parallelize token on each card in your hand."],
             transform: function (state) { return doAll(state.hand.map(function (c) { return addToken(c, 'parallelize'); })); }
@@ -3798,7 +3798,7 @@ var spices = { name: 'Spices',
 };
 buyable(spices, 5, { onBuy: [coinsEffect(4)] });
 var onslaught = { name: 'Onslaught',
-    calculatedCost: costPlus(coin(6), energy(1)),
+    calculatedCost: costPlus(__assign(__assign({}, free), { coin: 3, energy: 1 }), coin(3)),
     effects: [incrementCost(), {
             text: ["Play any number of cards in your hand."],
             transform: function (state, card) { return function (state) {
@@ -3987,13 +3987,31 @@ function setBuyEffect(n) {
         transform: function (s, c) { return setResource('buys', n, c); },
     };
 }
-var inflation = { name: 'Inflation',
+/*
+const inflation:CardSpec = {name: 'Inflation',
     calculatedCost: costPlus(energy(3), energy(1)),
     effects: [incrementCost(), setCoinEffect(15), setBuyEffect(5)],
     staticReplacers: [{
-            text: "All costs of $1 or more are increased by $1 per cost token on this.",
+        text: `All costs of $1 or more are increased by $1 per cost token on this.`,
+        kind: 'cost',
+        handles: (p, state) => p.cost.coin > 0,
+        replace: (p, state, card) => ({...p, cost:addCosts(p.cost, {coin:card.count('cost')})})
+    }]
+}
+registerEvent(inflation)
+*/
+var inflation = { name: 'Inflation',
+    fixedCost: energy(5),
+    effects: [setCoinEffect(15), setBuyEffect(5), incrementCost()],
+    staticReplacers: [{
+            text: "Cards cost $1 more to buy for each cost token on this.",
             kind: 'cost',
-            handles: function (p, state) { return p.cost.coin > 0; },
+            handles: function (p, state) { return p.actionKind == 'buy'; },
+            replace: function (p, state, card) { return (__assign(__assign({}, p), { cost: addCosts(p.cost, { coin: card.count('cost') }) })); }
+        }, {
+            text: "Events that cost at least $1 cost $1 more to use for each cost token on this.",
+            kind: 'cost',
+            handles: function (p, state) { return p.actionKind == 'use' && p.cost.coin > 0; },
             replace: function (p, state, card) { return (__assign(__assign({}, p), { cost: addCosts(p.cost, { coin: card.count('cost') }) })); }
         }]
 };
@@ -4043,7 +4061,7 @@ var publicWorks = { name: 'Public Works',
     effects: [toPlay()],
     replacers: [costReduceNext('use', { energy: 1 }, true)],
 };
-buyable(publicWorks, 5);
+buyable(publicWorks, 6);
 function fragileEcho(t) {
     return {
         text: "Whenever a card with " + a(t) + " token is moved to your hand or discard,\n               trash it.",
@@ -4246,7 +4264,7 @@ var Innovation = 'Innovation';
 var innovation = { name: Innovation,
     effects: [actionsEffect(1), toPlay()],
 };
-buyable(innovation, 5, { triggers: [{
+buyable(innovation, 6, { triggers: [{
             text: "When you create a card in your discard,\n    discard an " + innovation.name + " from play in order to play it.\n    (If you have multiple, discard the oldest.)",
             kind: 'create',
             handles: function (e) { return e.zone == 'discard'; },
@@ -4659,13 +4677,13 @@ var secretChamber = {
 buyable(secretChamber, 3);
 var hirelings = {
     name: 'Hirelings',
-    effects: [toPlay()],
+    effects: [buyEffect(), toPlay()],
     replacers: [{
-            text: 'Whenever you move this to your hand, +3 actions.',
+            text: 'Whenever you would move this to your hand, instead +2 actions and +1 buy.',
             kind: 'move',
-            handles: function (p, s, c) { return p.card.id == c.id && p.toZone == 'hand'; },
-            replace: function (p, s, c) { return (__assign(__assign({}, p), { effects: p.effects.concat([
-                    gainActions(3, c),
+            handles: function (p, s, c) { return p.card.id == c.id && p.toZone == 'hand' && p.skip == false; },
+            replace: function (p, s, c) { return (__assign(__assign({}, p), { skip: true, effects: p.effects.concat([
+                    gainActions(2, c), gainBuys(1, c)
                 ]) })); }
         }]
 };
