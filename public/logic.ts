@@ -1,4 +1,4 @@
-export const VERSION = "1.6.2"
+export const VERSION = "1.6.3"
 
 // ----------------------------- Formatting
 
@@ -1316,7 +1316,7 @@ function leq(cost1:Cost, cost2:Cost) {
 type Token = 'charge' | 'cost' | 'mirror' | 'duplicate' | 'twin' | 'synergy' |
     'shelter' | 'echo' | 'decay' | 'burden' | 'pathfinding' | 'neglect' |
     'reuse' | 'polish' | 'priority' | 'hesitation' | 'parallelize' | 'art' |
-    'mire' | 'onslaught' | 'expedite' | 'replicate'
+    'mire' | 'onslaught' | 'expedite' | 'replicate' | 'reverberate' | 'reflect'
 
 function discharge(card:Card, n:number): Transform {
     return charge(card, -n, true)
@@ -3116,7 +3116,7 @@ const goldMine:CardSpec = {name: 'Gold Mine',
         transform: () => doAll([create(gold, 'hand'), create(gold, 'hand')]),
     }]
 }
-buyable(goldMine, 8)
+buyable(goldMine, 6)
 
 function fragile(card:Card):Trigger<MoveEvent> {
     return {
@@ -3137,8 +3137,8 @@ function robust(card:Card):Replacer<MoveParams> {
 
 const expedite: CardSpec = {
     name: 'Expedite',
-    calculatedCost: costPlus(energy(1), coin(1)),
-    effects: [incrementCost(), targetedEffect(
+    fixedCost: energy(1),
+    effects: [targetedEffect(
         card => addToken(card, 'expedite', 1),
         'Put an expedite token on a card in the supply.',
         state => state.supply,
@@ -3200,8 +3200,7 @@ const shelter:CardSpec = {name: 'Shelter',
     effects: [actionsEffect(1), targetedEffect(
         target => addToken(target, 'shelter'),
         'Put a shelter token on a card.',
-        state => state.play.concat(state.hand).concat(state.discard)
-            .concat(state.supply).concat(state.events)
+        state => state.play
     )]
 }
 buyable(shelter, 3, {
@@ -3335,9 +3334,9 @@ buyable(colony, 16)
 
 const platinum:CardSpec = {name: "Platinum",
     fixedCost: energy(0),
-    effects: [coinsEffect(5)]
+    effects: [coinsEffect(6)]
 }
-buyable(platinum, 9)
+buyable(platinum, 8)
 
 const greatSmithy:CardSpec = {name: 'Great Smithy',
     fixedCost: energy(2),
@@ -3405,14 +3404,31 @@ const decay:CardSpec = {name: 'Decay',
 registerEvent(decay)
 
 const reflect:CardSpec = {name: 'Reflect',
-    calculatedCost: costPlus(energy(1), coin(1)),
-    effects: [incrementCost(), playTwice()],
+    calculatedCost: costPlus(free, coin(1)),
+    effects: [incrementCost(), targetedEffect(
+    	(target, card) => addToken(target, 'reflect'),
+    	'Put a reflect token on a card in your hand',
+    	state => state.hand
+	)],
+    staticTriggers: [{
+        text: `After playing a card with a reflect token on it 
+        other than with this, remove a reflect token and play it again.`,
+        kind:'afterPlay',
+        handles: (e, state, card) => {
+            const played:Card = state.find(e.card)
+            return played.count('reflect') > 0 && e.source.name != card.name
+        },
+        transform: (e, s, card) => doAll([
+            removeToken(e.card, 'reflect'),
+            e.card.play(card),
+        ]),
+    }],
 }
 registerEvent(reflect)
 
 const replicate:CardSpec = {name: 'Replicate',
-    calculatedCost: costPlus(energy(1), coin(1)),
-    effects: [incrementCost(), targetedEffect(
+    fixedCost: energy(1),
+    effects: [targetedEffect(
         card => addToken(card, 'replicate', 1),
         'Put a replicate token on a card in the supply.',
         state => state.supply,
@@ -3521,16 +3537,12 @@ const publicWorks:CardSpec = {name: 'Public Works',
 }
 buyable(publicWorks, 5)
 
-function echoEffect(card:Card): Transform {
-    return create(card.spec, 'play', c => addToken(c, 'echo'))
-}
-
-function fragileEcho(): Trigger<MoveEvent> {
+function fragileEcho(t:Token): Trigger<MoveEvent> {
     return {
-        text: `Whenever a card with an echo token is moved to your hand or discard,
+        text: `Whenever a card with ${a(t)} token is moved to your hand or discard,
                trash it.`,
         kind: 'move',
-        handles: (x, state) => state.find(x.card).count('echo') > 0
+        handles: (x, state) => state.find(x.card).count(t) > 0
             && (x.toZone == 'hand' || x.toZone == 'discard'),
         transform: x => trash(x.card)
     }
@@ -3559,7 +3571,7 @@ const echo:CardSpec = {name: 'Echo',
         state => dedupBy(state.play, c => c.spec)
     )]
 }
-buyable(echo, 6, {triggers: [fragileEcho()]})
+buyable(echo, 6, {triggers: [fragileEcho('echo')]})
 
 function dischargeCost(c:Card, n:number=1): Cost {
     return {...free,
@@ -3709,20 +3721,20 @@ const Innovation:string = 'Innovation'
 const innovation:CardSpec = {name: Innovation,
     effects: [actionsEffect(1), toPlay()],
 }
-buyable(innovation, 6, {triggers: [{
+buyable(innovation, 5, {triggers: [{
     text: `When you create a card in your discard,
-    discard an ${innovation.name} from play in order to play it.`,
+    discard an ${innovation.name} from play in order to play it.
+    (If you have multiple, discard the oldest.)`,
     kind: 'create',
     handles: e => e.zone == 'discard',
-    transform: (e, state, card) => payToDo(
-        applyToTarget(
-            target => move(target, 'discard'),
-            `Discard an ${innovation.name} from play.`,
-            s => s.play.filter(c => c.name == innovation.name),
-            {cost:true}
-        ),
-        e.card.play(card)
-    )
+    transform: (e, state, card) => async function(state) {
+    	const innovations = state.play.filter(c => c.name == innovation.name);
+    	if (innovations.length > 0) {
+    		state = await move(innovations[0], 'discard')(state)
+    		state = await e.card.play(card)(state)
+    	}
+    	return state
+    }
 }]})
 
 //TODO test this and coven
@@ -4285,17 +4297,21 @@ const commerce:CardSpec = {
 }
 registerEvent(commerce)
 
+function reverbEffect(card:Card): Transform {
+    return create(card.spec, 'play', c => addToken(c, 'echo'))
+}
+
 const reverberate:CardSpec = {
     name: 'Reverberate',
-    calculatedCost: costPlus(energy(1), coin(1)),
-    effects: [incrementCost(), {
+    fixedCost: {...free, energy:1, coin:1},
+    effects: [{
         text: [`For each card in play without an echo token,
             create a copy in play with an echo token on it.`],
         transform: state => doAll(
-            state.play.filter(c => c.count('echo') == 0).map(echoEffect)
+            state.play.filter(c => c.count('echo') == 0).map(reverbEffect)
         )
     }],
-    staticTriggers: [fragileEcho()]
+    staticTriggers: [fragileEcho('echo')]
 }
 registerEvent(reverberate)
 
