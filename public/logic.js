@@ -85,7 +85,7 @@ var __read = (this && this.__read) || function (o, n) {
     }
     return ar;
 };
-export var VERSION = "1.6.3";
+export var VERSION = "1.7";
 // ----------------------------- Formatting
 export function renderCost(cost, full) {
     var e_1, _a;
@@ -4200,7 +4200,6 @@ function unchargeOnMove() {
         replace: function (x, state, card) { return (__assign(__assign({}, x), { effects: x.effects.concat([uncharge(card)]) })); }
     };
 }
-//TODO: should "this is in play" always be a requirement for triggers?
 var recruitment = {
     name: 'Recruitment',
     relatedCards: [villager],
@@ -4218,15 +4217,15 @@ var dragon = { name: 'Dragon',
         actionsEffect(4), coinsEffect(4), buyEffect()]
 };
 var egg = { name: 'Egg',
-    fixedCost: energy(1),
+    fixedCost: energy(0),
     relatedCards: [dragon],
-    effects: [chargeEffect(), {
+    effects: [actionsEffect(1), chargeEffect(), {
             text: ["If this has three or more charge tokens on it, trash it and \n        create " + a(dragon.name) + " in your hand."],
             transform: function (state, card) { return state.find(card).charge >= 3 ?
                 doAll([trash(card), create(dragon, 'hand')]) : noop; }
         }]
 };
-buyable(egg, 4);
+buyable(egg, 3);
 var looter = { name: 'Looter',
     effects: [{
             text: ["Discard up to three cards from your hand.",
@@ -4629,9 +4628,26 @@ function countDistinct(xs) {
 var harvest = {
     name: 'Harvest',
     fixedCost: energy(1),
-    effects: [buyEffect(), {
-            text: ["+$1 for every differently-named card in your discard."],
-            transform: function (state) { return gainCoins(countDistinct(state.discard.map(function (x) { return x.name; }))); }
+    effects: [{
+            text: ["For each differently-named card in play or in your discard,\n                +1 action and +$1."],
+            transform: function (state) { return function (state) {
+                return __awaiter(this, void 0, void 0, function () {
+                    var n;
+                    return __generator(this, function (_a) {
+                        switch (_a.label) {
+                            case 0:
+                                n = countDistinct(state.discard.concat(state.play).map(function (x) { return x.name; }));
+                                return [4 /*yield*/, gainCoins(n)(state)];
+                            case 1:
+                                state = _a.sent();
+                                return [4 /*yield*/, gainActions(n)(state)];
+                            case 2:
+                                state = _a.sent();
+                                return [2 /*return*/, state];
+                        }
+                    });
+                });
+            }; }
         }]
 };
 buyable(harvest, 3);
