@@ -662,17 +662,25 @@ class webUI {
     //(would be nice to clean this up so you use undo to go back)
     async victory(state:State): Promise<void> {
         const ui:webUI = this;
+        if (isCampaign) {
+            const score = state.energy
+            const url = specToURL(state.spec)
+            const query = [
+                credentialParams(),
+                `url=${encodeURIComponent(url)}`,
+                `score=${score}`,
+                `history=${state.serializeHistory()}`
+            ].join('&')
+            $.post(`campaignSubmit?${query}`)
+            heartbeat(state.spec)
+        }
         const submitOrUndo: () => Promise<void> = () =>
             new Promise(function (resolve, reject) {
                 ui.undoing = true;
                 heartbeat(state.spec)
                 const submitDialog = () => {
                     keyListeners.clear()
-                    if (isCampaign) {
-                        renderCampaignSubmission(state, () => submitOrUndo().then(resolve, reject))
-                    } else {
-                        renderScoreSubmission(state, () => submitOrUndo().then(resolve, reject))
-                    }
+                    renderScoreSubmission(state, () => submitOrUndo().then(resolve, reject))
                 }
                 function newReject(reason:any) {
                     if (reason instanceof Undo) ui.undoing = true

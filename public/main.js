@@ -726,21 +726,28 @@ var webUI = /** @class */ (function () {
     //(would be nice to clean this up so you use undo to go back)
     webUI.prototype.victory = function (state) {
         return __awaiter(this, void 0, void 0, function () {
-            var ui, submitOrUndo;
+            var ui, score, url, query, submitOrUndo;
             return __generator(this, function (_a) {
                 ui = this;
+                if (isCampaign) {
+                    score = state.energy;
+                    url = specToURL(state.spec);
+                    query = [
+                        credentialParams(),
+                        "url=" + encodeURIComponent(url),
+                        "score=" + score,
+                        "history=" + state.serializeHistory()
+                    ].join('&');
+                    $.post("campaignSubmit?" + query);
+                    heartbeat(state.spec);
+                }
                 submitOrUndo = function () {
                     return new Promise(function (resolve, reject) {
                         ui.undoing = true;
                         heartbeat(state.spec);
                         var submitDialog = function () {
                             keyListeners.clear();
-                            if (isCampaign) {
-                                renderCampaignSubmission(state, function () { return submitOrUndo().then(resolve, reject); });
-                            }
-                            else {
-                                renderScoreSubmission(state, function () { return submitOrUndo().then(resolve, reject); });
-                            }
+                            renderScoreSubmission(state, function () { return submitOrUndo().then(resolve, reject); });
                         };
                         function newReject(reason) {
                             if (reason instanceof Undo)
