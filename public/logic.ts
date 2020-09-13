@@ -1,4 +1,4 @@
-export const VERSION = "1.6.3"
+export const VERSION = "1.7"
 
 // ----------------------------- Formatting
 
@@ -3680,7 +3680,6 @@ function unchargeOnMove(): Replacer<MoveParams> {
     }
 }
 
-//TODO: should "this is in play" always be a requirement for triggers?
 const recruitment:CardSpec = {
     name: 'Recruitment',
     relatedCards: [villager],
@@ -3701,16 +3700,16 @@ const dragon:CardSpec = {name: 'Dragon',
               actionsEffect(4), coinsEffect(4), buyEffect()]
 }
 const egg:CardSpec = {name: 'Egg',
-    fixedCost: energy(1),
+    fixedCost: energy(0),
     relatedCards: [dragon],
-    effects: [chargeEffect(), {
+    effects: [actionsEffect(1), chargeEffect(), {
         text: [`If this has three or more charge tokens on it, trash it and 
         create ${a(dragon.name)} in your hand.`],
         transform: (state, card) => state.find(card).charge >= 3 ?
             doAll([trash(card), create(dragon, 'hand')]) : noop
     }]
 }
-buyable(egg, 4)
+buyable(egg, 3)
 
 const looter:CardSpec = {name: 'Looter',
     effects: [{
@@ -4077,9 +4076,17 @@ function countDistinct<T>(xs:T[]): number {
 const harvest:CardSpec = {
     name:'Harvest',
     fixedCost: energy(1),
-    effects: [buyEffect(), {
-        text: [`+$1 for every differently-named card in your discard.`],
-        transform: state => gainCoins(countDistinct(state.discard.map(x => x.name)))
+    effects: [{
+        text: [`For each differently-named card in play or in your discard,
+                +1 action and +$1.`],
+        transform: state => async function(state) {
+            const n = countDistinct(
+                state.discard.concat(state.play).map(x => x.name)
+            )
+            state = await gainCoins(n)(state)
+            state = await gainActions(n)(state)
+            return state
+        }
     }]
 }
 buyable(harvest, 3)
