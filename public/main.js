@@ -492,8 +492,10 @@ function resetGlobalRenderer() {
     globalRendererState.hotkeyMapper = new HotkeyMapper();
     globalRendererState.tokenRenderer = new TokenRenderer();
 }
-function linkForState(state) {
-    return "play?" + specToURL(state.spec) + "#" + state.serializeHistory(false);
+function linkForState(state, campaign) {
+    if (campaign === void 0) { campaign = false; }
+    var cs = campaign ? 'campaign&' : '';
+    return "play?" + cs + specToURL(state.spec) + "#" + state.serializeHistory(false) + "}";
 }
 function renderState(state, settings) {
     if (settings === void 0) { settings = {}; }
@@ -511,7 +513,7 @@ function renderState(state, settings) {
     }
     if (settings.updateURL === undefined || settings.updateURL) {
         globalRendererState.userURL = false;
-        window.history.replaceState(null, "", linkForState(state));
+        window.history.replaceState(null, "", linkForState(state, isCampaign));
     }
     $('#resolvingHeader').html('Resolving:');
     $('#energy').html(state.energy.toString());
@@ -733,7 +735,7 @@ var webUI = /** @class */ (function () {
                         heartbeat(state.spec);
                         var submitDialog = function () {
                             keyListeners.clear();
-                            if (state.spec.kind == 'campaign') {
+                            if (isCampaign) {
                                 renderCampaignSubmission(state, function () { return submitOrUndo().then(resolve, reject); });
                             }
                             else {
@@ -1413,8 +1415,10 @@ function campaignHeartbeat(spec, interval) {
         $('#best').html(personalBestStr + nextAwardStr);
     });
 }
+//TODO: still need to refactor global state
+var isCampaign = false;
 function heartbeat(spec, interval) {
-    if (spec.kind == 'campaign') {
+    if (isCampaign) {
         campaignHeartbeat(spec, interval);
     }
     else if (submittable(spec)) {
@@ -1441,9 +1445,14 @@ function renderScoreboardLink(spec) {
 function getHistory() {
     return window.location.hash.substring(1) || null;
 }
+function isURLCampaign(url) {
+    var searchParams = new URLSearchParams(url);
+    return searchParams.get('campaign') != null;
+}
 export function load(fixedURL) {
     if (fixedURL === void 0) { fixedURL = ''; }
     var url = (fixedURL.length == 0) ? window.location.search : fixedURL;
+    isCampaign = isURLCampaign(url);
     var spec;
     try {
         spec = specFromURL(url);

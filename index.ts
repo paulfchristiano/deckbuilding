@@ -266,10 +266,6 @@ async function getCampaignInfo(username:string): Promise<CampaignInfo> {
   }
 }
 
-function stripCampaignFromURL(url:string) {
-  return url.split('&').slice(1).join('&')
-}
-
 express()
     .use(express.static('./public'))
     .set('view engine', 'ejs')
@@ -359,7 +355,7 @@ express()
           return
       }
       const username = credentials.username
-      const url = stripCampaignFromURL(decodeURIComponent(req.query.url))
+      const url = decodeURIComponent(req.query.url)
       const scores = await sql`SELECT s.score
         FROM campaign_scores s
         JOIN campaign_levels l ON s.level = l.key
@@ -400,7 +396,7 @@ express()
         return
       }
       const levels = await sql`SELECT key
-        FROM campaign_levels WHERE url=${stripCampaignFromURL(url)}`
+        FROM campaign_levels WHERE url=${url}`
       if (levels.length == 0) {
         res.send('campaign level not found')
       }

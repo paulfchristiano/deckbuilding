@@ -407,8 +407,9 @@ function resetGlobalRenderer() {
     globalRendererState.tokenRenderer = new TokenRenderer()
 }
 
-function linkForState(state:State) {
-    return `play?${specToURL(state.spec)}#${state.serializeHistory(false)}`
+function linkForState(state:State, campaign:boolean=false) {
+    const cs = campaign ? 'campaign&' : ''
+    return `play?${cs}${specToURL(state.spec)}#${state.serializeHistory(false)}}`
 }
 
 function renderState(
@@ -431,7 +432,7 @@ function renderState(
     }
     if (settings.updateURL === undefined || settings.updateURL) {
         globalRendererState.userURL = false
-        window.history.replaceState(null, "", linkForState(state))
+        window.history.replaceState(null, "", linkForState(state, isCampaign))
     }
     $('#resolvingHeader').html('Resolving:')
     $('#energy').html(state.energy.toString())
@@ -667,7 +668,7 @@ class webUI {
                 heartbeat(state.spec)
                 const submitDialog = () => {
                     keyListeners.clear()
-                    if (state.spec.kind == 'campaign') {
+                    if (isCampaign) {
                         renderCampaignSubmission(state, () => submitOrUndo().then(resolve, reject))
                     } else {
                         renderScoreSubmission(state, () => submitOrUndo().then(resolve, reject))
@@ -1395,8 +1396,11 @@ function campaignHeartbeat(spec:GameSpec, interval?:any): void {
     })
 }
 
+//TODO: still need to refactor global state
+let isCampaign:boolean = false;
+
 function heartbeat(spec:GameSpec, interval?:any): void {
-    if (spec.kind == 'campaign') {
+    if (isCampaign) {
         campaignHeartbeat(spec, interval)
     } else if (submittable(spec)) {
         $.get(`topScore?url=${encodeURIComponent(specToURL(spec))}&version=${VERSION}`).done(function(x:string) {
@@ -1426,8 +1430,14 @@ function getHistory(): string | null {
     return window.location.hash.substring(1) || null;
 }
 
+function isURLCampaign(url:string):boolean {
+    const searchParams = new URLSearchParams(url)
+    return searchParams.get('campaign') != null
+}
+
 export function load(fixedURL:string=''): void {
     const url = (fixedURL.length == 0) ? window.location.search : fixedURL
+    isCampaign = isURLCampaign(url)
     let spec:GameSpec;
     try {
         spec = specFromURL(url)

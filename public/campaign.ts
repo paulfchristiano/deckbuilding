@@ -50,7 +50,7 @@ export async function load() {
 		$('#numAwards').text(info.numAwards)
 		for (const [name, url] of info.urls) {
 			if (url !== null) {
-				$(`#${name} a`).attr('href', `play?kind=campaign&${url}`)
+				$(`#${name} a`).attr('href', `play?campaign&${url}`)
 				$(`#${name} .req`).html('')
 			}
 		}

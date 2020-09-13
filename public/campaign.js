@@ -109,7 +109,7 @@ export function load() {
                         for (_a = __values(info.urls), _b = _a.next(); !_b.done; _b = _a.next()) {
                             _c = __read(_b.value, 2), name_1 = _c[0], url = _c[1];
                             if (url !== null) {
-                                $("#" + name_1 + " a").attr('href', "play?kind=campaign&" + url);
+                                $("#" + name_1 + " a").attr('href', "play?campaign&" + url);
                                 $("#" + name_1 + " .req").html('');
                             }
                         }

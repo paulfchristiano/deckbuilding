@@ -584,9 +584,6 @@ function getCampaignInfo(username) {
         });
     });
 }
-function stripCampaignFromURL(url) {
-    return url.split('&').slice(1).join('&');
-}
 express()
     .use(express.static('./public'))
     .set('view engine', 'ejs')
@@ -735,7 +732,7 @@ express()
                     return [2 /*return*/];
                 }
                 username = credentials.username;
-                url = stripCampaignFromURL(decodeURIComponent(req.query.url));
+                url = decodeURIComponent(req.query.url);
                 return [4 /*yield*/, sql(templateObject_15 || (templateObject_15 = __makeTemplateObject(["SELECT s.score\n        FROM campaign_scores s\n        JOIN campaign_levels l ON s.level = l.key\n        WHERE l.url = ", " AND s.username = ", " "], ["SELECT s.score\n        FROM campaign_scores s\n        JOIN campaign_levels l ON s.level = l.key\n        WHERE l.url = ", " AND s.username = ", " "])), url, username)];
             case 2:
                 scores = _b.sent();
@@ -794,7 +791,7 @@ express()
                     res.send("Score did not validate: " + explanation);
                     return [2 /*return*/];
                 }
-                return [4 /*yield*/, sql(templateObject_17 || (templateObject_17 = __makeTemplateObject(["SELECT key\n        FROM campaign_levels WHERE url=", ""], ["SELECT key\n        FROM campaign_levels WHERE url=", ""])), stripCampaignFromURL(url))];
+                return [4 /*yield*/, sql(templateObject_17 || (templateObject_17 = __makeTemplateObject(["SELECT key\n        FROM campaign_levels WHERE url=", ""], ["SELECT key\n        FROM campaign_levels WHERE url=", ""])), url)];
             case 3:
                 levels = _c.sent();
                 if (levels.length == 0) {

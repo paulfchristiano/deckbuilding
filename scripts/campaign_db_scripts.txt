@@ -12,11 +12,11 @@ DELETE FROM campaign_levels;
 -- Progression A
 
 INSERT INTO campaign_levels (key, url, points_required) VALUES
-('A1', 'cards=GhostTown&events=', 0),
-('A2', 'cards=Bridge,GhostTown&events=', 0),
-('A3', 'cards=Bridge,GhostTown,Spices&events=', 0),
-('A4', 'cards=Bridge,GhostTown,Spices&events=TravelingFair', 0),
-('A5', 'cards=Bridge,GhostTown,Spices&events=Polish,TravelingFair', 0);
+('A1', 'kind=pick&cards=GhostTown&events=', 0),
+('A2', 'kind=pick&cards=Bridge,GhostTown&events=', 0),
+('A3', 'kind=pick&cards=Bridge,GhostTown,Spices&events=', 0),
+('A4', 'kind=pick&cards=Bridge,GhostTown,Spices&events=TravelingFair', 0),
+('A5', 'kind=pick&cards=Bridge,GhostTown,Spices&events=Polish,TravelingFair', 0);
 
 INSERT INTO campaign_requirements(destination, req) VALUES
 ('A2', 'A1'), ('A3', 'A2'), ('A4', 'A3'), ('A5', 'A4');
@@ -31,11 +31,11 @@ INSERT INTO campaign_awards (level, core, threshold) VALUES
 -- Progression B
 
 INSERT INTO campaign_levels (key, url, points_required) VALUES
-('B1', 'cards=Formation&events=', 0),
-('B2', 'cards=Formation,Workshop&events=', 0),
-('B3', 'cards=Formation,Plow,Workshop&events=', 0),
-('B4', 'cards=Formation,Looter,Plow,Workshop&events=', 0),
-('B5', 'cards=Formation,Looter,Plow,Unearth,Workshop&events=', 0);
+('B1', 'kind=pick&cards=Formation&events=', 0),
+('B2', 'kind=pick&cards=Formation,Workshop&events=', 0),
+('B3', 'kind=pick&cards=Formation,Plow,Workshop&events=', 0),
+('B4', 'kind=pick&cards=Formation,Looter,Plow,Workshop&events=', 0),
+('B5', 'kind=pick&cards=Formation,Looter,Plow,Unearth,Workshop&events=', 0);
 
 INSERT INTO campaign_requirements(destination, req) VALUES
 ('B2', 'B1'), ('B3', 'B2'), ('B4', 'B3'), ('B5', 'B4');
@@ -50,11 +50,11 @@ INSERT INTO campaign_awards (level, core, threshold) VALUES
 -- Progression C
 
 INSERT INTO campaign_levels (key, url, points_required) VALUES
-('C1', 'cards=Sacrifice&events=', 0),
-('C2', 'cards=Banquet,Sacrifice&events=', 0),
-('C3', 'cards=Banquet,Sacrifice&events=Escalate', 0),
-('C4', 'cards=Banquet,Carpenter,Sacrifice&events=Escalate', 0),
-('C5', 'cards=Banquet,Carpenter,KingsCourt,Sacrifice&events=Escalate', 0);
+('C1', 'kind=pick&cards=Sacrifice&events=', 0),
+('C2', 'kind=pick&cards=Banquet,Sacrifice&events=', 0),
+('C3', 'kind=pick&cards=Banquet,Sacrifice&events=Escalate', 0),
+('C4', 'kind=pick&cards=Banquet,Carpenter,Sacrifice&events=Escalate', 0),
+('C5', 'kind=pick&cards=Banquet,Carpenter,KingsCourt,Sacrifice&events=Escalate', 0);
 
 INSERT INTO campaign_requirements(destination, req) VALUES
 ('C2', 'C1'), ('C3', 'C2'), ('C4', 'C3'), ('C5', 'C4');
@@ -67,5 +67,6 @@ INSERT INTO campaign_awards (level, core, threshold) VALUES
 ('C5', TRUE, 20), ('C5', FALSE, 17), ('C5', FALSE, 16);
 
 ---- Small games
+
 
 
