@@ -90,10 +90,10 @@ export function getCredentials() {
 }
 export function load() {
     return __awaiter(this, void 0, void 0, function () {
-        var credentials, info, _a, _b, _c, name_1, url, _d, _e, _f, name_2, awards;
-        var e_1, _g, e_2, _h;
-        return __generator(this, function (_j) {
-            switch (_j.label) {
+        var credentials, info, _a, _b, _c, name_1, url, _d, _e, _f, name_2, reason, _g, _h, _j, name_3, awards;
+        var e_1, _k, e_2, _l, e_3, _m;
+        return __generator(this, function (_o) {
+            switch (_o.label) {
                 case 0:
                     credentials = getCredentials();
                     $('#logoutButton').click(logout);
@@ -102,38 +102,52 @@ export function load() {
                     return [3 /*break*/, 3];
                 case 1: return [4 /*yield*/, getCampaignInfo(credentials)];
                 case 2:
-                    info = _j.sent();
+                    info = _o.sent();
                     console.log(info);
                     $('#numAwards').text(info.numAwards);
                     try {
                         for (_a = __values(info.urls), _b = _a.next(); !_b.done; _b = _a.next()) {
                             _c = __read(_b.value, 2), name_1 = _c[0], url = _c[1];
                             if (url !== null) {
-                                $("#" + escapePeriods(name_1) + " a").attr('href', "play?kind=campaign&" + url);
+                                $("#" + name_1 + " a").attr('href', "play?kind=campaign&" + url);
+                                $("#" + name_1 + " .req").html('');
                             }
                         }
                     }
                     catch (e_1_1) { e_1 = { error: e_1_1 }; }
                     finally {
                         try {
-                            if (_b && !_b.done && (_g = _a.return)) _g.call(_a);
+                            if (_b && !_b.done && (_k = _a.return)) _k.call(_a);
                         }
                         finally { if (e_1) throw e_1.error; }
                     }
                     try {
-                        for (_d = __values(info.awardsByLevels), _e = _d.next(); !_e.done; _e = _d.next()) {
-                            _f = __read(_e.value, 2), name_2 = _f[0], awards = _f[1];
-                            $("#" + escapePeriods(name_2) + " .stars").text(renderStars(awards));
+                        for (_d = __values(info.lockReasons), _e = _d.next(); !_e.done; _e = _d.next()) {
+                            _f = __read(_e.value, 2), name_2 = _f[0], reason = _f[1];
+                            $("#" + name_2 + " .req").html(" (&#128274;" + reason + ")");
                         }
                     }
                     catch (e_2_1) { e_2 = { error: e_2_1 }; }
                     finally {
                         try {
-                            if (_e && !_e.done && (_h = _d.return)) _h.call(_d);
+                            if (_e && !_e.done && (_l = _d.return)) _l.call(_d);
                         }
                         finally { if (e_2) throw e_2.error; }
                     }
-                    _j.label = 3;
+                    try {
+                        for (_g = __values(info.awardsByLevels), _h = _g.next(); !_h.done; _h = _g.next()) {
+                            _j = __read(_h.value, 2), name_3 = _j[0], awards = _j[1];
+                            $("#" + name_3 + " .stars").text(renderStars(awards));
+                        }
+                    }
+                    catch (e_3_1) { e_3 = { error: e_3_1 }; }
+                    finally {
+                        try {
+                            if (_h && !_h.done && (_m = _g.return)) _m.call(_g);
+                        }
+                        finally { if (e_3) throw e_3.error; }
+                    }
+                    _o.label = 3;
                 case 3: return [2 /*return*/];
             }
         });

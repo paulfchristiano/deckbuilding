@@ -33,6 +33,7 @@ export function getCredentials(): Credentials|null {
 
 export interface CampaignInfo {
 	urls: [string, string|null][], //list of level names -> level urls
+	lockReasons: [string, string][],
 	scores: [string, number|null][], //scores per level
 	awardsByLevels: [string, number][],
 	numAwards: number,
@@ -49,11 +50,15 @@ export async function load() {
 		$('#numAwards').text(info.numAwards)
 		for (const [name, url] of info.urls) {
 			if (url !== null) {
-				$(`#${escapePeriods(name)} a`).attr('href', `play?kind=campaign&${url}`)
+				$(`#${name} a`).attr('href', `play?kind=campaign&${url}`)
+				$(`#${name} .req`).html('')
 			}
 		}
+		for (const [name, reason] of info.lockReasons) {
+			$(`#${name} .req`).html(` (&#128274;${reason})`)
+		}
 		for (const [name, awards] of info.awardsByLevels) {
-			$(`#${escapePeriods(name)} .stars`).text(renderStars(awards))
+			$(`#${name} .stars`).text(renderStars(awards))
 		}
 	}
 }

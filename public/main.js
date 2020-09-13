@@ -1391,6 +1391,7 @@ function scoreboardURL(spec) {
 function campaignHeartbeat(spec, interval) {
     var queryStr = "campaignHeartbeat?" + credentialParams() + "&url=" + encodeURIComponent(specToURL(spec)) + "&version=" + VERSION;
     console.log(queryStr);
+    $('#homeLink').attr('href', 'campaign.html');
     $.get(queryStr).done(function (x) {
         if (x == 'version mismatch') {
             clearInterval(interval);

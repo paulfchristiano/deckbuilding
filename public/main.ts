@@ -1372,6 +1372,7 @@ function scoreboardURL(spec:GameSpec) {
 function campaignHeartbeat(spec:GameSpec, interval?:any): void {
     const queryStr = `campaignHeartbeat?${credentialParams()}&url=${encodeURIComponent(specToURL(spec))}&version=${VERSION}`
     console.log(queryStr)
+    $('#homeLink').attr('href', 'campaign.html')
     $.get(queryStr).done(function(x) {
         if (x == 'version mismatch') {
             clearInterval(interval)

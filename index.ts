@@ -239,24 +239,27 @@ async function getCampaignInfo(username:string): Promise<CampaignInfo> {
       }
     }
   }
-  console.log(passedLevels)
-  const lockedLevels:Set<string> = new Set()
+  const lockedLevels:Map<string, string> = new Map()
   const requirements = await sql`SELECT destination, req FROM campaign_requirements`
   for (const row of requirements) {
-    console.log(row)
-    if (!passedLevels.has(row.req)) lockedLevels.add(row.destination)
+    if (!passedLevels.has(row.req)) lockedLevels.set(row.destination, row.req)
   }
-  console.log(lockedLevels)
   const levels = await sql`SELECT key, url, points_required from campaign_levels`
   const urls:[string, string][] = []
+  const lockReasons:[string, string][] = []
   for (const row of levels) {
-    console.log(row)
-    if (numAwards >= row.points_required && !lockedLevels.has(row.key)) {
+    const req:string|undefined = lockedLevels.get(row.key)
+    if (numAwards < row.points_required) {
+      lockReasons.push([row.key, `${row.points_required} points`])
+    } else if (req !== undefined) {
+      lockReasons.push([row.key, `${req}`])
+    } if (numAwards >= row.points_required && !lockedLevels.has(row.key)) {
       urls.push([row.key, row.url])
     }
   }
   return {
     urls: urls,
+    lockReasons: lockReasons,
     scores: scores.map((r:any) => [r.level, r.score]),
     awardsByLevels: Array.from(awardsByLevels.entries()),
     numAwards:numAwards
@@ -415,12 +418,8 @@ express()
         FROM campaign_awards
         WHERE level = ${key}`
       let nextAward = NaN
-      console.log(awards)
       for (const award of awards) {
         const threshold = award.threshold
-        console.log(nextAward)
-        console.log('score', score)
-        console.log('threshold', threshold)
         if (threshold < score
             && (threshold < oldScore || isNaN(oldScore))
             && (threshold > nextAward || isNaN(nextAward))){
@@ -429,7 +428,6 @@ express()
                 && threshold >= score) {
           newAwards += 1
         }
-        console.log(nextAward)
       }
       res.send({priorBest:oldScore, newAwards:newAwards, nextAward:nextAward})
     })

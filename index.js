@@ -480,7 +480,7 @@ function last(xs) {
 //probably better to just make it impossible to submit until unlocked?
 function getCampaignInfo(username) {
     return __awaiter(this, void 0, void 0, function () {
-        var scores, scoreByLevel, scores_1, scores_1_1, row, awards, passedLevels, awardsByLevels, numAwards, awards_1, awards_1_1, row, score, lockedLevels, requirements, requirements_1, requirements_1_1, row, levels, urls, levels_1, levels_1_1, row;
+        var scores, scoreByLevel, scores_1, scores_1_1, row, awards, passedLevels, awardsByLevels, numAwards, awards_1, awards_1_1, row, score, lockedLevels, requirements, requirements_1, requirements_1_1, row, levels, urls, lockReasons, levels_1, levels_1_1, row, req;
         var e_7, _a, e_8, _b, e_9, _c, e_10, _d;
         return __generator(this, function (_e) {
             switch (_e.label) {
@@ -528,17 +528,15 @@ function getCampaignInfo(username) {
                         }
                         finally { if (e_8) throw e_8.error; }
                     }
-                    console.log(passedLevels);
-                    lockedLevels = new Set();
+                    lockedLevels = new Map();
                     return [4 /*yield*/, sql(templateObject_11 || (templateObject_11 = __makeTemplateObject(["SELECT destination, req FROM campaign_requirements"], ["SELECT destination, req FROM campaign_requirements"])))];
                 case 3:
                     requirements = _e.sent();
                     try {
                         for (requirements_1 = __values(requirements), requirements_1_1 = requirements_1.next(); !requirements_1_1.done; requirements_1_1 = requirements_1.next()) {
                             row = requirements_1_1.value;
-                            console.log(row);
                             if (!passedLevels.has(row.req))
-                                lockedLevels.add(row.destination);
+                                lockedLevels.set(row.destination, row.req);
                         }
                     }
                     catch (e_9_1) { e_9 = { error: e_9_1 }; }
@@ -548,15 +546,21 @@ function getCampaignInfo(username) {
                         }
                         finally { if (e_9) throw e_9.error; }
                     }
-                    console.log(lockedLevels);
                     return [4 /*yield*/, sql(templateObject_12 || (templateObject_12 = __makeTemplateObject(["SELECT key, url, points_required from campaign_levels"], ["SELECT key, url, points_required from campaign_levels"])))];
                 case 4:
                     levels = _e.sent();
                     urls = [];
+                    lockReasons = [];
                     try {
                         for (levels_1 = __values(levels), levels_1_1 = levels_1.next(); !levels_1_1.done; levels_1_1 = levels_1.next()) {
                             row = levels_1_1.value;
-                            console.log(row);
+                            req = lockedLevels.get(row.key);
+                            if (numAwards < row.points_required) {
+                                lockReasons.push([row.key, row.points_required + " points"]);
+                            }
+                            else if (req !== undefined) {
+                                lockReasons.push([row.key, "" + req]);
+                            }
                             if (numAwards >= row.points_required && !lockedLevels.has(row.key)) {
                                 urls.push([row.key, row.url]);
                             }
@@ -571,6 +575,7 @@ function getCampaignInfo(username) {
                     }
                     return [2 /*return*/, {
                             urls: urls,
+                            lockReasons: lockReasons,
                             scores: scores.map(function (r) { return [r.level, r.score]; }),
                             awardsByLevels: Array.from(awardsByLevels.entries()),
                             numAwards: numAwards
@@ -808,14 +813,10 @@ express()
             case 6:
                 awards = _c.sent();
                 nextAward = NaN;
-                console.log(awards);
                 try {
                     for (awards_3 = __values(awards), awards_3_1 = awards_3.next(); !awards_3_1.done; awards_3_1 = awards_3.next()) {
                         award = awards_3_1.value;
                         threshold = award.threshold;
-                        console.log(nextAward);
-                        console.log('score', score);
-                        console.log('threshold', threshold);
                         if (threshold < score
                             && (threshold < oldScore || isNaN(oldScore))
                             && (threshold > nextAward || isNaN(nextAward))) {
@@ -825,7 +826,6 @@ express()
                             && threshold >= score) {
                             newAwards += 1;
                         }
-                        console.log(nextAward);
                     }
                 }
                 catch (e_14_1) { e_14 = { error: e_14_1 }; }
