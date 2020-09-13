@@ -1432,7 +1432,7 @@ function getHistory(): string | null {
 
 function isURLCampaign(url:string):boolean {
     const searchParams = new URLSearchParams(url)
-    return searchParams.get('campaign') != null
+    return searchParams.get('campaign') !== null
 }
 
 export function load(fixedURL:string=''): void {

@@ -217,7 +217,11 @@ function last<T>(xs:T[]): T {
 
 //TODO: if you guess a locked level you can play it and get points
 //probably better to just make it impossible to submit until unlocked?
-async function getCampaignInfo(username:string): Promise<CampaignInfo> {
+async function getCampaignInfo(
+  username:string,
+  cheat:boolean=false
+): Promise<CampaignInfo> {
+  console.log('Cheating: ' + cheat)
   const scores = await sql`SELECT level, score, username
     FROM campaign_scores WHERE username = ${username}`
   const scoreByLevel:Map<string, number> = new Map()
@@ -239,21 +243,26 @@ async function getCampaignInfo(username:string): Promise<CampaignInfo> {
       }
     }
   }
-  const lockedLevels:Map<string, string> = new Map()
+  const lockedLevels:Map<string, string[]> = new Map()
   const requirements = await sql`SELECT destination, req FROM campaign_requirements`
   for (const row of requirements) {
-    if (!passedLevels.has(row.req)) lockedLevels.set(row.destination, row.req)
+    if (!passedLevels.has(row.req)) {
+      const currentReqs:string[] = lockedLevels.get(row.destination) || []
+      lockedLevels.set(row.destination, currentReqs.concat([row.req]))
+    }
   }
   const levels = await sql`SELECT key, url, points_required from campaign_levels`
   const urls:[string, string][] = []
   const lockReasons:[string, string][] = []
+  //TODO: show both points and level dependencies
   for (const row of levels) {
-    const req:string|undefined = lockedLevels.get(row.key)
+    const req:string[]|undefined = lockedLevels.get(row.key)
     if (numAwards < row.points_required) {
       lockReasons.push([row.key, `${row.points_required} points`])
     } else if (req !== undefined) {
-      lockReasons.push([row.key, `${req}`])
-    } if (numAwards >= row.points_required && !lockedLevels.has(row.key)) {
+      lockReasons.push([row.key, `${req.join(',')}`])
+    } 
+    if ((numAwards >= row.points_required && !lockedLevels.has(row.key)) || cheat) {
       urls.push([row.key, row.url])
     }
   }
@@ -278,7 +287,8 @@ express()
       if (!userExists(credentials)) {
         res.send('error')
       } else {
-        const info = await getCampaignInfo(credentials.username)
+        const cheat = req.query.cheat !== undefined;
+        const info = await getCampaignInfo(credentials.username, cheat)
         res.send(info)
       }
     })

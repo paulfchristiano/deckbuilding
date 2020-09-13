@@ -1447,7 +1447,7 @@ function getHistory() {
 }
 function isURLCampaign(url) {
     var searchParams = new URLSearchParams(url);
-    return searchParams.get('campaign') != null;
+    return searchParams.get('campaign') !== null;
 }
 export function load(fixedURL) {
     if (fixedURL === void 0) { fixedURL = ''; }

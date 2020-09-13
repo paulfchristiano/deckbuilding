@@ -50,15 +50,14 @@ export async function load() {
 		$('#numAwards').text(info.numAwards)
 		for (const [name, url] of info.urls) {
 			if (url !== null) {
-				$(`#${name} a`).attr('href', `play?campaign&${url}`)
-				$(`#${name} .req`).html('')
+				$(`#${$.escapeSelector(name)} a`).attr('href', `play?campaign&${url}`)
 			}
 		}
 		for (const [name, reason] of info.lockReasons) {
-			$(`#${name} .req`).html(` (&#128274;${reason})`)
+			$(`#${$.escapeSelector(name)} .req`).html(` (&#128274;${reason})`)
 		}
 		for (const [name, awards] of info.awardsByLevels) {
-			$(`#${name} .stars`).text(renderStars(awards))
+			$(`#${$.escapeSelector(name)} .stars`).text(renderStars(awards))
 		}
 	}
 }
@@ -73,7 +72,6 @@ function loginRemote(credentials:Credentials): Promise<boolean> {
 	return new Promise(resolve => {
 		$.post(`login?${credentialParams(credentials)}`, function(data) {
 			if (data != 'ok') {
-				console.log(data)
 				resolve(false)
 			} else {
 				resolve(true)
@@ -86,7 +84,6 @@ function signupRemote(credentials:Credentials): Promise<boolean> {
 	return new Promise(resolve => {
 		$.post(`signup?${credentialParams(credentials)}`, function(data) {
 			if (data != 'ok') {
-				console.log(data)
 				resolve(false)
 			} else {
 				resolve(true)
@@ -152,21 +149,29 @@ function credentialParams(credentials:Credentials): string {
 	return `username=${credentials.username}&hashedPassword=${credentials.hashedPassword}`
 }
 
+function isCheating(): boolean {
+	const search = new URLSearchParams(window.location.search);
+	return search.get('cheat') !== null
+
+}
+
 async function getCampaignInfo(
 	credentials:Credentials
 ): Promise<CampaignInfo> {
+	const cheatStr = isCheating() ? '&cheat' : ''
 	return new Promise((resolve, reject) => {
-		$.get(`campaignInfo?${credentialParams(credentials)}`, function(data:CampaignInfo|'error') {
-			console.log(data)
-			if (data == 'error') {
-				alert('invalid credentials')
-				logout()
-				reject()
-				return
-			}
-			//TODO: resolve with the right thing
-			resolve(data)
-		})
+		$.get(
+			`campaignInfo?${credentialParams(credentials)}${cheatStr}`,
+			function(data:CampaignInfo|'error') {
+				if (data == 'error') {
+					alert('invalid credentials')
+					logout()
+					reject()
+					return
+				}
+				//TODO: resolve with the right thing
+				resolve(data)
+			})
 	})
 }
 

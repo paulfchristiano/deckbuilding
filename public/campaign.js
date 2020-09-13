@@ -109,8 +109,7 @@ export function load() {
                         for (_a = __values(info.urls), _b = _a.next(); !_b.done; _b = _a.next()) {
                             _c = __read(_b.value, 2), name_1 = _c[0], url = _c[1];
                             if (url !== null) {
-                                $("#" + name_1 + " a").attr('href', "play?campaign&" + url);
-                                $("#" + name_1 + " .req").html('');
+                                $("#" + $.escapeSelector(name_1) + " a").attr('href', "play?campaign&" + url);
                             }
                         }
                     }
@@ -124,7 +123,7 @@ export function load() {
                     try {
                         for (_d = __values(info.lockReasons), _e = _d.next(); !_e.done; _e = _d.next()) {
                             _f = __read(_e.value, 2), name_2 = _f[0], reason = _f[1];
-                            $("#" + name_2 + " .req").html(" (&#128274;" + reason + ")");
+                            $("#" + $.escapeSelector(name_2) + " .req").html(" (&#128274;" + reason + ")");
                         }
                     }
                     catch (e_2_1) { e_2 = { error: e_2_1 }; }
@@ -137,7 +136,7 @@ export function load() {
                     try {
                         for (_g = __values(info.awardsByLevels), _h = _g.next(); !_h.done; _h = _g.next()) {
                             _j = __read(_h.value, 2), name_3 = _j[0], awards = _j[1];
-                            $("#" + name_3 + " .stars").text(renderStars(awards));
+                            $("#" + $.escapeSelector(name_3) + " .stars").text(renderStars(awards));
                         }
                     }
                     catch (e_3_1) { e_3 = { error: e_3_1 }; }
@@ -162,7 +161,6 @@ function loginRemote(credentials) {
     return new Promise(function (resolve) {
         $.post("login?" + credentialParams(credentials), function (data) {
             if (data != 'ok') {
-                console.log(data);
                 resolve(false);
             }
             else {
@@ -175,7 +173,6 @@ function signupRemote(credentials) {
     return new Promise(function (resolve) {
         $.post("signup?" + credentialParams(credentials), function (data) {
             if (data != 'ok') {
-                console.log(data);
                 resolve(false);
             }
             else {
@@ -260,12 +257,17 @@ function displayLogin() {
 function credentialParams(credentials) {
     return "username=" + credentials.username + "&hashedPassword=" + credentials.hashedPassword;
 }
+function isCheating() {
+    var search = new URLSearchParams(window.location.search);
+    return search.get('cheat') !== null;
+}
 function getCampaignInfo(credentials) {
     return __awaiter(this, void 0, void 0, function () {
+        var cheatStr;
         return __generator(this, function (_a) {
+            cheatStr = isCheating() ? '&cheat' : '';
             return [2 /*return*/, new Promise(function (resolve, reject) {
-                    $.get("campaignInfo?" + credentialParams(credentials), function (data) {
-                        console.log(data);
+                    $.get("campaignInfo?" + credentialParams(credentials) + cheatStr, function (data) {
                         if (data == 'error') {
                             alert('invalid credentials');
                             logout();

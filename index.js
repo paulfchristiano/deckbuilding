@@ -478,13 +478,16 @@ function last(xs) {
 }
 //TODO: if you guess a locked level you can play it and get points
 //probably better to just make it impossible to submit until unlocked?
-function getCampaignInfo(username) {
+function getCampaignInfo(username, cheat) {
+    if (cheat === void 0) { cheat = false; }
     return __awaiter(this, void 0, void 0, function () {
-        var scores, scoreByLevel, scores_1, scores_1_1, row, awards, passedLevels, awardsByLevels, numAwards, awards_1, awards_1_1, row, score, lockedLevels, requirements, requirements_1, requirements_1_1, row, levels, urls, lockReasons, levels_1, levels_1_1, row, req;
+        var scores, scoreByLevel, scores_1, scores_1_1, row, awards, passedLevels, awardsByLevels, numAwards, awards_1, awards_1_1, row, score, lockedLevels, requirements, requirements_1, requirements_1_1, row, currentReqs, levels, urls, lockReasons, levels_1, levels_1_1, row, req;
         var e_7, _a, e_8, _b, e_9, _c, e_10, _d;
         return __generator(this, function (_e) {
             switch (_e.label) {
-                case 0: return [4 /*yield*/, sql(templateObject_9 || (templateObject_9 = __makeTemplateObject(["SELECT level, score, username\n    FROM campaign_scores WHERE username = ", ""], ["SELECT level, score, username\n    FROM campaign_scores WHERE username = ", ""])), username)];
+                case 0:
+                    console.log('Cheating: ' + cheat);
+                    return [4 /*yield*/, sql(templateObject_9 || (templateObject_9 = __makeTemplateObject(["SELECT level, score, username\n    FROM campaign_scores WHERE username = ", ""], ["SELECT level, score, username\n    FROM campaign_scores WHERE username = ", ""])), username)];
                 case 1:
                     scores = _e.sent();
                     scoreByLevel = new Map();
@@ -535,8 +538,10 @@ function getCampaignInfo(username) {
                     try {
                         for (requirements_1 = __values(requirements), requirements_1_1 = requirements_1.next(); !requirements_1_1.done; requirements_1_1 = requirements_1.next()) {
                             row = requirements_1_1.value;
-                            if (!passedLevels.has(row.req))
-                                lockedLevels.set(row.destination, row.req);
+                            if (!passedLevels.has(row.req)) {
+                                currentReqs = lockedLevels.get(row.destination) || [];
+                                lockedLevels.set(row.destination, currentReqs.concat([row.req]));
+                            }
                         }
                     }
                     catch (e_9_1) { e_9 = { error: e_9_1 }; }
@@ -552,6 +557,7 @@ function getCampaignInfo(username) {
                     urls = [];
                     lockReasons = [];
                     try {
+                        //TODO: show both points and level dependencies
                         for (levels_1 = __values(levels), levels_1_1 = levels_1.next(); !levels_1_1.done; levels_1_1 = levels_1.next()) {
                             row = levels_1_1.value;
                             req = lockedLevels.get(row.key);
@@ -559,9 +565,9 @@ function getCampaignInfo(username) {
                                 lockReasons.push([row.key, row.points_required + " points"]);
                             }
                             else if (req !== undefined) {
-                                lockReasons.push([row.key, "" + req]);
+                                lockReasons.push([row.key, "" + req.join(',')]);
                             }
-                            if (numAwards >= row.points_required && !lockedLevels.has(row.key)) {
+                            if ((numAwards >= row.points_required && !lockedLevels.has(row.key)) || cheat) {
                                 urls.push([row.key, row.url]);
                             }
                         }
@@ -589,7 +595,7 @@ express()
     .set('view engine', 'ejs')
     .set('views', './views')
     .get('/campaignInfo', function (req, res) { return __awaiter(void 0, void 0, void 0, function () {
-    var credentials, info;
+    var credentials, cheat, info;
     return __generator(this, function (_a) {
         switch (_a.label) {
             case 0:
@@ -600,7 +606,9 @@ express()
                 if (!!userExists(credentials)) return [3 /*break*/, 1];
                 res.send('error');
                 return [3 /*break*/, 3];
-            case 1: return [4 /*yield*/, getCampaignInfo(credentials.username)];
+            case 1:
+                cheat = req.query.cheat !== undefined;
+                return [4 /*yield*/, getCampaignInfo(credentials.username, cheat)];
             case 2:
                 info = _a.sent();
                 res.send(info);
