@@ -3308,8 +3308,7 @@ function costPlusPer(initial, increment, n) {
     };
 }
 var travelingFair = { name: 'Traveling Fair',
-    calculatedCost: costPlusPer(coin(1), coin(1), 8),
-    //fixedCost: coin(1),
+    calculatedCost: costPlusPer(coin(1), coin(1), 10),
     effects: [incrementCost(), buyEffect(), createInPlayEffect(fair)],
     relatedCards: [fair],
 };
@@ -3415,9 +3414,9 @@ var investment = { name: 'Investment',
     effects: [{
             text: ['+$1 per charge token on this.'],
             transform: function (state, card) { return gainCoins(state.find(card).charge, card); },
-        }, chargeEffect()]
+        }, chargeUpTo(6)]
 };
-buyable(investment, 3, { replacers: [startsWithCharge(investment.name, 1)] });
+buyable(investment, 4, { replacers: [startsWithCharge(investment.name, 2)] });
 var populate = { name: 'Populate',
     fixedCost: __assign(__assign({}, free), { coin: 8, energy: 2 }),
     effects: [{
@@ -4501,10 +4500,10 @@ var homesteading = {
     effects: [actionsEffect(1), toPlay()],
     relatedCards: [villager],
     triggers: [{
-            text: "Whenever you play " + a(estate.name) + ", create a villager in play.",
+            text: "Whenever you play " + a(estate.name) + " or " + duchy.name + ",\n               create " + a(villager.name) + " in play.",
             kind: 'play',
             handles: function (e, state, card) { return e.card.name == estate.name
-                && state.find(card).place == 'play'; },
+                || e.card.name == duchy.name; },
             transform: function (e, state, card) { return create(villager, 'play'); }
         }],
 };
