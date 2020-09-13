@@ -3703,10 +3703,14 @@ const egg:CardSpec = {name: 'Egg',
     fixedCost: energy(0),
     relatedCards: [dragon],
     effects: [actionsEffect(1), chargeEffect(), {
-        text: [`If this has three or more charge tokens on it, trash it and 
+        text: [`If this has three or more charge tokens on it, trash it to
         create ${a(dragon.name)} in your hand.`],
-        transform: (state, card) => state.find(card).charge >= 3 ?
-            doAll([trash(card), create(dragon, 'hand')]) : noop
+        transform: (state, card) => {
+            const c = state.find(card);
+            return (c.charge >= 3 && c.place != null)
+                ? doAll([trash(card), create(dragon, 'hand')])
+                : noop
+        }
     }]
 }
 buyable(egg, 3)

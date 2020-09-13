@@ -4220,9 +4220,13 @@ var egg = { name: 'Egg',
     fixedCost: energy(0),
     relatedCards: [dragon],
     effects: [actionsEffect(1), chargeEffect(), {
-            text: ["If this has three or more charge tokens on it, trash it and \n        create " + a(dragon.name) + " in your hand."],
-            transform: function (state, card) { return state.find(card).charge >= 3 ?
-                doAll([trash(card), create(dragon, 'hand')]) : noop; }
+            text: ["If this has three or more charge tokens on it, trash it to\n        create " + a(dragon.name) + " in your hand."],
+            transform: function (state, card) {
+                var c = state.find(card);
+                return (c.charge >= 3 && c.place != null)
+                    ? doAll([trash(card), create(dragon, 'hand')])
+                    : noop;
+            }
         }]
 };
 buyable(egg, 3);

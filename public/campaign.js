@@ -213,6 +213,7 @@ function displayLogin() {
                         if (success) {
                             loginLocal(credentials);
                             exit();
+                            load();
                         }
                         else {
                             alert('No existing user found with that name+password');
@@ -240,6 +241,7 @@ function displayLogin() {
                         if (success) {
                             loginLocal(credentials);
                             exit();
+                            load();
                         }
                         else {
                             alert('Error signing up');

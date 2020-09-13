@@ -1,15 +1,15 @@
---- Clear campaign
+/* Clear campaign */
 
 DELETE FROM campaign_requirements;
 DELETE FROM campaign_awards;
 DELETE FROM campaign_scores;
 DELETE FROM campaign_levels;
 
------- Campaign definition
+/* ----------------- Campaign definition */
 
----- Progressions
+/* --------- Progressions */
 
--- Progression A
+/* Progression A */
 
 INSERT INTO campaign_levels (key, url, points_required) VALUES
 ('A1', 'kind=pick&cards=GhostTown&events=', 0),
@@ -28,7 +28,7 @@ INSERT INTO campaign_awards (level, core, threshold) VALUES
 ('A4', TRUE, 35), ('A4', FALSE, 27), ('A4', FALSE, 17),
 ('A5', TRUE, 26), ('A5', FALSE, 15), ('A5', FALSE, 14);
 
--- Progression B
+/* Progression B */
 
 INSERT INTO campaign_levels (key, url, points_required) VALUES
 ('B1', 'kind=pick&cards=Formation&events=', 5),
@@ -47,7 +47,7 @@ INSERT INTO campaign_awards (level, core, threshold) VALUES
 ('B4', TRUE, 28), ('B4', FALSE, 25), ('B4', FALSE, 24),
 ('B5', TRUE, 24), ('B5', FALSE, 22), ('B5', FALSE, 20);
 
--- Progression C
+/* Progression C */
 
 INSERT INTO campaign_levels (key, url, points_required) VALUES
 ('C1', 'kind=pick&cards=Sacrifice&events=', 15),
@@ -66,7 +66,7 @@ INSERT INTO campaign_awards (level, core, threshold) VALUES
 ('C4', TRUE, 23), ('C4', FALSE, 21), ('C4', FALSE, 19),
 ('C5', TRUE, 20), ('C5', FALSE, 17), ('C5', FALSE, 16);
 
----- Small games
+/* Small games */
 
 INSERT INTO campaign_levels (key, url, points_required) VALUES
 ('FGU', 'kind=pick&cards=Fortune,GhostTown,Unearth&events=', 3),
@@ -92,7 +92,7 @@ INSERT INTO campaign_awards (level, core, threshold) VALUES
 ('HSV', TRUE, 36), ('HSV', FALSE, 34), ('HSV', FALSE, 32),
 ('CER', TRUE, 40), ('CER', FALSE, 37), ('CER', FALSE, 35);
 
------ Pairings
+/* Pairings */
 
 INSERT INTO campaign_levels (key, url, points_required) VALUES
 ('GROW',
@@ -153,9 +153,7 @@ INSERT INTO campaign_requirements(destination, req) VALUES
 ('DIG/GROW', 'DIG'), ('DIG/GROW', 'GROW'),
 ('PLAY/BIG', 'PLAY'), ('PLAY/BIG', 'BIG');
 
-
-
------ Subsets
+/* Subsets */
 
 INSERT INTO campaign_levels (key, url, points_required) VALUES
 ('NULL', 'kind=pick&cards=&events=', 30),
@@ -183,4 +181,4 @@ INSERT INTO campaign_requirements(destination, req) VALUES
 ('CARD+EVENT', 'CARD'), ('CARD+EVENT', 'EVENT'), ('CARD+BAD', 'CARD'),
 ('CARD+BAD', 'BAD'), ('EVENT+BAD', 'EVENT'), ('EVENT+BAD', 'BAD'),
 ('CARD+EVENT+BAD', 'CARD+EVENT'), ('CARD+EVENT+BAD', 'CARD+BAD'),
-('CARD+EVENT+BAD', 'EVENT+BAD')
+('CARD+EVENT+BAD', 'EVENT+BAD');
