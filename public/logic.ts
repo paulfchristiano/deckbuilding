@@ -3403,7 +3403,7 @@ const decay:CardSpec = {name: 'Decay',
 registerEvent(decay)
 
 const reflect:CardSpec = {name: 'Reflect',
-    calculatedCost: costPlus(free, coin(1)),
+    calculatedCost: costPlus(coin(1), coin(1)),
     effects: [incrementCost(), targetedEffect(
     	(target, card) => addToken(target, 'reflect'),
     	'Put a reflect token on a card in your hand',

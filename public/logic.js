@@ -3940,7 +3940,7 @@ var decay = { name: 'Decay',
 };
 registerEvent(decay);
 var reflect = { name: 'Reflect',
-    calculatedCost: costPlus(free, coin(1)),
+    calculatedCost: costPlus(coin(1), coin(1)),
     effects: [incrementCost(), targetedEffect(function (target, card) { return addToken(target, 'reflect'); }, 'Put a reflect token on a card in your hand', function (state) { return state.hand; })],
     staticTriggers: [{
             text: "After playing a card with a reflect token on it \n        other than with this, remove a reflect token and play it again.",
