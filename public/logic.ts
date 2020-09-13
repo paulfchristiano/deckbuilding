@@ -2819,8 +2819,7 @@ function costPlusPer(initial:Cost, increment:Cost, n:number): CalculatedCost {
 }
 
 const travelingFair:CardSpec = {name:'Traveling Fair',
-    calculatedCost: costPlusPer(coin(1), coin(1), 8),
-    //fixedCost: coin(1),
+    calculatedCost: costPlusPer(coin(1), coin(1), 10),
     effects: [incrementCost(), buyEffect(), createInPlayEffect(fair)],
     relatedCards: [fair],
 }
@@ -2911,9 +2910,9 @@ const investment:CardSpec = {name: 'Investment',
     effects: [{
         text: ['+$1 per charge token on this.'],
         transform: (state, card) => gainCoins(state.find(card).charge, card),
-    }, chargeEffect()]
+    }, chargeUpTo(6)]
 }
-buyable(investment, 3, {replacers: [startsWithCharge(investment.name, 1)]})
+buyable(investment, 4, {replacers: [startsWithCharge(investment.name, 2)]})
 
 const populate:CardSpec = {name: 'Populate',
     fixedCost: {...free, coin:8, energy:2},
@@ -3967,12 +3966,12 @@ const homesteading:CardSpec = {
     effects: [actionsEffect(1), toPlay()],
     relatedCards: [villager],
     triggers: [{
-        text: `Whenever you play ${a(estate.name)}, create a villager in play.`,
+        text: `Whenever you play ${a(estate.name)} or ${duchy.name},
+               create ${a(villager.name)} in play.`,
         kind: 'play',
         handles: (e, state, card) => e.card.name == estate.name
-            && state.find(card).place == 'play',
+            || e.card.name == duchy.name,
         transform: (e, state, card) => create(villager, 'play')
-
     }],
 }
 buyable(homesteading, 3)
