@@ -1,0 +1,95 @@
+<html>
+<head>
+  <script src="https://code.jquery.com/jquery-1.12.4.js"></script>
+  <script src="https://code.jquery.com/ui/1.12.1/jquery-ui.js"></script>
+<script type="text/javascript" src="jquery.js"></script>
+<script type="module">
+    import {load} from './campaign.js'
+
+    load()
+</script>
+<link rel="stylesheet" type="text/css" href="style.css"/>
+<title>Campaign</title>
+</head>
+
+<body>
+<div id='loginDialog' class='dialogBox'> </div>
+    <div id='rightBox'>
+        <div id='logoutButton'>(<a href='campaign.html'>logout</a>)</div>
+        <div id='homeButton'>(<a href='/'>home</a>)</div>
+        <div id='awardsDiv'>Points:<span id='numAwards'>home</span></div>
+    </div>
+<h2> Progressions </h2>
+<ul> 
+	<li> Ghost Town (A) <ul>
+    <li id='A1'> <a>A1</a><span class='stars'></span><span class='req'/></li>
+  	<li id='A2'> <a>A2</a><span class='stars'></span><span class='req'/></li>
+    <li id='A3'> <a>A3</a><span class='stars'></span><span class='req'/></li>
+    <li id='A4'> <a>A4</a><span class='stars'></span><span class='req'/></li>
+    <li id='A5'> <a>A5</a><span class='stars'></span><span class='req'/></li>
+  </ul></li>
+  <li> Formation (B) <ul>
+    <li id='B1'> <a>B1</a><span class='stars'></span><span class='req'/></li>
+    <li id='B2'> <a>B2</a><span class='stars'></span><span class='req'/></li>
+    <li id='B3'> <a>B3</a><span class='stars'></span><span class='req'/></li>
+    <li id='B4'> <a>B4</a><span class='stars'></span><span class='req'/></li>
+    <li id='B5'> <a>B5</a><span class='stars'></span><span class='req'/></li>
+  </ul></li>
+  <li> Sacrifice (C) <ul>
+    <li id='C1'> <a>C1</a><span class='stars'></span><span class='req'/></li>
+    <li id='C2'> <a>C2</a><span class='stars'></span><span class='req'/></li>
+    <li id='C3'> <a>C3</a><span class='stars'></span><span class='req'/></li>
+    <li id='C4'> <a>C4</a><span class='stars'></span><span class='req'/></li>
+    <li id='C5'> <a>C5</a><span class='stars'></span><span class='req'/></li>
+  </ul></li>
+</ul>
+<h2> Small games </h2>
+<ul>
+  <li id='FGU'> <a>FGU</a><span class='stars'></span><span class='req'/></li>
+  <li id='CHV'> <a>CHV</a><span class='stars'></span><span class='req'/></li>
+  <li id='IPS'> <a>IPS</a><span class='stars'></span><span class='req'/></li>
+  <li id='BCR'> <a>BCR</a><span class='stars'></span><span class='req'/></li>
+  <li id='DLW'> <a>DLW</a><span class='stars'></span><span class='req'/></li>
+  <li id='IKV'> <a>IKV</a><span class='stars'></span><span class='req'/></li>
+  <li id='SST'> <a>SST</a><span class='stars'></span><span class='req'/></li>
+  <li id='FFP'> <a>FFP</a><span class='stars'></span><span class='req'/></li>
+  <li id='HSV'> <a>HSV</a><span class='stars'></span><span class='req'/></li>
+  <li id='CER'> <a>CER</a><span class='stars'></span><span class='req'/></li>
+</ul>
+<h2> Pairs </h2>
+<ul>
+<li> Themes <ul>
+  <li id='GROW'> <a>GROW</a><span class='stars'></span><span class='req'/></li>
+  <li id='BIG'> <a>BIG</a><span class='stars'></span><span class='req'/></li>
+  <li id='BUY'> <a>BUY</a><span class='stars'></span><span class='req'/></li>
+  <li id='DIG'> <a>DIG</a><span class='stars'></span><span class='req'/></li>
+  <li id='PLAY'> <a>PLAY</a><span class='stars'></span><span class='req'/></li>
+</ul></li>
+<li> Pairings <ul>
+  <li id='GROW/BIG'> <a>GROW/BIG</a><span class='stars'></span><span class='req'/></li>
+  <li id='BIG/BUY'> <a>BIG/BUY</a><span class='stars'></span><span class='req'/></li>
+  <li id='BUY/DIG'> <a>BUY/DIG</a><span class='stars'></span><span class='req'/></li>
+  <li id='DIG/PLAY'> <a>DIG/PLAY</a><span class='stars'></span><span class='req'/></li>
+  <li id='PLAY/GROW'> <a>PLAY/GROW</a><span class='stars'></span><span class='req'/></li>
+  <li id='GROW/BUY'> <a>GROW/BUY</a><span class='stars'></span><span class='req'/></li>
+  <li id='BIG/DIG'> <a>BIG/DIG</a><span class='stars'></span><span class='req'/></li>
+  <li id='BUY/PLAY'> <a>BUY/PLAY</a><span class='stars'></span><span class='req'/></li>
+  <li id='DIG/GROW'> <a>DIG/GROW</a><span class='stars'></span><span class='req'/></li>
+  <li id='PLAY/BIG'> <a>PLAY/BIG</a><span class='stars'></span><span class='req'/></li>
+</ul></li>
+</ul>
+<h2> Large games </h2>
+<h2> Subsets </h2>
+<ul> 
+  <li id='NULL'> <a>NULL</a><span class='stars'></span><span class='req'/></li>
+  <li id='CARD'> <a>CARD</a><span class='stars'></span><span class='req'/></li>
+  <li id='EVENT'> <a>EVENT</a><span class='stars'></span><span class='req'/></li>
+  <li id='BAD'> <a>BAD</a><span class='stars'></span><span class='req'/></li>
+  <li id='CARD+EVENT'> <a>CARD+EVENT</a><span class='stars'></span><span class='req'/></li>
+  <li id='CARD+BAD'> <a>CARD+BAD</a><span class='stars'></span><span class='req'/></li>
+  <li id='EVENT+BAD'> <a>EVENT+BAD</a><span class='stars'></span><span class='req'/></li>
+  <li id='CARD+EVENT+BAD'> <a>CARD+EVENT+BAD</a><span class='stars'></span><span class='req'/></li>
+</ul>
+</body>
+
+</html>

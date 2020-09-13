@@ -2,12 +2,14 @@ import express from 'express'
 import path from 'path'
 const PORT = process.env.PORT || 5000
 import {verifyScore, VERSION, specFromURL, specToURL } from './public/logic.js'
+import {Credentials, hashPassword, CampaignInfo} from './public/campaign.js'
 
 import postgres from 'postgres'
 const sql = (process.env.DATABASE_URL == undefined) ? null : postgres(process.env.DATABASE_URL)
 
 //TODO: get rid of these any's
 //TODO: this is probably horribly insecure
+//TODO: fix parameter parsing
 
 function randomString(): string {
     return Math.random().toString(36).substring(2, 7)
@@ -33,6 +35,23 @@ function renderTimeSince(date:Date) {
 function renderTime(date:Date) {
   return date.toLocaleString('en-US', {timeZone: 'America/New_York'})
 }
+
+async function signup(credentials:Credentials): Promise<void> {
+  await sql`INSERT INTO campaign_users (name, password_hash)
+           VALUES (
+             ${credentials.username},
+             ${credentials.hashedPassword}
+  )`
+}
+
+//TODO: deal with the login logic
+async function userExists(credentials:Credentials): Promise<boolean> {
+  const results = await sql`SELECT * FROM campaign_users
+    WHERE name=${credentials.username}
+    AND password_hash=${credentials.hashedPassword}`
+  return (results.length > 0)
+}
+
 
 async function ensureNextMonth(): Promise<void> {
     if (sql == null) return
@@ -196,10 +215,117 @@ function last<T>(xs:T[]): T {
   return xs[xs.length -1]
 }
 
+//TODO: if you guess a locked level you can play it and get points
+//probably better to just make it impossible to submit until unlocked?
+async function getCampaignInfo(
+  username:string,
+  cheat:boolean=false
+): Promise<CampaignInfo> {
+  console.log('Cheating: ' + cheat)
+  const scores = await sql`SELECT level, score, username
+    FROM campaign_scores WHERE username = ${username}`
+  const scoreByLevel:Map<string, number> = new Map()
+  for (const row of scores) {
+    scoreByLevel.set(row.level, row.score)
+  }
+  const awards = await sql`SELECT level, threshold, core
+    FROM campaign_awards`
+  const passedLevels:Set<string> = new Set()
+  const awardsByLevels:Map<string, number> = new Map()
+  let numAwards:number = 0
+  for (const row of awards) {
+    const score:number|undefined = scoreByLevel.get(row.level)
+    if (score !== undefined) {
+      if (row.threshold >= score) {
+        numAwards += 1
+        awardsByLevels.set(row.level, (awardsByLevels.get(row.level)||0) + 1)
+        if (row.core) passedLevels.add(row.level)
+      }
+    }
+  }
+  const lockedLevels:Map<string, string[]> = new Map()
+  const requirements = await sql`SELECT destination, req FROM campaign_requirements`
+  for (const row of requirements) {
+    if (!passedLevels.has(row.req)) {
+      const currentReqs:string[] = lockedLevels.get(row.destination) || []
+      lockedLevels.set(row.destination, currentReqs.concat([row.req]))
+    }
+  }
+  const levels = await sql`SELECT key, url, points_required from campaign_levels`
+  const urls:[string, string][] = []
+  const lockReasons:[string, string][] = []
+  //TODO: show both points and level dependencies
+  for (const row of levels) {
+    const req:string[]|undefined = lockedLevels.get(row.key)
+    if (numAwards < row.points_required) {
+      lockReasons.push([row.key, `${row.points_required} points`])
+    } else if (req !== undefined) {
+      lockReasons.push([row.key, `${req.join(',')}`])
+    } 
+    if ((numAwards >= row.points_required && !lockedLevels.has(row.key)) || cheat) {
+      urls.push([row.key, row.url])
+    }
+  }
+  return {
+    urls: urls,
+    lockReasons: lockReasons,
+    scores: scores.map((r:any) => [r.level, r.score]),
+    awardsByLevels: Array.from(awardsByLevels.entries()),
+    numAwards:numAwards
+  }
+}
+
 express()
     .use(express.static('./public'))
     .set('view engine', 'ejs')
     .set('views', './views')
+    .get('/campaignInfo', async (req: any, res:any) => {
+      const credentials:Credentials = {
+        username:req.query.username,
+        hashedPassword:req.query.hashedPassword
+      }
+      if (!userExists(credentials)) {
+        res.send('error')
+      } else {
+        const cheat = req.query.cheat !== undefined;
+        const info = await getCampaignInfo(credentials.username, cheat)
+        res.send(info)
+      }
+    })
+    .post('/signup', async (req: any, res:any) => {
+      const credentials:Credentials = {
+        username:req.query.username,
+        hashedPassword:req.query.hashedPassword
+      }
+      if (credentials.username.length < 1) {
+        res.send('Non-empty username required')
+      } else if (credentials.hashedPassword.length < 1) {
+        res.send("Non-empty password hash required (shouldn't be possible)")
+      } else {
+        try {
+          await signup(credentials)
+          res.send('ok')
+        } catch (e) {
+          res.send(e)
+        }
+      }
+    })
+    .post('/login', async (req: any, res:any) => {
+      const credentials:Credentials = {
+        username:req.query.username,
+        hashedPassword:req.query.hashedPassword
+      }
+      try {
+        const success:boolean = await userExists(credentials)
+        if (success) {
+          res.send('ok')
+        } else {
+          res.send('username+password not found')
+        }
+      } catch (e) {
+        res.send(e)
+      }
+    })
     .get('/link', async (req: any, res:any) => {
       const id = req.query.id;
       try{
@@ -222,6 +348,94 @@ express()
       } else {
         res.redirect(`../${results[0].url}`)
       }
+    })
+    .get('/campaignHeartbeat', async (req:any, res:any) => {
+      const credentials:Credentials = {
+        username:req.query.username,
+        hashedPassword:req.query.hashedPassword
+      }
+      const success:boolean = await userExists(credentials)
+      if (!success) {
+        res.send('user not found')
+        return
+      }
+      const version = req.query.version
+      if (version != VERSION) {
+          res.send('version mismatch')
+          return
+      }
+      const username = credentials.username
+      const url = decodeURIComponent(req.query.url)
+      const scores = await sql`SELECT s.score
+        FROM campaign_scores s
+        JOIN campaign_levels l ON s.level = l.key
+        WHERE l.url = ${url} AND s.username = ${username} `
+      const score = (scores.length > 0) ? scores[0].score : NaN
+      const awards = await sql`SELECT a.threshold
+        FROM campaign_awards a
+        JOIN campaign_levels l ON a.level = l.key
+        WHERE l.url = ${url}`
+      let nextAward = NaN
+      for (const award of awards) {
+        if ((award.threshold < score || isNaN(score))
+          && (award.threshold > nextAward || isNaN(nextAward))){
+          nextAward = award.threshold
+        }
+      }
+      res.send([score, nextAward])
+    })
+    .post('/campaignSubmit', async (req:any, res:any) => {
+      const credentials:Credentials = {
+        username:req.query.username,
+        hashedPassword:req.query.hashedPassword
+      }
+      const success:boolean = await userExists(credentials)
+      if (!success) {
+        res.send('user not found')
+        return
+      }
+      const username = credentials.username
+      const url = decodeURIComponent(req.query.url)
+      const spec = specFromURL(url)
+      const score = req.query.score
+      const history = req.query.history
+      //TODO: verify custom games, probably use URL here and everywhere in file?
+      const [valid, explanation] = await verifyScore(spec, history, score)
+      if (!valid) {
+        res.send(`Score did not validate: ${explanation}`)
+        return
+      }
+      const levels = await sql`SELECT key
+        FROM campaign_levels WHERE url=${url}`
+      if (levels.length == 0) {
+        res.send('campaign level not found')
+      }
+      const key = levels[0].key
+      const scores = await sql`SELECT score
+        FROM campaign_scores
+        WHERE level = ${key} and username=${username}`
+      let newAwards = 0;
+      await sql`INSERT INTO campaign_scores (username, level, score)
+        VALUES (${username}, ${key}, ${score})
+        ON CONFLICT ON CONSTRAINT only_top
+        DO UPDATE SET score = LEAST(campaign_scores.score, ${score})`
+      const oldScore = (scores.length > 0) ? scores[0].score : NaN
+      const awards = await sql`SELECT threshold
+        FROM campaign_awards
+        WHERE level = ${key}`
+      let nextAward = NaN
+      for (const award of awards) {
+        const threshold = award.threshold
+        if (threshold < score
+            && (threshold < oldScore || isNaN(oldScore))
+            && (threshold > nextAward || isNaN(nextAward))){
+          nextAward = threshold
+        } else if ((threshold < oldScore || isNaN(oldScore))
+                && threshold >= score) {
+          newAwards += 1
+        }
+      }
+      res.send({priorBest:oldScore, newAwards:newAwards, nextAward:nextAward})
     })
     .get('/topScore', async (req:any, res:any) => {
       try {
