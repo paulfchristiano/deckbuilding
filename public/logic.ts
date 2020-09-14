@@ -2475,7 +2475,7 @@ buyable(smithy, 4)
 const Till = 'Till'
 const till:CardSpec = {name: Till,
     effects: [{
-        text: [`Put up to 3 non-${Till} from your
+        text: [`Put up to 3 non-${Till} cards from your
                discard into your hand.`],
         transform: () => async function(state) {
             let targets; [state, targets] = await multichoice(state,

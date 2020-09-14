@@ -2985,7 +2985,7 @@ buyable(smithy, 4)
 var Till = 'Till';
 var till = { name: Till,
     effects: [{
-            text: ["Put up to 3 non-" + Till + " from your\n               discard into your hand."],
+            text: ["Put up to 3 non-" + Till + " cards from your\n               discard into your hand."],
             transform: function () { return function (state) {
                 return __awaiter(this, void 0, void 0, function () {
                     var targets;
