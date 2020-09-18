@@ -5086,42 +5086,6 @@ var pathfinding = {
         }]
 };
 registerEvent(pathfinding);
-/*
-const fortune:CardSpec = {
-    name: 'Fortune',
-    effects: [{
-        text: [`Double your $.`],
-        transform: (state, card) => gainCoin(state.coin)
-    }, {
-        text: [`Double your buys.`],
-        transform: (state, card) => gainBuys(state.buys)
-    }]
-}
-const fortuneSupply = supplyForCard(fortune, coin(12), {
-    onBuy: [trashThis()],
-})
-const gladiatorName:string = 'Gladiator'
-const gladiator:CardSpec = {
-    name: gladiatorName,
-    relatedCards: [fortuneSupply],
-    fixedCost: energy(1),
-    effects: [gainCoinEffect(3), targetedEffect(
-        target => charge(target, 1),
-        `Put a charge token on a card named ${gladiatorName} in the supply.`,
-        state => state.supply.filter(s => s.name == gladiatorName)
-    )],
-}
-buyableAnd(gladiator, 3, {
-    onBuy: [chargeEffect()],
-    triggers: [{
-        kind: 'gainCharge',
-        text: `Whenever this has 6 or more charge tokens on it,
-        trash it and create a ${fortuneSupply.name} in the supply.`,
-        handles: (e, state, card) => state.find(card).charge >= 6,
-        transform: (e, state, card) => doAll([trash(card), create(fortuneSupply, 'supply')])
-    }]
-})
-*/
 var fortune = {
     name: 'Fortune',
     effects: [{
@@ -5132,7 +5096,7 @@ var fortune = {
             transform: function (state, card) { return gainBuys(state.buys); }
         }]
 };
-buyable(fortune, 12, { onBuy: [{ text: ['trash it'], transform: function (s, c) { return trash(c); } }] });
+buyable(fortune, 12, { onBuy: [{ text: ['trash it from the supply.'], transform: function (s, c) { return trash(c); } }] });
 // ------------------ Testing -------------------
 var freeMoney = { name: 'Free money',
     fixedCost: energy(0),

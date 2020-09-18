@@ -272,7 +272,7 @@ function renderCard(
         const costhtml:string = (zone == 'supply') ?
             renderCost(card.cost('buy', state)) || '&nbsp' :
             renderCost(card.cost(costType, state)) || '&nbsp'
-        const picktext:string = (options.pick !== undefined) ? `<div class='pickorder'>${options.pick}</div>` : ''
+        const picktext:string = (options.pick !== undefined) ? `<div class='pickorder'>${options.pick+1}</div>` : ''
         const chosenText:string = (options.pick !== undefined) ? 'true' : 'false'
         const choosetext:string = (options.option !== undefined)
             ? `choosable chosen='${chosenText}' option=${options.option}`
@@ -409,7 +409,7 @@ function resetGlobalRenderer() {
 
 function linkForState(state:State, campaign:boolean=false) {
     const cs = campaign ? 'campaign&' : ''
-    return `play?${cs}${specToURL(state.spec)}#${state.serializeHistory(false)}}`
+    return `play?${cs}${specToURL(state.spec)}#${state.serializeHistory(false)}`
 }
 
 function renderState(

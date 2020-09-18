@@ -418,7 +418,7 @@ function renderCard(card, state, zone, options, tokenRenderer) {
         var costhtml = (zone == 'supply') ?
             renderCost(card.cost('buy', state)) || '&nbsp' :
             renderCost(card.cost(costType, state)) || '&nbsp';
-        var picktext = (options.pick !== undefined) ? "<div class='pickorder'>" + options.pick + "</div>" : '';
+        var picktext = (options.pick !== undefined) ? "<div class='pickorder'>" + (options.pick + 1) + "</div>" : '';
         var chosenText = (options.pick !== undefined) ? 'true' : 'false';
         var choosetext = (options.option !== undefined)
             ? "choosable chosen='" + chosenText + "' option=" + options.option
@@ -495,7 +495,7 @@ function resetGlobalRenderer() {
 function linkForState(state, campaign) {
     if (campaign === void 0) { campaign = false; }
     var cs = campaign ? 'campaign&' : '';
-    return "play?" + cs + specToURL(state.spec) + "#" + state.serializeHistory(false) + "}";
+    return "play?" + cs + specToURL(state.spec) + "#" + state.serializeHistory(false);
 }
 function renderState(state, settings) {
     if (settings === void 0) { settings = {}; }
