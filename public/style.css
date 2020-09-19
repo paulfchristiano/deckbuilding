@@ -53,7 +53,16 @@
     max-width: 20em;
     min-width: 3em;
 }
-#scoreSubmitter {
+#scoreSubmitter{
+    height: 3em;
+}
+#loginDialog{
+    height: 4em;
+}
+input {
+    margin-left: 1em;
+}
+.dialogBox {
     position:absolute;
     visibility:hidden;
     top:5em;
@@ -62,12 +71,11 @@
     border: 3px solid;
     border-radius: 6px;
     width: 15em;
-    height: 3em;
     padding: 1em;
     background: white;
     z-index:3;
 }
-#scoreSubmitter[active='true'] {
+.dialogBox[active='true'] {
     visibility:visible;
 }
 #kingdomView {

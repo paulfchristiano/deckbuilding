@@ -2475,7 +2475,7 @@ buyable(smithy, 4)
 const Till = 'Till'
 const till:CardSpec = {name: Till,
     effects: [{
-        text: [`Put up to 3 non-${Till} from your
+        text: [`Put up to 3 non-${Till} cards from your
                discard into your hand.`],
         transform: () => async function(state) {
             let targets; [state, targets] = await multichoice(state,
@@ -3742,10 +3742,14 @@ const egg:CardSpec = {name: 'Egg',
     fixedCost: energy(0),
     relatedCards: [dragon],
     effects: [actionsEffect(1), chargeEffect(), {
-        text: [`If this has three or more charge tokens on it, trash it and 
+        text: [`If this has three or more charge tokens on it, trash it to
         create ${a(dragon.name)} in your hand.`],
-        transform: (state, card) => state.find(card).charge >= 3 ?
-            doAll([trash(card), create(dragon, 'hand')]) : noop
+        transform: (state, card) => {
+            const c = state.find(card);
+            return (c.charge >= 3 && c.place != null)
+                ? doAll([trash(card), create(dragon, 'hand')])
+                : noop
+        }
     }]
 }
 buyable(egg, 3)
@@ -4551,43 +4555,6 @@ const pathfinding:CardSpec = {
 }
 registerEvent(pathfinding)
 
-/*
-const fortune:CardSpec = {
-    name: 'Fortune',
-    effects: [{
-        text: [`Double your $.`],
-        transform: (state, card) => gainCoin(state.coin)
-    }, {
-        text: [`Double your buys.`],
-        transform: (state, card) => gainBuys(state.buys)
-    }]
-}
-const fortuneSupply = supplyForCard(fortune, coin(12), {
-    onBuy: [trashThis()],
-})
-const gladiatorName:string = 'Gladiator'
-const gladiator:CardSpec = {
-    name: gladiatorName,
-    relatedCards: [fortuneSupply],
-    fixedCost: energy(1),
-    effects: [gainCoinEffect(3), targetedEffect(
-        target => charge(target, 1),
-        `Put a charge token on a card named ${gladiatorName} in the supply.`,
-        state => state.supply.filter(s => s.name == gladiatorName)
-    )],
-}
-buyableAnd(gladiator, 3, {
-    onBuy: [chargeEffect()],
-    triggers: [{
-        kind: 'gainCharge',
-        text: `Whenever this has 6 or more charge tokens on it,
-        trash it and create a ${fortuneSupply.name} in the supply.`,
-        handles: (e, state, card) => state.find(card).charge >= 6,
-        transform: (e, state, card) => doAll([trash(card), create(fortuneSupply, 'supply')])
-    }]
-})
-*/
-
 const fortune:CardSpec = {
     name: 'Fortune',
     effects: [{
@@ -4598,7 +4565,7 @@ const fortune:CardSpec = {
         transform: (state, card) => gainBuys(state.buys)
     }]
 }
-buyable(fortune, 12, {onBuy: [{text: ['trash it'], transform: (s, c) => trash(c)}]})
+buyable(fortune, 12, {onBuy: [{text: ['trash it from the supply.'], transform: (s, c) => trash(c)}]})
 
 
 

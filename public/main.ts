@@ -272,7 +272,7 @@ function renderCard(
         const costhtml:string = (zone == 'supply') ?
             renderCost(card.cost('buy', state)) || '&nbsp' :
             renderCost(card.cost(costType, state)) || '&nbsp'
-        const picktext:string = (options.pick !== undefined) ? `<div class='pickorder'>${options.pick}</div>` : ''
+        const picktext:string = (options.pick !== undefined) ? `<div class='pickorder'>${options.pick+1}</div>` : ''
         const chosenText:string = (options.pick !== undefined) ? 'true' : 'false'
         const choosetext:string = (options.option !== undefined)
             ? `choosable chosen='${chosenText}' option=${options.option}`
@@ -407,8 +407,9 @@ function resetGlobalRenderer() {
     globalRendererState.tokenRenderer = new TokenRenderer()
 }
 
-function linkForState(state:State) {
-    return `play?${specToURL(state.spec)}#${state.serializeHistory(false)}`
+function linkForState(state:State, campaign:boolean=false) {
+    const cs = campaign ? 'campaign&' : ''
+    return `play?${cs}${specToURL(state.spec)}#${state.serializeHistory(false)}`
 }
 
 function renderState(
@@ -431,7 +432,7 @@ function renderState(
     }
     if (settings.updateURL === undefined || settings.updateURL) {
         globalRendererState.userURL = false
-        window.history.replaceState(null, "", linkForState(state))
+        window.history.replaceState(null, "", linkForState(state, isCampaign))
     }
     $('#resolvingHeader').html('Resolving:')
     $('#energy').html(state.energy.toString())
@@ -470,7 +471,7 @@ function setVisibleLog(state:State, logType:LogType, ui:webUI) {
 }
 
 function renderLogLine(msg: string, i:number) {
-  return `<div class="logLine" pos=${i}>${msg}</div>`
+  return `<div><span class="logLine" pos=${i}>${msg}</span></div>`
 }
 
 function displayLogLines(logs:[string, State|null][], ui:webUI) {
@@ -661,6 +662,18 @@ class webUI {
     //(would be nice to clean this up so you use undo to go back)
     async victory(state:State): Promise<void> {
         const ui:webUI = this;
+        if (isCampaign) {
+            const score = state.energy
+            const url = specToURL(state.spec)
+            const query = [
+                credentialParams(),
+                `url=${encodeURIComponent(url)}`,
+                `score=${score}`,
+                `history=${state.serializeHistory()}`
+            ].join('&')
+            $.post(`campaignSubmit?${query}`)
+            heartbeat(state.spec)
+        }
         const submitOrUndo: () => Promise<void> = () =>
             new Promise(function (resolve, reject) {
                 ui.undoing = true;
@@ -926,9 +939,7 @@ function bindRecordMacroButton(ui:webUI) {
 
 function bindPlayMacroButtons(ui:webUI): void {
     function onClick(i:number) {
-        console.log('?')
         if (ui.choiceState !== null && ui.playingMacro.length == 0) {
-            console.log('!')
             ui.playingMacro = ui.macros[i].slice()
             ui.resolveWithMacro()
         }
@@ -1254,25 +1265,56 @@ function submittable(spec:GameSpec): boolean {
 }
 
 
-function setCookie(name:string,value:string) {
-    document.cookie = `${name}=${value}; max-age=315360000; path=/`
-}
-function getCookie(name:string): string|null {
-    let nameEQ:string = name + "=";
-    let ca:string[] = document.cookie.split(';');
-    for(let c of document.cookie.split(';')) {
-        while (c.charAt(0)==' ') c = c.substring(1,c.length);
-        if (c.indexOf(nameEQ) == 0) return c.substring(nameEQ.length,c.length);
-    }
-    return null;
-}
 function rememberUsername(username:string) {
-    setCookie('username', username)
+    localStorage.setItem('username', username)
 }
 function getUsername():string|null {
-    return getCookie('username')
+    return localStorage.username
 }
 
+function credentialParams(): string {
+    return `username=${localStorage.campaignUsername}&hashedPassword=${localStorage.hashedPassword}`
+}
+
+//TODO: should factor credentials differently
+function renderCampaignSubmission(state:State, done:() => void) {
+    const score = state.energy
+    const url = specToURL(state.spec)
+    $('#campaignSubmitter').attr('active', 'true')
+    function exit() {
+        $('#campaignSubmitter').attr('active', 'false')
+    }
+    async function submit() {
+        const query = [
+            credentialParams(),
+            `url=${encodeURIComponent(url)}`,
+            `score=${score}`,
+            `history=${state.serializeHistory()}`
+        ].join('&')
+        console.log(query)
+        return $.post(`campaignSubmit?${query}`)
+    }
+    //TODO: handle bad submissions here
+    submit().then(data => {
+        console.log(data)
+        $('#newbest').text(score)
+        $('#priorbest').text(data.priorBest)
+        $('#awards').text(data.newAwards)
+        $('#nextAward').text(data.nextAward)
+        heartbeat(state.spec)
+    })
+    $('#campaignSubmitter').focus()
+    $('#campaignSubmitter').keydown((e:any) => {
+        if (e.keyCode == 13) {
+            exit()
+            e.preventDefault()
+        } else if (e.keyCode == 27) {
+            exit()
+            e.preventDefault()
+        }
+    })
+    $('#campaignSubmitter').on('click', exit)
+}
 
 function renderScoreSubmission(state:State, done:() => void) {
     const score = state.energy
@@ -1335,9 +1377,40 @@ function scoreboardURL(spec:GameSpec) {
     return `scoreboard?${specToURL(spec)}`
 }
 
-//TODO: live updates?
+//TODO: change the sidebar based on whether you are in a campaign
+function campaignHeartbeat(spec:GameSpec, interval?:any): void {
+    const queryStr = `campaignHeartbeat?${credentialParams()}&url=${encodeURIComponent(specToURL(spec))}&version=${VERSION}`
+    console.log(queryStr)
+    $('#homeLink').attr('href', 'campaign.html')
+    $.get(queryStr).done(function(x) {
+        if (x == 'version mismatch') {
+            clearInterval(interval)
+            alert("The server has updated to a new version, please refresh. You will get an error and your game will restart if the history is no longer valid.")
+            return
+        }
+        if (x == 'user not found') {
+            clearInterval(interval)
+            alert("Your username+password were not recognized")
+            return
+        }
+        let [personalBest, nextAward] = x
+        const personalBestStr = personalBest !== null
+            ? `<div>Your best: ${personalBest}</div>`
+            : ``
+        const nextAwardStr = nextAward !== null
+            ? `<div>Next award: ${nextAward}</div>`
+            : `<div>Kingdom complete!</div>`
+        $('#best').html(personalBestStr+nextAwardStr)
+    })
+}
+
+//TODO: still need to refactor global state
+let isCampaign:boolean = false;
+
 function heartbeat(spec:GameSpec, interval?:any): void {
-    if (submittable(spec)) {
+    if (isCampaign) {
+        campaignHeartbeat(spec, interval)
+    } else if (submittable(spec)) {
         $.get(`topScore?url=${encodeURIComponent(specToURL(spec))}&version=${VERSION}`).done(function(x:string) {
             if (x == 'version mismatch') {
                 clearInterval(interval)
@@ -1365,8 +1438,14 @@ function getHistory(): string | null {
     return window.location.hash.substring(1) || null;
 }
 
+function isURLCampaign(url:string):boolean {
+    const searchParams = new URLSearchParams(url)
+    return searchParams.get('campaign') !== null
+}
+
 export function load(fixedURL:string=''): void {
     const url = (fixedURL.length == 0) ? window.location.search : fixedURL
+    isCampaign = isURLCampaign(url)
     let spec:GameSpec;
     try {
         spec = specFromURL(url)

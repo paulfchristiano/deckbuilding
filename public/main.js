@@ -418,7 +418,7 @@ function renderCard(card, state, zone, options, tokenRenderer) {
         var costhtml = (zone == 'supply') ?
             renderCost(card.cost('buy', state)) || '&nbsp' :
             renderCost(card.cost(costType, state)) || '&nbsp';
-        var picktext = (options.pick !== undefined) ? "<div class='pickorder'>" + options.pick + "</div>" : '';
+        var picktext = (options.pick !== undefined) ? "<div class='pickorder'>" + (options.pick + 1) + "</div>" : '';
         var chosenText = (options.pick !== undefined) ? 'true' : 'false';
         var choosetext = (options.option !== undefined)
             ? "choosable chosen='" + chosenText + "' option=" + options.option
@@ -492,8 +492,10 @@ function resetGlobalRenderer() {
     globalRendererState.hotkeyMapper = new HotkeyMapper();
     globalRendererState.tokenRenderer = new TokenRenderer();
 }
-function linkForState(state) {
-    return "play?" + specToURL(state.spec) + "#" + state.serializeHistory(false);
+function linkForState(state, campaign) {
+    if (campaign === void 0) { campaign = false; }
+    var cs = campaign ? 'campaign&' : '';
+    return "play?" + cs + specToURL(state.spec) + "#" + state.serializeHistory(false);
 }
 function renderState(state, settings) {
     if (settings === void 0) { settings = {}; }
@@ -511,7 +513,7 @@ function renderState(state, settings) {
     }
     if (settings.updateURL === undefined || settings.updateURL) {
         globalRendererState.userURL = false;
-        window.history.replaceState(null, "", linkForState(state));
+        window.history.replaceState(null, "", linkForState(state, isCampaign));
     }
     $('#resolvingHeader').html('Resolving:');
     $('#energy').html(state.energy.toString());
@@ -559,7 +561,7 @@ function setVisibleLog(state, logType, ui) {
     displayLogLines(state.logs[logType], ui);
 }
 function renderLogLine(msg, i) {
-    return "<div class=\"logLine\" pos=" + i + ">" + msg + "</div>";
+    return "<div><span class=\"logLine\" pos=" + i + ">" + msg + "</span></div>";
 }
 function displayLogLines(logs, ui) {
     var e_11, _a;
@@ -724,9 +726,21 @@ var webUI = /** @class */ (function () {
     //(would be nice to clean this up so you use undo to go back)
     webUI.prototype.victory = function (state) {
         return __awaiter(this, void 0, void 0, function () {
-            var ui, submitOrUndo;
+            var ui, score, url, query, submitOrUndo;
             return __generator(this, function (_a) {
                 ui = this;
+                if (isCampaign) {
+                    score = state.energy;
+                    url = specToURL(state.spec);
+                    query = [
+                        credentialParams(),
+                        "url=" + encodeURIComponent(url),
+                        "score=" + score,
+                        "history=" + state.serializeHistory()
+                    ].join('&');
+                    $.post("campaignSubmit?" + query);
+                    heartbeat(state.spec);
+                }
                 submitOrUndo = function () {
                     return new Promise(function (resolve, reject) {
                         ui.undoing = true;
@@ -969,9 +983,7 @@ function bindRecordMacroButton(ui) {
 function bindPlayMacroButtons(ui) {
     var e_13, _a;
     function onClick(i) {
-        console.log('?');
         if (ui.choiceState !== null && ui.playingMacro.length == 0) {
-            console.log('!');
             ui.playingMacro = ui.macros[i].slice();
             ui.resolveWithMacro();
         }
@@ -1267,36 +1279,59 @@ function dateString() {
 function submittable(spec) {
     return true;
 }
-function setCookie(name, value) {
-    document.cookie = name + "=" + value + "; max-age=315360000; path=/";
-}
-function getCookie(name) {
-    var e_15, _a;
-    var nameEQ = name + "=";
-    var ca = document.cookie.split(';');
-    try {
-        for (var _b = __values(document.cookie.split(';')), _c = _b.next(); !_c.done; _c = _b.next()) {
-            var c = _c.value;
-            while (c.charAt(0) == ' ')
-                c = c.substring(1, c.length);
-            if (c.indexOf(nameEQ) == 0)
-                return c.substring(nameEQ.length, c.length);
-        }
-    }
-    catch (e_15_1) { e_15 = { error: e_15_1 }; }
-    finally {
-        try {
-            if (_c && !_c.done && (_a = _b.return)) _a.call(_b);
-        }
-        finally { if (e_15) throw e_15.error; }
-    }
-    return null;
-}
 function rememberUsername(username) {
-    setCookie('username', username);
+    localStorage.setItem('username', username);
 }
 function getUsername() {
-    return getCookie('username');
+    return localStorage.username;
+}
+function credentialParams() {
+    return "username=" + localStorage.campaignUsername + "&hashedPassword=" + localStorage.hashedPassword;
+}
+//TODO: should factor credentials differently
+function renderCampaignSubmission(state, done) {
+    var score = state.energy;
+    var url = specToURL(state.spec);
+    $('#campaignSubmitter').attr('active', 'true');
+    function exit() {
+        $('#campaignSubmitter').attr('active', 'false');
+    }
+    function submit() {
+        return __awaiter(this, void 0, void 0, function () {
+            var query;
+            return __generator(this, function (_a) {
+                query = [
+                    credentialParams(),
+                    "url=" + encodeURIComponent(url),
+                    "score=" + score,
+                    "history=" + state.serializeHistory()
+                ].join('&');
+                console.log(query);
+                return [2 /*return*/, $.post("campaignSubmit?" + query)];
+            });
+        });
+    }
+    //TODO: handle bad submissions here
+    submit().then(function (data) {
+        console.log(data);
+        $('#newbest').text(score);
+        $('#priorbest').text(data.priorBest);
+        $('#awards').text(data.newAwards);
+        $('#nextAward').text(data.nextAward);
+        heartbeat(state.spec);
+    });
+    $('#campaignSubmitter').focus();
+    $('#campaignSubmitter').keydown(function (e) {
+        if (e.keyCode == 13) {
+            exit();
+            e.preventDefault();
+        }
+        else if (e.keyCode == 27) {
+            exit();
+            e.preventDefault();
+        }
+    });
+    $('#campaignSubmitter').on('click', exit);
 }
 function renderScoreSubmission(state, done) {
     var score = state.energy;
@@ -1361,9 +1396,39 @@ function renderScoreSubmission(state, done) {
 function scoreboardURL(spec) {
     return "scoreboard?" + specToURL(spec);
 }
-//TODO: live updates?
+//TODO: change the sidebar based on whether you are in a campaign
+function campaignHeartbeat(spec, interval) {
+    var queryStr = "campaignHeartbeat?" + credentialParams() + "&url=" + encodeURIComponent(specToURL(spec)) + "&version=" + VERSION;
+    console.log(queryStr);
+    $('#homeLink').attr('href', 'campaign.html');
+    $.get(queryStr).done(function (x) {
+        if (x == 'version mismatch') {
+            clearInterval(interval);
+            alert("The server has updated to a new version, please refresh. You will get an error and your game will restart if the history is no longer valid.");
+            return;
+        }
+        if (x == 'user not found') {
+            clearInterval(interval);
+            alert("Your username+password were not recognized");
+            return;
+        }
+        var _a = __read(x, 2), personalBest = _a[0], nextAward = _a[1];
+        var personalBestStr = personalBest !== null
+            ? "<div>Your best: " + personalBest + "</div>"
+            : "";
+        var nextAwardStr = nextAward !== null
+            ? "<div>Next award: " + nextAward + "</div>"
+            : "<div>Kingdom complete!</div>";
+        $('#best').html(personalBestStr + nextAwardStr);
+    });
+}
+//TODO: still need to refactor global state
+var isCampaign = false;
 function heartbeat(spec, interval) {
-    if (submittable(spec)) {
+    if (isCampaign) {
+        campaignHeartbeat(spec, interval);
+    }
+    else if (submittable(spec)) {
         $.get("topScore?url=" + encodeURIComponent(specToURL(spec)) + "&version=" + VERSION).done(function (x) {
             if (x == 'version mismatch') {
                 clearInterval(interval);
@@ -1387,9 +1452,14 @@ function renderScoreboardLink(spec) {
 function getHistory() {
     return window.location.hash.substring(1) || null;
 }
+function isURLCampaign(url) {
+    var searchParams = new URLSearchParams(url);
+    return searchParams.get('campaign') !== null;
+}
 export function load(fixedURL) {
     if (fixedURL === void 0) { fixedURL = ''; }
     var url = (fixedURL.length == 0) ? window.location.search : fixedURL;
+    isCampaign = isURLCampaign(url);
     var spec;
     try {
         spec = specFromURL(url);
@@ -1475,7 +1545,7 @@ function kingdomURL(kindParam, cards, events) {
     return "play?" + kindParam + "cards=" + cards.map(function (card) { return card.name; }).join(',') + "&events=" + events.map(function (card) { return card.name; });
 }
 function countIn(s, f) {
-    var e_16, _a;
+    var e_15, _a;
     var count = 0;
     try {
         for (var s_1 = __values(s), s_1_1 = s_1.next(); !s_1_1.done; s_1_1 = s_1.next()) {
@@ -1484,12 +1554,12 @@ function countIn(s, f) {
                 count += 1;
         }
     }
-    catch (e_16_1) { e_16 = { error: e_16_1 }; }
+    catch (e_15_1) { e_15 = { error: e_15_1 }; }
     finally {
         try {
             if (s_1_1 && !s_1_1.done && (_a = s_1.return)) _a.call(s_1);
         }
-        finally { if (e_16) throw e_16.error; }
+        finally { if (e_15) throw e_15.error; }
     }
     return count;
 }
