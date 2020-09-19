@@ -85,7 +85,7 @@ var __read = (this && this.__read) || function (o, n) {
     }
     return ar;
 };
-export var VERSION = "1.7";
+export var VERSION = "1.7.1";
 // ----------------------------- Formatting
 export function renderCost(cost, full) {
     var e_1, _a;
@@ -3042,7 +3042,7 @@ buyable(coven, 4);
 var lab = { name: 'Lab',
     effects: [actionsEffect(2)]
 };
-buyable(lab, 4);
+buyable(lab, 3);
 var payAction = payCost(__assign(__assign({}, free), { actions: 1 }));
 function tickEffect() {
     return {
@@ -3609,21 +3609,79 @@ var twin = { name: 'Twin',
 registerEvent(twin);
 function startsWithCharge(name, n) {
     return {
-        text: "Each " + name + " starts with " + aOrNum(n, 'charge token') + " on it.",
+        text: "Each " + name + " is created with " + aOrNum(n, 'charge token') + " on it.",
         kind: 'create',
         handles: function (p) { return p.spec.name == name; },
         replace: function (p) { return (__assign(__assign({}, p), { effects: p.effects.concat([function (c) { return charge(c, n); }]) })); }
     };
 }
-var youngSmith = { name: 'Young Smith',
+function literalOptions(xs, keys) {
+    return xs.map(function (x, i) { return ({
+        render: { kind: 'string', string: x },
+        hotkeyHint: { kind: 'key', val: keys[i] },
+        value: x
+    }); });
+}
+var tinkerer = { name: 'Tinkerer',
     fixedCost: energy(1),
     effects: [{
-            text: ['+1 action per charge token on this.'],
-            transform: function (state, card) { return gainActions(state.find(card).charge, card); }
-        }, chargeEffect()]
+            text: ["For each charge token on this, choose one:\n                +1 action, +1 buy, or +$1."],
+            transform: function (state, card) { return function (state) {
+                return __awaiter(this, void 0, void 0, function () {
+                    var n, i, mode, _a;
+                    var _b;
+                    return __generator(this, function (_c) {
+                        switch (_c.label) {
+                            case 0:
+                                n = state.find(card).charge;
+                                i = 0;
+                                _c.label = 1;
+                            case 1:
+                                if (!(i < n)) return [3 /*break*/, 10];
+                                mode = void 0;
+                                return [4 /*yield*/, choice(state, "Choose a benefit (" + (n - i) + " remaining)", literalOptions(['action', 'buy', 'coin'], ['a', 'b', 'c']))];
+                            case 2:
+                                _b = __read.apply(void 0, [_c.sent(), 2]), state = _b[0], mode = _b[1];
+                                _a = mode;
+                                switch (_a) {
+                                    case 'coin': return [3 /*break*/, 3];
+                                    case 'action': return [3 /*break*/, 5];
+                                    case 'buy': return [3 /*break*/, 7];
+                                }
+                                return [3 /*break*/, 9];
+                            case 3: return [4 /*yield*/, gainCoins(1, card)(state)];
+                            case 4:
+                                state = _c.sent();
+                                return [3 /*break*/, 9];
+                            case 5: return [4 /*yield*/, gainActions(1, card)(state)];
+                            case 6:
+                                state = _c.sent();
+                                return [3 /*break*/, 9];
+                            case 7: return [4 /*yield*/, gainBuys(1, card)(state)];
+                            case 8:
+                                state = _c.sent();
+                                return [3 /*break*/, 9];
+                            case 9:
+                                i++;
+                                return [3 /*break*/, 1];
+                            case 10: return [2 /*return*/, state];
+                        }
+                    });
+                });
+            }; }
+        }, chargeUpTo(6)]
 };
-buyable(youngSmith, 3, { replacers: [startsWithCharge(youngSmith.name, 2)] });
+buyable(tinkerer, 3, { replacers: [startsWithCharge(tinkerer.name, 2)] });
 /*
+const youngSmith:CardSpec = {name: 'Young Smith',
+    fixedCost: energy(1),
+    effects: [{
+        text: ['+1 action per charge token on this.'],
+        transform: (state, card) => gainActions(state.find(card).charge, card)
+    }, chargeEffect()]
+}
+buyable(youngSmith, 3, {replacers: [startsWithCharge(youngSmith.name, 2)]})
+
 const oldSmith:CardSpec = {name: 'Old Smith',
     fixedCost: energy(1),
     effects: [{
@@ -4572,7 +4630,7 @@ var artificer = {
             }; }
         }]
 };
-buyable(artificer, 4);
+buyable(artificer, 5);
 var banquet = {
     name: 'Banquet',
     restrictions: [{
@@ -4625,23 +4683,40 @@ function countDistinct(xs) {
     }
     return result;
 }
+function countDistinctNames(xs) {
+    return countDistinct(xs.map(function (c) { return c.name; }));
+}
 var harvest = {
     name: 'Harvest',
     fixedCost: energy(1),
     effects: [{
-            text: ["For each differently-named card in play or in your discard,\n                +1 action and +$1."],
+            text: ["+$1 for each differently-named card in your hand."],
             transform: function (state) { return function (state) {
                 return __awaiter(this, void 0, void 0, function () {
                     var n;
                     return __generator(this, function (_a) {
                         switch (_a.label) {
                             case 0:
-                                n = countDistinct(state.discard.concat(state.play).map(function (x) { return x.name; }));
+                                n = countDistinctNames(state.hand);
                                 return [4 /*yield*/, gainCoins(n)(state)];
                             case 1:
                                 state = _a.sent();
+                                return [2 /*return*/, state];
+                        }
+                    });
+                });
+            }; }
+        }, {
+            text: ["+1 action for each differently-named card in your discard."],
+            transform: function (state) { return function (state) {
+                return __awaiter(this, void 0, void 0, function () {
+                    var n;
+                    return __generator(this, function (_a) {
+                        switch (_a.label) {
+                            case 0:
+                                n = countDistinctNames(state.discard);
                                 return [4 /*yield*/, gainActions(n)(state)];
-                            case 2:
+                            case 1:
                                 state = _a.sent();
                                 return [2 /*return*/, state];
                         }
@@ -4690,19 +4765,35 @@ var secretChamber = {
         }]
 };
 buyable(secretChamber, 3);
-var hirelings = {
-    name: 'Hirelings',
-    effects: [buyEffect(), toPlay()],
+var hireling = {
+    name: 'Hireling',
+    relatedCards: [fair],
+    effects: [toPlay()],
     replacers: [{
-            text: 'Whenever you would move this to your hand, instead +2 actions and +1 buy.',
+            text: "Whenever you would move this to your hand,\n               instead +1 action, +1 buy, +$1, and create a " + fair.name + " in play.",
             kind: 'move',
             handles: function (p, s, c) { return p.card.id == c.id && p.toZone == 'hand' && p.skip == false; },
             replace: function (p, s, c) { return (__assign(__assign({}, p), { skip: true, effects: p.effects.concat([
-                    gainActions(2, c), gainBuys(1, c)
+                    gainActions(1, c), gainBuys(1, c), gainCoins(1, c), create(fair, 'play')
                 ]) })); }
         }]
 };
-buyable(hirelings, 3);
+buyable(hireling, 3);
+/*
+const hirelings:CardSpec = {
+    name: 'Hirelings',
+    effects: [buyEffect(), toPlay()],
+    replacers: [{
+        text: 'Whenever you would move this to your hand, instead +2 actions and +1 buy.',
+        kind: 'move',
+        handles: (p, s, c) => p.card.id == c.id && p.toZone == 'hand' && p.skip == false,
+        replace: (p, s, c) => ({...p, skip:true, effects:p.effects.concat([
+            gainActions(2, c), gainBuys(1, c)
+        ])})
+    }]
+}
+buyable(hirelings, 3)
+*/
 //TODO: "buy normal way" should maybe be it's own trigger with a cost field?
 var haggler = {
     name: 'Haggler',

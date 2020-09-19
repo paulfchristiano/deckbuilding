@@ -1,4 +1,4 @@
-export const VERSION = "1.7"
+export const VERSION = "1.7.1"
 
 // ----------------------------- Formatting
 
@@ -2529,7 +2529,7 @@ buyable(coven, 4)
 const lab:CardSpec = {name: 'Lab',
     effects: [actionsEffect(2)]
 }
-buyable(lab, 4)
+buyable(lab, 3)
 
 const payAction = payCost({...free, actions:1})
 
@@ -3075,13 +3075,53 @@ registerEvent(twin)
 
 function startsWithCharge(name:string, n:number):Replacer<CreateParams> {
     return {
-        text: `Each ${name} starts with ${aOrNum(n, 'charge token')} on it.`,
+        text: `Each ${name} is created with ${aOrNum(n, 'charge token')} on it.`,
         kind: 'create',
         handles: p => p.spec.name == name,
         replace: p => ({...p, effects:p.effects.concat([c => charge(c, n)])})
     }
 }
 
+function literalOptions(xs:string[], keys:Key[]): Option<string>[] {
+    return xs.map((x, i) => ({
+        render: {kind:'string', string:x},
+        hotkeyHint: {kind:'key', val:keys[i]},
+        value:x
+    }))
+}
+
+const tinkerer:CardSpec = {name: 'Tinkerer',
+    fixedCost: energy(1),
+    effects: [{
+        text: [`For each charge token on this, choose one:
+                +1 action, +1 buy, or +$1.`],
+        transform: (state, card) => async function(state) {
+            const n = state.find(card).charge
+            for (let i = 0; i < n; i++) {
+                let mode:string|null; [state, mode] = await choice(
+                    state,
+                    `Choose a benefit (${n - i} remaining)`,
+                    literalOptions(['action', 'buy', 'coin'], ['a', 'b', 'c'])
+                )
+                switch(mode) {
+                    case 'coin':
+                        state = await gainCoins(1, card)(state)
+                        break
+                    case 'action':
+                        state = await gainActions(1, card)(state)
+                        break
+                    case 'buy':
+                        state = await gainBuys(1, card)(state)
+                        break
+                }
+            }
+            return state
+        }
+    }, chargeUpTo(6)]
+}
+buyable(tinkerer, 3, {replacers: [startsWithCharge(tinkerer.name, 2)]})
+
+/*
 const youngSmith:CardSpec = {name: 'Young Smith',
     fixedCost: energy(1),
     effects: [{
@@ -3091,7 +3131,6 @@ const youngSmith:CardSpec = {name: 'Young Smith',
 }
 buyable(youngSmith, 3, {replacers: [startsWithCharge(youngSmith.name, 2)]})
 
-/*
 const oldSmith:CardSpec = {name: 'Old Smith',
     fixedCost: energy(1),
     effects: [{
@@ -4027,7 +4066,7 @@ const artificer:CardSpec = {
 
     }]
 }
-buyable(artificer, 4)
+buyable(artificer, 5)
 
 const banquet:CardSpec = {
     name: 'Banquet',
@@ -4073,21 +4112,28 @@ function countDistinct<T>(xs:T[]): number {
     return result
 }
 
+function countDistinctNames(xs:Card[]): number {
+    return countDistinct(xs.map(c => c.name))
+}
+
 const harvest:CardSpec = {
     name:'Harvest',
     fixedCost: energy(1),
     effects: [{
-        text: [`For each differently-named card in play or in your discard,
-                +1 action and +$1.`],
+        text: [`+$1 for each differently-named card in your hand.`],
         transform: state => async function(state) {
-            const n = countDistinct(
-                state.discard.concat(state.play).map(x => x.name)
-            )
+            const n = countDistinctNames(state.hand)
             state = await gainCoins(n)(state)
+            return state
+        }
+    },{
+        text: [`+1 action for each differently-named card in your discard.`],
+        transform: state => async function(state) {
+            const n = countDistinctNames(state.discard)
             state = await gainActions(n)(state)
             return state
         }
-    }]
+    } ]
 }
 buyable(harvest, 3)
 
@@ -4120,6 +4166,23 @@ const secretChamber:CardSpec = {
 }
 buyable(secretChamber, 3)
 
+
+const hireling:CardSpec = {
+    name: 'Hireling',
+    relatedCards: [fair],
+    effects: [toPlay()],
+    replacers: [{
+        text: `Whenever you would move this to your hand,
+               instead +1 action, +1 buy, +$1, and create a ${fair.name} in play.`,
+        kind: 'move',
+        handles: (p, s, c) => p.card.id == c.id && p.toZone == 'hand' && p.skip == false,
+        replace: (p, s, c) => ({...p, skip:true, effects:p.effects.concat([
+            gainActions(1, c), gainBuys(1, c), gainCoins(1, c), create(fair, 'play')
+        ])})
+    }]
+}
+buyable(hireling, 3)
+/*
 const hirelings:CardSpec = {
     name: 'Hirelings',
     effects: [buyEffect(), toPlay()],
@@ -4133,6 +4196,7 @@ const hirelings:CardSpec = {
     }]
 }
 buyable(hirelings, 3)
+*/
 
 //TODO: "buy normal way" should maybe be it's own trigger with a cost field?
 const haggler:CardSpec = {
