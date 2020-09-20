@@ -4694,7 +4694,7 @@ var harvest = {
     name: 'Harvest',
     fixedCost: energy(1),
     effects: [{
-            text: ["+$1 for each differently-named card in your hand."],
+            text: ["+1 action for each differently-named card in your hand."],
             transform: function (state) { return function (state) {
                 return __awaiter(this, void 0, void 0, function () {
                     var n;
@@ -4702,7 +4702,7 @@ var harvest = {
                         switch (_a.label) {
                             case 0:
                                 n = countDistinctNames(state.hand);
-                                return [4 /*yield*/, gainCoins(n)(state)];
+                                return [4 /*yield*/, gainActions(n)(state)];
                             case 1:
                                 state = _a.sent();
                                 return [2 /*return*/, state];
@@ -4711,7 +4711,7 @@ var harvest = {
                 });
             }; }
         }, {
-            text: ["+1 action for each differently-named card in your discard."],
+            text: ["+$1 for each differently-named card in your discard."],
             transform: function (state) { return function (state) {
                 return __awaiter(this, void 0, void 0, function () {
                     var n;
@@ -4719,7 +4719,7 @@ var harvest = {
                         switch (_a.label) {
                             case 0:
                                 n = countDistinctNames(state.discard);
-                                return [4 /*yield*/, gainActions(n)(state)];
+                                return [4 /*yield*/, gainCoins(n)(state)];
                             case 1:
                                 state = _a.sent();
                                 return [2 /*return*/, state];

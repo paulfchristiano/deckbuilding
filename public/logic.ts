@@ -4124,17 +4124,17 @@ const harvest:CardSpec = {
     name:'Harvest',
     fixedCost: energy(1),
     effects: [{
-        text: [`+$1 for each differently-named card in your hand.`],
+        text: [`+1 action for each differently-named card in your hand.`],
         transform: state => async function(state) {
             const n = countDistinctNames(state.hand)
-            state = await gainCoins(n)(state)
+            state = await gainActions(n)(state)
             return state
         }
     },{
-        text: [`+1 action for each differently-named card in your discard.`],
+        text: [`+$1 for each differently-named card in your discard.`],
         transform: state => async function(state) {
             const n = countDistinctNames(state.discard)
-            state = await gainActions(n)(state)
+            state = await gainCoins(n)(state)
             return state
         }
     } ]
