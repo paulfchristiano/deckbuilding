@@ -4185,7 +4185,7 @@ const hireling:CardSpec = {
         ])})
     }]
 }
-buyable(hireling, 3)
+buyable(hireling, 2)
 /*
 const hirelings:CardSpec = {
     name: 'Hirelings',
