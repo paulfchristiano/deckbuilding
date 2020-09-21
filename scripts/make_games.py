@@ -14,7 +14,7 @@ def render_game(g):
     return f"kind=pick&cards={','.join(sorted(g['cards']))}&events={','.join(sorted(g['events']))}"
 
 themes = [
-    ('GROW', 'kind=pick&cards=Egg,Frontier,Investment,Traveler,YoungSmith&events=Escalate,Reflect'),
+    ('GROW', 'kind=pick&cards=Egg,Frontier,Investment,Traveler,Tinkerer&events=Escalate,Reflect'),
     ('BIG', 'kind=pick&cards=Colony,Fortune,KingsCourt,Palace,Platinum&events=Inflation,Prioritize'),
     ('BUY', 'kind=pick&cards=FlowerMarket,GhostTown,Herbs,Lackeys,Spices&events=Duplicate,Expedite'),
     ('GET', 'kind=pick&cards=Lab,Market,Plow,Till,Unearth&events=Commerce,Recycle'),

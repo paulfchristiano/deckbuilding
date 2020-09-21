@@ -521,7 +521,6 @@ function renderState(state, settings) {
     $('#buys').html(state.buys.toString());
     $('#coin').html(state.coin.toString());
     $('#points').html(state.points.toString());
-    $('#aside').html(state.aside.map(render('aside')).join(''));
     $('#resolving').html(state.resolving.map(render('resolving')).join(''));
     $('#play').html(state.play.map(render('play')).join(''));
     $('#supply').html(state.supply.map(render('supply')).join(''));

@@ -143,7 +143,7 @@ export class Card {
         public readonly id:number,
         public readonly ticks: number[] = [0],
         public readonly tokens: Map<Token, number> = new Map(),
-        public readonly place:PlaceName = null,
+        public readonly place:PlaceName = 'void',
         // we assign each card the smallest unused index in its current zone, for consistency of hotkey mappings
         public readonly zoneIndex = 0,
     ) {
@@ -360,8 +360,8 @@ export class Card {
 
 type Transform = ((state:State) => Promise<State>) | ((state:State) => State)
 
-type ZoneName = 'supply' | 'hand' | 'discard' | 'play' | 'aside' | 'events'
-export type PlaceName = ZoneName | null | 'resolving'
+type ZoneName = 'supply' | 'hand' | 'discard' | 'play' | 'events' | 'void'
+export type PlaceName = ZoneName | 'resolving'
 
 type Zone = Card[]
 
@@ -469,7 +469,7 @@ export class State {
     public readonly hand:Zone;
     public readonly discard:Zone;
     public readonly play:Zone;
-    public readonly aside:Zone;
+    public readonly void:Zone;
     public readonly events:Zone;
     constructor(
         public readonly spec: GameSpec = {kind:'full', seed: ''},
@@ -496,7 +496,7 @@ export class State {
         this.hand = zones.get('hand') || []
         this.discard= zones.get('discard') || []
         this.play = zones.get('play') || []
-        this.aside = zones.get('aside') || []
+        this.void = zones.get('void') || []
         this.events = zones.get('events') || []
     }
     update(stateUpdate:Partial<State>) {
@@ -605,7 +605,7 @@ export class State {
         const zone = this.resolving;
         const matches:Card[] = (zone.filter(c => c.id == card.id) as Card[])
         if (matches.length > 0) return matches[0]
-        return card.update({place:null})
+        return card.update({place:'void'})
     }
     startTicker(card:Card): State {
         return this.apply(card => card.startTicker(), card)
@@ -1028,7 +1028,7 @@ function createAndTrack(
 }
 
 function createAndPlay(spec:CardSpec, source:Source=unk): Transform {
-    return create(spec, 'aside', (c => c.play(source)))
+    return create(spec, 'void', (c => c.play(source)))
 }
 
 function move(card:Card, toZone:PlaceName, logged:boolean=false): Transform {
@@ -1075,7 +1075,7 @@ function moveMany(cards:Card[], toZone:PlaceName, logged:boolean=false): Transfo
 }
 
 function trash(card:Card|null, logged:boolean=false): Transform {
-    return (card == null) ? noop : move(card, null, logged)
+    return (card == null) ? noop : move(card, 'void', logged)
 }
 
 function discard(n:number): Transform {
@@ -2393,12 +2393,7 @@ const villager:CardSpec = {
                 return x
             }
         }
-    }, {
-        text: `Whenever this would leave play, trash it instead.`,
-        kind: 'move',
-        handles: (x, state, card) => x.card.id == card.id && x.fromZone == 'play',
-        replace: x => ({...x, toZone:null})
-    }]
+    }, trashOnLeavePlay()]
 }
 
 function repeat(t:Transform, n:number): Transform {
@@ -2775,6 +2770,15 @@ const reach:CardSpec = {name:'Reach',
 }
 registerEvent(reach)
 
+function trashOnLeavePlay():Replacer<MoveParams> {
+    return {
+        text: `Whenever this would leave play, trash it.`,
+        kind: 'move',
+        handles: (x, state, card) => x.card.id == card.id && x.fromZone == 'play',
+        replace: x => ({...x, toZone:'void'})
+    }
+}
+
 const fair:CardSpec = {
     name: 'Fair',
     replacers: [{
@@ -2786,12 +2790,7 @@ const fair:CardSpec = {
         replace: (x, state, card) => ({
             ...x, zone:'hand', effects:x.effects.concat(() => trash(card))
         })
-    }, {
-        text: `Whenever this would leave play, trash it.`,
-        kind: 'move',
-        handles: (x, state, card) => x.card.id == card.id && x.fromZone == 'play',
-        replace: x => ({...x, toZone:null})
-    }]
+    }, trashOnLeavePlay()]
 }
 
 function costPlusPer(initial:Cost, increment:Cost, n:number): CalculatedCost {
@@ -3094,14 +3093,26 @@ const tinkerer:CardSpec = {name: 'Tinkerer',
     fixedCost: energy(1),
     effects: [{
         text: [`For each charge token on this, choose one:
-                +1 action, +1 buy, or +$1.`],
+                +1 action or +$1.`],
         transform: (state, card) => async function(state) {
             const n = state.find(card).charge
+            let m:number|null; [state, m] = await choice(
+                state,
+                'Choose how many actions to gain (the rest will be $)',
+                chooseNatural(n+1)
+            )
+            if (m != null) {
+                state = await gainActions(m, card)(state)
+                state = await gainCoins(n-m, card)(state)
+            }
+            console.log(m)
+            return state
+            /*
             for (let i = 0; i < n; i++) {
                 let mode:string|null; [state, mode] = await choice(
                     state,
                     `Choose a benefit (${n - i} remaining)`,
-                    literalOptions(['action', 'buy', 'coin'], ['a', 'b', 'c'])
+                    literalOptions(['action', 'coin'], ['a', 'c'])
                 )
                 switch(mode) {
                     case 'coin':
@@ -3110,12 +3121,10 @@ const tinkerer:CardSpec = {name: 'Tinkerer',
                     case 'action':
                         state = await gainActions(1, card)(state)
                         break
-                    case 'buy':
-                        state = await gainBuys(1, card)(state)
-                        break
                 }
             }
             return state
+            */
         }
     }, chargeUpTo(6)]
 }
@@ -3617,7 +3626,7 @@ function dedupBy<T>(xs:T[], f:(x:T) => any): T[] {
 const echo:CardSpec = {name: 'Echo',
     effects: [targetedEffect(
         (target, card) => async function(state) {
-            let copy:Card; [copy, state] = await createAndTrack(target.spec, 'aside')(state)
+            let copy:Card; [copy, state] = await createAndTrack(target.spec, 'void')(state)
             state = await addToken(copy, 'echo')(state)
             state = await copy.play(card)(state)
             return state
@@ -3742,13 +3751,15 @@ const egg:CardSpec = {name: 'Egg',
     fixedCost: energy(0),
     relatedCards: [dragon],
     effects: [actionsEffect(1), chargeEffect(), {
-        text: [`If this has three or more charge tokens on it, trash it to
-        create ${a(dragon.name)} in your hand.`],
+        text: [`If this has three or more charge tokens on it, remove them 
+        and create ${a(dragon.name)} in your hand.`],
         transform: (state, card) => {
             const c = state.find(card);
-            return (c.charge >= 3 && c.place != null)
-                ? doAll([trash(card), create(dragon, 'hand')])
-                : noop
+            return (c.charge >= 3)
+                ? doAll([
+                    removeToken(c, 'charge', 'all'),
+                    create(dragon, 'hand')
+                ]) : noop
         }
     }]
 }
