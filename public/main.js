@@ -1358,7 +1358,7 @@ function renderScoreSubmission(state, done) {
             var query = [
                 "url=" + encodeURIComponent(url),
                 "score=" + score,
-                "username=" + username,
+                "username=" + encodeURIComponent(username),
                 "history=" + state.serializeHistory()
             ].join('&');
             $.post("submit?" + query).done(function (resp) {

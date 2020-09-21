@@ -1342,7 +1342,7 @@ function renderScoreSubmission(state:State, done:() => void) {
             const query = [
                 `url=${encodeURIComponent(url)}`,
                 `score=${score}`,
-                `username=${username}`,
+                `username=${encodeURIComponent(username)}`,
                 `history=${state.serializeHistory()}`
             ].join('&')
             $.post(`submit?${query}`).done(function(resp:string) {
