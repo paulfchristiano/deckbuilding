@@ -563,6 +563,10 @@ class webUI {
 
         }
     }
+    eraseStep(): void {
+        if (this.recordingMacro === null) return
+        this.recordingMacro.pop()
+    }
     matchNextMacroStep(): number|null {
         const macro = this.playingMacro.shift()
         if (macro !== undefined && this.choiceState != null) {
@@ -615,7 +619,10 @@ class webUI {
                 resolve(n)
             }
             function newReject(reason:any) {
-                if (reason instanceof Undo) ui.undoing = true
+                if (reason instanceof Undo) {
+                    ui.undoing = true
+                    ui.eraseStep()
+                }
                 ui.clearChoice()
                 reject(reason)
             }
@@ -1290,12 +1297,10 @@ function renderCampaignSubmission(state:State, done:() => void) {
             `score=${score}`,
             `history=${state.serializeHistory()}`
         ].join('&')
-        console.log(query)
         return $.post(`campaignSubmit?${query}`)
     }
     //TODO: handle bad submissions here
     submit().then(data => {
-        console.log(data)
         $('#newbest').text(score)
         $('#priorbest').text(data.priorBest)
         $('#awards').text(data.newAwards)
@@ -1379,7 +1384,6 @@ function scoreboardURL(spec:GameSpec) {
 //TODO: change the sidebar based on whether you are in a campaign
 function campaignHeartbeat(spec:GameSpec, interval?:any): void {
     const queryStr = `campaignHeartbeat?${credentialParams()}&url=${encodeURIComponent(specToURL(spec))}&version=${VERSION}`
-    console.log(queryStr)
     $('#homeLink').attr('href', 'campaign.html')
     $.get(queryStr).done(function(x) {
         if (x == 'version mismatch') {

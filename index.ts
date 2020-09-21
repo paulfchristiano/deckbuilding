@@ -562,7 +562,7 @@ express()
             const url = decodeURIComponent(req.query.url)
             const spec = specFromURL(url)
             const score = req.query.score
-            const username = req.query.username
+            const username = decodeURIComponent(req.query.username)
             const history = req.query.history
             //TODO: verify custom games, probably use URL here and everywhere in file?
             const [valid, explanation] = await verifyScore(spec, history, score)

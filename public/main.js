@@ -640,6 +640,11 @@ var webUI = /** @class */ (function () {
                 assertNever(x);
         }
     };
+    webUI.prototype.eraseStep = function () {
+        if (this.recordingMacro === null)
+            return;
+        this.recordingMacro.pop();
+    };
     webUI.prototype.matchNextMacroStep = function () {
         var macro = this.playingMacro.shift();
         if (macro !== undefined && this.choiceState != null) {
@@ -678,8 +683,10 @@ var webUI = /** @class */ (function () {
                 resolve(n);
             }
             function newReject(reason) {
-                if (reason instanceof Undo)
+                if (reason instanceof Undo) {
                     ui.undoing = true;
+                    ui.eraseStep();
+                }
                 ui.clearChoice();
                 reject(reason);
             }
@@ -1305,14 +1312,12 @@ function renderCampaignSubmission(state, done) {
                     "score=" + score,
                     "history=" + state.serializeHistory()
                 ].join('&');
-                console.log(query);
                 return [2 /*return*/, $.post("campaignSubmit?" + query)];
             });
         });
     }
     //TODO: handle bad submissions here
     submit().then(function (data) {
-        console.log(data);
         $('#newbest').text(score);
         $('#priorbest').text(data.priorBest);
         $('#awards').text(data.newAwards);
@@ -1398,7 +1403,6 @@ function scoreboardURL(spec) {
 //TODO: change the sidebar based on whether you are in a campaign
 function campaignHeartbeat(spec, interval) {
     var queryStr = "campaignHeartbeat?" + credentialParams() + "&url=" + encodeURIComponent(specToURL(spec)) + "&version=" + VERSION;
-    console.log(queryStr);
     $('#homeLink').attr('href', 'campaign.html');
     $.get(queryStr).done(function (x) {
         if (x == 'version mismatch') {
