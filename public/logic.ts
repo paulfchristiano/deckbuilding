@@ -1,4 +1,4 @@
-export const VERSION = "1.7.1"
+export const VERSION = "1.7.2"
 
 // ----------------------------- Formatting
 
@@ -1173,9 +1173,11 @@ function gainResource(resource:ResourceName, amount:number, source:Source=unk) {
 
 function setResource(resource:ResourceName, amount:number, source:Source=unk) {
     return async function(state:State) {
-        const newResources = {...state.resources}
-        newResources[resource] = amount
-        return state.setResources(newResources)
+        return gainResource(
+            resource,
+            amount - state.resources[resource],
+            source
+        )(state)
     }
 }
 
@@ -2820,10 +2822,10 @@ registerEvent(travelingFair)
 const philanthropy:CardSpec = {name: 'Philanthropy',
     fixedCost: {...free, coin:6, energy:1},
     effects: [{
-        text: ['Lose all $.', '+1 vp per $ lost.'],
+        text: ['Pay all $.', '+1 vp per $ paid.'],
         transform: () => async function(state) {
             const n = state.coin
-            state = await gainCoins(-n)(state)
+            state = await payCost({...free, coin:n})(state)
             state = await gainPoints(n)(state)
             return state
         }
@@ -2851,25 +2853,16 @@ buyable(territory, 5)
 */
 
 const coffers:CardSpec = {name: 'Coffers',
-    effects: [{
-        text: [
-            'If you have any $, lose all $ and put that many charge tokens on this.',
-            'Otherwise, remove all charge tokens from this and gain that much $.'
-        ],
-        transform: (state, card) => async function(state) {
-            const n = state.find(card).charge
-            const m = state.coin
-            if (m == 0) {
-                state = await discharge(card, n)(state)
-                state = await gainCoins(n)(state)
-                return state
-            } else {
-                state = await gainCoins(-m)(state)
-                state = await charge(card, m)(state)
-                return state
-            }
-        }
-    }]
+    restrictions: [{
+        text: undefined,
+        test: (c:Card, s:State, k:ActionKind) => k == 'use'
+    }],
+	staticReplacers: [{
+		text: `You can't lose $ (other than by paying costs).`,
+		kind: 'resource',
+		handles: p => p.amount < 0 && p.resource == 'coin',
+		replace: p => ({...p, amount:0})
+	}]
 }
 registerEvent(coffers)
 
@@ -3022,6 +3015,18 @@ registerEvent(mobilization)
 */
 
 const stables:CardSpec = {name: 'Stables',
+    restrictions: [{
+        text: undefined,
+        test: (c:Card, s:State, k:ActionKind) => k == 'use'
+    }],
+	staticReplacers: [{
+		text: `You can't lose actions (other than by paying costs).`,
+		kind: 'resource',
+		handles: p => p.amount < 0 && p.resource == 'actions',
+		replace: p => ({...p, amount:0})
+	}]
+}
+/*
     effects: [{
         text: [
             'If you have any actions, lose them all and put that many charge tokens on this.',
@@ -3042,6 +3047,7 @@ const stables:CardSpec = {name: 'Stables',
         }
     }]
 }
+*/
 registerEvent(stables)
 
 function recycleEffect(): Effect {
@@ -3293,7 +3299,7 @@ const market:CardSpec = {
     name: 'Market',
     effects: [actionsEffect(1), coinsEffect(1), buyEffect()],
 }
-buyable(market, 4)
+buyable(market, 3)
 
 const focus:CardSpec = {name: 'Focus',
     fixedCost: energy(1),
@@ -3524,7 +3530,13 @@ registerEvent(inflation)
 */
 const inflation:CardSpec = {name: 'Inflation',
     fixedCost: energy(5),
-    effects: [setCoinEffect(15), setBuyEffect(5), incrementCost()],
+    effects: [{
+    	text: [`Lose all $ and buys.`],
+    	transform: () => doAll([setResource('coin', 0), setResource('buys', 0)])
+    }, {
+    	text: ['+$15, +5 buys.'],
+    	transform: () => doAll([gainCoins(15), gainBuys(5)])
+    }, incrementCost()],
     staticReplacers: [{
         text: `Cards cost $1 more to buy for each cost token on this.`,
         kind: 'cost',
@@ -3751,13 +3763,13 @@ const egg:CardSpec = {name: 'Egg',
     fixedCost: energy(0),
     relatedCards: [dragon],
     effects: [actionsEffect(1), chargeEffect(), {
-        text: [`If this has three or more charge tokens on it, remove them 
+        text: [`If this has three or more charge tokens on it, trash it 
         and create ${a(dragon.name)} in your hand.`],
         transform: (state, card) => {
             const c = state.find(card);
             return (c.charge >= 3)
                 ? doAll([
-                    removeToken(c, 'charge', 'all'),
+                    trash(c),
                     create(dragon, 'hand')
                 ]) : noop
         }
@@ -3859,14 +3871,8 @@ buyable(
 
 const fountain:CardSpec = {
     name: 'Fountain',
-    fixedCost: energy(1),
-    effects: [{
-        text: [`Lose all actions and $.`],
-        transform: (state, card) => doAll([
-            setResource('coin', 0),
-            setResource('actions', 0)
-        ])
-    }, actionsEffect(7)]
+    fixedCost: energy(0),
+    effects: [refreshEffect(5, false)],
 }
 buyable(fountain, 4)
 
@@ -4388,10 +4394,10 @@ const commerce:CardSpec = {
     name: 'Commerce',
     fixedCost: energy(1),
     effects: [{
-        text: [`Lose all $.`, `Put a charge token on this for each $ lost.`],
+        text: [`Pay all $.`, `Put a charge token on this for each $ paid.`],
         transform: (state, card) => async function(state) {
             const n = state.coin
-            state = await setResource('coin', 0)(state)
+            state = await payCost({...free, coin:n})(state)
             state = await charge(card, n)(state)
             return state
         }

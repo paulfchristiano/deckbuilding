@@ -85,7 +85,7 @@ var __read = (this && this.__read) || function (o, n) {
     }
     return ar;
 };
-export var VERSION = "1.7.1";
+export var VERSION = "1.7.2";
 // ----------------------------- Formatting
 export function renderCost(cost, full) {
     var e_1, _a;
@@ -1483,11 +1483,8 @@ function setResource(resource, amount, source) {
     if (source === void 0) { source = unk; }
     return function (state) {
         return __awaiter(this, void 0, void 0, function () {
-            var newResources;
             return __generator(this, function (_a) {
-                newResources = __assign({}, state.resources);
-                newResources[resource] = amount;
-                return [2 /*return*/, state.setResources(newResources)];
+                return [2 /*return*/, gainResource(resource, amount - state.resources[resource], source)(state)];
             });
         });
     };
@@ -3303,7 +3300,7 @@ var travelingFair = { name: 'Traveling Fair',
 registerEvent(travelingFair);
 var philanthropy = { name: 'Philanthropy', fixedCost: __assign(__assign({}, free), { coin: 6, energy: 1 }),
     effects: [{
-            text: ['Lose all $.', '+1 vp per $ lost.'],
+            text: ['Pay all $.', '+1 vp per $ paid.'],
             transform: function () { return function (state) {
                 return __awaiter(this, void 0, void 0, function () {
                     var n;
@@ -3311,7 +3308,7 @@ var philanthropy = { name: 'Philanthropy', fixedCost: __assign(__assign({}, free
                         switch (_a.label) {
                             case 0:
                                 n = state.coin;
-                                return [4 /*yield*/, gainCoins(-n)(state)];
+                                return [4 /*yield*/, payCost(__assign(__assign({}, free), { coin: n }))(state)];
                             case 1:
                                 state = _a.sent();
                                 return [4 /*yield*/, gainPoints(n)(state)];
@@ -3342,38 +3339,15 @@ const territory:CardSpec = {name: 'Territory',
 }
 buyable(territory, 5)
 */
-var coffers = { name: 'Coffers', effects: [{
-            text: [
-                'If you have any $, lose all $ and put that many charge tokens on this.',
-                'Otherwise, remove all charge tokens from this and gain that much $.'
-            ],
-            transform: function (state, card) { return function (state) {
-                return __awaiter(this, void 0, void 0, function () {
-                    var n, m;
-                    return __generator(this, function (_a) {
-                        switch (_a.label) {
-                            case 0:
-                                n = state.find(card).charge;
-                                m = state.coin;
-                                if (!(m == 0)) return [3 /*break*/, 3];
-                                return [4 /*yield*/, discharge(card, n)(state)];
-                            case 1:
-                                state = _a.sent();
-                                return [4 /*yield*/, gainCoins(n)(state)];
-                            case 2:
-                                state = _a.sent();
-                                return [2 /*return*/, state];
-                            case 3: return [4 /*yield*/, gainCoins(-m)(state)];
-                            case 4:
-                                state = _a.sent();
-                                return [4 /*yield*/, charge(card, m)(state)];
-                            case 5:
-                                state = _a.sent();
-                                return [2 /*return*/, state];
-                        }
-                    });
-                });
-            }; }
+var coffers = { name: 'Coffers', restrictions: [{
+            text: undefined,
+            test: function (c, s, k) { return k == 'use'; }
+        }],
+    staticReplacers: [{
+            text: "You can't lose $ (other than by paying costs).",
+            kind: 'resource',
+            handles: function (p) { return p.amount < 0 && p.resource == 'coin'; },
+            replace: function (p) { return (__assign(__assign({}, p), { amount: 0 })); }
         }]
 };
 registerEvent(coffers);
@@ -3528,40 +3502,39 @@ const mobilization:CardSpec = {name: 'Mobilization',
 }
 registerEvent(mobilization)
 */
-var stables = { name: 'Stables', effects: [{
-            text: [
-                'If you have any actions, lose them all and put that many charge tokens on this.',
-                'Otherwise, remove all charge tokens from this and gain that many actions.'
-            ],
-            transform: function (state, card) { return function (state) {
-                return __awaiter(this, void 0, void 0, function () {
-                    var n, m;
-                    return __generator(this, function (_a) {
-                        switch (_a.label) {
-                            case 0:
-                                n = state.find(card).charge;
-                                m = state.actions;
-                                if (!(m == 0)) return [3 /*break*/, 3];
-                                return [4 /*yield*/, discharge(card, n)(state)];
-                            case 1:
-                                state = _a.sent();
-                                return [4 /*yield*/, gainActions(n)(state)];
-                            case 2:
-                                state = _a.sent();
-                                return [2 /*return*/, state];
-                            case 3: return [4 /*yield*/, gainActions(-m)(state)];
-                            case 4:
-                                state = _a.sent();
-                                return [4 /*yield*/, charge(card, m)(state)];
-                            case 5:
-                                state = _a.sent();
-                                return [2 /*return*/, state];
-                        }
-                    });
-                });
-            }; }
+var stables = { name: 'Stables', restrictions: [{
+            text: undefined,
+            test: function (c, s, k) { return k == 'use'; }
+        }],
+    staticReplacers: [{
+            text: "You can't lose actions (other than by paying costs).",
+            kind: 'resource',
+            handles: function (p) { return p.amount < 0 && p.resource == 'actions'; },
+            replace: function (p) { return (__assign(__assign({}, p), { amount: 0 })); }
         }]
 };
+/*
+    effects: [{
+        text: [
+            'If you have any actions, lose them all and put that many charge tokens on this.',
+            'Otherwise, remove all charge tokens from this and gain that many actions.'
+        ],
+        transform: (state, card) => async function(state) {
+            const n = state.find(card).charge
+            const m = state.actions
+            if (m==0) {
+                state = await discharge(card, n)(state)
+                state = await gainActions(n)(state)
+                return state
+            } else {
+                state = await gainActions(-m)(state)
+                state = await charge(card, m)(state)
+                return state
+            }
+        }
+    }]
+}
+*/
 registerEvent(stables);
 function recycleEffect() {
     return {
@@ -3811,7 +3784,7 @@ var market = {
     name: 'Market',
     effects: [actionsEffect(1), coinsEffect(1), buyEffect()],
 };
-buyable(market, 4);
+buyable(market, 3);
 var focus = { name: 'Focus',
     fixedCost: energy(1),
     effects: [buyEffect(), actionsEffect(1)],
@@ -4027,8 +4000,14 @@ const inflation:CardSpec = {name: 'Inflation',
 registerEvent(inflation)
 */
 var inflation = { name: 'Inflation',
-    fixedCost: energy(5),
-    effects: [setCoinEffect(15), setBuyEffect(5), incrementCost()], staticReplacers: [{
+    fixedCost: energy(5), effects: [{
+            text: ["Lose all $ and buys."],
+            transform: function () { return doAll([setResource('coin', 0), setResource('buys', 0)]); }
+        }, {
+            text: ['+$15, +5 buys.'],
+            transform: function () { return doAll([gainCoins(15), gainBuys(5)]); }
+        }, incrementCost()],
+    staticReplacers: [{
             text: "Cards cost $1 more to buy for each cost token on this.",
             kind: 'cost',
             handles: function (p, state) { return p.actionKind == 'buy'; },
@@ -4240,12 +4219,12 @@ var dragon = { name: 'Dragon', effects: [targetedEffect(function (c) { return tr
 var egg = { name: 'Egg',
     fixedCost: energy(0),
     relatedCards: [dragon], effects: [actionsEffect(1), chargeEffect(), {
-            text: ["If this has three or more charge tokens on it, remove them \n        and create " + a(dragon.name) + " in your hand."],
+            text: ["If this has three or more charge tokens on it, trash it \n        and create " + a(dragon.name) + " in your hand."],
             transform: function (state, card) {
                 var c = state.find(card);
                 return (c.charge >= 3)
                     ? doAll([
-                        removeToken(c, 'charge', 'all'),
+                        trash(c),
                         create(dragon, 'hand')
                     ]) : noop;
             }
@@ -4371,14 +4350,8 @@ var traveler = {
 buyable(traveler, 7, { replacers: [startsWithCharge(traveler.name, 1)] });
 var fountain = {
     name: 'Fountain',
-    fixedCost: energy(1),
-    effects: [{
-            text: ["Lose all actions and $."],
-            transform: function (state, card) { return doAll([
-                setResource('coin', 0),
-                setResource('actions', 0)
-            ]); }
-        }, actionsEffect(7)]
+    fixedCost: energy(0),
+    effects: [refreshEffect(5, false)],
 };
 buyable(fountain, 4);
 /*
@@ -4968,7 +4941,7 @@ var commerce = {
     name: 'Commerce',
     fixedCost: energy(1),
     effects: [{
-            text: ["Lose all $.", "Put a charge token on this for each $ lost."],
+            text: ["Pay all $.", "Put a charge token on this for each $ paid."],
             transform: function (state, card) { return function (state) {
                 return __awaiter(this, void 0, void 0, function () {
                     var n;
@@ -4976,7 +4949,7 @@ var commerce = {
                         switch (_a.label) {
                             case 0:
                                 n = state.coin;
-                                return [4 /*yield*/, setResource('coin', 0)(state)];
+                                return [4 /*yield*/, payCost(__assign(__assign({}, free), { coin: n }))(state)];
                             case 1:
                                 state = _a.sent();
                                 return [4 /*yield*/, charge(card, n)(state)];
