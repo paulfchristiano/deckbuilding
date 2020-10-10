@@ -1,4 +1,4 @@
-export const VERSION = "1.7.2"
+export const VERSION = "1.7.3"
 
 // ----------------------------- Formatting
 
@@ -2580,8 +2580,8 @@ const unearth:CardSpec = {name: Unearth,
 buyable(unearth, 4)
 
 const celebration:CardSpec = {name: 'Celebration',
-    fixedCost: energy(2),
-    effects: [actionsEffect(4), toPlay()],
+    fixedCost: energy(1),
+    effects: [toPlay()],
     replacers: [costReduce('play', {energy:1})]
 }
 buyable(celebration, 8, {replacers: [{
@@ -2852,6 +2852,25 @@ const territory:CardSpec = {name: 'Territory',
 buyable(territory, 5)
 */
 
+const vault:CardSpec = {name: 'Vault',
+    restrictions: [{
+        text: undefined,
+        test: (c:Card, s:State, k:ActionKind) => k == 'use'
+    }],
+    staticReplacers: [{
+        text: `You can't lose actions, $, or buys (other than by paying costs).`,
+        kind: 'resource',
+        handles: p => p.amount < 0 && (
+            p.resource == 'coin' ||
+            p.resource == 'actions' ||
+            p.resource == 'buys'
+        ),
+        replace: p => ({...p, amount:0})
+    }]
+}
+registerEvent(vault)
+
+/*
 const coffers:CardSpec = {name: 'Coffers',
     restrictions: [{
         text: undefined,
@@ -2865,6 +2884,7 @@ const coffers:CardSpec = {name: 'Coffers',
 	}]
 }
 registerEvent(coffers)
+*/
 
 const vibrantCity:CardSpec = {name: 'Vibrant City',
     effects: [pointsEffect(1), actionsEffect(1)],
@@ -3014,6 +3034,13 @@ const mobilization:CardSpec = {name: 'Mobilization',
 registerEvent(mobilization)
 */
 
+const toil:CardSpec = {name:'Toil',
+    fixedCost: energy(1),
+    effects: [createInPlayEffect(villager, 3)]
+}
+registerEvent(toil)
+
+/*
 const stables:CardSpec = {name: 'Stables',
     restrictions: [{
         text: undefined,
@@ -3026,6 +3053,8 @@ const stables:CardSpec = {name: 'Stables',
 		replace: p => ({...p, amount:0})
 	}]
 }
+registerEvent(stables)
+*/
 /*
     effects: [{
         text: [
@@ -3048,7 +3077,6 @@ const stables:CardSpec = {name: 'Stables',
     }]
 }
 */
-registerEvent(stables)
 
 function recycleEffect(): Effect {
     return {
@@ -3437,20 +3465,21 @@ const gardens:CardSpec = {name: "Gardens",
 buyable(gardens, 4)
 
 const decay:CardSpec = {name: 'Decay',
-    fixedCost: coin(3),
-    effects: [{
-        text: ['Remove a decay token from each card.'],
-        transform: state => doAll(
-            state.discard.concat(state.play).concat(state.hand).
-            map(x => removeToken(x, 'decay'))
+    fixedCost: coin(1),
+    effects: [
+        targetedEffect(
+            target => removeToken(target, 'decay'),
+            'Remove a decay token from a card.',
+            s => s.hand.concat(s.play).concat(s.discard)
         )
-    }],
+    ],
     staticTriggers: [{
-        text: 'Whenever you move a card to your hand, if it has 3 or more decay tokens on it trash it,'+
-            ' otherwise put a decay token on it.',
+        text: `Whenever you move a card to your hand,
+            if it has two or more decay tokens on it trash it,
+            otherwise put a decay token on it.`,
         kind: 'move',
         handles: e => e.toZone == 'hand',
-        transform: e => (e.card.count('decay') >= 3) ?
+        transform: e => (e.card.count('decay') >= 2) ?
             trash(e.card) : addToken(e.card, 'decay')
     }]
 }
@@ -3742,15 +3771,16 @@ function unchargeOnMove(): Replacer<MoveParams> {
 
 const recruitment:CardSpec = {
     name: 'Recruitment',
-    relatedCards: [villager],
+    relatedCards: [villager, fair],
     effects: [actionsEffect(1), toPlay()],
     triggers: [{
-        text: `Whenever you pay @, create that many ${villager.name}s in play.`,
+        text: `Whenever you pay @,
+               create that many ${villager.name}s and ${fair.name}s in play.`,
         kind: 'cost',
         handles: (e, state, card) => e.cost.energy > 0,
-        transform: (e, state, card) => repeat(
-            create(villager, 'play'), e.cost.energy
-        )
+        transform: (e, state, card) => doAll([villager, fair].map(
+            c => repeat(create(c, 'play'), e.cost.energy)
+        ))
     }]
 }
 buyable(recruitment, 3)
@@ -3981,7 +4011,7 @@ const grandMarket:CardSpec = {
     */
     effects: [coinsEffect(2), actionsEffect(1), buyEffect()],
 }
-buyable(grandMarket, 6)
+buyable(grandMarket, 5)
 
 /*
 const greatHearth:CardSpec = {
@@ -4064,7 +4094,7 @@ buyable(flourishing, 2)
 */
 const artificer:CardSpec = {
     name: 'Artificer',
-    effects: [actionsEffect(1), {
+    effects: [{
         text: [`Discard any number of cards.`,
         `Choose a card in the supply costing $1 per card you discarded,
         and create a copy in your hand.`],
@@ -4087,7 +4117,7 @@ const artificer:CardSpec = {
 
     }]
 }
-buyable(artificer, 5)
+buyable(artificer, 3)
 
 const banquet:CardSpec = {
     name: 'Banquet',
