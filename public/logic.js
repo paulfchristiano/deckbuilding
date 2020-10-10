@@ -3933,7 +3933,7 @@ registerEvent(onslaught);
 //TODO: link these together, modules in general?
 var colony = { name: 'Colony',
     fixedCost: energy(1),
-    effects: [pointsEffect(5)],
+    effects: [pointsEffect(6)],
 };
 buyable(colony, 16);
 var platinum = { name: "Platinum",
@@ -4321,7 +4321,7 @@ var palace = { name: 'Palace',
     fixedCost: energy(1),
     effects: [actionsEffect(3), pointsEffect(3), coinsEffect(3)]
 };
-buyable(palace, 10);
+buyable(palace, 9);
 var Innovation = 'Innovation';
 var innovation = { name: Innovation,
     effects: [actionsEffect(1), toPlay()],

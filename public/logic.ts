@@ -3409,7 +3409,7 @@ registerEvent(onslaught)
 
 const colony:CardSpec = {name: 'Colony',
     fixedCost: energy(1),
-    effects: [pointsEffect(5)],
+    effects: [pointsEffect(6)],
 }
 buyable(colony, 16)
 
@@ -3827,7 +3827,7 @@ const palace:CardSpec = {name: 'Palace',
     fixedCost: energy(1),
     effects: [actionsEffect(3), pointsEffect(3), coinsEffect(3)]
 }
-buyable(palace, 10)
+buyable(palace, 9)
 
 const Innovation:string = 'Innovation'
 const innovation:CardSpec = {name: Innovation,
