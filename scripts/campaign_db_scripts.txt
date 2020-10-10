@@ -2,7 +2,6 @@
 
 DELETE FROM campaign_requirements;
 DELETE FROM campaign_awards;
-DELETE FROM campaign_scores;
 DELETE FROM campaign_levels;
 
 /* ----------------- Campaign definition */
@@ -152,6 +151,23 @@ INSERT INTO campaign_requirements(destination, req) VALUES
 ('BUY/PLAY', 'BUY'), ('BUY/PLAY', 'PLAY'),
 ('DIG/GROW', 'DIG'), ('DIG/GROW', 'GROW'),
 ('PLAY/BIG', 'PLAY'), ('PLAY/BIG', 'BIG');
+
+/* Big games */
+
+### those are buggy, and need to do G4-G10
+INSERT INTO campaign_levels (key, url, points_required) VALUES
+('G1',
+'kind=pick&cards=Composting,Echo,Gardens,Haggler,Herbs,Homesteading,Imitation,PublicWorks,ShippingLane,Village&events=Finance,Mire,Synergy,Twin'
+20),
+('G2',
+'kind=pick&cards=Composting,Fortune,Fountain,GreatSmithy,Hireling,Homesteading,Palace,Platinum,Turnpike,Workshop&events=Duplicate,Philanthropy,Prioritize,Reverberate'
+25),
+('G3',
+'play?kind=pick&cards=Duke,Fortune,GrandMarket,Hireling,Imitation,Innovation,Mastermind,Sacrifice,ThroneRoom,Tinkerer&events=Coffers,Mire,Parallelize,Populate',
+30),
+
+
+
 
 /* Subsets */
 

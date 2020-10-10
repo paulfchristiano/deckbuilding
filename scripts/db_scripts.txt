@@ -1,5 +1,9 @@
 ##### campaign migrations
 
+### alter campaign_scores to not use a foreign key
+
+ALTER TABLE campaign_scores DROP CONSTRAINT campaign_scores_level_fkey;
+
 ### tables
 
 CREATE TABLE campaign_levels (
