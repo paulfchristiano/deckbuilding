@@ -3091,7 +3091,10 @@ var plow = { name: Plow,
     fixedCost: energy(1),
     effects: [{
             text: ["Put all non-" + Plow + " cards from your discard into your hand."],
-            transform: function (state) { return moveMany(state.discard.filter(function (c) { return c.name != Plow; }), 'hand'); }
+            transform: function (state) { return doAll([
+                moveMany(state.discard.filter(function (c) { return c.name != Plow; }), 'hand'),
+                sortHand
+            ]); }
         }]
 };
 buyable(plow, 4);
@@ -3338,9 +3341,21 @@ var finance = { name: 'Finance',
     effects: [actionsEffect(1)],
 };
 registerEvent(finance);
+/*
+const Orchard = 'Orchard'
+const orchard:CardSpec = {
+    name: Orchard,
+    effects: [targetedEffect(
+        (target, card) => target.buy(card),
+        `Buy ${a(Orchard)} in the supply.`,
+        state => state.supply.filter(c => c.name == Orchard)
+    )]
+}
+buyable(orchard, 2, {onBuy: [pointsEffect(1)]})
+*/
 var flowerMarket = {
     name: 'Flower Market',
-    effects: [buyEffect(), pointsEffect(1)],
+    effects: [buyEffect(), pointsEffect(1)]
 };
 buyable(flowerMarket, 2, { onBuy: [pointsEffect(1)] });
 /*
@@ -3383,7 +3398,7 @@ registerEvent(coffers)
 var vibrantCity = { name: 'Vibrant City',
     effects: [pointsEffect(1), actionsEffect(1)],
 };
-buyable(vibrantCity, 4);
+buyable(vibrantCity, 3);
 function chargeUpTo(max) {
     return {
         text: ["Put a charge token on this if it has less than " + max + "."],
@@ -3640,28 +3655,26 @@ var tinkerer = { name: 'Tinkerer',
                             case 3:
                                 state = _b.sent();
                                 _b.label = 4;
-                            case 4:
-                                console.log(m);
-                                return [2 /*return*/, state
-                                    /*
-                                    for (let i = 0; i < n; i++) {
-                                        let mode:string|null; [state, mode] = await choice(
-                                            state,
-                                            `Choose a benefit (${n - i} remaining)`,
-                                            literalOptions(['action', 'coin'], ['a', 'c'])
-                                        )
-                                        switch(mode) {
-                                            case 'coin':
-                                                state = await gainCoins(1, card)(state)
-                                                break
-                                            case 'action':
-                                                state = await gainActions(1, card)(state)
-                                                break
-                                        }
+                            case 4: return [2 /*return*/, state
+                                /*
+                                for (let i = 0; i < n; i++) {
+                                    let mode:string|null; [state, mode] = await choice(
+                                        state,
+                                        `Choose a benefit (${n - i} remaining)`,
+                                        literalOptions(['action', 'coin'], ['a', 'c'])
+                                    )
+                                    switch(mode) {
+                                        case 'coin':
+                                            state = await gainCoins(1, card)(state)
+                                            break
+                                        case 'action':
+                                            state = await gainActions(1, card)(state)
+                                            break
                                     }
-                                    return state
-                                    */
-                                ];
+                                }
+                                return state
+                                */
+                            ];
                         }
                     });
                 });
@@ -4319,9 +4332,22 @@ var looter = { name: 'Looter',
 buyable(looter, 5);
 var palace = { name: 'Palace',
     fixedCost: energy(1),
-    effects: [actionsEffect(3), pointsEffect(3), coinsEffect(3)]
+    effects: [actionsEffect(2), pointsEffect(2), coinsEffect(2)]
 };
-buyable(palace, 9);
+buyable(palace, 5);
+/*
+const flourishing:CardSpec = {name: 'Flourishing',
+    fixedCost: energy(1),
+    effects: [pointsEffect(2), {
+        text: ['For each 3 vp you have, +1 action and +$1.'],
+        transform: s => doAll([
+            gainActions(Math.floor(s.points / 3)),
+            gainCoins(Math.floor(s.points / 3))
+        ])
+    }]
+}
+buyable(flourishing, 6)
+*/
 var Innovation = 'Innovation';
 var innovation = { name: Innovation,
     effects: [actionsEffect(1), toPlay()],

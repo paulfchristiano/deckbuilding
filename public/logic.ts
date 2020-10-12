@@ -2597,9 +2597,10 @@ const plow:CardSpec = {name: Plow,
     fixedCost: energy(1),
     effects: [{
         text: [`Put all non-${Plow} cards from your discard into your hand.`],
-        transform: state => moveMany(state.discard.filter(
-            c => c.name != Plow
-        ), 'hand')
+        transform: state => doAll([
+            moveMany(state.discard.filter(c => c.name != Plow), 'hand'),
+            sortHand
+        ])
     }]
 }
 buyable(plow, 4)
@@ -2839,11 +2840,25 @@ const finance:CardSpec = {name: 'Finance',
 }
 registerEvent(finance)
 
+/*
+const Orchard = 'Orchard'
+const orchard:CardSpec = {
+    name: Orchard,
+    effects: [targetedEffect(
+        (target, card) => target.buy(card),
+        `Buy ${a(Orchard)} in the supply.`,
+        state => state.supply.filter(c => c.name == Orchard)
+    )]
+}
+buyable(orchard, 2, {onBuy: [pointsEffect(1)]})
+*/
 const flowerMarket:CardSpec = {
     name: 'Flower Market',
-    effects: [buyEffect(), pointsEffect(1)],
+    effects: [buyEffect(), pointsEffect(1)]
 }
 buyable(flowerMarket, 2, {onBuy: [pointsEffect(1)]})
+
+
 /*
 const territory:CardSpec = {name: 'Territory',
     fixedCost: energy(1),
@@ -2889,7 +2904,7 @@ registerEvent(coffers)
 const vibrantCity:CardSpec = {name: 'Vibrant City',
     effects: [pointsEffect(1), actionsEffect(1)],
 }
-buyable(vibrantCity, 4)
+buyable(vibrantCity, 3)
 
 function chargeUpTo(max:number): Effect {
     return {
@@ -3139,7 +3154,6 @@ const tinkerer:CardSpec = {name: 'Tinkerer',
                 state = await gainActions(m, card)(state)
                 state = await gainCoins(n-m, card)(state)
             }
-            console.log(m)
             return state
             /*
             for (let i = 0; i < n; i++) {
@@ -3825,9 +3839,22 @@ buyable(looter, 5)
 
 const palace:CardSpec = {name: 'Palace',
     fixedCost: energy(1),
-    effects: [actionsEffect(3), pointsEffect(3), coinsEffect(3)]
+    effects: [actionsEffect(2), pointsEffect(2), coinsEffect(2)]
 }
-buyable(palace, 9)
+buyable(palace, 5)
+/*
+const flourishing:CardSpec = {name: 'Flourishing',
+    fixedCost: energy(1),
+    effects: [pointsEffect(2), {
+        text: ['For each 3 vp you have, +1 action and +$1.'],
+        transform: s => doAll([
+            gainActions(Math.floor(s.points / 3)),
+            gainCoins(Math.floor(s.points / 3))
+        ])
+    }]
+}
+buyable(flourishing, 6)
+*/
 
 const Innovation:string = 'Innovation'
 const innovation:CardSpec = {name: Innovation,
