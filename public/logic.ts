@@ -1,4 +1,4 @@
-export const VERSION = "1.7.2"
+export const VERSION = "1.7.3"
 
 // ----------------------------- Formatting
 
@@ -2580,8 +2580,8 @@ const unearth:CardSpec = {name: Unearth,
 buyable(unearth, 4)
 
 const celebration:CardSpec = {name: 'Celebration',
-    fixedCost: energy(2),
-    effects: [actionsEffect(4), toPlay()],
+    fixedCost: energy(1),
+    effects: [toPlay()],
     replacers: [costReduce('play', {energy:1})]
 }
 buyable(celebration, 8, {replacers: [{
@@ -2597,9 +2597,10 @@ const plow:CardSpec = {name: Plow,
     fixedCost: energy(1),
     effects: [{
         text: [`Put all non-${Plow} cards from your discard into your hand.`],
-        transform: state => moveMany(state.discard.filter(
-            c => c.name != Plow
-        ), 'hand')
+        transform: state => doAll([
+            moveMany(state.discard.filter(c => c.name != Plow), 'hand'),
+            sortHand
+        ])
     }]
 }
 buyable(plow, 4)
@@ -2839,11 +2840,25 @@ const finance:CardSpec = {name: 'Finance',
 }
 registerEvent(finance)
 
+/*
+const Orchard = 'Orchard'
+const orchard:CardSpec = {
+    name: Orchard,
+    effects: [targetedEffect(
+        (target, card) => target.buy(card),
+        `Buy ${a(Orchard)} in the supply.`,
+        state => state.supply.filter(c => c.name == Orchard)
+    )]
+}
+buyable(orchard, 2, {onBuy: [pointsEffect(1)]})
+*/
 const flowerMarket:CardSpec = {
     name: 'Flower Market',
-    effects: [buyEffect(), pointsEffect(1)],
+    effects: [buyEffect(), pointsEffect(1)]
 }
 buyable(flowerMarket, 2, {onBuy: [pointsEffect(1)]})
+
+
 /*
 const territory:CardSpec = {name: 'Territory',
     fixedCost: energy(1),
@@ -2852,6 +2867,25 @@ const territory:CardSpec = {name: 'Territory',
 buyable(territory, 5)
 */
 
+const vault:CardSpec = {name: 'Vault',
+    restrictions: [{
+        text: undefined,
+        test: (c:Card, s:State, k:ActionKind) => k == 'use'
+    }],
+    staticReplacers: [{
+        text: `You can't lose actions, $, or buys (other than by paying costs).`,
+        kind: 'resource',
+        handles: p => p.amount < 0 && (
+            p.resource == 'coin' ||
+            p.resource == 'actions' ||
+            p.resource == 'buys'
+        ),
+        replace: p => ({...p, amount:0})
+    }]
+}
+registerEvent(vault)
+
+/*
 const coffers:CardSpec = {name: 'Coffers',
     restrictions: [{
         text: undefined,
@@ -2865,11 +2899,12 @@ const coffers:CardSpec = {name: 'Coffers',
 	}]
 }
 registerEvent(coffers)
+*/
 
 const vibrantCity:CardSpec = {name: 'Vibrant City',
     effects: [pointsEffect(1), actionsEffect(1)],
 }
-buyable(vibrantCity, 4)
+buyable(vibrantCity, 3)
 
 function chargeUpTo(max:number): Effect {
     return {
@@ -3014,6 +3049,13 @@ const mobilization:CardSpec = {name: 'Mobilization',
 registerEvent(mobilization)
 */
 
+const toil:CardSpec = {name:'Toil',
+    fixedCost: energy(1),
+    effects: [createInPlayEffect(villager, 3)]
+}
+registerEvent(toil)
+
+/*
 const stables:CardSpec = {name: 'Stables',
     restrictions: [{
         text: undefined,
@@ -3026,6 +3068,8 @@ const stables:CardSpec = {name: 'Stables',
 		replace: p => ({...p, amount:0})
 	}]
 }
+registerEvent(stables)
+*/
 /*
     effects: [{
         text: [
@@ -3048,7 +3092,6 @@ const stables:CardSpec = {name: 'Stables',
     }]
 }
 */
-registerEvent(stables)
 
 function recycleEffect(): Effect {
     return {
@@ -3111,7 +3154,6 @@ const tinkerer:CardSpec = {name: 'Tinkerer',
                 state = await gainActions(m, card)(state)
                 state = await gainCoins(n-m, card)(state)
             }
-            console.log(m)
             return state
             /*
             for (let i = 0; i < n; i++) {
@@ -3381,7 +3423,7 @@ registerEvent(onslaught)
 
 const colony:CardSpec = {name: 'Colony',
     fixedCost: energy(1),
-    effects: [pointsEffect(5)],
+    effects: [pointsEffect(6)],
 }
 buyable(colony, 16)
 
@@ -3437,20 +3479,21 @@ const gardens:CardSpec = {name: "Gardens",
 buyable(gardens, 4)
 
 const decay:CardSpec = {name: 'Decay',
-    fixedCost: coin(3),
-    effects: [{
-        text: ['Remove a decay token from each card.'],
-        transform: state => doAll(
-            state.discard.concat(state.play).concat(state.hand).
-            map(x => removeToken(x, 'decay'))
+    fixedCost: coin(1),
+    effects: [
+        targetedEffect(
+            target => removeToken(target, 'decay'),
+            'Remove a decay token from a card.',
+            s => s.hand.concat(s.play).concat(s.discard)
         )
-    }],
+    ],
     staticTriggers: [{
-        text: 'Whenever you move a card to your hand, if it has 3 or more decay tokens on it trash it,'+
-            ' otherwise put a decay token on it.',
+        text: `Whenever you move a card to your hand,
+            if it has two or more decay tokens on it trash it,
+            otherwise put a decay token on it.`,
         kind: 'move',
         handles: e => e.toZone == 'hand',
-        transform: e => (e.card.count('decay') >= 3) ?
+        transform: e => (e.card.count('decay') >= 2) ?
             trash(e.card) : addToken(e.card, 'decay')
     }]
 }
@@ -3742,15 +3785,16 @@ function unchargeOnMove(): Replacer<MoveParams> {
 
 const recruitment:CardSpec = {
     name: 'Recruitment',
-    relatedCards: [villager],
+    relatedCards: [villager, fair],
     effects: [actionsEffect(1), toPlay()],
     triggers: [{
-        text: `Whenever you pay @, create that many ${villager.name}s in play.`,
+        text: `Whenever you pay @,
+               create that many ${villager.name}s and ${fair.name}s in play.`,
         kind: 'cost',
         handles: (e, state, card) => e.cost.energy > 0,
-        transform: (e, state, card) => repeat(
-            create(villager, 'play'), e.cost.energy
-        )
+        transform: (e, state, card) => doAll([villager, fair].map(
+            c => repeat(create(c, 'play'), e.cost.energy)
+        ))
     }]
 }
 buyable(recruitment, 3)
@@ -3795,9 +3839,22 @@ buyable(looter, 5)
 
 const palace:CardSpec = {name: 'Palace',
     fixedCost: energy(1),
-    effects: [actionsEffect(3), pointsEffect(3), coinsEffect(3)]
+    effects: [actionsEffect(2), pointsEffect(2), coinsEffect(2)]
 }
-buyable(palace, 10)
+buyable(palace, 5)
+/*
+const flourishing:CardSpec = {name: 'Flourishing',
+    fixedCost: energy(1),
+    effects: [pointsEffect(2), {
+        text: ['For each 3 vp you have, +1 action and +$1.'],
+        transform: s => doAll([
+            gainActions(Math.floor(s.points / 3)),
+            gainCoins(Math.floor(s.points / 3))
+        ])
+    }]
+}
+buyable(flourishing, 6)
+*/
 
 const Innovation:string = 'Innovation'
 const innovation:CardSpec = {name: Innovation,
@@ -3981,7 +4038,7 @@ const grandMarket:CardSpec = {
     */
     effects: [coinsEffect(2), actionsEffect(1), buyEffect()],
 }
-buyable(grandMarket, 6)
+buyable(grandMarket, 5)
 
 /*
 const greatHearth:CardSpec = {
@@ -4064,7 +4121,7 @@ buyable(flourishing, 2)
 */
 const artificer:CardSpec = {
     name: 'Artificer',
-    effects: [actionsEffect(1), {
+    effects: [{
         text: [`Discard any number of cards.`,
         `Choose a card in the supply costing $1 per card you discarded,
         and create a copy in your hand.`],
@@ -4087,7 +4144,7 @@ const artificer:CardSpec = {
 
     }]
 }
-buyable(artificer, 5)
+buyable(artificer, 3)
 
 const banquet:CardSpec = {
     name: 'Banquet',
