@@ -85,7 +85,7 @@ var __read = (this && this.__read) || function (o, n) {
     }
     return ar;
 };
-export var VERSION = "1.7.3";
+export var VERSION = "1.7.4";
 // ----------------------------- Formatting
 export function renderCost(cost, full) {
     var e_1, _a;
@@ -2596,8 +2596,17 @@ function supplyForCard(card, cost, extra) {
         //TODO: this is pretty sketchy...
         text: "When you buy this, " + t.text.map(lowercaseFirst).join(', '),
     }); });
-    var triggers = buyTriggers;
-    return __assign(__assign({}, card), { buyCost: cost, staticTriggers: triggers.concat(extra.triggers || []), staticReplacers: extra.replacers });
+    var afterTriggers = (extra.afterBuy || []).map(function (t) { return ({
+        kind: 'afterBuy',
+        handles: function (e, s, c) { return e.card.name == c.name; },
+        transform: function (e, s, c) { return t.transform(s, c); },
+        //TODO: this is pretty sketchy...
+        text: "After buying this, " + t.text.map(lowercaseFirst).join(', '),
+    }); });
+    var triggers = buyTriggers
+        .concat(afterTriggers)
+        .concat(extra.triggers || []);
+    return __assign(__assign({}, card), { buyCost: cost, staticTriggers: triggers, staticReplacers: extra.replacers });
 }
 function energy(n) {
     return __assign(__assign({}, free), { energy: n });
@@ -3009,7 +3018,7 @@ var bridge = { name: 'Bridge',
     replacers: [costReduce('buy', { coin: 1 }, true)]
 };
 buyable(bridge, 4);
-var coven = { name: 'Coven',
+var conclave = { name: 'Conclave',
     effects: [toPlay()],
     replacers: [{
             text: "Cards you play cost @ less if they don't share a name\n               with a card in your discard or in play.\n               Whenever this reduces a cost, discard it and +$2.",
@@ -3030,7 +3039,7 @@ var coven = { name: 'Coven',
             }
         }]
 };
-buyable(coven, 4);
+buyable(conclave, 4);
 var lab = { name: 'Lab',
     effects: [actionsEffect(2)]
 };
@@ -3706,7 +3715,7 @@ var lackeys = { name: 'Lackeys',
     effects: [actionsEffect(3)],
     relatedCards: [villager],
 };
-buyable(lackeys, 3, { onBuy: [createInPlayEffect(villager)] });
+buyable(lackeys, 3, { onBuy: [createInPlayEffect(villager, 1)] });
 var goldMine = { name: 'Gold Mine',
     fixedCost: energy(1),
     effects: [{
@@ -3736,7 +3745,7 @@ var expedite = {
     fixedCost: energy(1),
     effects: [targetedEffect(function (card) { return addToken(card, 'expedite', 1); }, 'Put an expedite token on a card in the supply.', function (state) { return state.supply; })],
     staticTriggers: [{
-            text: "Whenever you create a card with the same name\n            as a card in the supply with an expedite token,\n            remove an expedite token to play the card.",
+            text: "Whenever you create a card whose supply has an expedite token,\n               remove an expedite token to play the card.",
             kind: 'create',
             handles: function (e, state) { return nameHasToken(e.card, 'expedite', state); },
             transform: function (e, state, card) { return payToDo(applyToTarget(function (target) { return removeToken(target, 'expedite', 1, true); }, 'Remove an expedite token.', function (s) { return s.supply.filter(function (target) { return target.name == e.card.name; }); }, { cost: true }), e.card.play(card)); }
@@ -4089,14 +4098,14 @@ registerEvent(inflation);
 var burden = { name: 'Burden',
     fixedCost: energy(1),
     effects: [{
-            text: ['Remove a burden token from each card in the supply.'],
+            text: ['Remove a burden token from each supply.'],
             transform: function (state) { return doAll(state.supply.map(function (c) { return removeToken(c, 'burden'); })); }
         }],
     staticTriggers: [{
-            text: 'Whenever you buy a card in the supply, put a burden token on it.',
-            kind: 'buy',
-            handles: function (e, state) { return (state.find(e.card).place == 'supply'); },
-            transform: function (e) { return addToken(e.card, 'burden'); }
+            text: 'Whenever you create a card, put a burden token on its supply.',
+            kind: 'create',
+            handles: function (e, state) { return true; },
+            transform: function (e, state) { return doAll(state.supply.filter(function (c) { return c.name == e.card.name; }).map(function (c) { return addToken(c, 'burden'); })); }
         }],
     staticReplacers: [{
             kind: 'cost',
@@ -4530,14 +4539,14 @@ var lostArts = {
             });
         }; }, "Put eight art tokens on a card in the supply.\n        Remove all art tokens from other cards in the supply.", function (s) { return s.supply; })],
     staticReplacers: [{
-            text: "Cards you play cost @ less for each art token on a card\n               in the supply with the same name.\n               Whenever this reduces a cost by one or more @,\n               remove that many art tokens.",
+            text: "Cards you play cost @ less for each art token on their supply.\n               Whenever this reduces a cost by one or more @,\n               remove that many art tokens.",
             kind: 'cost',
             handles: function (x, state, card) { return (x.actionKind == 'play')
                 && nameHasToken(x.card, 'art', state); },
             replace: function (x, state, card) {
                 card = state.find(card);
                 var reduction = Math.min(x.cost.energy, countNameTokens(x.card, 'art', state));
-                return __assign(__assign({}, x), { cost: __assign(__assign({}, x.cost), { energy: x.cost.energy - reduction, effects: x.cost.effects.concat([repeat(applyToTarget(function (target) { return removeToken(target, 'art'); }, 'Remove an art token for a supply pile.', function (state) { return state.supply.filter(function (c) { return c.name == x.card.name && c.count('art') > 0; }); }), reduction)]) }) });
+                return __assign(__assign({}, x), { cost: __assign(__assign({}, x.cost), { energy: x.cost.energy - reduction, effects: x.cost.effects.concat([repeat(applyToTarget(function (target) { return removeToken(target, 'art'); }, 'Remove an art token from a supply.', function (state) { return state.supply.filter(function (c) { return c.name == x.card.name && c.count('art') > 0; }); }), reduction)]) }) });
             }
         }]
 };
@@ -5122,7 +5131,7 @@ var prioritize = {
     fixedCost: __assign(__assign({}, free), { energy: 1, coin: 3 }),
     effects: [targetedEffect(function (card) { return addToken(card, 'priority', 6); }, 'Put six priority tokens on a card in the supply.', function (state) { return state.supply; })],
     staticTriggers: [{
-            text: "Whenever you create a card with the same name\n            as a card in the supply with a priority token,\n            remove a priority token to play the card.",
+            text: "Whenever you create a card whose supply\n            has a priority token,\n            remove a priority token to play the card.",
             kind: 'create',
             handles: function (e, state) { return nameHasToken(e.card, 'priority', state); },
             transform: function (e, state, card) { return payToDo(applyToTarget(function (target) { return removeToken(target, 'priority', 1, true); }, 'Remove a priority token.', function (s) { return s.supply.filter(function (target) { return target.name == e.card.name; }); }, { cost: true }), e.card.play(card)); }
@@ -5193,7 +5202,7 @@ var pathfinding = {
     effects: [removeAllSupplyTokens('pathfinding'), targetedEffect(function (target) { return addToken(target, 'pathfinding'); }, "Put a pathfinding token on a card in the supply other than Copper.", function (state) { return state.supply.filter(function (target) { return target.name != copper.name; }); })],
     staticTriggers: [{
             kind: 'play',
-            text: "Whenever you play a card that has the same name as a card in the supply\n        with a  pathfinding token on it, +1 action.",
+            text: "Whenever you play a card whose supply\n        has a  pathfinding token on it, +1 action.",
             handles: function (e, state) { return nameHasToken(e.card, 'pathfinding', state); },
             transform: function (e, state, card) { return gainActions(1, card); }
         }]
@@ -5209,7 +5218,7 @@ var fortune = {
             transform: function (state, card) { return gainBuys(state.buys); }
         }]
 };
-buyable(fortune, 12, { onBuy: [{ text: ['trash it from the supply.'], transform: function (s, c) { return trash(c); } }] });
+buyable(fortune, 12, { afterBuy: [{ text: ['trash it from the supply.'], transform: function (s, c) { return trash(c); } }] });
 // ------------------ Testing -------------------
 var freeMoney = { name: 'Free money',
     fixedCost: energy(0),
