@@ -62,7 +62,7 @@
                 <% if (r.history == '') { %>
                     <td>(hidden)</td>
                 <% } else if (version != currentVersion) { %>
-                    <td>(old)</td>
+                    <td><a href='play?<%= url %>#<%= r.history %>'>(old)</a></td>
                 <% } else { %>
                     <td><a href='play?<%= url %>#<%= r.history %>'>(link)</a></td>
                 <% } %>
