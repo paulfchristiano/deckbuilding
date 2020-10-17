@@ -4386,7 +4386,6 @@ buyable(innovation, 6, { triggers: [{
                 });
             }; }
         }] });
-//TODO test this and coven
 var formation = { name: 'Formation',
     effects: [toPlay()],
     replacers: [{
@@ -4578,13 +4577,21 @@ const greatHearth:CardSpec = {
 buyable(greatHearth, 3)
 */
 var Industry = 'Industry';
-function industryEffect(n) {
-    return targetedEffect(function (target, card) { return target.buy(card); }, "Buy a card in the supply costing up to $" + n + " not named " + Industry + ".", function (state) { return state.supply.filter(function (x) { return leq(x.cost('buy', state), coin(n)) && x.name != Industry; }); });
+function industryTransform(n, except) {
+    if (except === void 0) { except = Industry; }
+    return applyToTarget(function (target) { return target.buy(); }, "Buy a card in the supply costing up to $" + n + " not named " + except + ".", function (state) { return state.supply.filter(function (x) { return leq(x.cost('buy', state), coin(n)) && x.name != Industry; }); });
 }
 var industry = {
     name: Industry,
     fixedCost: energy(2),
-    effects: [industryEffect(8), tickEffect(), industryEffect(8)],
+    effects: [{
+            text: ["Do this twice: buy a card in the supply costing up to $8 other than " + Industry + "."],
+            transform: function (state, card) { return doAll([
+                industryTransform(8, Industry),
+                tick(card),
+                industryTransform(8, Industry)
+            ]); }
+        }]
 };
 buyable(industry, 6);
 var homesteading = {

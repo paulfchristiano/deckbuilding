@@ -3889,7 +3889,6 @@ buyable(innovation, 6, {triggers: [{
     }
 }]})
 
-//TODO test this and coven
 const formation:CardSpec = {name: 'Formation',
     effects: [toPlay()],
     replacers: [{
@@ -4066,10 +4065,10 @@ const greatHearth:CardSpec = {
 buyable(greatHearth, 3)
 */
 const Industry = 'Industry'
-function industryEffect(n:number):Effect {
-    return targetedEffect(
-        (target, card) => target.buy(card),
-        `Buy a card in the supply costing up to $${n} not named ${Industry}.`,
+function industryTransform(n:number, except:string=Industry):Transform{
+    return applyToTarget(
+        target => target.buy(),
+        `Buy a card in the supply costing up to $${n} not named ${except}.`,
         state => state.supply.filter(
             x => leq(x.cost('buy', state), coin(n)) && x.name != Industry
         )
@@ -4078,7 +4077,14 @@ function industryEffect(n:number):Effect {
 const industry:CardSpec = {
     name: Industry,
     fixedCost: energy(2),
-    effects: [industryEffect(8), tickEffect(), industryEffect(8)],
+    effects: [{
+        text: [`Do this twice: buy a card in the supply costing up to $8 other than ${Industry}.`],
+        transform: (state, card) => doAll([
+            industryTransform(8, Industry),
+            tick(card),
+            industryTransform(8, Industry)
+        ])
+    }]
 }
 buyable(industry, 6)
 
