@@ -262,8 +262,9 @@ function renderCard(
     state:State,
     zone:PlaceName,
     options:CardRenderOptions,
-    tokenRenderer:TokenRenderer
-):string {
+    tokenRenderer:TokenRenderer,
+    count:number=1,
+) {
     if (card instanceof Shadow) {
         return renderShadow(card, state, tokenRenderer)
     } else {
@@ -273,17 +274,22 @@ function renderCard(
             renderCost(card.cost('buy', state)) || '&nbsp' :
             renderCost(card.cost(costType, state)) || '&nbsp'
         const picktext:string = (options.pick !== undefined) ? `<div class='pickorder'>${options.pick+1}</div>` : ''
+        const counttext:string = (count != 1) ? `<div class='cardcount'>${count}</div>` : ''
         const chosenText:string = (options.pick !== undefined) ? 'true' : 'false'
         const choosetext:string = (options.option !== undefined)
-            ? `choosable chosen='${chosenText}' option=${options.option}`
+            ? `choosable chosen='${chosenText}'`
             : ''
         const hotkeytext:string = (options.hotkey !== undefined) ? renderHotkey(options.hotkey) : ''
         const ticktext:string = `tick=${card.ticks[card.ticks.length-1]}`
-        return `<div class='card' ${ticktext} ${choosetext}> ${picktext}
+        const result = $(`<div class='card' ${ticktext} ${choosetext}> ${picktext} ${counttext}
                     <div class='cardbody'>${hotkeytext} ${card}${tokenhtml}</div>
                     <div class='cardcost'>${costhtml}</div>
                     <span class='tooltip'>${renderTooltip(card, state, tokenRenderer)}</span>
-                </div>`
+                </div>`)
+        if (options.option !== undefined) {
+            result.click(options.option)
+        }
+        return result
     }
 }
 
@@ -357,7 +363,7 @@ function renderSpec(spec:CardSpec): string {
 
 
 interface CardRenderOptions {
-    option?: number;
+    option?: () => void;
     pick?: number;
     hotkey?: Key;
 }
@@ -368,7 +374,7 @@ function getIfDef<S, T>(m:Map<S, T>|undefined, x:S): T|undefined {
 
 interface RenderSettings {
     hotkeyMap?: Map<number|string, Key>;
-    optionsMap?: Map<number, number>;
+    optionsMap?: Map<number, ()=>void>;
     pickMap?: Map<number|string, number>;
     updateURL?: boolean;
 }
@@ -390,6 +396,7 @@ interface RendererState {
     viewingKingdom: boolean,
     viewingMacros: boolean,
     logType:LogType,
+    compress: {play: boolean, supply: boolean, events: boolean, hand: boolean, discard: boolean}
 }
 
 const globalRendererState:RendererState = {
@@ -400,7 +407,11 @@ const globalRendererState:RendererState = {
     hotkeyMapper: new HotkeyMapper(),
     tokenRenderer: new TokenRenderer(),
     logType:'energy',
+    compress: {play: false, supply: false, events: false, hand: false, discard: false}
 }
+
+type ZoneName = 'play' | 'supply' | 'events' | 'hand' | 'discard'
+const zoneNames:ZoneName[] = ['play', 'supply', 'events', 'hand', 'discard']
 
 function resetGlobalRenderer() {
     globalRendererState.hotkeyMapper = new HotkeyMapper()
@@ -412,24 +423,62 @@ function linkForState(state:State, campaign:boolean=false) {
     return `play?${cs}${specToURL(state.spec)}#${state.serializeHistory(false)}`
 }
 
+//Two maps should have the same sketch if the keys and values serialize the same
+function sketchMap<T>(x:Map<T, number>): string {
+    const kvs:string[] = [...x.entries()].map(kv => `${kv[0]}${kv[1]}`)
+    kvs.sort()
+    return kvs.join(',')
+}
+
+function renderZone(state:State, zone:ZoneName, settings:RenderSettings = {}) {
+    const e = $(`#${zone}`)
+    e.empty()
+    function render(card:Card, count:number=1) {
+        const cardRenderOptions:CardRenderOptions = {
+            option: getIfDef(settings.optionsMap, card.id),
+            hotkey: getIfDef(settings.hotkeyMap, card.id),
+            pick: getIfDef(settings.pickMap, card.id),
+        }
+        return renderCard(card, state, zone,
+            cardRenderOptions,
+            globalRendererState.tokenRenderer, count)
+    }
+    // two cards are rendered together in compress mode iff they have the same sketch
+    function sketch(card:Card) {
+        return card.name + sketchMap(card.tokens)
+    }
+    const cards:Card[] = state.zones.get(zone) || []
+    const compress:boolean = globalRendererState.compress[zone]
+    const sketches = cards.map(sketch)
+    if (compress) {
+        const seen:Set<string> = new Set()
+        const counts:Map<string, number> = new Map()
+        const distinctCards:Card[] = []
+        for (const card of cards) {
+            const s = sketch(card)
+            if (counts.get(s) === undefined) {
+                distinctCards.push(card)
+            }
+            counts.set(s, (counts.get(s) || 0) + 1)
+        }
+        const distinctCounts:number[] = distinctCards.map(c => counts.get(sketch(c)) || 0)
+        const rendered:string[] = []
+        for (const [i, card] of distinctCards.entries()) {
+            e.append(render(card, distinctCounts[i]))
+        }
+    } else {
+        for (const card of cards) {
+            e.append(render(card))
+        }
+    }
+}
+
 function renderState(
     state:State,
     settings:RenderSettings = {},
 ): void {
     window.renderedState = state
     clearChoice()
-    function render(zone:PlaceName) {
-        return function (card:Card|Shadow) {
-            const cardRenderOptions:CardRenderOptions = {
-                option: getIfDef(settings.optionsMap, card.id),
-                hotkey: getIfDef(settings.hotkeyMap, card.id),
-                pick: getIfDef(settings.pickMap, card.id),
-            }
-            return renderCard(card, state, zone,
-                cardRenderOptions,
-                globalRendererState.tokenRenderer)
-        }
-    }
     if (settings.updateURL === undefined || settings.updateURL) {
         globalRendererState.userURL = false
         window.history.replaceState(null, "", linkForState(state, isCampaign))
@@ -440,12 +489,21 @@ function renderState(
     $('#buys').html(state.buys.toString())
     $('#coin').html(state.coin.toString())
     $('#points').html(state.points.toString())
-    $('#resolving').html(state.resolving.map(render('resolving')).join(''))
-    $('#play').html(state.play.map(render('play')).join(''))
-    $('#supply').html(state.supply.map(render('supply')).join(''))
-    $('#events').html(state.events.map(render('events')).join(''))
-    $('#hand').html(state.hand.map(render('hand')).join(''))
-    $('#discard').html(state.discard.map(render('discard')).join(''))
+
+    $('#resolving').empty()
+    for (const c of state.resolving) {
+        $('#resolving').append(renderCard(
+            c, state, 'resolving', {}, globalRendererState.tokenRenderer
+        ))
+    }
+    for (const zone of zoneNames) {
+        renderZone(state, zone, settings)
+        $(`.header[zone='${zone}']`).unbind('click')
+        $(`.header[zone='${zone}']`).click(() => {
+            globalRendererState.compress[zone] = !globalRendererState.compress[zone]
+            renderZone(state, zone, settings)
+        })
+    }
     $('#playsize').html('' + state.play.length)
     $('#handsize').html('' + state.hand.length)
     $('#discardsize').html('' + state.discard.length)
@@ -713,9 +771,9 @@ class webUI {
     }
 }
 
-interface StringOption<T> {
+interface StringOption {
     render: string,
-    value: T
+    value: () => void
 }
 
 function renderChoice(
@@ -726,16 +784,16 @@ function renderChoice(
     picks: Array<OptionRender>=[],
 ): void {
 
-    const optionsMap:Map<number,number> = new Map() //map card ids to their position in the choice list
-    const stringOptions:StringOption<number>[] = [] // values are indices into options
+    const optionsMap:Map<number,() => void> = new Map() //map card ids to the corresponding option
+    const stringOptions:StringOption[] = [] // values are indices into options
     for (let i = 0; i < options.length; i++) {
         const rendered:OptionRender = options[i].render
         switch (rendered.kind) {
             case 'string':
-                stringOptions.push({render:rendered.string, value:i})
+                stringOptions.push({render:rendered.string, value:options[i].value})
                 break
             case 'card':
-                optionsMap.set(rendered.card.id, i)
+                optionsMap.set(rendered.card.id, options[i].value)
                 break
             default: assertNever(rendered)
         }
@@ -769,32 +827,33 @@ function renderChoice(
     }
 
     $('#choicePrompt').html(choicePrompt)
-    $('#options').html(stringOptions.map(localRender).join(''))
+    $('#options').empty()
+    for (const option of stringOptions) {
+        $('#options').append(renderStringOption(
+            option, hotkeyMap.get(option.render), pickMap.get(option.render))
+        )
+        const e = renderStringOption
+    }
     $('#undoArea').html(renderSpecials(state))
     if (ui !== null) bindSpecials(state, ui)
 
-    function elem(i:number): any {
-        return $(`[option='${i}']`)
-    }
     for (let i = 0; i < options.length; i++) {
         const option = options[i];
         const f: () => void = option.value;
-        elem(i).on('click', f)
         let hotkey:Key|undefined = hotkeyMap.get(renderKey(option.render))
         if (hotkey != undefined) keyListeners.set(hotkey, f)
     }
 
-    function localRender(option:StringOption<number>): string {
-        return renderStringOption(option, hotkeyMap.get(option.render), pickMap.get(option.render))
-    }
 }
 
 
 
-function renderStringOption(option:StringOption<number>, hotkey?:Key, pick?:number): string {
+function renderStringOption(option:StringOption, hotkey?:Key, pick?:number) {
     const hotkeyText = (hotkey!==undefined) ? renderHotkey(hotkey) : ''
     const picktext:string = (pick !== undefined) ? `<div class='pickorder'>${pick}</div>` : ''
-    return `<span class='option' option='${option.value}' choosable chosen='false'>${picktext}${hotkeyText}${option.render}</span>`
+    const e = $(`<span class='option' choosable chosen='false'>${picktext}${hotkeyText}${option.render}</span>`)
+    e.click(option.value)
+    return e
 }
 
 function renderSpecials(state:State): string {
@@ -1247,6 +1306,7 @@ function bindHelp(state:State, ui:webUI) {
             "Press 'z' or click the 'Undo' button to undo the last move.",
             "Press '/' or click the 'Hotkeys' button to turn on hotkeys.",
             "Click the 'Link' button to copy a shortlink to the current state.",
+            "Click on a zone's name to compress identical cards in that zone.",
             "Go <a href='index.html'>here</a> to see all the ways to play the game.",
             `Check out the scoreboard <a href=${scoreboardURL(state.spec)}>here</a>.`,
             `Copy <a href='play?${specToURL(state.spec)}'>this link</a> to replay this game any time.`,

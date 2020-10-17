@@ -27,6 +27,7 @@
     cursor:default;
     text-align: center;
     position: relative;
+    background: white;
 }
 .spec {
     display:flex;
@@ -141,40 +142,40 @@ input {
     border-color: grey;
 }
 [tick='1'] {
-    background-color: rgba(0, 128, 255, 0.1);
+    background-color: rgba(230, 243, 255, 1.0);
 }
 [tick='2'] {
-    background-color: rgba(0, 255, 128, 0.1);
+    background-color: rgba(230, 255, 243, 1.0);
 }
 [tick='3'] {
-    background-color: rgba(255, 0, 128, 0.1);
+    background-color: rgba(255, 230, 243, 1.0);
 }
 [choosable] {
-    background-color: rgba(254, 216, 177, 0.4);
+    background-color: rgba(255, 240, 224, 1.0);
     cursor:pointer;
 }
 [tick='1'][choosable] {
-    background: linear-gradient(45deg, rgba(254, 216, 177, 0.4) 0%, rgba(0, 128, 255, 0.1) 100%);
+    background: linear-gradient(45deg, rgba(255, 240, 224, 1.0) 0%, rgba(230, 243, 255, 1.0) 100%);
 }
 [tick='2'][choosable] {
-    background: linear-gradient(45deg, rgba(254, 216, 177, 0.4) 0%, rgba(0, 255, 128, 0.1) 100%);
+    background: linear-gradient(45deg, rgba(255, 240, 224, 1.0) 0%, rgba(230, 255, 243, 1.0) 100%);
 }
 [tick='3'][choosable] {
-    background: linear-gradient(45deg, rgba(254, 216, 177, 0.4) 0%, rgba(255, 0, 128, 0.1) 100%);
+    background: linear-gradient(45deg, rgba(255, 240, 224, 1.0) 0%, rgba(255, 230, 243, 1.0) 100%);
 }
 [chosen=true] {
-    background-color: rgba(254, 216, 177, 1.0);
+    background-color: rgba(255, 216, 177, 1.0);
 }
 [tick='1'][chosen='true'] {
-    background: linear-gradient(45deg, rgba(254, 216, 177, 1.0) 0%, rgba(0, 128, 255, 0.1) 100%);
+    background: linear-gradient(45deg, rgba(255, 240, 224, 1.0) 0%, rgba(230, 243, 255, 1.0) 100%);
 }
 [tick='2'][chosen='true'] {
-    background: linear-gradient(45deg, rgba(254, 216, 177, 1.0) 0%, rgba(0, 255, 128, 0.1) 100%);
+    background: linear-gradient(45deg, rgba(255, 240, 224, 1.0) 0%, rgba(230, 255, 243, 1.0) 100%);
 }
 [tick='3'][chosen='true'] {
-    background: linear-gradient(45deg, rgba(254, 216, 177, 1.0) 0%, rgba(0, 255, 128, 0.1) 100%);
+    background: linear-gradient(45deg, rgba(255, 240, 224, 1.0) 0%, rgba(230, 255, 243, 1.0) 100%);
 }
-.pickorder {
+.pickorder, .cardcount {
     position: absolute;
     top: -0.5em;
     right: -0.5em;
@@ -186,9 +187,11 @@ input {
     width: 1.5em;
     height: 1.5em;
     z-index: 2;
-    background: rgba(254, 216, 177, 1.0);
     color: black;
-
+    background: inherit;
+}
+.header[zone] {
+    cursor:pointer;
 }
 .zone {
     min-height: 3.1em;
