@@ -370,11 +370,11 @@ function renderShadow(shadow, state, tokenRenderer) {
             break;
         default: assertNever(shadow.spec);
     }
-    return $(["<div class='card' " + ticktext + " " + shadowtext + ">",
+    return ["<div class='card' " + ticktext + " " + shadowtext + ">",
         "<div class='cardbody'>" + card + tokenhtml + "</div>",
         "<div class='cardcost'>" + costhtml + "</div>",
         "<span class='tooltip'>" + tooltip + "</span>",
-        "</div>"].join(''));
+        "</div>"].join('');
 }
 function renderEffects(spec) {
     var e_8, _a;
@@ -427,14 +427,11 @@ function renderCard(card, state, zone, options, tokenRenderer, count) {
         var counttext = (count != 1) ? "<div class='cardcount'>" + count + "</div>" : '';
         var chosenText = (options.pick !== undefined) ? 'true' : 'false';
         var choosetext = (options.option !== undefined)
-            ? "choosable chosen='" + chosenText + "'"
+            ? "choosable chosen='" + chosenText + "' option=" + options.option
             : '';
         var hotkeytext = (options.hotkey !== undefined) ? renderHotkey(options.hotkey) : '';
         var ticktext = "tick=" + card.ticks[card.ticks.length - 1];
-        var result = $("<div class='card' " + ticktext + " " + choosetext + "> " + picktext + " " + counttext + "\n                    <div class='cardbody'>" + hotkeytext + " " + card + tokenhtml + "</div>\n                    <div class='cardcost'>" + costhtml + "</div>\n                    <span class='tooltip'>" + renderTooltip(card, state, tokenRenderer) + "</span>\n                </div>");
-        if (options.option !== undefined) {
-            result.click(options.option);
-        }
+        var result = "<div class='card' " + ticktext + " " + choosetext + "> " + picktext + " " + counttext + "\n                    <div class='cardbody'>" + hotkeytext + " " + card + tokenhtml + "</div>\n                    <div class='cardcost'>" + costhtml + "</div>\n                    <span class='tooltip'>" + renderTooltip(card, state, tokenRenderer) + "</span>\n                </div>";
         return result;
     }
 }
@@ -517,14 +514,20 @@ function sketchMap(x) {
     return kvs.join(',');
 }
 function renderZone(state, zone, settings) {
-    var e_10, _a;
+    var e_10, _a, e_11, _b;
     if (settings === void 0) { settings = {}; }
     var e = $("#" + zone);
-    e.empty();
+    var optionsFns = [];
     function render(card, count) {
         if (count === void 0) { count = 1; }
+        var option;
+        var optionFn = getIfDef(settings.optionsMap, card.id);
+        if (optionFn !== undefined) {
+            option = optionsFns.length;
+            optionsFns.push(optionFn);
+        }
         var cardRenderOptions = {
-            option: getIfDef(settings.optionsMap, card.id),
+            option: option,
             hotkey: getIfDef(settings.hotkeyMap, card.id),
             pick: getIfDef(settings.pickMap, card.id),
         };
@@ -560,14 +563,27 @@ function renderZone(state, zone, settings) {
         }
         var distinctCounts_1 = distinctCards.map(function (c) { return counts_1.get(sketch(c)) || 0; });
         var rendered = [];
-        e.append(distinctCards.map(function (card, i) { return render(card, distinctCounts_1[i]); }));
+        e.html(distinctCards.map(function (card, i) { return render(card, distinctCounts_1[i]); }).join(''));
     }
     else {
-        e.append(cards.map(function (c) { return render(c); }));
+        e.html(cards.map(function (c) { return render(c); }).join(''));
+    }
+    try {
+        for (var _c = __values(optionsFns.entries()), _d = _c.next(); !_d.done; _d = _c.next()) {
+            var _e = __read(_d.value, 2), i = _e[0], fn = _e[1];
+            e.find("[option=" + i + "]").click(fn);
+        }
+    }
+    catch (e_11_1) { e_11 = { error: e_11_1 }; }
+    finally {
+        try {
+            if (_d && !_d.done && (_b = _c.return)) _b.call(_c);
+        }
+        finally { if (e_11) throw e_11.error; }
     }
 }
 function renderState(state, settings) {
-    var e_11, _a;
+    var e_12, _a;
     if (settings === void 0) { settings = {}; }
     window.renderedState = state;
     clearChoice();
@@ -582,7 +598,7 @@ function renderState(state, settings) {
     $('#coin').html(state.coin.toString());
     $('#points').html(state.points.toString());
     $('#resolving').empty();
-    $('#resolving').append(state.resolving.map(function (c) { return renderCard(c, state, 'resolving', {}, globalRendererState.tokenRenderer); }));
+    $('#resolving').html(state.resolving.map(function (c) { return renderCard(c, state, 'resolving', {}, globalRendererState.tokenRenderer); }).join(''));
     var _loop_1 = function (zone) {
         renderZone(state, zone, settings);
         var e = $("[zone='" + zone + "'] .zonename");
@@ -598,12 +614,12 @@ function renderState(state, settings) {
             _loop_1(zone);
         }
     }
-    catch (e_11_1) { e_11 = { error: e_11_1 }; }
+    catch (e_12_1) { e_12 = { error: e_12_1 }; }
     finally {
         try {
             if (zoneNames_1_1 && !zoneNames_1_1.done && (_a = zoneNames_1.return)) _a.call(zoneNames_1);
         }
-        finally { if (e_11) throw e_11.error; }
+        finally { if (e_12) throw e_12.error; }
     }
     $('#playsize').html('' + state.play.length);
     $('#handsize').html('' + state.hand.length);
@@ -619,7 +635,7 @@ function bindLogTypeButtons(state, ui) {
     });
 }
 function setVisibleLog(state, logType, ui) {
-    var e_12, _a;
+    var e_13, _a;
     try {
         for (var logTypes_1 = __values(logTypes), logTypes_1_1 = logTypes_1.next(); !logTypes_1_1.done; logTypes_1_1 = logTypes_1.next()) {
             var logType_1 = logTypes_1_1.value;
@@ -628,12 +644,12 @@ function setVisibleLog(state, logType, ui) {
             e.attr('choosable', choosable ? 'true' : null);
         }
     }
-    catch (e_12_1) { e_12 = { error: e_12_1 }; }
+    catch (e_13_1) { e_13 = { error: e_13_1 }; }
     finally {
         try {
             if (logTypes_1_1 && !logTypes_1_1.done && (_a = logTypes_1.return)) _a.call(logTypes_1);
         }
-        finally { if (e_12) throw e_12.error; }
+        finally { if (e_13) throw e_13.error; }
     }
     displayLogLines(state.logs[logType], ui);
 }
@@ -641,7 +657,7 @@ function renderLogLine(msg, i) {
     return "<div><span class=\"logLine\" pos=" + i + ">" + msg + "</span></div>";
 }
 function displayLogLines(logs, ui) {
-    var e_13, _a;
+    var e_14, _a;
     var result = [];
     for (var i = logs.length - 1; i >= 0; i--) {
         result.push(renderLogLine(logs[i][0], i));
@@ -663,12 +679,12 @@ function displayLogLines(logs, ui) {
             _loop_2(i, e);
         }
     }
-    catch (e_13_1) { e_13 = { error: e_13_1 }; }
+    catch (e_14_1) { e_14 = { error: e_14_1 }; }
     finally {
         try {
             if (_c && !_c.done && (_a = _b.return)) _a.call(_b);
         }
-        finally { if (e_13) throw e_13.error; }
+        finally { if (e_14) throw e_14.error; }
     }
 }
 //TODO: prefer better card matches
@@ -863,7 +879,7 @@ var webUI = /** @class */ (function () {
     return webUI;
 }());
 function renderChoice(ui, state, choicePrompt, options, picks) {
-    var e_14, _a, e_15, _b;
+    var e_15, _a, e_16, _b;
     if (picks === void 0) { picks = []; }
     var optionsMap = new Map(); //map card ids to the corresponding option
     var stringOptions = []; // values are indices into options
@@ -898,12 +914,12 @@ function renderChoice(ui, state, choicePrompt, options, picks) {
             pickMap.set(renderKey(x), i);
         }
     }
-    catch (e_14_1) { e_14 = { error: e_14_1 }; }
+    catch (e_15_1) { e_15 = { error: e_15_1 }; }
     finally {
         try {
             if (_d && !_d.done && (_a = _c.return)) _a.call(_c);
         }
-        finally { if (e_14) throw e_14.error; }
+        finally { if (e_15) throw e_15.error; }
     }
     renderState(state, {
         hotkeyMap: hotkeyMap,
@@ -924,12 +940,12 @@ function renderChoice(ui, state, choicePrompt, options, picks) {
             var e = renderStringOption;
         }
     }
-    catch (e_15_1) { e_15 = { error: e_15_1 }; }
+    catch (e_16_1) { e_16 = { error: e_16_1 }; }
     finally {
         try {
             if (stringOptions_1_1 && !stringOptions_1_1.done && (_b = stringOptions_1.return)) _b.call(stringOptions_1);
         }
-        finally { if (e_15) throw e_15.error; }
+        finally { if (e_16) throw e_16.error; }
     }
     $('#undoArea').html(renderSpecials(state));
     if (ui !== null)
@@ -1074,7 +1090,7 @@ function bindRecordMacroButton(ui) {
     e.on('click', onClick);
 }
 function bindPlayMacroButtons(ui) {
-    var e_16, _a;
+    var e_17, _a;
     function onClick(i) {
         if (ui.choiceState !== null && ui.playingMacro.length == 0) {
             ui.playingMacro = ui.macros[i].slice();
@@ -1092,16 +1108,16 @@ function bindPlayMacroButtons(ui) {
             _loop_3(i, macro);
         }
     }
-    catch (e_16_1) { e_16 = { error: e_16_1 }; }
+    catch (e_17_1) { e_17 = { error: e_17_1 }; }
     finally {
         try {
             if (_c && !_c.done && (_a = _b.return)) _a.call(_b);
         }
-        finally { if (e_16) throw e_16.error; }
+        finally { if (e_17) throw e_17.error; }
     }
 }
 function unbindPlayMacroButtons(ui) {
-    var e_17, _a;
+    var e_18, _a;
     try {
         for (var _b = __values(ui.macros.entries()), _c = _b.next(); !_c.done; _c = _b.next()) {
             var _d = __read(_c.value, 2), i = _d[0], macro = _d[1];
@@ -1109,12 +1125,12 @@ function unbindPlayMacroButtons(ui) {
             e.off('click');
         }
     }
-    catch (e_17_1) { e_17 = { error: e_17_1 }; }
+    catch (e_18_1) { e_18 = { error: e_18_1 }; }
     finally {
         try {
             if (_c && !_c.done && (_a = _b.return)) _a.call(_b);
         }
-        finally { if (e_17) throw e_17.error; }
+        finally { if (e_18) throw e_18.error; }
     }
 }
 function bindHotkeyToggle(ui) {
@@ -1636,7 +1652,7 @@ function kingdomURL(kindParam, cards, events) {
     return "play?" + kindParam + "cards=" + cards.map(function (card) { return card.name; }).join(',') + "&events=" + events.map(function (card) { return card.name; });
 }
 function countIn(s, f) {
-    var e_18, _a;
+    var e_19, _a;
     var count = 0;
     try {
         for (var s_1 = __values(s), s_1_1 = s_1.next(); !s_1_1.done; s_1_1 = s_1.next()) {
@@ -1645,12 +1661,12 @@ function countIn(s, f) {
                 count += 1;
         }
     }
-    catch (e_18_1) { e_18 = { error: e_18_1 }; }
+    catch (e_19_1) { e_19 = { error: e_19_1 }; }
     finally {
         try {
             if (s_1_1 && !s_1_1.done && (_a = s_1.return)) _a.call(s_1);
         }
-        finally { if (e_18) throw e_18.error; }
+        finally { if (e_19) throw e_19.error; }
     }
     return count;
 }

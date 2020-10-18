@@ -208,7 +208,7 @@ function describeCost(cost:Cost): string {
     return `Cost: ${costStr}.`
 }
 
-function renderShadow(shadow:Shadow, state:State, tokenRenderer:TokenRenderer):JQuery {
+function renderShadow(shadow:Shadow, state:State, tokenRenderer:TokenRenderer):string {
     const card:Card = shadow.spec.card
     const tokenhtml:string = tokenRenderer.render(card.tokens)
     const costhtml:string = '&nbsp'
@@ -233,11 +233,11 @@ function renderShadow(shadow:Shadow, state:State, tokenRenderer:TokenRenderer):J
             break
         default: assertNever(shadow.spec)
     }
-    return $([`<div class='card' ${ticktext} ${shadowtext}>`,
+    return [`<div class='card' ${ticktext} ${shadowtext}>`,
              `<div class='cardbody'>${card}${tokenhtml}</div>`,
              `<div class='cardcost'>${costhtml}</div>`,
              `<span class='tooltip'>${tooltip}</span>`,
-             `</div>`].join(''))
+             `</div>`].join('')
 }
 
 function renderEffects(spec:CardSpec) {
@@ -264,7 +264,7 @@ function renderCard(
     options:CardRenderOptions,
     tokenRenderer:TokenRenderer,
     count:number=1,
-): JQuery {
+): string {
     if (card instanceof Shadow) {
         return renderShadow(card, state, tokenRenderer)
     } else {
@@ -277,18 +277,15 @@ function renderCard(
         const counttext:string = (count != 1) ? `<div class='cardcount'>${count}</div>` : ''
         const chosenText:string = (options.pick !== undefined) ? 'true' : 'false'
         const choosetext:string = (options.option !== undefined)
-            ? `choosable chosen='${chosenText}'`
+	        ? `choosable chosen='${chosenText}' option=${options.option}`
             : ''
         const hotkeytext:string = (options.hotkey !== undefined) ? renderHotkey(options.hotkey) : ''
         const ticktext:string = `tick=${card.ticks[card.ticks.length-1]}`
-        const result = $(`<div class='card' ${ticktext} ${choosetext}> ${picktext} ${counttext}
+        const result = `<div class='card' ${ticktext} ${choosetext}> ${picktext} ${counttext}
                     <div class='cardbody'>${hotkeytext} ${card}${tokenhtml}</div>
                     <div class='cardcost'>${costhtml}</div>
                     <span class='tooltip'>${renderTooltip(card, state, tokenRenderer)}</span>
-                </div>`)
-        if (options.option !== undefined) {
-            result.click(options.option)
-        }
+                </div>`
         return result
     }
 }
@@ -363,7 +360,7 @@ function renderSpec(spec:CardSpec): string {
 
 
 interface CardRenderOptions {
-    option?: () => void;
+    option?: number;
     pick?: number;
     hotkey?: Key;
 }
@@ -437,10 +434,16 @@ function sketchMap<T>(x:Map<T, number>): string {
 
 function renderZone(state:State, zone:ZoneName, settings:RenderSettings = {}) {
     const e = $(`#${zone}`)
-    e.empty()
-    function render(card:Card, count:number=1): JQuery {
+    const optionsFns:((() => void)[]) = []
+    function render(card:Card, count:number=1): string {
+    	let option:number|undefined;
+    	let optionFn = getIfDef(settings.optionsMap, card.id)
+    	if (optionFn !== undefined) {
+    		option = optionsFns.length
+    		optionsFns.push(optionFn)
+    	}
         const cardRenderOptions:CardRenderOptions = {
-            option: getIfDef(settings.optionsMap, card.id),
+            option: option,
             hotkey: getIfDef(settings.hotkeyMap, card.id),
             pick: getIfDef(settings.pickMap, card.id),
         }
@@ -470,11 +473,14 @@ function renderZone(state:State, zone:ZoneName, settings:RenderSettings = {}) {
         }
         const distinctCounts:number[] = distinctCards.map(c => counts.get(sketch(c)) || 0)
         const rendered:string[] = []
-        e.append(distinctCards.map(
+        e.html(distinctCards.map(
             (card, i) => render(card, distinctCounts[i])
-        ))
+        ).join(''))
     } else {
-        e.append(cards.map(c => render(c)))
+        e.html(cards.map(c => render(c)).join(''))
+    }
+    for (const [i, fn] of optionsFns.entries()) {
+    	e.find(`[option=${i}]`).click(fn)
     }
 }
 
@@ -496,9 +502,9 @@ function renderState(
     $('#points').html(state.points.toString())
 
     $('#resolving').empty()
-    $('#resolving').append(state.resolving.map(
+    $('#resolving').html(state.resolving.map(
     	c => renderCard(c, state, 'resolving', {}, globalRendererState.tokenRenderer)
-	))
+	).join(''))
     for (const zone of zoneNames) {
         renderZone(state, zone, settings)
         const e = $(`[zone='${zone}'] .zonename`)
