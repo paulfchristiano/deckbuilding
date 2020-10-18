@@ -370,11 +370,11 @@ function renderShadow(shadow, state, tokenRenderer) {
             break;
         default: assertNever(shadow.spec);
     }
-    return ["<div class='card' " + ticktext + " " + shadowtext + ">",
+    return $(["<div class='card' " + ticktext + " " + shadowtext + ">",
         "<div class='cardbody'>" + card + tokenhtml + "</div>",
         "<div class='cardcost'>" + costhtml + "</div>",
         "<span class='tooltip'>" + tooltip + "</span>",
-        "</div>"].join('');
+        "</div>"].join(''));
 }
 function renderEffects(spec) {
     var e_8, _a;
@@ -510,13 +510,14 @@ function linkForState(state, campaign) {
     return "play?" + cs + specToURL(state.spec) + "#" + state.serializeHistory(false);
 }
 //Two maps should have the same sketch if the keys and values serialize the same
+//0 is treated the same as no entry
 function sketchMap(x) {
-    var kvs = __spread(x.entries()).map(function (kv) { return "" + kv[0] + kv[1]; });
+    var kvs = __spread(x.entries()).filter(function (kv) { return kv[1] > 0; }).map(function (kv) { return "" + kv[0] + kv[1]; });
     kvs.sort();
     return kvs.join(',');
 }
 function renderZone(state, zone, settings) {
-    var e_10, _a, e_11, _b, e_12, _c;
+    var e_10, _a;
     if (settings === void 0) { settings = {}; }
     var e = $("#" + zone);
     e.empty();
@@ -531,7 +532,7 @@ function renderZone(state, zone, settings) {
     }
     // two cards are rendered together in compress mode iff they have the same sketch
     function sketch(card) {
-        return card.name + sketchMap(card.tokens);
+        return "" + card.name + sketchMap(card.tokens) + "\n                " + getIfDef(settings.pickMap, card.id) + "\n                " + getIfDef(settings.optionsMap, card.id);
     }
     var cards = state.zones.get(zone) || [];
     var compress = globalRendererState.compress[zone];
@@ -557,40 +558,16 @@ function renderZone(state, zone, settings) {
             }
             finally { if (e_10) throw e_10.error; }
         }
-        var distinctCounts = distinctCards.map(function (c) { return counts_1.get(sketch(c)) || 0; });
+        var distinctCounts_1 = distinctCards.map(function (c) { return counts_1.get(sketch(c)) || 0; });
         var rendered = [];
-        try {
-            for (var _d = __values(distinctCards.entries()), _e = _d.next(); !_e.done; _e = _d.next()) {
-                var _f = __read(_e.value, 2), i = _f[0], card = _f[1];
-                e.append(render(card, distinctCounts[i]));
-            }
-        }
-        catch (e_11_1) { e_11 = { error: e_11_1 }; }
-        finally {
-            try {
-                if (_e && !_e.done && (_b = _d.return)) _b.call(_d);
-            }
-            finally { if (e_11) throw e_11.error; }
-        }
+        e.append(distinctCards.map(function (card, i) { return render(card, distinctCounts_1[i]); }));
     }
     else {
-        try {
-            for (var cards_3 = __values(cards), cards_3_1 = cards_3.next(); !cards_3_1.done; cards_3_1 = cards_3.next()) {
-                var card = cards_3_1.value;
-                e.append(render(card));
-            }
-        }
-        catch (e_12_1) { e_12 = { error: e_12_1 }; }
-        finally {
-            try {
-                if (cards_3_1 && !cards_3_1.done && (_c = cards_3.return)) _c.call(cards_3);
-            }
-            finally { if (e_12) throw e_12.error; }
-        }
+        e.append(cards.map(function (c) { return render(c); }));
     }
 }
 function renderState(state, settings) {
-    var e_13, _a, e_14, _b;
+    var e_11, _a;
     if (settings === void 0) { settings = {}; }
     window.renderedState = state;
     clearChoice();
@@ -605,23 +582,12 @@ function renderState(state, settings) {
     $('#coin').html(state.coin.toString());
     $('#points').html(state.points.toString());
     $('#resolving').empty();
-    try {
-        for (var _c = __values(state.resolving), _d = _c.next(); !_d.done; _d = _c.next()) {
-            var c = _d.value;
-            $('#resolving').append(renderCard(c, state, 'resolving', {}, globalRendererState.tokenRenderer));
-        }
-    }
-    catch (e_13_1) { e_13 = { error: e_13_1 }; }
-    finally {
-        try {
-            if (_d && !_d.done && (_a = _c.return)) _a.call(_c);
-        }
-        finally { if (e_13) throw e_13.error; }
-    }
+    $('#resolving').append(state.resolving.map(function (c) { return renderCard(c, state, 'resolving', {}, globalRendererState.tokenRenderer); }));
     var _loop_1 = function (zone) {
         renderZone(state, zone, settings);
-        $(".header[zone='" + zone + "']").unbind('click');
-        $(".header[zone='" + zone + "']").click(function () {
+        var e = $("[zone='" + zone + "'] .zonename");
+        e.unbind('click');
+        e.click(function () {
             globalRendererState.compress[zone] = !globalRendererState.compress[zone];
             renderZone(state, zone, settings);
         });
@@ -632,12 +598,12 @@ function renderState(state, settings) {
             _loop_1(zone);
         }
     }
-    catch (e_14_1) { e_14 = { error: e_14_1 }; }
+    catch (e_11_1) { e_11 = { error: e_11_1 }; }
     finally {
         try {
-            if (zoneNames_1_1 && !zoneNames_1_1.done && (_b = zoneNames_1.return)) _b.call(zoneNames_1);
+            if (zoneNames_1_1 && !zoneNames_1_1.done && (_a = zoneNames_1.return)) _a.call(zoneNames_1);
         }
-        finally { if (e_14) throw e_14.error; }
+        finally { if (e_11) throw e_11.error; }
     }
     $('#playsize').html('' + state.play.length);
     $('#handsize').html('' + state.hand.length);
@@ -653,7 +619,7 @@ function bindLogTypeButtons(state, ui) {
     });
 }
 function setVisibleLog(state, logType, ui) {
-    var e_15, _a;
+    var e_12, _a;
     try {
         for (var logTypes_1 = __values(logTypes), logTypes_1_1 = logTypes_1.next(); !logTypes_1_1.done; logTypes_1_1 = logTypes_1.next()) {
             var logType_1 = logTypes_1_1.value;
@@ -662,12 +628,12 @@ function setVisibleLog(state, logType, ui) {
             e.attr('choosable', choosable ? 'true' : null);
         }
     }
-    catch (e_15_1) { e_15 = { error: e_15_1 }; }
+    catch (e_12_1) { e_12 = { error: e_12_1 }; }
     finally {
         try {
             if (logTypes_1_1 && !logTypes_1_1.done && (_a = logTypes_1.return)) _a.call(logTypes_1);
         }
-        finally { if (e_15) throw e_15.error; }
+        finally { if (e_12) throw e_12.error; }
     }
     displayLogLines(state.logs[logType], ui);
 }
@@ -675,7 +641,7 @@ function renderLogLine(msg, i) {
     return "<div><span class=\"logLine\" pos=" + i + ">" + msg + "</span></div>";
 }
 function displayLogLines(logs, ui) {
-    var e_16, _a;
+    var e_13, _a;
     var result = [];
     for (var i = logs.length - 1; i >= 0; i--) {
         result.push(renderLogLine(logs[i][0], i));
@@ -697,12 +663,12 @@ function displayLogLines(logs, ui) {
             _loop_2(i, e);
         }
     }
-    catch (e_16_1) { e_16 = { error: e_16_1 }; }
+    catch (e_13_1) { e_13 = { error: e_13_1 }; }
     finally {
         try {
             if (_c && !_c.done && (_a = _b.return)) _a.call(_b);
         }
-        finally { if (e_16) throw e_16.error; }
+        finally { if (e_13) throw e_13.error; }
     }
 }
 //TODO: prefer better card matches
@@ -897,7 +863,7 @@ var webUI = /** @class */ (function () {
     return webUI;
 }());
 function renderChoice(ui, state, choicePrompt, options, picks) {
-    var e_17, _a, e_18, _b;
+    var e_14, _a, e_15, _b;
     if (picks === void 0) { picks = []; }
     var optionsMap = new Map(); //map card ids to the corresponding option
     var stringOptions = []; // values are indices into options
@@ -932,12 +898,12 @@ function renderChoice(ui, state, choicePrompt, options, picks) {
             pickMap.set(renderKey(x), i);
         }
     }
-    catch (e_17_1) { e_17 = { error: e_17_1 }; }
+    catch (e_14_1) { e_14 = { error: e_14_1 }; }
     finally {
         try {
             if (_d && !_d.done && (_a = _c.return)) _a.call(_c);
         }
-        finally { if (e_17) throw e_17.error; }
+        finally { if (e_14) throw e_14.error; }
     }
     renderState(state, {
         hotkeyMap: hotkeyMap,
@@ -958,12 +924,12 @@ function renderChoice(ui, state, choicePrompt, options, picks) {
             var e = renderStringOption;
         }
     }
-    catch (e_18_1) { e_18 = { error: e_18_1 }; }
+    catch (e_15_1) { e_15 = { error: e_15_1 }; }
     finally {
         try {
             if (stringOptions_1_1 && !stringOptions_1_1.done && (_b = stringOptions_1.return)) _b.call(stringOptions_1);
         }
-        finally { if (e_18) throw e_18.error; }
+        finally { if (e_15) throw e_15.error; }
     }
     $('#undoArea').html(renderSpecials(state));
     if (ui !== null)
@@ -1108,7 +1074,7 @@ function bindRecordMacroButton(ui) {
     e.on('click', onClick);
 }
 function bindPlayMacroButtons(ui) {
-    var e_19, _a;
+    var e_16, _a;
     function onClick(i) {
         if (ui.choiceState !== null && ui.playingMacro.length == 0) {
             ui.playingMacro = ui.macros[i].slice();
@@ -1126,16 +1092,16 @@ function bindPlayMacroButtons(ui) {
             _loop_3(i, macro);
         }
     }
-    catch (e_19_1) { e_19 = { error: e_19_1 }; }
+    catch (e_16_1) { e_16 = { error: e_16_1 }; }
     finally {
         try {
             if (_c && !_c.done && (_a = _b.return)) _a.call(_b);
         }
-        finally { if (e_19) throw e_19.error; }
+        finally { if (e_16) throw e_16.error; }
     }
 }
 function unbindPlayMacroButtons(ui) {
-    var e_20, _a;
+    var e_17, _a;
     try {
         for (var _b = __values(ui.macros.entries()), _c = _b.next(); !_c.done; _c = _b.next()) {
             var _d = __read(_c.value, 2), i = _d[0], macro = _d[1];
@@ -1143,12 +1109,12 @@ function unbindPlayMacroButtons(ui) {
             e.off('click');
         }
     }
-    catch (e_20_1) { e_20 = { error: e_20_1 }; }
+    catch (e_17_1) { e_17 = { error: e_17_1 }; }
     finally {
         try {
             if (_c && !_c.done && (_a = _b.return)) _a.call(_b);
         }
-        finally { if (e_20) throw e_20.error; }
+        finally { if (e_17) throw e_17.error; }
     }
 }
 function bindHotkeyToggle(ui) {
@@ -1670,7 +1636,7 @@ function kingdomURL(kindParam, cards, events) {
     return "play?" + kindParam + "cards=" + cards.map(function (card) { return card.name; }).join(',') + "&events=" + events.map(function (card) { return card.name; });
 }
 function countIn(s, f) {
-    var e_21, _a;
+    var e_18, _a;
     var count = 0;
     try {
         for (var s_1 = __values(s), s_1_1 = s_1.next(); !s_1_1.done; s_1_1 = s_1.next()) {
@@ -1679,12 +1645,12 @@ function countIn(s, f) {
                 count += 1;
         }
     }
-    catch (e_21_1) { e_21 = { error: e_21_1 }; }
+    catch (e_18_1) { e_18 = { error: e_18_1 }; }
     finally {
         try {
             if (s_1_1 && !s_1_1.done && (_a = s_1.return)) _a.call(s_1);
         }
-        finally { if (e_21) throw e_21.error; }
+        finally { if (e_18) throw e_18.error; }
     }
     return count;
 }

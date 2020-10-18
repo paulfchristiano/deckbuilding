@@ -177,8 +177,6 @@ input {
 }
 .pickorder, .cardcount {
     position: absolute;
-    top: -0.5em;
-    right: -0.5em;
     border: 1px solid;
     font-size: 0.8em;
     margin: auto;
@@ -186,11 +184,20 @@ input {
     border-radius: 50%;
     width: 1.5em;
     height: 1.5em;
-    z-index: 2;
     color: black;
     background: inherit;
 }
-.header[zone] {
+.pickorder {
+    top: -0.5em;
+    right: -0.5em;
+    z-index: 3;
+}
+.cardcount {
+    right: -0.5em;
+    bottom: -0.5em;
+    z-index: 2;
+}
+.zonename {
     cursor:pointer;
 }
 .zone {
@@ -227,7 +234,7 @@ input {
   border-radius: 6px;
   padding: 5px;
   position: absolute;
-  z-index: 1;
+  z-index: 4;
   top: 3em;
   left: 0px;
 }

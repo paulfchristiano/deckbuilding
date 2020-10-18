@@ -208,7 +208,7 @@ function describeCost(cost:Cost): string {
     return `Cost: ${costStr}.`
 }
 
-function renderShadow(shadow:Shadow, state:State, tokenRenderer:TokenRenderer):string {
+function renderShadow(shadow:Shadow, state:State, tokenRenderer:TokenRenderer):JQuery {
     const card:Card = shadow.spec.card
     const tokenhtml:string = tokenRenderer.render(card.tokens)
     const costhtml:string = '&nbsp'
@@ -233,11 +233,11 @@ function renderShadow(shadow:Shadow, state:State, tokenRenderer:TokenRenderer):s
             break
         default: assertNever(shadow.spec)
     }
-    return [`<div class='card' ${ticktext} ${shadowtext}>`,
-            `<div class='cardbody'>${card}${tokenhtml}</div>`,
-            `<div class='cardcost'>${costhtml}</div>`,
-            `<span class='tooltip'>${tooltip}</span>`,
-            `</div>`].join('')
+    return $([`<div class='card' ${ticktext} ${shadowtext}>`,
+             `<div class='cardbody'>${card}${tokenhtml}</div>`,
+             `<div class='cardcost'>${costhtml}</div>`,
+             `<span class='tooltip'>${tooltip}</span>`,
+             `</div>`].join(''))
 }
 
 function renderEffects(spec:CardSpec) {
@@ -264,7 +264,7 @@ function renderCard(
     options:CardRenderOptions,
     tokenRenderer:TokenRenderer,
     count:number=1,
-) {
+): JQuery {
     if (card instanceof Shadow) {
         return renderShadow(card, state, tokenRenderer)
     } else {
@@ -424,8 +424,13 @@ function linkForState(state:State, campaign:boolean=false) {
 }
 
 //Two maps should have the same sketch if the keys and values serialize the same
+//0 is treated the same as no entry
 function sketchMap<T>(x:Map<T, number>): string {
-    const kvs:string[] = [...x.entries()].map(kv => `${kv[0]}${kv[1]}`)
+    const kvs:string[] = [...x.entries()].filter(
+        kv => kv[1] > 0
+    ).map(
+        kv => `${kv[0]}${kv[1]}`
+    )
     kvs.sort()
     return kvs.join(',')
 }
@@ -433,7 +438,7 @@ function sketchMap<T>(x:Map<T, number>): string {
 function renderZone(state:State, zone:ZoneName, settings:RenderSettings = {}) {
     const e = $(`#${zone}`)
     e.empty()
-    function render(card:Card, count:number=1) {
+    function render(card:Card, count:number=1): JQuery {
         const cardRenderOptions:CardRenderOptions = {
             option: getIfDef(settings.optionsMap, card.id),
             hotkey: getIfDef(settings.hotkeyMap, card.id),
@@ -445,7 +450,9 @@ function renderZone(state:State, zone:ZoneName, settings:RenderSettings = {}) {
     }
     // two cards are rendered together in compress mode iff they have the same sketch
     function sketch(card:Card) {
-        return card.name + sketchMap(card.tokens)
+        return `${card.name}${sketchMap(card.tokens)}
+                ${getIfDef(settings.pickMap, card.id)}
+                ${getIfDef(settings.optionsMap, card.id)}`
     }
     const cards:Card[] = state.zones.get(zone) || []
     const compress:boolean = globalRendererState.compress[zone]
@@ -463,13 +470,11 @@ function renderZone(state:State, zone:ZoneName, settings:RenderSettings = {}) {
         }
         const distinctCounts:number[] = distinctCards.map(c => counts.get(sketch(c)) || 0)
         const rendered:string[] = []
-        for (const [i, card] of distinctCards.entries()) {
-            e.append(render(card, distinctCounts[i]))
-        }
+        e.append(distinctCards.map(
+            (card, i) => render(card, distinctCounts[i])
+        ))
     } else {
-        for (const card of cards) {
-            e.append(render(card))
-        }
+        e.append(cards.map(c => render(c)))
     }
 }
 
@@ -491,15 +496,14 @@ function renderState(
     $('#points').html(state.points.toString())
 
     $('#resolving').empty()
-    for (const c of state.resolving) {
-        $('#resolving').append(renderCard(
-            c, state, 'resolving', {}, globalRendererState.tokenRenderer
-        ))
-    }
+    $('#resolving').append(state.resolving.map(
+    	c => renderCard(c, state, 'resolving', {}, globalRendererState.tokenRenderer)
+	))
     for (const zone of zoneNames) {
         renderZone(state, zone, settings)
-        $(`.header[zone='${zone}']`).unbind('click')
-        $(`.header[zone='${zone}']`).click(() => {
+        const e = $(`[zone='${zone}'] .zonename`)
+        e.unbind('click')
+        e.click(() => {
             globalRendererState.compress[zone] = !globalRendererState.compress[zone]
             renderZone(state, zone, settings)
         })
