@@ -281,7 +281,7 @@ function renderCard(
             : ''
         const hotkeytext:string = (options.hotkey !== undefined) ? renderHotkey(options.hotkey) : ''
         const ticktext:string = `tick=${card.ticks[card.ticks.length-1]}`
-        const result = `<div class='card' ${ticktext} ${choosetext}> ${picktext} ${counttext}
+        const result = `<div id='card${card.id}' class='card' ${ticktext} ${choosetext}> ${picktext} ${counttext}
                     <div class='cardbody'>${hotkeytext} ${card}${tokenhtml}</div>
                     <div class='cardcost'>${costhtml}</div>
                     <span class='tooltip'>${renderTooltip(card, state, tokenRenderer)}</span>
@@ -435,12 +435,14 @@ function sketchMap<T>(x:Map<T, number>): string {
 function renderZone(state:State, zone:ZoneName, settings:RenderSettings = {}) {
     const e = $(`#${zone}`)
     const optionsFns:((() => void)[]) = []
+    const optionsIds:number[] = []
     function render(card:Card, count:number=1): string {
     	let option:number|undefined;
     	let optionFn = getIfDef(settings.optionsMap, card.id)
     	if (optionFn !== undefined) {
     		option = optionsFns.length
     		optionsFns.push(optionFn)
+    		optionsIds.push(card.id)
     	}
         const cardRenderOptions:CardRenderOptions = {
             option: option,
@@ -480,7 +482,7 @@ function renderZone(state:State, zone:ZoneName, settings:RenderSettings = {}) {
         e.html(cards.map(c => render(c)).join(''))
     }
     for (const [i, fn] of optionsFns.entries()) {
-    	e.find(`[option=${i}]`).click(fn)
+    	e.find(`#card${optionsIds[i]}`).click(fn)
     }
 }
 

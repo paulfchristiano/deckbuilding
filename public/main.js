@@ -431,7 +431,7 @@ function renderCard(card, state, zone, options, tokenRenderer, count) {
             : '';
         var hotkeytext = (options.hotkey !== undefined) ? renderHotkey(options.hotkey) : '';
         var ticktext = "tick=" + card.ticks[card.ticks.length - 1];
-        var result = "<div class='card' " + ticktext + " " + choosetext + "> " + picktext + " " + counttext + "\n                    <div class='cardbody'>" + hotkeytext + " " + card + tokenhtml + "</div>\n                    <div class='cardcost'>" + costhtml + "</div>\n                    <span class='tooltip'>" + renderTooltip(card, state, tokenRenderer) + "</span>\n                </div>";
+        var result = "<div id='card" + card.id + "' class='card' " + ticktext + " " + choosetext + "> " + picktext + " " + counttext + "\n                    <div class='cardbody'>" + hotkeytext + " " + card + tokenhtml + "</div>\n                    <div class='cardcost'>" + costhtml + "</div>\n                    <span class='tooltip'>" + renderTooltip(card, state, tokenRenderer) + "</span>\n                </div>";
         return result;
     }
 }
@@ -518,6 +518,7 @@ function renderZone(state, zone, settings) {
     if (settings === void 0) { settings = {}; }
     var e = $("#" + zone);
     var optionsFns = [];
+    var optionsIds = [];
     function render(card, count) {
         if (count === void 0) { count = 1; }
         var option;
@@ -525,6 +526,7 @@ function renderZone(state, zone, settings) {
         if (optionFn !== undefined) {
             option = optionsFns.length;
             optionsFns.push(optionFn);
+            optionsIds.push(card.id);
         }
         var cardRenderOptions = {
             option: option,
@@ -571,7 +573,7 @@ function renderZone(state, zone, settings) {
     try {
         for (var _c = __values(optionsFns.entries()), _d = _c.next(); !_d.done; _d = _c.next()) {
             var _e = __read(_d.value, 2), i = _e[0], fn = _e[1];
-            e.find("[option=" + i + "]").click(fn);
+            e.find("#card" + optionsIds[i]).click(fn);
         }
     }
     catch (e_11_1) { e_11 = { error: e_11_1 }; }
