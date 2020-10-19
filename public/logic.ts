@@ -1,4 +1,4 @@
-export const VERSION = "1.7.3"
+export const VERSION = "1.7.4"
 
 // ----------------------------- Formatting
 
@@ -2075,6 +2075,7 @@ interface Extras {
     triggers?:TypedTrigger[];
     replacers?:TypedReplacer[];
     onBuy?:Effect[];
+    afterBuy?:Effect[];
 }
 function supplyForCard(
     card:CardSpec,
@@ -2088,13 +2089,22 @@ function supplyForCard(
             transform: (e, s, c) => t.transform(s, c),
             //TODO: this is pretty sketchy...
             text: `When you buy this, ${t.text.map(lowercaseFirst).join(', ')}`,
-        })
-    )
+        }))
+    const afterTriggers:Trigger<AfterBuyEvent>[] = (extra.afterBuy || []).map(
+        t => ({
+            kind: 'afterBuy',
+            handles: (e, s, c) => e.card.name == c.name,
+            transform: (e, s, c) => t.transform(s, c),
+            //TODO: this is pretty sketchy...
+            text: `After buying this, ${t.text.map(lowercaseFirst).join(', ')}`,
+        }))
     const triggers:TypedTrigger[] = (buyTriggers as TypedTrigger[])
+        .concat(afterTriggers as TypedTrigger[])
+        .concat(extra.triggers || [])
     return {
         ...card,
         buyCost: cost,
-        staticTriggers: triggers.concat(extra.triggers || []),
+        staticTriggers: triggers,
         staticReplacers: extra.replacers,
     }
 }
@@ -2499,7 +2509,7 @@ const bridge:CardSpec = {name: 'Bridge',
 }
 buyable(bridge, 4)
 
-const coven:CardSpec = {name: 'Coven',
+const conclave:CardSpec = {name: 'Conclave',
     effects: [toPlay()],
     replacers: [{
         text: `Cards you play cost @ less if they don't share a name
@@ -2521,7 +2531,7 @@ const coven:CardSpec = {name: 'Coven',
         }
     }]
 }
-buyable(coven, 4)
+buyable(conclave, 4)
 
 const lab:CardSpec = {name: 'Lab',
     effects: [actionsEffect(2)]
@@ -3202,7 +3212,7 @@ const lackeys:CardSpec = {name: 'Lackeys',
     effects: [actionsEffect(3)],
     relatedCards: [villager],
 }
-buyable(lackeys, 3, {onBuy:[createInPlayEffect(villager)]})
+buyable(lackeys, 3, {onBuy:[createInPlayEffect(villager, 1)]})
 
 const goldMine:CardSpec = {name: 'Gold Mine',
     fixedCost: energy(1),
@@ -3239,9 +3249,8 @@ const expedite: CardSpec = {
         state => state.supply,
     )],
     staticTriggers: [{
-        text: `Whenever you create a card with the same name
-            as a card in the supply with an expedite token,
-            remove an expedite token to play the card.`,
+        text: `Whenever you create a card whose supply has an expedite token,
+               remove an expedite token to play the card.`,
         kind: 'create',
         handles: (e, state) => nameHasToken(e.card, 'expedite', state),
         transform: (e, state, card) => payToDo(applyToTarget(
@@ -3597,14 +3606,18 @@ registerEvent(inflation)
 const burden:CardSpec = {name: 'Burden',
     fixedCost: energy(1),
     effects: [{
-        text: ['Remove a burden token from each card in the supply.'],
+        text: ['Remove a burden token from each supply.'],
         transform: state => doAll(state.supply.map(c => removeToken(c, 'burden')))
     }],
     staticTriggers: [{
-        text: 'Whenever you buy a card in the supply, put a burden token on it.',
-        kind:'buy',
-        handles: (e, state) => (state.find(e.card).place == 'supply'),
-        transform: e => addToken(e.card, 'burden')
+        text: 'Whenever you create a card, put a burden token on its supply.',
+        kind:'create',
+        handles: (e, state) => true,
+        transform: (e, state) => doAll(state.supply.filter(
+            c => c.name == e.card.name
+        ).map(
+            c => addToken(c, 'burden')
+        ))
     }],
     staticReplacers: [{
         kind: 'cost',
@@ -3876,7 +3889,6 @@ buyable(innovation, 6, {triggers: [{
     }
 }]})
 
-//TODO test this and coven
 const formation:CardSpec = {name: 'Formation',
     effects: [toPlay()],
     replacers: [{
@@ -3995,8 +4007,7 @@ const lostArts:CardSpec = {
         s => s.supply
     )],
     staticReplacers: [{
-        text: `Cards you play cost @ less for each art token on a card
-               in the supply with the same name.
+        text: `Cards you play cost @ less for each art token on their supply.
                Whenever this reduces a cost by one or more @,
                remove that many art tokens.`,
         kind: 'cost',
@@ -4013,7 +4024,7 @@ const lostArts:CardSpec = {
                 effects:x.cost.effects.concat([repeat(
                     applyToTarget(
                         target => removeToken(target, 'art'),
-                        'Remove an art token for a supply pile.',
+                        'Remove an art token from a supply.',
                         state => state.supply.filter(
                             c => c.name == x.card.name && c.count('art') > 0
                         )
@@ -4054,10 +4065,10 @@ const greatHearth:CardSpec = {
 buyable(greatHearth, 3)
 */
 const Industry = 'Industry'
-function industryEffect(n:number):Effect {
-    return targetedEffect(
-        (target, card) => target.buy(card),
-        `Buy a card in the supply costing up to $${n} not named ${Industry}.`,
+function industryTransform(n:number, except:string=Industry):Transform{
+    return applyToTarget(
+        target => target.buy(),
+        `Buy a card in the supply costing up to $${n} not named ${except}.`,
         state => state.supply.filter(
             x => leq(x.cost('buy', state), coin(n)) && x.name != Industry
         )
@@ -4066,7 +4077,14 @@ function industryEffect(n:number):Effect {
 const industry:CardSpec = {
     name: Industry,
     fixedCost: energy(2),
-    effects: [industryEffect(8), tickEffect(), industryEffect(8)],
+    effects: [{
+        text: [`Do this twice: buy a card in the supply costing up to $8 other than ${Industry}.`],
+        transform: (state, card) => doAll([
+            industryTransform(8, Industry),
+            tick(card),
+            industryTransform(8, Industry)
+        ])
+    }]
 }
 buyable(industry, 6)
 
@@ -4554,8 +4572,8 @@ const prioritize:CardSpec = {
         state => state.supply,
     )],
     staticTriggers: [{
-        text: `Whenever you create a card with the same name
-            as a card in the supply with a priority token,
+        text: `Whenever you create a card whose supply
+            has a priority token,
             remove a priority token to play the card.`,
         kind: 'create',
         handles: (e, state) => nameHasToken(e.card, 'priority', state),
@@ -4621,8 +4639,8 @@ const pathfinding:CardSpec = {
     )],
     staticTriggers: [{
         kind: 'play',
-        text: `Whenever you play a card that has the same name as a card in the supply
-        with a  pathfinding token on it, +1 action.`,
+        text: `Whenever you play a card whose supply
+        has a  pathfinding token on it, +1 action.`,
         handles: (e, state) => nameHasToken(e.card, 'pathfinding', state),
         transform: (e, state, card) => gainActions(1, card)
     }]
@@ -4639,7 +4657,7 @@ const fortune:CardSpec = {
         transform: (state, card) => gainBuys(state.buys)
     }]
 }
-buyable(fortune, 12, {onBuy: [{text: ['trash it from the supply.'], transform: (s, c) => trash(c)}]})
+buyable(fortune, 12, {afterBuy: [{text: ['trash it from the supply.'], transform: (s, c) => trash(c)}]})
 
 
 
