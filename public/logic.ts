@@ -1,4 +1,4 @@
-export const VERSION = "1.7.4"
+export const VERSION = "1.7.5"
 
 // ----------------------------- Formatting
 
@@ -1332,7 +1332,7 @@ function uncharge(card:Card): Transform {
     }
 }
 
-function charge(card:Card, n:number, cost:boolean=false): Transform {
+function charge(card:Card, n:number=1, cost:boolean=false): Transform {
     return async function(state:State): Promise<State> {
         card = state.find(card)
         if (card.place == null) {
@@ -3494,6 +3494,7 @@ const decay:CardSpec = {name: 'Decay',
             target => removeToken(target, 'decay'),
             'Remove a decay token from a card.',
             s => s.hand.concat(s.play).concat(s.discard)
+                       .filter(c => c.count('decay') > 0)
         )
     ],
     staticTriggers: [{
@@ -3816,39 +3817,39 @@ const dragon:CardSpec = {name: 'Dragon',
     effects: [targetedEffect(c => trash(c), 'Trash a card in your hand.', s => s.hand),
               actionsEffect(4), coinsEffect(4), buyEffect()]
 }
-const egg:CardSpec = {name: 'Egg',
+const hatchery:CardSpec = {name: 'Hatchery',
     fixedCost: energy(0),
     relatedCards: [dragon],
-    effects: [actionsEffect(1), chargeEffect(), {
-        text: [`If this has three or more charge tokens on it, trash it 
-        and create ${a(dragon.name)} in your hand.`],
+    effects: [actionsEffect(1), {
+        text: [`If this has a charge token on it,
+                create ${a(dragon.name)} in your discard.`,
+               `Otherwise, put a charge token on it.`],
         transform: (state, card) => {
             const c = state.find(card);
-            return (c.charge >= 3)
+            return (c.charge >= 1)
                 ? doAll([
-                    trash(c),
-                    create(dragon, 'hand')
-                ]) : noop
+                    create(dragon, 'discard')
+                ]) : charge(c)
         }
     }]
 }
-buyable(egg, 3)
+buyable(hatchery, 3)
 
 const looter:CardSpec = {name: 'Looter',
     effects: [{
-        text: [`Discard up to three cards from your hand.`,
+        text: [`Discard up to four cards from your hand.`,
             `+1 action per card you discarded.`],
         transform: () => async function(state) {
             let targets; [state, targets] = await multichoice(state,
-                'Choose up to three cards to discard',
-                state.hand.map(asChoice), 3)
+                'Choose up to four cards to discard',
+                state.hand.map(asChoice), 4)
             state = await moveMany(targets, 'discard')(state)
             state = await gainActions(targets.length)(state)
             return state
         }
     }]
 }
-buyable(looter, 5)
+buyable(looter, 4)
 
 const palace:CardSpec = {name: 'Palace',
     fixedCost: energy(1),
