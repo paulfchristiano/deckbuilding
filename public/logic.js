@@ -4260,17 +4260,17 @@ var recruitment = {
         }]
 };
 buyable(recruitment, 3);
-var dragon = { name: 'Dragon', effects: [targetedEffect(function (c) { return trash(c); }, 'Trash a card in your hand.', function (s) { return s.hand; }), actionsEffect(4), coinsEffect(4), buyEffect()]
+var dragon = { name: 'Dragon', effects: [targetedEffect(function (c) { return trash(c); }, 'Trash a card in your hand.', function (s) { return s.hand; }), actionsEffect(3), coinsEffect(5), buyEffect()]
 };
 var hatchery = { name: 'Hatchery',
     fixedCost: energy(0),
     relatedCards: [dragon], effects: [actionsEffect(1), {
-            text: ["If this has a charge token on it,\n                create " + a(dragon.name) + " in your discard.",
-                "Otherwise, put a charge token on it."],
+            text: ["If this has a charge token, remove it and\n                create " + a(dragon.name) + " in your discard.\n                Otherwise, put a charge token on this."],
             transform: function (state, card) {
                 var c = state.find(card);
                 return (c.charge >= 1)
                     ? doAll([
+                        discharge(c, 1),
                         create(dragon, 'discard')
                     ]) : charge(c);
             }

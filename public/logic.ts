@@ -3815,19 +3815,20 @@ buyable(recruitment, 3)
 
 const dragon:CardSpec = {name: 'Dragon',
     effects: [targetedEffect(c => trash(c), 'Trash a card in your hand.', s => s.hand),
-              actionsEffect(4), coinsEffect(4), buyEffect()]
+              actionsEffect(3), coinsEffect(5), buyEffect()]
 }
 const hatchery:CardSpec = {name: 'Hatchery',
     fixedCost: energy(0),
     relatedCards: [dragon],
     effects: [actionsEffect(1), {
-        text: [`If this has a charge token on it,
-                create ${a(dragon.name)} in your discard.`,
-               `Otherwise, put a charge token on it.`],
+        text: [`If this has a charge token, remove it and
+                create ${a(dragon.name)} in your discard.
+                Otherwise, put a charge token on this.`],
         transform: (state, card) => {
             const c = state.find(card);
             return (c.charge >= 1)
                 ? doAll([
+                    discharge(c, 1),
                     create(dragon, 'discard')
                 ]) : charge(c)
         }
