@@ -85,7 +85,7 @@ const dailyTypes:DailyType[] = ['weekly', 'daily']
 function makeDailyKey(type:DailyType, inputDate:Date|null=null): string {
   const d:Date = (inputDate == null) ? new Date() : new Date(inputDate)
   //TODO: this seems like a bad way to handle timezones...
-  d.setMinutes(d.getMinutes() + d.getTimezoneOffset() - 240) //east coast time
+  d.setMinutes(d.getMinutes() + d.getTimezoneOffset() - 300) //east coast time
   switch (type) {
     case 'weekly':
       //new weekly challenges only at beginning of Monday
