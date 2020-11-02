@@ -1,4 +1,4 @@
-export const VERSION = "1.7.5"
+export const VERSION = "1.7.6"
 
 // ----------------------------- Formatting
 
@@ -62,7 +62,7 @@ export interface CardSpec {
     name: string;
     fixedCost?: Cost;
     restrictions?: Restriction[];
-    calculatedCost?: CalculatedCost;
+    variableCost?: VariableCost;
     buyCost?: Cost; //TODO: variable buy costs
     relatedCards?: CardSpec[];
     effects?: Effect[];
@@ -90,9 +90,8 @@ interface Restriction {
     test: (card:Card, state:State, kind:ActionKind) => boolean;
 }
 
-export interface CalculatedCost {
-    initial: Cost; //used for sorting
-    calculate: (card:Card, state:State) => Cost;
+export interface VariableCost {
+    calculate: (card:Card, state:State) => Partial<Cost>;
     text: string;
 }
 
@@ -189,11 +188,9 @@ export class Card {
         switch (kind) {
             case 'play':
             case 'use':
-                let result:Cost = free
-                if (this.spec.fixedCost != undefined)
-                    result = this.spec.fixedCost
-                else if (this.spec.calculatedCost != undefined)
-                    result = this.spec.calculatedCost.calculate(this, state)
+                let result:Cost = this.spec.fixedCost || free
+                if (this.spec.variableCost != undefined)
+                    result = addCosts(result, this.spec.variableCost.calculate(this, state))
                 if (kind == 'play') result = addCosts(result, {actions:1});
                 return result
             case 'buy': return addCosts(this.spec.buyCost || free, {buys:1})
@@ -1680,18 +1677,10 @@ export function coinKey(spec:CardSpec): number {
     return 0
 }
 export function coinEventKey(spec:CardSpec): number {
-    if (spec.fixedCost !== undefined)
-        return spec.fixedCost.coin
-    if (spec.calculatedCost !== undefined)
-        return spec.calculatedCost.initial.coin
-    return 0
+    return (spec.fixedCost || free).coin
 }
 export function energyEventKey(spec:CardSpec): number {
-    if (spec.fixedCost !== undefined)
-        return spec.fixedCost.energy
-    if (spec.calculatedCost !== undefined)
-        return spec.calculatedCost.initial.energy
-    return 0
+    return (spec.fixedCost || free).energy
 }
 export type Comp<T> = (a:T, b:T) => number
 export function toComp<T>(key:(x:T) => number): Comp<T> {
@@ -2654,14 +2643,13 @@ const hallOfMirrors:CardSpec = {name: 'Hall of Mirrors',
 }
 registerEvent(hallOfMirrors)
 
-function costPlus(initial:Cost, increment:Cost): CalculatedCost {
+function costPer(increment:Partial<Cost>): VariableCost {
     const extraStr:string = `${renderCost(increment, true)} for each cost token on this.`
     return {
         calculate: function(card:Card, state:State) {
-            return addCosts(initial, multiplyCosts(increment, state.find(card).count('cost')))
+            return multiplyCosts(increment, state.find(card).count('cost'))
         },
-        text: eq(initial, free) ? extraStr : `${renderCost(initial, true)} plus ${extraStr}`,
-        initial: initial,
+        text: extraStr,
     }
 }
 
@@ -2681,7 +2669,8 @@ registerEvent(restock)
 */
 
 const escalate:CardSpec = {name: 'Escalate',
-    calculatedCost: costPlus(energy(1), coin(1)),
+    fixedCost: energy(1),
+    variableCost: costPer(coin(1)),
     effects: [
         chargeEffect(),
         {
@@ -2806,25 +2795,22 @@ const fair:CardSpec = {
     }, trashOnLeavePlay()]
 }
 
-function costPlusPer(initial:Cost, increment:Cost, n:number): CalculatedCost {
+function costPerN(increment:Partial<Cost>, n:number): VariableCost {
     const extraStr:string = `${renderCost(increment, true)} for every ${n} cost tokens on this.`
     return {
         calculate: function(card:Card, state:State) {
-            return addCosts(
-                initial,
-                multiplyCosts(
-                    increment,
-                    Math.floor(state.find(card).count('cost') / n)
-                )
+            return multiplyCosts(
+                increment,
+                Math.floor(state.find(card).count('cost') / n)
             )
         },
-        text: eq(initial, free) ? extraStr : `${renderCost(initial, true)} plus ${extraStr}`,
-        initial: initial,
+        text: extraStr,
     }
 }
 
 const travelingFair:CardSpec = {name:'Traveling Fair',
-    calculatedCost: costPlusPer(coin(1), coin(1), 10),
+    fixedCost: coin(1),
+    variableCost: costPerN(coin(1), 10),
     effects: [incrementCost(), buyEffect(), createInPlayEffect(fair)],
     relatedCards: [fair],
 }
@@ -3377,7 +3363,8 @@ const spices:CardSpec = {name: 'Spices',
 buyable(spices, 5, {onBuy: [coinsEffect(4)]})
 
 const onslaught:CardSpec = {name: 'Onslaught',
-	calculatedCost: costPlus({...free, coin:3, energy:1}, coin(3)),
+    fixedCost: {...free, coin:3, energy:1},
+	variableCost: costPer({coin:3}),
     effects: [incrementCost(), {
         text: [`Play any number of cards in your hand.`],
         transform: (state, card) => async function(state) {
@@ -3510,7 +3497,8 @@ const decay:CardSpec = {name: 'Decay',
 registerEvent(decay)
 
 const reflect:CardSpec = {name: 'Reflect',
-    calculatedCost: costPlus(coin(1), coin(1)),
+    fixedCost: coin(1),
+    variableCost: costPer({coin:1}),
     effects: [incrementCost(), targetedEffect(
     	(target, card) => addToken(target, 'reflect'),
     	'Put a reflect token on a card in your hand',
@@ -3815,7 +3803,7 @@ buyable(recruitment, 3)
 
 const dragon:CardSpec = {name: 'Dragon',
     effects: [targetedEffect(c => trash(c), 'Trash a card in your hand.', s => s.hand),
-              actionsEffect(3), coinsEffect(5), buyEffect()]
+              coinsEffect(5), actionsEffect(3), buyEffect()]
 }
 const hatchery:CardSpec = {name: 'Hatchery',
     fixedCost: energy(0),
@@ -3838,8 +3826,7 @@ buyable(hatchery, 3)
 
 const looter:CardSpec = {name: 'Looter',
     effects: [{
-        text: [`Discard up to four cards from your hand.`,
-            `+1 action per card you discarded.`],
+        text: [`Discard up to four cards from your hand for +1 action each.`],
         transform: () => async function(state) {
             let targets; [state, targets] = await multichoice(state,
                 'Choose up to four cards to discard',
@@ -4251,11 +4238,11 @@ const secretChamber:CardSpec = {
     name: 'Secret Chamber',
     fixedCost: energy(1),
     effects: [{
-        text: [`Discard up to 8 cards from your hand for +$1 each.`],
+        text: [`Discard any number of cards from your hand for +$1 each.`],
         transform: () => async function(state) {
             let targets; [state, targets] = await multichoice(state,
-                'Choose up to 8 cards to discard for +$1 each.',
-                state.hand.map(asChoice), 8)
+                'Discard any number of cards for +$1 each.',
+                state.hand.map(asChoice))
             state = await moveMany(targets, 'discard')(state)
             state = await gainCoins(targets.length)(state)
             return state
@@ -4469,6 +4456,18 @@ registerEvent(mire)
 
 const commerce:CardSpec = {
     name: 'Commerce',
+    fixedCost: coin(1),
+    variableCost: {
+        calculate: (c, s) => (
+            s.play.some(card => card.name == villager.name)
+        ) ? free : {coin:1},
+        text: `$1 if there are no ${villager.name}s in play.`,
+    },
+    effects: [createInPlayEffect(villager)],
+}
+/*
+const commerce:CardSpec = {
+    name: 'Commerce',
     fixedCost: energy(1),
     effects: [{
         text: [`Pay all $.`, `Put a charge token on this for each $ paid.`],
@@ -4481,6 +4480,7 @@ const commerce:CardSpec = {
     }],
     staticReplacers: [chargeVillage()]
 }
+*/
 registerEvent(commerce)
 
 function reverbEffect(card:Card): Transform {
