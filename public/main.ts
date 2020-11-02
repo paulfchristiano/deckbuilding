@@ -6,7 +6,7 @@
 
 import { Cost, Shadow, State, Card, CardSpec, PlaceName } from './logic.js'
 import { GameSpec, SlotSpec } from './logic.js'
-import { Trigger, Replacer, Ability, CalculatedCost } from './logic.js'
+import { Trigger, Replacer, Ability, VariableCost } from './logic.js'
 import { ID } from './logic.js'
 import { renderCost, renderEnergy } from './logic.js'
 import { emptyState } from './logic.js'
@@ -295,8 +295,9 @@ function renderTrigger(x:Trigger|Replacer, staticTrigger:boolean): string {
     return `<div>${desc} ${x.text}</div>`
 }
 
-function renderCalculatedCost(c:CalculatedCost): string {
-    return `<div>(cost) ${c.text}</div>`
+function renderVariableCost(fixed:Cost|undefined, c:VariableCost): string {
+    const fixedStr = (fixed === undefined) ? '' : renderCost(fixed, true) + ' + '
+    return `<div>(cost) ${fixedStr}${c.text}</div>`
 }
 
 function renderBuyable(bs:{text?:string}[]): string{
@@ -312,7 +313,8 @@ function isZero(c:Cost|undefined) {
 function cardText(spec:CardSpec): string {
     const effectHtml:string = renderEffects(spec)
     const buyableHtml:string = (spec.restrictions != undefined) ? renderBuyable(spec.restrictions) : ''
-    const costHtml:string = (spec.calculatedCost != undefined) ? renderCalculatedCost(spec.calculatedCost) : ''
+    const costHtml:string = (spec.variableCost != undefined)
+        ? renderVariableCost(spec.fixedCost, spec.variableCost) : ''
     const abilitiesHtml:string = renderAbility(spec)
     const triggerHtml:string = (spec.triggers || []).map(
         x => renderTrigger(x, false)
@@ -335,7 +337,7 @@ function renderTooltip(card:Card, state:State, tokenRenderer:TokenRenderer): str
     const buyStr = !isZero(card.spec.buyCost) ?
         `(${renderCost(card.spec.buyCost as Cost)})` : '---'
     const costStr = !isZero(card.spec.fixedCost) ?
-        `(${renderCost(card.cost('play', emptyState) as Cost)})` : '---'
+        `(${renderCost(card.baseCost(state, 'play') as Cost)})` : '---'
     const header = `<div>---${buyStr} ${card.name} ${costStr}---</div>`
     const tokensHtml:string = tokenRenderer.renderTooltip(card.tokens)
     const baseFilling:string = header + cardText(card.spec) + tokensHtml
