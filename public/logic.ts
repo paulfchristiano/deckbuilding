@@ -4457,6 +4457,7 @@ registerEvent(mire)
 const commerce:CardSpec = {
     name: 'Commerce',
     fixedCost: coin(1),
+    relatedCards: [villager],
     variableCost: {
         calculate: (c, s) => (
             s.play.some(card => card.name == villager.name)

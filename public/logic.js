@@ -5036,6 +5036,7 @@ registerEvent(mire);
 var commerce = {
     name: 'Commerce',
     fixedCost: coin(1),
+    relatedCards: [villager],
     variableCost: {
         calculate: function (c, s) { return (s.play.some(function (card) { return card.name == villager.name; })) ? free : { coin: 1 }; },
         text: "$1 if there are no " + villager.name + "s in play.",
