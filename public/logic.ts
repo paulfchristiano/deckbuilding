@@ -1928,24 +1928,6 @@ export function specFromURL(search:string): GameSpec {
     }
 }
 
-function getFixedKingdom(kingdomString:string|null): CardSpec[]|null {
-    if (kingdomString==null) return null
-    const cardStrings:string[] = kingdomString.split(',')
-    const mixinsByName:Map<string, CardSpec> = new Map()
-    for (const spec of mixins) mixinsByName.set(spec.name, spec)
-    const result:CardSpec[] = []
-    for (const cardString of cardStrings) {
-        const cardSpec:CardSpec|undefined = mixinsByName.get(cardString)
-        if (cardSpec == undefined) {
-            alert(`URL specified invalid card ${cardString}`)
-            return null
-        }  else {
-            result.push(cardSpec)
-        }
-    }
-    return result
-}
-
 function pickRandoms(slots:SlotSpec[], source:CardSpec[], seed:string): CardSpec[] {
     const taken:Set<string> = new Set()
     const result:CardSpec[] = []
@@ -1962,6 +1944,13 @@ function pickRandoms(slots:SlotSpec[], source:CardSpec[], seed:string): CardSpec
         source.filter(x => !taken.has(x.name)), 
         randoms, hash(seed)
     ))
+}
+
+export function normalizeURL(url:string): string{
+	const spec:GameSpec = specFromURL(url)
+    const kingdom:Kingdom = makeKingdom(spec)
+    const normalizedSpec:GameSpec = {kind:'pick', cards:kingdom.cards, events:kingdom.events}
+    return specToURL(normalizedSpec)
 }
 
 export function initialState(spec:GameSpec): State {

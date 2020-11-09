@@ -749,8 +749,9 @@ class webUI {
                 `score=${score}`,
                 `history=${state.serializeHistory()}`
             ].join('&')
-            $.post(`campaignSubmit?${query}`)
-            heartbeat(state.spec)
+            $.post(`campaignSubmit?${query}`).then(
+                () => heartbeat(state.spec)
+            )
         }
         const submitOrUndo: () => Promise<void> = () =>
             new Promise(function (resolve, reject) {
@@ -1459,6 +1460,7 @@ function scoreboardURL(spec:GameSpec) {
 function campaignHeartbeat(spec:GameSpec, interval?:any): void {
     const queryStr = `campaignHeartbeat?${credentialParams()}&url=${encodeURIComponent(specToURL(spec))}&version=${VERSION}`
     $('#homeLink').attr('href', 'campaign.html')
+    $('#homeLink').text('campaign')
     $.get(queryStr).done(function(x) {
         if (x == 'version mismatch') {
             clearInterval(interval)

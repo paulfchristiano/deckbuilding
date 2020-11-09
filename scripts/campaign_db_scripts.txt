@@ -11,26 +11,26 @@ DELETE FROM campaign_levels;
 /* Progression A */
 
 INSERT INTO campaign_levels (key, url, points_required) VALUES
-('A1', 'kind=pick&cards=GhostTown&events=', 0),
-('A2', 'kind=pick&cards=Bridge,GhostTown&events=', 0),
-('A3', 'kind=pick&cards=Bridge,GhostTown,Spices&events=', 0),
-('A4', 'kind=pick&cards=Bridge,GhostTown,Spices&events=TravelingFair', 0),
-('A5', 'kind=pick&cards=Bridge,GhostTown,Spices&events=Polish,TravelingFair', 0);
+('C1', 'kind=pick&cards=GhostTown&events=', 0),
+('C2', 'kind=pick&cards=Bridge,GhostTown&events=', 0),
+('C3', 'kind=pick&cards=Bridge,GhostTown,Spices&events=', 0),
+('C4', 'kind=pick&cards=Bridge,GhostTown,Spices&events=TravelingFair', 0),
+('C5', 'kind=pick&cards=Bridge,GhostTown,Spices&events=Polish,TravelingFair', 0);
 
 INSERT INTO campaign_requirements(destination, req) VALUES
-('A2', 'A1'), ('A3', 'A2'), ('A4', 'A3'), ('A5', 'A4');
+('C2', 'C1'), ('C3', 'C2'), ('C4', 'C3'), ('C5', 'C4');
 
 INSERT INTO campaign_awards (level, core, threshold) VALUES
-('A1', TRUE, 52), ('A1', FALSE, 50), ('A1', FALSE, 48),
-('A2', TRUE, 50), ('A2', FALSE, 48), ('A2', FALSE, 47),
-('A3', TRUE, 44), ('A3', FALSE, 38), ('A3', FALSE, 36),
-('A4', TRUE, 35), ('A4', FALSE, 27), ('A4', FALSE, 17),
-('A5', TRUE, 26), ('A5', FALSE, 15), ('A5', FALSE, 14);
+('C1', TRUE, 52), ('C1', FALSE, 50), ('C1', FALSE, 48),
+('C2', TRUE, 50), ('C2', FALSE, 48), ('C2', FALSE, 47),
+('C3', TRUE, 44), ('C3', FALSE, 38), ('C3', FALSE, 36),
+('C4', TRUE, 35), ('C4', FALSE, 27), ('C4', FALSE, 17),
+('C5', TRUE, 26), ('C5', FALSE, 15), ('C5', FALSE, 14);
 
 /* Progression B */
 
 INSERT INTO campaign_levels (key, url, points_required) VALUES
-('B1', 'kind=pick&cards=Formation&events=', 5),
+('B1', 'kind=pick&cards=Formation&events=', 1),
 ('B2', 'kind=pick&cards=Formation,Workshop&events=', 0),
 ('B3', 'kind=pick&cards=Formation,Plow,Workshop&events=', 0),
 ('B4', 'kind=pick&cards=Formation,Looter,Plow,Workshop&events=', 0),
@@ -49,41 +49,41 @@ INSERT INTO campaign_awards (level, core, threshold) VALUES
 /* Progression C */
 
 INSERT INTO campaign_levels (key, url, points_required) VALUES
-('C1', 'kind=pick&cards=Sacrifice&events=', 15),
-('C2', 'kind=pick&cards=Banquet,Sacrifice&events=', 0),
-('C3', 'kind=pick&cards=Banquet,Sacrifice&events=Escalate', 0),
-('C4', 'kind=pick&cards=Banquet,Carpenter,Sacrifice&events=Escalate', 0),
-('C5', 'kind=pick&cards=Banquet,Carpenter,KingsCourt,Sacrifice&events=Escalate', 0);
+('A1', 'kind=pick&cards=Sacrifice&events=', 2),
+('A2', 'kind=pick&cards=Banquet,Sacrifice&events=', 0),
+('A3', 'kind=pick&cards=Banquet,Sacrifice&events=Escalate', 0),
+('A4', 'kind=pick&cards=Banquet,Carpenter,Sacrifice&events=Escalate', 0),
+('A5', 'kind=pick&cards=Banquet,Carpenter,KingsCourt,Sacrifice&events=Escalate', 0);
 
 INSERT INTO campaign_requirements(destination, req) VALUES
-('C2', 'C1'), ('C3', 'C2'), ('C4', 'C3'), ('C5', 'C4');
+('A2', 'A1'), ('A3', 'A2'), ('A4', 'A3'), ('A5', 'A4');
 
 INSERT INTO campaign_awards (level, core, threshold) VALUES
-('C1', TRUE, 52), ('C1', FALSE, 50), ('C1', FALSE, 48),
-('C2', TRUE, 45), ('C2', FALSE, 42), ('C2', FALSE, 40),
-('C3', TRUE, 32), ('C3', FALSE, 28), ('C3', FALSE, 24),
-('C4', TRUE, 23), ('C4', FALSE, 21), ('C4', FALSE, 19),
-('C5', TRUE, 20), ('C5', FALSE, 17), ('C5', FALSE, 16);
+('A1', TRUE, 52), ('A1', FALSE, 50), ('A1', FALSE, 48),
+('A2', TRUE, 45), ('A2', FALSE, 42), ('A2', FALSE, 40),
+('A3', TRUE, 32), ('A3', FALSE, 28), ('A3', FALSE, 24),
+('A4', TRUE, 23), ('A4', FALSE, 21), ('A4', FALSE, 19),
+('A5', TRUE, 20), ('A5', FALSE, 17), ('A5', FALSE, 16);
 
 /* Small games */
 
 INSERT INTO campaign_levels (key, url, points_required) VALUES
-('FGU', 'kind=pick&cards=Fortune,GhostTown,Unearth&events=', 3),
-('CHV', 'kind=pick&cards=Coppersmith,Herbs&events=Volley', 6),
-('IPS', 'kind=pick&cards=Industry&events=Prioritize,Synergy', 9),
-('BCR', 'kind=pick&cards=Bridge,Colony&events=Reuse', 12),
-('DLW', 'kind=pick&cards=Duke,Lackeys,Workshop&events=Reuse', 15),
-('IKV', 'kind=pick&cards=Imitation,KingsCourt,Village&events=Reuse', 18),
-('SST', 'kind=pick&cards=Shelter,ShippingLane,Turnpike&events=', 21),
-('FFP', 'kind=pick&cards=FairyGold,FlowerGarden&events=Pathfinding', 24),
-('HSV', 'kind=pick&cards=Spices,VibrantCity&events=HallofMirrors', 27),
-('CER', 'kind=pick&cards=Construction,Echo&events=Recycle', 30);
+('FGU', 'kind=pick&cards=Fortune,GhostTown,Unearth&events=', 5),
+('IPS', 'kind=pick&cards=Industry&events=Prioritize,Synergy', 8),
+('FFP', 'kind=pick&cards=FairyGold,FlowerMarket&events=Pathfinding', 11),
+('BCR', 'kind=pick&cards=Bridge,Colony&events=Reuse', 14),
+('DLW', 'kind=pick&cards=Duke,Lackeys,Workshop&events=', 17),
+('CHV', 'kind=pick&cards=Coppersmith,Herbs&events=Volley', 20),
+('IKV', 'kind=pick&cards=Imitation,KingsCourt,Village&events=', 26),
+('SST', 'kind=pick&cards=Shelter,ShippingLane,Turnpike&events=', 33),
+('HSV', 'kind=pick&cards=Spices,VibrantCity&events=HallofMirrors', 37),
+('CER', 'kind=pick&cards=Construction,Echo&events=Recycle', 45);
 
 INSERT INTO campaign_awards (level, core, threshold) VALUES
 ('FGU', TRUE, 40), ('FGU', FALSE, 36), ('FGU', FALSE, 32),
 ('CHV', TRUE, 46), ('CHV', FALSE, 44), ('CHV', FALSE, 42),
-('IPS', TRUE, 38), ('IPS', FALSE, 31), ('IPS', FALSE, 29),
-('BCR', TRUE, 44), ('BCR', FALSE, 37), ('BCR', FALSE, 35),
+('IPS', TRUE, 38), ('IPS', FALSE, 31), ('IPS', FALSE, 28),
+('BCR', TRUE, 42), ('BCR', FALSE, 36), ('BCR', FALSE, 34),
 ('DLW', TRUE, 40), ('DLW', FALSE, 36), ('DLW', FALSE, 32),
 ('IKV', TRUE, 42), ('IKV', FALSE, 38), ('IKV', FALSE, 36),
 ('SST', TRUE, 43), ('SST', FALSE, 42), ('SST', FALSE, 41),
@@ -95,49 +95,49 @@ INSERT INTO campaign_awards (level, core, threshold) VALUES
 
 INSERT INTO campaign_levels (key, url, points_required) VALUES
 ('GROW',
-'kind=pick&cards=Egg,Frontier,Investment,Traveler,Tinkerer&events=Escalate,Reflect',
-20),
+'kind=pick&cards=Frontier,Hatchery,Investment,Tinkerer,Traveler&events=Escalate,Reflect',
+23),
 ('BIG',
 'kind=pick&cards=Colony,Fortune,KingsCourt,Palace,Platinum&events=Inflation,Prioritize',
-30),
+29),
 ('BUY',
 'kind=pick&cards=FlowerMarket,GhostTown,Herbs,Lackeys,Spices&events=Duplicate,Expedite',
-40),
+41),
 ('DIG',
-'kind=pick&cards=Lab,Market,Plow,Till,Unearth&events=Commerce,Recycle',
-50),
+'kind=pick&cards=Lab,Market,Plow,Till,Unearth&events=Recycle,Toil',
+57),
 ('PLAY',
-'kind=pick&cards=Composting,Construction,Echo,Recruitment,Turnpike&events=Reverberate,TravelingFair',
-60),
+'kind=pick&cards=Composting,Construction,Echo,Recruitment,Turnpike&events=Focus,Reverberate',
+72),
 ('GROW/BIG',
-'kind=pick&cards=Colony,Egg,Fortune,Frontier,Investment,KingsCourt,Palace,Platinum,Traveler,Tinkerer&events=Escalate,Inflation,Prioritize,Reflect',
+'kind=pick&cards=Colony,Fortune,Frontier,Hatchery,Investment,KingsCourt,Palace,Platinum,Tinkerer,Traveler&events=Escalate,Inflation,Prioritize,Reflect',
 0),
 ('BIG/BUY',
 'kind=pick&cards=Colony,FlowerMarket,Fortune,GhostTown,Herbs,KingsCourt,Lackeys,Palace,Platinum,Spices&events=Duplicate,Expedite,Inflation,Prioritize',
 0),
 ('BUY/DIG',
-'kind=pick&cards=FlowerMarket,GhostTown,Herbs,Lab,Lackeys,Market,Plow,Spices,Till,Unearth&events=Commerce,Duplicate,Expedite,Recycle',
+'kind=pick&cards=FlowerMarket,GhostTown,Herbs,Lab,Lackeys,Market,Plow,Spices,Till,Unearth&events=Duplicate,Expedite,Recycle,Toil',
 0),
 ('DIG/PLAY',
-'kind=pick&cards=Composting,Construction,Echo,Lab,Market,Plow,Recruitment,Till,Turnpike,Unearth&events=Commerce,Recycle,Reverberate,TravelingFair',
+'kind=pick&cards=Composting,Construction,Echo,Lab,Market,Plow,Recruitment,Till,Turnpike,Unearth&events=Focus,Recycle,Reverberate,Toil',
 0),
 ('PLAY/GROW',
-'kind=pick&cards=Composting,Construction,Echo,Egg,Frontier,Investment,Recruitment,Traveler,Turnpike,Tinkerer&events=Escalate,Reflect,Reverberate,TravelingFair',
+'kind=pick&cards=Composting,Construction,Echo,Frontier,Hatchery,Investment,Recruitment,Tinkerer,Traveler,Turnpike&events=Escalate,Focus,Reflect,Reverberate',
 0),
 ('GROW/BUY',
-'kind=pick&cards=Egg,FlowerMarket,Frontier,GhostTown,Herbs,Investment,Lackeys,Spices,Traveler,Tinkerer&events=Duplicate,Escalate,Expedite,Reflect',
+'kind=pick&cards=FlowerMarket,Frontier,GhostTown,Hatchery,Herbs,Investment,Lackeys,Spices,Tinkerer,Traveler&events=Duplicate,Escalate,Expedite,Reflect',
 0),
 ('BIG/DIG',
-'kind=pick&cards=Colony,Fortune,KingsCourt,Lab,Market,Palace,Platinum,Plow,Till,Unearth&events=Commerce,Inflation,Prioritize,Recycle',
+'kind=pick&cards=Colony,Fortune,KingsCourt,Lab,Market,Palace,Platinum,Plow,Till,Unearth&events=Inflation,Prioritize,Recycle,Toil',
 0),
 ('BUY/PLAY',
-'kind=pick&cards=Composting,Construction,Echo,FlowerMarket,GhostTown,Herbs,Lackeys,Recruitment,Spices,Turnpike&events=Duplicate,Expedite,Reverberate,TravelingFair',
+'kind=pick&cards=Composting,Construction,Echo,FlowerMarket,GhostTown,Herbs,Lackeys,Recruitment,Spices,Turnpike&events=Duplicate,Expedite,Focus,Reverberate',
 0),
 ('DIG/GROW',
-'kind=pick&cards=Egg,Frontier,Investment,Lab,Market,Plow,Till,Traveler,Unearth,Tinkerer&events=Commerce,Escalate,Recycle,Reflect',
+'kind=pick&cards=Frontier,Hatchery,Investment,Lab,Market,Plow,Till,Tinkerer,Traveler,Unearth&events=Escalate,Recycle,Reflect,Toil',
 0),
 ('PLAY/BIG',
-'kind=pick&cards=Colony,Composting,Construction,Echo,Fortune,KingsCourt,Palace,Platinum,Recruitment,Turnpike&events=Inflation,Prioritize,Reverberate,TravelingFair',
+'kind=pick&cards=Colony,Composting,Construction,Echo,Fortune,KingsCourt,Palace,Platinum,Recruitment,Turnpike&events=Focus,Inflation,Prioritize,Reverberate',
 0);
 
 INSERT INTO campaign_requirements(destination, req) VALUES
@@ -152,49 +152,111 @@ INSERT INTO campaign_requirements(destination, req) VALUES
 ('DIG/GROW', 'DIG'), ('DIG/GROW', 'GROW'),
 ('PLAY/BIG', 'PLAY'), ('PLAY/BIG', 'BIG');
 
+INSERT INTO campaign_awards (level, core, threshold) VALUES
+('GROW', TRUE, 18), ('GROW', FALSE, 15), ('GROW', FALSE, 13),
+('BIG', TRUE, 26), ('BIG', FALSE, 23), ('BIG', FALSE, 21),
+('GROW/BIG', TRUE, 13), ('GROW/BIG', FALSE, 11), ('GROW/BIG', FALSE, 10),
+('BUY', TRUE, 38), ('BUY', FALSE, 33), ('BUY', FALSE, 30),
+('PLAY', TRUE, 23), ('PLAY', FALSE, 19), ('PLAY', FALSE, 17),
+('GROW/BUY', TRUE, 12), ('GROW/BUY', FALSE, 11), ('GROW/BUY', FALSE, 10),
+('DIG', TRUE, 26), ('DIG', FALSE, 22), ('DIG', FALSE, 21),
+('BUY/DIG', TRUE, 20), ('BUY/DIG', FALSE, 17), ('BUY/DIG', FALSE, 15),
+('BIG/DIG', TRUE, 18), ('BIG/DIG', FALSE, 14), ('BIG/DIG', FALSE, 12),
+('DIG/GROW', TRUE, 12), ('DIG/GROW', FALSE, 9), ('DIG/GROW', FALSE, 7),
+('PLAY/BIG', TRUE, 20), ('PLAY/BIG', FALSE, 17), ('PLAY/BIG', FALSE, 15),
+('PLAY/GROW', TRUE, 13), ('PLAY/GROW', FALSE, 12), ('PLAY/GROW', FALSE, 11),
+('DIG/PLAY', TRUE, 17), ('DIG/PLAY', FALSE, 16), ('DIG/PLAY', FALSE, 15),
+('BUY/PLAY', TRUE, 17), ('BUY/PLAY', FALSE, 16), ('BUY/PLAY', FALSE, 15),
+('BIG/BUY', TRUE, 20), ('BIG/BUY', FALSE, 16), ('BIG/BUY', FALSE, 14);
+
 /* Big games */
 
-### those are buggy, and need to do G4-G10
 INSERT INTO campaign_levels (key, url, points_required) VALUES
 ('G1',
-'kind=pick&cards=Composting,Echo,Gardens,Haggler,Herbs,Homesteading,Imitation,PublicWorks,ShippingLane,Village&events=Finance,Mire,Synergy,Twin'
-20),
+'kind=pick&cards=Composting,Echo,Gardens,Haggler,Herbs,Homesteading,Imitation,PublicWorks,ShippingLane,Village&events=Finance,Mire,Synergy,Twin',
+49),
 ('G2',
-'kind=pick&cards=Composting,Fortune,Fountain,GreatSmithy,Hireling,Homesteading,Palace,Platinum,Turnpike,Workshop&events=Duplicate,Philanthropy,Prioritize,Reverberate'
-25),
+'kind=pick&cards=Composting,Fortune,Fountain,GreatSmithy,Hireling,Homesteading,Palace,Platinum,Turnpike,Workshop&events=Duplicate,Philanthropy,Prioritize,Reverberate',
+53),
 ('G3',
-'play?kind=pick&cards=Duke,Fortune,GrandMarket,Hireling,Imitation,Innovation,Mastermind,Sacrifice,ThroneRoom,Tinkerer&events=Coffers,Mire,Parallelize,Populate',
-30),
+'kind=pick&cards=Duke,Fortune,GrandMarket,Hireling,Imitation,Innovation,Mastermind,Sacrifice,ThroneRoom,Tinkerer&events=Mire,Parallelize,Populate,Vault',
+62),
+('G4',
+'kind=pick&cards=Celebration,Composting,Construction,Echo,Feast,Gardens,GoldMine,ShippingLane,Spices,Village&events=Decay,Duplicate,Prioritize,Replicate',
+67),
+('G5',
+'kind=pick&cards=Carpenter,Formation,Harvest,Hireling,KingsCourt,Platinum,PublicWorks,Sacrifice,Spices,Unearth&events=Pathfinding,Recycle,Replicate,Synergy',
+75),
+('G6',
+'kind=pick&cards=Carpenter,Fortune,Harvest,Hireling,PublicWorks,Sacrifice,ShippingLane,Till,VibrantCity,Workshop&events=Decay,Mire,Reuse,TravelingFair',
+85),
+('G7',
+'kind=pick&cards=Duke,Echo,GreatSmithy,Highway,Hireling,Investment,Plow,Shelter,ThroneRoom,Tinkerer&events=Decay,Prioritize,Recycle,TravelingFair',
+90),
+('G8',
+'kind=pick&cards=Bridge,Celebration,Fortune,GrandMarket,GreatSmithy,KingsCourt,Market,RoyalSeal,SecretChamber,Village&events=Commerce,Focus,TravelingFair,Volley',
+95),
+('G9',
+'kind=pick&cards=Conclave,FairyGold,GrandMarket,GreatSmithy,Harvest,Herbs,Hireling,Homesteading,KingsCourt,Lackeys&events=Parallelize,Reach,Reflect,TravelingFair',
+105),
+('G10',
+'kind=pick&cards=Colony,Echo,GoldMine,Haggler,Hireling,Plow,Recruitment,RoyalSeal,Sacrifice,Till&events=Duplicate,Onslaught,Polish,Recycle',
+115);
 
+INSERT INTO campaign_awards (level, core, threshold) VALUES
+('G1', TRUE, 48), ('G1', FALSE, 44), ('G1', FALSE, 42),
+('G2', TRUE, 22), ('G2', FALSE, 20), ('G2', FALSE, 18),
+('G3', TRUE, 32), ('G3', FALSE, 28), ('G3', FALSE, 26),
+('G4', TRUE, 20), ('G4', FALSE, 17), ('G4', FALSE, 15),
+('G5', TRUE, 24), ('G5', FALSE, 20), ('G5', FALSE, 18),
+('G6', TRUE, 19), ('G6', FALSE, 15), ('G6', FALSE, 13),
+('G7', TRUE, 24), ('G7', FALSE, 20), ('G7', FALSE, 18),
+('G8', TRUE, 20), ('G8', FALSE, 18), ('G8', FALSE, 17),
+('G9', TRUE, 16), ('G9', FALSE, 12), ('G9', FALSE, 10),
+('G10', TRUE, 24), ('G10', FALSE, 20), ('G10', FALSE, 18);
 
 
 
 /* Subsets */
 
 INSERT INTO campaign_levels (key, url, points_required) VALUES
-('NULL', 'kind=pick&cards=&events=', 30),
+('NULL',
+'kind=pick&cards=&events=',
+80),
 ('CARD',
-'kind=pick&cards=Artificer,Banquet,Bridge,Carpenter,Celebration,Colony,Composting,Construction,Coppersmith,Coven,Duke,Echo,Egg,Factory,FairyGold,Feast,FlowerMarket,Formation,Fortune,Fountain,Frontier,Gardens,GhostTown,GoldMine,GrandMarket,GreatSmithy,Haggler,Harvest,Herbs,Highway,Hireling,Homesteading,Imitation,Industry,Innovation,Investment,KingsCourt,Lab,Lackeys,Looter,Market,Mastermind,Palace,Platinum,Plow,Procession,PublicWorks,Recruitment,RoyalSeal,Sacrifice,SecretChamber,Shelter,ShippingLane,Spices,ThroneRoom,Till,Transmogrify,Traveler,Turnpike,Unearth,VibrantCity,Village,Workshop,Tinkerer&events=',
-40),
+'kind=pick&cards=Artificer,Banquet,Bridge,Carpenter,Celebration,Colony,Composting,Conclave,Construction,Coppersmith,Duke,Echo,Factory,FairyGold,Feast,FlowerMarket,Formation,Fortune,Fountain,Frontier,Gardens,GhostTown,GoldMine,GrandMarket,GreatSmithy,Haggler,Harvest,Hatchery,Herbs,Highway,Hireling,Homesteading,Imitation,Industry,Innovation,Investment,KingsCourt,Lab,Lackeys,Looter,Market,Mastermind,Palace,Platinum,Plow,Procession,PublicWorks,Recruitment,RoyalSeal,Sacrifice,SecretChamber,Shelter,ShippingLane,Spices,ThroneRoom,Till,Tinkerer,Transmogrify,Traveler,Turnpike,Unearth,VibrantCity,Village,Workshop&events=',
+100),
+('BAD',
+'kind=pick&cards=&events=Burden,Decay,Mire',
+110),
 ('EVENT',
-'kind=pick&cards=&events=Coffers,Commerce,Duplicate,Escalate,Expedite,Finance,Focus,HallofMirrors,Inflation,LostArts,Onslaught,Parallelize,Pathfinding,Philanthropy,Polish,Populate,PressOn,Prioritize,Reach,Recycle,Reflect,Replicate,Reuse,Reverberate,Stables,Synergy,TravelingFair,Twin,Volley',
-50),
-('BAD', 'kind=pick&cards=&events=Burden,Decay,Mire', 60),
-('CARD+EVENT',
-'kind=pick&cards=Artificer,Banquet,Bridge,Carpenter,Celebration,Colony,Composting,Construction,Coppersmith,Coven,Duke,Echo,Egg,Factory,FairyGold,Feast,FlowerMarket,Formation,Fortune,Fountain,Frontier,Gardens,GhostTown,GoldMine,GrandMarket,GreatSmithy,Haggler,Harvest,Herbs,Highway,Hireling,Homesteading,Imitation,Industry,Innovation,Investment,KingsCourt,Lab,Lackeys,Looter,Market,Mastermind,Palace,Platinum,Plow,Procession,PublicWorks,Recruitment,RoyalSeal,Sacrifice,SecretChamber,Shelter,ShippingLane,Spices,ThroneRoom,Till,Transmogrify,Traveler,Turnpike,Unearth,VibrantCity,Village,Workshop,Tinkerer&events=Coffers,Commerce,Duplicate,Escalate,Expedite,Finance,Focus,HallofMirrors,Inflation,LostArts,Onslaught,Parallelize,Pathfinding,Philanthropy,Polish,Populate,PressOn,Prioritize,Reach,Recycle,Reflect,Replicate,Reuse,Reverberate,Stables,Synergy,TravelingFair,Twin,Volley',
-0),
+'kind=pick&cards=&events=Commerce,Duplicate,Escalate,Expedite,Finance,Focus,HallofMirrors,Inflation,LostArts,Onslaught,Parallelize,Pathfinding,Philanthropy,Polish,Populate,PressOn,Prioritize,Reach,Recycle,Reflect,Replicate,Reuse,Reverberate,Synergy,Toil,TravelingFair,Twin,Vault,Volley',
+120),
 ('CARD+BAD',
-'kind=pick&cards=Artificer,Banquet,Bridge,Carpenter,Celebration,Colony,Composting,Construction,Coppersmith,Coven,Duke,Echo,Egg,Factory,FairyGold,Feast,FlowerMarket,Formation,Fortune,Fountain,Frontier,Gardens,GhostTown,GoldMine,GrandMarket,GreatSmithy,Haggler,Harvest,Herbs,Highway,Hireling,Homesteading,Imitation,Industry,Innovation,Investment,KingsCourt,Lab,Lackeys,Looter,Market,Mastermind,Palace,Platinum,Plow,Procession,PublicWorks,Recruitment,RoyalSeal,Sacrifice,SecretChamber,Shelter,ShippingLane,Spices,ThroneRoom,Till,Transmogrify,Traveler,Turnpike,Unearth,VibrantCity,Village,Workshop,Tinkerer&events=Burden,Decay,Mire',
+'kind=pick&cards=Artificer,Banquet,Bridge,Carpenter,Celebration,Colony,Composting,Conclave,Construction,Coppersmith,Duke,Echo,Factory,FairyGold,Feast,FlowerMarket,Formation,Fortune,Fountain,Frontier,Gardens,GhostTown,GoldMine,GrandMarket,GreatSmithy,Haggler,Harvest,Hatchery,Herbs,Highway,Hireling,Homesteading,Imitation,Industry,Innovation,Investment,KingsCourt,Lab,Lackeys,Looter,Market,Mastermind,Palace,Platinum,Plow,Procession,PublicWorks,Recruitment,RoyalSeal,Sacrifice,SecretChamber,Shelter,ShippingLane,Spices,ThroneRoom,Till,Tinkerer,Transmogrify,Traveler,Turnpike,Unearth,VibrantCity,Village,Workshop&events=Burden,Decay,Mire',
 0),
-('EVENT+BAD',
-'kind=pick&cards=&events=Burden,Coffers,Commerce,Decay,Duplicate,Escalate,Expedite,Finance,Focus,HallofMirrors,Inflation,LostArts,Mire,Onslaught,Parallelize,Pathfinding,Philanthropy,Polish,Populate,PressOn,Prioritize,Reach,Recycle,Reflect,Replicate,Reuse,Reverberate,Stables,Synergy,TravelingFair,Twin,Volley',
+('CARD+EVENT',
+'kind=pick&cards=Artificer,Banquet,Bridge,Carpenter,Celebration,Colony,Composting,Conclave,Construction,Coppersmith,Duke,Echo,Factory,FairyGold,Feast,FlowerMarket,Formation,Fortune,Fountain,Frontier,Gardens,GhostTown,GoldMine,GrandMarket,GreatSmithy,Haggler,Harvest,Hatchery,Herbs,Highway,Hireling,Homesteading,Imitation,Industry,Innovation,Investment,KingsCourt,Lab,Lackeys,Looter,Market,Mastermind,Palace,Platinum,Plow,Procession,PublicWorks,Recruitment,RoyalSeal,Sacrifice,SecretChamber,Shelter,ShippingLane,Spices,ThroneRoom,Till,Tinkerer,Transmogrify,Traveler,Turnpike,Unearth,VibrantCity,Village,Workshop&events=Commerce,Duplicate,Escalate,Expedite,Finance,Focus,HallofMirrors,Inflation,LostArts,Onslaught,Parallelize,Pathfinding,Philanthropy,Polish,Populate,PressOn,Prioritize,Reach,Recycle,Reflect,Replicate,Reuse,Reverberate,Synergy,Toil,TravelingFair,Twin,Vault,Volley',
 0),
-('CARD+EVENT+BAD',
-'kind=pick&cards=Artificer,Banquet,Bridge,Carpenter,Celebration,Colony,Composting,Construction,Coppersmith,Coven,Duke,Echo,Egg,Factory,FairyGold,Feast,FlowerMarket,Formation,Fortune,Fountain,Frontier,Gardens,GhostTown,GoldMine,GrandMarket,GreatSmithy,Haggler,Harvest,Herbs,Highway,Hireling,Homesteading,Imitation,Industry,Innovation,Investment,KingsCourt,Lab,Lackeys,Looter,Market,Mastermind,Palace,Platinum,Plow,Procession,PublicWorks,Recruitment,RoyalSeal,Sacrifice,SecretChamber,Shelter,ShippingLane,Spices,ThroneRoom,Till,Transmogrify,Traveler,Turnpike,Unearth,VibrantCity,Village,Workshop,Tinkerer&events=Burden,Coffers,Commerce,Decay,Duplicate,Escalate,Expedite,Finance,Focus,HallofMirrors,Inflation,LostArts,Mire,Onslaught,Parallelize,Pathfinding,Philanthropy,Polish,Populate,PressOn,Prioritize,Reach,Recycle,Reflect,Replicate,Reuse,Reverberate,Stables,Synergy,TravelingFair,Twin,Volley',
+('BAD+EVENT',
+'kind=pick&cards=&events=Burden,Commerce,Decay,Duplicate,Escalate,Expedite,Finance,Focus,HallofMirrors,Inflation,LostArts,Mire,Onslaught,Parallelize,Pathfinding,Philanthropy,Polish,Populate,PressOn,Prioritize,Reach,Recycle,Reflect,Replicate,Reuse,Reverberate,Synergy,Toil,TravelingFair,Twin,Vault,Volley',
+0),
+('CARD+BAD+EVENT',
+'kind=pick&cards=Artificer,Banquet,Bridge,Carpenter,Celebration,Colony,Composting,Conclave,Construction,Coppersmith,Duke,Echo,Factory,FairyGold,Feast,FlowerMarket,Formation,Fortune,Fountain,Frontier,Gardens,GhostTown,GoldMine,GrandMarket,GreatSmithy,Haggler,Harvest,Hatchery,Herbs,Highway,Hireling,Homesteading,Imitation,Industry,Innovation,Investment,KingsCourt,Lab,Lackeys,Looter,Market,Mastermind,Palace,Platinum,Plow,Procession,PublicWorks,Recruitment,RoyalSeal,Sacrifice,SecretChamber,Shelter,ShippingLane,Spices,ThroneRoom,Till,Tinkerer,Transmogrify,Traveler,Turnpike,Unearth,VibrantCity,Village,Workshop&events=Burden,Commerce,Decay,Duplicate,Escalate,Expedite,Finance,Focus,HallofMirrors,Inflation,LostArts,Mire,Onslaught,Parallelize,Pathfinding,Philanthropy,Polish,Populate,PressOn,Prioritize,Reach,Recycle,Reflect,Replicate,Reuse,Reverberate,Synergy,Toil,TravelingFair,Twin,Vault,Volley',
 0);
 
 INSERT INTO campaign_requirements(destination, req) VALUES
 ('CARD+EVENT', 'CARD'), ('CARD+EVENT', 'EVENT'), ('CARD+BAD', 'CARD'),
-('CARD+BAD', 'BAD'), ('EVENT+BAD', 'EVENT'), ('EVENT+BAD', 'BAD'),
-('CARD+EVENT+BAD', 'CARD+EVENT'), ('CARD+EVENT+BAD', 'CARD+BAD'),
-('CARD+EVENT+BAD', 'EVENT+BAD');
+('CARD+BAD', 'BAD'), ('BAD+EVENT', 'EVENT'), ('BAD+EVENT', 'BAD'),
+('CARD+BAD+EVENT', 'CARD+EVENT'), ('CARD+BAD+EVENT', 'CARD+BAD'),
+('CARD+BAD+EVENT', 'BAD+EVENT');
+
+INSERT INTO campaign_awards (level, core, threshold) VALUES
+('NULL', TRUE, 55), ('NULL', FALSE, 53), ('CARD', FALSE, 52),
+('CARD', TRUE, 16), ('CARD', FALSE, 14), ('CARD', FALSE, 12),
+('BAD', TRUE, 124), ('BAD', FALSE, 114), ('BAD', FALSE, 109),
+('EVENT', TRUE, 20), ('EVENT', FALSE, 15), ('EVENT', FALSE, 12),
+('CARD+BAD', TRUE, 60), ('CARD+BAD', FALSE, 50), ('CARD+BAD', FALSE, 40),
+('CARD+EVENT', TRUE, 8), ('CARD+EVENT', FALSE, 6), ('CARD+EVENT', FALSE, 5),
+('BAD+EVENT', TRUE, 20), ('BAD+EVENT', FALSE, 15), ('BAD+EVENT', FALSE, 12),
+('CARD+BAD+EVENT', TRUE, 12), ('CARD+BAD+EVENT', FALSE, 10), ('CARD+BAD+EVENT', FALSE, 9);

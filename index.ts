@@ -1,7 +1,7 @@
 import express from 'express'
 import path from 'path'
 const PORT = process.env.PORT || 5000
-import {verifyScore, VERSION, specFromURL, specToURL } from './public/logic.js'
+import {verifyScore, VERSION, specFromURL, specToURL, normalizeURL } from './public/logic.js'
 import {Credentials, hashPassword, CampaignInfo} from './public/campaign.js'
 
 import postgres from 'postgres'
@@ -144,6 +144,23 @@ async function serveMain(req:any, res:any) {
       }
 }
 
+async function verifyAllCampaignLevels(): Promise<string[]> {
+  const result:string[] = []
+  const rows = await sql`
+    SELECT url, key FROM campaign_levels;
+  `
+  for (const row of rows) {
+    try {
+      const url:string = normalizeURL(row.url)
+      if (row.url != url) {
+        result.push(`${row.key}: ${row.url} should be ${url}`)
+      }
+    } catch(e) {
+      result.push(`${row.key}: ${e}`)
+    }
+  }
+  return result
+}
 
 function dailyTypeFromReq(req:any): DailyType {
   let typeString:string|undefined = req.query.type
@@ -348,6 +365,10 @@ express()
       } else {
         res.redirect(`../${results[0].url}`)
       }
+    })
+    .get('/verify', async (req: any, res: any) => {
+      const results = await verifyAllCampaignLevels()
+      res.send(results.map(x => `<p>${x}</p>`).join(''))
     })
     .get('/campaignHeartbeat', async (req:any, res:any) => {
       const credentials:Credentials = {

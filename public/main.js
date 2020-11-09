@@ -842,8 +842,7 @@ var webUI = /** @class */ (function () {
                         "score=" + score,
                         "history=" + state.serializeHistory()
                     ].join('&');
-                    $.post("campaignSubmit?" + query);
-                    heartbeat(state.spec);
+                    $.post("campaignSubmit?" + query).then(function () { return heartbeat(state.spec); });
                 }
                 submitOrUndo = function () {
                     return new Promise(function (resolve, reject) {
@@ -1512,6 +1511,7 @@ function scoreboardURL(spec) {
 function campaignHeartbeat(spec, interval) {
     var queryStr = "campaignHeartbeat?" + credentialParams() + "&url=" + encodeURIComponent(specToURL(spec)) + "&version=" + VERSION;
     $('#homeLink').attr('href', 'campaign.html');
+    $('#homeLink').text('campaign');
     $.get(queryStr).done(function (x) {
         if (x == 'version mismatch') {
             clearInterval(interval);
