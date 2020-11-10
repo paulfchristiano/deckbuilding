@@ -11,7 +11,7 @@ DELETE FROM campaign_levels;
 /* Progression A */
 
 INSERT INTO campaign_levels (key, url, points_required) VALUES
-('C1', 'kind=pick&cards=GhostTown&events=', 0),
+('C1', 'kind=pick&cards=GhostTown&events=', 2),
 ('C2', 'kind=pick&cards=Bridge,GhostTown&events=', 0),
 ('C3', 'kind=pick&cards=Bridge,GhostTown,Spices&events=', 0),
 ('C4', 'kind=pick&cards=Bridge,GhostTown,Spices&events=TravelingFair', 0),
@@ -49,7 +49,7 @@ INSERT INTO campaign_awards (level, core, threshold) VALUES
 /* Progression C */
 
 INSERT INTO campaign_levels (key, url, points_required) VALUES
-('A1', 'kind=pick&cards=Sacrifice&events=', 2),
+('A1', 'kind=pick&cards=Sacrifice&events=', 0),
 ('A2', 'kind=pick&cards=Banquet,Sacrifice&events=', 0),
 ('A3', 'kind=pick&cards=Banquet,Sacrifice&events=Escalate', 0),
 ('A4', 'kind=pick&cards=Banquet,Carpenter,Sacrifice&events=Escalate', 0),
@@ -107,7 +107,7 @@ INSERT INTO campaign_levels (key, url, points_required) VALUES
 'kind=pick&cards=Lab,Market,Plow,Till,Unearth&events=Recycle,Toil',
 57),
 ('PLAY',
-'kind=pick&cards=Composting,Construction,Echo,Recruitment,Turnpike&events=Focus,Reverberate',
+'kind=pick&cards=Composting,Construction,Echo,Recruitment,Turnpike&events=Reverberate,TravelingFair',
 72),
 ('GROW/BIG',
 'kind=pick&cards=Colony,Fortune,Frontier,Hatchery,Investment,KingsCourt,Palace,Platinum,Tinkerer,Traveler&events=Escalate,Inflation,Prioritize,Reflect',
@@ -119,10 +119,10 @@ INSERT INTO campaign_levels (key, url, points_required) VALUES
 'kind=pick&cards=FlowerMarket,GhostTown,Herbs,Lab,Lackeys,Market,Plow,Spices,Till,Unearth&events=Duplicate,Expedite,Recycle,Toil',
 0),
 ('DIG/PLAY',
-'kind=pick&cards=Composting,Construction,Echo,Lab,Market,Plow,Recruitment,Till,Turnpike,Unearth&events=Focus,Recycle,Reverberate,Toil',
+'kind=pick&cards=Composting,Construction,Echo,Lab,Market,Plow,Recruitment,Till,Turnpike,Unearth&events=Recycle,Reverberate,Toil,TravelingFair',
 0),
 ('PLAY/GROW',
-'kind=pick&cards=Composting,Construction,Echo,Frontier,Hatchery,Investment,Recruitment,Tinkerer,Traveler,Turnpike&events=Escalate,Focus,Reflect,Reverberate',
+'kind=pick&cards=Composting,Construction,Echo,Frontier,Hatchery,Investment,Recruitment,Tinkerer,Traveler,Turnpike&events=Escalate,Reflect,Reverberate,TravelingFair',
 0),
 ('GROW/BUY',
 'kind=pick&cards=FlowerMarket,Frontier,GhostTown,Hatchery,Herbs,Investment,Lackeys,Spices,Tinkerer,Traveler&events=Duplicate,Escalate,Expedite,Reflect',
@@ -131,13 +131,13 @@ INSERT INTO campaign_levels (key, url, points_required) VALUES
 'kind=pick&cards=Colony,Fortune,KingsCourt,Lab,Market,Palace,Platinum,Plow,Till,Unearth&events=Inflation,Prioritize,Recycle,Toil',
 0),
 ('BUY/PLAY',
-'kind=pick&cards=Composting,Construction,Echo,FlowerMarket,GhostTown,Herbs,Lackeys,Recruitment,Spices,Turnpike&events=Duplicate,Expedite,Focus,Reverberate',
+'kind=pick&cards=Composting,Construction,Echo,FlowerMarket,GhostTown,Herbs,Lackeys,Recruitment,Spices,Turnpike&events=Duplicate,Expedite,Reverberate,TravelingFair',
 0),
 ('DIG/GROW',
 'kind=pick&cards=Frontier,Hatchery,Investment,Lab,Market,Plow,Till,Tinkerer,Traveler,Unearth&events=Escalate,Recycle,Reflect,Toil',
 0),
 ('PLAY/BIG',
-'kind=pick&cards=Colony,Composting,Construction,Echo,Fortune,KingsCourt,Palace,Platinum,Recruitment,Turnpike&events=Focus,Inflation,Prioritize,Reverberate',
+'kind=pick&cards=Colony,Composting,Construction,Echo,Fortune,KingsCourt,Palace,Platinum,Recruitment,Turnpike&events=Inflation,Prioritize,Reverberate,TravelingFair',
 0);
 
 INSERT INTO campaign_requirements(destination, req) VALUES
@@ -163,10 +163,10 @@ INSERT INTO campaign_awards (level, core, threshold) VALUES
 ('BUY/DIG', TRUE, 20), ('BUY/DIG', FALSE, 17), ('BUY/DIG', FALSE, 15),
 ('BIG/DIG', TRUE, 18), ('BIG/DIG', FALSE, 14), ('BIG/DIG', FALSE, 12),
 ('DIG/GROW', TRUE, 12), ('DIG/GROW', FALSE, 9), ('DIG/GROW', FALSE, 7),
-('PLAY/BIG', TRUE, 20), ('PLAY/BIG', FALSE, 17), ('PLAY/BIG', FALSE, 15),
-('PLAY/GROW', TRUE, 13), ('PLAY/GROW', FALSE, 12), ('PLAY/GROW', FALSE, 11),
+('PLAY/BIG', TRUE, 16), ('PLAY/BIG', FALSE, 15), ('PLAY/BIG', FALSE, 14),
+('PLAY/GROW', TRUE, 12), ('PLAY/GROW', FALSE, 10), ('PLAY/GROW', FALSE, 9),
 ('DIG/PLAY', TRUE, 17), ('DIG/PLAY', FALSE, 16), ('DIG/PLAY', FALSE, 15),
-('BUY/PLAY', TRUE, 17), ('BUY/PLAY', FALSE, 16), ('BUY/PLAY', FALSE, 15),
+('BUY/PLAY', TRUE, 16), ('BUY/PLAY', FALSE, 15), ('BUY/PLAY', FALSE, 14),
 ('BIG/BUY', TRUE, 20), ('BIG/BUY', FALSE, 16), ('BIG/BUY', FALSE, 14);
 
 /* Big games */

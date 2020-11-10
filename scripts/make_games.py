@@ -18,7 +18,7 @@ themes = [
     ('BIG', 'kind=pick&cards=Colony,Fortune,KingsCourt,Palace,Platinum&events=Inflation,Prioritize', 29),
     ('BUY', 'kind=pick&cards=FlowerMarket,GhostTown,Herbs,Lackeys,Spices&events=Duplicate,Expedite', 41),
     ('DIG', 'kind=pick&cards=Lab,Market,Plow,Till,Unearth&events=Recycle,Toil', 57),
-    ('PLAY', 'kind=pick&cards=Composting,Construction,Echo,Recruitment,Turnpike&events=Focus,Reverberate', 72)
+    ('PLAY', 'kind=pick&cards=Composting,Construction,Echo,Recruitment,Turnpike&events=Reverberate,TravelingFair', 72)
 ]
 
 def lone_str(n, s, k):
