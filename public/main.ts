@@ -33,7 +33,7 @@ const numHotkeys:Key[] = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9']
 const supplyAndPlayHotkeys:Key[] = numHotkeys.concat(symbolHotkeys).concat(upperHotkeys)
 const handHotkeys = lowerHotkeys.concat(upperHotkeys)
 // want to put zones that are least likely to change earlier, to not distrupt assignment
-const hotkeys:Key[] = supplyAndPlayHotkeys.concat(handHotkeys).concat(symbolHotkeys)
+const hotkeys:Key[] = supplyAndPlayHotkeys.concat(handHotkeys)
 const choiceHotkeys:Key[] = handHotkeys.concat(supplyAndPlayHotkeys)
 
 $(document).keydown((e: any) => {
@@ -93,11 +93,13 @@ class HotkeyMapper {
         for (const option of options) {
             pickable.add(renderKey(option.render))
         }
+        console.log(pickable)
         function takenByPickable(key:Key): boolean {
             const takenBy:RenderKey|undefined = taken.get(key)
             return (takenBy != undefined && pickable.has(takenBy))
         }
         function set(x:RenderKey, k:Key): void {
+            console.log(`setting ${x} to ${k}`)
             result.set(x, k)
             taken.set(k, x)
         }
@@ -131,10 +133,12 @@ class HotkeyMapper {
         function nextHotkey(): Key|null {
             while (true) {
                 const key:Key = hotkeys[index]
-                if (!takenByPickable(key)) return key
+                if (!takenByPickable(key)) {
+                    console.log(`assigning ${key}`)
+                    return key
+                }
                 else index++
             }
-            return hotkeys[index]
         }
         for (const option of options) {
             if (!result.has(renderKey(option.render))) {

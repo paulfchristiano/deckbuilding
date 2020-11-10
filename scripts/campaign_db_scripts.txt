@@ -153,13 +153,13 @@ INSERT INTO campaign_requirements(destination, req) VALUES
 ('PLAY/BIG', 'PLAY'), ('PLAY/BIG', 'BIG');
 
 INSERT INTO campaign_awards (level, core, threshold) VALUES
-('GROW', TRUE, 18), ('GROW', FALSE, 15), ('GROW', FALSE, 13),
+('GROW', TRUE, 16), ('GROW', FALSE, 14), ('GROW', FALSE, 13),
 ('BIG', TRUE, 26), ('BIG', FALSE, 23), ('BIG', FALSE, 21),
 ('GROW/BIG', TRUE, 13), ('GROW/BIG', FALSE, 11), ('GROW/BIG', FALSE, 10),
 ('BUY', TRUE, 38), ('BUY', FALSE, 33), ('BUY', FALSE, 30),
-('PLAY', TRUE, 23), ('PLAY', FALSE, 19), ('PLAY', FALSE, 17),
+('PLAY', TRUE, 22), ('PLAY', FALSE, 19), ('PLAY', FALSE, 17),
 ('GROW/BUY', TRUE, 12), ('GROW/BUY', FALSE, 11), ('GROW/BUY', FALSE, 10),
-('DIG', TRUE, 26), ('DIG', FALSE, 22), ('DIG', FALSE, 21),
+('DIG', TRUE, 25), ('DIG', FALSE, 22), ('DIG', FALSE, 21),
 ('BUY/DIG', TRUE, 20), ('BUY/DIG', FALSE, 17), ('BUY/DIG', FALSE, 15),
 ('BIG/DIG', TRUE, 18), ('BIG/DIG', FALSE, 14), ('BIG/DIG', FALSE, 12),
 ('DIG/GROW', TRUE, 12), ('DIG/GROW', FALSE, 9), ('DIG/GROW', FALSE, 7),

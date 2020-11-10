@@ -101,7 +101,7 @@ var numHotkeys = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
 var supplyAndPlayHotkeys = numHotkeys.concat(symbolHotkeys).concat(upperHotkeys);
 var handHotkeys = lowerHotkeys.concat(upperHotkeys);
 // want to put zones that are least likely to change earlier, to not distrupt assignment
-var hotkeys = supplyAndPlayHotkeys.concat(handHotkeys).concat(symbolHotkeys);
+var hotkeys = supplyAndPlayHotkeys.concat(handHotkeys);
 var choiceHotkeys = handHotkeys.concat(supplyAndPlayHotkeys);
 $(document).keydown(function (e) {
     var listener = keyListeners.get(e.key);
@@ -168,11 +168,13 @@ var HotkeyMapper = /** @class */ (function () {
             }
             finally { if (e_1) throw e_1.error; }
         }
+        console.log(pickable);
         function takenByPickable(key) {
             var takenBy = taken.get(key);
             return (takenBy != undefined && pickable.has(takenBy));
         }
         function set(x, k) {
+            console.log("setting " + x + " to " + k);
             result.set(x, k);
             taken.set(k, x);
         }
@@ -225,12 +227,13 @@ var HotkeyMapper = /** @class */ (function () {
         function nextHotkey() {
             while (true) {
                 var key = hotkeys[index];
-                if (!takenByPickable(key))
+                if (!takenByPickable(key)) {
+                    console.log("assigning " + key);
                     return key;
+                }
                 else
                     index++;
             }
-            return hotkeys[index];
         }
         try {
             for (var options_3 = __values(options), options_3_1 = options_3.next(); !options_3_1.done; options_3_1 = options_3.next()) {
