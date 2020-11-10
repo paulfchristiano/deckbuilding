@@ -1695,8 +1695,9 @@ export function loadPicker() {
     }
     var specs = cards.concat(events);
     function trivial() { }
-    function elem(i) {
-        return $("[option='" + i + "']");
+    function elem(i, kind) {
+        var id = (kind == 'card') ? 'supply' : 'events';
+        return $("#" + id + " [option='" + i + "']");
     }
     function prefix(s) {
         var parts = s.split('/');
@@ -1704,21 +1705,24 @@ export function loadPicker() {
     }
     function kingdomLink(kind) {
         if (kind === void 0) { kind = ''; }
-        return kingdomURL(kind, Array.from(chosen.values()).filter(function (i) { return i < cards.length; }).map(function (i) { return cards[i]; }), Array.from(chosen.values()).filter(function (i) { return i >= cards.length; }).map(function (i) { return events[i - cards.length]; }));
+        return kingdomURL(kind, Array.from(chosen.card.values()).map(function (i) { return cards[i]; }), Array.from(chosen.event.values()).map(function (i) { return events[i]; }));
     }
-    var chosen = new Set();
-    function pick(i) {
-        if (chosen.has(i)) {
-            chosen.delete(i);
-            elem(i).attr('chosen', false);
+    var chosen = {
+        'card': new Set(),
+        'event': new Set(),
+    };
+    function pick(i, kind) {
+        if (chosen[kind].has(i)) {
+            chosen[kind].delete(i);
+            elem(i, kind).attr('chosen', false);
         }
         else {
-            chosen.add(i);
-            elem(i).attr('chosen', true);
+            chosen[kind].add(i);
+            elem(i, kind).attr('chosen', true);
         }
-        $('#cardCount').html(String(countIn(chosen, function (x) { return x < cards.length; })));
-        $('#eventCount').html(String(countIn(chosen, function (x) { return x >= cards.length; })));
-        if (chosen.size > 0) {
+        $('#cardCount').html(String(chosen.card.size));
+        $('#eventCount').html(String(chosen.event.size));
+        if (chosen.card.size > 0 || chosen.event.size > 0) {
             $('#pickLink').attr('href', kingdomLink());
             $('#requireLink').attr('href', kingdomLink('kind=require&'));
         }
@@ -1727,12 +1731,12 @@ export function loadPicker() {
             $('#requireLink').removeAttr('href');
         }
     }
-    function makeOption(card, i) {
+    function makeOption(card, i, kind) {
         return {
-            value: function () { return pick(i); },
+            value: function () { return pick(i, kind); },
             render: { kind: 'card', card: card }
         };
     }
-    renderChoice(null, state, 'Choose which events and cards to use.', state.supply.map(function (card, i) { return makeOption(card, i); }).concat(state.events.map(function (card, i) { return makeOption(card, cards.length + i); })));
+    renderChoice(null, state, 'Choose which events and cards to use.', state.supply.map(function (card, i) { return makeOption(card, i, 'card'); }).concat(state.events.map(function (card, i) { return makeOption(card, i, 'event'); })));
 }
 //# sourceMappingURL=main.js.map

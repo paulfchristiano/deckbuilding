@@ -1634,8 +1634,9 @@ export function loadPicker(): void {
     }
     const specs = cards.concat(events)
     function trivial() {}
-    function elem(i:number): any {
-        return $(`[option='${i}']`)
+    function elem(i:number, kind:'card'|'event'): any {
+        const id = (kind == 'card') ? 'supply' : 'events'
+        return $(`#${id} [option='${i}']`)
     }
     function prefix(s:string): string {
         const parts:string[] = s.split('/')
@@ -1643,22 +1644,25 @@ export function loadPicker(): void {
     }
     function kingdomLink(kind:string=''): string {
         return kingdomURL(kind,
-            Array.from(chosen.values()).filter(i => i < cards.length).map(i => cards[i]),
-            Array.from(chosen.values()).filter(i => i >= cards.length).map(i => events[i - cards.length]),
+            Array.from(chosen.card.values()).map(i => cards[i]),
+            Array.from(chosen.event.values()).map(i => events[i])
         )
     }
-    const chosen:Set<number> = new Set()
-    function pick(i:number): void {
-        if (chosen.has(i)) {
-            chosen.delete(i)
-            elem(i).attr('chosen', false)
+    const chosen = {
+        'card': new Set<number>(),
+        'event': new Set<number>(),
+    }
+    function pick(i:number, kind:'card'|'event'): void {
+        if (chosen[kind].has(i)) {
+            chosen[kind].delete(i)
+            elem(i, kind).attr('chosen', false)
         } else {
-            chosen.add(i)
-            elem(i).attr('chosen', true)
+            chosen[kind].add(i)
+            elem(i, kind).attr('chosen', true)
         }
-        $('#cardCount').html(String(countIn(chosen, x => x < cards.length)))
-        $('#eventCount').html(String(countIn(chosen, x => x >= cards.length)))
-        if (chosen.size > 0) {
+        $('#cardCount').html(String(chosen.card.size))
+        $('#eventCount').html(String(chosen.event.size))
+        if (chosen.card.size > 0 || chosen.event.size > 0) {
             $('#pickLink').attr('href', kingdomLink())
             $('#requireLink').attr('href', kingdomLink('kind=require&'))
         } else {
@@ -1666,17 +1670,17 @@ export function loadPicker(): void {
             $('#requireLink').removeAttr('href')
         }
     }
-    function makeOption(card:Card, i:number):Option<() => void>{
+    function makeOption(card:Card, i:number, kind:'card'|'event'):Option<() => void>{
         return {
-            value: () => pick(i),
+            value: () => pick(i, kind),
             render: {kind:'card', card:card}
         }
     }
     renderChoice(null, state,
         'Choose which events and cards to use.',
         state.supply.map(
-            (card, i) => makeOption(card, i)
+            (card, i) => makeOption(card, i, 'card')
         ).concat(state.events.map(
-            (card, i) => makeOption(card, cards.length+i)
+            (card, i) => makeOption(card, i, 'event')
         )))
 }
