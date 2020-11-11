@@ -273,9 +273,11 @@ var Card = /** @class */ (function () {
                             trackingSpec = { kind: 'none', card: card };
                             gameEvent = { kind: 'play', card: card, source: source };
                             state = state.log("Playing " + card.name);
+                            state = state.indent();
                             return [4 /*yield*/, move(card, 'resolving')(state)];
                         case 2:
                             state = _c.sent();
+                            state = state.unindent();
                             return [3 /*break*/, 7];
                         case 3:
                             trackingSpec = { kind: 'buying', card: card };
@@ -386,9 +388,11 @@ var Card = /** @class */ (function () {
                             return [3 /*break*/, 18];
                         case 9:
                             if (!(card.place == 'resolving')) return [3 /*break*/, 11];
+                            state = state.indent();
                             return [4 /*yield*/, move(card, 'discard')(state)];
                         case 10:
                             state = _c.sent();
+                            state = state.unindent();
                             _c.label = 11;
                         case 11: return [4 /*yield*/, trigger({
                                 kind: 'afterPlay',

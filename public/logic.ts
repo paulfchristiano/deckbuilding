@@ -243,7 +243,9 @@ export class Card {
                     trackingSpec = {kind:'none', card:card}
                     gameEvent = {kind:'play', card:card, source:source}
                     state = state.log(`Playing ${card.name}`)
+                    state = state.indent()
                     state = await move(card, 'resolving')(state)
+                    state = state.unindent()
                     break
                 case 'buy':
                     trackingSpec = {kind:'buying', card:card}
@@ -287,8 +289,11 @@ export class Card {
             card = state.find(card)
             switch (kind) {
                 case 'play':
-                    if (card.place == 'resolving')
+                    if (card.place == 'resolving') {
+                    	state = state.indent()
                         state = await move(card, 'discard')(state);
+                    	state = state.unindent()
+                    }
                     state = await trigger({
                         kind:'afterPlay',
                         card:card,
