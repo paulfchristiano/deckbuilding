@@ -4348,7 +4348,7 @@ const reuse:CardSpec = {
     effects: [{
         text: [`Play any number of cards in your discard without a reuse token.`,
                 `Put a reuse token on each card played in this way.`],
-        transform: (state, card) => async function(state) {
+	        transform: (state, card) => async function(state) {
             const cards:Card[] = state.discard.filter(c => c.count('reuse') == 0)
             let options:Option<Card>[] = asNumberedChoices(cards)
             while (true) {
@@ -4487,7 +4487,7 @@ const reverberate:CardSpec = {
     fixedCost: {...free, energy:1, coin:1},
     effects: [{
         text: [`For each card in play without an echo token,
-            create a copy in play with an echo token on it.`],
+            create a copy in play with an echo token.`],
         transform: state => doAll(
             state.play.filter(c => c.count('echo') == 0).map(reverbEffect)
         )

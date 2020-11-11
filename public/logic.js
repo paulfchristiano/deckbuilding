@@ -4994,7 +4994,7 @@ var reverberate = {
     name: 'Reverberate',
     fixedCost: __assign(__assign({}, free), { energy: 1, coin: 1 }),
     effects: [{
-            text: ["For each card in play without an echo token,\n            create a copy in play with an echo token on it."],
+            text: ["For each card in play without an echo token,\n            create a copy in play with an echo token."],
             transform: function (state) { return doAll(state.play.filter(function (c) { return c.count('echo') == 0; }).map(reverbEffect)); }
         }],
     staticTriggers: [fragileEcho('echo')]
