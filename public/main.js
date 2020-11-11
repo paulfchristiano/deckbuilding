@@ -694,7 +694,39 @@ function displayLogLines(logs, ui) {
         finally { if (e_14) throw e_14.error; }
     }
 }
-//TODO: prefer better card matches
+// We will prefer the card option that has the lowest mismatch
+function macroMismatch(card, macroCard) {
+    // Take the number of token counts where they disagree
+    // (Could instead do total magnitude of disagreement, but this is probably best)
+    var result = 0;
+    function addDisagreements(from, to) {
+        var e_15, _a;
+        try {
+            for (var _b = __values(from.tokens.entries()), _c = _b.next(); !_c.done; _c = _b.next()) {
+                var _d = __read(_c.value, 2), token = _d[0], count = _d[1];
+                // We count a disagreement only on the side with more tokens
+                // (since it might not appear in the tokens dict on the other side)
+                if ((to.tokens.get(token) || 0) < count) {
+                    result += 1;
+                }
+            }
+        }
+        catch (e_15_1) { e_15 = { error: e_15_1 }; }
+        finally {
+            try {
+                if (_c && !_c.done && (_a = _b.return)) _a.call(_b);
+            }
+            finally { if (e_15) throw e_15.error; }
+        }
+    }
+    addDisagreements(card, macroCard);
+    addDisagreements(macroCard, card);
+    return result;
+}
+// A card must pass this filter to be considered as a macro match
+function macroMatchCandidate(card, macroCard) {
+    return (card.place == macroCard.place) && (card.name == macroCard.name);
+}
 function matchMacro(macro, state, options, chosen) {
     var renders;
     renders = options.map(function (x, i) { return [x.render, i]; });
@@ -708,9 +740,24 @@ function matchMacro(macro, state, options, chosen) {
         case 'card':
             renders = renders.filter(function (x) {
                 return x[0].kind == 'card'
-                    && x[0].card.name == macro.card.name
-                    && x[0].card.place == macro.card.place
+                    && macroMatchCandidate(x[0].card, macro.card)
                     && ((chosen.indexOf(x[1]) >= 0) == macro.chosen);
+            });
+            var card_1 = macro.card;
+            renders.sort(function (a, b) {
+                if (a[0].kind == 'card') {
+                    if (b[0].kind == 'card') {
+                        var c = a[0].card;
+                        var d = b[0].card;
+                        return macroMismatch(c, card_1) - macroMismatch(d, card_1);
+                    }
+                    else {
+                        return 1;
+                    }
+                }
+                else {
+                    return -1;
+                }
             });
             return (renders.length > 0) ? renders[0][1] : null;
     }
@@ -885,7 +932,7 @@ var webUI = /** @class */ (function () {
     return webUI;
 }());
 function renderChoice(ui, state, choicePrompt, options, picks) {
-    var e_15, _a, e_16, _b;
+    var e_16, _a, e_17, _b;
     if (picks === void 0) { picks = []; }
     var optionsMap = new Map(); //map card ids to the corresponding option
     var stringOptions = []; // values are indices into options
@@ -920,12 +967,12 @@ function renderChoice(ui, state, choicePrompt, options, picks) {
             pickMap.set(renderKey(x), i);
         }
     }
-    catch (e_15_1) { e_15 = { error: e_15_1 }; }
+    catch (e_16_1) { e_16 = { error: e_16_1 }; }
     finally {
         try {
             if (_d && !_d.done && (_a = _c.return)) _a.call(_c);
         }
-        finally { if (e_15) throw e_15.error; }
+        finally { if (e_16) throw e_16.error; }
     }
     renderState(state, {
         hotkeyMap: hotkeyMap,
@@ -946,12 +993,12 @@ function renderChoice(ui, state, choicePrompt, options, picks) {
             var e = renderStringOption;
         }
     }
-    catch (e_16_1) { e_16 = { error: e_16_1 }; }
+    catch (e_17_1) { e_17 = { error: e_17_1 }; }
     finally {
         try {
             if (stringOptions_1_1 && !stringOptions_1_1.done && (_b = stringOptions_1.return)) _b.call(stringOptions_1);
         }
-        finally { if (e_16) throw e_16.error; }
+        finally { if (e_17) throw e_17.error; }
     }
     $('#undoArea').html(renderSpecials(state));
     if (ui !== null)
@@ -1096,7 +1143,7 @@ function bindRecordMacroButton(ui) {
     e.on('click', onClick);
 }
 function bindPlayMacroButtons(ui) {
-    var e_17, _a;
+    var e_18, _a;
     function onClick(i) {
         if (ui.choiceState !== null && ui.playingMacro.length == 0) {
             ui.playingMacro = ui.macros[i].slice();
@@ -1114,16 +1161,16 @@ function bindPlayMacroButtons(ui) {
             _loop_3(i, macro);
         }
     }
-    catch (e_17_1) { e_17 = { error: e_17_1 }; }
+    catch (e_18_1) { e_18 = { error: e_18_1 }; }
     finally {
         try {
             if (_c && !_c.done && (_a = _b.return)) _a.call(_b);
         }
-        finally { if (e_17) throw e_17.error; }
+        finally { if (e_18) throw e_18.error; }
     }
 }
 function unbindPlayMacroButtons(ui) {
-    var e_18, _a;
+    var e_19, _a;
     try {
         for (var _b = __values(ui.macros.entries()), _c = _b.next(); !_c.done; _c = _b.next()) {
             var _d = __read(_c.value, 2), i = _d[0], macro = _d[1];
@@ -1131,12 +1178,12 @@ function unbindPlayMacroButtons(ui) {
             e.off('click');
         }
     }
-    catch (e_18_1) { e_18 = { error: e_18_1 }; }
+    catch (e_19_1) { e_19 = { error: e_19_1 }; }
     finally {
         try {
             if (_c && !_c.done && (_a = _b.return)) _a.call(_b);
         }
-        finally { if (e_18) throw e_18.error; }
+        finally { if (e_19) throw e_19.error; }
     }
 }
 function bindHotkeyToggle(ui) {
@@ -1659,7 +1706,7 @@ function kingdomURL(kindParam, cards, events) {
     return "play?" + kindParam + "cards=" + cards.map(function (card) { return card.name; }).join(',') + "&events=" + events.map(function (card) { return card.name; });
 }
 function countIn(s, f) {
-    var e_19, _a;
+    var e_20, _a;
     var count = 0;
     try {
         for (var s_1 = __values(s), s_1_1 = s_1.next(); !s_1_1.done; s_1_1 = s_1.next()) {
@@ -1668,12 +1715,12 @@ function countIn(s, f) {
                 count += 1;
         }
     }
-    catch (e_19_1) { e_19 = { error: e_19_1 }; }
+    catch (e_20_1) { e_20 = { error: e_20_1 }; }
     finally {
         try {
             if (s_1_1 && !s_1_1.done && (_a = s_1.return)) _a.call(s_1);
         }
-        finally { if (e_19) throw e_19.error; }
+        finally { if (e_20) throw e_20.error; }
     }
     return count;
 }

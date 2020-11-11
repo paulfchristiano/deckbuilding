@@ -1312,7 +1312,7 @@ function leq(cost1:Cost, cost2:Cost) {
 
 // ----------------- Transforms for charge and tokens
 
-type Token = 'charge' | 'cost' | 'mirror' | 'duplicate' | 'twin' | 'synergy' |
+export type Token = 'charge' | 'cost' | 'mirror' | 'duplicate' | 'twin' | 'synergy' |
     'shelter' | 'echo' | 'decay' | 'burden' | 'pathfinding' | 'neglect' |
     'reuse' | 'polish' | 'priority' | 'hesitation' | 'parallelize' | 'art' |
     'mire' | 'onslaught' | 'expedite' | 'replicate' | 'reverberate' | 'reflect'

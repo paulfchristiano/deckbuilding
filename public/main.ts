@@ -6,7 +6,7 @@
 
 import { Cost, Shadow, State, Card, CardSpec, PlaceName } from './logic.js'
 import { GameSpec, SlotSpec } from './logic.js'
-import { Trigger, Replacer, Ability, VariableCost } from './logic.js'
+import { Trigger, Replacer, Ability, VariableCost, Token } from './logic.js'
 import { ID } from './logic.js'
 import { renderCost, renderEnergy } from './logic.js'
 import { emptyState } from './logic.js'
@@ -574,7 +574,30 @@ type StringMacro = {kind: 'string', string: string}
 type MacroStep = CardMacro | StringMacro
 type Macro = MacroStep[]
 
-//TODO: prefer better card matches
+// We will prefer the card option that has the lowest mismatch
+function macroMismatch(card:Card, macroCard:Card) {
+    // Take the number of token counts where they disagree
+    // (Could instead do total magnitude of disagreement, but this is probably best)
+    let result:number = 0
+    function addDisagreements(from:Card, to:Card) {
+        for (const [token, count] of from.tokens.entries()) {
+            // We count a disagreement only on the side with more tokens
+            // (since it might not appear in the tokens dict on the other side)
+            if ((to.tokens.get(token) || 0) < count) {
+                result += 1
+            }
+        }
+    }
+    addDisagreements(card, macroCard)
+    addDisagreements(macroCard, card)
+    return result
+}
+
+// A card must pass this filter to be considered as a macro match
+function macroMatchCandidate(card:Card, macroCard:Card) {
+    return (card.place == macroCard.place) && (card.name == macroCard.name)
+}
+
 function matchMacro<T>(
     macro:MacroStep,
     state:State,
@@ -593,10 +616,23 @@ function matchMacro<T>(
         case 'card':
             renders = renders.filter(x =>
                 x[0].kind == 'card'
-                && x[0].card.name == macro.card.name
-                && x[0].card.place == macro.card.place
+                && macroMatchCandidate(x[0].card, macro.card)
                 && ((chosen.indexOf(x[1]) >= 0) == macro.chosen)
             )
+            const card = macro.card
+            renders.sort((a, b) => {
+                if (a[0].kind == 'card') {
+                    if (b[0].kind == 'card') {
+                        const c = a[0].card
+                        const d = b[0].card
+                        return macroMismatch(c, card) - macroMismatch(d, card)
+                    } else {
+                        return 1
+                    }
+                } else {
+                    return -1
+                }
+            })
             return (renders.length > 0) ? renders[0][1] : null
     }
 }
