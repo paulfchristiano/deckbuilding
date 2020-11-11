@@ -88,6 +88,10 @@ export function getCredentials() {
         return null;
     }
 }
+function toggleRules() {
+    var active = $('#rules').attr('active');
+    $('#rules').attr('active', (active == 'true') ? 'false' : 'true');
+}
 export function load() {
     return __awaiter(this, void 0, void 0, function () {
         var credentials, info, _a, _b, _c, name_1, url, _d, _e, _f, name_2, reason, _g, _h, _j, name_3, awards;
@@ -97,6 +101,9 @@ export function load() {
                 case 0:
                     credentials = getCredentials();
                     $('#logoutButton').click(logout);
+                    if (credentials !== null)
+                        $('#namespan').text(credentials.username);
+                    $('#showRules').click(toggleRules);
                     if (!(credentials === null)) return [3 /*break*/, 1];
                     displayLogin();
                     return [3 /*break*/, 3];
@@ -104,7 +111,7 @@ export function load() {
                 case 2:
                     info = _o.sent();
                     console.log(info);
-                    $('#numAwards').text(info.numAwards);
+                    $('#numAwards').text(" " + info.numAwards);
                     try {
                         for (_a = __values(info.urls), _b = _a.next(); !_b.done; _b = _a.next()) {
                             _c = __read(_b.value, 2), name_1 = _c[0], url = _c[1];
@@ -197,6 +204,7 @@ function displayLogin() {
         return makeCredentials($('#name').val(), $('#password').val());
     }
     function exit() {
+        $('#loginDialog').html('');
         $('#loginDialog').attr('active', 'false');
     }
     function login() {

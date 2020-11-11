@@ -13,6 +13,12 @@
     max-width: 30em;
     margin-bottom: 1em;
 }
+#rules {
+    display:none;
+}
+#rules[active='true'] {
+    display:block;
+}
 .card, .option {
     font-size: 1em;
     border: 2px solid;

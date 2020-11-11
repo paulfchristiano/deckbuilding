@@ -39,15 +39,22 @@ export interface CampaignInfo {
 	numAwards: number,
 }
 
+function toggleRules() {
+	const active = $('#rules').attr('active')
+	$('#rules').attr('active', (active == 'true') ? 'false' : 'true')
+}
+
 export async function load() {
 	const credentials:Credentials|null = getCredentials()
 	$('#logoutButton').click(logout)
+	if (credentials !== null) $('#namespan').text(credentials.username)
+	$('#showRules').click(toggleRules)
 	if (credentials === null) {
 		displayLogin()
 	} else {
 		const info = await getCampaignInfo(credentials)
 		console.log(info)
-		$('#numAwards').text(info.numAwards)
+		$('#numAwards').text(` ${info.numAwards}`)
 		for (const [name, url] of info.urls) {
 			if (url !== null) {
 				$(`#${$.escapeSelector(name)} a`).attr('href', `play?campaign&${url}`)
@@ -113,7 +120,8 @@ function displayLogin() {
 		)
     }
     function exit() {
-        $('#loginDialog').attr('active', 'false')
+    	$('#loginDialog').html('')
+    	$('#loginDialog').attr('active', 'false')
     }
     async function login() {
     	const credentials = credentialsFromForm();

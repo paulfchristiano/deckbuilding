@@ -1561,7 +1561,7 @@ function scoreboardURL(spec) {
 function campaignHeartbeat(spec, interval) {
     var queryStr = "campaignHeartbeat?" + credentialParams() + "&url=" + encodeURIComponent(specToURL(spec)) + "&version=" + VERSION;
     $('#homeLink').attr('href', 'campaign.html');
-    $('#homeLink').text('campaign');
+    $('#homeLink').text('back to campaign');
     $.get(queryStr).done(function (x) {
         if (x == 'version mismatch') {
             clearInterval(interval);
@@ -1576,10 +1576,10 @@ function campaignHeartbeat(spec, interval) {
         var _a = __read(x, 4), personalBest = _a[0], nextStar = _a[1], starsWon = _a[2], totalStars = _a[3];
         var starStr = "<div>Stars won: " + starsWon + "/" + totalStars + "</div>";
         var personalBestStr = personalBest !== null
-            ? "<div>Your best: " + personalBest + "</div>"
+            ? "<div>Your best: @" + personalBest + "</div>"
             : "";
         var nextStarStr = nextStar !== null
-            ? "<div>Next star: " + nextStar + "</div>"
+            ? "<div>Next star: @" + nextStar + "</div>"
             : "";
         $('#best').html(starStr + nextStarStr + personalBestStr);
     });
