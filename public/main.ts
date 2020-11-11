@@ -1512,14 +1512,15 @@ function campaignHeartbeat(spec:GameSpec, interval?:any): void {
             alert("Your username+password were not recognized")
             return
         }
-        let [personalBest, nextAward] = x
+        let [personalBest, nextStar, starsWon, totalStars] = x
+        const starStr = `<div>Stars won: ${starsWon}/${totalStars}</div>`
         const personalBestStr = personalBest !== null
             ? `<div>Your best: ${personalBest}</div>`
             : ``
-        const nextAwardStr = nextAward !== null
-            ? `<div>Next award: ${nextAward}</div>`
-            : `<div>Kingdom complete!</div>`
-        $('#best').html(personalBestStr+nextAwardStr)
+        const nextStarStr = nextStar !== null
+            ? `<div>Next star: ${nextStar}</div>`
+            : ``
+        $('#best').html(starStr + nextStarStr + personalBestStr)
     })
 }
 

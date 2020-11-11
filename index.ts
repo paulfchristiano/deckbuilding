@@ -397,13 +397,17 @@ express()
         JOIN campaign_levels l ON a.level = l.key
         WHERE l.url = ${url}`
       let nextAward = NaN
+      let totalAwards = 0
+      let wonAwards = 0
       for (const award of awards) {
+        totalAwards += 1
+        if (award.threshold >= score) wonAwards += 1
         if ((award.threshold < score || isNaN(score))
           && (award.threshold > nextAward || isNaN(nextAward))){
           nextAward = award.threshold
         }
       }
-      res.send([score, nextAward])
+      res.send([score, nextAward, wonAwards, totalAwards])
     })
     .post('/campaignSubmit', async (req:any, res:any) => {
       const credentials:Credentials = {

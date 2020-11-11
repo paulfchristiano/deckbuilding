@@ -767,7 +767,7 @@ express()
     });
 }); })
     .get('/campaignHeartbeat', function (req, res) { return __awaiter(void 0, void 0, void 0, function () {
-    var credentials, success, version, username, url, scores, score, awards, nextAward, awards_2, awards_2_1, award;
+    var credentials, success, version, username, url, scores, score, awards, nextAward, totalAwards, wonAwards, awards_2, awards_2_1, award;
     var e_14, _a;
     return __generator(this, function (_b) {
         switch (_b.label) {
@@ -798,9 +798,14 @@ express()
             case 3:
                 awards = _b.sent();
                 nextAward = NaN;
+                totalAwards = 0;
+                wonAwards = 0;
                 try {
                     for (awards_2 = __values(awards), awards_2_1 = awards_2.next(); !awards_2_1.done; awards_2_1 = awards_2.next()) {
                         award = awards_2_1.value;
+                        totalAwards += 1;
+                        if (award.threshold >= score)
+                            wonAwards += 1;
                         if ((award.threshold < score || isNaN(score))
                             && (award.threshold > nextAward || isNaN(nextAward))) {
                             nextAward = award.threshold;
@@ -814,7 +819,7 @@ express()
                     }
                     finally { if (e_14) throw e_14.error; }
                 }
-                res.send([score, nextAward]);
+                res.send([score, nextAward, wonAwards, totalAwards]);
                 return [2 /*return*/];
         }
     });

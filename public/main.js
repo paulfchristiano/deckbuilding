@@ -1573,14 +1573,15 @@ function campaignHeartbeat(spec, interval) {
             alert("Your username+password were not recognized");
             return;
         }
-        var _a = __read(x, 2), personalBest = _a[0], nextAward = _a[1];
+        var _a = __read(x, 4), personalBest = _a[0], nextStar = _a[1], starsWon = _a[2], totalStars = _a[3];
+        var starStr = "<div>Stars won: " + starsWon + "/" + totalStars + "</div>";
         var personalBestStr = personalBest !== null
             ? "<div>Your best: " + personalBest + "</div>"
             : "";
-        var nextAwardStr = nextAward !== null
-            ? "<div>Next award: " + nextAward + "</div>"
-            : "<div>Kingdom complete!</div>";
-        $('#best').html(personalBestStr + nextAwardStr);
+        var nextStarStr = nextStar !== null
+            ? "<div>Next star: " + nextStar + "</div>"
+            : "";
+        $('#best').html(starStr + nextStarStr + personalBestStr);
     });
 }
 //TODO: still need to refactor global state
