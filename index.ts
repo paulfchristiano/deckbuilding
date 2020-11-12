@@ -238,7 +238,6 @@ async function getCampaignInfo(
   username:string,
   cheat:boolean=false
 ): Promise<CampaignInfo> {
-  console.log('Cheating: ' + cheat)
   const scores = await sql`SELECT level, score, username
     FROM campaign_scores WHERE username = ${username}`
   const scoreByLevel:Map<string, number> = new Map()
@@ -277,7 +276,7 @@ async function getCampaignInfo(
     if (numAwards < row.points_required) {
       lockReasons.push([row.key, `${row.points_required} points`])
     } else if (req !== undefined) {
-      lockReasons.push([row.key, `${req.join(',')}`])
+      lockReasons.push([row.key, `${req.join(', ')}`])
     } 
     if ((numAwards >= row.points_required && !lockedLevels.has(row.key)) || cheat) {
       urls.push([row.key, row.url])

@@ -53,7 +53,6 @@ export async function load() {
 		displayLogin()
 	} else {
 		const info = await getCampaignInfo(credentials)
-		console.log(info)
 		$('#numAwards').text(` ${info.numAwards}`)
 		for (const [name, url] of info.urls) {
 			if (url !== null) {

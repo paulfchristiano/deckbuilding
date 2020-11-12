@@ -15,7 +15,7 @@ INSERT INTO campaign_levels (key, url, points_required) VALUES
 ('C2', 'kind=pick&cards=GhostTown,Spices&events=', 0),
 ('C3', 'kind=pick&cards=Bridge,GhostTown,Spices&events=', 0),
 ('C4', 'kind=pick&cards=Bridge,GhostTown,Spices&events=TravelingFair', 0),
-('C5', 'kind=pick&cards=Bridge,GhostTown,Spices&events=Polish,TravelingFair', 0);
+('C5', 'kind=pick&cards=Bridge,GhostTown,Spices&events=Reuse,TravelingFair', 0);
 
 INSERT INTO campaign_requirements(destination, req) VALUES
 ('C2', 'C1'), ('C3', 'C2'), ('C4', 'C3'), ('C5', 'C4');
@@ -25,7 +25,7 @@ INSERT INTO campaign_awards (level, core, threshold) VALUES
 ('C2', TRUE, 47), ('C2', FALSE, 42), ('C2', FALSE, 40),
 ('C3', TRUE, 39), ('C3', FALSE, 36), ('C3', FALSE, 35),
 ('C4', TRUE, 34), ('C4', FALSE, 27), ('C4', FALSE, 17),
-('C5', TRUE, 16), ('C5', FALSE, 15), ('C5', FALSE, 14);
+('C5', TRUE, 15), ('C5', FALSE, 12), ('C5', FALSE, 10);
 
 /* Progression B */
 
@@ -155,17 +155,17 @@ INSERT INTO campaign_requirements(destination, req) VALUES
 INSERT INTO campaign_awards (level, core, threshold) VALUES
 ('GROW', TRUE, 16), ('GROW', FALSE, 14), ('GROW', FALSE, 13),
 ('BIG', TRUE, 26), ('BIG', FALSE, 23), ('BIG', FALSE, 21),
-('GROW/BIG', TRUE, 13), ('GROW/BIG', FALSE, 11), ('GROW/BIG', FALSE, 10),
+('GROW/BIG', TRUE, 12), ('GROW/BIG', FALSE, 11), ('GROW/BIG', FALSE, 10),
 ('BUY', TRUE, 38), ('BUY', FALSE, 33), ('BUY', FALSE, 30),
 ('PLAY', TRUE, 22), ('PLAY', FALSE, 19), ('PLAY', FALSE, 17),
 ('GROW/BUY', TRUE, 12), ('GROW/BUY', FALSE, 11), ('GROW/BUY', FALSE, 10),
-('DIG', TRUE, 25), ('DIG', FALSE, 22), ('DIG', FALSE, 21),
-('BUY/DIG', TRUE, 20), ('BUY/DIG', FALSE, 17), ('BUY/DIG', FALSE, 15),
+('DIG', TRUE, 25), ('DIG', FALSE, 22), ('DIG', FALSE, 20),
+('BUY/DIG', TRUE, 19), ('BUY/DIG', FALSE, 17), ('BUY/DIG', FALSE, 15),
 ('BIG/DIG', TRUE, 18), ('BIG/DIG', FALSE, 14), ('BIG/DIG', FALSE, 12),
 ('DIG/GROW', TRUE, 12), ('DIG/GROW', FALSE, 9), ('DIG/GROW', FALSE, 7),
 ('PLAY/BIG', TRUE, 16), ('PLAY/BIG', FALSE, 15), ('PLAY/BIG', FALSE, 14),
 ('PLAY/GROW', TRUE, 12), ('PLAY/GROW', FALSE, 10), ('PLAY/GROW', FALSE, 9),
-('DIG/PLAY', TRUE, 17), ('DIG/PLAY', FALSE, 16), ('DIG/PLAY', FALSE, 15),
+('DIG/PLAY', TRUE, 16), ('DIG/PLAY', FALSE, 15), ('DIG/PLAY', FALSE, 14),
 ('BUY/PLAY', TRUE, 16), ('BUY/PLAY', FALSE, 15), ('BUY/PLAY', FALSE, 14),
 ('BIG/BUY', TRUE, 20), ('BIG/BUY', FALSE, 16), ('BIG/BUY', FALSE, 14);
 

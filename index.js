@@ -522,9 +522,7 @@ function getCampaignInfo(username, cheat) {
         var e_8, _a, e_9, _b, e_10, _c, e_11, _d;
         return __generator(this, function (_e) {
             switch (_e.label) {
-                case 0:
-                    console.log('Cheating: ' + cheat);
-                    return [4 /*yield*/, sql(templateObject_10 || (templateObject_10 = __makeTemplateObject(["SELECT level, score, username\n    FROM campaign_scores WHERE username = ", ""], ["SELECT level, score, username\n    FROM campaign_scores WHERE username = ", ""])), username)];
+                case 0: return [4 /*yield*/, sql(templateObject_10 || (templateObject_10 = __makeTemplateObject(["SELECT level, score, username\n    FROM campaign_scores WHERE username = ", ""], ["SELECT level, score, username\n    FROM campaign_scores WHERE username = ", ""])), username)];
                 case 1:
                     scores = _e.sent();
                     scoreByLevel = new Map();
@@ -602,7 +600,7 @@ function getCampaignInfo(username, cheat) {
                                 lockReasons.push([row.key, row.points_required + " points"]);
                             }
                             else if (req !== undefined) {
-                                lockReasons.push([row.key, "" + req.join(',')]);
+                                lockReasons.push([row.key, "" + req.join(', ')]);
                             }
                             if ((numAwards >= row.points_required && !lockedLevels.has(row.key)) || cheat) {
                                 urls.push([row.key, row.url]);

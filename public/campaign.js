@@ -110,7 +110,6 @@ export function load() {
                 case 1: return [4 /*yield*/, getCampaignInfo(credentials)];
                 case 2:
                     info = _o.sent();
-                    console.log(info);
                     $('#numAwards').text(" " + info.numAwards);
                     try {
                         for (_a = __values(info.urls), _b = _a.next(); !_b.done; _b = _a.next()) {
