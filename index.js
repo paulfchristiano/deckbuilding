@@ -597,7 +597,7 @@ function getCampaignInfo(username, cheat) {
                             row = levels_1_1.value;
                             req = lockedLevels.get(row.key);
                             if (numAwards < row.points_required) {
-                                lockReasons.push([row.key, row.points_required + " points"]);
+                                lockReasons.push([row.key, row.points_required + " stars"]);
                             }
                             else if (req !== undefined) {
                                 lockReasons.push([row.key, "" + req.join(', ')]);
