@@ -168,13 +168,11 @@ var HotkeyMapper = /** @class */ (function () {
             }
             finally { if (e_1) throw e_1.error; }
         }
-        console.log(pickable);
         function takenByPickable(key) {
             var takenBy = taken.get(key);
             return (takenBy != undefined && pickable.has(takenBy));
         }
         function set(x, k) {
-            console.log("setting " + x + " to " + k);
             result.set(x, k);
             taken.set(k, x);
         }
@@ -228,7 +226,6 @@ var HotkeyMapper = /** @class */ (function () {
             while (true) {
                 var key = hotkeys[index];
                 if (!takenByPickable(key)) {
-                    console.log("assigning " + key);
                     return key;
                 }
                 else
@@ -1286,7 +1283,7 @@ var tutorialStages = [
         nextAction: 0,
     },
     {
-        text: ["When you used Refresh you spent @@@@,\n        because that's the cost of Refresh.\n         You can see how much @ you've spent in the resources row,\n         directly above the events (it might be behind this popup).\n         The goal of the game is to spend as little as possible.",
+        text: ["When you used Refresh you spent @@@@,\n        because that's the cost of Refresh.\n         You can see how much @ you've spent in the resources row,\n         directly above the events.\n         The goal of the game is to spend as little as possible.",
             "After paying Refresh's cost, you put your discard pile into your hand.\n         These are the cards available to play.",
             "Then you gained 5 actions, which you can use to play cards from your hand,\n         and 1 buy, which you can use to buy a card from the supply.\n         Your actions and buys are visible above the events.",
             "You have $0, so you can't buy much.\n         But you can use an action to play a Copper from your hand."],
@@ -1304,7 +1301,7 @@ var tutorialStages = [
         nextAction: 3
     },
     {
-        text: ["When you buy a card, you lose a buy and the $ you spent on it.\n        Then you gain a copy of that card in your discard pile.\n        Next time you Refresh you will have an extra Silver to play.",
+        text: ["When you buy a card, you lose a buy and the $ you spent on it.\n        Then you create a copy of that card in your discard.\n        Next time you Refresh you will be able to play your new Silver.",
             "Note that using an event like Refresh or Duplicate doesn't require a buy.",
             "For now, click on an Estate to play it."],
         nextAction: 0

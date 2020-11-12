@@ -93,13 +93,11 @@ class HotkeyMapper {
         for (const option of options) {
             pickable.add(renderKey(option.render))
         }
-        console.log(pickable)
         function takenByPickable(key:Key): boolean {
             const takenBy:RenderKey|undefined = taken.get(key)
             return (takenBy != undefined && pickable.has(takenBy))
         }
         function set(x:RenderKey, k:Key): void {
-            console.log(`setting ${x} to ${k}`)
             result.set(x, k)
             taken.set(k, x)
         }
@@ -134,7 +132,6 @@ class HotkeyMapper {
             while (true) {
                 const key:Key = hotkeys[index]
                 if (!takenByPickable(key)) {
-                    console.log(`assigning ${key}`)
                     return key
                 }
                 else index++
@@ -1207,7 +1204,7 @@ const tutorialStages:tutorialStage[] = [
         text: [`When you used Refresh you spent @@@@,
         because that's the cost of Refresh.
          You can see how much @ you've spent in the resources row,
-         directly above the events (it might be behind this popup).
+         directly above the events.
          The goal of the game is to spend as little as possible.`,
         `After paying Refresh's cost, you put your discard pile into your hand.
          These are the cards available to play.`,
@@ -1233,8 +1230,8 @@ const tutorialStages:tutorialStage[] = [
     },
     { 
         text: [`When you buy a card, you lose a buy and the $ you spent on it.
-        Then you gain a copy of that card in your discard pile.
-        Next time you Refresh you will have an extra Silver to play.`,
+        Then you create a copy of that card in your discard.
+        Next time you Refresh you will be able to play your new Silver.`,
         `Note that using an event like Refresh or Duplicate doesn't require a buy.`,
         `For now, click on an Estate to play it.`],
         nextAction: 0

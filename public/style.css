@@ -99,7 +99,7 @@ input {
 #tutorialDialog {
     position:absolute;
     visibility:hidden;
-    top:5em;
+    top:10em;
     left:5em;
     font-size: 1.5em;
     width: 15em;
