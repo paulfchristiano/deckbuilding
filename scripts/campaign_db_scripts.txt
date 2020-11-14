@@ -11,21 +11,21 @@ DELETE FROM campaign_levels;
 /* Progression A */
 
 INSERT INTO campaign_levels (key, url, points_required) VALUES
-('C1', 'kind=pick&cards=GhostTown&events=', 2),
-('C2', 'kind=pick&cards=GhostTown,Spices&events=', 0),
-('C3', 'kind=pick&cards=Bridge,GhostTown,Spices&events=', 0),
-('C4', 'kind=pick&cards=Bridge,GhostTown,Spices&events=TravelingFair', 0),
-('C5', 'kind=pick&cards=Bridge,GhostTown,Spices&events=Reuse,TravelingFair', 0);
+('A1', 'kind=pick&cards=Sacrifice&events=', 0),
+('A2', 'kind=pick&cards=Banquet,Sacrifice&events=', 0),
+('A3', 'kind=pick&cards=Banquet,Sacrifice&events=Escalate', 0),
+('A4', 'kind=pick&cards=Banquet,Carpenter,Sacrifice&events=Escalate', 0),
+('A5', 'kind=pick&cards=Banquet,Carpenter,KingsCourt,Sacrifice&events=Escalate', 0);
 
 INSERT INTO campaign_requirements(destination, req) VALUES
-('C2', 'C1'), ('C3', 'C2'), ('C4', 'C3'), ('C5', 'C4');
+('A2', 'A1'), ('A3', 'A2'), ('A4', 'A3'), ('A5', 'A4');
 
 INSERT INTO campaign_awards (level, core, threshold) VALUES
-('C1', TRUE, 54), ('C1', FALSE, 50), ('C1', FALSE, 48),
-('C2', TRUE, 47), ('C2', FALSE, 42), ('C2', FALSE, 40),
-('C3', TRUE, 39), ('C3', FALSE, 36), ('C3', FALSE, 35),
-('C4', TRUE, 34), ('C4', FALSE, 27), ('C4', FALSE, 17),
-('C5', TRUE, 15), ('C5', FALSE, 12), ('C5', FALSE, 10);
+('A1', TRUE, 56), ('A1', FALSE, 51), ('A1', FALSE, 48),
+('A2', TRUE, 47), ('A2', FALSE, 43), ('A2', FALSE, 40),
+('A3', TRUE, 32), ('A3', FALSE, 28), ('A3', FALSE, 24),
+('A4', TRUE, 23), ('A4', FALSE, 21), ('A4', FALSE, 19),
+('A5', TRUE, 18), ('A5', FALSE, 17), ('A5', FALSE, 16);
 
 /* Progression B */
 
@@ -49,21 +49,21 @@ INSERT INTO campaign_awards (level, core, threshold) VALUES
 /* Progression C */
 
 INSERT INTO campaign_levels (key, url, points_required) VALUES
-('A1', 'kind=pick&cards=Sacrifice&events=', 0),
-('A2', 'kind=pick&cards=Banquet,Sacrifice&events=', 0),
-('A3', 'kind=pick&cards=Banquet,Sacrifice&events=Escalate', 0),
-('A4', 'kind=pick&cards=Banquet,Carpenter,Sacrifice&events=Escalate', 0),
-('A5', 'kind=pick&cards=Banquet,Carpenter,KingsCourt,Sacrifice&events=Escalate', 0);
+('C1', 'kind=pick&cards=GhostTown&events=', 2),
+('C2', 'kind=pick&cards=GhostTown,Spices&events=', 0),
+('C3', 'kind=pick&cards=Bridge,GhostTown,Spices&events=', 0),
+('C4', 'kind=pick&cards=Bridge,GhostTown,Spices&events=TravelingFair', 0),
+('C5', 'kind=pick&cards=Bridge,GhostTown,Spices&events=Reuse,TravelingFair', 0);
 
 INSERT INTO campaign_requirements(destination, req) VALUES
-('A2', 'A1'), ('A3', 'A2'), ('A4', 'A3'), ('A5', 'A4');
+('C2', 'C1'), ('C3', 'C2'), ('C4', 'C3'), ('C5', 'C4');
 
 INSERT INTO campaign_awards (level, core, threshold) VALUES
-('A1', TRUE, 56), ('A1', FALSE, 51), ('A1', FALSE, 48),
-('A2', TRUE, 47), ('A2', FALSE, 43), ('A2', FALSE, 40),
-('A3', TRUE, 32), ('A3', FALSE, 28), ('A3', FALSE, 24),
-('A4', TRUE, 23), ('A4', FALSE, 21), ('A4', FALSE, 19),
-('A5', TRUE, 18), ('A5', FALSE, 17), ('A5', FALSE, 16);
+('C1', TRUE, 54), ('C1', FALSE, 50), ('C1', FALSE, 48),
+('C2', TRUE, 47), ('C2', FALSE, 42), ('C2', FALSE, 40),
+('C3', TRUE, 39), ('C3', FALSE, 36), ('C3', FALSE, 35),
+('C4', TRUE, 34), ('C4', FALSE, 27), ('C4', FALSE, 17),
+('C5', TRUE, 15), ('C5', FALSE, 12), ('C5', FALSE, 10);
 
 /* Small games */
 
@@ -172,63 +172,41 @@ INSERT INTO campaign_awards (level, core, threshold) VALUES
 /* Big games */
 
 INSERT INTO campaign_levels (key, url, points_required) VALUES
-('G1',
-'kind=pick&cards=Composting,Echo,Gardens,Haggler,Herbs,Homesteading,Imitation,PublicWorks,ShippingLane,Village&events=Finance,Mire,Synergy,Twin',
-49),
-('G2',
-'kind=pick&cards=Composting,Fortune,Fountain,GreatSmithy,Hireling,Homesteading,Palace,Platinum,Turnpike,Workshop&events=Duplicate,Philanthropy,Prioritize,Reverberate',
-53),
-('G3',
-'kind=pick&cards=Duke,Fortune,GrandMarket,Hireling,Imitation,Innovation,Mastermind,Sacrifice,ThroneRoom,Tinkerer&events=Mire,Parallelize,Populate,Vault',
-62),
-('G4',
-'kind=pick&cards=Celebration,Composting,Construction,Echo,Feast,Gardens,GoldMine,ShippingLane,Spices,Village&events=Decay,Duplicate,Prioritize,Replicate',
-67),
-('G5',
-'kind=pick&cards=Carpenter,Formation,Harvest,Hireling,KingsCourt,Platinum,PublicWorks,Sacrifice,Spices,Unearth&events=Pathfinding,Recycle,Replicate,Synergy',
-75),
-('G6',
-'kind=pick&cards=Carpenter,Fortune,Harvest,Hireling,PublicWorks,Sacrifice,ShippingLane,Till,VibrantCity,Workshop&events=Decay,Mire,Reuse,TravelingFair',
-85),
-('G7',
-'kind=pick&cards=Duke,Echo,GreatSmithy,Highway,Hireling,Investment,Plow,Shelter,ThroneRoom,Tinkerer&events=Decay,Prioritize,Recycle,TravelingFair',
-90),
-('G8',
-'kind=pick&cards=Bridge,Celebration,Fortune,GrandMarket,GreatSmithy,KingsCourt,Market,RoyalSeal,SecretChamber,Village&events=Commerce,Focus,TravelingFair,Volley',
-95),
-('G9',
-'kind=pick&cards=Conclave,FairyGold,GrandMarket,GreatSmithy,Harvest,Herbs,Hireling,Homesteading,KingsCourt,Lackeys&events=Parallelize,Reach,Reflect,TravelingFair',
-105),
-('G10',
-'kind=pick&cards=Colony,Echo,GoldMine,Haggler,Hireling,Plow,Recruitment,RoyalSeal,Sacrifice,Till&events=Duplicate,Onslaught,Polish,Recycle',
-115);
+('G1', 'seed=10.17.2020.vkcsl', 49),
+('G2', 'seed=10.27.2020.d1457', 53),
+('G3', 'seed=10.19.2020.n8og6', 62),
+('G4', 'seed=10.12.2020.zklib', 67),
+('G5', 'seed=10.23.2020.exmpz', 75),
+('G6', 'seed=11.12.2020.km61h', 80),
+('G7', 'seed=11.10.2020.v2xxl', 85),
+('G8', 'seed=11.2.2020.z4hmm', 90),
+('G9', 'seed=11.3.2020.q67lp', 95),
+('G10', 'seed=10.26.2020.ot1mp', 100);
 
 INSERT INTO campaign_awards (level, core, threshold) VALUES
-('G1', TRUE, 48), ('G1', FALSE, 44), ('G1', FALSE, 42),
-('G2', TRUE, 22), ('G2', FALSE, 20), ('G2', FALSE, 18),
-('G3', TRUE, 32), ('G3', FALSE, 28), ('G3', FALSE, 26),
-('G4', TRUE, 20), ('G4', FALSE, 17), ('G4', FALSE, 15),
-('G5', TRUE, 24), ('G5', FALSE, 20), ('G5', FALSE, 18),
-('G6', TRUE, 19), ('G6', FALSE, 15), ('G6', FALSE, 13),
-('G7', TRUE, 24), ('G7', FALSE, 20), ('G7', FALSE, 18),
-('G8', TRUE, 20), ('G8', FALSE, 18), ('G8', FALSE, 17),
-('G9', TRUE, 16), ('G9', FALSE, 12), ('G9', FALSE, 10),
-('G10', TRUE, 24), ('G10', FALSE, 20), ('G10', FALSE, 18);
-
-
+('G1', TRUE, 40), ('G1', FALSE, 37), ('G1', FALSE, 35),
+('G2', TRUE, 20), ('G2', FALSE, 18), ('G2', FALSE, 17),
+('G3', TRUE, 16), ('G3', FALSE, 14), ('G3', FALSE, 13),
+('G4', TRUE, 15), ('G4', FALSE, 11), ('G4', FALSE, 9),
+('G5', TRUE, 24), ('G5', FALSE, 21), ('G5', FALSE, 19),
+('G6', TRUE, 26), ('G6', FALSE, 23), ('G6', FALSE, 21),
+('G7', TRUE, 20), ('G7', FALSE, 16), ('G7', FALSE, 14),
+('G8', TRUE, 31), ('G8', FALSE, 26), ('G8', FALSE, 23),
+('G9', TRUE, 13), ('G9', FALSE, 11), ('G9', FALSE, 10),
+('G10', TRUE, 20), ('G10', FALSE, 18), ('G10', FALSE, 17);
 
 /* Subsets */
 
 INSERT INTO campaign_levels (key, url, points_required) VALUES
 ('NULL',
 'kind=pick&cards=&events=',
-80),
+105),
 ('CARD',
 'kind=pick&cards=Artificer,Banquet,Bridge,Carpenter,Celebration,Colony,Composting,Conclave,Construction,Coppersmith,Duke,Echo,Factory,FairyGold,Feast,FlowerMarket,Formation,Fortune,Fountain,Frontier,Gardens,GhostTown,GoldMine,GrandMarket,GreatSmithy,Haggler,Harvest,Hatchery,Herbs,Highway,Hireling,Homesteading,Imitation,Industry,Innovation,Investment,KingsCourt,Lab,Lackeys,Looter,Market,Mastermind,Palace,Platinum,Plow,Procession,PublicWorks,Recruitment,RoyalSeal,Sacrifice,SecretChamber,Shelter,ShippingLane,Spices,ThroneRoom,Till,Tinkerer,Transmogrify,Traveler,Turnpike,Unearth,VibrantCity,Village,Workshop&events=',
-100),
+110),
 ('BAD',
 'kind=pick&cards=&events=Burden,Decay,Mire',
-110),
+115),
 ('EVENT',
 'kind=pick&cards=&events=Commerce,Duplicate,Escalate,Expedite,Finance,Focus,HallofMirrors,Inflation,LostArts,Onslaught,Parallelize,Pathfinding,Philanthropy,Polish,Populate,PressOn,Prioritize,Reach,Recycle,Reflect,Replicate,Reuse,Reverberate,Synergy,Toil,TravelingFair,Twin,Vault,Volley',
 120),
@@ -252,11 +230,11 @@ INSERT INTO campaign_requirements(destination, req) VALUES
 ('CARD+BAD+EVENT', 'BAD+EVENT');
 
 INSERT INTO campaign_awards (level, core, threshold) VALUES
-('NULL', TRUE, 55), ('NULL', FALSE, 53), ('CARD', FALSE, 52),
-('CARD', TRUE, 16), ('CARD', FALSE, 14), ('CARD', FALSE, 12),
-('BAD', TRUE, 124), ('BAD', FALSE, 114), ('BAD', FALSE, 109),
-('EVENT', TRUE, 20), ('EVENT', FALSE, 15), ('EVENT', FALSE, 12),
-('CARD+BAD', TRUE, 60), ('CARD+BAD', FALSE, 50), ('CARD+BAD', FALSE, 40),
-('CARD+EVENT', TRUE, 8), ('CARD+EVENT', FALSE, 6), ('CARD+EVENT', FALSE, 5),
-('BAD+EVENT', TRUE, 20), ('BAD+EVENT', FALSE, 15), ('BAD+EVENT', FALSE, 12),
-('CARD+BAD+EVENT', TRUE, 12), ('CARD+BAD+EVENT', FALSE, 10), ('CARD+BAD+EVENT', FALSE, 9);
+('NULL', TRUE, 55), ('NULL', FALSE, 53), ('NULL', FALSE, 52),
+('CARD', TRUE, 16), ('CARD', FALSE, 12), ('CARD', FALSE, 10),
+('BAD', TRUE, 118), ('BAD', FALSE, 109), ('BAD', FALSE, 108),
+('EVENT', TRUE, 16), ('EVENT', FALSE, 12), ('EVENT', FALSE, 10),
+('CARD+BAD', TRUE, 44), ('CARD+BAD', FALSE, 36), ('CARD+BAD', FALSE, 32),
+('CARD+EVENT', TRUE, 8), ('CARD+EVENT', FALSE, 5), ('CARD+EVENT', FALSE, 3),
+('BAD+EVENT', TRUE, 14), ('BAD+EVENT', FALSE, 12), ('BAD+EVENT', FALSE, 11),
+('CARD+BAD+EVENT', TRUE, 12), ('CARD+BAD+EVENT', FALSE, 9), ('CARD+BAD+EVENT', FALSE, 7);
