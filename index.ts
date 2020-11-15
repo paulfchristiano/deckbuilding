@@ -200,8 +200,15 @@ async function serveDaily(req:any, res:any) {
 async function freeToSpoil(url:string) {
   for (const type of dailyTypes) {
     const dailyURLs:string[] = await Promise.all(dailyTypes.map(dailyURL))
-    return dailyURLs.every(x => x != url)
+	const isCampaign = await isCampaignLevel(url)
+    return (dailyURLs.every(x => x != url) && !isCampaign)
   }
+}
+
+async function isCampaignLevel(url:string) {
+  const levels = await sql`SELECT key
+    FROM campaign_levels WHERE url=${url}`
+  return levels.length > 0
 }
 
 async function serveDailiesByType(type:DailyType, res:any) {
