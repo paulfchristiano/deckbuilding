@@ -90,6 +90,7 @@ export function getCredentials() {
 }
 function toggleRules() {
     var active = $('#rules').attr('active');
+    console.log(active);
     $('#rules').attr('active', (active == 'true') ? 'false' : 'true');
 }
 export function load() {
@@ -103,6 +104,7 @@ export function load() {
                     $('#logoutButton').click(logout);
                     if (credentials !== null)
                         $('#namespan').text(credentials.username);
+                    $('#showRules').unbind('click');
                     $('#showRules').click(toggleRules);
                     if (!(credentials === null)) return [3 /*break*/, 1];
                     displayLogin();

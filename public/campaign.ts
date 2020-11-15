@@ -41,6 +41,7 @@ export interface CampaignInfo {
 
 function toggleRules() {
 	const active = $('#rules').attr('active')
+	console.log(active)
 	$('#rules').attr('active', (active == 'true') ? 'false' : 'true')
 }
 
@@ -48,6 +49,7 @@ export async function load() {
 	const credentials:Credentials|null = getCredentials()
 	$('#logoutButton').click(logout)
 	if (credentials !== null) $('#namespan').text(credentials.username)
+	$('#showRules').unbind('click')
 	$('#showRules').click(toggleRules)
 	if (credentials === null) {
 		displayLogin()
