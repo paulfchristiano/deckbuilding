@@ -534,7 +534,7 @@ function last(xs) {
 function getCampaignInfo(username, cheat) {
     if (cheat === void 0) { cheat = false; }
     return __awaiter(this, void 0, void 0, function () {
-        var scores, scoreByLevel, scores_1, scores_1_1, row, awards, passedLevels, awardsByLevels, numAwards, awards_1, awards_1_1, row, score, lockedLevels, requirements, requirements_1, requirements_1_1, row, currentReqs, levels, urls, lockReasons, levels_1, levels_1_1, row, req;
+        var scores, scoreByLevel, scores_1, scores_1_1, row, awards, passedLevels, awardsByLevels, numAwards, awards_1, awards_1_1, row, score, lockedLevels, requirements, requirements_1, requirements_1_1, row, currentReqs, levels, urls, lockReasons, levels_1, levels_1_1, row, req, starStr;
         var e_8, _a, e_9, _b, e_10, _c, e_11, _d;
         return __generator(this, function (_e) {
             switch (_e.label) {
@@ -613,7 +613,8 @@ function getCampaignInfo(username, cheat) {
                             row = levels_1_1.value;
                             req = lockedLevels.get(row.key);
                             if (numAwards < row.points_required) {
-                                lockReasons.push([row.key, row.points_required + " stars"]);
+                                starStr = (row.points_required == 1) ? 'star' : 'stars';
+                                lockReasons.push([row.key, row.points_required + " " + starStr]);
                             }
                             else if (req !== undefined) {
                                 lockReasons.push([row.key, "" + req.join(', ')]);

@@ -281,7 +281,8 @@ async function getCampaignInfo(
   for (const row of levels) {
     const req:string[]|undefined = lockedLevels.get(row.key)
     if (numAwards < row.points_required) {
-      lockReasons.push([row.key, `${row.points_required} stars`])
+      const starStr:string = (row.points_required == 1) ? 'star' : 'stars'
+      lockReasons.push([row.key, `${row.points_required} ${starStr}`])
     } else if (req !== undefined) {
       lockReasons.push([row.key, `${req.join(', ')}`])
     } 
