@@ -1339,12 +1339,12 @@ function bindHelp(state:State, ui:webUI) {
         const helpLines:string[] = [
             `Rules:`,
             `The goal of the game is to get to ${VP_GOAL} points (vp) using as little energy (@) as possible.`,
-            `To buy a card, spend a buy and pay its buy cost.`,
+            `You can buy a card by spending a buy and pay its buy cost.`,
             `When you buy a card, create a copy of it in your discard pile.`,
-            `To play a card, spend an action and pay its cost.`,
+            `You can play a card by spending an action and pay its cost.`,
             `When you play a card, put it in the resolving zone and follow its instructions.`,
             `After playing a card, discard it if it's still in the resolving zone.`,
-            `To use an event, pay its cost. When you use an event, folllow its instructions.`,
+            `You can use an event by paying its cost. When you use an event, folllow its instructions.`,
             "The symbols below a card's name indicate its cost (or buy cost for cards in the supply).",
             "When a cost is measured in energy (@, @@, ...) then you use that much energy to pay it.",
             "When a cost is measured in coin ($) then you can only pay it if you have enough coin.",
@@ -1362,7 +1362,8 @@ function bindHelp(state:State, ui:webUI) {
             "Go <a href='index.html'>here</a> to see all the ways to play the game.",
             `Check out the scoreboard <a href=${scoreboardURL(state.spec)}>here</a>.`,
             `Copy <a href='play?${specToURL(state.spec)}'>this link</a> to replay this game any time.`,
-            `You can use the URL in the address bar to link to the current state of this game.`,
+            `Use the URL in the address bar to link to the current state of this game.`,
+            `(Or click the 'Link' button to get a shortlink.)`,
         ]
         $('#choicePrompt').html('')
         $('#resolvingHeader').html('')
