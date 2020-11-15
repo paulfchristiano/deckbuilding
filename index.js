@@ -642,6 +642,20 @@ function getCampaignInfo(username, cheat) {
     });
 }
 express()
+    .get('/campaign', function (req, res, next) { return __awaiter(void 0, void 0, void 0, function () {
+    return __generator(this, function (_a) {
+        req.url += '.html';
+        next();
+        return [2 /*return*/];
+    });
+}); })
+    .get('/picker', function (req, res, next) { return __awaiter(void 0, void 0, void 0, function () {
+    return __generator(this, function (_a) {
+        req.url += '.html';
+        next();
+        return [2 /*return*/];
+    });
+}); })
     .use(express.static('./public'))
     .set('view engine', 'ejs')
     .set('views', './views')

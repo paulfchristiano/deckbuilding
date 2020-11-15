@@ -299,6 +299,14 @@ async function getCampaignInfo(
 }
 
 express()
+    .get('/campaign', async (req: any, res: any, next) => {
+    	req.url += '.html'
+    	next()
+    })
+    .get('/picker', async (req: any, res: any, next) => {
+    	req.url += '.html'
+    	next()
+    })
     .use(express.static('./public'))
     .set('view engine', 'ejs')
     .set('views', './views')
