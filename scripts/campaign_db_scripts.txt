@@ -22,7 +22,7 @@ INSERT INTO campaign_requirements(destination, req) VALUES
 
 INSERT INTO campaign_awards (level, core, threshold) VALUES
 ('A1', TRUE, 56), ('A1', FALSE, 51), ('A1', FALSE, 48),
-('A2', TRUE, 47), ('A2', FALSE, 43), ('A2', FALSE, 40),
+('A2', TRUE, 47), ('A2', FALSE, 42), ('A2', FALSE, 39),
 ('A3', TRUE, 32), ('A3', FALSE, 28), ('A3', FALSE, 24),
 ('A4', TRUE, 23), ('A4', FALSE, 21), ('A4', FALSE, 19),
 ('A5', TRUE, 18), ('A5', FALSE, 17), ('A5', FALSE, 16);

@@ -179,14 +179,19 @@ function loginRemote(credentials) {
 }
 function signupRemote(credentials) {
     return new Promise(function (resolve) {
-        $.post("signup?" + credentialParams(credentials), function (data) {
-            if (data != 'ok') {
-                resolve(false);
-            }
-            else {
-                resolve(true);
-            }
-        });
+        if (credentials.username == '') {
+            alert('Enter a username and password and click signup');
+        }
+        else {
+            $.post("signup?" + credentialParams(credentials), function (data) {
+                if (data != 'ok') {
+                    resolve(false);
+                }
+                else {
+                    resolve(true);
+                }
+            });
+        }
     });
 }
 function displayLogin() {
@@ -253,7 +258,7 @@ function displayLogin() {
                             load();
                         }
                         else {
-                            alert('Error signing up');
+                            alert('Error signing up (probably someone else has that username)');
                         }
                         _a.label = 2;
                     case 2: return [2 /*return*/];

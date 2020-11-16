@@ -90,13 +90,17 @@ function loginRemote(credentials:Credentials): Promise<boolean> {
 
 function signupRemote(credentials:Credentials): Promise<boolean> {
 	return new Promise(resolve => {
-		$.post(`signup?${credentialParams(credentials)}`, function(data) {
-			if (data != 'ok') {
-				resolve(false)
-			} else {
-				resolve(true)
-			}
-		})
+		if (credentials.username == '') {
+			alert('Enter a username and password and click signup')
+		} else {
+			$.post(`signup?${credentialParams(credentials)}`, function(data) {
+				if (data != 'ok') {
+					resolve(false)
+				} else {
+					resolve(true)
+				}
+			})
+		}
 	})
 }
 
@@ -147,7 +151,7 @@ function displayLogin() {
 	    		exit();
 	    		load();
 	    	} else {
-	    		alert('Error signing up')
+	    		alert('Error signing up (probably someone else has that username)')
 	    	}
     	}
     }
