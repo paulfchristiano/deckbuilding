@@ -456,6 +456,7 @@ export type GameSpec =
     { kind: 'pick', cards:CardSpec[], events:CardSpec[] } |
     { kind: 'pickR', cards:SlotSpec[], events:SlotSpec[], seed: string } |
     { kind: 'require', cards:SlotSpec[], events:SlotSpec[], seed: string } |
+    { kind: 'goal', goal: number, spec: GameSpec} |
     { kind: 'full', seed: string} | 
     { kind: 'half', seed: string} |
     { kind: 'mini', seed: string}
@@ -466,6 +467,8 @@ export class State {
     public readonly points:number;
     public readonly actions:number;
     public readonly buys:number;
+
+    public readonly vp_goal:number;
 
     public readonly supply:Zone;
     public readonly hand:Zone;
@@ -500,6 +503,8 @@ export class State {
         this.play = zones.get('play') || []
         this.void = zones.get('void') || []
         this.events = zones.get('events') || []
+
+        this.vp_goal = goalForSpec(spec)
     }
     update(stateUpdate:Partial<State>) {
         return new State(
@@ -1207,11 +1212,12 @@ function gainEnergy(n:number, source:Source=unk): Transform {
     return gainResource('energy', n, source)
 }
 
-export const VP_GOAL = 40
+export const DEFAULT_VP_GOAL = 40
 function gainPoints(n:number, source:Source=unk): Transform {
     return async function(state) {
         state = await gainResource('points', n, source)(state)
-        if (state.points >= VP_GOAL) throw new Victory(state)
+        const vp_goal = state.vp_goal
+        if (vp_goal > 0 && state.points >= vp_goal) throw new Victory(state)
         return state
     }
 }
@@ -1729,6 +1735,7 @@ export function cardsAndEvents(
     spec:GameSpec
 ): {cards:SlotSpec[], events:SlotSpec[]} {
     switch (spec.kind) {
+        case 'goal': return cardsAndEvents(spec.spec)
         case 'full': return {cards: Array(10).fill(RANDOM), events:Array(4).fill(RANDOM)}
         case 'half': return {cards: Array(5).fill(RANDOM), events:Array(2).fill(RANDOM)}
         case 'mini': return {cards: Array(3).fill(RANDOM), events:Array(1).fill(RANDOM)}
@@ -1752,6 +1759,8 @@ export function makeKingdom(spec:GameSpec): Kingdom {
             }
         case 'pick':
             return {cards:spec.cards, events:spec.events}
+        case 'goal':
+            return makeKingdom(spec.spec)
         default:
             const kingdom = cardsAndEvents(spec)
             return {
@@ -1838,6 +1847,11 @@ export function specToURL(spec:GameSpec): string {
     if (spec.kind != 'full')
         args.set('kind', spec.kind)
     switch (spec.kind) {
+        case 'goal':
+            const goal = spec.goal
+            return (goal == DEFAULT_VP_GOAL)
+                ? specToURL(spec.spec)
+                : `${specToURL(spec.spec)}&goal=${spec.goal}`
         case 'full':
         case 'mini':
         case 'half':
@@ -1867,8 +1881,16 @@ function split(s:string, sep:string): string[] {
     }
 }
 
-export function specFromURL(search:string): GameSpec {
+export function specFromURL(search:string, excludeGoal:boolean = false): GameSpec {
     const searchParams = new URLSearchParams(search)
+    if (!excludeGoal) {
+        const vp_goal:string|null = searchParams.get('goal')
+        if (vp_goal !== null) {
+            return {kind:'goal',
+                    goal: Number(vp_goal),
+                    spec: specFromURL(search, true)}
+        }
+    }
     const urlKind:string|null = searchParams.get('kind')
     const cardsString:string|null = searchParams.get('cards')
     const cards:string[] = (cardsString === null) ? []
@@ -1951,10 +1973,20 @@ function pickRandoms(slots:SlotSpec[], source:CardSpec[], seed:string): CardSpec
     ))
 }
 
+function goalForSpec(spec:GameSpec): number {
+    switch (spec.kind) {
+        case 'goal': return spec.goal
+        default: return DEFAULT_VP_GOAL
+    }
+}
+
 export function normalizeURL(url:string): string{
 	const spec:GameSpec = specFromURL(url)
     const kingdom:Kingdom = makeKingdom(spec)
-    const normalizedSpec:GameSpec = {kind:'pick', cards:kingdom.cards, events:kingdom.events}
+    let normalizedSpec:GameSpec = {
+        kind:'goal', goal:goalForSpec(spec),
+        spec: {kind:'pick', cards:kingdom.cards, events:kingdom.events}
+    }
     return specToURL(normalizedSpec)
 }
 

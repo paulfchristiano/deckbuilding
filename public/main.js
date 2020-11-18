@@ -89,7 +89,7 @@ import { SetState, Undo, InvalidHistory } from './logic.js';
 import { playGame, initialState } from './logic.js';
 import { coerceReplayVersion, parseReplay, MalformedReplay } from './logic.js';
 import { mixins, eventMixins, randomPlaceholder } from './logic.js';
-import { VERSION, VP_GOAL } from './logic.js';
+import { VERSION, DEFAULT_VP_GOAL } from './logic.js';
 import { MalformedSpec, getTutorialSpec, specToURL, specFromURL } from './logic.js';
 var keyListeners = new Map();
 var symbolHotkeys = ['!', '%', '^', '&', '*', '(', ')', '-', '+', '=', '{', '}', '[', ']']; // '@', '#', '$' are confusing
@@ -1307,7 +1307,7 @@ var tutorialStages = [
         nextAction: 0
     },
     {
-        text: ["You spent @ to play the estate, and gained 1 vp.\n        The goal of the game is to get to " + VP_GOAL + "vp\n        using as little @ as possible.",
+        text: ["You spent @ to play the estate, and gained 1 vp.\n        The goal of the game is to get to " + DEFAULT_VP_GOAL + "vp\n        using as little @ as possible.",
             "If you play an Estate using a Throne Room, you won't pay @. You only\n        pay a card's cost when you play or buy it the 'normal' way.\n        You also wouldn't pay an action, except that Throne Room tells you to.",
             "This is a very small kingdom for the purposes of learning.\n        The fastest win with these cards is 38@. Good luck!",
             "You can press '?' or click 'Help' to view the help at any time."],
@@ -1399,7 +1399,7 @@ function bindHelp(state, ui) {
         attach(function () { return ui.render(); });
         var helpLines = [
             "Rules:",
-            "The goal of the game is to get to " + VP_GOAL + " points (vp) using as little energy (@) as possible.",
+            "The goal of the game is to get to " + DEFAULT_VP_GOAL + " points (vp) using as little energy (@) as possible.",
             "You can buy a card by spending a buy and pay its buy cost.",
             "When you buy a card, create a copy of it in your discard pile.",
             "You can play a card by spending an action and pay its cost.",
