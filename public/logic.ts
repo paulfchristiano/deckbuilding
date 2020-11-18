@@ -456,7 +456,7 @@ export type GameSpec =
     { kind: 'pick', cards:CardSpec[], events:CardSpec[] } |
     { kind: 'pickR', cards:SlotSpec[], events:SlotSpec[], seed: string } |
     { kind: 'require', cards:SlotSpec[], events:SlotSpec[], seed: string } |
-    { kind: 'goal', goal: number, spec: GameSpec} |
+    { kind: 'goal', vp: number, spec: GameSpec} |
     { kind: 'full', seed: string} | 
     { kind: 'half', seed: string} |
     { kind: 'mini', seed: string}
@@ -1848,10 +1848,10 @@ export function specToURL(spec:GameSpec): string {
         args.set('kind', spec.kind)
     switch (spec.kind) {
         case 'goal':
-            const goal = spec.goal
+            const goal = spec.vp
             return (goal == DEFAULT_VP_GOAL)
                 ? specToURL(spec.spec)
-                : `${specToURL(spec.spec)}&goal=${spec.goal}`
+                : `${specToURL(spec.spec)}&vp=${spec.vp}`
         case 'full':
         case 'mini':
         case 'half':
@@ -1884,10 +1884,10 @@ function split(s:string, sep:string): string[] {
 export function specFromURL(search:string, excludeGoal:boolean = false): GameSpec {
     const searchParams = new URLSearchParams(search)
     if (!excludeGoal) {
-        const vp_goal:string|null = searchParams.get('goal')
+        const vp_goal:string|null = searchParams.get('vp')
         if (vp_goal !== null) {
             return {kind:'goal',
-                    goal: Number(vp_goal),
+                    vp: Number(vp_goal),
                     spec: specFromURL(search, true)}
         }
     }
@@ -1975,7 +1975,7 @@ function pickRandoms(slots:SlotSpec[], source:CardSpec[], seed:string): CardSpec
 
 function goalForSpec(spec:GameSpec): number {
     switch (spec.kind) {
-        case 'goal': return spec.goal
+        case 'goal': return spec.vp
         default: return DEFAULT_VP_GOAL
     }
 }
@@ -1984,7 +1984,7 @@ export function normalizeURL(url:string): string{
 	const spec:GameSpec = specFromURL(url)
     const kingdom:Kingdom = makeKingdom(spec)
     let normalizedSpec:GameSpec = {
-        kind:'goal', goal:goalForSpec(spec),
+        kind:'goal', vp:goalForSpec(spec),
         spec: {kind:'pick', cards:kingdom.cards, events:kingdom.events}
     }
     return specToURL(normalizedSpec)

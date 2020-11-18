@@ -2283,10 +2283,10 @@ export function specToURL(spec) {
         args.set('kind', spec.kind);
     switch (spec.kind) {
         case 'goal':
-            var goal = spec.goal;
+            var goal = spec.vp;
             return (goal == DEFAULT_VP_GOAL)
                 ? specToURL(spec.spec)
-                : specToURL(spec.spec) + "&goal=" + spec.goal;
+                : specToURL(spec.spec) + "&vp=" + spec.vp;
         case 'full':
         case 'mini':
         case 'half':
@@ -2320,10 +2320,10 @@ export function specFromURL(search, excludeGoal) {
     if (excludeGoal === void 0) { excludeGoal = false; }
     var searchParams = new URLSearchParams(search);
     if (!excludeGoal) {
-        var vp_goal = searchParams.get('goal');
+        var vp_goal = searchParams.get('vp');
         if (vp_goal !== null) {
             return { kind: 'goal',
-                goal: Number(vp_goal),
+                vp: Number(vp_goal),
                 spec: specFromURL(search, true) };
         }
     }
@@ -2444,7 +2444,7 @@ function pickRandoms(slots, source, seed) {
 }
 function goalForSpec(spec) {
     switch (spec.kind) {
-        case 'goal': return spec.goal;
+        case 'goal': return spec.vp;
         default: return DEFAULT_VP_GOAL;
     }
 }
@@ -2452,7 +2452,7 @@ export function normalizeURL(url) {
     var spec = specFromURL(url);
     var kingdom = makeKingdom(spec);
     var normalizedSpec = {
-        kind: 'goal', goal: goalForSpec(spec),
+        kind: 'goal', vp: goalForSpec(spec),
         spec: { kind: 'pick', cards: kingdom.cards, events: kingdom.events }
     };
     return specToURL(normalizedSpec);
