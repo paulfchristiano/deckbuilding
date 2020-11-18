@@ -451,14 +451,15 @@ export interface Kingdom {
     events: CardSpec[];
 }
 
-export type GameSpec = 
-    { kind: 'test' } |
-    { kind: 'pick', cards:CardSpec[], events:CardSpec[] } |
-    { kind: 'pickR', cards:SlotSpec[], events:SlotSpec[], seed: string } |
-    { kind: 'require', cards:SlotSpec[], events:SlotSpec[], seed: string } |
-    { kind: 'full', seed: string} | 
-    { kind: 'half', seed: string} |
-    { kind: 'mini', seed: string}
+export const DEFAULT_VP_GOAL = 40
+export type GameSpec =
+    { kind: 'test', vp_goal: number } |
+    { kind: 'pick', cards:CardSpec[], events:CardSpec[], vp_goal: number } |
+    { kind: 'pickR', cards:SlotSpec[], events:SlotSpec[], vp_goal: number, seed: string } |
+    { kind: 'require', cards:SlotSpec[], events:SlotSpec[], vp_goal: number, seed: string } |
+    { kind: 'full', vp_goal: number, seed: string} |
+    { kind: 'half', vp_goal: number, seed: string} |
+    { kind: 'mini', vp_goal: number, seed: string}
 
 export class State {
     public readonly coin:number;
@@ -466,6 +467,7 @@ export class State {
     public readonly points:number;
     public readonly actions:number;
     public readonly buys:number;
+    public readonly vp_goal:number;
 
     public readonly supply:Zone;
     public readonly hand:Zone;
@@ -474,7 +476,7 @@ export class State {
     public readonly void:Zone;
     public readonly events:Zone;
     constructor(
-        public readonly spec: GameSpec = {kind:'full', seed: ''},
+        public readonly spec: GameSpec = {kind:'full', seed: '', vp_goal: DEFAULT_VP_GOAL},
         public readonly ui: UI = noUI,
         public readonly resources:Resources =
             {coin:0, energy:0, points:0, actions:0, buys:0},
@@ -493,6 +495,7 @@ export class State {
         this.points = resources.points
         this.actions = resources.actions
         this.buys = resources.buys
+        this.vp_goal = spec.vp_goal
 
         this.supply = zones.get('supply') || []
         this.hand = zones.get('hand') || []
@@ -1207,11 +1210,10 @@ function gainEnergy(n:number, source:Source=unk): Transform {
     return gainResource('energy', n, source)
 }
 
-export const VP_GOAL = 40
 function gainPoints(n:number, source:Source=unk): Transform {
     return async function(state) {
         state = await gainResource('points', n, source)(state)
-        if (state.points >= VP_GOAL) throw new Victory(state)
+        if (state.vp_goal > 0 && state.points >= state.vp_goal) throw new Victory(state)
         return state
     }
 }
@@ -1776,7 +1778,8 @@ export function getTutorialSpec(): GameSpec {
     return {
         cards:[throneRoom],
         events:[duplicate],
-        kind: 'pick'
+        kind: 'pick',
+        vp_goal: DEFAULT_VP_GOAL,
     }
 }
 
@@ -1877,6 +1880,7 @@ export function specFromURL(search:string): GameSpec {
     const events:string[] = (eventsString === null) ? []
         : normalize(split(eventsString, ','))
     const seed:string|null = searchParams.get('seed') || randomSeed()
+    const vp_goal:number = parseInt(searchParams.get('vp') || String(DEFAULT_VP_GOAL))
     let kind:string
 
     function pickOrPickR() {
@@ -1900,7 +1904,7 @@ export function specFromURL(search:string): GameSpec {
         case 'full':
         case 'half':
         case 'mini':
-            return {kind:kind, seed:seed}
+            return {kind:kind, seed:seed, vp_goal: vp_goal}
         case 'pick':
             const cardSpecs:CardSpec[] = [];
             const eventSpecs:CardSpec[] = [];
@@ -1916,19 +1920,23 @@ export function specFromURL(search:string): GameSpec {
                     else eventSpecs.push(card)
                 }
             }
-            return {kind:kind, cards:cardSpecs, events:eventSpecs}
+            return {kind:kind, cards:cardSpecs, events:eventSpecs, vp_goal: vp_goal}
         case 'require':
             return {
                 seed:seed,
                 kind:'require',
                 cards: (cards === null) ? [] : extractList(cards, mixins),
                 events: (events === null) ? [] : extractList(events, eventMixins),
+                vp_goal: vp_goal,
             }
         case 'pickR':
-            return {kind:kind, seed:seed,
-                    cards:(cards === null) ? [] : extractList(cards, mixins),
-                    events:(events === null) ? [] : extractList(events, eventMixins)}
-        case 'test': return {kind: 'test'}
+            return {
+                kind:kind, seed:seed,
+                cards:(cards === null) ? [] : extractList(cards, mixins),
+                events:(events === null) ? [] : extractList(events, eventMixins),
+                vp_goal: vp_goal,
+            }
+        case 'test': return {kind: 'test', vp_goal: vp_goal}
         default: throw new MalformedSpec(`Invalid kind ${kind}`)
     }
 }
@@ -1946,7 +1954,7 @@ function pickRandoms(slots:SlotSpec[], source:CardSpec[], seed:string): CardSpec
         }
     }
     return result.concat(randomChoices(
-        source.filter(x => !taken.has(x.name)), 
+        source.filter(x => !taken.has(x.name)),
         randoms, hash(seed)
     ))
 }
@@ -1954,7 +1962,7 @@ function pickRandoms(slots:SlotSpec[], source:CardSpec[], seed:string): CardSpec
 export function normalizeURL(url:string): string{
 	const spec:GameSpec = specFromURL(url)
     const kingdom:Kingdom = makeKingdom(spec)
-    const normalizedSpec:GameSpec = {kind:'pick', cards:kingdom.cards, events:kingdom.events}
+    const normalizedSpec:GameSpec = {kind:'pick', cards:kingdom.cards, events:kingdom.events, vp_goal: spec.vp_goal}
     return specToURL(normalizedSpec)
 }
 
@@ -2618,11 +2626,11 @@ const hallOfMirrors:CardSpec = {name: 'Hall of Mirrors',
     fixedCost: {...free, energy:1, coin:5},
     effects: [{
         text: ['Put a mirror token on each card in your hand.'],
-        transform: (state:State, card:Card) => 
+        transform: (state:State, card:Card) =>
             doAll(state.hand.map(c => addToken(c, 'mirror')))
     }],
     staticTriggers: [{
-        text: `After playing a card with a mirror token on it 
+        text: `After playing a card with a mirror token on it
         other than with this, remove a mirror token and play it again.`,
         kind:'afterPlay',
         handles: (e, state, card) => {
@@ -2720,7 +2728,7 @@ const volley:CardSpec = {
                     state = await picked.play(card)(state)
                     state = await trash(picked)(state)
                     const id = picked.id
-                    options = options.filter(c => 
+                    options = options.filter(c =>
                         c.value.id != id
                         && state.find(c.value).place == 'hand'
                     )
@@ -2956,7 +2964,7 @@ const duplicate:CardSpec = {name: 'Duplicate',
             const target:Card = state.find(e.card);
             return target.count('duplicate') > 0
         },
-        transform: (e, state, card) => 
+        transform: (e, state, card) =>
             payToDo(removeToken(e.card, 'duplicate'), e.card.buy(card))
     }]
 }
@@ -3032,7 +3040,7 @@ const mobilization:CardSpec = {name: 'Mobilization',
         text: `${refresh.name} costs @ less to play for each charge token on this.`,
         kind:'cost',
         handles: x => (x.card.name == refresh.name),
-        replace: (x, state, card) => 
+        replace: (x, state, card) =>
             ({...x, cost:subtractCost(x.cost, {energy:state.find(card).charge})})
     }]
 }
@@ -3373,7 +3381,7 @@ const onslaught:CardSpec = {name: 'Onslaught',
                 } else {
                     state = await picked.play(card)(state)
                     const id = picked.id
-                    options = options.filter(c => 
+                    options = options.filter(c =>
                         c.value.id != id
                         && state.find(c.value).place == 'hand'
                     )
@@ -3384,7 +3392,7 @@ const onslaught:CardSpec = {name: 'Onslaught',
 /*
 
     {
-        text: [`Play any number of cards in your hand 
+        text: [`Play any number of cards in your hand
         and discard the rest.`],
         transform: (state, card) => async function(state) {
             const cards:Card[] = state.hand
@@ -3499,7 +3507,7 @@ const reflect:CardSpec = {name: 'Reflect',
     	state => state.hand
 	)],
     staticTriggers: [{
-        text: `After playing a card with a reflect token on it 
+        text: `After playing a card with a reflect token on it
         other than with this, remove a reflect token and play it again.`,
         kind:'afterPlay',
         handles: (e, state, card) => {
@@ -3530,7 +3538,7 @@ const replicate:CardSpec = {name: 'Replicate',
             const target:Card = state.find(e.card);
             return target.count('replicate') > 0
         },
-        transform: (e, state, card) => 
+        transform: (e, state, card) =>
             payToDo(removeToken(e.card, 'replicate'), e.card.buy(card))
     }]
 }
@@ -3963,7 +3971,7 @@ const ball:CardSpec = {
             applyToTarget(
                 target => target.buy(c),
                 'Choose a card to buy.',
-                state => state.supply.filter(option => 
+                state => state.supply.filter(option =>
                     leq(option.cost('buy', s), e.card.cost('buy', s))
                 )
             )
@@ -3994,7 +4002,7 @@ const lostArts:CardSpec = {
                Whenever this reduces a cost by one or more @,
                remove that many art tokens.`,
         kind: 'cost',
-        handles: (x, state, card) => (x.actionKind == 'play') 
+        handles: (x, state, card) => (x.actionKind == 'play')
             && nameHasToken(x.card, 'art', state),
         replace: (x, state, card) => {
             card = state.find(card)
@@ -4150,8 +4158,8 @@ buyable(artificer, 3)
 const banquet:CardSpec = {
     name: 'Banquet',
     restrictions: [{
-        test: (c:Card, s:State, k:ActionKind) => 
-            k == 'activate' && 
+        test: (c:Card, s:State, k:ActionKind) =>
+            k == 'activate' &&
             s.hand.some(c => c.count('neglect') > 0)
     }],
     effects: [coinsEffect(3), toPlay(), {
@@ -4361,7 +4369,7 @@ const reuse:CardSpec = {
                     state = await picked.play(card)(state)
                     state = await addToken(picked, 'reuse')(state)
                     const id = picked.id
-                    options = options.filter(c => 
+                    options = options.filter(c =>
                         c.value.id != id
                         && state.find(c.value).place == 'discard'
                     )
@@ -4506,7 +4514,7 @@ const preparations:CardSpec = {
             instead move it to your discard and gain +1 buy, +$2, and +3 actions.`,
         kind: 'move',
         handles: (p, state, card) => (p.card.id == card.id && p.toZone == 'hand'),
-        replace: p => ({...p, 
+        replace: p => ({...p,
             toZone:'discard',
             effects:p.effects.concat([gainBuys(1), gainCoin(2), gainActions(3)])
         })

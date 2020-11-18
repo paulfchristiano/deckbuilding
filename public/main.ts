@@ -16,7 +16,7 @@ import { UI, SetState, Undo, Victory, InvalidHistory, ReplayEnded } from './logi
 import { playGame, initialState, verifyScore} from './logic.js'
 import { Replay, coerceReplayVersion, parseReplay, MalformedReplay } from './logic.js'
 import { mixins, eventMixins, randomPlaceholder } from './logic.js'
-import { VERSION, VP_GOAL } from './logic.js'
+import { VERSION, DEFAULT_VP_GOAL } from './logic.js'
 import { MalformedSpec, getTutorialSpec, specToURL, specFromURL } from './logic.js'
 
 // --------------------- Hotkeys
@@ -382,7 +382,7 @@ interface RenderSettings {
 declare global {
     interface Window {
         renderedState: State;
-        serverSeed?: string; 
+        serverSeed?: string;
     }
 }
 
@@ -1224,11 +1224,11 @@ const tutorialStages:tutorialStage[] = [
         nextAction: 0
     },
     { text: [], nextAction: 0 },
-    { 
+    {
         text: [`Now that you have $3 and a buy, you can buy a Silver.`],
         nextAction: 3
     },
-    { 
+    {
         text: [`When you buy a card, you lose a buy and the $ you spent on it.
         Then you create a copy of that card in your discard.
         Next time you Refresh you will be able to play your new Silver.`,
@@ -1236,9 +1236,9 @@ const tutorialStages:tutorialStage[] = [
         `For now, click on an Estate to play it.`],
         nextAction: 0
     },
-    { 
+    {
         text: [`You spent @ to play the estate, and gained 1 vp.
-        The goal of the game is to get to ${VP_GOAL}vp
+        The goal of the game is to get to ${DEFAULT_VP_GOAL}vp
         using as little @ as possible.`,
         `If you play an Estate using a Throne Room, you won't pay @. You only
         pay a card's cost when you play or buy it the 'normal' way.
@@ -1338,7 +1338,7 @@ function bindHelp(state:State, ui:webUI) {
         attach(() => ui.render())
         const helpLines:string[] = [
             `Rules:`,
-            `The goal of the game is to get to ${VP_GOAL} points (vp) using as little energy (@) as possible.`,
+            `The goal of the game is to get to ${DEFAULT_VP_GOAL} points (vp) using as little energy (@) as possible.`,
             `You can buy a card by spending a buy and pay its buy cost.`,
             `When you buy a card, create a copy of it in your discard pile.`,
             `You can play a card by spending an action and pay its cost.`,
