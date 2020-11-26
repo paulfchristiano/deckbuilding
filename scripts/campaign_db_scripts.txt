@@ -43,8 +43,8 @@ INSERT INTO campaign_awards (level, core, threshold) VALUES
 ('B1', TRUE, 52), ('B1', FALSE, 46), ('B1', FALSE, 44),
 ('B2', TRUE, 43), ('B2', FALSE, 40), ('B2', FALSE, 36),
 ('B3', TRUE, 35), ('B3', FALSE, 32), ('B3', FALSE, 29),
-('B4', TRUE, 28), ('B4', FALSE, 26), ('B4', FALSE, 25),
-('B5', TRUE, 24), ('B5', FALSE, 20), ('B5', FALSE, 18);
+('B4', TRUE, 28), ('B4', FALSE, 26), ('B4', FALSE, 24),
+('B5', TRUE, 23), ('B5', FALSE, 20), ('B5', FALSE, 18);
 
 /* Progression C */
 
@@ -232,7 +232,7 @@ INSERT INTO campaign_requirements(destination, req) VALUES
 INSERT INTO campaign_awards (level, core, threshold) VALUES
 ('NULL', TRUE, 55), ('NULL', FALSE, 53), ('NULL', FALSE, 52),
 ('CARD', TRUE, 16), ('CARD', FALSE, 12), ('CARD', FALSE, 10),
-('BAD', TRUE, 118), ('BAD', FALSE, 109), ('BAD', FALSE, 108),
+('BAD', TRUE, 110), ('BAD', FALSE, 108), ('BAD', FALSE, 107),
 ('EVENT', TRUE, 16), ('EVENT', FALSE, 12), ('EVENT', FALSE, 10),
 ('CARD+BAD', TRUE, 38), ('CARD+BAD', FALSE, 32), ('CARD+BAD', FALSE, 28),
 ('CARD+EVENT', TRUE, 8), ('CARD+EVENT', FALSE, 5), ('CARD+EVENT', FALSE, 3),
