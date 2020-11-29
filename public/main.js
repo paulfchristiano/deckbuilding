@@ -103,7 +103,7 @@ var handHotkeys = lowerHotkeys.concat(upperHotkeys);
 // want to put zones that are least likely to change earlier, to not distrupt assignment
 var hotkeys = supplyAndPlayHotkeys.concat(handHotkeys);
 var choiceHotkeys = handHotkeys.concat(supplyAndPlayHotkeys);
-$(document).keydown(function (e) {
+window.addEventListener('keydown', function (e) {
     var listener = keyListeners.get(e.key);
     if (e.altKey || e.ctrlKey || e.metaKey)
         return;
@@ -575,7 +575,7 @@ function renderZone(state, zone, settings) {
     try {
         for (var _c = __values(optionsFns.entries()), _d = _c.next(); !_d.done; _d = _c.next()) {
             var _e = __read(_d.value, 2), i = _e[0], fn = _e[1];
-            e.find("#card" + optionsIds[i]).click(fn);
+            bindClickEvent(e.find("#card" + optionsIds[i]), fn);
         }
     }
     catch (e_11_1) { e_11 = { error: e_11_1 }; }
@@ -585,6 +585,10 @@ function renderZone(state, zone, settings) {
         }
         finally { if (e_11) throw e_11.error; }
     }
+}
+function bindClickEvent(element, handler) {
+    element.unbind('click');
+    element.bind('click', function (e) { return handler(e.shiftKey); });
 }
 function renderState(state, settings) {
     var e_12, _a;
@@ -759,6 +763,13 @@ function matchMacro(macro, state, options, chosen) {
             return (renders.length > 0) ? renders[0][1] : null;
     }
 }
+function macroStepFromChoice(x, chosen) {
+    switch (x.kind) {
+        case 'string': return x;
+        case 'card': return __assign(__assign({}, x), { chosen: chosen });
+        default: return assertNever(x);
+    }
+}
 var webUI = /** @class */ (function () {
     function webUI() {
         this.undoing = false;
@@ -771,19 +782,10 @@ var webUI = /** @class */ (function () {
         //render is used to refresh the state
         this.choiceState = null;
     }
-    webUI.prototype.recordStep = function (x, chosen) {
+    webUI.prototype.recordStep = function (x) {
         if (this.recordingMacro === null)
             return;
-        switch (x.kind) {
-            case 'string':
-                this.recordingMacro.push(x);
-                break;
-            case 'card':
-                this.recordingMacro.push(__assign(__assign({}, x), { chosen: chosen }));
-                break;
-            default:
-                assertNever(x);
-        }
+        this.recordingMacro.push(x);
     };
     webUI.prototype.eraseStep = function () {
         if (this.recordingMacro === null)
@@ -810,21 +812,24 @@ var webUI = /** @class */ (function () {
         if (this.choiceState !== null) {
             var option = this.matchNextMacroStep();
             if (option !== null)
-                this.choiceState.resolve(option);
+                this.choiceState.resolve(option, false);
         }
     };
     webUI.prototype.render = function () {
         if (this.choiceState != null) {
             var cs_1 = this.choiceState;
-            renderChoice(this, cs_1.state, cs_1.choicePrompt, cs_1.options.map(function (x, i) { return (__assign(__assign({}, x), { value: function () { return cs_1.resolve(i); } })); }), cs_1.chosen.map(function (i) { return cs_1.options[i].render; }));
+            renderChoice(this, cs_1.state, cs_1.choicePrompt, cs_1.options.map(function (x, i) { return (__assign(__assign({}, x), { value: function (shifted) { return cs_1.resolve(i, shifted); } })); }), cs_1.chosen.map(function (i) { return cs_1.options[i].render; }));
         }
     };
     webUI.prototype.choice = function (state, choicePrompt, options, info, chosen) {
         var ui = this;
         return new Promise(function (resolve, reject) {
-            function newResolve(n) {
+            function newResolve(n, shifted) {
                 ui.clearChoice();
-                ui.recordStep(options[n].render, chosen.indexOf(n) >= 0);
+                var macroStep = macroStepFromChoice(options[n].render, chosen.indexOf(n) >= 0);
+                ui.recordStep(macroStep);
+                if (shifted)
+                    ui.playingMacro = repeat([macroStep], 9);
                 resolve(n);
             }
             function newReject(reason) {
@@ -847,14 +852,14 @@ var webUI = /** @class */ (function () {
             var option = ui.matchNextMacroStep();
             var chooseTrivial = ui.chooseTrivial(state, options, info);
             if (option != null) {
-                newResolve(option);
+                newResolve(option, false);
             }
             else if (chooseTrivial !== null) {
                 if (ui.undoing) {
                     newReject(new Undo(state));
                 }
                 else {
-                    newResolve(chooseTrivial);
+                    newResolve(chooseTrivial, false);
                 }
             }
             else {
@@ -1000,19 +1005,22 @@ function renderChoice(ui, state, choicePrompt, options, picks) {
     $('#undoArea').html(renderSpecials(state));
     if (ui !== null)
         bindSpecials(state, ui);
-    for (var i = 0; i < options.length; i++) {
+    var _loop_3 = function (i) {
         var option = options[i];
         var f = option.value;
         var hotkey = hotkeyMap.get(renderKey(option.render));
         if (hotkey != undefined)
-            keyListeners.set(hotkey, f);
+            keyListeners.set(hotkey, function () { return f(false); });
+    };
+    for (var i = 0; i < options.length; i++) {
+        _loop_3(i);
     }
 }
 function renderStringOption(option, hotkey, pick) {
     var hotkeyText = (hotkey !== undefined) ? renderHotkey(hotkey) : '';
     var picktext = (pick !== undefined) ? "<div class='pickorder'>" + pick + "</div>" : '';
     var e = $("<span class='option' choosable chosen='false'>" + picktext + hotkeyText + option.render + "</span>");
-    e.click(option.value);
+    bindClickEvent(e, option.value);
     return e;
 }
 function renderSpecials(state) {
@@ -1139,23 +1147,27 @@ function bindRecordMacroButton(ui) {
     e.off('click');
     e.on('click', onClick);
 }
+function repeat(xs, n) {
+    return Array(n).fill(xs).flat(1);
+}
 function bindPlayMacroButtons(ui) {
     var e_18, _a;
-    function onClick(i) {
+    function onClick(i, shifted) {
+        if (shifted === void 0) { shifted = false; }
         if (ui.choiceState !== null && ui.playingMacro.length == 0) {
-            ui.playingMacro = ui.macros[i].slice();
+            ui.playingMacro = repeat(ui.macros[i], shifted ? 10 : 1);
             ui.resolveWithMacro();
         }
     }
-    var _loop_3 = function (i, macro) {
+    var _loop_4 = function (i, macro) {
         var e = $("[option='macro" + i + "'");
         e.off('click');
-        e.on('click', function () { return onClick(i); });
+        e.on('click', function (e) { return onClick(i, e.shiftKey); });
     };
     try {
         for (var _b = __values(ui.macros.entries()), _c = _b.next(); !_c.done; _c = _b.next()) {
             var _d = __read(_c.value, 2), i = _d[0], macro = _d[1];
-            _loop_3(i, macro);
+            _loop_4(i, macro);
         }
     }
     catch (e_18_1) { e_18 = { error: e_18_1 }; }
@@ -1205,7 +1217,7 @@ function bindRestart(state, ui) {
 function bindRedo(state, ui) {
     function pick() {
         if (ui.choiceState != null && state.redo.length > 0) {
-            ui.choiceState.resolve(state.redo[state.redo.length - 1]);
+            ui.choiceState.resolve(state.redo[state.redo.length - 1], false);
         }
     }
     keyListeners.set('Z', pick);
@@ -1425,6 +1437,8 @@ function bindHelp(state, ui) {
             "Copy <a href='play?" + specToURL(state.spec) + "'>this link</a> to replay this game any time.",
             "Use the URL in the address bar to link to the current state of this game.",
             "(Or click the 'Link' button to get a shortlink.)",
+            "Click the 'Macros' button to record and replay sequences of actions.",
+            "Shift+click a card or macro to repeat that action up to 10 times."
         ];
         $('#choicePrompt').html('');
         $('#resolvingHeader').html('');

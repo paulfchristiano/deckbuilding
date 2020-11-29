@@ -36,7 +36,7 @@ const handHotkeys = lowerHotkeys.concat(upperHotkeys)
 const hotkeys:Key[] = supplyAndPlayHotkeys.concat(handHotkeys)
 const choiceHotkeys:Key[] = handHotkeys.concat(supplyAndPlayHotkeys)
 
-$(document).keydown((e: any) => {
+window.addEventListener('keydown', (e: KeyboardEvent) => {
     const listener = keyListeners.get(e.key)
     if (e.altKey || e.ctrlKey || e.metaKey) return
     if (listener != undefined) {
@@ -374,7 +374,7 @@ function getIfDef<S, T>(m:Map<S, T>|undefined, x:S): T|undefined {
 
 interface RenderSettings {
     hotkeyMap?: Map<number|string, Key>;
-    optionsMap?: Map<number, ()=>void>;
+    optionsMap?: Map<number, (shifted:boolean)=>void>;
     pickMap?: Map<number|string, number>;
     updateURL?: boolean;
 }
@@ -437,7 +437,7 @@ function sketchMap<T>(x:Map<T, number>): string {
 
 function renderZone(state:State, zone:ZoneName, settings:RenderSettings = {}) {
     const e = $(`#${zone}`)
-    const optionsFns:((() => void)[]) = []
+    const optionsFns:(((shifted:boolean) => void)[]) = []
     const optionsIds:number[] = []
     function render(card:Card, count:number=1): string {
     	let option:number|undefined;
@@ -485,8 +485,13 @@ function renderZone(state:State, zone:ZoneName, settings:RenderSettings = {}) {
         e.html(cards.map(c => render(c)).join(''))
     }
     for (const [i, fn] of optionsFns.entries()) {
-    	e.find(`#card${optionsIds[i]}`).click(fn)
+        bindClickEvent(e.find(`#card${optionsIds[i]}`), fn)
     }
+}
+
+function bindClickEvent(element:JQuery, handler:(shifted:boolean) => void): void {
+    element.unbind('click')
+    element.bind('click', e => handler(e.shiftKey))
 }
 
 function renderState(
@@ -515,8 +520,8 @@ function renderState(
         const e = $(`[zone='${zone}'] .zonename`)
         e.unbind('click')
         e.click(() => {
-            globalRendererState.compress[zone] = !globalRendererState.compress[zone]
-            renderZone(state, zone, settings)
+            globalRendererState.compress[zone] = !globalRendererState.compress[zone];
+            renderZone(state, zone, settings);
         })
     }
     $('#playsize').html('' + state.play.length)
@@ -643,8 +648,16 @@ interface ChoiceState {
     options: Option<any>[];
     info: string[];
     chosen: number[];
-    resolve: (n:number) => void;
+    resolve: (n:number, shifted:boolean) => void;
     reject: (x:any) => void;
+}
+
+function macroStepFromChoice(x:OptionRender, chosen:boolean): MacroStep {
+    switch (x.kind) {
+        case 'string': return x
+        case 'card': return {...x, chosen:chosen}
+        default: return assertNever(x)
+    }
 }
 
 class webUI {
@@ -658,19 +671,9 @@ class webUI {
     //render is used to refresh the state
     public choiceState:ChoiceState|null = null
     constructor() {}
-    recordStep(x:OptionRender, chosen:boolean): void {
+    recordStep(x:MacroStep): void {
         if(this.recordingMacro === null) return
-        switch (x.kind) {
-            case 'string':
-                this.recordingMacro.push(x)
-                break
-            case 'card':
-                this.recordingMacro.push({...x, chosen:chosen})
-                break
-            default:
-                assertNever(x)
-
-        }
+        this.recordingMacro.push(x)
     }
     eraseStep(): void {
         if (this.recordingMacro === null) return
@@ -698,7 +701,7 @@ class webUI {
     resolveWithMacro() {
         if (this.choiceState !== null) {
             const option = this.matchNextMacroStep()
-            if (option !== null) this.choiceState.resolve(option)
+            if (option !== null) this.choiceState.resolve(option, false)
         }
     }
     render() {
@@ -708,7 +711,7 @@ class webUI {
                 this,
                 cs.state,
                 cs.choicePrompt,
-                cs.options.map((x, i) => ({...x, value:() => cs.resolve(i)})),
+                cs.options.map((x, i) => ({...x, value:(shifted) => cs.resolve(i, shifted)})),
                 cs.chosen.map(i => cs.options[i].render)
             )
         }
@@ -722,9 +725,11 @@ class webUI {
     ): Promise<number> {
         const ui:webUI = this;
         return new Promise(function(resolve, reject) {
-            function newResolve(n:number) {
+            function newResolve(n:number, shifted:boolean) {
                 ui.clearChoice()
-                ui.recordStep(options[n].render, chosen.indexOf(n) >= 0)
+                const macroStep = macroStepFromChoice(options[n].render, chosen.indexOf(n) >= 0)
+                ui.recordStep(macroStep)
+                if (shifted) ui.playingMacro = repeat([macroStep], 9)
                 resolve(n)
             }
             function newReject(reason:any) {
@@ -749,12 +754,12 @@ class webUI {
             const option:number|null = ui.matchNextMacroStep()
             const chooseTrivial:number|null = ui.chooseTrivial(state, options, info)
             if (option != null) {
-                newResolve(option)
+                newResolve(option, false)
             } else if (chooseTrivial !== null) {
                 if (ui.undoing) {
                     newReject(new Undo(state))
                 } else {
-                    newResolve(chooseTrivial)
+                    newResolve(chooseTrivial, false)
                 }
             } else {
                 ui.undoing = false;
@@ -825,18 +830,18 @@ class webUI {
 
 interface StringOption {
     render: string,
-    value: () => void
+    value: (shifted:boolean) => void
 }
 
 function renderChoice(
     ui:webUI|null,
     state: State,
     choicePrompt: string,
-    options: Option<() => void>[],
+    options: Option<(shifted:boolean) => void>[],
     picks: Array<OptionRender>=[],
 ): void {
 
-    const optionsMap:Map<number,() => void> = new Map() //map card ids to the corresponding option
+    const optionsMap:Map<number,(shifted:boolean) => void> = new Map() //map card ids to the corresponding option
     const stringOptions:StringOption[] = [] // values are indices into options
     for (let i = 0; i < options.length; i++) {
         const rendered:OptionRender = options[i].render
@@ -891,9 +896,9 @@ function renderChoice(
 
     for (let i = 0; i < options.length; i++) {
         const option = options[i];
-        const f: () => void = option.value;
+        const f: (shifted:boolean) => void = option.value;
         let hotkey:Key|undefined = hotkeyMap.get(renderKey(option.render))
-        if (hotkey != undefined) keyListeners.set(hotkey, f)
+        if (hotkey != undefined) keyListeners.set(hotkey, () => f(false))
     }
 
 }
@@ -904,7 +909,7 @@ function renderStringOption(option:StringOption, hotkey?:Key, pick?:number) {
     const hotkeyText = (hotkey!==undefined) ? renderHotkey(hotkey) : ''
     const picktext:string = (pick !== undefined) ? `<div class='pickorder'>${pick}</div>` : ''
     const e = $(`<span class='option' choosable chosen='false'>${picktext}${hotkeyText}${option.render}</span>`)
-    e.click(option.value)
+    bindClickEvent(e, option.value)
     return e
 }
 
@@ -1053,18 +1058,21 @@ function bindRecordMacroButton(ui:webUI) {
     e.on('click', onClick)
 }
 
+function repeat<T>(xs:T[], n:number): T[] {
+    return Array(n).fill(xs).flat(1)
+}
 
 function bindPlayMacroButtons(ui:webUI): void {
-    function onClick(i:number) {
+    function onClick(i:number, shifted:boolean=false) {
         if (ui.choiceState !== null && ui.playingMacro.length == 0) {
-            ui.playingMacro = ui.macros[i].slice()
+            ui.playingMacro = repeat(ui.macros[i], shifted ? 10 : 1)
             ui.resolveWithMacro()
         }
     }
     for (const [i, macro] of ui.macros.entries()) {
         const e = $(`[option='macro${i}'`)
         e.off('click')
-        e.on('click', () => onClick(i))
+        e.on('click', (e) => onClick(i, e.shiftKey))
     }
 }
 
@@ -1101,7 +1109,7 @@ function bindRestart(state:State, ui:webUI): void {
 function bindRedo(state:State, ui:webUI): void {
     function pick() {
         if (ui.choiceState != null && state.redo.length > 0) {
-            ui.choiceState.resolve(state.redo[state.redo.length - 1])
+            ui.choiceState.resolve(state.redo[state.redo.length - 1], false)
         }
     }
     keyListeners.set('Z', pick)
@@ -1364,6 +1372,8 @@ function bindHelp(state:State, ui:webUI) {
             `Copy <a href='play?${specToURL(state.spec)}'>this link</a> to replay this game any time.`,
             `Use the URL in the address bar to link to the current state of this game.`,
             `(Or click the 'Link' button to get a shortlink.)`,
+            `Click the 'Macros' button to record and replay sequences of actions.`,
+            `Shift+click a card or macro to repeat that action up to 10 times.`
         ]
         $('#choicePrompt').html('')
         $('#resolvingHeader').html('')

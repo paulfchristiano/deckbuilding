@@ -1,6 +1,7 @@
 #rightBox, #resources, #choicePrompt, .header, #requireLink, #pickLink,
 .helpLine, .sizeDescription, .homeLine {
     font-size: 1.25em;
+    user-select: none;
 }
 .logTypes {
     font-size: 1em;
@@ -34,6 +35,7 @@
     text-align: center;
     position: relative;
     background: white;
+    user-select: none;
 }
 .spec {
     display:flex;
