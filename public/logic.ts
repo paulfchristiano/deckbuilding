@@ -1,4 +1,4 @@
-export const VERSION = "1.7.6"
+export const VERSION = "1.7.7"
 
 // ----------------------------- Formatting
 
@@ -2636,7 +2636,7 @@ const construction:CardSpec = {name: 'Construction',
     triggers: [{
         text: 'Whenever you pay @, +1 action, +$1 and +1 buy.',
         kind: 'cost',
-        handles: () => true,
+        handles: (e) => e.cost.energy > 0,
         transform: e => doAll([
             gainActions(e.cost.energy),
             gainCoins(e.cost.energy),
@@ -2738,24 +2738,23 @@ const volley:CardSpec = {
     name: 'Volley',
     fixedCost: energy(1),
     effects: [{
-        text: [`Play then trash any number of cards in your hand.`],
+        text: [`Repeat any number of times:
+        play then trash a card in your hand that was also there
+        at the start of this effect and that you haven't played yet.`],
         transform: (state, card) => async function(state) {
             const cards:Card[] = state.hand;
             let options:Option<Card>[] = asNumberedChoices(cards)
             while (true) {
                 let picked:Card|null; [state, picked] = await choice(state,
                     'Pick a card to play next.',
-                    allowNull(options))
+                    allowNull(options.filter(c => state.find(c.value).place == 'hand')))
                 if (picked == null) {
                     return state
                 } else {
                     state = await picked.play(card)(state)
                     state = await trash(picked)(state)
                     const id = picked.id
-                    options = options.filter(c => 
-                        c.value.id != id
-                        && state.find(c.value).place == 'hand'
-                    )
+                    options = options.filter(c => c.value.id != id)
                 }
             }
         }
@@ -3160,22 +3159,13 @@ function literalOptions(xs:string[], keys:Key[]): Option<string>[] {
     }))
 }
 
-const tinkerer:CardSpec = {name: 'Tinkerer',
+const researcher:CardSpec = {name: 'Researcher',
     fixedCost: energy(1),
     effects: [{
-        text: [`For each charge token on this, choose one:
-                +1 action or +$1.`],
+        text: [`+1 action for each charge token on this.`],
         transform: (state, card) => async function(state) {
             const n = state.find(card).charge
-            let m:number|null; [state, m] = await choice(
-                state,
-                'Choose how many actions to gain (the rest will be $)',
-                chooseNatural(n+1)
-            )
-            if (m != null) {
-                state = await gainActions(m, card)(state)
-                state = await gainCoins(n-m, card)(state)
-            }
+            state = await gainActions(n)(state)
             return state
             /*
             for (let i = 0; i < n; i++) {
@@ -3196,9 +3186,9 @@ const tinkerer:CardSpec = {name: 'Tinkerer',
             return state
             */
         }
-    }, chargeUpTo(6)]
+    }, chargeEffect()]
 }
-buyable(tinkerer, 3, {replacers: [startsWithCharge(tinkerer.name, 2)]})
+buyable(researcher, 3, {replacers: [startsWithCharge(researcher.name, 3)]})
 
 /*
 const youngSmith:CardSpec = {name: 'Young Smith',
@@ -3392,23 +3382,24 @@ const onslaught:CardSpec = {name: 'Onslaught',
     fixedCost: {...free, coin:3, energy:1},
 	variableCost: costPer({coin:3}),
     effects: [incrementCost(), {
-        text: [`Play any number of cards in your hand.`],
+        text: [`Repeat any number of times: play a card in your hand
+            that was also there at the start of this effect
+            and that you haven't played yet.`],
         transform: (state, card) => async function(state) {
             const cards:Card[] = state.hand;
             let options:Option<Card>[] = asNumberedChoices(cards)
             while (true) {
                 let picked:Card|null; [state, picked] = await choice(state,
                     'Pick a card to play next.',
-                    allowNull(options))
+                    allowNull(options.filter(
+                        c => state.find(c.value).place == 'hand'
+                    )))
                 if (picked == null) {
                     return state
                 } else {
                     state = await picked.play(card)(state)
                     const id = picked.id
-                    options = options.filter(c => 
-                        c.value.id != id
-                        && state.find(c.value).place == 'hand'
-                    )
+                    options = options.filter(c => c.value.id != id )
                 }
             }
         }
@@ -4378,25 +4369,26 @@ const reuse:CardSpec = {
     name: 'Reuse',
     fixedCost: energy(2),
     effects: [{
-        text: [`Play any number of cards in your discard without a reuse token.`,
-                `Put a reuse token on each card played in this way.`],
+        text: [`Repeat any number of times:
+                choose a card in your discard without a reuse token
+                that was also there at the start of this effect.
+                Play it then put a reuse token on it.`],
 	        transform: (state, card) => async function(state) {
             const cards:Card[] = state.discard.filter(c => c.count('reuse') == 0)
             let options:Option<Card>[] = asNumberedChoices(cards)
             while (true) {
                 let picked:Card|null; [state, picked] = await choice(state,
                     'Pick a card to play next.',
-                    allowNull(options))
+                    allowNull(options.filter(
+                        c => state.find(c.value).place == 'discard'
+                    )))
                 if (picked == null) {
                     return state
                 } else {
                     state = await picked.play(card)(state)
                     state = await addToken(picked, 'reuse')(state)
                     const id = picked.id
-                    options = options.filter(c => 
-                        c.value.id != id
-                        && state.find(c.value).place == 'discard'
-                    )
+                    options = options.filter(c => c.value.id != id)
                 }
             }
         }
@@ -4484,12 +4476,6 @@ const commerce:CardSpec = {
     name: 'Commerce',
     fixedCost: coin(1),
     relatedCards: [villager],
-    variableCost: {
-        calculate: (c, s) => (
-            s.play.some(card => card.name == villager.name)
-        ) ? free : {coin:1},
-        text: `$1 if there are no ${villager.name}s in play.`,
-    },
     effects: [createInPlayEffect(villager)],
 }
 /*
