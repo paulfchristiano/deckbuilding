@@ -89,7 +89,7 @@ function displayStarUnlocks(maxStars:number): void {
 		$('#unlock2').html("You've unlocked a third star on each level!")
 	}
 	if (maxStars >= 4) {
-		$('#unlock2').html(`You've unlocked a hidden fourth star on some levels!
+		$('#unlock3').html(`You've unlocked a hidden fourth star on some levels!
 			Levels with a fourth star available are marked with [!]`)
 	}
 }

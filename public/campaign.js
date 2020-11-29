@@ -188,7 +188,7 @@ function displayStarUnlocks(maxStars) {
         $('#unlock2').html("You've unlocked a third star on each level!");
     }
     if (maxStars >= 4) {
-        $('#unlock2').html("You've unlocked a hidden fourth star on some levels!\n\t\t\tLevels with a fourth star available are marked with [!]");
+        $('#unlock3').html("You've unlocked a hidden fourth star on some levels!\n\t\t\tLevels with a fourth star available are marked with [!]");
     }
 }
 function renderStars(n) {
