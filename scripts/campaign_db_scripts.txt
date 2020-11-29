@@ -22,10 +22,10 @@ INSERT INTO campaign_requirements(destination, req) VALUES
 
 INSERT INTO campaign_awards (level, core, threshold) VALUES
 ('A1', TRUE, 56), ('A1', FALSE, 51), ('A1', FALSE, 48),
-('A2', TRUE, 47), ('A2', FALSE, 42), ('A2', FALSE, 39),
+('A2', TRUE, 47), ('A2', FALSE, 42), ('A2', FALSE, 40), ('A2', FALSE, 38),
 ('A3', TRUE, 32), ('A3', FALSE, 28), ('A3', FALSE, 24),
-('A4', TRUE, 23), ('A4', FALSE, 21), ('A4', FALSE, 19),
-('A5', TRUE, 18), ('A5', FALSE, 17), ('A5', FALSE, 16);
+('A4', TRUE, 23), ('A4', FALSE, 21), ('A4', FALSE, 19), ('A4', FALSE, 17),
+('A5', TRUE, 18), ('A5', FALSE, 16), ('A5', FALSE, 15), ('A5', FALSE, 14);
 
 /* Progression B */
 
@@ -61,7 +61,7 @@ INSERT INTO campaign_requirements(destination, req) VALUES
 INSERT INTO campaign_awards (level, core, threshold) VALUES
 ('C1', TRUE, 54), ('C1', FALSE, 50), ('C1', FALSE, 48),
 ('C2', TRUE, 47), ('C2', FALSE, 42), ('C2', FALSE, 40),
-('C3', TRUE, 39), ('C3', FALSE, 36), ('C3', FALSE, 35),
+('C3', TRUE, 39), ('C3', FALSE, 36), ('C3', FALSE, 35), ('C3', FALSE, 33),
 ('C4', TRUE, 34), ('C4', FALSE, 27), ('C4', FALSE, 17),
 ('C5', TRUE, 15), ('C5', FALSE, 12), ('C5', FALSE, 10);
 
@@ -81,12 +81,12 @@ INSERT INTO campaign_levels (key, url, points_required) VALUES
 
 INSERT INTO campaign_awards (level, core, threshold) VALUES
 ('FGU', TRUE, 40), ('FGU', FALSE, 36), ('FGU', FALSE, 32),
-('CHV', TRUE, 46), ('CHV', FALSE, 44), ('CHV', FALSE, 42),
-('IPS', TRUE, 38), ('IPS', FALSE, 31), ('IPS', FALSE, 28),
+('CHV', TRUE, 46), ('CHV', FALSE, 42), ('CHV', FALSE, 37),
+('IPS', TRUE, 38), ('IPS', FALSE, 31), ('IPS', FALSE, 28), ('IPS', FALSE, 25),
 ('BCR', TRUE, 42), ('BCR', FALSE, 36), ('BCR', FALSE, 34),
 ('DLW', TRUE, 40), ('DLW', FALSE, 36), ('DLW', FALSE, 32),
 ('IKV', TRUE, 42), ('IKV', FALSE, 38), ('IKV', FALSE, 36),
-('SST', TRUE, 43), ('SST', FALSE, 42), ('SST', FALSE, 41),
+('SST', TRUE, 43), ('SST', FALSE, 41), ('SST', FALSE, 40),
 ('FFP', TRUE, 34), ('FFP', FALSE, 32), ('FFP', FALSE, 30),
 ('HSV', TRUE, 36), ('HSV', FALSE, 33), ('HSV', FALSE, 31),
 ('CER', TRUE, 40), ('CER', FALSE, 37), ('CER', FALSE, 35);
@@ -153,21 +153,21 @@ INSERT INTO campaign_requirements(destination, req) VALUES
 ('PLAY/BIG', 'PLAY'), ('PLAY/BIG', 'BIG');
 
 INSERT INTO campaign_awards (level, core, threshold) VALUES
-('GROW', TRUE, 16), ('GROW', FALSE, 14), ('GROW', FALSE, 13),
+('GROW', TRUE, 16), ('GROW', FALSE, 13), ('GROW', FALSE, 12),
 ('BIG', TRUE, 26), ('BIG', FALSE, 23), ('BIG', FALSE, 21),
-('GROW/BIG', TRUE, 12), ('GROW/BIG', FALSE, 11), ('GROW/BIG', FALSE, 10),
-('BUY', TRUE, 38), ('BUY', FALSE, 33), ('BUY', FALSE, 30),
+('GROW/BIG', TRUE, 12), ('GROW/BIG', FALSE, 11), ('GROW/BIG', FALSE, 10), ('GROW/BIG', FALSE, 9),
+('BUY', TRUE, 38), ('BUY', FALSE, 33), ('BUY', FALSE, 30), ('BUY', FALSE, 28),
 ('PLAY', TRUE, 22), ('PLAY', FALSE, 19), ('PLAY', FALSE, 17),
 ('GROW/BUY', TRUE, 12), ('GROW/BUY', FALSE, 10), ('GROW/BUY', FALSE, 9),
-('DIG', TRUE, 25), ('DIG', FALSE, 22), ('DIG', FALSE, 20),
-('BUY/DIG', TRUE, 19), ('BUY/DIG', FALSE, 17), ('BUY/DIG', FALSE, 15),
+('DIG', TRUE, 25), ('DIG', FALSE, 22), ('DIG', FALSE, 20), ('DIG', FALSE, 19),
+('BUY/DIG', TRUE, 19), ('BUY/DIG', FALSE, 15), ('BUY/DIG', FALSE, 12),
 ('BIG/DIG', TRUE, 18), ('BIG/DIG', FALSE, 14), ('BIG/DIG', FALSE, 12),
 ('DIG/GROW', TRUE, 12), ('DIG/GROW', FALSE, 9), ('DIG/GROW', FALSE, 7),
 ('PLAY/BIG', TRUE, 16), ('PLAY/BIG', FALSE, 15), ('PLAY/BIG', FALSE, 14),
 ('PLAY/GROW', TRUE, 12), ('PLAY/GROW', FALSE, 10), ('PLAY/GROW', FALSE, 9),
 ('DIG/PLAY', TRUE, 16), ('DIG/PLAY', FALSE, 15), ('DIG/PLAY', FALSE, 14),
 ('BUY/PLAY', TRUE, 16), ('BUY/PLAY', FALSE, 15), ('BUY/PLAY', FALSE, 14),
-('BIG/BUY', TRUE, 20), ('BIG/BUY', FALSE, 16), ('BIG/BUY', FALSE, 14);
+('BIG/BUY', TRUE, 20), ('BIG/BUY', FALSE, 15), ('BIG/BUY', FALSE, 13);
 
 /* Big games */
 
@@ -185,7 +185,7 @@ INSERT INTO campaign_levels (key, url, points_required) VALUES
 
 INSERT INTO campaign_awards (level, core, threshold) VALUES
 ('G1', TRUE, 40), ('G1', FALSE, 37), ('G1', FALSE, 35),
-('G2', TRUE, 20), ('G2', FALSE, 18), ('G2', FALSE, 17),
+('G2', TRUE, 20), ('G2', FALSE, 18), ('G2', FALSE, 17), ('G2', FALSE, 16),
 ('G3', TRUE, 16), ('G3', FALSE, 14), ('G3', FALSE, 13),
 ('G4', TRUE, 15), ('G4', FALSE, 11), ('G4', FALSE, 9),
 ('G5', TRUE, 24), ('G5', FALSE, 21), ('G5', FALSE, 19),
@@ -231,10 +231,11 @@ INSERT INTO campaign_requirements(destination, req) VALUES
 
 INSERT INTO campaign_awards (level, core, threshold) VALUES
 ('NULL', TRUE, 55), ('NULL', FALSE, 53), ('NULL', FALSE, 52),
-('CARD', TRUE, 16), ('CARD', FALSE, 12), ('CARD', FALSE, 10),
-('BAD', TRUE, 110), ('BAD', FALSE, 108), ('BAD', FALSE, 107),
+('CARD', TRUE, 16), ('CARD', FALSE, 12), ('CARD', FALSE, 10), ('CARD', FALSE, 9),
+('BAD', TRUE, 110), ('BAD', FALSE, 108), ('BAD', FALSE, 107), ('BAD', FALSE, 9),
 ('EVENT', TRUE, 16), ('EVENT', FALSE, 12), ('EVENT', FALSE, 10),
 ('CARD+BAD', TRUE, 38), ('CARD+BAD', FALSE, 32), ('CARD+BAD', FALSE, 28),
-('CARD+EVENT', TRUE, 8), ('CARD+EVENT', FALSE, 5), ('CARD+EVENT', FALSE, 3),
+('CARD+EVENT', TRUE, 8), ('CARD+EVENT', FALSE, 5), ('CARD+EVENT', FALSE, 3), ('CARD+EVENT', FALSE, 2),
 ('BAD+EVENT', TRUE, 14), ('BAD+EVENT', FALSE, 12), ('BAD+EVENT', FALSE, 11),
-('CARD+BAD+EVENT', TRUE, 12), ('CARD+BAD+EVENT', FALSE, 9), ('CARD+BAD+EVENT', FALSE, 7);
+('CARD+BAD+EVENT', TRUE, 12), ('CARD+BAD+EVENT', FALSE, 9), ('CARD+BAD+EVENT',
+FALSE, 7), ('CARD+BAD+EVENT', FALSE, 3);
