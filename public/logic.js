@@ -85,7 +85,7 @@ var __read = (this && this.__read) || function (o, n) {
     }
     return ar;
 };
-export var VERSION = "1.7.6";
+export var VERSION = "1.7.7";
 // ----------------------------- Formatting
 export function renderCost(cost, full) {
     var e_1, _a;
@@ -3094,7 +3094,7 @@ var construction = { name: 'Construction',
     effects: [actionsEffect(3), toPlay()], triggers: [{
             text: 'Whenever you pay @, +1 action, +$1 and +1 buy.',
             kind: 'cost',
-            handles: function () { return true; },
+            handles: function (e) { return e.cost.energy > 0; },
             transform: function (e) { return doAll([
                 gainActions(e.cost.energy),
                 gainCoins(e.cost.energy),
@@ -3187,7 +3187,7 @@ var volley = {
     name: 'Volley',
     fixedCost: energy(1),
     effects: [{
-            text: ["Play then trash any number of cards in your hand."],
+            text: ["Repeat any number of times:\n        play then trash a card in your hand that was also there\n        at the start of this effect and that you haven't played yet."],
             transform: function (state, card) { return function (state) {
                 return __awaiter(this, void 0, void 0, function () {
                     var cards, options, _loop_1, state_1;
@@ -3203,7 +3203,7 @@ var volley = {
                                         switch (_b.label) {
                                             case 0:
                                                 picked = void 0;
-                                                return [4 /*yield*/, choice(state, 'Pick a card to play next.', allowNull(options))];
+                                                return [4 /*yield*/, choice(state, 'Pick a card to play next.', allowNull(options.filter(function (c) { return state.find(c.value).place == 'hand'; })))];
                                             case 1:
                                                 _a = __read.apply(void 0, [_b.sent(), 2]), state = _a[0], picked = _a[1];
                                                 if (!(picked == null)) return [3 /*break*/, 2];
@@ -3215,10 +3215,7 @@ var volley = {
                                             case 4:
                                                 state = _b.sent();
                                                 id_1 = picked.id;
-                                                options = options.filter(function (c) {
-                                                    return c.value.id != id_1
-                                                        && state.find(c.value).place == 'hand';
-                                                });
+                                                options = options.filter(function (c) { return c.value.id != id_1; });
                                                 _b.label = 5;
                                             case 5: return [2 /*return*/];
                                         }
@@ -3609,55 +3606,46 @@ function literalOptions(xs, keys) {
         value: x
     }); });
 }
-var tinkerer = { name: 'Tinkerer',
+var researcher = { name: 'Researcher',
     fixedCost: energy(1), effects: [{
-            text: ["For each charge token on this, choose one:\n                +1 action or +$1."],
+            text: ["+1 action for each charge token on this."],
             transform: function (state, card) { return function (state) {
                 return __awaiter(this, void 0, void 0, function () {
-                    var n, m;
-                    var _a;
-                    return __generator(this, function (_b) {
-                        switch (_b.label) {
+                    var n;
+                    return __generator(this, function (_a) {
+                        switch (_a.label) {
                             case 0:
                                 n = state.find(card).charge;
-                                return [4 /*yield*/, choice(state, 'Choose how many actions to gain (the rest will be $)', chooseNatural(n + 1))];
+                                return [4 /*yield*/, gainActions(n)(state)];
                             case 1:
-                                _a = __read.apply(void 0, [_b.sent(), 2]), state = _a[0], m = _a[1];
-                                if (!(m != null)) return [3 /*break*/, 4];
-                                return [4 /*yield*/, gainActions(m, card)(state)];
-                            case 2:
-                                state = _b.sent();
-                                return [4 /*yield*/, gainCoins(n - m, card)(state)];
-                            case 3:
-                                state = _b.sent();
-                                _b.label = 4;
-                            case 4: return [2 /*return*/, state
-                                /*
-                                for (let i = 0; i < n; i++) {
-                                    let mode:string|null; [state, mode] = await choice(
-                                        state,
-                                        `Choose a benefit (${n - i} remaining)`,
-                                        literalOptions(['action', 'coin'], ['a', 'c'])
-                                    )
-                                    switch(mode) {
-                                        case 'coin':
-                                            state = await gainCoins(1, card)(state)
-                                            break
-                                        case 'action':
-                                            state = await gainActions(1, card)(state)
-                                            break
+                                state = _a.sent();
+                                return [2 /*return*/, state
+                                    /*
+                                    for (let i = 0; i < n; i++) {
+                                        let mode:string|null; [state, mode] = await choice(
+                                            state,
+                                            `Choose a benefit (${n - i} remaining)`,
+                                            literalOptions(['action', 'coin'], ['a', 'c'])
+                                        )
+                                        switch(mode) {
+                                            case 'coin':
+                                                state = await gainCoins(1, card)(state)
+                                                break
+                                            case 'action':
+                                                state = await gainActions(1, card)(state)
+                                                break
+                                        }
                                     }
-                                }
-                                return state
-                                */
-                            ];
+                                    return state
+                                    */
+                                ];
                         }
                     });
                 });
             }; }
-        }, chargeUpTo(6)]
+        }, chargeEffect()]
 };
-buyable(tinkerer, 3, { replacers: [startsWithCharge(tinkerer.name, 2)] });
+buyable(researcher, 3, { replacers: [startsWithCharge(researcher.name, 3)] });
 /*
 const youngSmith:CardSpec = {name: 'Young Smith',
     fixedCost: energy(1),
@@ -3837,7 +3825,7 @@ var spices = { name: 'Spices',
 };
 buyable(spices, 5, { onBuy: [coinsEffect(4)] });
 var onslaught = { name: 'Onslaught', fixedCost: __assign(__assign({}, free), { coin: 3, energy: 1 }), variableCost: costPer({ coin: 3 }), effects: [incrementCost(), {
-            text: ["Play any number of cards in your hand."],
+            text: ["Repeat any number of times: play a card in your hand\n            that was also there at the start of this effect\n            and that you haven't played yet."],
             transform: function (state, card) { return function (state) {
                 return __awaiter(this, void 0, void 0, function () {
                     var cards, options, _loop_2, state_2;
@@ -3853,7 +3841,7 @@ var onslaught = { name: 'Onslaught', fixedCost: __assign(__assign({}, free), { c
                                         switch (_b.label) {
                                             case 0:
                                                 picked = void 0;
-                                                return [4 /*yield*/, choice(state, 'Pick a card to play next.', allowNull(options))];
+                                                return [4 /*yield*/, choice(state, 'Pick a card to play next.', allowNull(options.filter(function (c) { return state.find(c.value).place == 'hand'; })))];
                                             case 1:
                                                 _a = __read.apply(void 0, [_b.sent(), 2]), state = _a[0], picked = _a[1];
                                                 if (!(picked == null)) return [3 /*break*/, 2];
@@ -3862,10 +3850,7 @@ var onslaught = { name: 'Onslaught', fixedCost: __assign(__assign({}, free), { c
                                             case 3:
                                                 state = _b.sent();
                                                 id_2 = picked.id;
-                                                options = options.filter(function (c) {
-                                                    return c.value.id != id_2
-                                                        && state.find(c.value).place == 'hand';
-                                                });
+                                                options = options.filter(function (c) { return c.value.id != id_2; });
                                                 _b.label = 4;
                                             case 4: return [2 /*return*/];
                                         }
@@ -4863,8 +4848,7 @@ var reuse = {
     name: 'Reuse',
     fixedCost: energy(2),
     effects: [{
-            text: ["Play any number of cards in your discard without a reuse token.",
-                "Put a reuse token on each card played in this way."],
+            text: ["Repeat any number of times:\n                choose a card in your discard without a reuse token\n                that was also there at the start of this effect.\n                Play it then put a reuse token on it."],
             transform: function (state, card) { return function (state) {
                 return __awaiter(this, void 0, void 0, function () {
                     var cards, options, _loop_4, state_3;
@@ -4880,7 +4864,7 @@ var reuse = {
                                         switch (_b.label) {
                                             case 0:
                                                 picked = void 0;
-                                                return [4 /*yield*/, choice(state, 'Pick a card to play next.', allowNull(options))];
+                                                return [4 /*yield*/, choice(state, 'Pick a card to play next.', allowNull(options.filter(function (c) { return state.find(c.value).place == 'discard'; })))];
                                             case 1:
                                                 _a = __read.apply(void 0, [_b.sent(), 2]), state = _a[0], picked = _a[1];
                                                 if (!(picked == null)) return [3 /*break*/, 2];
@@ -4892,10 +4876,7 @@ var reuse = {
                                             case 4:
                                                 state = _b.sent();
                                                 id_3 = picked.id;
-                                                options = options.filter(function (c) {
-                                                    return c.value.id != id_3
-                                                        && state.find(c.value).place == 'discard';
-                                                });
+                                                options = options.filter(function (c) { return c.value.id != id_3; });
                                                 _b.label = 5;
                                             case 5: return [2 /*return*/];
                                         }
@@ -4993,10 +4974,6 @@ var commerce = {
     name: 'Commerce',
     fixedCost: coin(1),
     relatedCards: [villager],
-    variableCost: {
-        calculate: function (c, s) { return (s.play.some(function (card) { return card.name == villager.name; })) ? free : { coin: 1 }; },
-        text: "$1 if there are no " + villager.name + "s in play.",
-    },
     effects: [createInPlayEffect(villager)],
 };
 /*

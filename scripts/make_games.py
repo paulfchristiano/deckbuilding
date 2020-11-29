@@ -14,7 +14,7 @@ def render_game(g):
     return f"kind=pick&cards={','.join(sorted(g['cards']))}&events={','.join(sorted(g['events']))}"
 
 themes = [
-    ('GROW', 'kind=pick&cards=Frontier,Hatchery,Investment,Tinkerer,Traveler&events=Escalate,Reflect', 23),
+    ('GROW', 'kind=pick&cards=Frontier,Hatchery,Investment,Researcher,Traveler&events=Escalate,Reflect', 23),
     ('BIG', 'kind=pick&cards=Colony,Fortune,KingsCourt,Palace,Platinum&events=Inflation,Prioritize', 29),
     ('BUY', 'kind=pick&cards=FlowerMarket,GhostTown,Herbs,Lackeys,Spices&events=Duplicate,Expedite', 41),
     ('DIG', 'kind=pick&cards=Lab,Market,Plow,Till,Unearth&events=Recycle,Toil', 57),
@@ -63,7 +63,7 @@ print(',\n'.join(req_strings(themes)) + ';')
 def sort_and_join(lists):
     return ','.join(sorted([x for l in lists for x in l]))
 
-card_list = 'Artificer,Banquet,Bridge,Carpenter,Celebration,Colony,Composting,Construction,Coppersmith,Conclave,Duke,Echo,Hatchery,Factory,FairyGold,Feast,FlowerMarket,Formation,Fortune,Fountain,Frontier,Gardens,GhostTown,GoldMine,GrandMarket,GreatSmithy,Haggler,Harvest,Herbs,Highway,Hireling,Homesteading,Imitation,Industry,Innovation,Investment,KingsCourt,Lab,Lackeys,Looter,Market,Mastermind,Palace,Platinum,Plow,Procession,PublicWorks,Recruitment,RoyalSeal,Sacrifice,SecretChamber,Shelter,ShippingLane,Spices,ThroneRoom,Till,Transmogrify,Traveler,Turnpike,Unearth,VibrantCity,Village,Workshop,Tinkerer'.split(',')
+card_list = 'Artificer,Banquet,Bridge,Carpenter,Celebration,Colony,Composting,Construction,Coppersmith,Conclave,Duke,Echo,Hatchery,Factory,FairyGold,Feast,FlowerMarket,Formation,Fortune,Fountain,Frontier,Gardens,GhostTown,GoldMine,GrandMarket,GreatSmithy,Haggler,Harvest,Herbs,Highway,Hireling,Homesteading,Imitation,Industry,Innovation,Investment,KingsCourt,Lab,Lackeys,Looter,Market,Mastermind,Palace,Platinum,Plow,Procession,PublicWorks,Recruitment,RoyalSeal,Sacrifice,SecretChamber,Shelter,ShippingLane,Spices,ThroneRoom,Till,Transmogrify,Traveler,Turnpike,Unearth,VibrantCity,Village,Workshop,Researcher'.split(',')
 event_list = 'Commerce,Duplicate,Escalate,Expedite,Finance,Focus,HallofMirrors,Inflation,LostArts,Onslaught,Parallelize,Pathfinding,Philanthropy,Polish,Populate,PressOn,Prioritize,Reach,Recycle,Reflect,Replicate,Reuse,Reverberate,Synergy,TravelingFair,Twin,Volley,Toil,Vault'.split(',')
 bad_list = 'Burden,Mire,Decay'.split(',')
 
