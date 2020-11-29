@@ -1521,7 +1521,10 @@ function campaignHeartbeat(spec:GameSpec, interval?:any): void {
             return
         }
         let [personalBest, nextStar, starsWon, totalStars] = x
-        const starStr = `<div>Stars won: ${starsWon}/${totalStars}</div>`
+        console.log(x)
+        const starStr = (totalStars > 1)
+            ? `<div>Stars won: ${starsWon}/${totalStars}</div>`
+            : ``
         const personalBestStr = personalBest !== null
             ? `<div>Your best: @${personalBest}</div>`
             : ``

@@ -35,8 +35,10 @@ export interface CampaignInfo {
 	urls: [string, string|null][], //list of level names -> level urls
 	lockReasons: [string, string][],
 	scores: [string, number|null][], //scores per level
-	awardsByLevels: [string, number][],
+	awardsByLevel: [string, number][],
 	numAwards: number,
+	maxStars: number,
+	availableAwardsByLevel: [string, number][],
 }
 
 function toggleRules() {
@@ -54,6 +56,7 @@ export async function load() {
 	if (credentials === null) {
 		displayLogin()
 	} else {
+		const lookupAwardsByLevel = new Map<string, number>()
 		const info = await getCampaignInfo(credentials)
 		$('#numAwards').text(` ${info.numAwards}`)
 		for (const [name, url] of info.urls) {
@@ -64,9 +67,30 @@ export async function load() {
 		for (const [name, reason] of info.lockReasons) {
 			$(`#${$.escapeSelector(name)} .req`).html(` (&#128274;${reason})`)
 		}
-		for (const [name, awards] of info.awardsByLevels) {
+		for (const [name, awards] of info.awardsByLevel) {
 			$(`#${$.escapeSelector(name)} .stars`).text(renderStars(awards))
+			lookupAwardsByLevel.set(name, awards)
 		}
+		for (const [name, awards] of info.availableAwardsByLevel) {
+			console.log([name, awards])
+			if (awards >= 4 && (lookupAwardsByLevel.get(name) || 0) < awards){
+				$(`#${$.escapeSelector(name)}`).append(' [!]')
+			}
+		}
+		displayStarUnlocks(info.maxStars)
+	}
+}
+
+function displayStarUnlocks(maxStars:number): void {
+	if (maxStars >= 2) {
+		$('#unlock1').html(`You've unlocked a second star on each level!`)
+	}
+	if (maxStars >= 3) {
+		$('#unlock2').html("You've unlocked a third star on each level!")
+	}
+	if (maxStars >= 4) {
+		$('#unlock2').html(`You've unlocked a hidden fourth star on some levels!
+			Levels with a fourth star available are marked with [!]`)
 	}
 }
 

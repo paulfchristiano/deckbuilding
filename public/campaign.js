@@ -95,10 +95,10 @@ function toggleRules() {
 }
 export function load() {
     return __awaiter(this, void 0, void 0, function () {
-        var credentials, info, _a, _b, _c, name_1, url, _d, _e, _f, name_2, reason, _g, _h, _j, name_3, awards;
-        var e_1, _k, e_2, _l, e_3, _m;
-        return __generator(this, function (_o) {
-            switch (_o.label) {
+        var credentials, lookupAwardsByLevel, info, _a, _b, _c, name_1, url, _d, _e, _f, name_2, reason, _g, _h, _j, name_3, awards, _k, _l, _m, name_4, awards;
+        var e_1, _o, e_2, _p, e_3, _q, e_4, _r;
+        return __generator(this, function (_s) {
+            switch (_s.label) {
                 case 0:
                     credentials = getCredentials();
                     $('#logoutButton').click(logout);
@@ -109,9 +109,11 @@ export function load() {
                     if (!(credentials === null)) return [3 /*break*/, 1];
                     displayLogin();
                     return [3 /*break*/, 3];
-                case 1: return [4 /*yield*/, getCampaignInfo(credentials)];
+                case 1:
+                    lookupAwardsByLevel = new Map();
+                    return [4 /*yield*/, getCampaignInfo(credentials)];
                 case 2:
-                    info = _o.sent();
+                    info = _s.sent();
                     $('#numAwards').text(" " + info.numAwards);
                     try {
                         for (_a = __values(info.urls), _b = _a.next(); !_b.done; _b = _a.next()) {
@@ -124,7 +126,7 @@ export function load() {
                     catch (e_1_1) { e_1 = { error: e_1_1 }; }
                     finally {
                         try {
-                            if (_b && !_b.done && (_k = _a.return)) _k.call(_a);
+                            if (_b && !_b.done && (_o = _a.return)) _o.call(_a);
                         }
                         finally { if (e_1) throw e_1.error; }
                     }
@@ -137,28 +139,57 @@ export function load() {
                     catch (e_2_1) { e_2 = { error: e_2_1 }; }
                     finally {
                         try {
-                            if (_e && !_e.done && (_l = _d.return)) _l.call(_d);
+                            if (_e && !_e.done && (_p = _d.return)) _p.call(_d);
                         }
                         finally { if (e_2) throw e_2.error; }
                     }
                     try {
-                        for (_g = __values(info.awardsByLevels), _h = _g.next(); !_h.done; _h = _g.next()) {
+                        for (_g = __values(info.awardsByLevel), _h = _g.next(); !_h.done; _h = _g.next()) {
                             _j = __read(_h.value, 2), name_3 = _j[0], awards = _j[1];
                             $("#" + $.escapeSelector(name_3) + " .stars").text(renderStars(awards));
+                            lookupAwardsByLevel.set(name_3, awards);
                         }
                     }
                     catch (e_3_1) { e_3 = { error: e_3_1 }; }
                     finally {
                         try {
-                            if (_h && !_h.done && (_m = _g.return)) _m.call(_g);
+                            if (_h && !_h.done && (_q = _g.return)) _q.call(_g);
                         }
                         finally { if (e_3) throw e_3.error; }
                     }
-                    _o.label = 3;
+                    try {
+                        for (_k = __values(info.availableAwardsByLevel), _l = _k.next(); !_l.done; _l = _k.next()) {
+                            _m = __read(_l.value, 2), name_4 = _m[0], awards = _m[1];
+                            console.log([name_4, awards]);
+                            if (awards >= 4 && (lookupAwardsByLevel.get(name_4) || 0) < awards) {
+                                $("#" + $.escapeSelector(name_4)).append(' [!]');
+                            }
+                        }
+                    }
+                    catch (e_4_1) { e_4 = { error: e_4_1 }; }
+                    finally {
+                        try {
+                            if (_l && !_l.done && (_r = _k.return)) _r.call(_k);
+                        }
+                        finally { if (e_4) throw e_4.error; }
+                    }
+                    displayStarUnlocks(info.maxStars);
+                    _s.label = 3;
                 case 3: return [2 /*return*/];
             }
         });
     });
+}
+function displayStarUnlocks(maxStars) {
+    if (maxStars >= 2) {
+        $('#unlock1').html("You've unlocked a second star on each level!");
+    }
+    if (maxStars >= 3) {
+        $('#unlock2').html("You've unlocked a third star on each level!");
+    }
+    if (maxStars >= 4) {
+        $('#unlock2').html("You've unlocked a hidden fourth star on some levels!\n\t\t\tLevels with a fourth star available are marked with [!]");
+    }
 }
 function renderStars(n) {
     if (n == 0)

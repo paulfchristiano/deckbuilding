@@ -36,6 +36,14 @@ function renderTime(date:Date) {
   return date.toLocaleString('en-US', {timeZone: 'America/New_York'})
 }
 
+async function userMaxStars(username:string): Promise<number> {
+  const results = await sql`SELECT name,max_stars FROM campaign_users
+    WHERE name=${username}
+  `
+  if (results.length == 0) return 0
+  else return (results[0].max_stars as number)
+}
+
 async function signup(credentials:Credentials): Promise<void> {
   await sql`INSERT INTO campaign_users (name, password_hash)
            VALUES (
@@ -239,12 +247,20 @@ function last<T>(xs:T[]): T {
   return xs[xs.length -1]
 }
 
+function maxStarsGivenAwardsSoFar(awardsSoFar:number): number {
+  if (awardsSoFar < 5) return 1
+  else if (awardsSoFar < 20) return 2
+  else if (awardsSoFar < 150) return 3
+  return 4
+}
+
 //TODO: if you guess a locked level you can play it and get points
 //probably better to just make it impossible to submit until unlocked?
 async function getCampaignInfo(
   username:string,
   cheat:boolean=false
 ): Promise<CampaignInfo> {
+  const maxStars = await userMaxStars(username)
   const scores = await sql`SELECT level, score, username
     FROM campaign_scores WHERE username = ${username}`
   const scoreByLevel:Map<string, number> = new Map()
@@ -254,17 +270,30 @@ async function getCampaignInfo(
   const awards = await sql`SELECT level, threshold, core
     FROM campaign_awards`
   const passedLevels:Set<string> = new Set()
-  const awardsByLevels:Map<string, number> = new Map()
+  const awardsByLevel:Map<string, number> = new Map()
+  const availableAwardsByLevel:Map<string, number> = new Map()
   let numAwards:number = 0
   for (const row of awards) {
-    const score:number|undefined = scoreByLevel.get(row.level)
-    if (score !== undefined) {
-      if (row.threshold >= score) {
-        numAwards += 1
-        awardsByLevels.set(row.level, (awardsByLevels.get(row.level)||0) + 1)
-        if (row.core) passedLevels.add(row.level)
-      }
+    const score:number = (scoreByLevel.get(row.level) || Infinity)
+    const availableAwards = availableAwardsByLevel.get(row.level) || 0
+    if (availableAwards < maxStars) {
+      availableAwardsByLevel.set(row.level, availableAwards + 1)
     }
+    if (row.threshold >= score) {
+      const currentAwards = awardsByLevel.get(row.level) || 0
+      if (currentAwards < maxStars) {
+        numAwards += 1
+        awardsByLevel.set(row.level, currentAwards+1)
+      }
+      if (row.core) passedLevels.add(row.level)
+    }
+  }
+  const newMaxStars = maxStarsGivenAwardsSoFar(numAwards)
+  if (newMaxStars > maxStars) {
+    await sql`UPDATE campaign_users 
+              SET max_stars = ${newMaxStars}
+              WHERE name = ${username}`
+    return getCampaignInfo(username, cheat)
   }
   const lockedLevels:Map<string, string[]> = new Map()
   const requirements = await sql`SELECT destination, req FROM campaign_requirements`
@@ -294,8 +323,10 @@ async function getCampaignInfo(
     urls: urls,
     lockReasons: lockReasons,
     scores: scores.map((r:any) => [r.level, r.score]),
-    awardsByLevels: Array.from(awardsByLevels.entries()),
-    numAwards:numAwards
+    awardsByLevel: Array.from(awardsByLevel.entries()),
+    numAwards:numAwards,
+    maxStars:maxStars,
+    availableAwardsByLevel: Array.from(availableAwardsByLevel.entries())
   }
 }
 
@@ -422,7 +453,10 @@ express()
           nextAward = award.threshold
         }
       }
-      res.send([score, nextAward, wonAwards, totalAwards])
+      const maxStars = await userMaxStars(credentials.username)
+      totalAwards = Math.min(maxStars, totalAwards)
+      if (wonAwards >= maxStars) nextAward = NaN
+      res.send([score, nextAward, wonAwards, totalAwards, maxStars])
     })
     .post('/campaignSubmit', async (req:any, res:any) => {
       const credentials:Credentials = {
