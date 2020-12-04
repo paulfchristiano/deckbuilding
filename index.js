@@ -896,6 +896,7 @@ express()
             case 4:
                 maxStars = _b.sent();
                 totalAwards = Math.min(maxStars, totalAwards);
+                wonAwards = Math.min(maxStars, wonAwards);
                 if (wonAwards >= maxStars)
                     nextAward = NaN;
                 res.send([score, nextAward, wonAwards, totalAwards, maxStars]);
