@@ -74,9 +74,9 @@ INSERT INTO campaign_levels (key, url, points_required) VALUES
 ('BCR', 'kind=pick&cards=Bridge,Colony&events=Reuse', 14),
 ('DLW', 'kind=pick&cards=Duke,Lackeys,Workshop&events=', 17),
 ('CHV', 'kind=pick&cards=Coppersmith,Herbs&events=Volley', 20),
-('IKV', 'kind=pick&cards=Imitation,KingsCourt,Village&events=', 26),
+('FIK', 'kind=pick&cards=Fountain,Imitation,KingsCourt&events=', 26),
 ('SST', 'kind=pick&cards=Shelter,ShippingLane,Turnpike&events=', 33),
-('HSV', 'kind=pick&cards=Spices,VibrantCity&events=HallofMirrors', 37),
+('HMT', 'kind=pick&cards=Market,Till&events=HallofMirrors', 37),
 ('CER', 'kind=pick&cards=Construction,Echo&events=Recycle', 45);
 
 INSERT INTO campaign_awards (level, core, threshold) VALUES
@@ -85,10 +85,10 @@ INSERT INTO campaign_awards (level, core, threshold) VALUES
 ('IPS', TRUE, 38), ('IPS', FALSE, 31), ('IPS', FALSE, 28), ('IPS', FALSE, 25),
 ('BCR', TRUE, 42), ('BCR', FALSE, 36), ('BCR', FALSE, 34),
 ('DLW', TRUE, 40), ('DLW', FALSE, 36), ('DLW', FALSE, 32),
-('IKV', TRUE, 42), ('IKV', FALSE, 38), ('IKV', FALSE, 36),
+('FIK', TRUE, 35), ('FIK', FALSE, 33), ('FIK', FALSE, 31),
 ('SST', TRUE, 43), ('SST', FALSE, 41), ('SST', FALSE, 40),
 ('FFP', TRUE, 34), ('FFP', FALSE, 32), ('FFP', FALSE, 30),
-('HSV', TRUE, 36), ('HSV', FALSE, 33), ('HSV', FALSE, 31),
+('HMT', TRUE, 37), ('HMT', FALSE, 35), ('HMT', FALSE, 34),
 ('CER', TRUE, 40), ('CER', FALSE, 37), ('CER', FALSE, 35);
 
 /* Pairings */
@@ -153,7 +153,7 @@ INSERT INTO campaign_requirements(destination, req) VALUES
 ('PLAY/BIG', 'PLAY'), ('PLAY/BIG', 'BIG');
 
 INSERT INTO campaign_awards (level, core, threshold) VALUES
-('GROW', TRUE, 16), ('GROW', FALSE, 13), ('GROW', FALSE, 12),
+('GROW', TRUE, 16), ('GROW', FALSE, 13), ('GROW', FALSE, 12), ('GROW', FALSE, 11),
 ('BIG', TRUE, 26), ('BIG', FALSE, 23), ('BIG', FALSE, 21),
 ('GROW/BIG', TRUE, 12), ('GROW/BIG', FALSE, 11), ('GROW/BIG', FALSE, 10), ('GROW/BIG', FALSE, 9),
 ('BUY', TRUE, 38), ('BUY', FALSE, 33), ('BUY', FALSE, 30), ('BUY', FALSE, 28),
@@ -162,10 +162,10 @@ INSERT INTO campaign_awards (level, core, threshold) VALUES
 ('DIG', TRUE, 25), ('DIG', FALSE, 22), ('DIG', FALSE, 20), ('DIG', FALSE, 19),
 ('BUY/DIG', TRUE, 19), ('BUY/DIG', FALSE, 15), ('BUY/DIG', FALSE, 12),
 ('BIG/DIG', TRUE, 18), ('BIG/DIG', FALSE, 14), ('BIG/DIG', FALSE, 12),
-('DIG/GROW', TRUE, 12), ('DIG/GROW', FALSE, 9), ('DIG/GROW', FALSE, 7),
+('DIG/GROW', TRUE, 12), ('DIG/GROW', FALSE, 8), ('DIG/GROW', FALSE, 6),
 ('PLAY/BIG', TRUE, 16), ('PLAY/BIG', FALSE, 15), ('PLAY/BIG', FALSE, 14),
 ('PLAY/GROW', TRUE, 12), ('PLAY/GROW', FALSE, 10), ('PLAY/GROW', FALSE, 9),
-('DIG/PLAY', TRUE, 16), ('DIG/PLAY', FALSE, 15), ('DIG/PLAY', FALSE, 14),
+('DIG/PLAY', TRUE, 16), ('DIG/PLAY', FALSE, 15), ('DIG/PLAY', FALSE, 14), ('DIG/PLAY', FALSE, 13),
 ('BUY/PLAY', TRUE, 16), ('BUY/PLAY', FALSE, 15), ('BUY/PLAY', FALSE, 14),
 ('BIG/BUY', TRUE, 20), ('BIG/BUY', FALSE, 15), ('BIG/BUY', FALSE, 13);
 
@@ -193,7 +193,7 @@ INSERT INTO campaign_awards (level, core, threshold) VALUES
 ('G7', TRUE, 20), ('G7', FALSE, 16), ('G7', FALSE, 14),
 ('G8', TRUE, 31), ('G8', FALSE, 26), ('G8', FALSE, 23),
 ('G9', TRUE, 13), ('G9', FALSE, 11), ('G9', FALSE, 10),
-('G10', TRUE, 20), ('G10', FALSE, 18), ('G10', FALSE, 17);
+('G10', TRUE, 21), ('G10', FALSE, 19), ('G10', FALSE, 18), ('G10', FALSE, 17);
 
 /* Subsets */
 
@@ -232,9 +232,9 @@ INSERT INTO campaign_requirements(destination, req) VALUES
 INSERT INTO campaign_awards (level, core, threshold) VALUES
 ('NULL', TRUE, 55), ('NULL', FALSE, 53), ('NULL', FALSE, 52),
 ('CARD', TRUE, 16), ('CARD', FALSE, 12), ('CARD', FALSE, 10), ('CARD', FALSE, 9),
-('BAD', TRUE, 110), ('BAD', FALSE, 108), ('BAD', FALSE, 107), ('BAD', FALSE, 9),
-('EVENT', TRUE, 16), ('EVENT', FALSE, 12), ('EVENT', FALSE, 10),
-('CARD+BAD', TRUE, 38), ('CARD+BAD', FALSE, 32), ('CARD+BAD', FALSE, 28),
+('BAD', TRUE, 110), ('BAD', FALSE, 108), ('BAD', FALSE, 106), ('BAD', FALSE, 103),
+('EVENT', TRUE, 16), ('EVENT', FALSE, 12), ('EVENT', FALSE, 10), ('EVENT', FALSE, 8),
+('CARD+BAD', TRUE, 34), ('CARD+BAD', FALSE, 28), ('CARD+BAD', FALSE, 22),
 ('CARD+EVENT', TRUE, 8), ('CARD+EVENT', FALSE, 5), ('CARD+EVENT', FALSE, 3), ('CARD+EVENT', FALSE, 2),
 ('BAD+EVENT', TRUE, 14), ('BAD+EVENT', FALSE, 12), ('BAD+EVENT', FALSE, 11),
 ('CARD+BAD+EVENT', TRUE, 12), ('CARD+BAD+EVENT', FALSE, 9), ('CARD+BAD+EVENT',
