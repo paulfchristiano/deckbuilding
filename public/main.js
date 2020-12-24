@@ -88,7 +88,7 @@ import { logTypes } from './logic.js';
 import { SetState, Undo, InvalidHistory } from './logic.js';
 import { playGame, initialState } from './logic.js';
 import { coerceReplayVersion, parseReplay, MalformedReplay } from './logic.js';
-import { mixins, eventMixins, randomPlaceholder } from './logic.js';
+import { allCards, allEvents, randomPlaceholder } from './logic.js';
 import { VERSION, DEFAULT_VP_GOAL } from './logic.js';
 import { MalformedSpec, getTutorialSpec, specToURL, specFromURL } from './logic.js';
 var keyListeners = new Map();
@@ -1690,7 +1690,7 @@ function startGame(state, ui) {
     playGame(state.attachUI(ui)).catch(function (e) {
         if (e instanceof InvalidHistory) {
             alert(e);
-            playGame(e.state.clearFuture());
+            playGame(e.state.clearFuture(), true);
         }
         else {
             //alert(e)
@@ -1709,7 +1709,7 @@ function restart(state) {
     playGame(state.attachUI(ui)).catch(function (e) {
         if (e instanceof InvalidHistory) {
             alert(e);
-            playGame(e.state.clearFuture());
+            playGame(e.state.clearFuture(), true);
         }
         else {
             alert(e);
@@ -1743,8 +1743,8 @@ function countIn(s, f) {
 //TODO: refactor the logic into logic.ts, probably just state initialization
 export function loadPicker() {
     var state = emptyState;
-    var cards = mixins.slice();
-    var events = eventMixins.slice();
+    var cards = allCards.slice();
+    var events = allEvents.slice();
     cards.sort(function (spec1, spec2) { return spec1.name.localeCompare(spec2.name); });
     events.sort(function (spec1, spec2) { return spec1.name.localeCompare(spec2.name); });
     for (var i = 0; i < 8; i++)

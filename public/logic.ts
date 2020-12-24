@@ -451,15 +451,18 @@ export interface Kingdom {
     events: CardSpec[];
 }
 
+type Randomizer = {
+    'seed': string,
+    'expansions': ExpansionName[],
+}
+
 export type GameSpec = 
     { kind: 'test' } |
     { kind: 'pick', cards:CardSpec[], events:CardSpec[] } |
-    { kind: 'pickR', cards:SlotSpec[], events:SlotSpec[], seed: string } |
-    { kind: 'require', cards:SlotSpec[], events:SlotSpec[], seed: string } |
+    { kind: 'pickR', cards:SlotSpec[], events:SlotSpec[], randomizer: Randomizer } |
+    { kind: 'require', cards:SlotSpec[], events:SlotSpec[], randomizer: Randomizer } |
     { kind: 'goal', vp: number, spec: GameSpec} |
-    { kind: 'full', seed: string} | 
-    { kind: 'half', seed: string} |
-    { kind: 'mini', seed: string}
+    { kind: 'full', randomizer: Randomizer}
 
 export class State {
     public readonly coin:number;
@@ -477,7 +480,7 @@ export class State {
     public readonly void:Zone;
     public readonly events:Zone;
     constructor(
-        public readonly spec: GameSpec = {kind:'full', seed: ''},
+        public readonly spec: GameSpec = {kind:'full', randomizer: {expansions: [], seed: ''}},
         public readonly ui: UI = noUI,
         public readonly resources:Resources =
             {coin:0, energy:0, points:0, actions:0, buys:0},
@@ -1326,7 +1329,8 @@ function leq(cost1:Cost, cost2:Cost) {
 export type Token = 'charge' | 'cost' | 'mirror' | 'duplicate' | 'twin' | 'synergy' |
     'shelter' | 'echo' | 'decay' | 'burden' | 'pathfinding' | 'neglect' |
     'reuse' | 'polish' | 'priority' | 'hesitation' | 'parallelize' | 'art' |
-    'mire' | 'onslaught' | 'expedite' | 'replicate' | 'reverberate' | 'reflect'
+    'mire' | 'onslaught' | 'expedite' | 'replicate' | 'reverberate' | 'reflect' |
+    'pillage'
 
 function discharge(card:Card, n:number): Transform {
     return charge(card, -n, true)
@@ -1737,8 +1741,6 @@ export function cardsAndEvents(
     switch (spec.kind) {
         case 'goal': return cardsAndEvents(spec.spec)
         case 'full': return {cards: Array(10).fill(RANDOM), events:Array(4).fill(RANDOM)}
-        case 'half': return {cards: Array(5).fill(RANDOM), events:Array(2).fill(RANDOM)}
-        case 'mini': return {cards: Array(3).fill(RANDOM), events:Array(1).fill(RANDOM)}
         case 'test': return {cards: [], events: []}
         case 'pick': return {cards: [], events: []}
         case 'pickR': return {cards: spec.cards, events: spec.events}
@@ -1750,12 +1752,40 @@ export function cardsAndEvents(
     }
 }
 
+function usableExpansions(spec:GameSpec): ExpansionName[] {
+    switch (spec.kind) {
+        case 'test': return expansionNames
+        case 'pick': return []
+        case 'goal': return usableExpansions(spec.spec)
+        default: return spec.randomizer.expansions 
+    }            
+}
+
+type SetSpec = {
+    'cards': CardSpec[],
+    'events': CardSpec[],
+}
+
+type ExpansionName = 'base' | 'expansion'
+const expansionNames:ExpansionName[] = ['base', 'expansion']
+type SetName = 'core' | ExpansionName
+
+function emptySet(): SetSpec {
+    return {'cards': [], 'events': []}
+}
+
+export const sets = {
+    'core': emptySet(),
+    'base': emptySet(),
+    'expansion': emptySet()
+}
+
 export function makeKingdom(spec:GameSpec): Kingdom {
     switch (spec.kind) {
         case 'test':
             return {
-                cards:mixins,
-                events:eventMixins.concat(cheats),
+                cards:allCards,
+                events:allEvents.concat(cheats),
             }
         case 'pick':
             return {cards:spec.cards, events:spec.events}
@@ -1763,9 +1793,10 @@ export function makeKingdom(spec:GameSpec): Kingdom {
             return makeKingdom(spec.spec)
         default:
             const kingdom = cardsAndEvents(spec)
+            const expansions = usableExpansions(spec)
             return {
-                cards: pickRandoms(kingdom.cards, mixins, 'cards' + spec.seed),
-                events: pickRandoms(kingdom.events, eventMixins, 'events' + spec.seed),
+                cards: pickRandoms(kingdom.cards, cardsFrom('cards', expansions), 'cards' + spec.randomizer.seed),
+                events: pickRandoms(kingdom.events, cardsFrom('events', expansions), 'events' + spec.randomizer.seed),
             }
     }
 }
@@ -1839,7 +1870,10 @@ function renderSlots(slots:SlotSpec[]) {
         else result.push(slot.name);
     }
     return normalizePreservingCase(result).join(',')
+}
 
+function nontrivialExpansions(expansionNames:ExpansionName[]): boolean {
+    return (expansionNames.length != 1 || expansionNames[0] != 'base')
 }
 
 export function specToURL(spec:GameSpec): string {
@@ -1853,15 +1887,19 @@ export function specToURL(spec:GameSpec): string {
                 ? specToURL(spec.spec)
                 : `${specToURL(spec.spec)}&vp=${spec.vp}`
         case 'full':
-        case 'mini':
-        case 'half':
-            args.set('seed', spec.seed)
+            args.set('seed', spec.randomizer.seed)
+            if (nontrivialExpansions(spec.randomizer.expansions)) {
+                args.set('expansions', spec.randomizer.expansions.join(','))
+            }
             break
         case 'pickR':
         case 'require':
             args.set('cards', renderSlots(spec.cards))
             args.set('events', renderSlots(spec.events))
-            args.set('seed', spec.seed)
+            args.set('seed', spec.randomizer.seed)
+            if (nontrivialExpansions(spec.randomizer.expansions)) {
+                args.set('expansions', spec.randomizer.expansions.join(','))
+            }
             break
         case 'pick':
             args.set('cards', renderSlots(spec.cards))
@@ -1898,6 +1936,18 @@ export function specFromURL(search:string, excludeGoal:boolean = false): GameSpe
     const eventsString:string|null = searchParams.get('events')
     const events:string[] = (eventsString === null) ? []
         : normalize(split(eventsString, ','))
+    const expansionString:string|null = searchParams.get('expansions')
+    const expansionStrings:string[] = (expansionString === null) ? ['base']
+        : normalize(split(expansionString, ','))
+    const expansions:ExpansionName[] = []
+    for (const s of expansionStrings) {
+        const n = (expansionNames as string[]).indexOf(s)
+        if (n < 0) {
+            throw new MalformedSpec(`Invalid expansion name ${s}`)
+        } else {
+            expansions.push(expansionNames[n])
+        }
+    }
     const seed:string|null = searchParams.get('seed') || randomSeed()
     let kind:string
 
@@ -1907,7 +1957,6 @@ export function specFromURL(search:string, excludeGoal:boolean = false): GameSpe
         } else {
             return 'pick'
         }
-
     }
 
     if (urlKind !== null) {
@@ -1920,20 +1969,18 @@ export function specFromURL(search:string, excludeGoal:boolean = false): GameSpe
 
     switch(kind) {
         case 'full':
-        case 'half':
-        case 'mini':
-            return {kind:kind, seed:seed}
+            return {kind:kind, randomizer: {seed:seed, expansions: expansions}}
         case 'pick':
             const cardSpecs:CardSpec[] = [];
             const eventSpecs:CardSpec[] = [];
             if (cards !== null) {
-                for (const card of extractList(cards, mixins)) {
+                for (const card of extractList(cards, allCards)) {
                     if (card == RANDOM) throw new MalformedSpec('Random card is only allowable in type pickR');
                     else cardSpecs.push(card)
                 }
             }
             if (events !== null) {
-                for (const card of extractList(events, eventMixins)) {
+                for (const card of extractList(events, allEvents)) {
                     if (card == RANDOM) throw new MalformedSpec('Random card is only allowable in type pickR');
                     else eventSpecs.push(card)
                 }
@@ -1941,15 +1988,14 @@ export function specFromURL(search:string, excludeGoal:boolean = false): GameSpe
             return {kind:kind, cards:cardSpecs, events:eventSpecs}
         case 'require':
             return {
-                seed:seed,
-                kind:'require',
-                cards: (cards === null) ? [] : extractList(cards, mixins),
-                events: (events === null) ? [] : extractList(events, eventMixins),
+                kind:kind, randomizer: {seed:seed, expansions:expansions},
+                cards: (cards === null) ? [] : extractList(cards, allCards),
+                events: (events === null) ? [] : extractList(events, allEvents),
             }
         case 'pickR':
-            return {kind:kind, seed:seed,
-                    cards:(cards === null) ? [] : extractList(cards, mixins),
-                    events:(events === null) ? [] : extractList(events, eventMixins)}
+            return {kind:kind, randomizer: {seed:seed, expansions:expansions},
+                    cards:(cards === null) ? [] : extractList(cards, allCards),
+                    events:(events === null) ? [] : extractList(events, allEvents)}
         case 'test': return {kind: 'test'}
         default: throw new MalformedSpec(`Invalid kind ${kind}`)
     }
@@ -2000,8 +2046,8 @@ export function initialState(spec:GameSpec): State {
     variableSupplies.sort(supplyComp)
     variableEvents.sort(eventComp)
 
-    const supply = coreSupplies.concat(variableSupplies)
-    const events = coreEvents.concat(variableEvents)
+    const supply = sets.core.cards.concat(variableSupplies)
+    const events = sets.core.events.concat(variableEvents)
 
     let state = new State(spec)
     state = createRawMulti(state, supply, 'supply')
@@ -2010,8 +2056,13 @@ export function initialState(spec:GameSpec): State {
     return state
 }
 
-export async function playGame(state:State): Promise<void> {
-    state = await trigger({kind:'gameStart'})(state)
+export async function playGame(state:State, resume:boolean=false): Promise<void> {
+    if (resume) {
+        const checkpoint:State|null = state.backup()
+        if (checkpoint != null) state = checkpoint
+    } else {
+        state = await trigger({kind:'gameStart'})(state)
+    }
     let victorious:boolean = false
     while (true) {
         state = state.setCheckpoint()
@@ -2069,10 +2120,6 @@ function undoOrSet(to:State, from:State): State {
 // ----------------- CARDS -----------------
 //
 
-const coreSupplies:CardSpec[] = []
-const coreEvents:CardSpec[] = []
-export const mixins:CardSpec[] = []
-export const eventMixins:CardSpec[] = []
 const cheats:CardSpec[] = []
 
 //
@@ -2149,8 +2196,8 @@ function makeCard(card:CardSpec, cost:Cost, selfdestruct:boolean=false):CardSpec
     }
 }
 
-function registerEvent(card:CardSpec):void {
-    eventMixins.push(card)
+function registerEvent(card:CardSpec, set:SetName):void {
+    sets[set]['events'].push(card)
 }
 
 
@@ -2234,62 +2281,61 @@ const refresh:CardSpec = {name: 'Refresh',
     fixedCost: energy(4),
     effects: [refreshEffect(5)],
 }
-coreEvents.push(refresh)
-
+registerEvent(refresh, 'core')
 
 const copper:CardSpec = {name: 'Copper',
     buyCost: coin(0),
     effects: [coinsEffect(1)]
 }
-coreSupplies.push(copper)
+register(copper, 'core')
 
 const silver:CardSpec = {name: 'Silver',
     buyCost: coin(3),
     effects: [coinsEffect(2)]
 }
-coreSupplies.push(silver)
+register(silver, 'core')
 
 const gold:CardSpec = {name: 'Gold',
     buyCost: coin(6),
     effects: [coinsEffect(3)]
 }
-coreSupplies.push(gold)
+register(gold, 'core')
 
 const estate:CardSpec = {name: 'Estate',
     buyCost: coin(1),
     fixedCost: energy(1),
     effects: [pointsEffect(1)]
 }
-coreSupplies.push(estate)
+register(estate, 'core')
 
 const duchy:CardSpec = {name: 'Duchy',
     buyCost: coin(4),
     fixedCost: energy(1),
     effects: [pointsEffect(2)]
 }
-coreSupplies.push(duchy)
+register(duchy, 'core')
 
 const province:CardSpec = {name: 'Province',
     buyCost: coin(8),
     fixedCost: energy(1),
     effects: [pointsEffect(3)]
 }
-coreSupplies.push(province)
+register(province, 'core')
 
 
 //
 // ----- MIXINS -----
 //
 
-function register(card:CardSpec):void {
-    mixins.push(card)
+function register(card:CardSpec, set:SetName):void {
+    sets[set].cards.push(card)
 }
-function buyable(card:CardSpec, n:number, extra:Extras={}) {
+function buyable(card:CardSpec, n:number, set:SetName, extra:Extras={}) {
     card.buyCost = coin(n)
-    register(supplyForCard(card, coin(n), extra))
+    register(supplyForCard(card, coin(n), extra), set)
 }
-function buyableFree(card:CardSpec, coins:number): void {
-    buyable(card, coins, {onBuy: [buyEffect()]})
+function buyableFree(card:CardSpec, coins:number, set:SetName): void {
+    buyable(card, coins, set, {onBuy: [buyEffect()]})
 }
 
 
@@ -2445,7 +2491,7 @@ const ghostTown:CardSpec = {name: 'Ghost Town',
     effects: [createInPlayEffect(villager)],
     relatedCards: [villager]
 }
-buyable(ghostTown, 3, {onBuy: [actionsEffect(2)]})
+buyable(ghostTown, 3, 'base', {onBuy: [actionsEffect(2)]})
 
 /*
 const hound:CardSpec = {name: 'Hound',
@@ -2484,7 +2530,7 @@ const transmogrify:CardSpec = {name: 'Transmogrify',
         }
     }]
 }
-buyable(transmogrify, 3)
+buyable(transmogrify, 3, 'base')
 
 
 /*
@@ -2509,20 +2555,20 @@ const till:CardSpec = {name: Till,
         }
     }]
 }
-buyable(till, 3)
+buyable(till, 3, 'base')
 
 const village:CardSpec = {name: 'Village',
     effects:  [actionsEffect(1), createInPlayEffect(villager)],
     relatedCards: [villager],
 }
-buyable(village, 4)
+buyable(village, 4, 'base')
 
 const bridge:CardSpec = {name: 'Bridge',
     fixedCost: energy(1),
     effects: [coinsEffect(1), buyEffect(), toPlay()],
     replacers: [costReduce('buy', {coin:1}, true)]
 }
-buyable(bridge, 4)
+buyable(bridge, 4, 'base')
 
 const conclave:CardSpec = {name: 'Conclave',
     effects: [toPlay()],
@@ -2546,12 +2592,12 @@ const conclave:CardSpec = {name: 'Conclave',
         }
     }]
 }
-buyable(conclave, 4)
+buyable(conclave, 4, 'base')
 
 const lab:CardSpec = {name: 'Lab',
     effects: [actionsEffect(2)]
 }
-buyable(lab, 3)
+buyable(lab, 3, 'base')
 
 const payAction = payCost({...free, actions:1})
 
@@ -2578,7 +2624,7 @@ const throneRoom:CardSpec = {name: 'Throne Room',
     fixedCost: energy(1),
     effects: [playTwice()]
 }
-buyable(throneRoom, 5)
+buyable(throneRoom, 5, 'base')
 
 const coppersmith:CardSpec = {name: 'Coppersmith',
     fixedCost: energy(1),
@@ -2590,7 +2636,7 @@ const coppersmith:CardSpec = {name: 'Coppersmith',
         transform: e => gainCoins(1),
     }]
 }
-buyable(coppersmith, 3)
+buyable(coppersmith, 3, 'base')
 
 const Unearth = 'Unearth'
 const unearth:CardSpec = {name: Unearth,
@@ -2602,14 +2648,14 @@ const unearth:CardSpec = {name: Unearth,
         )
     ]
 }
-buyable(unearth, 4)
+buyable(unearth, 4, 'base')
 
 const celebration:CardSpec = {name: 'Celebration',
     fixedCost: energy(1),
     effects: [toPlay()],
     replacers: [costReduce('play', {energy:1})]
 }
-buyable(celebration, 8, {replacers: [{
+buyable(celebration, 8, 'base', {replacers: [{
     text: `Whenever you would create a ${celebration.name} in your discard,
     instead create it in play.`,
     kind:'create',
@@ -2628,7 +2674,7 @@ const plow:CardSpec = {name: Plow,
         ])
     }]
 }
-buyable(plow, 4)
+buyable(plow, 4, 'base')
 
 const construction:CardSpec = {name: 'Construction',
     fixedCost: energy(1),
@@ -2644,7 +2690,7 @@ const construction:CardSpec = {name: 'Construction',
         ])
     }]
 }
-buyable(construction, 5)
+buyable(construction, 5, 'base')
 
 const hallOfMirrors:CardSpec = {name: 'Hall of Mirrors',
     fixedCost: {...free, energy:1, coin:5},
@@ -2667,7 +2713,7 @@ const hallOfMirrors:CardSpec = {name: 'Hall of Mirrors',
         ]),
     }]
 }
-registerEvent(hallOfMirrors)
+registerEvent(hallOfMirrors, 'base')
 
 function costPer(increment:Partial<Cost>): VariableCost {
     const extraStr:string = `${renderCost(increment, true)} for each cost token on this.`
@@ -2706,7 +2752,7 @@ const escalate:CardSpec = {name: 'Escalate',
         refreshEffect(5),
     ]
 }
-registerEvent(escalate)
+registerEvent(escalate, 'base')
 
 /*
 const perpetualMotion:CardSpec = {name:'Perpetual Motion',
@@ -2760,7 +2806,7 @@ const volley:CardSpec = {
         }
     }]
 }
-registerEvent(volley)
+registerEvent(volley, 'base')
 
 
 const parallelize:CardSpec = {name: 'Parallelize',
@@ -2789,13 +2835,13 @@ const parallelize:CardSpec = {name: 'Parallelize',
         }
     }]
 }
-registerEvent(parallelize)
+registerEvent(parallelize, 'base')
 
 const reach:CardSpec = {name:'Reach',
     fixedCost: energy(1),
     effects: [coinsEffect(1)]
 }
-registerEvent(reach)
+registerEvent(reach, 'base')
 
 function trashOnLeavePlay():Replacer<MoveParams> {
     return {
@@ -2839,7 +2885,7 @@ const travelingFair:CardSpec = {name:'Traveling Fair',
     effects: [incrementCost(), buyEffect(), createInPlayEffect(fair)],
     relatedCards: [fair],
 }
-registerEvent(travelingFair)
+registerEvent(travelingFair, 'base')
 
 const philanthropy:CardSpec = {name: 'Philanthropy',
     fixedCost: {...free, coin:6, energy:1},
@@ -2853,13 +2899,13 @@ const philanthropy:CardSpec = {name: 'Philanthropy',
         }
     }]
 }
-registerEvent(philanthropy)
+registerEvent(philanthropy, 'base')
 
 const finance:CardSpec = {name: 'Finance',
     fixedCost: coin(1),
     effects: [actionsEffect(1)],
 }
-registerEvent(finance)
+registerEvent(finance, 'base')
 
 /*
 const Orchard = 'Orchard'
@@ -2877,7 +2923,7 @@ const flowerMarket:CardSpec = {
     name: 'Flower Market',
     effects: [buyEffect(), pointsEffect(1)]
 }
-buyable(flowerMarket, 2, {onBuy: [pointsEffect(1)]})
+buyable(flowerMarket, 2, 'base', {onBuy: [pointsEffect(1)]})
 
 
 /*
@@ -2904,7 +2950,7 @@ const vault:CardSpec = {name: 'Vault',
         replace: p => ({...p, amount:0})
     }]
 }
-registerEvent(vault)
+registerEvent(vault, 'base')
 
 /*
 const coffers:CardSpec = {name: 'Coffers',
@@ -2925,7 +2971,7 @@ registerEvent(coffers)
 const vibrantCity:CardSpec = {name: 'Vibrant City',
     effects: [pointsEffect(1), actionsEffect(1)],
 }
-buyable(vibrantCity, 3)
+buyable(vibrantCity, 3, 'base')
 
 function chargeUpTo(max:number): Effect {
     return {
@@ -2942,7 +2988,7 @@ const frontier:CardSpec = {name: 'Frontier',
     }, chargeEffect()]
 }
 buyable(
-    frontier, 7,
+    frontier, 7, 'base',
     {replacers: [startsWithCharge(frontier.name, 2)]}
 )
 
@@ -2953,7 +2999,7 @@ const investment:CardSpec = {name: 'Investment',
         transform: (state, card) => gainCoins(state.find(card).charge, card),
     }, chargeUpTo(6)]
 }
-buyable(investment, 4, {replacers: [startsWithCharge(investment.name, 2)]})
+buyable(investment, 4, 'base', {replacers: [startsWithCharge(investment.name, 2)]})
 
 const populate:CardSpec = {name: 'Populate',
     fixedCost: {...free, coin:8, energy:2},
@@ -2970,7 +3016,7 @@ const populate:CardSpec = {name: 'Populate',
         }
     }]
 }
-registerEvent(populate)
+registerEvent(populate, 'base')
 
 const duplicate:CardSpec = {name: 'Duplicate',
     fixedCost: {...free, coin:4, energy:1},
@@ -2991,13 +3037,13 @@ const duplicate:CardSpec = {name: 'Duplicate',
             payToDo(removeToken(e.card, 'duplicate'), e.card.buy(card))
     }]
 }
-registerEvent(duplicate)
+registerEvent(duplicate, 'base')
 
 const royalSeal:CardSpec = {name: 'Royal Seal',
     effects: [coinsEffect(2), createInPlayEffect(fair, 2)],
     relatedCards: [fair]
 }
-buyable(royalSeal, 5)
+buyable(royalSeal, 5, 'base')
 
 function workshopEffect(n:number):Effect {
     return targetedEffect(
@@ -3012,7 +3058,7 @@ const workshop:CardSpec = {name: 'Workshop',
     fixedCost: energy(0),
     effects: [workshopEffect(4)],
 }
-buyable(workshop, 4)
+buyable(workshop, 4, 'base')
 
 const shippingLane:CardSpec = {name: 'Shipping Lane',
     fixedCost: energy(1),
@@ -3028,13 +3074,13 @@ const shippingLane:CardSpec = {name: 'Shipping Lane',
         }
     }]
 }
-buyable(shippingLane, 5)
+buyable(shippingLane, 5, 'base')
 
 const factory:CardSpec = {name: 'Factory',
     fixedCost: energy(1),
     effects: [workshopEffect(6)],
 }
-buyable(factory, 3)
+buyable(factory, 3, 'base')
 
 const imitation:CardSpec = {name: 'Imitation',
     fixedCost: energy(1),
@@ -3044,7 +3090,7 @@ const imitation:CardSpec = {name: 'Imitation',
         state => state.hand,
     )]
 }
-buyable(imitation, 3)
+buyable(imitation, 3, 'base')
 
 const feast:CardSpec = {name: 'Feast',
     fixedCost: energy(0),
@@ -3053,7 +3099,7 @@ const feast:CardSpec = {name: 'Feast',
         state => state.supply.filter(x => leq(x.cost('buy', state), coin(6)))
     ), trashThis()]
 }
-buyableFree(feast, 3)
+buyableFree(feast, 3, 'base')
 
 /*
 const mobilization:CardSpec = {name: 'Mobilization',
@@ -3074,7 +3120,7 @@ const toil:CardSpec = {name:'Toil',
     fixedCost: energy(1),
     effects: [createInPlayEffect(villager, 3)]
 }
-registerEvent(toil)
+registerEvent(toil, 'base')
 
 /*
 const stables:CardSpec = {name: 'Stables',
@@ -3125,7 +3171,7 @@ const recycle:CardSpec = {name: 'Recycle',
     fixedCost: energy(2),
     effects: [recycleEffect()],
 }
-registerEvent(recycle)
+registerEvent(recycle, 'base')
 
 const twin:CardSpec = {name: 'Twin',
     fixedCost: {...free, energy:1, coin:5},
@@ -3140,7 +3186,7 @@ const twin:CardSpec = {name: 'Twin',
         transform: (e, state, card) => e.card.play(card),
     }],
 }
-registerEvent(twin)
+registerEvent(twin, 'base')
 
 function startsWithCharge(name:string, n:number):Replacer<CreateParams> {
     return {
@@ -3188,7 +3234,7 @@ const researcher:CardSpec = {name: 'Researcher',
         }
     }, chargeEffect()]
 }
-buyable(researcher, 3, {replacers: [startsWithCharge(researcher.name, 3)]})
+buyable(researcher, 3, 'base', {replacers: [startsWithCharge(researcher.name, 3)]})
 
 /*
 const youngSmith:CardSpec = {name: 'Young Smith',
@@ -3214,7 +3260,7 @@ const lackeys:CardSpec = {name: 'Lackeys',
     effects: [actionsEffect(3)],
     relatedCards: [villager],
 }
-buyable(lackeys, 3, {onBuy:[createInPlayEffect(villager, 1)]})
+buyable(lackeys, 3, 'base', {onBuy:[createInPlayEffect(villager, 1)]})
 
 const goldMine:CardSpec = {name: 'Gold Mine',
     fixedCost: energy(1),
@@ -3223,7 +3269,7 @@ const goldMine:CardSpec = {name: 'Gold Mine',
         transform: () => doAll([create(gold, 'hand'), create(gold, 'hand')]),
     }]
 }
-buyable(goldMine, 6)
+buyable(goldMine, 6, 'base')
 
 function fragile(card:Card):Trigger<MoveEvent> {
     return {
@@ -3263,7 +3309,7 @@ const expedite: CardSpec = {
             ), e.card.play(card))
     }]
 }
-registerEvent(expedite)
+registerEvent(expedite, 'base')
 
 function removeAllSupplyTokens(token:Token): Effect {
     return {
@@ -3300,7 +3346,7 @@ const synergy:CardSpec = {name: 'Synergy',
         )
     }]
 }
-registerEvent(synergy)
+registerEvent(synergy, 'base')
 
 const shelter:CardSpec = {name: 'Shelter',
     effects: [actionsEffect(1), targetedEffect(
@@ -3309,7 +3355,7 @@ const shelter:CardSpec = {name: 'Shelter',
         state => state.play
     )]
 }
-buyable(shelter, 3, {
+buyable(shelter, 3, 'base', {
     /*
     replacers: [{
         kind: 'move',
@@ -3352,13 +3398,13 @@ const market:CardSpec = {
     name: 'Market',
     effects: [actionsEffect(1), coinsEffect(1), buyEffect()],
 }
-buyable(market, 3)
+buyable(market, 3, 'base')
 
 const focus:CardSpec = {name: 'Focus',
     fixedCost: energy(1),
     effects: [buyEffect(), actionsEffect(1)],
 }
-registerEvent(focus)
+registerEvent(focus, 'base')
 
 const sacrifice:CardSpec = {name: 'Sacrifice',
     effects: [actionsEffect(1), buyEffect(), targetedEffect(
@@ -3366,17 +3412,17 @@ const sacrifice:CardSpec = {name: 'Sacrifice',
         'Play a card in your hand, then trash it.',
         state => state.hand)]
 }
-buyable(sacrifice, 4)
+buyable(sacrifice, 4, 'base')
 
 const herbs:CardSpec = {name: 'Herbs',
     effects: [coinsEffect(1), buyEffect()]
 }
-buyableFree(herbs, 2)
+buyableFree(herbs, 2, 'base')
 
 const spices:CardSpec = {name: 'Spices',
     effects: [coinsEffect(2), buyEffect()],
 }
-buyable(spices, 5, {onBuy: [coinsEffect(4)]})
+buyable(spices, 5, 'base', {onBuy: [coinsEffect(4)]})
 
 const onslaught:CardSpec = {name: 'Onslaught',
     fixedCost: {...free, coin:3, energy:1},
@@ -3430,7 +3476,7 @@ const onslaught:CardSpec = {name: 'Onslaught',
     }]
     */
 }
-registerEvent(onslaught)
+registerEvent(onslaught, 'base')
 
 //TODO: link these together, modules in general?
 
@@ -3438,25 +3484,25 @@ const colony:CardSpec = {name: 'Colony',
     fixedCost: energy(1),
     effects: [pointsEffect(6)],
 }
-buyable(colony, 16)
+buyable(colony, 16, 'base')
 
 const platinum:CardSpec = {name: "Platinum",
     fixedCost: energy(0),
     effects: [coinsEffect(6)]
 }
-buyable(platinum, 8)
+buyable(platinum, 8, 'base')
 
 const greatSmithy:CardSpec = {name: 'Great Smithy',
     fixedCost: energy(2),
     effects: [actionsEffect(6), buysEffect(2)]
 }
-buyable(greatSmithy, 6)
+buyable(greatSmithy, 6, 'base')
 
 const pressOn:CardSpec = {name: 'Press On',
     fixedCost: energy(1),
     effects: [refreshEffect(5, false)]
 }
-registerEvent(pressOn)
+registerEvent(pressOn, 'base')
 
 function KCEffect(): Effect {
     return {
@@ -3476,7 +3522,7 @@ const kingsCourt:CardSpec = {name: "King's Court",
     fixedCost: energy(2),
     effects: [KCEffect()]
 }
-buyable(kingsCourt, 9)
+buyable(kingsCourt, 9, 'base')
 
 const gardens:CardSpec = {name: "Gardens",
     fixedCost: energy(1),
@@ -3489,7 +3535,7 @@ const gardens:CardSpec = {name: "Gardens",
         )
     }]
 }
-buyable(gardens, 4)
+buyable(gardens, 4, 'base')
 
 const decay:CardSpec = {name: 'Decay',
     fixedCost: coin(1),
@@ -3511,7 +3557,7 @@ const decay:CardSpec = {name: 'Decay',
             trash(e.card) : addToken(e.card, 'decay')
     }]
 }
-registerEvent(decay)
+registerEvent(decay, 'base')
 
 const reflect:CardSpec = {name: 'Reflect',
     fixedCost: coin(1),
@@ -3535,7 +3581,7 @@ const reflect:CardSpec = {name: 'Reflect',
         ]),
     }],
 }
-registerEvent(reflect)
+registerEvent(reflect, 'base')
 
 const replicate:CardSpec = {name: 'Replicate',
     fixedCost: energy(1),
@@ -3557,7 +3603,7 @@ const replicate:CardSpec = {name: 'Replicate',
             payToDo(removeToken(e.card, 'replicate'), e.card.buy(card))
     }]
 }
-registerEvent(replicate)
+registerEvent(replicate, 'base')
 
 function setCoinEffect(n:number) {
     return {
@@ -3607,7 +3653,7 @@ const inflation:CardSpec = {name: 'Inflation',
         replace: (p, state, card) => ({...p, cost:addCosts(p.cost, {coin:card.count('cost')})})
     }]
 }
-registerEvent(inflation)
+registerEvent(inflation, 'base')
 
 const burden:CardSpec = {name: 'Burden',
     fixedCost: energy(1),
@@ -3632,7 +3678,7 @@ const burden:CardSpec = {name: 'Burden',
         replace: x => ({...x, cost: addCosts(x.cost, {coin:2 * x.card.count('burden')})})
     }]
 }
-registerEvent(burden)
+registerEvent(burden, 'base')
 
 /*
 const goldsmith:CardSpec = {name: 'Goldsmith',
@@ -3668,13 +3714,13 @@ const procession:CardSpec = {name: 'Procession',
         ))
     }]
 }
-buyable(procession, 4)
+buyable(procession, 4, 'base')
 
 const publicWorks:CardSpec = {name: 'Public Works',
     effects: [toPlay()],
     replacers: [costReduceNext('use', {energy:1}, true)],
 }
-buyable(publicWorks, 6)
+buyable(publicWorks, 6, 'base')
 
 function fragileEcho(t:Token): Trigger<MoveEvent> {
     return {
@@ -3710,7 +3756,7 @@ const echo:CardSpec = {name: 'Echo',
         state => dedupBy(state.play, c => c.spec)
     )]
 }
-buyable(echo, 6, {triggers: [fragileEcho('echo')]})
+buyable(echo, 6, 'base', {triggers: [fragileEcho('echo')]})
 
 function dischargeCost(c:Card, n:number=1): Cost {
     return {...free,
@@ -3773,7 +3819,7 @@ const mastermind:CardSpec = {
         ))
     }],
 }
-buyable(mastermind, 6)
+buyable(mastermind, 6, 'base')
 
 function chargeVillage(): Replacer<CostParams> {
     return {
@@ -3816,7 +3862,7 @@ const recruitment:CardSpec = {
         ))
     }]
 }
-buyable(recruitment, 3)
+buyable(recruitment, 3, 'base')
 
 const dragon:CardSpec = {name: 'Dragon',
     effects: [targetedEffect(c => trash(c), 'Trash a card in your hand.', s => s.hand),
@@ -3839,7 +3885,7 @@ const hatchery:CardSpec = {name: 'Hatchery',
         }
     }]
 }
-buyable(hatchery, 3)
+buyable(hatchery, 3, 'base')
 
 const looter:CardSpec = {name: 'Looter',
     effects: [{
@@ -3854,32 +3900,19 @@ const looter:CardSpec = {name: 'Looter',
         }
     }]
 }
-buyable(looter, 4)
+buyable(looter, 4, 'base')
 
 const palace:CardSpec = {name: 'Palace',
     fixedCost: energy(1),
     effects: [actionsEffect(2), pointsEffect(2), coinsEffect(2)]
 }
-buyable(palace, 5)
-/*
-const flourishing:CardSpec = {name: 'Flourishing',
-    fixedCost: energy(1),
-    effects: [pointsEffect(2), {
-        text: ['For each 3 vp you have, +1 action and +$1.'],
-        transform: s => doAll([
-            gainActions(Math.floor(s.points / 3)),
-            gainCoins(Math.floor(s.points / 3))
-        ])
-    }]
-}
-buyable(flourishing, 6)
-*/
+buyable(palace, 5, 'base')
 
 const Innovation:string = 'Innovation'
 const innovation:CardSpec = {name: Innovation,
     effects: [actionsEffect(1), toPlay()],
 }
-buyable(innovation, 6, {triggers: [{
+buyable(innovation, 6, 'base', {triggers: [{
     text: `When you create a card in your discard,
     discard an ${innovation.name} from play in order to play it.
     (If you have multiple, discard the oldest.)`,
@@ -3917,7 +3950,7 @@ const formation:CardSpec = {name: 'Formation',
         }
     }]
 }
-buyable(formation, 4)
+buyable(formation, 4, 'base')
 
 const Traveler = 'Traveler'
 const traveler:CardSpec = {
@@ -3940,7 +3973,7 @@ const traveler:CardSpec = {
     }, chargeUpTo(3)]
 }
 buyable(
-    traveler, 7,
+    traveler, 7, 'base',
     {replacers:[startsWithCharge(traveler.name, 1)]}
 )
 
@@ -3949,7 +3982,7 @@ const fountain:CardSpec = {
     fixedCost: energy(0),
     effects: [refreshEffect(5, false)],
 }
-buyable(fountain, 4)
+buyable(fountain, 4, 'base')
 
 /*
 const chameleon:CardSpec = {
@@ -4041,7 +4074,7 @@ const lostArts:CardSpec = {
         }
     }]
 }
-registerEvent(lostArts)
+registerEvent(lostArts, 'base')
 
 const grandMarket:CardSpec = {
     name: 'Grand Market',
@@ -4055,7 +4088,7 @@ const grandMarket:CardSpec = {
     */
     effects: [coinsEffect(2), actionsEffect(1), buyEffect()],
 }
-buyable(grandMarket, 5)
+buyable(grandMarket, 5, 'base')
 
 /*
 const greatHearth:CardSpec = {
@@ -4092,7 +4125,7 @@ const industry:CardSpec = {
         ])
     }]
 }
-buyable(industry, 6)
+buyable(industry, 6, 'base')
 
 const homesteading:CardSpec = {
     name: 'Homesteading',
@@ -4107,7 +4140,7 @@ const homesteading:CardSpec = {
         transform: (e, state, card) => create(villager, 'play')
     }],
 }
-buyable(homesteading, 3)
+buyable(homesteading, 3, 'base')
 
 const duke:CardSpec = {
     name: 'Duke',
@@ -4119,7 +4152,7 @@ const duke:CardSpec = {
         transform: (e, state, card) => gainPoints(1, card)
     }]
 }
-buyable(duke, 4)
+buyable(duke, 4, 'base')
 
 const carpenter:CardSpec = {
     name: 'Carpenter',
@@ -4129,20 +4162,8 @@ const carpenter:CardSpec = {
         transform: (state, card) => gainActions(state.play.length, card)
     }]
 }
-buyable(carpenter, 4)
+buyable(carpenter, 4, 'base')
 
-/*
-const flourishing_n = 5
-const flourishing:CardSpec = {
-    name: 'Flourishing',
-    fixedCost: free,
-    effects: [actionsEffect(1), {
-        text: [`+1 action for each ${flourishing_n} vp you have.`],
-        transform: (state, card) => gainActions(Math.floor(state.points / flourishing_n))
-    }]
-}
-buyable(flourishing, 2)
-*/
 const artificer:CardSpec = {
     name: 'Artificer',
     effects: [{
@@ -4168,7 +4189,7 @@ const artificer:CardSpec = {
 
     }]
 }
-buyable(artificer, 3)
+buyable(artificer, 3, 'base')
 
 const banquet:CardSpec = {
     name: 'Banquet',
@@ -4200,7 +4221,7 @@ const banquet:CardSpec = {
         transform: (state, card) => payToDo(discardFromPlay(card), gainCoins(3))
     }]
 }
-buyable(banquet, 3)
+buyable(banquet, 3, 'base')
 
 function countDistinct<T>(xs:T[]): number {
     const distinct:Set<T> = new Set()
@@ -4237,7 +4258,7 @@ const harvest:CardSpec = {
         }
     } ]
 }
-buyable(harvest, 3)
+buyable(harvest, 3, 'base')
 
 /*
 const horseTraders:CardSpec = {
@@ -4266,7 +4287,7 @@ const secretChamber:CardSpec = {
         }
     }]
 }
-buyable(secretChamber, 3)
+buyable(secretChamber, 3, 'base')
 
 
 const hireling:CardSpec = {
@@ -4283,7 +4304,7 @@ const hireling:CardSpec = {
         ])})
     }]
 }
-buyable(hireling, 2)
+buyable(hireling, 2, 'base')
 /*
 const hirelings:CardSpec = {
     name: 'Hirelings',
@@ -4306,7 +4327,7 @@ const haggler:CardSpec = {
     fixedCost: energy(1),
     effects: [coinsEffect(2), toPlay()],
 }
-buyable(haggler, 5, {
+buyable(haggler, 5, 'base', {
     triggers: [{
         text: `After buying a card the normal way,
         buy an additional card for each ${haggler.name} in play.
@@ -4394,7 +4415,7 @@ const reuse:CardSpec = {
         }
     }]
 }
-registerEvent(reuse)
+registerEvent(reuse, 'base')
 
 const polish:CardSpec = {
     name: 'Polish',
@@ -4411,7 +4432,7 @@ const polish:CardSpec = {
         transform: e => doAll([removeToken(e.card, 'polish'), gainCoins(1)])
     }]
 }
-registerEvent(polish)
+registerEvent(polish, 'base')
 
 /*
 //NOT INCLUDED
@@ -4470,7 +4491,7 @@ const mire:CardSpec = {
         replace: x => ({...x, skip:true})
     }]
 }
-registerEvent(mire)
+registerEvent(mire, 'base')
 
 const commerce:CardSpec = {
     name: 'Commerce',
@@ -4494,7 +4515,7 @@ const commerce:CardSpec = {
     staticReplacers: [chargeVillage()]
 }
 */
-registerEvent(commerce)
+registerEvent(commerce, 'base')
 
 function reverbEffect(card:Card): Transform {
     return create(card.spec, 'play', c => addToken(c, 'echo'))
@@ -4512,7 +4533,7 @@ const reverberate:CardSpec = {
     }],
     staticTriggers: [fragileEcho('echo')]
 }
-registerEvent(reverberate)
+registerEvent(reverberate, 'base')
 
 /*
 const preparations:CardSpec = {
@@ -4548,14 +4569,14 @@ const turnpike:CardSpec = {
         ])
     }]
 }
-buyable(turnpike, 5)
+buyable(turnpike, 5, 'base')
 
 const highway:CardSpec = {
     name: 'Highway',
     effects: [actionsEffect(1), toPlay()],
     replacers: [costReduce('buy', {coin:1}, true)],
 }
-buyable(highway, 6, {replacers: [{
+buyable(highway, 6, 'base', {replacers: [{
     text: `Whenever you would create a ${highway.name} in your discard,
     instead create it in play.`,
     kind:'create',
@@ -4600,7 +4621,7 @@ const prioritize:CardSpec = {
             ), e.card.play(card))
     }]
 }
-registerEvent(prioritize)
+registerEvent(prioritize, 'base')
 
 const composting:CardSpec = {
     name: 'Composting',
@@ -4619,7 +4640,7 @@ const composting:CardSpec = {
         }
     }]
 }
-buyable(composting, 3)
+buyable(composting, 3, 'base')
 
 const FairyGold = 'Fairy Gold'
 const fairyGold:CardSpec = {
@@ -4640,7 +4661,7 @@ const fairyGold:CardSpec = {
 
     }],
 }
-buyable(fairyGold, 3, {
+buyable(fairyGold, 3, 'base', {
     replacers: [startsWithCharge(fairyGold.name, 3)]
 })
 
@@ -4660,7 +4681,7 @@ const pathfinding:CardSpec = {
         transform: (e, state, card) => gainActions(1, card)
     }]
 }
-registerEvent(pathfinding)
+registerEvent(pathfinding, 'base')
 
 const fortune:CardSpec = {
     name: 'Fortune',
@@ -4672,9 +4693,115 @@ const fortune:CardSpec = {
         transform: (state, card) => gainBuys(state.buys)
     }]
 }
-buyable(fortune, 12, {afterBuy: [{text: ['trash it from the supply.'], transform: (s, c) => trash(c)}]})
+buyable(fortune, 12, 'base', {afterBuy: [{text: ['trash it from the supply.'], transform: (s, c) => trash(c)}]})
 
 
+// ------------------- Expansion ---------------
+
+const flourishing:CardSpec = {
+    name: 'Flourishing',
+    fixedCost: energy(1),
+    effects: [{
+        text: [`Double the number of cost tokens on this.`],
+        transform: (s, c) => async function(state) {
+            return addToken(c, 'cost', state.find(c).count('cost'))(state)
+        }
+    }, refreshEffect(5)],
+    restrictions: [{
+        text: 'You can only use this if you have at least 1 vp per cost token on it.',
+        test: (c, s, k) => s.points < s.find(c).count('cost')
+    }],
+    staticTriggers: [{
+        kind: 'gameStart',
+        text: 'At the start of the game, put a cost token on this.',
+        handles: () => true,
+        transform: (e, s, c) => addToken(c, 'cost'),
+    }]
+}
+registerEvent(flourishing, 'expansion')
+
+const greed:CardSpec = {
+    name: 'Greed',
+    fixedCost: energy(1),
+    relatedCards: [fair],
+    effects: [{
+        text: [`Lose all vp. For each lost, +1 action, +$1, +1 buy, and create a ${fair.name} in play.`],
+        transform: () => async function(state) {
+            const n = state.points
+            state = await gainPoints(n)(state)
+            state = await gainActions(n)(state)
+            state = await gainBuys(n)(state)
+            state = await repeat(create(fair, 'play'), n)(state)
+            return state
+        }
+    }]
+}
+registerEvent(greed, 'expansion')
+
+const strive:CardSpec = {
+    name: 'Strive',
+    fixedCost: {...free, energy:2, coin:3},
+    effects: [workshopEffect(7)]
+}
+registerEvent(strive, 'expansion')
+
+const delve:CardSpec = {
+    name: 'Delve',
+    fixedCost: coin(2),
+    effects: [workshopEffect(3)]
+}
+registerEvent(delve, 'expansion')
+
+const hesitation:CardSpec = {
+    name: 'Hesitation',
+    restrictions: [{
+        text: undefined,
+        test: (c:Card, s:State, k:ActionKind) => k == 'use'
+    }],
+    staticReplacers: [{
+        text: `Cards cost an extra @ to play or use.`,
+        kind: 'cost',
+        handles: (p, s, c) => (p.actionKind == 'play' || p.actionKind == 'use')
+            && p.card.id != c.id,
+        replace: p => ({...p, cost: {...p.cost, energy:p.cost.energy + 1}})         
+    }]
+}
+registerEvent(hesitation, 'expansion')
+
+const pillage:CardSpec = {
+    name: 'Pillage',
+    effects: [targetedEffect(
+        (target, card) => addToken(target, 'pillage'),
+        'Put a pillage token on a card in the supply.',
+        s => s.supply
+    )],
+    staticReplacers: [{
+        text: `Whenever you would create a card in your discard,
+            if its supply has a pillage token on it,
+            instead trash the supply and create the card in your hand.`,
+        kind: 'create',
+        handles: (p, s, c) => p.zone == 'discard' && s.supply.some(
+            sup => sup.count('pillage') > 0 &&
+            sup.name == p.spec.name
+        ),
+        replace: p => ({...p, zone:'hand', effects:p.effects.concat([
+            () => applyToTarget(
+                target => trash(target),
+                `Trash a ${p.spec.name} in the supply.`,
+                state => state.supply.filter(sup => sup.name == p.spec.name)
+            )
+        ])})
+    }]
+}
+registerEvent(pillage, 'expansion')
+
+const recruit:CardSpec = {
+    name: 'Recruit',
+    fixedCost: energy(1),
+    effects: [createInPlayEffect(villager), createInPlayEffect(fair)],
+    relatedCards: [villager, fair]
+}
+registerEvent(recruit, 'expansion')
 
 // ------------------ Testing -------------------
 
@@ -4716,3 +4843,11 @@ cheats.push(doItAll)
 // ------------ Random placeholder --------------
 
 export const randomPlaceholder:CardSpec = {name: RANDOM}
+
+
+function cardsFrom(kind:'cards'|'events', expansions:ExpansionName[]) {
+    return expansions.map(c => sets[c][kind]).flat(1)
+}
+
+export const allCards:CardSpec[] = cardsFrom('cards', expansionNames)
+export const allEvents:CardSpec[] = cardsFrom('events', expansionNames)

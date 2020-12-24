@@ -60,7 +60,6 @@ async function userExists(credentials:Credentials): Promise<boolean> {
   return (results.length > 0)
 }
 
-
 async function ensureNextMonth(): Promise<void> {
     if (sql == null) return
     const d:Date = new Date()

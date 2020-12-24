@@ -15,7 +15,7 @@ import { Option, OptionRender, HotkeyHint } from './logic.js'
 import { UI, SetState, Undo, Victory, InvalidHistory, ReplayEnded } from './logic.js'
 import { playGame, initialState, verifyScore} from './logic.js'
 import { Replay, coerceReplayVersion, parseReplay, MalformedReplay } from './logic.js'
-import { mixins, eventMixins, randomPlaceholder } from './logic.js'
+import { allCards, allEvents, randomPlaceholder } from './logic.js'
 import { VERSION, DEFAULT_VP_GOAL } from './logic.js'
 import { MalformedSpec, getTutorialSpec, specToURL, specFromURL } from './logic.js'
 
@@ -1628,7 +1628,7 @@ function startGame(state:State, ui?:UI): void {
     playGame(state.attachUI(ui)).catch(e => {
         if (e instanceof InvalidHistory) {
             alert(e)
-            playGame(e.state.clearFuture())
+            playGame(e.state.clearFuture(), true)
         } else {
             //alert(e)
             throw e
@@ -1647,7 +1647,7 @@ function restart(state:State): void {
     playGame(state.attachUI(ui)).catch(e => {
         if (e instanceof InvalidHistory) {
             alert(e)
-            playGame(e.state.clearFuture())
+            playGame(e.state.clearFuture(), true)
         } else {
             alert(e)
         }
@@ -1670,8 +1670,8 @@ function countIn<T>(s:Set<T>, f:((t:T) => boolean)): number{
 //TODO: refactor the logic into logic.ts, probably just state initialization
 export function loadPicker(): void {
     let state = emptyState;
-    const cards = mixins.slice()
-    const events = eventMixins.slice()
+    const cards = allCards.slice()
+    const events = allEvents.slice()
     cards.sort((spec1, spec2) => spec1.name.localeCompare(spec2.name))
     events.sort((spec1, spec2) => spec1.name.localeCompare(spec2.name))
     for (let i = 0; i < 8; i++) events.push(randomPlaceholder)
