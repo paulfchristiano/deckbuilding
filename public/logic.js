@@ -5357,7 +5357,7 @@ var ambition = {
     effects: [chargeEffect(10), targetedEffect(function (target) { return create(target.spec, 'hand'); }, 'Choose a card in your discard. Create a copy in your hand.', function (state) { return state.discard; })],
     staticReplacers: [{
             kind: 'resource',
-            text: "Whenever you would gain vp, if this has charge tokens then remove one instead.",
+            text: "Whenever you would gain vp, if this has charge tokens then remove that many instead.",
             handles: function (e) { return e.resource == 'points' && e.amount > 0; },
             replace: function (e, s, c) {
                 var n = Math.min(e.amount, c.charge);
@@ -5557,7 +5557,7 @@ var magpie = {
 register(magpie, 'expansion');
 var crown = {
     name: 'Crown',
-    buyCost: coin(6),
+    buyCost: coin(4),
     effects: [targetedEffect(function (target) { return addToken(target, 'crown'); }, 'Put a crown token on a card in your hand.', function (s) { return s.hand; })],
     staticTriggers: [reflectTrigger('crown')],
 };
@@ -5804,7 +5804,7 @@ var busyMarket = {
     relatedCards: [fair],
     effects: [actionsEffect(1), buysEffect(1)],
 };
-buyable(busyMarket, 2, 'base', { afterBuy: [createInPlayEffect(fair)] });
+buyable(busyMarket, 2, 'expansion', { afterBuy: [createInPlayEffect(fair)] });
 var brigade = { name: 'Brigade',
     effects: [toPlay()], replacers: [{
             text: "Cards you play cost @ less if they share a name\n               with another card in your hand.\n               Whenever this reduces a cost, discard it for +$1 and +1 action.",
@@ -6134,7 +6134,7 @@ register(lurker, 'expansion');
 var kiln = {
     name: 'Kiln',
     buyCost: coin(3),
-    fixedCost: coin(1),
+    fixedCost: energy(1),
     effects: [coinsEffect(2), toPlay()],
     triggers: [{
             text: "After playing a card, discard this to create a copy of it in your discard.",
@@ -6225,7 +6225,7 @@ var excavate = {
             }; }
         }]
 };
-buyable(excavate, 3, 'base', {
+buyable(excavate, 3, 'expansion', {
     replacers: [startsWithCharge(excavate.name, 3)]
 });
 // ------------------ Testing -------------------

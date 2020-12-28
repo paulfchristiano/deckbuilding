@@ -4893,7 +4893,7 @@ const ambition:CardSpec = {
     )],
     staticReplacers: [{
         kind: 'resource',
-        text: "Whenever you would gain vp, if this has charge tokens then remove one instead.",
+        text: "Whenever you would gain vp, if this has charge tokens then remove that many instead.",
         handles: e => e.resource == 'points' && e.amount > 0,
         replace: (e, s, c) => {
             const n = Math.min(e.amount, c.charge)
@@ -5082,7 +5082,7 @@ register(magpie, 'expansion')
 
 const crown:CardSpec = {
     name: 'Crown',
-    buyCost: coin(6),
+    buyCost: coin(4),
     effects: [targetedEffect(
         target => addToken(target, 'crown'),
         'Put a crown token on a card in your hand.',
@@ -5273,7 +5273,7 @@ const busyMarket:CardSpec = {
     relatedCards: [fair],
     effects: [actionsEffect(1), buysEffect(1)],
 }
-buyable(busyMarket, 2, 'base', {afterBuy: [createInPlayEffect(fair)]})
+buyable(busyMarket, 2, 'expansion', {afterBuy: [createInPlayEffect(fair)]})
 
 const brigade:CardSpec = {name: 'Brigade',
     effects: [toPlay()],
@@ -5586,7 +5586,7 @@ register(lurker, 'expansion')
 const kiln:CardSpec = {
     name: 'Kiln',
     buyCost: coin(3),
-    fixedCost: coin(1),
+    fixedCost: energy(1),
     effects: [coinsEffect(2), toPlay()],
     triggers: [{
         text: `After playing a card, discard this to create a copy of it in your discard.`,
@@ -5648,7 +5648,7 @@ const excavate:CardSpec = {
         }
     }]
 }
-buyable(excavate, 3, 'base', {
+buyable(excavate, 3, 'expansion', {
     replacers: [startsWithCharge(excavate.name, 3)]
 })
 
