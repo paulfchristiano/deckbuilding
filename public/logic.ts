@@ -4908,13 +4908,13 @@ const splay:CardSpec = {
     fixedCost: coin(1),
     variableCost: costPer(coin(1)),
     effects: [{
-        text: [`Put a fan token on each supply.`],
+        text: [`Put a splay token on each supply.`],
         transform: s => doAll(s.supply.map(c => addToken(c, 'splay')))
     }, incrementCost()],
     staticReplacers: [{
-        text: `Cards you play cost @ less for each fan token on their supply.
+        text: `Cards you play cost @ less for each splay token on their supply.
                Whenever this reduces a cost by one or more @,
-               remove that many fan tokens.`,
+               remove that many splay tokens.`,
         kind: 'cost',
         handles: (x, state, card) => (x.actionKind == 'play') 
             && nameHasToken(x.card, 'splay', state),
