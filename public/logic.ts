@@ -896,6 +896,7 @@ interface ResourceParams {kind:'resource', resource:ResourceName, amount:number,
 interface CostParams {kind:'cost', actionKind: ActionKind, card:Card, cost:Cost}
 interface CostIncreaseParams {kind:'costIncrease', actionKind: ActionKind, card:Card, cost:Cost}
 interface MoveParams {kind:'move', card:Card, fromZone:PlaceName, toZone:PlaceName, effects:Transform[], skip:boolean}
+interface VictoryParams {kind: 'victory', victory: boolean}
 interface CreateParams {
     kind:'create',
     spec:CardSpec,
@@ -903,9 +904,10 @@ interface CreateParams {
     effects:Array<(c:Card) => Transform>
 }
 
-type Params = ResourceParams | CostParams | MoveParams | CreateParams | CostIncreaseParams
+type Params = ResourceParams | CostParams | MoveParams | CreateParams | CostIncreaseParams | VictoryParams
 type TypedReplacer = Replacer<ResourceParams> | Replacer<CostParams> |
-    Replacer<MoveParams> | Replacer<CreateParams> | Replacer<CostIncreaseParams>
+    Replacer<MoveParams> | Replacer<CreateParams> | Replacer<CostIncreaseParams> |
+    Replacer<VictoryParams>
 
 function replace<T extends Params>(x: T, state: State): T {
     const replacers:[Card, TypedReplacer][] = []
@@ -1228,7 +1230,10 @@ function gainPoints(n:number, source:Source=unk): Transform {
     return async function(state) {
         state = await gainResource('points', n, source)(state)
         const vp_goal = state.vp_goal
-        if (vp_goal > 0 && state.points >= vp_goal) throw new Victory(state)
+        if (vp_goal > 0 && state.points >= vp_goal) {
+            const victoryParams:VictoryParams = replace({kind: 'victory', victory: true}, state)
+            if (victoryParams.victory) throw new Victory(state)
+        }
         return state
     }
 }
@@ -1338,7 +1343,7 @@ export type Token = 'charge' | 'cost' | 'mirror' | 'duplicate' | 'twin' | 'syner
     'shelter' | 'echo' | 'decay' | 'burden' | 'pathfinding' | 'neglect' |
     'reuse' | 'polish' | 'priority' | 'parallelize' | 'art' | 'villager' |
     'mire' | 'onslaught' | 'expedite' | 'replicate' | 'reverberate' | 'reflect' |
-    'pillage' | 'import' | 'chain' | 'bargain' | 'splay' | 'crown' | 'ferry'
+    'pillage' | 'import' | 'chain' | 'bargain' | 'splay' | 'crown' | 'ferry' | 'fragile'
 
 function discharge(card:Card, n:number): Transform {
     return charge(card, -n, true)
@@ -4886,19 +4891,16 @@ registerEvent(ride, 'expansion')
 const ambition:CardSpec = {
     name:'Ambition',
     fixedCost: energy(1),
-    effects: [chargeEffect(10), targetedEffect(
+    effects: [chargeEffect(1), targetedEffect(
         target => create(target.spec, 'hand'),
         'Choose a card in your discard. Create a copy in your hand.',
         state => state.discard,
     )],
     staticReplacers: [{
-        kind: 'resource',
-        text: "Whenever you would gain vp, if this has charge tokens then remove that many instead.",
-        handles: e => e.resource == 'points' && e.amount > 0,
-        replace: (e, s, c) => {
-            const n = Math.min(e.amount, c.charge)
-            return {...e, amount: e.amount - n, effects: e.effects.concat([discharge(c, n)])}
-        }
+        kind: 'victory',
+        text: "For each charge token on this you need an additional 10 vp to win the game.",
+        handles: (p, s, c) => s.points < s.vp_goal + 10 * c.charge,
+        replace: p => ({kind: 'victory', victory: false}) 
     }]
 }
 registerEvent(ambition, 'expansion')
@@ -4982,6 +4984,7 @@ const multitask:CardSpec = {
 }
 registerEvent(multitask, 'expansion')
 
+/*
 const misfitName:string = 'Misfit'
 const misfit:CardSpec = {
     name: misfitName,
@@ -5020,7 +5023,9 @@ const misfit:CardSpec = {
     ]
 }
 register(misfit, 'expansion')
+*/
 
+/*
 const bandOfMisfitsName = 'Band of Misfits'
 const bandOfMisfits:CardSpec = {
     name: bandOfMisfitsName,
@@ -5065,6 +5070,7 @@ const bandOfMisfits:CardSpec = {
     ]
 }
 register(bandOfMisfits, 'expansion')
+*/
 
 function magpieEffect(): Effect {
     return {
@@ -5206,12 +5212,12 @@ const territory:CardSpec = {
 }
 register(territory, 'expansion')
 
-const extract:CardSpec = {
-    name: 'Extract',
+const fossilize:CardSpec = {
+    name: 'Fossilize',
     buyCost: coin(3),
     effects: [{
         text: [`Put any number of cards from your discard into your hand.`,
-         `Put an echo token on each of them.`],
+         `Put a fragile token on each of them.`],
         transform: () => async function(state) {
             let cards:Card[]; [state, cards] = await multichoice(state,
                 'Put any number of cards from your discard into your hand.',
@@ -5219,23 +5225,23 @@ const extract:CardSpec = {
             )
             state = await moveMany(cards, 'hand')(state)
             for (const card of cards) {
-                state = await addToken(card, 'echo')(state)
+                state = await addToken(card, 'fragile')(state)
             }
             return state
         }
     }],
-    staticTriggers: [fragileEcho()]
+    staticTriggers: [fragileEcho('fragile')]
 }
-register(extract, 'expansion')
+register(fossilize, 'expansion')
 
-const exchangeName = 'Exchange'
-const exchange:CardSpec = {
-    name: exchangeName,
+const harrowName = 'Harrow'
+const harrow:CardSpec = {
+    name: harrowName,
     buyCost: coin(3),
     effects: [{
-        text: [`Put all non-${exchangeName} cards from your discard into your hand, then discard that many cards.`],
+        text: [`Put your discard into your hand, then discard that many cards.`],
         transform: () => async function(state) {
-            const cards:Card[] = state.discard.filter(c => c.name != exchangeName)
+            const cards:Card[] = state.discard
             const n = cards.length
             state = await moveMany(cards, 'hand')(state)
             state = await discard(n)(state)
@@ -5243,7 +5249,7 @@ const exchange:CardSpec = {
         }
     }]
 }
-register(exchange, 'expansion')
+register(harrow, 'expansion')
 
 const churnName = "Churn"
 const churn:CardSpec = {
@@ -5377,8 +5383,8 @@ function workshopTransform(n:number, source:Source): Transform {
     )
 }
 
-const greatWorks:CardSpec = {
-    name: 'Great Works',
+const greatFeast:CardSpec = {
+    name: 'Great Feast',
     buyCost: coin(9),
     effects: [{
         text: [`Do this three times: buy a card in the supply costing up to $8`],
@@ -5391,7 +5397,7 @@ const greatWorks:CardSpec = {
         }
     }, trashThis()]
 }
-register(greatWorks, 'expansion')
+register(greatFeast, 'expansion')
 
 /*
 const scaffold:CardSpec = {
@@ -5562,14 +5568,15 @@ const lurker:CardSpec = {
     buyCost: coin(4),
     effects: [actionsEffect(1), {
         text: [`Trash a card in your hand.
-               If you trash a ${lurkerName}, buy a card in the supply costing up to $8,
+               If you trash a ${lurkerName}, buy a card in the supply costing up to $9,
                otherwise buy a ${lurkerName}.`],
         transform: (s, c) => async function(state) {
             let card:Card|null; [state, card] = await choice(state,
                 'Choose a card to trash.',
                 state.hand.map(asChoice))
+            if (card != null) state = await trash(card)(state)
             if (card !== null && card.name == lurkerName) {
-                state = await workshopTransform(8, c)(state)
+                state = await workshopTransform(9, c)(state)
             } else {
                 state = await applyToTarget(
                     target => target.buy(c),
@@ -5589,9 +5596,9 @@ const kiln:CardSpec = {
     fixedCost: energy(1),
     effects: [coinsEffect(2), toPlay()],
     triggers: [{
-        text: `After playing a card, discard this to create a copy of it in your discard.`,
+        text: `After playing a card with this in play, discard this to create a copy of the card you played in your discard.`,
         kind: 'afterPlay',
-        handles: (e, s, c) => s.find(c).place == 'play',
+        handles: (e, s, c) => s.find(c).place == 'play' && e.before.find(c).place == 'play',
         transform: (e, s, c) => doAll([move(c, 'discard'), create(e.card.spec, 'discard')])
     }]
 }
@@ -5622,11 +5629,11 @@ const werewolf:CardSpec = {
 }
 register(werewolf, 'expansion')
 
-const excavateName = 'Excavate'
-const excavate:CardSpec = {
-    name: excavateName,
+const uncoverName = 'Uncover'
+const uncover:CardSpec = {
+    name: uncoverName,
     effects: [actionsEffect(1), {
-        text: [`For each charge token on this put a non-${excavateName} card from your discard into your hand.`],
+        text: [`For each charge token on this put a non-${uncoverName} card from your discard into your hand.`],
         transform: (state, card) => async function(state) {
             const n = state.find(card).charge
             let cards:Card[]; [state, cards] = await multichoice(state,
@@ -5637,21 +5644,55 @@ const excavate:CardSpec = {
             return state
         }
     }, {
-        text: [`Remove a charge token from this. If you can't, trash it.`],
+        text: [`Remove a charge token from this.`],
         transform: (state, card) => async function(state) {
             if (state.find(card).charge > 0) {
                 state = await discharge(card, 1)(state)
-            } else {
-                state = await trash(card)(state)
             }
             return state
         }
     }]
 }
-buyable(excavate, 3, 'expansion', {
-    replacers: [startsWithCharge(excavate.name, 3)]
+buyable(uncover, 3, 'expansion', {
+    replacers: [startsWithCharge(uncover.name, 3)]
 })
 
+const masonry:CardSpec = {
+    name: 'Masonry',
+    fixedCost: coin(2),
+    effects: [chargeEffect()],
+    staticTriggers: [{
+        kind: 'afterBuy',
+        text: `After buying a card other than with this, remove a charge token from this to buy a card
+        in the supply with the same cost.`,
+        handles: (e, s, c) => c.charge > 0 && e.source.id != c.id,
+        transform: (e, s, c) => payToDo(discharge(c, 1), applyToTarget(
+            target => target.buy(c),
+            `Choose a card to buy.`,
+            state => state.supply.filter(sup => leq(sup.cost('buy', state), e.card.cost('buy', state)))
+        ))
+    }]
+}
+registerEvent(masonry, 'expansion')
+
+const swap:CardSpec = {
+    name: 'Swap',
+    fixedCost: coin(1),
+    effects: [chargeEffect()],
+    staticTriggers: [{
+        kind: 'afterPlay',
+        text: `After playing a card, if this has a charge token and the card is in your discard,
+        then remove a charge token and trash the card to buy a card in the supply
+        with equal or lesser cost.`,
+        handles: (e, s, c) => (c.charge > 0 && s.find(e.card).place == 'discard'),
+        transform: (e, s, c) => payToDo(doAll([discharge(c, 1), trash(e.card)]), applyToTarget(
+            target => doAll([trash(e.card), target.buy(c)]),
+            `Choose a card to buy.`,
+            state => state.supply.filter(sup => leq(sup.cost('buy', state), e.card.cost('buy', state)))
+        ))
+    }]
+}
+registerEvent(swap, 'expansion')
 
 
 

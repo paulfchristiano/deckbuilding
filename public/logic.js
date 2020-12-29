@@ -1573,15 +1573,18 @@ function gainPoints(n, source) {
     if (source === void 0) { source = unk; }
     return function (state) {
         return __awaiter(this, void 0, void 0, function () {
-            var vp_goal;
+            var vp_goal, victoryParams;
             return __generator(this, function (_a) {
                 switch (_a.label) {
                     case 0: return [4 /*yield*/, gainResource('points', n, source)(state)];
                     case 1:
                         state = _a.sent();
                         vp_goal = state.vp_goal;
-                        if (vp_goal > 0 && state.points >= vp_goal)
-                            throw new Victory(state);
+                        if (vp_goal > 0 && state.points >= vp_goal) {
+                            victoryParams = replace({ kind: 'victory', victory: true }, state);
+                            if (victoryParams.victory)
+                                throw new Victory(state);
+                        }
                         return [2 /*return*/, state];
                 }
             });
@@ -5354,15 +5357,12 @@ registerEvent(ride, 'expansion');
 var ambition = {
     name: 'Ambition',
     fixedCost: energy(1),
-    effects: [chargeEffect(10), targetedEffect(function (target) { return create(target.spec, 'hand'); }, 'Choose a card in your discard. Create a copy in your hand.', function (state) { return state.discard; })],
+    effects: [chargeEffect(1), targetedEffect(function (target) { return create(target.spec, 'hand'); }, 'Choose a card in your discard. Create a copy in your hand.', function (state) { return state.discard; })],
     staticReplacers: [{
-            kind: 'resource',
-            text: "Whenever you would gain vp, if this has charge tokens then remove that many instead.",
-            handles: function (e) { return e.resource == 'points' && e.amount > 0; },
-            replace: function (e, s, c) {
-                var n = Math.min(e.amount, c.charge);
-                return __assign(__assign({}, e), { amount: e.amount - n, effects: e.effects.concat([discharge(c, n)]) });
-            }
+            kind: 'victory',
+            text: "For each charge token on this you need an additional 10 vp to win the game.",
+            handles: function (p, s, c) { return s.points < s.vp_goal + 10 * c.charge; },
+            replace: function (p) { return ({ kind: 'victory', victory: false }); }
         }]
 };
 registerEvent(ambition, 'expansion');
@@ -5422,127 +5422,92 @@ var multitask = {
     effects: [multitargetedEffect(function (cards, c) { return doAll(cards.map(function (card) { return card.use(c); })); }, 'Use any number of other events.', function (state, c) { return state.events.filter(function (card) { return card.id != c.id; }); })]
 };
 registerEvent(multitask, 'expansion');
-var misfitName = 'Misfit';
-var misfit = {
+/*
+const misfitName:string = 'Misfit'
+const misfit:CardSpec = {
     name: misfitName,
     buyCost: coin(1),
     effects: [actionsEffect(1), {
-            text: ["Choose a card in the supply costing up to $1\n        for each charge token on this.\n        Create a copy of that card in your hand with an echo token on it."],
-            transform: function (s, c) { return applyToTarget(function (target) { return create(target.spec, 'hand', function (n) { return addToken(n, 'echo'); }); }, 'Choose a card to copy.', function (state) { return state.supply.filter(function (target) {
-                return leq(target.cost('buy', state), coin(c.charge));
-            }); }); }
-        }],
+        text: [`Choose a card in the supply costing up to $1
+        for each charge token on this.
+        Create a copy of that card in your hand with an echo token on it.`],
+        transform: (s, c) => applyToTarget(
+            target => create(target.spec, 'hand', n => addToken(n, 'echo')),
+            'Choose a card to copy.',
+            state => state.supply.filter(target =>
+                leq(target.cost('buy', state), coin(c.charge))
+            )
+        )
+    }],
     staticTriggers: [
         {
             kind: 'create',
-            text: "Whenever you create a " + misfitName + ", you may pay any amount of $\n            to put that many charge tokens on it.",
-            handles: function (e) { return e.card.name == misfitName; },
-            transform: function (e) { return function (state) {
-                return __awaiter(this, void 0, void 0, function () {
-                    var n;
-                    var _a;
-                    return __generator(this, function (_b) {
-                        switch (_b.label) {
-                            case 0: return [4 /*yield*/, choice(state, 'How much $ do you want to pay?', chooseNatural(state.coin + 1))];
-                            case 1:
-                                _a = __read.apply(void 0, [_b.sent(), 2]), state = _a[0], n = _a[1];
-                                if (!(n != null)) return [3 /*break*/, 4];
-                                return [4 /*yield*/, payCost(coin(n), e.card)(state)];
-                            case 2:
-                                state = _b.sent();
-                                return [4 /*yield*/, charge(e.card, n)(state)];
-                            case 3:
-                                state = _b.sent();
-                                _b.label = 4;
-                            case 4: return [2 /*return*/, state];
-                        }
-                    });
-                });
-            }; }
-        },
-        fragileEcho(),
+            text: `Whenever you create a ${misfitName}, you may pay any amount of $
+            to put that many charge tokens on it.`,
+            handles: e => e.card.name == misfitName,
+            transform: e => async function(state) {
+                let n:number|null; [state, n] = await choice(
+                    state,
+                    'How much $ do you want to pay?',
+                    chooseNatural(state.coin+1)
+                )
+                if (n != null) {
+                    state = await payCost(coin(n), e.card)(state)
+                    state = await charge(e.card, n)(state)
+                }
+                return state
+            }
+        }, fragileEcho(),
     ]
-};
-register(misfit, 'expansion');
-var bandOfMisfitsName = 'Band of Misfits';
-var bandOfMisfits = {
+}
+register(misfit, 'expansion')
+*/
+/*
+const bandOfMisfitsName = 'Band of Misfits'
+const bandOfMisfits:CardSpec = {
     name: bandOfMisfitsName,
     buyCost: coin(2),
     effects: [actionsEffect(1), {
-            text: ["Choose up to two cards in the supply each costing up to $1\n        per charge token on this.\n        Create a copy of each card in your hand with an echo token on it."],
-            transform: function (s, c) { return function (state) {
-                return __awaiter(this, void 0, void 0, function () {
-                    var cards, cards_2, cards_2_1, target, e_43_1;
-                    var _a, e_43, _b;
-                    return __generator(this, function (_c) {
-                        switch (_c.label) {
-                            case 0: return [4 /*yield*/, multichoice(state, 'Choose up to two cards to copy.', state.supply.filter(function (target) { return leq(target.cost('buy', state), coin(c.charge)); }).map(asChoice), 2)];
-                            case 1:
-                                _a = __read.apply(void 0, [_c.sent(), 2]), state = _a[0], cards = _a[1];
-                                _c.label = 2;
-                            case 2:
-                                _c.trys.push([2, 7, 8, 9]);
-                                cards_2 = __values(cards), cards_2_1 = cards_2.next();
-                                _c.label = 3;
-                            case 3:
-                                if (!!cards_2_1.done) return [3 /*break*/, 6];
-                                target = cards_2_1.value;
-                                return [4 /*yield*/, create(target.spec, 'hand', function (n) { return addToken(n, 'echo'); })(state)];
-                            case 4:
-                                state = _c.sent();
-                                _c.label = 5;
-                            case 5:
-                                cards_2_1 = cards_2.next();
-                                return [3 /*break*/, 3];
-                            case 6: return [3 /*break*/, 9];
-                            case 7:
-                                e_43_1 = _c.sent();
-                                e_43 = { error: e_43_1 };
-                                return [3 /*break*/, 9];
-                            case 8:
-                                try {
-                                    if (cards_2_1 && !cards_2_1.done && (_b = cards_2.return)) _b.call(cards_2);
-                                }
-                                finally { if (e_43) throw e_43.error; }
-                                return [7 /*endfinally*/];
-                            case 9: return [2 /*return*/, state];
-                        }
-                    });
-                });
-            }; }
-        }],
+        text: [`Choose up to two cards in the supply each costing up to $1
+        per charge token on this.
+        Create a copy of each card in your hand with an echo token on it.`],
+        transform: (s, c) => async function(state) {
+            let cards:Card[]; [state, cards] = await multichoice(state,
+                'Choose up to two cards to copy.',
+                state.supply.filter(
+                    target => leq(target.cost('buy', state), coin(c.charge))
+                ).map(asChoice),
+                2
+            )
+            for (const target of cards) {
+                state = await create(target.spec, 'hand', n => addToken(n, 'echo'))(state)
+            }
+            return state
+        }
+    }],
     staticTriggers: [
         {
             kind: 'create',
-            text: "Whenever you create a " + bandOfMisfitsName + ", you may pay any amount of $\n            to put that many charge tokens on it.",
-            handles: function (e) { return e.card.name == bandOfMisfitsName; },
-            transform: function (e) { return function (state) {
-                return __awaiter(this, void 0, void 0, function () {
-                    var n;
-                    var _a;
-                    return __generator(this, function (_b) {
-                        switch (_b.label) {
-                            case 0: return [4 /*yield*/, choice(state, 'How much $ do you want to pay?', chooseNatural(state.coin + 1))];
-                            case 1:
-                                _a = __read.apply(void 0, [_b.sent(), 2]), state = _a[0], n = _a[1];
-                                if (!(n != null)) return [3 /*break*/, 4];
-                                return [4 /*yield*/, payCost(coin(n), e.card)(state)];
-                            case 2:
-                                state = _b.sent();
-                                return [4 /*yield*/, charge(e.card, n)(state)];
-                            case 3:
-                                state = _b.sent();
-                                _b.label = 4;
-                            case 4: return [2 /*return*/, state];
-                        }
-                    });
-                });
-            }; }
-        },
-        fragileEcho(),
+            text: `Whenever you create a ${bandOfMisfitsName}, you may pay any amount of $
+            to put that many charge tokens on it.`,
+            handles: e => e.card.name == bandOfMisfitsName,
+            transform: e => async function(state) {
+                let n:number|null; [state, n] = await choice(
+                    state,
+                    'How much $ do you want to pay?',
+                    chooseNatural(state.coin+1)
+                )
+                if (n != null) {
+                    state = await payCost(coin(n), e.card)(state)
+                    state = await charge(e.card, n)(state)
+                }
+                return state
+            }
+        }, fragileEcho(),
     ]
-};
-register(bandOfMisfits, 'expansion');
+}
+register(bandOfMisfits, 'expansion')
+*/
 function magpieEffect() {
     return {
         text: ["Create a copy of this in your discard."],
@@ -5697,16 +5662,16 @@ var territory = {
         }]
 };
 register(territory, 'expansion');
-var extract = {
-    name: 'Extract',
+var fossilize = {
+    name: 'Fossilize',
     buyCost: coin(3),
     effects: [{
             text: ["Put any number of cards from your discard into your hand.",
-                "Put an echo token on each of them."],
+                "Put a fragile token on each of them."],
             transform: function () { return function (state) {
                 return __awaiter(this, void 0, void 0, function () {
-                    var cards, cards_3, cards_3_1, card, e_44_1;
-                    var _a, e_44, _b;
+                    var cards, cards_2, cards_2_1, card, e_43_1;
+                    var _a, e_43, _b;
                     return __generator(this, function (_c) {
                         switch (_c.label) {
                             case 0: return [4 /*yield*/, multichoice(state, 'Put any number of cards from your discard into your hand.', state.discard.map(asChoice))];
@@ -5718,28 +5683,28 @@ var extract = {
                                 _c.label = 3;
                             case 3:
                                 _c.trys.push([3, 8, 9, 10]);
-                                cards_3 = __values(cards), cards_3_1 = cards_3.next();
+                                cards_2 = __values(cards), cards_2_1 = cards_2.next();
                                 _c.label = 4;
                             case 4:
-                                if (!!cards_3_1.done) return [3 /*break*/, 7];
-                                card = cards_3_1.value;
-                                return [4 /*yield*/, addToken(card, 'echo')(state)];
+                                if (!!cards_2_1.done) return [3 /*break*/, 7];
+                                card = cards_2_1.value;
+                                return [4 /*yield*/, addToken(card, 'fragile')(state)];
                             case 5:
                                 state = _c.sent();
                                 _c.label = 6;
                             case 6:
-                                cards_3_1 = cards_3.next();
+                                cards_2_1 = cards_2.next();
                                 return [3 /*break*/, 4];
                             case 7: return [3 /*break*/, 10];
                             case 8:
-                                e_44_1 = _c.sent();
-                                e_44 = { error: e_44_1 };
+                                e_43_1 = _c.sent();
+                                e_43 = { error: e_43_1 };
                                 return [3 /*break*/, 10];
                             case 9:
                                 try {
-                                    if (cards_3_1 && !cards_3_1.done && (_b = cards_3.return)) _b.call(cards_3);
+                                    if (cards_2_1 && !cards_2_1.done && (_b = cards_2.return)) _b.call(cards_2);
                                 }
-                                finally { if (e_44) throw e_44.error; }
+                                finally { if (e_43) throw e_43.error; }
                                 return [7 /*endfinally*/];
                             case 10: return [2 /*return*/, state];
                         }
@@ -5747,22 +5712,22 @@ var extract = {
                 });
             }; }
         }],
-    staticTriggers: [fragileEcho()]
+    staticTriggers: [fragileEcho('fragile')]
 };
-register(extract, 'expansion');
-var exchangeName = 'Exchange';
-var exchange = {
-    name: exchangeName,
+register(fossilize, 'expansion');
+var harrowName = 'Harrow';
+var harrow = {
+    name: harrowName,
     buyCost: coin(3),
     effects: [{
-            text: ["Put all non-" + exchangeName + " cards from your discard into your hand, then discard that many cards."],
+            text: ["Put your discard into your hand, then discard that many cards."],
             transform: function () { return function (state) {
                 return __awaiter(this, void 0, void 0, function () {
                     var cards, n;
                     return __generator(this, function (_a) {
                         switch (_a.label) {
                             case 0:
-                                cards = state.discard.filter(function (c) { return c.name != exchangeName; });
+                                cards = state.discard;
                                 n = cards.length;
                                 return [4 /*yield*/, moveMany(cards, 'hand')(state)];
                             case 1:
@@ -5777,7 +5742,7 @@ var exchange = {
             }; }
         }]
 };
-register(exchange, 'expansion');
+register(harrow, 'expansion');
 var churnName = "Churn";
 var churn = {
     name: churnName,
@@ -5900,8 +5865,8 @@ register(masterpiece, 'expansion');
 function workshopTransform(n, source) {
     return applyToTarget(function (target) { return target.buy(source); }, "Buy a card in the supply costing up to $" + n + ".", function (state) { return state.supply.filter(function (x) { return leq(x.cost('buy', state), coin(n)); }); });
 }
-var greatWorks = {
-    name: 'Great Works',
+var greatFeast = {
+    name: 'Great Feast',
     buyCost: coin(9),
     effects: [{
             text: ["Do this three times: buy a card in the supply costing up to $8"],
@@ -5930,7 +5895,7 @@ var greatWorks = {
             }; }
         }, trashThis()]
 };
-register(greatWorks, 'expansion');
+register(greatFeast, 'expansion');
 /*
 const scaffold:CardSpec = {
     name: 'Scaffold',
@@ -6104,7 +6069,7 @@ var lurker = {
     name: lurkerName,
     buyCost: coin(4),
     effects: [actionsEffect(1), {
-            text: ["Trash a card in your hand.\n               If you trash a " + lurkerName + ", buy a card in the supply costing up to $8,\n               otherwise buy a " + lurkerName + "."],
+            text: ["Trash a card in your hand.\n               If you trash a " + lurkerName + ", buy a card in the supply costing up to $9,\n               otherwise buy a " + lurkerName + "."],
             transform: function (s, c) { return function (state) {
                 return __awaiter(this, void 0, void 0, function () {
                     var card;
@@ -6114,16 +6079,22 @@ var lurker = {
                             case 0: return [4 /*yield*/, choice(state, 'Choose a card to trash.', state.hand.map(asChoice))];
                             case 1:
                                 _a = __read.apply(void 0, [_b.sent(), 2]), state = _a[0], card = _a[1];
-                                if (!(card !== null && card.name == lurkerName)) return [3 /*break*/, 3];
-                                return [4 /*yield*/, workshopTransform(8, c)(state)];
+                                if (!(card != null)) return [3 /*break*/, 3];
+                                return [4 /*yield*/, trash(card)(state)];
                             case 2:
                                 state = _b.sent();
-                                return [3 /*break*/, 5];
-                            case 3: return [4 /*yield*/, applyToTarget(function (target) { return target.buy(c); }, 'Choose a card to buy.', function (state) { return state.supply.filter(function (sup) { return sup.name == lurkerName; }); })(state)];
+                                _b.label = 3;
+                            case 3:
+                                if (!(card !== null && card.name == lurkerName)) return [3 /*break*/, 5];
+                                return [4 /*yield*/, workshopTransform(9, c)(state)];
                             case 4:
                                 state = _b.sent();
-                                _b.label = 5;
-                            case 5: return [2 /*return*/, state];
+                                return [3 /*break*/, 7];
+                            case 5: return [4 /*yield*/, applyToTarget(function (target) { return target.buy(c); }, 'Choose a card to buy.', function (state) { return state.supply.filter(function (sup) { return sup.name == lurkerName; }); })(state)];
+                            case 6:
+                                state = _b.sent();
+                                _b.label = 7;
+                            case 7: return [2 /*return*/, state];
                         }
                     });
                 });
@@ -6137,9 +6108,9 @@ var kiln = {
     fixedCost: energy(1),
     effects: [coinsEffect(2), toPlay()],
     triggers: [{
-            text: "After playing a card, discard this to create a copy of it in your discard.",
+            text: "After playing a card with this in play, discard this to create a copy of the card you played in your discard.",
             kind: 'afterPlay',
-            handles: function (e, s, c) { return s.find(c).place == 'play'; },
+            handles: function (e, s, c) { return s.find(c).place == 'play' && e.before.find(c).place == 'play'; },
             transform: function (e, s, c) { return doAll([move(c, 'discard'), create(e.card.spec, 'discard')]); }
         }]
 };
@@ -6178,11 +6149,11 @@ var werewolf = {
         }]
 };
 register(werewolf, 'expansion');
-var excavateName = 'Excavate';
-var excavate = {
-    name: excavateName,
+var uncoverName = 'Uncover';
+var uncover = {
+    name: uncoverName,
     effects: [actionsEffect(1), {
-            text: ["For each charge token on this put a non-" + excavateName + " card from your discard into your hand."],
+            text: ["For each charge token on this put a non-" + uncoverName + " card from your discard into your hand."],
             transform: function (state, card) { return function (state) {
                 return __awaiter(this, void 0, void 0, function () {
                     var n, cards;
@@ -6203,7 +6174,7 @@ var excavate = {
                 });
             }; }
         }, {
-            text: ["Remove a charge token from this. If you can't, trash it."],
+            text: ["Remove a charge token from this."],
             transform: function (state, card) { return function (state) {
                 return __awaiter(this, void 0, void 0, function () {
                     return __generator(this, function (_a) {
@@ -6213,21 +6184,41 @@ var excavate = {
                                 return [4 /*yield*/, discharge(card, 1)(state)];
                             case 1:
                                 state = _a.sent();
-                                return [3 /*break*/, 4];
-                            case 2: return [4 /*yield*/, trash(card)(state)];
-                            case 3:
-                                state = _a.sent();
-                                _a.label = 4;
-                            case 4: return [2 /*return*/, state];
+                                _a.label = 2;
+                            case 2: return [2 /*return*/, state];
                         }
                     });
                 });
             }; }
         }]
 };
-buyable(excavate, 3, 'expansion', {
-    replacers: [startsWithCharge(excavate.name, 3)]
+buyable(uncover, 3, 'expansion', {
+    replacers: [startsWithCharge(uncover.name, 3)]
 });
+var masonry = {
+    name: 'Masonry',
+    fixedCost: coin(2),
+    effects: [chargeEffect()],
+    staticTriggers: [{
+            kind: 'afterBuy',
+            text: "After buying a card other than with this, remove a charge token from this to buy a card\n        in the supply with the same cost.",
+            handles: function (e, s, c) { return c.charge > 0 && e.source.id != c.id; },
+            transform: function (e, s, c) { return payToDo(discharge(c, 1), applyToTarget(function (target) { return target.buy(c); }, "Choose a card to buy.", function (state) { return state.supply.filter(function (sup) { return leq(sup.cost('buy', state), e.card.cost('buy', state)); }); })); }
+        }]
+};
+registerEvent(masonry, 'expansion');
+var swap = {
+    name: 'Swap',
+    fixedCost: coin(1),
+    effects: [chargeEffect()],
+    staticTriggers: [{
+            kind: 'afterPlay',
+            text: "After playing a card, if this has a charge token and the card is in your discard,\n        then remove a charge token and trash the card to buy a card in the supply\n        with equal or lesser cost.",
+            handles: function (e, s, c) { return (c.charge > 0 && s.find(e.card).place == 'discard'); },
+            transform: function (e, s, c) { return payToDo(doAll([discharge(c, 1), trash(e.card)]), applyToTarget(function (target) { return doAll([trash(e.card), target.buy(c)]); }, "Choose a card to buy.", function (state) { return state.supply.filter(function (sup) { return leq(sup.cost('buy', state), e.card.cost('buy', state)); }); })); }
+        }]
+};
+registerEvent(swap, 'expansion');
 // ------------------ Testing -------------------
 var freeMoney = { name: 'Free money',
     fixedCost: energy(0),
