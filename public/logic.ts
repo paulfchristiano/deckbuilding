@@ -5239,12 +5239,16 @@ const harrow:CardSpec = {
     name: harrowName,
     buyCost: coin(3),
     effects: [{
-        text: [`Put your discard into your hand, then discard that many cards.`],
+        text: [`Discard your hand, then put that many cards from your discard into your hand.`],
         transform: () => async function(state) {
-            const cards:Card[] = state.discard
+            const cards:Card[] = state.hand
             const n = cards.length
-            state = await moveMany(cards, 'hand')(state)
-            state = await discard(n)(state)
+            state = await moveMany(cards, 'discard')(state)
+            let targets; [state, targets] = await multichoice(state,
+                `Choose up to ${n} cards to put into your hand.`,
+                state.discard.map(asChoice),
+                n)
+            state = await moveMany(targets, 'hand')(state)
             return state
         }
     }]
@@ -5466,8 +5470,8 @@ const livery:CardSpec = {
     relatedCards: [horse],
     effects: [coinsEffect(3), toPlay()],
     triggers: [{
-        kind: 'buy',
-        text: `Whenever you buy a card costing $4 or more, create ${aOrNum(2, horse.name)} in your discard.`,
+        kind: 'afterBuy',
+        text: `After buying a card costing $4 or more, create ${aOrNum(2, horse.name)} in your discard.`,
         handles: (e,s) => e.card.cost('buy', s).coin >= 1,
         transform: () => repeat(create(horse, 'discard'), 2)
     }]

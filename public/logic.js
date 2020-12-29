@@ -5720,21 +5720,25 @@ var harrow = {
     name: harrowName,
     buyCost: coin(3),
     effects: [{
-            text: ["Put your discard into your hand, then discard that many cards."],
+            text: ["Discard your hand, then put that many cards from your discard into your hand."],
             transform: function () { return function (state) {
                 return __awaiter(this, void 0, void 0, function () {
-                    var cards, n;
-                    return __generator(this, function (_a) {
-                        switch (_a.label) {
+                    var cards, n, targets;
+                    var _a;
+                    return __generator(this, function (_b) {
+                        switch (_b.label) {
                             case 0:
-                                cards = state.discard;
+                                cards = state.hand;
                                 n = cards.length;
-                                return [4 /*yield*/, moveMany(cards, 'hand')(state)];
+                                return [4 /*yield*/, moveMany(cards, 'discard')(state)];
                             case 1:
-                                state = _a.sent();
-                                return [4 /*yield*/, discard(n)(state)];
+                                state = _b.sent();
+                                return [4 /*yield*/, multichoice(state, "Choose up to " + n + " cards to put into your hand.", state.discard.map(asChoice), n)];
                             case 2:
-                                state = _a.sent();
+                                _a = __read.apply(void 0, [_b.sent(), 2]), state = _a[0], targets = _a[1];
+                                return [4 /*yield*/, moveMany(targets, 'hand')(state)];
+                            case 3:
+                                state = _b.sent();
                                 return [2 /*return*/, state];
                         }
                     });
@@ -5957,8 +5961,8 @@ var livery = {
     relatedCards: [horse],
     effects: [coinsEffect(3), toPlay()],
     triggers: [{
-            kind: 'buy',
-            text: "Whenever you buy a card costing $4 or more, create " + aOrNum(2, horse.name) + " in your discard.",
+            kind: 'afterBuy',
+            text: "After buying a card costing $4 or more, create " + aOrNum(2, horse.name) + " in your discard.",
             handles: function (e, s) { return e.card.cost('buy', s).coin >= 1; },
             transform: function () { return repeat(create(horse, 'discard'), 2); }
         }]
