@@ -4973,6 +4973,7 @@ const regroup:CardSpec = {
 }
 registerEvent(regroup, 'expansion')
 
+/*
 const multitask:CardSpec = {
     name: 'Multitask',
     fixedCost: {...free, energy:3, coin:6},
@@ -4981,6 +4982,20 @@ const multitask:CardSpec = {
         'Use any number of other events.',
         (state, c) => state.events.filter(card => card.id != c.id)
     )]
+}
+registerEvent(multitask, 'expansion')
+*/
+const multitask:CardSpec = {
+    name: 'Multitask',
+    fixedCost: {...free, energy:1, coin:5},
+    effects: [multitargetedEffect(
+        (targets, card) => doAll(targets.map(target =>
+            create(target.spec, 'hand', c => addToken(c, 'fragile'))
+        )),
+        `Choose up to three cards in the supply. Create a copy of each in your hand with a fragile token.`,
+        s => s.supply, 3
+    )],
+    staticTriggers: [fragileEcho('fragile')]
 }
 registerEvent(multitask, 'expansion')
 
@@ -5260,10 +5275,10 @@ const churn:CardSpec = {
     name: churnName,
     buyCost: coin(6),
     fixedCost: energy(1),
-    effects: [recycleEffect(), actionsEffect(2), toPlay()],
+    effects: [recycleEffect(), toPlay()],
     replacers: [{
         text: `Cards named ${churnName} cost an additional @ to play.`,
-        kind: 'cost',
+        kind: 'costIncrease',
         handles: p => (p.card.name == churnName) && (p.actionKind == 'play'),
         replace: p => ({...p, cost: addCosts(p.cost, energy(1))})
     }]

@@ -88,7 +88,7 @@ INSERT INTO campaign_awards (level, core, threshold) VALUES
 ('FIK', TRUE, 35), ('FIK', FALSE, 33), ('FIK', FALSE, 31),
 ('SST', TRUE, 43), ('SST', FALSE, 41), ('SST', FALSE, 40),
 ('FFP', TRUE, 34), ('FFP', FALSE, 32), ('FFP', FALSE, 30),
-('HMT', TRUE, 37), ('HMT', FALSE, 35), ('HMT', FALSE, 34),
+('HMT', TRUE, 37), ('HMT', FALSE, 35), ('HMT', FALSE, 34), ('HMT', FALSE, 32),
 ('CER', TRUE, 40), ('CER', FALSE, 37), ('CER', FALSE, 35);
 
 /* Pairings */
@@ -160,11 +160,11 @@ INSERT INTO campaign_awards (level, core, threshold) VALUES
 ('PLAY', TRUE, 22), ('PLAY', FALSE, 19), ('PLAY', FALSE, 17),
 ('GROW/BUY', TRUE, 12), ('GROW/BUY', FALSE, 10), ('GROW/BUY', FALSE, 9),
 ('DIG', TRUE, 25), ('DIG', FALSE, 22), ('DIG', FALSE, 20), ('DIG', FALSE, 19),
-('BUY/DIG', TRUE, 19), ('BUY/DIG', FALSE, 15), ('BUY/DIG', FALSE, 12),
+('BUY/DIG', TRUE, 19), ('BUY/DIG', FALSE, 15), ('BUY/DIG', FALSE, 12), ('BUY/DIG', FALSE, 12)
 ('BIG/DIG', TRUE, 18), ('BIG/DIG', FALSE, 14), ('BIG/DIG', FALSE, 12),
 ('DIG/GROW', TRUE, 12), ('DIG/GROW', FALSE, 8), ('DIG/GROW', FALSE, 6),
-('PLAY/BIG', TRUE, 16), ('PLAY/BIG', FALSE, 15), ('PLAY/BIG', FALSE, 14),
-('PLAY/GROW', TRUE, 12), ('PLAY/GROW', FALSE, 10), ('PLAY/GROW', FALSE, 9),
+('PLAY/BIG', TRUE, 16), ('PLAY/BIG', FALSE, 15), ('PLAY/BIG', FALSE, 14), ('PLAY/BIG', FALSE, 14)
+('PLAY/GROW', TRUE, 11), ('PLAY/GROW', FALSE, 10), ('PLAY/GROW', FALSE, 9), ('PLAY/GROW', FALSE, 8)
 ('DIG/PLAY', TRUE, 16), ('DIG/PLAY', FALSE, 15), ('DIG/PLAY', FALSE, 14), ('DIG/PLAY', FALSE, 13),
 ('BUY/PLAY', TRUE, 16), ('BUY/PLAY', FALSE, 15), ('BUY/PLAY', FALSE, 14),
 ('BIG/BUY', TRUE, 20), ('BIG/BUY', FALSE, 15), ('BIG/BUY', FALSE, 13);

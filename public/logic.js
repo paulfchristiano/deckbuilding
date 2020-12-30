@@ -5416,10 +5416,25 @@ var regroup = {
     effects: [actionsEffect(2), buysEffect(1), multitargetedEffect(function (targets) { return moveMany(targets, 'hand'); }, 'Put up to four cards from your discard into your hand.', function (state) { return state.discard; }, 4)]
 };
 registerEvent(regroup, 'expansion');
+/*
+const multitask:CardSpec = {
+    name: 'Multitask',
+    fixedCost: {...free, energy:3, coin:6},
+    effects: [multitargetedEffect(
+        (cards, c) => doAll(cards.map(card => card.use(c))),
+        'Use any number of other events.',
+        (state, c) => state.events.filter(card => card.id != c.id)
+    )]
+}
+registerEvent(multitask, 'expansion')
+*/
 var multitask = {
     name: 'Multitask',
-    fixedCost: __assign(__assign({}, free), { energy: 3, coin: 6 }),
-    effects: [multitargetedEffect(function (cards, c) { return doAll(cards.map(function (card) { return card.use(c); })); }, 'Use any number of other events.', function (state, c) { return state.events.filter(function (card) { return card.id != c.id; }); })]
+    fixedCost: __assign(__assign({}, free), { energy: 1, coin: 5 }),
+    effects: [multitargetedEffect(function (targets, card) { return doAll(targets.map(function (target) {
+            return create(target.spec, 'hand', function (c) { return addToken(c, 'fragile'); });
+        })); }, "Choose up to three cards in the supply. Create a copy of each in your hand with a fragile token.", function (s) { return s.supply; }, 3)],
+    staticTriggers: [fragileEcho('fragile')]
 };
 registerEvent(multitask, 'expansion');
 /*
@@ -5752,10 +5767,10 @@ var churn = {
     name: churnName,
     buyCost: coin(6),
     fixedCost: energy(1),
-    effects: [recycleEffect(), actionsEffect(2), toPlay()],
+    effects: [recycleEffect(), toPlay()],
     replacers: [{
             text: "Cards named " + churnName + " cost an additional @ to play.",
-            kind: 'cost',
+            kind: 'costIncrease',
             handles: function (p) { return (p.card.name == churnName) && (p.actionKind == 'play'); },
             replace: function (p) { return (__assign(__assign({}, p), { cost: addCosts(p.cost, energy(1)) })); }
         }]

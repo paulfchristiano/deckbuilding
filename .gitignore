@@ -5,3 +5,5 @@ tsconfig.tsbuildinfo
 *.sublime-workspace
 .env
 *.js.map
+*~
+*.swp
