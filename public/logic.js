@@ -5206,12 +5206,12 @@ var strive = {
     effects: [workshopEffect(7)]
 };
 registerEvent(strive, 'expansion');
-var delve = {
-    name: 'Delve',
+var discount = {
+    name: 'Discount',
     fixedCost: coin(2),
     effects: [workshopEffect(3)]
 };
-registerEvent(delve, 'expansion');
+registerEvent(discount, 'expansion');
 var hesitation = {
     name: 'Hesitation',
     restrictions: [{
@@ -5239,28 +5239,42 @@ var pillage = {
         }]
 };
 registerEvent(pillage, 'expansion');
-var recruit = {
-    name: 'Recruit',
+var festival = {
+    name: 'Festival',
     fixedCost: energy(1),
-    effects: [createInPlayEffect(villager), createInPlayEffect(fair)],
-    relatedCards: [villager, fair]
+    effects: [createInPlayEffect(fair, 3)],
+    relatedCards: [fair]
 };
-registerEvent(recruit, 'expansion');
-var Import = {
+registerEvent(festival, 'expansion');
+/*
+const Import:CardSpec = {
     name: 'Import',
     fixedCost: energy(1),
-    effects: [targetedEffect(function (target, card) { return addToken(target, 'import', 3); }, 'Put three import tokens on a card in the supply.', function (s) { return s.supply; })],
+    effects: [targetedEffect(
+        (target, card) => addToken(target, 'import', 3),
+        'Put three import tokens on a card in the supply.',
+        s => s.supply
+    )],
     staticReplacers: [{
-            text: "Whenever you would create a card in your discard,\n            if its supply has an import token on it,\n            instead remove a token and create the card in your hand.",
-            kind: 'create',
-            handles: function (p, s, c) { return p.zone == 'discard' && s.supply.some(function (sup) { return sup.count('import') > 0 &&
-                sup.name == p.spec.name; }); },
-            replace: function (p) { return (__assign(__assign({}, p), { zone: 'hand', effects: p.effects.concat([
-                    function () { return applyToTarget(function (target) { return removeToken(target, 'import'); }, "remove an import token.", function (state) { return state.supply.filter(function (sup) { return sup.name == p.spec.name && sup.count('import') > 0; }); }); }
-                ]) })); }
-        }]
-};
-registerEvent(Import, 'expansion');
+        text: `Whenever you would create a card in your discard,
+            if its supply has an import token on it,
+            instead remove a token and create the card in your hand.`,
+        kind: 'create',
+        handles: (p, s, c) => p.zone == 'discard' && s.supply.some(
+            sup => sup.count('import') > 0 &&
+            sup.name == p.spec.name
+        ),
+        replace: p => ({...p, zone:'hand', effects:p.effects.concat([
+            () => applyToTarget(
+                target => removeToken(target, 'import'),
+                `remove an import token.`,
+                state => state.supply.filter(sup => sup.name == p.spec.name && sup.count('import') > 0)
+            )
+        ])})
+    }]
+}
+registerEvent(Import, 'expansion')
+*/
 var squeeze = {
     name: 'Squeeze',
     fixedCost: energy(1),
@@ -5368,12 +5382,11 @@ var ambition = {
 registerEvent(ambition, 'expansion');
 var splay = {
     name: 'Splay',
-    fixedCost: coin(1),
-    variableCost: costPer(coin(1)),
+    fixedCost: energy(2),
     effects: [{
             text: ["Put a splay token on each supply."],
             transform: function (s) { return doAll(s.supply.map(function (c) { return addToken(c, 'splay'); })); }
-        }, incrementCost()],
+        }],
     staticReplacers: [{
             text: "Cards you play cost @ less for each splay token on their supply.\n               Whenever this reduces a cost by one or more @,\n               remove that many splay tokens.",
             kind: 'cost',
@@ -5387,6 +5400,13 @@ var splay = {
         }]
 };
 registerEvent(splay, 'expansion');
+var recover = {
+    name: 'Recover',
+    fixedCost: coin(1),
+    variableCost: costPer(coin(1)),
+    effects: [multitargetedEffect(function (targets) { return moveMany(targets, 'hand'); }, 'Put up to 2 cards from your discard into your hand.', function (state) { return state.discard; }), incrementCost()]
+};
+registerEvent(recover, 'expansion');
 function multitargetedEffect(f, text, options, max) {
     if (max === void 0) { max = null; }
     return {
@@ -5547,13 +5567,14 @@ var remake = {
     buyCost: coin(4),
     fixedCost: energy(1),
     effects: [{
-            text: ["Do this up to four times: trash a card in your hand,\n        then buy a card costing up to $2 more."],
+            text: ["Do this up to eight times: trash a card in your hand,\n        then buy a card costing up to $2 more."],
             transform: function (s, c) { return function (state) {
                 return __awaiter(this, void 0, void 0, function () {
-                    var _loop_5, i, state_4;
+                    var N, _loop_5, i, state_4;
                     return __generator(this, function (_a) {
                         switch (_a.label) {
                             case 0:
+                                N = 8;
                                 _loop_5 = function (i) {
                                     var card, cost_2, target;
                                     var _a, _b;
@@ -5561,7 +5582,7 @@ var remake = {
                                         switch (_c.label) {
                                             case 0:
                                                 card = void 0;
-                                                return [4 /*yield*/, choice(state, "Choose a card to remake (" + (4 - i) + " remaining).", allowNull(state.hand.map(asChoice)))];
+                                                return [4 /*yield*/, choice(state, "Choose a card to remake (" + i + " remaining).", allowNull(state.hand.map(asChoice)))];
                                             case 1:
                                                 _a = __read.apply(void 0, [_c.sent(), 2]), state = _a[0], card = _a[1];
                                                 if (!(card == null)) return [3 /*break*/, 2];
@@ -5571,7 +5592,7 @@ var remake = {
                                                 state = _c.sent();
                                                 cost_2 = addCosts(card.cost('buy', state), coin(2));
                                                 target = void 0;
-                                                return [4 /*yield*/, choice(state, "Choose a card to buy (" + (4 - i) + " remaining).", state.supply.filter(function (t) { return leq(t.cost('buy', state), cost_2); }).map(asChoice))];
+                                                return [4 /*yield*/, choice(state, "Choose a card to buy (" + i + " remaining).", state.supply.filter(function (t) { return leq(t.cost('buy', state), cost_2); }).map(asChoice))];
                                             case 4:
                                                 _b = __read.apply(void 0, [_c.sent(), 2]), state = _b[0], target = _b[1];
                                                 if (!(target != null)) return [3 /*break*/, 6];
@@ -5583,10 +5604,10 @@ var remake = {
                                         }
                                     });
                                 };
-                                i = 0;
+                                i = N - 1;
                                 _a.label = 1;
                             case 1:
-                                if (!(i < 4)) return [3 /*break*/, 4];
+                                if (!(i >= 0)) return [3 /*break*/, 4];
                                 return [5 /*yield**/, _loop_5(i)];
                             case 2:
                                 state_4 = _a.sent();
@@ -5594,7 +5615,7 @@ var remake = {
                                     return [3 /*break*/, 4];
                                 _a.label = 3;
                             case 3:
-                                i++;
+                                i--;
                                 return [3 /*break*/, 1];
                             case 4: return [2 /*return*/, state];
                         }
@@ -5608,7 +5629,7 @@ var ferry = {
     name: 'Ferry',
     buyCost: coin(3),
     fixedCost: energy(1),
-    effects: [buysEffect(1), targetedEffect(function (target) { return addToken(target, 'ferry'); }, 'Put a ferry token on a supply or event.', function (state) { return state.events.concat(state.supply); })],
+    effects: [buysEffect(1), coinsEffect(1), targetedEffect(function (target) { return addToken(target, 'ferry'); }, 'Put a ferry token on a supply or event.', function (state) { return state.events.concat(state.supply); })],
     staticReplacers: [{
             text: "Events and cards in the supply cost $1 less per ferry token on them, but not zero.",
             kind: 'cost',
@@ -5659,16 +5680,16 @@ var develop = {
         }]
 };
 register(develop, 'expansion');
-var infrastructure = {
-    name: 'Infrastructure',
+var logistics = {
+    name: 'Logistics',
     buyCost: coin(6),
     fixedCost: energy(1),
     effects: [toPlay()],
     replacers: [costReduce('use', energy(1), true)]
 };
-register(infrastructure, 'expansion');
+register(logistics, 'expansion');
 var territory = {
-    name: ' Territory',
+    name: 'Territory',
     buyCost: coin(10),
     fixedCost: energy(1),
     effects: [pointsEffect(2), {
@@ -5833,6 +5854,7 @@ var exoticMarket = {
     buyCost: coin(5),
     effects: [actionsEffect(2), coinsEffect(1), buysEffect(1)]
 };
+register(exoticMarket, 'expansion');
 var royalChambers = {
     name: 'Royal Chambers',
     buyCost: coin(9),
@@ -6054,7 +6076,7 @@ var guildHall = {
 register(guildHall, 'expansion');
 var overextend = {
     name: 'Overextend',
-    buyCost: coin(5),
+    buyCost: coin(4),
     effects: [actionsEffect(4), createInPlayEffect(villager, 4), toPlay()],
     relatedCards: [villager],
     replacers: [{
@@ -6079,8 +6101,8 @@ var contraband = {
 register(contraband, 'expansion');
 var diamond = {
     name: 'Diamond',
-    buyCost: coin(7),
-    effects: [coinsEffect(3), pointsEffect(1)],
+    buyCost: coin(4),
+    effects: [coinsEffect(2), pointsEffect(1)],
 };
 register(diamond, 'expansion');
 var lurkerName = 'Lurker';
@@ -6238,6 +6260,94 @@ var swap = {
         }]
 };
 registerEvent(swap, 'expansion');
+var infrastructure = {
+    name: 'Infrastructure',
+    replacers: [{
+            text: "Events cost @ less to use. Whenever this reduces a cost, trash it.",
+            kind: 'cost',
+            handles: function (x) { return x.actionKind == 'use'; },
+            replace: function (x, state, card) {
+                if (x.cost.energy > 0) {
+                    return __assign(__assign({}, x), { cost: __assign(__assign({}, x.cost), { energy: x.cost.energy - 1, effects: x.cost.effects.concat([trash(card)]) }) });
+                }
+                else {
+                    return x;
+                }
+            }
+        }, trashOnLeavePlay()]
+};
+var planning = {
+    name: 'Planning',
+    buyCost: coin(6),
+    effects: [toPlay()],
+    relatedCards: [infrastructure],
+    triggers: [{
+            text: "Whenever you pay @,\n               create that many " + infrastructure.name + " in play.",
+            kind: 'cost',
+            handles: function (e, state, card) { return e.cost.energy > 0; },
+            transform: function (e, state, card) { return repeat(create(infrastructure, 'play'), e.cost.energy); }
+        }]
+};
+register(planning, 'expansion');
+var organize = {
+    name: 'Organize',
+    relatedCards: [infrastructure],
+    fixedCost: __assign(__assign({}, free), { coin: 4, energy: 1 }),
+    effects: [createInPlayEffect(infrastructure, 2)]
+};
+registerEvent(organize, 'expansion');
+function gainExactly(n) {
+    return targetedEffect(function (target, card) { return target.buy(card); }, "Buy a card in the supply costing $" + n + ".", function (state) { return state.supply.filter(function (x) { return eq(x.cost('buy', state), coin(n)); }); });
+}
+var swell = {
+    name: 'Swell',
+    fixedCost: __assign(__assign({}, free), { coin: 6, energy: 1 }),
+    effects: [{
+            text: ["Buy a card in the supply costing each of\n        $0, $1, $2, $3, $4, and $5."],
+            transform: function (state, card) { return function (state) {
+                return __awaiter(this, void 0, void 0, function () {
+                    var _loop_6, i;
+                    return __generator(this, function (_a) {
+                        switch (_a.label) {
+                            case 0:
+                                _loop_6 = function (i) {
+                                    var target;
+                                    var _a;
+                                    return __generator(this, function (_b) {
+                                        switch (_b.label) {
+                                            case 0:
+                                                target = void 0;
+                                                return [4 /*yield*/, choice(state, "Buy a card costing $" + i, state.supply.filter(function (c) { return c.cost('buy', state).coin == i; }).map(asChoice))];
+                                            case 1:
+                                                _a = __read.apply(void 0, [_b.sent(), 2]), state = _a[0], target = _a[1];
+                                                if (!(target != null)) return [3 /*break*/, 3];
+                                                return [4 /*yield*/, target.buy(card)(state)];
+                                            case 2:
+                                                state = _b.sent();
+                                                _b.label = 3;
+                                            case 3: return [2 /*return*/];
+                                        }
+                                    });
+                                };
+                                i = 0;
+                                _a.label = 1;
+                            case 1:
+                                if (!(i < 6)) return [3 /*break*/, 4];
+                                return [5 /*yield**/, _loop_6(i)];
+                            case 2:
+                                _a.sent();
+                                _a.label = 3;
+                            case 3:
+                                i++;
+                                return [3 /*break*/, 1];
+                            case 4: return [2 /*return*/, state];
+                        }
+                    });
+                });
+            }; }
+        }]
+};
+registerEvent(swell, 'expansion');
 // ------------------ Testing -------------------
 var freeMoney = { name: 'Free money',
     fixedCost: energy(0),

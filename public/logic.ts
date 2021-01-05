@@ -4684,12 +4684,12 @@ const strive:CardSpec = {
 }
 registerEvent(strive, 'expansion')
 
-const delve:CardSpec = {
-    name: 'Delve',
+const discount:CardSpec = {
+    name: 'Discount',
     fixedCost: coin(2),
     effects: [workshopEffect(3)]
 }
-registerEvent(delve, 'expansion')
+registerEvent(discount, 'expansion')
 
 const hesitation:CardSpec = {
     name: 'Hesitation',
@@ -4734,14 +4734,15 @@ const pillage:CardSpec = {
 }
 registerEvent(pillage, 'expansion')
 
-const recruit:CardSpec = {
-    name: 'Recruit',
+const festival:CardSpec = {
+    name: 'Festival',
     fixedCost: energy(1),
-    effects: [createInPlayEffect(villager), createInPlayEffect(fair)],
-    relatedCards: [villager, fair]
+    effects: [createInPlayEffect(fair, 3)],
+    relatedCards: [fair]
 }
-registerEvent(recruit, 'expansion')
+registerEvent(festival, 'expansion')
 
+/*
 const Import:CardSpec = {
     name: 'Import',
     fixedCost: energy(1),
@@ -4769,6 +4770,7 @@ const Import:CardSpec = {
     }]
 }
 registerEvent(Import, 'expansion')
+*/
 
 const squeeze:CardSpec = {
     name: 'Squeeze',
@@ -4907,12 +4909,11 @@ registerEvent(ambition, 'expansion')
 
 const splay:CardSpec = {
     name:'Splay',
-    fixedCost: coin(1),
-    variableCost: costPer(coin(1)),
+    fixedCost: energy(2),
     effects: [{
         text: [`Put a splay token on each supply.`],
         transform: s => doAll(s.supply.map(c => addToken(c, 'splay')))
-    }, incrementCost()],
+    }],
     staticReplacers: [{
         text: `Cards you play cost @ less for each splay token on their supply.
                Whenever this reduces a cost by one or more @,
@@ -4943,6 +4944,18 @@ const splay:CardSpec = {
     }]
 }
 registerEvent(splay, 'expansion')
+
+const recover:CardSpec = {
+    name: 'Recover',
+    fixedCost: coin(1),
+    variableCost: costPer(coin(1)),
+    effects: [multitargetedEffect(
+        targets => moveMany(targets, 'hand'),
+        'Put up to 2 cards from your discard into your hand.',
+        state => state.discard
+    ), incrementCost()]
+}
+registerEvent(recover, 'expansion')
 
 function multitargetedEffect(
     f: (targets:Card[], c:Card) => Transform,
@@ -5118,12 +5131,13 @@ const remake:CardSpec = {
     buyCost: coin(4),
     fixedCost: energy(1),
     effects: [{
-        text: [`Do this up to four times: trash a card in your hand,
+        text: [`Do this up to eight times: trash a card in your hand,
         then buy a card costing up to $2 more.`],
         transform: (s, c) => async function(state) {
-            for (let i = 0; i < 4; i++) {
+            const N = 8;
+            for (let i = N-1; i >= 0; i--) {
                 let card:Card|null; [state, card] = await choice(state,
-                    `Choose a card to remake (${4-i} remaining).`,
+                    `Choose a card to remake (${i} remaining).`,
                     allowNull(state.hand.map(asChoice))
                 )
                 if (card == null) {
@@ -5132,7 +5146,7 @@ const remake:CardSpec = {
                     state = await trash(card)(state)
                     const cost = addCosts(card.cost('buy', state), coin(2))
                     let target:Card|null; [state, target] = await choice(state,
-                        `Choose a card to buy (${4-i} remaining).`,
+                        `Choose a card to buy (${i} remaining).`,
                         state.supply.filter(t => leq(t.cost('buy', state), cost)).map(asChoice)
                     )
                     if (target != null) state = await target.buy(c)(state)
@@ -5148,7 +5162,7 @@ const ferry:CardSpec = {
     name: 'Ferry',
     buyCost: coin(3),
     fixedCost: energy(1),
-    effects: [buysEffect(1), targetedEffect(
+    effects: [buysEffect(1), coinsEffect(1), targetedEffect(
         target => addToken(target, 'ferry'),
         'Put a ferry token on a supply or event.',
         state => state.events.concat(state.supply),
@@ -5207,17 +5221,17 @@ const develop:CardSpec = {
 }
 register(develop, 'expansion')
 
-const infrastructure = {
-    name: 'Infrastructure',
+const logistics = {
+    name: 'Logistics',
     buyCost: coin(6),
     fixedCost: energy(1),
     effects: [toPlay()],
     replacers: [costReduce('use', energy(1), true)]
 }
-register(infrastructure, 'expansion')
+register(logistics, 'expansion')
 
 const territory:CardSpec = {
-    name: ' Territory',
+    name: 'Territory',
     buyCost: coin(10),
     fixedCost: energy(1),
     effects: [pointsEffect(2), {
@@ -5350,6 +5364,7 @@ const exoticMarket:CardSpec = {
     buyCost: coin(5),
     effects: [actionsEffect(2), coinsEffect(1), buysEffect(1)]
 }
+register(exoticMarket, 'expansion')
 
 const royalChambers:CardSpec = {
     name: 'Royal Chambers',
@@ -5549,7 +5564,7 @@ register(guildHall, 'expansion')
 
 const overextend:CardSpec = {
     name: 'Overextend',
-    buyCost: coin(5),
+    buyCost: coin(4),
     effects: [actionsEffect(4), createInPlayEffect(villager, 4), toPlay()],
     relatedCards: [villager],
     replacers: [{
@@ -5576,8 +5591,8 @@ register(contraband, 'expansion')
 
 const diamond:CardSpec = {
     name: 'Diamond',
-    buyCost: coin(7),
-    effects: [coinsEffect(3), pointsEffect(1)],
+    buyCost: coin(4),
+    effects: [coinsEffect(2), pointsEffect(1)],
 }
 register(diamond, 'expansion')
 
@@ -5713,8 +5728,76 @@ const swap:CardSpec = {
 }
 registerEvent(swap, 'expansion')
 
+const infrastructure:CardSpec = {
+    name: 'Infrastructure',
+    replacers: [{
+        text: `Events cost @ less to use. Whenever this reduces a cost, trash it.`,
+        kind: 'cost',
+        handles: x => x.actionKind == 'use',
+        replace: function(x:CostParams, state:State, card:Card) {
+            if (x.cost.energy > 0) {
+                return {...x, cost: {...x.cost,
+                    energy:x.cost.energy - 1,
+                    effects:x.cost.effects.concat([trash(card)])
+                }}
+            } else {
+                return x
+            }
+        }
+    }, trashOnLeavePlay()]
+}
 
+const planning:CardSpec = {
+    name: 'Planning',
+    buyCost: coin(6),
+    effects: [toPlay()],
+    relatedCards: [infrastructure],
+    triggers: [{
+        text: `Whenever you pay @,
+               create that many ${infrastructure.name} in play.`,
+        kind: 'cost',
+        handles: (e, state, card) => e.cost.energy > 0,
+        transform: (e, state, card) => repeat(create(infrastructure, 'play'), e.cost.energy)
+    }]
+}
+register(planning, 'expansion')
 
+const organize:CardSpec = {
+    name: 'Organize',
+    relatedCards: [infrastructure],
+    fixedCost: {...free, coin:4, energy:1},
+    effects: [createInPlayEffect(infrastructure, 2)]
+}
+registerEvent(organize, 'expansion')
+
+function gainExactly(n:number):Effect {
+    return targetedEffect(
+        (target, card) => target.buy(card),
+        `Buy a card in the supply costing $${n}.`,
+        state => state.supply.filter(
+            x => eq(x.cost('buy', state), coin(n))
+        )
+    )
+}
+const swell:CardSpec = {
+    name: 'Swell',
+    fixedCost: {...free, coin:6, energy:1},
+    effects: [{
+        text: [`Buy a card in the supply costing each of
+        $0, $1, $2, $3, $4, and $5.`],
+        transform: (state, card) => async function(state) {
+            for (let i = 0; i < 6; i++) {
+                let target:Card|null; [state, target] = await choice(state,
+                    `Buy a card costing $${i}`,
+                    state.supply.filter(c => c.cost('buy', state).coin == i).map(asChoice)
+                )
+                if (target != null) state = await target.buy(card)(state)
+            }
+            return state
+        }
+    }]
+}
+registerEvent(swell, 'expansion')
 
 // ------------------ Testing -------------------
 

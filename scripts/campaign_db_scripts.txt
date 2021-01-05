@@ -23,7 +23,7 @@ INSERT INTO campaign_requirements(destination, req) VALUES
 INSERT INTO campaign_awards (level, core, threshold) VALUES
 ('A1', TRUE, 56), ('A1', FALSE, 51), ('A1', FALSE, 48),
 ('A2', TRUE, 47), ('A2', FALSE, 42), ('A2', FALSE, 40), ('A2', FALSE, 38),
-('A3', TRUE, 32), ('A3', FALSE, 28), ('A3', FALSE, 24),
+('A3', TRUE, 32), ('A3', FALSE, 28), ('A3', FALSE, 24), ('A3', FALSE, 22),
 ('A4', TRUE, 23), ('A4', FALSE, 21), ('A4', FALSE, 19), ('A4', FALSE, 17),
 ('A5', TRUE, 18), ('A5', FALSE, 16), ('A5', FALSE, 15), ('A5', FALSE, 14);
 
@@ -160,7 +160,7 @@ INSERT INTO campaign_awards (level, core, threshold) VALUES
 ('PLAY', TRUE, 22), ('PLAY', FALSE, 19), ('PLAY', FALSE, 17),
 ('GROW/BUY', TRUE, 12), ('GROW/BUY', FALSE, 10), ('GROW/BUY', FALSE, 9),
 ('DIG', TRUE, 25), ('DIG', FALSE, 22), ('DIG', FALSE, 20), ('DIG', FALSE, 19),
-('BUY/DIG', TRUE, 19), ('BUY/DIG', FALSE, 15), ('BUY/DIG', FALSE, 12), ('BUY/DIG', FALSE, 12)
+('BUY/DIG', TRUE, 19), ('BUY/DIG', FALSE, 15), ('BUY/DIG', FALSE, 12), ('BUY/DIG', FALSE, 10)
 ('BIG/DIG', TRUE, 18), ('BIG/DIG', FALSE, 14), ('BIG/DIG', FALSE, 12),
 ('DIG/GROW', TRUE, 12), ('DIG/GROW', FALSE, 8), ('DIG/GROW', FALSE, 6),
 ('PLAY/BIG', TRUE, 16), ('PLAY/BIG', FALSE, 15), ('PLAY/BIG', FALSE, 14), ('PLAY/BIG', FALSE, 14)
@@ -232,7 +232,7 @@ INSERT INTO campaign_requirements(destination, req) VALUES
 INSERT INTO campaign_awards (level, core, threshold) VALUES
 ('NULL', TRUE, 55), ('NULL', FALSE, 53), ('NULL', FALSE, 52),
 ('CARD', TRUE, 16), ('CARD', FALSE, 12), ('CARD', FALSE, 10), ('CARD', FALSE, 9),
-('BAD', TRUE, 110), ('BAD', FALSE, 108), ('BAD', FALSE, 106), ('BAD', FALSE, 103),
+('BAD', TRUE, 110), ('BAD', FALSE, 108), ('BAD', FALSE, 106), ('BAD', FALSE, 101),
 ('EVENT', TRUE, 16), ('EVENT', FALSE, 12), ('EVENT', FALSE, 10), ('EVENT', FALSE, 8),
 ('CARD+BAD', TRUE, 34), ('CARD+BAD', FALSE, 28), ('CARD+BAD', FALSE, 22),
 ('CARD+EVENT', TRUE, 8), ('CARD+EVENT', FALSE, 5), ('CARD+EVENT', FALSE, 3), ('CARD+EVENT', FALSE, 2),
