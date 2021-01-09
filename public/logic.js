@@ -6203,7 +6203,7 @@ var uncover = {
                         switch (_b.label) {
                             case 0:
                                 n = state.find(card).charge;
-                                return [4 /*yield*/, multichoice(state, "Choose " + n + " cards to put into your hand.", state.discard.map(asChoice), n)];
+                                return [4 /*yield*/, multichoice(state, "Choose " + n + " cards to put into your hand.", state.discard.filter(function (c) { return c.name != uncoverName; }).map(asChoice), n)];
                             case 1:
                                 _a = __read.apply(void 0, [_b.sent(), 2]), state = _a[0], cards = _a[1];
                                 return [4 /*yield*/, moveMany(cards, 'hand')(state)];

@@ -5672,7 +5672,7 @@ const uncover:CardSpec = {
             const n = state.find(card).charge
             let cards:Card[]; [state, cards] = await multichoice(state,
                 `Choose ${n} cards to put into your hand.`,
-                state.discard.map(asChoice), n
+                state.discard.filter(c => c.name != uncoverName).map(asChoice), n
             )
             state = await moveMany(cards, 'hand')(state)
             return state
