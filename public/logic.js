@@ -5206,12 +5206,12 @@ var strive = {
     effects: [workshopEffect(7)]
 };
 registerEvent(strive, 'expansion');
-var discount = {
-    name: 'Discount',
+var delve = {
+    name: 'Delve',
     fixedCost: coin(2),
-    effects: [workshopEffect(3)]
+    effects: [createEffect(silver)]
 };
-registerEvent(discount, 'expansion');
+registerEvent(delve, 'expansion');
 var hesitation = {
     name: 'Hesitation',
     restrictions: [{
@@ -6036,8 +6036,8 @@ var bustlingVillage = {
     buyCost: coin(3),
     relatedCards: [villager],
     effects: [{
-            text: ["+1 action per " + villager.name + " in play."],
-            transform: function (s) { return gainActions(s.play.filter(function (c) { return c.name == villager.name; }).length); },
+            text: ["+1 action per " + villager.name + " in play up to a max of +3."],
+            transform: function (s) { return gainActions(Math.min(3, s.play.filter(function (c) { return c.name == villager.name; }).length)); },
         }, createInPlayEffect(villager)]
 };
 register(bustlingVillage, 'expansion');

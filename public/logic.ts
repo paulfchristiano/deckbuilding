@@ -4684,12 +4684,12 @@ const strive:CardSpec = {
 }
 registerEvent(strive, 'expansion')
 
-const discount:CardSpec = {
-    name: 'Discount',
+const delve:CardSpec = {
+    name: 'Delve',
     fixedCost: coin(2),
-    effects: [workshopEffect(3)]
+    effects: [createEffect(silver)]
 }
-registerEvent(discount, 'expansion')
+registerEvent(delve, 'expansion')
 
 const hesitation:CardSpec = {
     name: 'Hesitation',
@@ -5528,8 +5528,8 @@ const bustlingVillage:CardSpec = {
     buyCost: coin(3),
     relatedCards: [villager],
     effects: [{
-        text: [`+1 action per ${villager.name} in play.`],
-        transform: s => gainActions(s.play.filter(c => c.name == villager.name).length),
+        text: [`+1 action per ${villager.name} in play up to a max of +3.`],
+        transform: s => gainActions(Math.min(3, s.play.filter(c => c.name == villager.name).length)),
     }, createInPlayEffect(villager)]
 }
 register(bustlingVillage, 'expansion')
