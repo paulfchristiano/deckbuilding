@@ -1,3 +1,5 @@
+import { monitorEventLoopDelay } from "perf_hooks"
+
 export const VERSION = "1.7.7"
 
 // ----------------------------- Formatting
@@ -1342,7 +1344,7 @@ function leq(cost1:Cost, cost2:Cost) {
 export type Token = 'charge' | 'cost' | 'mirror' | 'duplicate' | 'twin' | 'synergy' |
     'shelter' | 'echo' | 'decay' | 'burden' | 'pathfinding' | 'neglect' |
     'reuse' | 'polish' | 'priority' | 'parallelize' | 'art' | 'villager' |
-    'mire' | 'onslaught' | 'expedite' | 'replicate' | 'reverberate' | 'reflect' |
+    'mire' | 'onslaught' | 'expedite' | 'replicate' | 'reflect' |
     'pillage' | 'import' | 'chain' | 'bargain' | 'splay' | 'crown' | 'ferry' | 'fragile'
 
 function discharge(card:Card, n:number): Transform {
@@ -4802,6 +4804,7 @@ const inspiration:CardSpec = {
 }
 registerEvent(inspiration, 'expansion')
 
+/*
 const chain:CardSpec = {
     name: 'Chain',
     fixedCost: {...free, energy:1, coin:1},
@@ -4827,6 +4830,7 @@ const chain:CardSpec = {
     }]
 }
 registerEvent(chain, 'expansion')
+*/
 
 function buyCheaper(card:Card, s:State, source:Source): Transform {
     return applyToTarget(
@@ -4993,19 +4997,19 @@ const multitask:CardSpec = {
 }
 registerEvent(multitask, 'expansion')
 */
-const multitask:CardSpec = {
-    name: 'Multitask',
+const summon:CardSpec = {
+    name: 'Summon',
     fixedCost: {...free, energy:1, coin:5},
     effects: [multitargetedEffect(
         (targets, card) => doAll(targets.map(target =>
-            create(target.spec, 'hand', c => addToken(c, 'fragile'))
+            create(target.spec, 'hand', c => addToken(c, 'echo'))
         )),
-        `Choose up to three cards in the supply. Create a copy of each in your hand with a fragile token.`,
+        `Choose up to three cards in the supply. Create a copy of each in your hand with an echo token.`,
         s => s.supply, 3
     )],
-    staticTriggers: [fragileEcho('fragile')]
+    staticTriggers: [fragileEcho('echo')]
 }
-registerEvent(multitask, 'expansion')
+registerEvent(summon, 'expansion')
 
 /*
 const misfitName:string = 'Misfit'
@@ -5269,18 +5273,18 @@ const territory:CardSpec = {
 }
 register(territory, 'expansion')
 
-const lastStand:CardSpec = {
-    name: 'Last Stand',
+const resound:CardSpec = {
+    name: 'Resound',
     fixedCost: energy(1),
     effects: [{
-        text: [`Put each card in your discard into your hand with a fragile token on it.`],
+        text: [`Put each card in your discard into your hand with an echo token on it.`],
         transform: (state) => doAll(state.discard.map(
-            c => doAll([move(c, 'hand'), addToken(c, 'fragile')])
+            c => doAll([move(c, 'hand'), addToken(c, 'echo')])
         ))
     }],
-    staticTriggers: [fragileEcho('fragile')]
+    staticTriggers: [fragileEcho('echo')]
 }
-registerEvent(lastStand, 'expansion')
+registerEvent(resound, 'expansion')
 /*
 const fossilize:CardSpec = {
     name: 'Fossilize',
@@ -5603,7 +5607,7 @@ const guildHall:CardSpec = {
     }]
 } 
 register(guildHall, 'expansion')
-
+/*
 const overextend:CardSpec = {
     name: 'Overextend',
     buyCost: coin(4),
@@ -5617,6 +5621,7 @@ const overextend:CardSpec = {
     }]
 }
 register(overextend, 'expansion')
+*/
 
 const contraband:CardSpec = {
     name: 'Contraband',
@@ -5630,18 +5635,19 @@ const contraband:CardSpec = {
     }]
 }
 register(contraband, 'expansion')
-
+/*
 const diamond:CardSpec = {
     name: 'Diamond',
     buyCost: coin(4),
     effects: [coinsEffect(2), pointsEffect(1)],
 }
 register(diamond, 'expansion')
+*/
 
 const lurkerName = 'Lurker'
 const lurker:CardSpec = {
     name: lurkerName,
-    buyCost: coin(4),
+    buyCost: coin(3),
     effects: [actionsEffect(1), {
         text: [`Trash a card in your hand.
                If you trash a ${lurkerName}, buy a card in the supply costing up to $9,
@@ -5680,6 +5686,7 @@ const kiln:CardSpec = {
 }
 register(kiln, 'expansion')
 
+/*
 const werewolfName = 'Werewolf'
 const werewolf:CardSpec = {
     name: 'Werewolf',
@@ -5701,6 +5708,35 @@ const werewolf:CardSpec = {
         kind: 'use',
         handles: e => e.card.name == refresh.name,
         transform: (e, s, c) => charge(c)
+    }]
+}
+register(werewolf, 'expansion')
+*/
+
+const moon:CardSpec = {
+    name: 'Moon',
+    replacers: [{
+        text: `Whenever you would move this from play,
+               instead put a charge token on it.`,
+        kind: 'move',
+        handles: (p, s, c) => p.card.id == c.id && p.skip == false,
+        replace: (p, s, c) => ({...p, skip:true, effects:p.effects.concat([charge(c)])})
+    }]
+}
+
+const werewolf:CardSpec = {
+    name: 'Werewolf',
+    buyCost: coin(3),
+    relatedCards: [moon],
+    effects: [{
+        text: [`If there is no ${moon.name} in play, create one.`],
+        transform: s => (s.play.some(c => c.name == moon.name)) ? noop : create(moon, 'play'),
+    }, {
+        text: [`If a ${moon.name} in play has an odd number of charge tokens, +$3 and +1 buy.
+                Otherwise, +3 actions.`],
+        transform: s => (s.play.some(c => c.name == moon.name && c.charge % 2 == 1)) ? 
+            doAll([gainCoins(3), gainBuys(1)]) :
+            gainActions(3)
     }]
 }
 register(werewolf, 'expansion')
@@ -5845,7 +5881,8 @@ const buildUp:CardSpec = {
     name: 'Build Up',
     fixedCost: coin(1),
     variableCost: costPer(coin(1)),
-    effects: [createInPlayEffect(infrastructure), incrementCost()]
+    effects: [createInPlayEffect(infrastructure), incrementCost()],
+    relatedCards: [infrastructure]
 }
 registerEvent(buildUp, 'expansion')
 
@@ -5869,6 +5906,84 @@ const avenue:CardSpec = {
     }]
 }
 buyable(avenue, 5, 'expansion')
+
+const treasury:CardSpec = {
+    name: 'Treasury',
+    fixedCost: energy(1),
+    effects: [actionsEffect(3), toPlay()],
+    triggers: [{
+        text: `Whenever you gain more than one action, gain that much $ minus one.`,
+        kind: 'resource',
+        handles: e => e.resource == 'actions' && e.amount > 1,
+        transform: e => gainCoins(e.amount - 1)
+    }]
+}
+buyable(treasury, 4, 'expansion')
+
+const statue:CardSpec = {
+    name: 'Statue',
+    fixedCost: energy(1),
+    effects: [toPlay()],
+    triggers: [{
+        text: `Whenever you buy a card costing $1 or more, +1 vp.`,
+        kind: 'buy',
+        handles: (e, s) => e.card.cost('buy', s).coin > 0,
+        transform: e => gainPoints(1),
+    }]
+}
+buyable(statue, 5, 'expansion')
+
+const scepter:CardSpec = {
+    name: 'Scepter',
+    fixedCost: energy(1),
+    effects: [{
+        text: [`Pay an action to play a card in your hand three times then trash it.`],
+        transform: (state, card) => payToDo(payAction, applyToTarget(
+            target => doAll([
+                target.play(card),
+                tick(card),
+                target.play(card),
+                tick(card),
+                target.play(card),
+                trash(target),
+
+            ]), 'Choose a card to play three times.', s => s.hand
+        ))
+    }]
+}
+buyable(scepter, 7, 'expansion')
+
+const farmlandName = 'Farmland'
+const farmland:CardSpec = {
+    name: farmlandName,
+    fixedCost: energy(3),
+    effects: [toPlay()],
+    restrictions: [{
+        test: (card, state, kind) =>
+            kind == 'activate' && state.play.some(c => c.name == farmlandName && c.id != card.id)
+    }],
+    ability: [{
+        text: [`If you have no other ${farmlandName}s in play, discard this for +7 vp.`],
+        transform: (s, c) => payToDo(discardFromPlay(c), gainPoints(7)),
+    }],
+}
+buyable(farmland, 8, 'expansion')
+
+const hallOfEchoes:CardSpec = {
+    name: 'Hall of Echoes',
+    fixedCost: {...free, energy:1, coin:3},
+    effects: [{
+        text: [`For each card in your hand without an echo token,
+                create a copy in your hand with an echo token.`],
+        transform: state => doAll(
+            state.play.filter(c => c.count('echo') == 0).map(
+                c => create(c.spec, 'hand', x => addToken(x, 'echo'))
+            )
+        )
+    }],
+    triggers: [fragileEcho()],
+}
+registerEvent(hallOfEchoes, 'expansion')
 
 // ------------------ Testing -------------------
 
