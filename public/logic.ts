@@ -5946,6 +5946,7 @@ const inn:CardSpec = {
 }
 buyable(inn, 5, 'expansion', {onBuy: [createEffect(horse, 'discard', 3)]})
 
+/*
 const exploit:CardSpec = {
     name: 'Exploit',
     fixedCost: energy(1),
@@ -5955,6 +5956,7 @@ const exploit:CardSpec = {
     }]
 }
 registerEvent(exploit, 'expansion')
+*/
 
 const treasury:CardSpec = {
     name: 'Treasury',

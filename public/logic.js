@@ -6455,15 +6455,17 @@ var inn = {
     effects: [createInPlayEffect(villager, 2)]
 };
 buyable(inn, 5, 'expansion', { onBuy: [createEffect(horse, 'discard', 3)] });
-var exploit = {
+/*
+const exploit:CardSpec = {
     name: 'Exploit',
     fixedCost: energy(1),
     effects: [{
-            text: ["Trash all cards in play for +1 vp each."],
-            transform: function (state) { return doAll(state.play.map(function (c) { return doAll([trash(c), gainPoints(1)]); })); }
-        }]
-};
-registerEvent(exploit, 'expansion');
+        text: [`Trash all cards in play for +1 vp each.`],
+        transform: state => doAll(state.play.map(c => doAll([trash(c), gainPoints(1)])))
+    }]
+}
+registerEvent(exploit, 'expansion')
+*/
 var treasury = {
     name: 'Treasury',
     fixedCost: energy(1),
