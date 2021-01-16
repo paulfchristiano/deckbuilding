@@ -5830,16 +5830,45 @@ var marketSquare = {
     relatedCards: [fair],
     effects: [actionsEffect(1), buysEffect(1)],
 };
-buyable(marketSquare, 2, 'expansion', { afterBuy: [createInPlayEffect(fair)] });
+buyable(marketSquare, 2, 'expansion', { afterBuy: [createInPlayEffect(fair, 2)] });
+/*
+const brigade:CardSpec = {name: 'Brigade',
+    effects: [toPlay()],
+    replacers: [{
+        text: `Cards you play cost @ less if they share a name
+               with a card in your discard and another card in your hand.
+               Whenever this reduces a cost, discard it for +$2 and +2 actions.`,
+        kind: 'cost',
+        handles: (x, state) => (x.actionKind == 'play' && state.hand.some(
+            c => c.name == x.card.name && c.id != x.card.id
+        ) && state.discard.some(c => c.name == x.card.name)),
+        replace: function(x:CostParams, state:State, card:Card) {
+            const newCost:Cost = subtractCost(x.cost, {energy:1})
+            if (!eq(newCost, x.cost)) {
+                newCost.effects = newCost.effects.concat([
+                    move(card, 'discard'),
+                    gainCoins(2),
+                    gainActions(2),
+                ])
+                return {...x, cost:newCost}
+            } else {
+                return x
+            }
+        }
+    }]
+}
+buyable(brigade, 4, 'expansion')
+*/
 var brigade = { name: 'Brigade',
     effects: [toPlay()], replacers: [{
-            text: "Cards you play cost @ less if they share a name\n               with another card in your hand.\n               Whenever this reduces a cost, discard it for +$1 and +1 action.",
+            text: "Cards you play cost @ less if they have no brigade token on them.\n               Whenever this reduces a card's cost, put a brigade token on it,\n               discard this, and get +$1 and +1 action.",
             kind: 'cost',
-            handles: function (x, state) { return (x.actionKind == 'play' && state.hand.some(function (c) { return c.name == x.card.name && c.id != x.card.id; })); },
+            handles: function (x, state) { return (x.actionKind == 'play' && x.card.count('brigade') == 0); },
             replace: function (x, state, card) {
                 var newCost = subtractCost(x.cost, { energy: 1 });
                 if (!eq(newCost, x.cost)) {
                     newCost.effects = newCost.effects.concat([
+                        addToken(x.card, 'brigade'),
                         move(card, 'discard'),
                         gainCoins(1),
                         gainActions(1),
@@ -5853,8 +5882,14 @@ var brigade = { name: 'Brigade',
         }]
 };
 buyable(brigade, 4, 'expansion');
-var metalworker = {
-    name: 'Metalworker',
+var recruiter = {
+    name: 'Recruiter',
+    relatedCards: [villager, fair],
+    effects: [createInPlayEffect(fair), createInPlayEffect(villager)]
+};
+buyable(recruiter, 3, 'expansion');
+var silversmith = {
+    name: 'Silversmith',
     buyCost: coin(3),
     effects: [toPlay()],
     triggers: [{
@@ -5862,14 +5897,9 @@ var metalworker = {
             text: "When you play a Silver, +1 action.",
             handles: function (e) { return e.card.name == silver.name; },
             transform: function (e) { return gainActions(1); },
-        }, {
-            kind: 'play',
-            text: "When you play a gold, +1 buy.",
-            handles: function (e) { return e.card.name == gold.name; },
-            transform: function (e) { return gainBuys(1); }
         }]
 };
-register(metalworker, 'expansion');
+register(silversmith, 'expansion');
 var exoticMarket = {
     name: 'Exotic Market',
     buyCost: coin(5),
@@ -5985,7 +6015,7 @@ var university = {
     buyCost: coin(12),
     effects: [actionsEffect(4), buysEffect(1)],
     staticReplacers: [{
-            text: universityName + " costs $1 less to buy for each action you have but not zero.",
+            text: universityName + " costs $1 less to buy for each action you have, but not zero.",
             kind: 'cost',
             handles: function (p) { return (p.card.name == universityName) && p.actionKind == 'buy'; },
             replace: function (p, s) { return (__assign(__assign({}, p), { cost: reducedCost(p.cost, coin(s.actions), true) })); }
@@ -6283,7 +6313,7 @@ var masonry = {
     effects: [chargeEffect()],
     staticTriggers: [{
             kind: 'afterBuy',
-            text: "After buying a card other than with this, remove a charge token from this to buy a card\n        in the supply with the same cost.",
+            text: "After buying a card other than with this, remove a charge token from this to buy a card\n        in the supply with equal or lesser cost.",
             handles: function (e, s, c) { return c.charge > 0 && e.source.id != c.id; },
             transform: function (e, s, c) { return payToDo(discharge(c, 1), applyToTarget(function (target) { return target.buy(c); }, "Choose a card to buy.", function (state) { return state.supply.filter(function (sup) { return leq(sup.cost('buy', state), e.card.cost('buy', state)); }); })); }
         }]
@@ -6397,18 +6427,43 @@ var buildUp = {
     relatedCards: [infrastructure]
 };
 registerEvent(buildUp, 'expansion');
-var avenue = {
+/*
+const avenue:CardSpec = {
     name: 'Avenue',
     effects: [actionsEffect(1), coinsEffect(1), toPlay()],
     restrictions: [{
-            test: function (c, s, k) { return k == 'activate' && s.play.length < 2; }
-        }],
+        test: (c:Card, s:State, k:ActionKind) => k == 'activate' && s.play.length < 2
+    }],
     ability: [{
-            text: ["Discard this and another card from play for +$1 and +1 action."],
-            transform: function (state, c) { return payToDo(doAll([discardFromPlay(c), applyToTarget(function (target) { return discardFromPlay(target); }, "Discard a card from play.", function (state) { return state.play; }, { cost: true })]), doAll([gainActions(1), gainCoins(1)])); }
+        text: [`Discard this and another card from play for +$1 and +1 action.`],
+        transform: (state, c) => payToDo(
+            doAll([discardFromPlay(c), applyToTarget(
+                target => discardFromPlay(target),
+                `Discard a card from play.`,
+                state => state.play,
+                {cost: true}
+            )]),
+            doAll([gainActions(1), gainCoins(1)])
+        )
+    }]
+}
+buyable(avenue, 5, 'expansion')
+*/
+var inn = {
+    name: 'Inn',
+    relatedCards: [villager, horse],
+    effects: [createInPlayEffect(villager, 2)]
+};
+buyable(inn, 5, 'expansion', { onBuy: [createEffect(horse, 'discard', 3)] });
+var exploit = {
+    name: 'Exploit',
+    fixedCost: energy(1),
+    effects: [{
+            text: ["Trash all cards in play for +1 vp each."],
+            transform: function (state) { return doAll(state.play.map(function (c) { return doAll([trash(c), gainPoints(1)]); })); }
         }]
 };
-buyable(avenue, 5, 'expansion');
+registerEvent(exploit, 'expansion');
 var treasury = {
     name: 'Treasury',
     fixedCost: energy(1),

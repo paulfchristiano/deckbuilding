@@ -1343,9 +1343,9 @@ function leq(cost1:Cost, cost2:Cost) {
 
 export type Token = 'charge' | 'cost' | 'mirror' | 'duplicate' | 'twin' | 'synergy' |
     'shelter' | 'echo' | 'decay' | 'burden' | 'pathfinding' | 'neglect' |
-    'reuse' | 'polish' | 'priority' | 'parallelize' | 'art' | 'villager' |
-    'mire' | 'onslaught' | 'expedite' | 'replicate' | 'reflect' |
-    'pillage' | 'import' | 'chain' | 'bargain' | 'splay' | 'crown' | 'ferry' | 'fragile'
+    'reuse' | 'polish' | 'priority' | 'parallelize' | 'art' |
+    'mire' | 'onslaught' | 'expedite' | 'replicate' | 'reflect' | 'brigade' |
+    'pillage' | 'bargain' | 'splay' | 'crown' | 'ferry'
 
 function discharge(card:Card, n:number): Transform {
     return charge(card, -n, true)
@@ -5358,22 +5358,50 @@ const marketSquare:CardSpec = {
     relatedCards: [fair],
     effects: [actionsEffect(1), buysEffect(1)],
 }
-buyable(marketSquare, 2, 'expansion', {afterBuy: [createInPlayEffect(fair)]})
+buyable(marketSquare, 2, 'expansion', {afterBuy: [createInPlayEffect(fair, 2)]})
 
+/*
 const brigade:CardSpec = {name: 'Brigade',
     effects: [toPlay()],
     replacers: [{
         text: `Cards you play cost @ less if they share a name
-               with another card in your hand.
-               Whenever this reduces a cost, discard it for +$1 and +1 action.`,
+               with a card in your discard and another card in your hand.
+               Whenever this reduces a cost, discard it for +$2 and +2 actions.`,
         kind: 'cost',
         handles: (x, state) => (x.actionKind == 'play' && state.hand.some(
             c => c.name == x.card.name && c.id != x.card.id
-        )),
+        ) && state.discard.some(c => c.name == x.card.name)),
         replace: function(x:CostParams, state:State, card:Card) {
             const newCost:Cost = subtractCost(x.cost, {energy:1})
             if (!eq(newCost, x.cost)) {
                 newCost.effects = newCost.effects.concat([
+                    move(card, 'discard'),
+                    gainCoins(2),
+                    gainActions(2),
+                ])
+                return {...x, cost:newCost}
+            } else {
+                return x
+            }
+        }
+    }]
+}
+buyable(brigade, 4, 'expansion')
+*/
+
+const brigade:CardSpec = {name: 'Brigade',
+    effects: [toPlay()],
+    replacers: [{
+        text: `Cards you play cost @ less if they have no brigade token on them.
+               Whenever this reduces a card's cost, put a brigade token on it,
+               discard this, and get +$1 and +1 action.`,
+        kind: 'cost',
+        handles: (x, state) => (x.actionKind == 'play' && x.card.count('brigade') == 0),
+        replace: function(x:CostParams, state:State, card:Card) {
+            const newCost:Cost = subtractCost(x.cost, {energy:1})
+            if (!eq(newCost, x.cost)) {
+                newCost.effects = newCost.effects.concat([
+                    addToken(x.card, 'brigade'),
                     move(card, 'discard'),
                     gainCoins(1),
                     gainActions(1),
@@ -5387,8 +5415,15 @@ const brigade:CardSpec = {name: 'Brigade',
 }
 buyable(brigade, 4, 'expansion')
 
-const metalworker:CardSpec = {
-    name: 'Metalworker',
+const recruiter:CardSpec = {
+    name: 'Recruiter',
+    relatedCards: [villager, fair],
+    effects: [createInPlayEffect(fair), createInPlayEffect(villager)]
+}
+buyable(recruiter, 3, 'expansion')
+
+const silversmith:CardSpec = {
+    name: 'Silversmith',
     buyCost: coin(3),
     effects: [toPlay()],
     triggers: [{
@@ -5396,14 +5431,9 @@ const metalworker:CardSpec = {
         text: `When you play a Silver, +1 action.`,
         handles: e => e.card.name == silver.name,
         transform: e => gainActions(1),
-    }, {
-        kind: 'play',
-        text: `When you play a gold, +1 buy.`,
-        handles: e => e.card.name == gold.name,
-        transform: e => gainBuys(1)
     }]
 }
-register(metalworker, 'expansion')
+register(silversmith, 'expansion')
 
 const exoticMarket:CardSpec = {
     name: 'Exotic Market',
@@ -5507,7 +5537,7 @@ const university:CardSpec = {
     buyCost: coin(12),
     effects: [actionsEffect(4), buysEffect(1)],
     staticReplacers: [{
-        text: `${universityName} costs $1 less to buy for each action you have but not zero.`,
+        text: `${universityName} costs $1 less to buy for each action you have, but not zero.`,
         kind: 'cost',
         handles: p => (p.card.name == universityName) && p.actionKind == 'buy',
         replace: (p, s) => ({...p, cost: reducedCost(p.cost, coin(s.actions), true)})      
@@ -5776,7 +5806,7 @@ const masonry:CardSpec = {
     staticTriggers: [{
         kind: 'afterBuy',
         text: `After buying a card other than with this, remove a charge token from this to buy a card
-        in the supply with the same cost.`,
+        in the supply with equal or lesser cost.`,
         handles: (e, s, c) => c.charge > 0 && e.source.id != c.id,
         transform: (e, s, c) => payToDo(discharge(c, 1), applyToTarget(
             target => target.buy(c),
@@ -5886,6 +5916,7 @@ const buildUp:CardSpec = {
 }
 registerEvent(buildUp, 'expansion')
 
+/*
 const avenue:CardSpec = {
     name: 'Avenue',
     effects: [actionsEffect(1), coinsEffect(1), toPlay()],
@@ -5906,6 +5937,24 @@ const avenue:CardSpec = {
     }]
 }
 buyable(avenue, 5, 'expansion')
+*/
+
+const inn:CardSpec = {
+    name: 'Inn',
+    relatedCards: [villager, horse],
+    effects: [createInPlayEffect(villager, 2)]
+}
+buyable(inn, 5, 'expansion', {onBuy: [createEffect(horse, 'discard', 3)]})
+
+const exploit:CardSpec = {
+    name: 'Exploit',
+    fixedCost: energy(1),
+    effects: [{
+        text: [`Trash all cards in play for +1 vp each.`],
+        transform: state => doAll(state.play.map(c => doAll([trash(c), gainPoints(1)])))
+    }]
+}
+registerEvent(exploit, 'expansion')
 
 const treasury:CardSpec = {
     name: 'Treasury',
