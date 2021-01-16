@@ -4703,6 +4703,7 @@ const hesitation:CardSpec = {
 }
 //registerEvent(hesitation, 'expansion')
 
+/*
 const pillage:CardSpec = {
     name: 'Pillage',
     effects: [targetedEffect(
@@ -4729,6 +4730,7 @@ const pillage:CardSpec = {
     }]
 }
 registerEvent(pillage, 'expansion')
+*/
 
 const festival:CardSpec = {
     name: 'Festival',
@@ -4914,8 +4916,8 @@ const splay:CardSpec = {
     }],
     staticReplacers: [{
         text: `Cards you play cost @ less for each splay token on their supply.
-               Whenever this reduces a cost by one or more @,
-               remove that many splay tokens.`,
+               Whenever this reduces a card's cost by one or more @,
+               remove that many splay tokens from it.`,
         kind: 'cost',
         handles: (x, state, card) => (x.actionKind == 'play') 
             && nameHasToken(x.card, 'splay', state),
@@ -5444,12 +5446,12 @@ register(exoticMarket, 'expansion')
 
 const royalChambers:CardSpec = {
     name: 'Royal Chambers',
-    buyCost: coin(9),
+    buyCost: coin(7),
     fixedCost: energy(2),
     effects: [{
-        text: [`Do this three times: pay an action to play a card in your hand twice.`],
+        text: [`Do this twice: pay an action to play a card in your hand twice.`],
         transform: (s, card) => async function(state) {
-            for (let i = 0; i < 3; i++) {
+            for (let i = 0; i < 2; i++) {
                 state = await payToDo(payAction, applyToTarget(
                     target => doAll([
                         target.play(card),
@@ -5574,7 +5576,7 @@ const livery:CardSpec = {
     buyCost: coin(4),
     fixedCost: energy(1),
     relatedCards: [horse],
-    effects: [coinsEffect(3), toPlay()],
+    effects: [coinsEffect(2), toPlay()],
     triggers: [{
         kind: 'afterBuy',
         text: `After buying a card costing $4 or more, create ${aOrNum(2, horse.name)} in your discard.`,
@@ -5680,7 +5682,7 @@ const lurker:CardSpec = {
     buyCost: coin(3),
     effects: [actionsEffect(1), {
         text: [`Trash a card in your hand.
-               If you trash a ${lurkerName}, buy a card in the supply costing up to $9,
+               If you trash a ${lurkerName}, buy a card in the supply costing up to $8,
                otherwise buy a ${lurkerName}.`],
         transform: (s, c) => async function(state) {
             let card:Card|null; [state, card] = await choice(state,
@@ -5688,7 +5690,7 @@ const lurker:CardSpec = {
                 state.hand.map(asChoice))
             if (card != null) state = await trash(card)(state)
             if (card !== null && card.name == lurkerName) {
-                state = await workshopTransform(9, c)(state)
+                state = await workshopTransform(8, c)(state)
             } else {
                 state = await applyToTarget(
                     target => target.buy(c),
@@ -5887,12 +5889,8 @@ function gainExactly(n:number):Effect {
         )
     )
 }
-const swell:CardSpec = {
-    name: 'Swell',
-    fixedCost: {...free, coin:6, energy:1},
-    effects: [{
-        text: [`Buy a card in the supply costing each of
-        $0, $1, $2, $3, $4, and $5.`],
+
+        /* Swell:
         transform: (state, card) => async function(state) {
             for (let i = 0; i < 6; i++) {
                 let target:Card|null; [state, target] = await choice(state,
@@ -5903,9 +5901,16 @@ const swell:CardSpec = {
             }
             return state
         }
+        */
+const alliance:CardSpec = {
+    name: 'Alliance',
+    fixedCost: {...free, coin:6, energy:1},
+    effects: [{
+        text: [`Create a ${province.name}, ${duchy.name}, ${estate.name}, ${gold.name}, ${silver.name}, and ${copper.name} in your discard.`],
+        transform: () => doAll([province, duchy, estate, gold, silver, copper].map(c => create(c)))
     }]
 }
-registerEvent(swell, 'expansion')
+registerEvent(alliance, 'expansion')
 
 const buildUp:CardSpec = {
     name: 'Build Up',
