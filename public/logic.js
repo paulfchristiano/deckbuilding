@@ -4100,7 +4100,7 @@ var burden = { name: 'Burden',
     staticReplacers: [{
             kind: 'costIncrease',
             text: 'Cards cost $2 more to buy for each burden token on them.',
-            handles: function (x) { return x.card.count('burden') > 0; },
+            handles: function (x) { return x.card.count('burden') > 0 && x.actionKind == 'buy'; },
             replace: function (x) { return (__assign(__assign({}, x), { cost: addCosts(x.cost, { coin: 2 * x.card.count('burden') }) })); }
         }]
 };
@@ -6516,9 +6516,9 @@ var hallOfEchoes = {
     fixedCost: __assign(__assign({}, free), { energy: 1, coin: 3 }),
     effects: [{
             text: ["For each card in your hand without an echo token,\n                create a copy in your hand with an echo token."],
-            transform: function (state) { return doAll(state.play.filter(function (c) { return c.count('echo') == 0; }).map(function (c) { return create(c.spec, 'hand', function (x) { return addToken(x, 'echo'); }); })); }
+            transform: function (state) { return doAll(state.hand.filter(function (c) { return c.count('echo') == 0; }).map(function (c) { return create(c.spec, 'hand', function (x) { return addToken(x, 'echo'); }); })); }
         }],
-    triggers: [fragileEcho()],
+    staticTriggers: [fragileEcho()],
 };
 registerEvent(hallOfEchoes, 'expansion');
 // ----------------- Absurd --------------------
@@ -6538,6 +6538,41 @@ var topsyTurvy = {
         }]
 };
 register(topsyTurvy, 'absurd');
+var turvyTopsy = {
+    name: 'Turvy Topsy',
+    buyCost: coin(3),
+    fixedCost: energy(0),
+    effects: [targetedEffect(function (target) { return move(target, 'events'); }, "Move a card in your discard to the events.", function (state) { return state.discard; })],
+    staticTriggers: [{
+            text: "Whenever you use an event, move it to your discard.",
+            kind: 'use',
+            handles: function () { return true; },
+            transform: function (e) { return move(e.card, 'discard'); }
+        }]
+};
+register(turvyTopsy, 'absurd');
+var misplace = {
+    name: 'Misplace',
+    fixedCost: __assign(__assign({}, free), { energy: 1, coin: 2 }),
+    effects: [chargeEffect()],
+    staticTriggers: [{
+            text: "After buying a card the normal way, remove a charge token from this to buy all other cards in the supply with the same name.",
+            kind: 'afterBuy',
+            handles: function (e, s, c) { return c.charge > 0 && e.source.name == 'act'; },
+            transform: function (e, s, c) { return payToDo(discharge(c, 1), doAll(s.supply.filter(function (target) { return target.name == e.card.name && target.id != e.card.id; }).map(function (target) { return target.buy(c); }))); }
+        }, {
+            text: "After buying a card, move it to your discard.",
+            kind: 'afterBuy',
+            handles: function () { return true; },
+            transform: function (e) { return move(e.card, 'discard'); }
+        }, {
+            text: "After playing a card, move it to the supply.",
+            kind: 'afterPlay',
+            handles: function () { return true; },
+            transform: function (e) { return move(e.card, 'supply'); }
+        }]
+};
+registerEvent(misplace, 'absurd');
 // ------------------ Testing -------------------
 var freeMoney = { name: 'Free money',
     fixedCost: energy(0),

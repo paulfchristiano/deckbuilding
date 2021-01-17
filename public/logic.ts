@@ -3650,7 +3650,7 @@ const burden:CardSpec = {name: 'Burden',
     staticReplacers: [{
         kind: 'costIncrease',
         text: 'Cards cost $2 more to buy for each burden token on them.',
-        handles: x => x.card.count('burden') > 0,
+        handles: x => x.card.count('burden') > 0 && x.actionKind == 'buy',
         replace: x => ({...x, cost: addCosts(x.cost, {coin:2 * x.card.count('burden')})})
     }]
 }
@@ -6033,12 +6033,12 @@ const hallOfEchoes:CardSpec = {
         text: [`For each card in your hand without an echo token,
                 create a copy in your hand with an echo token.`],
         transform: state => doAll(
-            state.play.filter(c => c.count('echo') == 0).map(
+            state.hand.filter(c => c.count('echo') == 0).map(
                 c => create(c.spec, 'hand', x => addToken(x, 'echo'))
             )
         )
     }],
-    triggers: [fragileEcho()],
+    staticTriggers: [fragileEcho()],
 }
 registerEvent(hallOfEchoes, 'expansion')
 
@@ -6060,6 +6060,49 @@ const topsyTurvy:CardSpec = {
     }]
 }
 register(topsyTurvy, 'absurd')
+
+const turvyTopsy:CardSpec = {
+    name: 'Turvy Topsy',
+    buyCost: coin(3),
+    fixedCost: energy(0),
+    effects: [targetedEffect(
+        target => move(target, 'events'),
+        `Move a card in your discard to the events.`,
+        state => state.discard,
+    )],
+    staticTriggers: [{
+        text: `Whenever you use an event, move it to your discard.`,
+        kind: 'use',
+        handles: () => true,
+        transform: e => move(e.card, 'discard')
+    }]
+}
+register(turvyTopsy, 'absurd')
+
+const misplace:CardSpec = {
+    name: 'Misplace',
+    fixedCost: {...free, energy:1, coin:2},
+    effects: [chargeEffect()],
+    staticTriggers: [{
+        text: `After buying a card the normal way, remove a charge token from this to buy all other cards in the supply with the same name.`,
+        kind: 'afterBuy',
+        handles: (e, s, c) => c.charge > 0 && e.source.name == 'act',
+        transform: (e, s, c) => payToDo(discharge(c, 1), 
+            doAll(s.supply.filter(target => target.name == e.card.name && target.id != e.card.id).map(target => target.buy(c)))
+        )
+    }, {
+        text: `After buying a card, move it to your discard.`,
+        kind: 'afterBuy',
+        handles: () => true,
+        transform: e => move(e.card, 'discard')
+    }, {
+        text: `After playing a card, move it to the supply.`,
+        kind: 'afterPlay',
+        handles: () => true,
+        transform: e => move(e.card, 'supply')
+    }]
+}
+registerEvent(misplace, 'absurd')
 
 // ------------------ Testing -------------------
 
