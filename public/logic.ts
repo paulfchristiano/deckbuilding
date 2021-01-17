@@ -1781,8 +1781,8 @@ type SetSpec = {
     'events': CardSpec[],
 }
 
-type ExpansionName = 'base' | 'expansion'
-const expansionNames:ExpansionName[] = ['base', 'expansion']
+type ExpansionName = 'base' | 'expansion' | 'absurd'
+const expansionNames:ExpansionName[] = ['base', 'expansion', 'absurd']
 type SetName = 'core' | ExpansionName
 
 function emptySet(): SetSpec {
@@ -1792,7 +1792,8 @@ function emptySet(): SetSpec {
 export const sets = {
     'core': emptySet(),
     'base': emptySet(),
-    'expansion': emptySet()
+    'expansion': emptySet(),
+    'absurd': emptySet(),
 }
 
 export function makeKingdom(spec:GameSpec): Kingdom {
@@ -6040,6 +6041,25 @@ const hallOfEchoes:CardSpec = {
     triggers: [fragileEcho()],
 }
 registerEvent(hallOfEchoes, 'expansion')
+
+// ----------------- Absurd --------------------
+
+const topsyTurvy:CardSpec = {
+    name: 'Topsy Turvy',
+    buyCost: coin(3),
+    staticTriggers: [{
+        text: `After buying a card, move it to the events.`,
+        kind: 'afterBuy',
+        handles: () => true,
+        transform: e => move(e.card, 'events') 
+    }, {
+        text: `After using an event, move it to the supply.`,
+        kind: `afterUse`,
+        handles: () => true,
+        transform: e => move(e.card, 'supply')
+    }]
+}
+register(topsyTurvy, 'absurd')
 
 // ------------------ Testing -------------------
 

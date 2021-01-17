@@ -2202,14 +2202,15 @@ function usableExpansions(spec) {
         default: return spec.randomizer.expansions;
     }
 }
-var expansionNames = ['base', 'expansion'];
+var expansionNames = ['base', 'expansion', 'absurd'];
 function emptySet() {
     return { 'cards': [], 'events': [] };
 }
 export var sets = {
     'core': emptySet(),
     'base': emptySet(),
-    'expansion': emptySet()
+    'expansion': emptySet(),
+    'absurd': emptySet(),
 };
 export function makeKingdom(spec) {
     switch (spec.kind) {
@@ -6520,6 +6521,23 @@ var hallOfEchoes = {
     triggers: [fragileEcho()],
 };
 registerEvent(hallOfEchoes, 'expansion');
+// ----------------- Absurd --------------------
+var topsyTurvy = {
+    name: 'Topsy Turvy',
+    buyCost: coin(3),
+    staticTriggers: [{
+            text: "After buying a card, move it to the events.",
+            kind: 'afterBuy',
+            handles: function () { return true; },
+            transform: function (e) { return move(e.card, 'events'); }
+        }, {
+            text: "After using an event, move it to the supply.",
+            kind: "afterUse",
+            handles: function () { return true; },
+            transform: function (e) { return move(e.card, 'supply'); }
+        }]
+};
+register(topsyTurvy, 'absurd');
 // ------------------ Testing -------------------
 var freeMoney = { name: 'Free money',
     fixedCost: energy(0),
