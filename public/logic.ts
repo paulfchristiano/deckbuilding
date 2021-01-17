@@ -39,7 +39,7 @@ function renderResource(resource:ResourceName, amount:number): string {
     switch(resource) {
         case 'coin': return `$${amount}`
         case 'energy':
-            if (amount > 5) return `@x${amount}`
+            if (amount > 5 || amount % 1 != 0) return `@x${amount}`
             else return repeatSymbol('@', amount)
         case 'points': return `${amount} vp`
         case 'actions': return num(amount, 'action')
@@ -6103,6 +6103,95 @@ const misplace:CardSpec = {
     }]
 }
 registerEvent(misplace, 'absurd')
+
+let echoName = 'Metaphorical Echo'
+const metaphoricalEcho:CardSpec = {name: echoName,
+    buyCost: coin(7),
+    effects: [targetedEffect(
+        (target, card) => async function(state) {
+            let copy:Card|null; [copy, state] = await createAndTrack(target.spec, 'void')(state)
+            if (copy != null) {
+                state = await addToken(copy, 'echo')(state)
+                state = await copy.play(card)(state)
+            }
+            return state
+        },
+        `Create a fresh copy of a card you have in play,
+         then put an echo token on the copy and play it.`,
+        state => dedupBy(state.play, c => c.spec)
+    )],
+    staticTriggers: [fragileEcho('echo'), {
+        text: `After playing a card, put it into play unless its name ends with the word "Echo".`,
+        kind: 'afterPlay',
+        handles: e => !e.card.name.endsWith("Echo"),
+        transform: e => move(e.card, 'play')
+    }]
+}
+register(metaphoricalEcho, 'absurd')
+
+const metaphoricalCarpenter:CardSpec = {
+    name: 'Metaphorical Carpenter',
+    fixedCost: energy(1),
+    effects: [buyEffect(), {
+        text: [`+1 action per card in play.`],
+        transform: (state, card) => gainActions(state.play.length, card)
+    }, toPlay()],
+    triggers: [{
+        text: `After playing a card, put it into play.`,
+        kind: 'afterPlay',
+        handles: e => true,
+        transform: e => move(e.card, 'play')
+    }]
+}
+buyable(metaphoricalCarpenter, 5, 'absurd')
+
+const amalgam:CardSpec = {
+    name: 'Amalgam',
+    fixedCost: energy(0.5),
+    buyCost: coin(2.5),
+    effects: [coinsEffect(3)]
+}
+register(amalgam, 'absurd')
+
+const  xName:string = 'X'
+function xHatchery(x:CardSpec={name: xName}): CardSpec {
+    return {
+        name: `${x.name} Hatchery`,
+        buyCost: coin(3),
+        effects: [createEffect(x)],
+        relatedCards: (x.name == xName) ? [] : [x]
+    }
+}
+
+const metaHatchery:CardSpec = {
+    name: 'Meta Hatchery',
+    buyCost: coin(3),
+    relatedCards: [xHatchery()],
+    effects: [{
+        text: [`Choose a card X in your hand.`,
+               `Create an X Hatchery in your discard.`],
+        transform: () => async function(state) {
+            let target:Card|null; [state, target] = await choice(state,
+                `Choose card X.`,
+                state.hand.map(asChoice)
+            )
+            if (target != null) {
+                state = await create(xHatchery(target.spec))(state)
+            }
+            return state
+        }
+    }]
+}
+register(metaHatchery, 'absurd')
+
+const invertedPalace:CardSpec = {
+    name: 'Inverted Palace',
+    buyCost: energy(1),
+    fixedCost: coin(5),
+    effects: [actionsEffect(2), pointsEffect(2), coinsEffect(2)],
+}
+register(invertedPalace, 'absurd')
+
 
 // ------------------ Testing -------------------
 

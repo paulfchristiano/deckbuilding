@@ -132,7 +132,7 @@ function renderResource(resource, amount) {
     switch (resource) {
         case 'coin': return "$" + amount;
         case 'energy':
-            if (amount > 5)
+            if (amount > 5 || amount % 1 != 0)
                 return "@x" + amount;
             else
                 return repeatSymbol('@', amount);
@@ -6573,6 +6573,106 @@ var misplace = {
         }]
 };
 registerEvent(misplace, 'absurd');
+var echoName = 'Metaphorical Echo';
+var metaphoricalEcho = { name: echoName,
+    buyCost: coin(7), effects: [targetedEffect(function (target, card) { return function (state) {
+            return __awaiter(this, void 0, void 0, function () {
+                var copy;
+                var _a;
+                return __generator(this, function (_b) {
+                    switch (_b.label) {
+                        case 0: return [4 /*yield*/, createAndTrack(target.spec, 'void')(state)];
+                        case 1:
+                            _a = __read.apply(void 0, [_b.sent(), 2]), copy = _a[0], state = _a[1];
+                            if (!(copy != null)) return [3 /*break*/, 4];
+                            return [4 /*yield*/, addToken(copy, 'echo')(state)];
+                        case 2:
+                            state = _b.sent();
+                            return [4 /*yield*/, copy.play(card)(state)];
+                        case 3:
+                            state = _b.sent();
+                            _b.label = 4;
+                        case 4: return [2 /*return*/, state];
+                    }
+                });
+            });
+        }; }, "Create a fresh copy of a card you have in play,\n         then put an echo token on the copy and play it.", function (state) { return dedupBy(state.play, function (c) { return c.spec; }); })],
+    staticTriggers: [fragileEcho('echo'), {
+            text: "After playing a card, put it into play unless its name ends with the word \"Echo\".",
+            kind: 'afterPlay',
+            handles: function (e) { return !e.card.name.endsWith("Echo"); },
+            transform: function (e) { return move(e.card, 'play'); }
+        }]
+};
+register(metaphoricalEcho, 'absurd');
+var metaphoricalCarpenter = {
+    name: 'Metaphorical Carpenter',
+    fixedCost: energy(1),
+    effects: [buyEffect(), {
+            text: ["+1 action per card in play."],
+            transform: function (state, card) { return gainActions(state.play.length, card); }
+        }, toPlay()],
+    triggers: [{
+            text: "After playing a card, put it into play.",
+            kind: 'afterPlay',
+            handles: function (e) { return true; },
+            transform: function (e) { return move(e.card, 'play'); }
+        }]
+};
+buyable(metaphoricalCarpenter, 5, 'absurd');
+var amalgam = {
+    name: 'Amalgam',
+    fixedCost: energy(0.5),
+    buyCost: coin(2.5),
+    effects: [coinsEffect(3)]
+};
+register(amalgam, 'absurd');
+var xName = 'X';
+function xHatchery(x) {
+    if (x === void 0) { x = { name: xName }; }
+    return {
+        name: x.name + " Hatchery",
+        buyCost: coin(3),
+        effects: [createEffect(x)],
+        relatedCards: (x.name == xName) ? [] : [x]
+    };
+}
+var metaHatchery = {
+    name: 'Meta Hatchery',
+    buyCost: coin(3),
+    relatedCards: [xHatchery()],
+    effects: [{
+            text: ["Choose a card X in your hand.",
+                "Create an X Hatchery in your discard."],
+            transform: function () { return function (state) {
+                return __awaiter(this, void 0, void 0, function () {
+                    var target;
+                    var _a;
+                    return __generator(this, function (_b) {
+                        switch (_b.label) {
+                            case 0: return [4 /*yield*/, choice(state, "Choose card X.", state.hand.map(asChoice))];
+                            case 1:
+                                _a = __read.apply(void 0, [_b.sent(), 2]), state = _a[0], target = _a[1];
+                                if (!(target != null)) return [3 /*break*/, 3];
+                                return [4 /*yield*/, create(xHatchery(target.spec))(state)];
+                            case 2:
+                                state = _b.sent();
+                                _b.label = 3;
+                            case 3: return [2 /*return*/, state];
+                        }
+                    });
+                });
+            }; }
+        }]
+};
+register(metaHatchery, 'absurd');
+var invertedPalace = {
+    name: 'Inverted Palace',
+    buyCost: energy(1),
+    fixedCost: coin(5),
+    effects: [actionsEffect(2), pointsEffect(2), coinsEffect(2)],
+};
+register(invertedPalace, 'absurd');
 // ------------------ Testing -------------------
 var freeMoney = { name: 'Free money',
     fixedCost: energy(0),
