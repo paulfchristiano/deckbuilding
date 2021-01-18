@@ -439,9 +439,8 @@ function renderTrigger(x, staticTrigger) {
     var desc = (staticTrigger) ? '(static)' : '(effect)';
     return "<div>" + desc + " " + x.text + "</div>";
 }
-function renderVariableCost(fixed, c) {
-    var fixedStr = (fixed === undefined) ? '' : renderCost(fixed, true) + ' + ';
-    return "<div>(cost) " + fixedStr + c.text + "</div>";
+function renderVariableCosts(cs) {
+    return cs.map(function (c) { return "<div>(cost) +" + c.text + "</div>"; }).join('');
 }
 function renderBuyable(bs) {
     return bs.map(function (b) { return (b.text == undefined) ? '' : "<div>(static) " + b.text + "</div>"; }).join('');
@@ -452,8 +451,7 @@ function isZero(c) {
 function cardText(spec) {
     var effectHtml = renderEffects(spec);
     var buyableHtml = (spec.restrictions != undefined) ? renderBuyable(spec.restrictions) : '';
-    var costHtml = (spec.variableCost != undefined)
-        ? renderVariableCost(spec.fixedCost, spec.variableCost) : '';
+    var costHtml = (spec.variableCosts != undefined) ? renderVariableCosts(spec.variableCosts) : '';
     var abilitiesHtml = renderAbility(spec);
     var triggerHtml = (spec.triggers || []).map(function (x) { return renderTrigger(x, false); }).join('');
     var replacerHtml = (spec.replacers || []).map(function (x) { return renderTrigger(x, false); }).join('');
@@ -466,7 +464,7 @@ function renderTooltip(card, state, tokenRenderer) {
     var buyStr = !isZero(card.spec.buyCost) ?
         "(" + renderCost(card.spec.buyCost) + ")" : '---';
     var costStr = !isZero(card.spec.fixedCost) ?
-        "(" + renderCost(card.baseCost(state, 'play')) + ")" : '---';
+        "(" + renderCost(card.spec.fixedCost) + ")" : '---';
     var header = "<div>---" + buyStr + " " + card.name + " " + costStr + "---</div>";
     var tokensHtml = tokenRenderer.renderTooltip(card.tokens);
     var baseFilling = header + cardText(card.spec) + tokensHtml;

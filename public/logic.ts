@@ -66,7 +66,7 @@ export interface CardSpec {
     name: string;
     fixedCost?: Cost;
     restrictions?: Restriction[];
-    variableCost?: VariableCost;
+    variableCosts?: VariableCost[];
     buyCost?: Cost; //TODO: variable buy costs
     relatedCards?: CardSpec[];
     effects?: Effect[];
@@ -193,8 +193,12 @@ export class Card {
             case 'play':
             case 'use':
                 let result:Cost = this.spec.fixedCost || free
-                if (this.spec.variableCost != undefined)
-                    result = addCosts(result, this.spec.variableCost.calculate(this, state))
+                if (this.spec.variableCosts != undefined) {
+                    for (const vc of this.spec.variableCosts) {
+                        result = addCosts(result, vc.calculate(this, state))
+                    }
+                }
+
                 if (kind == 'play') result = addCosts(result, {actions:1});
                 return result
             case 'buy': return addCosts(this.spec.buyCost || free, {buys:1})
@@ -1345,7 +1349,7 @@ export type Token = 'charge' | 'cost' | 'mirror' | 'duplicate' | 'twin' | 'syner
     'shelter' | 'echo' | 'decay' | 'burden' | 'pathfinding' | 'neglect' |
     'reuse' | 'polish' | 'priority' | 'parallelize' | 'art' |
     'mire' | 'onslaught' | 'expedite' | 'replicate' | 'reflect' | 'brigade' |
-    'pillage' | 'bargain' | 'splay' | 'crown' | 'ferry'
+    'pillage' | 'bargain' | 'splay' | 'crown' | 'ferry' | 'ideal' | 'disfigure'
 
 function discharge(card:Card, n:number): Transform {
     return charge(card, -n, true)
@@ -2752,7 +2756,7 @@ registerEvent(restock)
 
 const escalate:CardSpec = {name: 'Escalate',
     fixedCost: energy(1),
-    variableCost: costPer(coin(1)),
+    variableCosts: [costPer(coin(1))],
     effects: [
         chargeEffect(),
         {
@@ -2891,7 +2895,7 @@ function costPerN(increment:Partial<Cost>, n:number): VariableCost {
 
 const travelingFair:CardSpec = {name:'Traveling Fair',
     fixedCost: coin(1),
-    variableCost: costPerN(coin(1), 10),
+    variableCosts: [costPerN(coin(1), 10)],
     effects: [incrementCost(), buyEffect(), createInPlayEffect(fair)],
     relatedCards: [fair],
 }
@@ -3398,7 +3402,7 @@ buyable(spices, 5, 'base', {onBuy: [coinsEffect(4)]})
 
 const onslaught:CardSpec = {name: 'Onslaught',
     fixedCost: {...free, coin:3, energy:1},
-	variableCost: costPer({coin:3}),
+	variableCosts: [costPer({coin:3})],
     effects: [incrementCost(), {
         text: [`Repeat any number of times: play a card in your hand
             that was also there at the start of this effect
@@ -3549,7 +3553,7 @@ function reflectTrigger(token:Token): Trigger<AfterPlayEvent> {
 
 const reflect:CardSpec = {name: 'Reflect',
     fixedCost: coin(1),
-    variableCost: costPer({coin:1}),
+    variableCosts: [costPer({coin:1})],
     effects: [incrementCost(), targetedEffect(
     	(target, card) => addToken(target, 'reflect'),
     	'Put a reflect token on a card in your hand',
@@ -4651,7 +4655,7 @@ const flourish:CardSpec = {
         }
     }, refreshEffect(5)],
     restrictions: [{
-        text: 'You can only use this if you have at least 1 vp per cost token on it.',
+        text: 'You must have at least 1 vp per cost token on this.',
         test: (c, s, k) => s.points < s.find(c).count('cost')
     }]
 }
@@ -4949,7 +4953,7 @@ registerEvent(splay, 'expansion')
 const recover:CardSpec = {
     name: 'Recover',
     fixedCost: coin(1),
-    variableCost: costPer(coin(1)),
+    variableCosts: [costPer(coin(1))],
     effects: [multitargetedEffect(
         targets => moveMany(targets, 'hand'),
         'Put up to 2 cards from your discard into your hand.',
@@ -5916,7 +5920,7 @@ registerEvent(alliance, 'expansion')
 const buildUp:CardSpec = {
     name: 'Build Up',
     fixedCost: coin(1),
-    variableCost: costPer(coin(1)),
+    variableCosts: [costPer(coin(1))],
     effects: [createInPlayEffect(infrastructure), incrementCost()],
     relatedCards: [infrastructure]
 }
@@ -6044,9 +6048,9 @@ registerEvent(hallOfEchoes, 'expansion')
 
 // ----------------- Absurd --------------------
 
-const topsyTurvy:CardSpec = {
-    name: 'Topsy Turvy',
-    buyCost: coin(3),
+const confusion:CardSpec = {
+    name: 'Confusion',
+    buyCost: free,
     staticTriggers: [{
         text: `After buying a card, move it to the events.`,
         kind: 'afterBuy',
@@ -6059,10 +6063,10 @@ const topsyTurvy:CardSpec = {
         transform: e => move(e.card, 'supply')
     }]
 }
-register(topsyTurvy, 'absurd')
+register(confusion, 'absurd')
 
-const turvyTopsy:CardSpec = {
-    name: 'Turvy Topsy',
+const chaos:CardSpec = {
+    name: 'Chaos',
     buyCost: coin(3),
     fixedCost: energy(0),
     effects: [targetedEffect(
@@ -6077,7 +6081,7 @@ const turvyTopsy:CardSpec = {
         transform: e => move(e.card, 'discard')
     }]
 }
-register(turvyTopsy, 'absurd')
+register(chaos, 'absurd')
 
 const misplace:CardSpec = {
     name: 'Misplace',
@@ -6104,8 +6108,8 @@ const misplace:CardSpec = {
 }
 registerEvent(misplace, 'absurd')
 
-let echoName = 'Metaphorical Echo'
-const metaphoricalEcho:CardSpec = {name: echoName,
+let echoName = 'Weird Echo'
+const weirdEcho:CardSpec = {name: echoName,
     buyCost: coin(7),
     effects: [targetedEffect(
         (target, card) => async function(state) {
@@ -6121,16 +6125,16 @@ const metaphoricalEcho:CardSpec = {name: echoName,
         state => dedupBy(state.play, c => c.spec)
     )],
     staticTriggers: [fragileEcho('echo'), {
-        text: `After playing a card, put it into play unless its name ends with the word "Echo".`,
+        text: `After playing a card, put it into play unless its name contains the word "Echo".`,
         kind: 'afterPlay',
-        handles: e => !e.card.name.endsWith("Echo"),
+        handles: e => !e.card.name.includes("Echo"),
         transform: e => move(e.card, 'play')
     }]
 }
-register(metaphoricalEcho, 'absurd')
+register(weirdEcho, 'absurd')
 
-const metaphoricalCarpenter:CardSpec = {
-    name: 'Metaphorical Carpenter',
+const weirdCarpenter:CardSpec = {
+    name: 'Weird Carpenter',
     fixedCost: energy(1),
     effects: [buyEffect(), {
         text: [`+1 action per card in play.`],
@@ -6143,23 +6147,32 @@ const metaphoricalCarpenter:CardSpec = {
         transform: e => move(e.card, 'play')
     }]
 }
-buyable(metaphoricalCarpenter, 5, 'absurd')
-
+buyable(weirdCarpenter, 5, 'absurd')
+/*
 const amalgam:CardSpec = {
     name: 'Amalgam',
     fixedCost: energy(0.5),
-    buyCost: coin(2.5),
+    buyCost: coin(3),
     effects: [coinsEffect(3)]
 }
 register(amalgam, 'absurd')
+*/
 
-const  xName:string = 'X'
-function xHatchery(x:CardSpec={name: xName}): CardSpec {
+const shinySilver:CardSpec = {
+    name: 'Shiny Silver',
+    buyCost: coin(2.5),
+    effects: [coinsEffect(2.5)]
+}
+register(shinySilver, 'absurd')
+
+const xSpec:CardSpec = {name: 'X'}
+const ySpec:CardSpec = {name: 'Y'}
+function xHatchery(x:CardSpec=xSpec): CardSpec {
     return {
         name: `${x.name} Hatchery`,
         buyCost: coin(3),
         effects: [createEffect(x)],
-        relatedCards: (x.name == xName) ? [] : [x]
+        relatedCards: (x.name == xSpec.name) ? [] : [x]
     }
 }
 
@@ -6191,6 +6204,206 @@ const invertedPalace:CardSpec = {
     effects: [actionsEffect(2), pointsEffect(2), coinsEffect(2)],
 }
 register(invertedPalace, 'absurd')
+
+/* Change name, and make resources round down? */
+/*
+const unfocus:CardSpec = {
+    name: 'Unfocus',
+    fixedCost: energy(0.01),
+    effects: [actionsEffect(1)]
+}
+registerEvent(unfocus, 'absurd')
+*/
+
+function concatIfdef<T>(xs:T[]|undefined, ys:T[]|undefined): T[] {
+    return (xs || []).concat(ys || [])
+}
+
+function addIfdef<T>(x:Cost|undefined, y:Cost|undefined): Cost {
+    return addCosts(x || free, y || free)
+}
+
+function mergeSpecs(x:CardSpec=xSpec, y:CardSpec=ySpec): CardSpec {
+    return {
+        name: `${x.name} + ${y.name}`,
+        buyCost: addIfdef(x.buyCost, y.buyCost),
+        fixedCost: addIfdef(x.fixedCost, y.fixedCost),
+        variableCosts: concatIfdef(x.variableCosts, y.variableCosts),
+        effects: concatIfdef(x.effects, y.effects),
+        triggers: concatIfdef(x.triggers, y.triggers),
+        replacers: concatIfdef(x.replacers, y.replacers),
+        staticTriggers: concatIfdef(x.staticTriggers, y.staticTriggers),
+        staticReplacers: concatIfdef(x.staticReplacers, y.staticReplacers)
+    }
+}
+const combiner:CardSpec = {
+    name: 'Combiner',
+    buyCost: coin(3),
+    effects: [{
+        text: [
+            `Trash two cards X and Y from your hand.`,
+            `If you do, create an X+Y in your hand that combines all of their costs, effects, and so on.`
+        ],
+        transform: () => async function(state) {
+            let targets:Card[]; [state, targets] = await multichoice(state,
+                'Choose two cards to combine.',
+                state.hand.map(asChoice),
+                2, 2
+            )
+            if (targets.length == 2) {
+                state = await trash(targets[0])(state)
+                state = await trash(targets[1])(state)
+                state = await create(mergeSpecs(targets[0].spec, targets[1].spec))(state)
+            }
+            return state
+        }
+    }]
+}
+register(combiner, 'absurd')
+
+const merge:CardSpec = {
+    name: 'Merge',
+    fixedCost: energy(1),
+    effects: [{
+        text: [`Trash two cards in the supply each costing at least $1.`,
+                `If you do, create an X+Y in the supply that combines all of their costs, effects, and so on.`],
+        transform: () => async function(state) {
+            let targets:Card[]; [state, targets] = await multichoice(state,
+                'Choose two cards to combine.',
+                state.supply.map(asChoice),
+                2, 2
+            )
+            if (targets.length == 2) {
+                state = await trash(targets[0])(state)
+                state = await trash(targets[1])(state)
+                state = await create(mergeSpecs(targets[0].spec, targets[1].spec), 'supply')(state)
+            }
+            return state
+        }
+    }]
+}
+registerEvent(merge, 'absurd')
+
+const idealize:CardSpec = {
+    name: 'Idealize',
+    fixedCost: {...free, coin:2, energy:1},
+    effects: [{
+        text: [`Move a card in your hand to the supply and put an ideal token on it.`],
+        transform: () => async function(state) {
+            let target:Card|null; [state, target] = await choice(state,
+                'Choose a card to idealize.', state.hand.map(asChoice))
+            if (target != null) {
+                state = await move(target, 'events')(state)
+                state = await addToken(target, 'ideal')(state)
+            }
+            return state
+        }
+    }],
+    staticReplacers: [{
+        text: 'Events cost an additional @ to use for each ideal token on themn.',
+        kind: 'costIncrease',
+        handles: e => e.actionKind == 'use' && e.card.count('ideal') > 0,
+        replace: e => ({...e, cost: {...e.cost, energy: e.cost.energy + e.card.count('ideal')}})
+    }]
+}
+registerEvent(idealize, 'absurd')
+
+const reify:CardSpec = {
+    name: 'Reify',
+    fixedCost: energy(1),
+    effects: [{
+        text: [`Choose an event. Create two copies in your hand with echo tokens on them.`],
+        transform: () => applyToTarget(
+            target => repeat(create(target.spec, 'hand', c => addToken(c, 'echo')), 2),
+            'Choose a card to reify.',
+            s => s.events
+        )
+    }],
+    staticTriggers: [fragileEcho()],
+}
+registerEvent(reify, 'absurd')
+
+const showOff:CardSpec = {
+    name: 'Show Off',
+    effects: [chargeEffect()],
+    staticReplacers: [{
+        text: `If this has a charge token, you can't win the game.`,
+        kind: 'victory',
+        handles: (e, s, c) => c.charge > 0,
+        replace: e => ({...e, victory:false})
+    }],
+    staticTriggers: [{
+        text: `If you have at least 10 times more victory points than needed to win the game
+            and this has any charge tokens on it, then remove them and lose 10 @.`,
+        kind: 'resource',
+        handles: (e, s, c) => s.points >= 10 * s.vp_goal && s.find(c).charge > 0,
+        transform: (e, s, c) => async function(state) {
+            state = await discharge(c, state.find(c).charge)(state)
+            state = await gainResource('energy', -10, c)(state)
+            throw new Victory(state)
+        }
+    }],
+}
+registerEvent(showOff, 'absurd')
+
+function cardsInState(s:State): Card[] {
+    return s.events.concat(s.supply).concat(s.hand).concat(s.play).concat(s.discard)
+}
+
+const disfigure:CardSpec = {
+    name: 'Disfigure',
+    effects: [{
+        text: [`Remove all tokens from any card. Then put back the same total number of tokens of the same types.`],
+        transform: () => applyToTarget(
+            target => async function(state) {
+                target = state.find(target)
+                const allTokens:Set<Token> = new Set()
+                let tokenCount:number = 0
+                for (const [token, count] of target.tokens) {
+                    allTokens.add(token)
+                    tokenCount += count
+                    state = await removeToken(target, token, 'all')(state)
+                }
+                const numTypes = allTokens.size;
+                let currentType = 0; 
+                for (const token of allTokens) {
+                    currentType += 1;
+                    let n:number|null;
+                    if (currentType == numTypes) {
+                        n = tokenCount
+                    } else { 
+                        [state, n] = await choice(state,
+                        `How many ${token} tokens do you want to add? (${tokenCount} remaining)`,
+                        chooseNatural(tokenCount+1)
+                        )
+                    }
+                    if (n != null && n >0) {
+                        tokenCount -= n
+                        state = await addToken(target, token, n)(state)
+                    }
+                }
+                return state
+            },
+            'Choose a card to disfigure.',
+            state => cardsInState(state),
+        )
+    }]
+}
+buyable(disfigure, 4, 'absurd', {onBuy: [{
+    text: [`Add a disfigure token to each card in your hand.`],
+    transform: state => doAll(state.hand.map(c => addToken(c, 'disfigure')))
+}]})
+
+const steal:CardSpec = {
+    name: 'Steal',
+    fixedCost: {...free, energy:1, coin:3},
+    effects: [targetedEffect(
+        target => move(target, 'discard'),
+        `Move a supply to your discard.`,
+        state => state.supply
+    )]
+}
+registerEvent(steal, 'absurd')
 
 
 // ------------------ Testing -------------------
