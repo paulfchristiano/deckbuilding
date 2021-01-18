@@ -6774,7 +6774,7 @@ var merge = {
                     var _a;
                     return __generator(this, function (_b) {
                         switch (_b.label) {
-                            case 0: return [4 /*yield*/, multichoice(state, 'Choose two cards to combine.', state.supply.map(asChoice), 2, 2)];
+                            case 0: return [4 /*yield*/, multichoice(state, 'Choose two cards to combine.', state.supply.filter(function (c) { return c.cost('buy', state).coin > 0; }).map(asChoice), 2, 2)];
                             case 1:
                                 _a = __read.apply(void 0, [_b.sent(), 2]), state = _a[0], targets = _a[1];
                                 if (!(targets.length == 2)) return [3 /*break*/, 5];

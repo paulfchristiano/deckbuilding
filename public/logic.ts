@@ -6270,7 +6270,7 @@ const merge:CardSpec = {
         transform: () => async function(state) {
             let targets:Card[]; [state, targets] = await multichoice(state,
                 'Choose two cards to combine.',
-                state.supply.map(asChoice),
+                state.supply.filter(c => c.cost('buy', state).coin > 0).map(asChoice),
                 2, 2
             )
             if (targets.length == 2) {
