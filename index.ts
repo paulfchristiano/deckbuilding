@@ -138,7 +138,7 @@ async function submitForDaily(username:string, url:string, score:number): Promis
         `
       }
     }
-} 
+}
 
 type RecentEntry = {version:string, age:string, score:number, username:string, url:string}
 
@@ -289,7 +289,7 @@ async function getCampaignInfo(
   }
   const newMaxStars = maxStarsGivenAwardsSoFar(numAwards)
   if (newMaxStars > maxStars) {
-    await sql`UPDATE campaign_users 
+    await sql`UPDATE campaign_users
               SET max_stars = ${newMaxStars}
               WHERE name = ${username}`
     return getCampaignInfo(username, cheat)
@@ -313,7 +313,7 @@ async function getCampaignInfo(
       lockReasons.push([row.key, `${row.points_required} ${starStr}`])
     } else if (req !== undefined) {
       lockReasons.push([row.key, `${req.join(', ')}`])
-    } 
+    }
     if ((numAwards >= row.points_required && !lockedLevels.has(row.key)) || cheat) {
       urls.push([row.key, row.url])
     }

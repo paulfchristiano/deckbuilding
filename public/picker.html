@@ -5,8 +5,10 @@
 <script type="text/javascript" src="jquery.js"></script>
 <script type="module">
     import {loadPicker} from './main.js'
+    import {parseExpansionString} from './logic.js'
 
-    loadPicker()
+    const searchParams = new URLSearchParams(window.location.search)
+    loadPicker(parseExpansionString(searchParams.get('expansions')))
 </script>
 <link rel="stylesheet" type="text/css" href="style.css"/>
 <title>Kingdom picker</title>
@@ -29,6 +31,6 @@
 <div class='header'> Supplies: </div>
 <div id='supply' class='zone'> </div>
 
-</body> 
+</body>
 
 </html>

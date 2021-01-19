@@ -619,7 +619,7 @@ function getCampaignInfo(username, cheat) {
                     }
                     newMaxStars = maxStarsGivenAwardsSoFar(numAwards);
                     if (!(newMaxStars > maxStars)) return [3 /*break*/, 5];
-                    return [4 /*yield*/, sql(templateObject_14 || (templateObject_14 = __makeTemplateObject(["UPDATE campaign_users \n              SET max_stars = ", "\n              WHERE name = ", ""], ["UPDATE campaign_users \n              SET max_stars = ", "\n              WHERE name = ", ""])), newMaxStars, username)];
+                    return [4 /*yield*/, sql(templateObject_14 || (templateObject_14 = __makeTemplateObject(["UPDATE campaign_users\n              SET max_stars = ", "\n              WHERE name = ", ""], ["UPDATE campaign_users\n              SET max_stars = ", "\n              WHERE name = ", ""])), newMaxStars, username)];
                 case 4:
                     _e.sent();
                     return [2 /*return*/, getCampaignInfo(username, cheat)];

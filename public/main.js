@@ -85,10 +85,11 @@ import { Shadow, State, Card } from './logic.js';
 import { renderCost, renderEnergy } from './logic.js';
 import { emptyState } from './logic.js';
 import { logTypes } from './logic.js';
+import { sets } from './logic.js';
 import { SetState, Undo, InvalidHistory } from './logic.js';
 import { playGame, initialState } from './logic.js';
 import { coerceReplayVersion, parseReplay, MalformedReplay } from './logic.js';
-import { allCards, allEvents, randomPlaceholder } from './logic.js';
+import { randomPlaceholder } from './logic.js';
 import { VERSION, DEFAULT_VP_GOAL } from './logic.js';
 import { MalformedSpec, getTutorialSpec, specToURL, specFromURL } from './logic.js';
 var keyListeners = new Map();
@@ -1739,10 +1740,16 @@ function countIn(s, f) {
     return count;
 }
 //TODO: refactor the logic into logic.ts, probably just state initialization
-export function loadPicker() {
+export function loadPicker(picked_sets) {
     var state = emptyState;
-    var cards = allCards.slice();
-    var events = allEvents.slice();
+    var cards = [];
+    var events = [];
+    picked_sets.forEach(function (picked_set) {
+        cards.push.apply(cards, __spread(sets[picked_set]['cards'].slice()));
+        events.push.apply(events, __spread(sets[picked_set]['events'].slice()));
+    });
+    // allCards.slice()
+    // allEvents.slice()
     cards.sort(function (spec1, spec2) { return spec1.name.localeCompare(spec2.name); });
     events.sort(function (spec1, spec2) { return spec1.name.localeCompare(spec2.name); });
     for (var i = 0; i < 8; i++)

@@ -11,7 +11,7 @@ import { ID } from './logic.js'
 import { renderCost, renderEnergy } from './logic.js'
 import { emptyState } from './logic.js'
 import { LogType, logTypes } from './logic.js'
-import { Option, OptionRender, HotkeyHint } from './logic.js'
+import { Option, OptionRender, HotkeyHint, sets, ExpansionName } from './logic.js'
 import { UI, SetState, Undo, Victory, InvalidHistory, ReplayEnded } from './logic.js'
 import { playGame, initialState, verifyScore} from './logic.js'
 import { Replay, coerceReplayVersion, parseReplay, MalformedReplay } from './logic.js'
@@ -380,7 +380,7 @@ interface RenderSettings {
 declare global {
     interface Window {
         renderedState: State;
-        serverSeed?: string; 
+        serverSeed?: string;
     }
 }
 
@@ -1230,11 +1230,11 @@ const tutorialStages:tutorialStage[] = [
         nextAction: 0
     },
     { text: [], nextAction: 0 },
-    { 
+    {
         text: [`Now that you have $3 and a buy, you can buy a Silver.`],
         nextAction: 3
     },
-    { 
+    {
         text: [`When you buy a card, you lose a buy and the $ you spent on it.
         Then you create a copy of that card in your discard.
         Next time you Refresh you will be able to play your new Silver.`,
@@ -1242,7 +1242,7 @@ const tutorialStages:tutorialStage[] = [
         `For now, click on an Estate to play it.`],
         nextAction: 0
     },
-    { 
+    {
         text: [`You spent @ to play the estate, and gained 1 vp.
         The goal of the game is to get to ${DEFAULT_VP_GOAL}vp
         using as little @ as possible.`,
@@ -1666,10 +1666,16 @@ function countIn<T>(s:Set<T>, f:((t:T) => boolean)): number{
 }
 
 //TODO: refactor the logic into logic.ts, probably just state initialization
-export function loadPicker(): void {
+export function loadPicker(picked_sets: ExpansionName[]): void {
     let state = emptyState;
-    const cards = allCards.slice()
-    const events = allEvents.slice()
+    const cards: CardSpec[] = []
+    const events: CardSpec[] = []
+    picked_sets.forEach((picked_set) => {
+      cards.push(...sets[picked_set]['cards'].slice())
+      events.push(...sets[picked_set]['events'].slice())
+    })
+    // allCards.slice()
+    // allEvents.slice()
     cards.sort((spec1, spec2) => spec1.name.localeCompare(spec2.name))
     events.sort((spec1, spec2) => spec1.name.localeCompare(spec2.name))
     for (let i = 0; i < 8; i++) events.push(randomPlaceholder)
