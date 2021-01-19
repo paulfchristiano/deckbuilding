@@ -465,7 +465,7 @@ type Randomizer = {
     'expansions': ExpansionName[],
 }
 
-export type GameSpec = 
+export type GameSpec =
     { kind: 'test' } |
     { kind: 'pick', cards:CardSpec[], events:CardSpec[] } |
     { kind: 'pickR', cards:SlotSpec[], events:SlotSpec[], randomizer: Randomizer } |
@@ -1776,8 +1776,8 @@ function usableExpansions(spec:GameSpec): ExpansionName[] {
         case 'test': return expansionNames
         case 'pick': return []
         case 'goal': return usableExpansions(spec.spec)
-        default: return spec.randomizer.expansions 
-    }            
+        default: return spec.randomizer.expansions
+    }
 }
 
 type SetSpec = {
@@ -1785,7 +1785,7 @@ type SetSpec = {
     'events': CardSpec[],
 }
 
-type ExpansionName = 'base' | 'expansion' | 'absurd'
+export type ExpansionName = 'base' | 'expansion' | 'absurd'
 const expansionNames:ExpansionName[] = ['base', 'expansion', 'absurd']
 type SetName = 'core' | ExpansionName
 
@@ -1939,6 +1939,21 @@ function split(s:string, sep:string): string[] {
     }
 }
 
+export function parseExpansionString(expansionString:string|null): ExpansionName[] {
+    const expansionStrings:string[] = (expansionString === null) ? ['base']
+        : normalize(split(expansionString, ','))
+    const expansions:ExpansionName[] = []
+    for (const s of expansionStrings) {
+        const n = (expansionNames as string[]).indexOf(s)
+        if (n < 0) {
+            throw new MalformedSpec(`Invalid expansion name ${s}`)
+        } else {
+            expansions.push(expansionNames[n])
+        }
+    }
+    return expansions;
+}
+
 export function specFromURL(search:string, excludeGoal:boolean = false): GameSpec {
     const searchParams = new URLSearchParams(search)
     if (!excludeGoal) {
@@ -1957,17 +1972,7 @@ export function specFromURL(search:string, excludeGoal:boolean = false): GameSpe
     const events:string[] = (eventsString === null) ? []
         : normalize(split(eventsString, ','))
     const expansionString:string|null = searchParams.get('expansions')
-    const expansionStrings:string[] = (expansionString === null) ? ['base']
-        : normalize(split(expansionString, ','))
-    const expansions:ExpansionName[] = []
-    for (const s of expansionStrings) {
-        const n = (expansionNames as string[]).indexOf(s)
-        if (n < 0) {
-            throw new MalformedSpec(`Invalid expansion name ${s}`)
-        } else {
-            expansions.push(expansionNames[n])
-        }
-    }
+    const expansions:ExpansionName[] = parseExpansionString(expansionString)
     const seed:string|null = searchParams.get('seed') || randomSeed()
     let kind:string
 
@@ -2034,7 +2039,7 @@ function pickRandoms(slots:SlotSpec[], source:CardSpec[], seed:string): CardSpec
         }
     }
     return result.concat(randomChoices(
-        source.filter(x => !taken.has(x.name)), 
+        source.filter(x => !taken.has(x.name)),
         randoms, hash(seed)
     ))
 }
@@ -2722,7 +2727,7 @@ const hallOfMirrors:CardSpec = {name: 'Hall of Mirrors',
     fixedCost: {...free, energy:1, coin:5},
     effects: [{
         text: ['Put a mirror token on each card in your hand.'],
-        transform: (state:State, card:Card) => 
+        transform: (state:State, card:Card) =>
             doAll(state.hand.map(c => addToken(c, 'mirror')))
     }],
     staticTriggers: [reflectTrigger('mirror')],
@@ -3047,7 +3052,7 @@ const duplicate:CardSpec = {name: 'Duplicate',
             const target:Card = state.find(e.card);
             return target.count('duplicate') > 0
         },
-        transform: (e, state, card) => 
+        transform: (e, state, card) =>
             payToDo(removeToken(e.card, 'duplicate'), e.card.buy(card))
     }]
 }
@@ -3123,7 +3128,7 @@ const mobilization:CardSpec = {name: 'Mobilization',
         text: `${refresh.name} costs @ less to play for each charge token on this.`,
         kind:'cost',
         handles: x => (x.card.name == refresh.name),
-        replace: (x, state, card) => 
+        replace: (x, state, card) =>
             ({...x, cost:subtractCost(x.cost, {energy:state.find(card).charge})})
     }]
 }
@@ -3429,7 +3434,7 @@ const onslaught:CardSpec = {name: 'Onslaught',
 /*
 
     {
-        text: [`Play any number of cards in your hand 
+        text: [`Play any number of cards in your hand
         and discard the rest.`],
         transform: (state, card) => async function(state) {
             const cards:Card[] = state.hand
@@ -3537,7 +3542,7 @@ registerEvent(decay, 'base')
 
 function reflectTrigger(token:Token): Trigger<AfterPlayEvent> {
     return {
-        text: `After playing a card with ${a(token)} token on it 
+        text: `After playing a card with ${a(token)} token on it
         other than with this, remove ${a(token)} token and play it again.`,
         kind:'afterPlay',
         handles: (e, state, card) => {
@@ -3579,7 +3584,7 @@ const replicate:CardSpec = {name: 'Replicate',
             const target:Card = state.find(e.card);
             return target.count('replicate') > 0
         },
-        transform: (e, state, card) => 
+        transform: (e, state, card) =>
             payToDo(removeToken(e.card, 'replicate'), e.card.buy(card))
     }]
 }
@@ -4001,7 +4006,7 @@ const ball:CardSpec = {
             applyToTarget(
                 target => target.buy(c),
                 'Choose a card to buy.',
-                state => state.supply.filter(option => 
+                state => state.supply.filter(option =>
                     leq(option.cost('buy', s), e.card.cost('buy', s))
                 )
             )
@@ -4032,7 +4037,7 @@ const lostArts:CardSpec = {
                Whenever this reduces a cost by one or more @,
                remove that many art tokens.`,
         kind: 'cost',
-        handles: (x, state, card) => (x.actionKind == 'play') 
+        handles: (x, state, card) => (x.actionKind == 'play')
             && nameHasToken(x.card, 'art', state),
         replace: (x, state, card) => {
             card = state.find(card)
@@ -4176,8 +4181,8 @@ buyable(artificer, 3, 'base')
 const banquet:CardSpec = {
     name: 'Banquet',
     restrictions: [{
-        test: (c:Card, s:State, k:ActionKind) => 
-            k == 'activate' && 
+        test: (c:Card, s:State, k:ActionKind) =>
+            k == 'activate' &&
             s.hand.some(c => c.count('neglect') > 0)
     }],
     effects: [coinsEffect(3), toPlay(), {
@@ -4492,7 +4497,7 @@ const preparations:CardSpec = {
             instead move it to your discard and gain +1 buy, +$2, and +3 actions.`,
         kind: 'move',
         handles: (p, state, card) => (p.card.id == card.id && p.toZone == 'hand'),
-        replace: p => ({...p, 
+        replace: p => ({...p,
             toZone:'discard',
             effects:p.effects.concat([gainBuys(1), gainCoin(2), gainActions(3)])
         })
@@ -4703,7 +4708,7 @@ const hesitation:CardSpec = {
         kind: 'cost',
         handles: (p, s, c) => (p.actionKind == 'play' || p.actionKind == 'use')
             && p.card.id != c.id,
-        replace: p => ({...p, cost: {...p.cost, energy:p.cost.energy + 1}})         
+        replace: p => ({...p, cost: {...p.cost, energy:p.cost.energy + 1}})
     }]
 }
 //registerEvent(hesitation, 'expansion')
@@ -4907,7 +4912,7 @@ const ambition:CardSpec = {
         kind: 'victory',
         text: "For each charge token on this you need an additional 10 vp to win the game.",
         handles: (p, s, c) => s.points < s.vp_goal + 10 * c.charge,
-        replace: p => ({kind: 'victory', victory: false}) 
+        replace: p => ({kind: 'victory', victory: false})
     }]
 }
 registerEvent(ambition, 'expansion')
@@ -4924,7 +4929,7 @@ const splay:CardSpec = {
                Whenever this reduces a card's cost by one or more @,
                remove that many splay tokens from it.`,
         kind: 'cost',
-        handles: (x, state, card) => (x.actionKind == 'play') 
+        handles: (x, state, card) => (x.actionKind == 'play')
             && nameHasToken(x.card, 'splay', state),
         replace: (x, state, card) => {
             card = state.find(card)
@@ -4987,7 +4992,7 @@ const regroup:CardSpec = {
     effects: [actionsEffect(2), buysEffect(1), multitargetedEffect(
         targets => moveMany(targets, 'hand'),
         'Put up to four cards from your discard into your hand.',
-        state => state.discard, 4 
+        state => state.discard, 4
     )]
 }
 registerEvent(regroup, 'expansion')
@@ -5030,7 +5035,7 @@ const misfit:CardSpec = {
         transform: (s, c) => applyToTarget(
             target => create(target.spec, 'hand', n => addToken(n, 'echo')),
             'Choose a card to copy.',
-            state => state.supply.filter(target => 
+            state => state.supply.filter(target =>
                 leq(target.cost('buy', state), coin(c.charge))
             )
         )
@@ -5052,7 +5057,7 @@ const misfit:CardSpec = {
                     state = await charge(e.card, n)(state)
                 }
                 return state
-            } 
+            }
         }, fragileEcho(),
     ]
 }
@@ -5099,7 +5104,7 @@ const bandOfMisfits:CardSpec = {
                     state = await charge(e.card, n)(state)
                 }
                 return state
-            } 
+            }
         }, fragileEcho(),
     ]
 }
@@ -5547,7 +5552,7 @@ const university:CardSpec = {
         text: `${universityName} costs $1 less to buy for each action you have, but not zero.`,
         kind: 'cost',
         handles: p => (p.card.name == universityName) && p.actionKind == 'buy',
-        replace: (p, s) => ({...p, cost: reducedCost(p.cost, coin(s.actions), true)})      
+        replace: (p, s) => ({...p, cost: reducedCost(p.cost, coin(s.actions), true)})
     }]
 }
 register(university, 'expansion')
@@ -5564,7 +5569,7 @@ const steel:CardSpec = {
         handles: p => p.spec.name == steelName,
         replace: (p, s) => (s.buys == 0)
             ? {...p, zone:null}
-            : {...p, effects: [(c:Card) => payCost({...free, buys: 1})].concat(p.effects)} 
+            : {...p, effects: [(c:Card) => payCost({...free, buys: 1})].concat(p.effects)}
     }]
 }
 register(steel, 'expansion')
@@ -5603,7 +5608,7 @@ buyable(stables, 3, 'expansion', {onBuy: [{
         state = await payCost({...free, actions:n})(state)
         state = await repeat(create(horse), n)(state)
         return state
-    } 
+    }
 }]})
 
 const bustlingVillage:CardSpec = {
@@ -5642,7 +5647,7 @@ const guildHall:CardSpec = {
             return e.card.use(card)(state)
         }
     }]
-} 
+}
 register(guildHall, 'expansion')
 /*
 const overextend:CardSpec = {
@@ -5771,7 +5776,7 @@ const werewolf:CardSpec = {
     }, {
         text: [`If a ${moon.name} in play has an odd number of charge tokens, +$3 and +1 buy.
                 Otherwise, +3 actions.`],
-        transform: s => (s.play.some(c => c.name == moon.name && c.charge % 2 == 1)) ? 
+        transform: s => (s.play.some(c => c.name == moon.name && c.charge % 2 == 1)) ?
             doAll([gainCoins(3), gainBuys(1)]) :
             gainActions(3)
     }]
@@ -6055,7 +6060,7 @@ const confusion:CardSpec = {
         text: `After buying a card, move it to the events.`,
         kind: 'afterBuy',
         handles: () => true,
-        transform: e => move(e.card, 'events') 
+        transform: e => move(e.card, 'events')
     }, {
         text: `After using an event, move it to the supply.`,
         kind: `afterUse`,
@@ -6091,7 +6096,7 @@ const misplace:CardSpec = {
         text: `After buying a card the normal way, remove a charge token from this to buy all other cards in the supply with the same name.`,
         kind: 'afterBuy',
         handles: (e, s, c) => c.charge > 0 && e.source.name == 'act',
-        transform: (e, s, c) => payToDo(discharge(c, 1), 
+        transform: (e, s, c) => payToDo(discharge(c, 1),
             doAll(s.supply.filter(target => target.name == e.card.name && target.id != e.card.id).map(target => target.buy(c)))
         )
     }, {
@@ -6365,13 +6370,13 @@ const disfigure:CardSpec = {
                     state = await removeToken(target, token, 'all')(state)
                 }
                 const numTypes = allTokens.size;
-                let currentType = 0; 
+                let currentType = 0;
                 for (const token of allTokens) {
                     currentType += 1;
                     let n:number|null;
                     if (currentType == numTypes) {
                         n = tokenCount
-                    } else { 
+                    } else {
                         [state, n] = await choice(state,
                         `How many ${token} tokens do you want to add? (${tokenCount} remaining)`,
                         chooseNatural(tokenCount+1)
