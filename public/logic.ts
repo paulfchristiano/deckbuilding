@@ -1349,7 +1349,7 @@ export type Token = 'charge' | 'cost' | 'mirror' | 'duplicate' | 'twin' | 'syner
     'shelter' | 'echo' | 'decay' | 'burden' | 'pathfinding' | 'neglect' |
     'reuse' | 'polish' | 'priority' | 'parallelize' | 'art' |
     'mire' | 'onslaught' | 'expedite' | 'replicate' | 'reflect' | 'brigade' |
-    'pillage' | 'bargain' | 'splay' | 'crown' | 'ferry' | 'ideal' | 'disfigure'
+    'pillage' | 'bargain' | 'splay' | 'crown' | 'ferry' | 'ideal' | 'reconfigure'
 
 function discharge(card:Card, n:number): Transform {
     return charge(card, -n, true)
@@ -1516,7 +1516,7 @@ async function choice<T>(
     chosen:number[] = [],
 ): Promise<[State, T|null]> {
     let index:number;
-    if (options.length == 0) return [state, null];
+    if (options.length == 0 && info.indexOf('actChoice') == -1) return [state, null];
     let indices:number[], newState:State; [newState, index] = await doOrReplay(
         state,
         () => state.ui.choice(state, prompt, options, info, chosen)
@@ -1666,7 +1666,9 @@ function logAct(state:State, act:ActionKind, card:Card): State {
 async function act(state:State): Promise<State> {
     let picked:[Card, ActionKind]|null;
     [state, picked] = await actChoice(state)
-    if (picked == null) throw new Error('No valid options.');
+    if (picked == null) {
+        throw new Error('No valid options.');
+    }
     const [card, kind] = picked
     return payToDo(card.payCost(kind), card.activate(kind, {name:'act'}))(state)
 }
@@ -3943,7 +3945,7 @@ const traveler:CardSpec = {
         transform: (state, card) => payToDo(payAction, applyToTarget(
             target => async function(state){
                 const n = state.find(card).charge
-                for (let i = 0; i < Math.min(n, 3); i++) {
+                for (let i = 0; i < n; i++) {
                     state = await target.play(card)(state)
                     state = tick(card)(state)
                 }
@@ -6350,8 +6352,8 @@ function cardsInState(s:State): Card[] {
     return s.events.concat(s.supply).concat(s.hand).concat(s.play).concat(s.discard)
 }
 
-const disfigure:CardSpec = {
-    name: 'Disfigure',
+const reconfigure:CardSpec = {
+    name: 'Reconfigure',
     effects: [{
         text: [`Remove all tokens from any card. Then put back the same total number of tokens of the same types.`],
         transform: () => applyToTarget(
@@ -6384,14 +6386,14 @@ const disfigure:CardSpec = {
                 }
                 return state
             },
-            'Choose a card to disfigure.',
+            'Choose a card to reconfigure.',
             state => cardsInState(state),
         )
     }]
 }
-buyable(disfigure, 4, 'absurd', {onBuy: [{
-    text: [`Add a disfigure token to each card in your hand.`],
-    transform: state => doAll(state.hand.map(c => addToken(c, 'disfigure')))
+buyable(reconfigure, 4, 'absurd', {onBuy: [{
+    text: [`Add a reconfigure token to each card in your hand.`],
+    transform: state => doAll(state.hand.map(c => addToken(c, 'reconfigure')))
 }]})
 
 const steal:CardSpec = {
@@ -6404,6 +6406,50 @@ const steal:CardSpec = {
     )]
 }
 registerEvent(steal, 'absurd')
+
+const hoard:CardSpec = {
+    name: 'Hoard',
+    fixedCost: {...free, energy:2, coin:8},
+    effects: [{
+        text: [`Move all cards to your hand.`],
+        transform: s => moveMany(cardsInState(s), 'hand')
+    }]
+}
+registerEvent(hoard, 'absurd')
+
+const redistribute:CardSpec = {
+    name: 'Redistribute',
+    effects: [{
+        text: [`Choose two cards.
+                For each type of token that appears in both of them, redistribute tokens of that type arbitrarily between them.`],
+        transform: () => async function(state) {
+            let targets:Card[]; [state, targets] = await multichoice(
+                state, 'Choose two cards to redistribute tokens between.',
+                cardsInState(state).map(asChoice), 2, 2
+            )
+            if (targets.length == 2) {
+                for (const [token, count] of targets[0].tokens) {
+                    if (targets[0].count(token) > 0 && targets[1].count(token) > 0) {
+                        const total = targets[0].count(token) + targets[1].count(token)
+                        for (const target of targets) {
+                            state = await removeToken(target, token, 'all')(state)
+                        }
+                        let n:number|null; [state, n] = await choice(state,
+                            `How many ${token} tokens do you want to put on ${targets[0].name}?`,
+                            chooseNatural(total+1)
+                        )
+                        if (n != null) {
+                            state = await addToken(targets[0], token, n)(state)
+                            state = await addToken(targets[1], token, total - n)(state)
+                        }
+                    }
+                }
+            }
+            return state
+        }
+    }]
+}
+buyable(redistribute, 4, 'absurd', {replacers: [startsWithCharge(redistribute.name, 2)]})
 
 
 // ------------------ Testing -------------------

@@ -1930,7 +1930,7 @@ function choice(state, prompt, options, info, chosen) {
         return __generator(this, function (_b) {
             switch (_b.label) {
                 case 0:
-                    if (options.length == 0)
+                    if (options.length == 0 && info.indexOf('actChoice') == -1)
                         return [2 /*return*/, [state, null]];
                     return [4 /*yield*/, doOrReplay(state, function () { return state.ui.choice(state, prompt, options, info, chosen); })];
                 case 1:
@@ -2103,8 +2103,9 @@ function act(state) {
                 case 0: return [4 /*yield*/, actChoice(state)];
                 case 1:
                     _b = __read.apply(void 0, [_c.sent(), 2]), state = _b[0], picked = _b[1];
-                    if (picked == null)
+                    if (picked == null) {
                         throw new Error('No valid options.');
+                    }
                     _a = __read(picked, 2), card = _a[0], kind = _a[1];
                     return [2 /*return*/, payToDo(card.payCost(kind), card.activate(kind, { name: 'act' }))(state)];
             }
@@ -4412,7 +4413,7 @@ var traveler = {
                                 i = 0;
                                 _a.label = 1;
                             case 1:
-                                if (!(i < Math.min(n, 3))) return [3 /*break*/, 4];
+                                if (!(i < n)) return [3 /*break*/, 4];
                                 return [4 /*yield*/, target.play(card)(state)];
                             case 2:
                                 state = _a.sent();
@@ -6876,8 +6877,8 @@ registerEvent(showOff, 'absurd');
 function cardsInState(s) {
     return s.events.concat(s.supply).concat(s.hand).concat(s.play).concat(s.discard);
 }
-var disfigure = {
-    name: 'Disfigure',
+var reconfigure = {
+    name: 'Reconfigure',
     effects: [{
             text: ["Remove all tokens from any card. Then put back the same total number of tokens of the same types."],
             transform: function () { return applyToTarget(function (target) { return function (state) {
@@ -6963,12 +6964,12 @@ var disfigure = {
                         }
                     });
                 });
-            }; }, 'Choose a card to disfigure.', function (state) { return cardsInState(state); }); }
+            }; }, 'Choose a card to reconfigure.', function (state) { return cardsInState(state); }); }
         }]
 };
-buyable(disfigure, 4, 'absurd', { onBuy: [{
-            text: ["Add a disfigure token to each card in your hand."],
-            transform: function (state) { return doAll(state.hand.map(function (c) { return addToken(c, 'disfigure'); })); }
+buyable(reconfigure, 4, 'absurd', { onBuy: [{
+            text: ["Add a reconfigure token to each card in your hand."],
+            transform: function (state) { return doAll(state.hand.map(function (c) { return addToken(c, 'reconfigure'); })); }
         }] });
 var steal = {
     name: 'Steal',
@@ -6976,6 +6977,100 @@ var steal = {
     effects: [targetedEffect(function (target) { return move(target, 'discard'); }, "Move a supply to your discard.", function (state) { return state.supply; })]
 };
 registerEvent(steal, 'absurd');
+var hoard = {
+    name: 'Hoard',
+    fixedCost: __assign(__assign({}, free), { energy: 2, coin: 8 }),
+    effects: [{
+            text: ["Move all cards to your hand."],
+            transform: function (s) { return moveMany(cardsInState(s), 'hand'); }
+        }]
+};
+registerEvent(hoard, 'absurd');
+var redistribute = {
+    name: 'Redistribute',
+    effects: [{
+            text: ["Choose two cards.\n                For each type of token that appears in both of them, redistribute tokens of that type arbitrarily between them."],
+            transform: function () { return function (state) {
+                return __awaiter(this, void 0, void 0, function () {
+                    var targets, _a, _b, _c, token, count, total, targets_2, targets_2_1, target, e_46_1, n, e_47_1;
+                    var _d, e_47, _e, e_46, _f, _g;
+                    return __generator(this, function (_h) {
+                        switch (_h.label) {
+                            case 0: return [4 /*yield*/, multichoice(state, 'Choose two cards to redistribute tokens between.', cardsInState(state).map(asChoice), 2, 2)];
+                            case 1:
+                                _d = __read.apply(void 0, [_h.sent(), 2]), state = _d[0], targets = _d[1];
+                                if (!(targets.length == 2)) return [3 /*break*/, 19];
+                                _h.label = 2;
+                            case 2:
+                                _h.trys.push([2, 17, 18, 19]);
+                                _a = __values(targets[0].tokens), _b = _a.next();
+                                _h.label = 3;
+                            case 3:
+                                if (!!_b.done) return [3 /*break*/, 16];
+                                _c = __read(_b.value, 2), token = _c[0], count = _c[1];
+                                if (!(targets[0].count(token) > 0 && targets[1].count(token) > 0)) return [3 /*break*/, 15];
+                                total = targets[0].count(token) + targets[1].count(token);
+                                _h.label = 4;
+                            case 4:
+                                _h.trys.push([4, 9, 10, 11]);
+                                targets_2 = (e_46 = void 0, __values(targets)), targets_2_1 = targets_2.next();
+                                _h.label = 5;
+                            case 5:
+                                if (!!targets_2_1.done) return [3 /*break*/, 8];
+                                target = targets_2_1.value;
+                                return [4 /*yield*/, removeToken(target, token, 'all')(state)];
+                            case 6:
+                                state = _h.sent();
+                                _h.label = 7;
+                            case 7:
+                                targets_2_1 = targets_2.next();
+                                return [3 /*break*/, 5];
+                            case 8: return [3 /*break*/, 11];
+                            case 9:
+                                e_46_1 = _h.sent();
+                                e_46 = { error: e_46_1 };
+                                return [3 /*break*/, 11];
+                            case 10:
+                                try {
+                                    if (targets_2_1 && !targets_2_1.done && (_f = targets_2.return)) _f.call(targets_2);
+                                }
+                                finally { if (e_46) throw e_46.error; }
+                                return [7 /*endfinally*/];
+                            case 11:
+                                n = void 0;
+                                return [4 /*yield*/, choice(state, "How many " + token + " tokens do you want to put on " + targets[0].name + "?", chooseNatural(total + 1))];
+                            case 12:
+                                _g = __read.apply(void 0, [_h.sent(), 2]), state = _g[0], n = _g[1];
+                                if (!(n != null)) return [3 /*break*/, 15];
+                                return [4 /*yield*/, addToken(targets[0], token, n)(state)];
+                            case 13:
+                                state = _h.sent();
+                                return [4 /*yield*/, addToken(targets[1], token, total - n)(state)];
+                            case 14:
+                                state = _h.sent();
+                                _h.label = 15;
+                            case 15:
+                                _b = _a.next();
+                                return [3 /*break*/, 3];
+                            case 16: return [3 /*break*/, 19];
+                            case 17:
+                                e_47_1 = _h.sent();
+                                e_47 = { error: e_47_1 };
+                                return [3 /*break*/, 19];
+                            case 18:
+                                try {
+                                    if (_b && !_b.done && (_e = _a.return)) _e.call(_a);
+                                }
+                                finally { if (e_47) throw e_47.error; }
+                                return [7 /*endfinally*/];
+                            case 19: return [2 /*return*/, state];
+                        }
+                    });
+                });
+            }; }
+        }]
+};
+buyable(redistribute, 4, 'absurd', { replacers: [startsWithCharge(redistribute.name, 2)] });
 // ------------------ Testing -------------------
 var freeMoney = { name: 'Free money',
     fixedCost: energy(0),
