@@ -6831,7 +6831,7 @@ var idealize = {
             }; }
         }],
     staticReplacers: [{
-            text: 'Events cost an additional @ to use for each ideal token on themn.',
+            text: 'Events cost an additional @ to use for each ideal token on them.',
             kind: 'costIncrease',
             handles: function (e) { return e.actionKind == 'use' && e.card.count('ideal') > 0; },
             replace: function (e) { return (__assign(__assign({}, e), { cost: __assign(__assign({}, e.cost), { energy: e.cost.energy + e.card.count('ideal') }) })); }

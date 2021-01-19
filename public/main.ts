@@ -826,6 +826,18 @@ class webUI {
     }
 }
 
+function renderCheckbox(
+    div: JQuery,
+    additionalHtml: string,
+    checked: boolean,
+    cb: (checked:boolean) => void,
+): void {
+    div.html(`<input type="checkbox" ${checked ? 'checked' : ''}> ${additionalHtml}`)
+    div.off('click');
+    div.click((e: any) => cb(e.target.checked));
+}
+
+
 interface StringOption {
     render: string,
     value: (shifted:boolean) => void
@@ -1674,6 +1686,32 @@ export function loadPicker(picked_sets: ExpansionName[]): void {
       cards.push(...sets[picked_set]['cards'].slice())
       events.push(...sets[picked_set]['events'].slice())
     })
+
+    $('#expansionPicker').empty()
+    Object.keys(sets).forEach((set_option_str: string) => {
+      if (set_option_str === 'core') {
+        return;
+      }
+      const set_option = set_option_str as ExpansionName;
+
+      const d = $('<div>');
+      renderCheckbox(
+        d,
+        set_option,
+        picked_sets.includes(set_option),
+        (checked) => {
+          let new_picked_sets = picked_sets.slice();
+          if (checked) {
+            new_picked_sets.push(set_option)
+          } else {
+            new_picked_sets = new_picked_sets.filter((x) => x !== set_option)
+          }
+          loadPicker(new_picked_sets);
+        }
+      );
+      $('#expansionPicker').append(d)
+    });
+
     // allCards.slice()
     // allEvents.slice()
     cards.sort((spec1, spec2) => spec1.name.localeCompare(spec2.name))
@@ -1708,6 +1746,8 @@ export function loadPicker(picked_sets: ExpansionName[]): void {
         'card': new Set<number>(),
         'event': new Set<number>(),
     }
+    $('#cardCount').html(String(chosen.card.size))
+    $('#eventCount').html(String(chosen.event.size))
     function pick(i:number, kind:'card'|'event'): void {
         if (chosen[kind].has(i)) {
             chosen[kind].delete(i)
