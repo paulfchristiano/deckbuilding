@@ -6178,7 +6178,7 @@ function xHatchery(x:CardSpec=xSpec): CardSpec {
     return {
         name: `${x.name} Hatchery`,
         buyCost: coin(3),
-        effects: [createEffect(x)],
+        effects: [actionsEffect(1), createEffect(x)],
         relatedCards: (x.name == xSpec.name) ? [] : [x]
     }
 }
@@ -6187,7 +6187,7 @@ const metaHatchery:CardSpec = {
     name: 'Meta Hatchery',
     buyCost: coin(3),
     relatedCards: [xHatchery()],
-    effects: [{
+    effects: [actionsEffect(1), {
         text: [`Choose a card X in your hand.`,
                `Create an X Hatchery in your discard.`],
         transform: () => async function(state) {
@@ -6260,7 +6260,7 @@ const combiner:CardSpec = {
             if (targets.length == 2) {
                 state = await trash(targets[0])(state)
                 state = await trash(targets[1])(state)
-                state = await create(mergeSpecs(targets[0].spec, targets[1].spec))(state)
+                state = await create(mergeSpecs(targets[0].spec, targets[1].spec), 'hand')(state)
             }
             return state
         }
@@ -6426,7 +6426,7 @@ const redistribute:CardSpec = {
     name: 'Redistribute',
     effects: [{
         text: [`Choose two cards.
-                For each type of token that appears in both of them, redistribute tokens of that type arbitrarily between them.`],
+                For each type of token that is on both of them, redistribute tokens of that type arbitrarily between them.`],
         transform: () => async function(state) {
             let targets:Card[]; [state, targets] = await multichoice(
                 state, 'Choose two cards to redistribute tokens between.',
