@@ -6249,7 +6249,7 @@ const combiner:CardSpec = {
     effects: [{
         text: [
             `Trash two cards X and Y from your hand.`,
-            `If you do, create an X+Y in your hand that combines all of their costs, effects, and so on.`
+            `If you do, create an X+Y in your discard that combines all of their costs, effects, and so on.`
         ],
         transform: () => async function(state) {
             let targets:Card[]; [state, targets] = await multichoice(state,

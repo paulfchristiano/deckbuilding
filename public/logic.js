@@ -6738,7 +6738,7 @@ var combiner = {
     effects: [{
             text: [
                 "Trash two cards X and Y from your hand.",
-                "If you do, create an X+Y in your hand that combines all of their costs, effects, and so on."
+                "If you do, create an X+Y in your discard that combines all of their costs, effects, and so on."
             ],
             transform: function () { return function (state) {
                 return __awaiter(this, void 0, void 0, function () {
