@@ -932,6 +932,11 @@ var webUI = /** @class */ (function () {
     };
     return webUI;
 }());
+function renderCheckbox(div, additionalHtml, checked, cb) {
+    div.html("<input type=\"checkbox\" " + (checked ? 'checked' : '') + "> " + additionalHtml);
+    div.off('click');
+    div.click(function (e) { return cb(e.target.checked); });
+}
 function renderChoice(ui, state, choicePrompt, options, picks) {
     var e_16, _a, e_17, _b;
     if (picks === void 0) { picks = []; }
@@ -1748,6 +1753,25 @@ export function loadPicker(picked_sets) {
         cards.push.apply(cards, __spread(sets[picked_set]['cards'].slice()));
         events.push.apply(events, __spread(sets[picked_set]['events'].slice()));
     });
+    $('#expansionPicker').empty();
+    Object.keys(sets).forEach(function (set_option_str) {
+        if (set_option_str === 'core') {
+            return;
+        }
+        var set_option = set_option_str;
+        var d = $('<div>');
+        renderCheckbox(d, set_option, picked_sets.includes(set_option), function (checked) {
+            var new_picked_sets = picked_sets.slice();
+            if (checked) {
+                new_picked_sets.push(set_option);
+            }
+            else {
+                new_picked_sets = new_picked_sets.filter(function (x) { return x !== set_option; });
+            }
+            loadPicker(new_picked_sets);
+        });
+        $('#expansionPicker').append(d);
+    });
     // allCards.slice()
     // allEvents.slice()
     cards.sort(function (spec1, spec2) { return spec1.name.localeCompare(spec2.name); });
@@ -1782,6 +1806,8 @@ export function loadPicker(picked_sets) {
         'card': new Set(),
         'event': new Set(),
     };
+    $('#cardCount').html(String(chosen.card.size));
+    $('#eventCount').html(String(chosen.event.size));
     function pick(i, kind) {
         if (chosen[kind].has(i)) {
             chosen[kind].delete(i);

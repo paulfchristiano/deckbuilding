@@ -6249,7 +6249,7 @@ const combiner:CardSpec = {
     effects: [{
         text: [
             `Trash two cards X and Y from your hand.`,
-            `If you do, create an X+Y in your hand that combines all of their costs, effects, and so on.`
+            `If you do, create an X+Y in your discard that combines all of their costs, effects, and so on.`
         ],
         transform: () => async function(state) {
             let targets:Card[]; [state, targets] = await multichoice(state,
@@ -6307,7 +6307,7 @@ const idealize:CardSpec = {
         }
     }],
     staticReplacers: [{
-        text: 'Events cost an additional @ to use for each ideal token on themn.',
+        text: 'Events cost an additional @ to use for each ideal token on them.',
         kind: 'costIncrease',
         handles: e => e.actionKind == 'use' && e.card.count('ideal') > 0,
         replace: e => ({...e, cost: {...e.cost, energy: e.cost.energy + e.card.count('ideal')}})

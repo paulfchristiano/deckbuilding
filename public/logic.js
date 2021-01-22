@@ -6738,7 +6738,7 @@ var combiner = {
     effects: [{
             text: [
                 "Trash two cards X and Y from your hand.",
-                "If you do, create an X+Y in your hand that combines all of their costs, effects, and so on."
+                "If you do, create an X+Y in your discard that combines all of their costs, effects, and so on."
             ],
             transform: function () { return function (state) {
                 return __awaiter(this, void 0, void 0, function () {
@@ -6831,7 +6831,7 @@ var idealize = {
             }; }
         }],
     staticReplacers: [{
-            text: 'Events cost an additional @ to use for each ideal token on themn.',
+            text: 'Events cost an additional @ to use for each ideal token on them.',
             kind: 'costIncrease',
             handles: function (e) { return e.actionKind == 'use' && e.card.count('ideal') > 0; },
             replace: function (e) { return (__assign(__assign({}, e), { cost: __assign(__assign({}, e.cost), { energy: e.cost.energy + e.card.count('ideal') }) })); }
