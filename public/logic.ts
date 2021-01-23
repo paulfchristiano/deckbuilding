@@ -6176,7 +6176,7 @@ const xSpec:CardSpec = {name: 'X'}
 const ySpec:CardSpec = {name: 'Y'}
 function xHatchery(x:CardSpec=xSpec): CardSpec {
     return {
-        name: `${x.name} Hatchery`,
+        name: `Hatchery(${x.name})`,
         buyCost: coin(3),
         effects: [actionsEffect(1), createEffect(x)],
         relatedCards: (x.name == xSpec.name) ? [] : [x]

@@ -6660,7 +6660,7 @@ var ySpec = { name: 'Y' };
 function xHatchery(x) {
     if (x === void 0) { x = xSpec; }
     return {
-        name: x.name + " Hatchery",
+        name: "Hatchery(" + x.name + ")",
         buyCost: coin(3),
         effects: [actionsEffect(1), createEffect(x)],
         relatedCards: (x.name == xSpec.name) ? [] : [x]
