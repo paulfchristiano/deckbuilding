@@ -5988,7 +5988,7 @@ var masterpiece = {
     name: 'Masterpiece',
     buyCost: coin(4),
     fixedCost: energy(1),
-    effects: [coinsEffect(6)]
+    effects: [coinsEffect(5)]
 };
 register(masterpiece, 'expansion');
 function workshopTransform(n, source) {
@@ -6838,6 +6838,18 @@ var idealize = {
         }]
 };
 registerEvent(idealize, 'absurd');
+var enshrine = {
+    name: 'Enshrine',
+    fixedCost: energy(1),
+    effects: [targetedEffect(function (target) { return move(target, 'events'); }, 'Move a supply costing at least $1 to the events.', function (s) { return s.supply.filter(function (c) { return c.cost('buy', s).coin >= 1; }); })],
+    staticReplacers: [{
+            text: "The cost to use events is increased by however much $ and @ they would have cost to buy.",
+            kind: 'costIncrease',
+            handles: function (p) { return p.actionKind == 'use'; },
+            replace: function (p, state) { return (__assign(__assign({}, p), { cost: addCosts(p.cost, __assign(__assign({}, p.card.cost('buy', state)), { buys: 0 })) })); }
+        }]
+};
+registerEvent(enshrine, 'absurd');
 var reify = {
     name: 'Reify',
     fixedCost: energy(1),

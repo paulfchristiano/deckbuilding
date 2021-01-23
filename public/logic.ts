@@ -5493,7 +5493,7 @@ const masterpiece:CardSpec = {
     name: 'Masterpiece',
     buyCost:coin(4),
     fixedCost: energy(1),
-    effects: [coinsEffect(6)]
+    effects: [coinsEffect(5)]
 }
 register(masterpiece, 'expansion')
 
@@ -6314,6 +6314,23 @@ const idealize:CardSpec = {
     }]
 }
 registerEvent(idealize, 'absurd')
+
+const enshrine:CardSpec = {
+    name: 'Enshrine',
+    fixedCost: energy(1),
+    effects: [targetedEffect(
+        target => move(target, 'events'),
+        'Move a supply costing at least $1 to the events.',
+        s => s.supply.filter(c => c.cost('buy', s).coin >= 1)
+    )],
+    staticReplacers: [{
+        text: `The cost to use events is increased by however much $ and @ they would have cost to buy.`,
+        kind: 'costIncrease',
+        handles: p => p.actionKind == 'use',
+        replace: (p, state) => ({...p, cost: addCosts(p.cost, {...p.card.cost('buy', state), buys:0})})
+    }]
+}
+registerEvent(enshrine, 'absurd')
 
 const reify:CardSpec = {
     name: 'Reify',
