@@ -444,7 +444,7 @@ function renderVariableCosts(cs) {
     return cs.map(function (c) { return "<div>(cost) +" + c.text + "</div>"; }).join('');
 }
 function renderBuyable(bs) {
-    return bs.map(function (b) { return (b.text == undefined) ? '' : "<div>(static) " + b.text + "</div>"; }).join('');
+    return bs.map(function (b) { return (b.text == undefined) ? '' : "<div>(req) " + b.text + "</div>"; }).join('');
 }
 function isZero(c) {
     return (c === undefined || renderCost(c) == '');

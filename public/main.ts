@@ -302,7 +302,7 @@ function renderVariableCosts(cs:VariableCost[]): string {
 
 function renderBuyable(bs:{text?:string}[]): string{
     return bs.map(
-        b => (b.text == undefined) ? '' : `<div>(static) ${b.text}</div>`
+        b => (b.text == undefined) ? '' : `<div>(req) ${b.text}</div>`
     ).join('')
 }
 
