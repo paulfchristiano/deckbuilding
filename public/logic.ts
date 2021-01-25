@@ -1791,8 +1791,8 @@ type SetSpec = {
     'events': CardSpec[],
 }
 
-export type ExpansionName = 'base' | 'expansion' | 'absurd'
-const expansionNames:ExpansionName[] = ['base', 'expansion', 'absurd']
+export type ExpansionName = 'base' | 'expansion' | 'absurd' | 'test'
+const expansionNames:ExpansionName[] = ['base', 'expansion', 'absurd', 'test']
 type SetName = 'core' | ExpansionName
 
 function emptySet(): SetSpec {
@@ -1804,6 +1804,7 @@ export const sets = {
     'base': emptySet(),
     'expansion': emptySet(),
     'absurd': emptySet(),
+    'test': emptySet(),
 }
 
 export function makeKingdom(spec:GameSpec): Kingdom {
@@ -5457,7 +5458,7 @@ register(exoticMarket, 'expansion')
 
 const royalChambers:CardSpec = {
     name: 'Royal Chambers',
-    buyCost: coin(7),
+    buyCost: coin(6),
     fixedCost: energy(2),
     effects: [{
         text: [`Do this twice: pay an action to play a card in your hand twice.`],
@@ -6472,6 +6473,19 @@ const redistribute:CardSpec = {
     }]
 }
 buyable(redistribute, 4, 'absurd', {replacers: [startsWithCharge(redistribute.name, 2)]})
+
+const manor:CardSpec = {
+    name: 'Manor',
+    buyCost: coin(6),
+    fixedCost: energy(1),
+    triggers: [{
+        text: 'Whenever you pay @, gain that many vp.',
+        kind: 'cost',
+        handles: (e) => e.cost.energy > 0,
+        transform: e => gainPoints(e.cost.energy)
+    }]
+}
+register(manor, 'test')
 
 
 // ------------------ Testing -------------------

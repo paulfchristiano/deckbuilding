@@ -248,8 +248,8 @@ function last<T>(xs:T[]): T {
 
 function maxStarsGivenAwardsSoFar(awardsSoFar:number): number {
   if (awardsSoFar < 5) return 1
-  else if (awardsSoFar < 20) return 2
-  else if (awardsSoFar < 150) return 3
+  else if (awardsSoFar < 25) return 2
+  else if (awardsSoFar < 125) return 3
   return 4
 }
 

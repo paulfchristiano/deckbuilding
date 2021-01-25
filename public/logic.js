@@ -2223,7 +2223,7 @@ function usableExpansions(spec) {
         default: return spec.randomizer.expansions;
     }
 }
-var expansionNames = ['base', 'expansion', 'absurd'];
+var expansionNames = ['base', 'expansion', 'absurd', 'test'];
 function emptySet() {
     return { 'cards': [], 'events': [] };
 }
@@ -2232,6 +2232,7 @@ export var sets = {
     'base': emptySet(),
     'expansion': emptySet(),
     'absurd': emptySet(),
+    'test': emptySet(),
 };
 export function makeKingdom(spec) {
     switch (spec.kind) {
@@ -5941,7 +5942,7 @@ var exoticMarket = {
 register(exoticMarket, 'expansion');
 var royalChambers = {
     name: 'Royal Chambers',
-    buyCost: coin(7),
+    buyCost: coin(6),
     fixedCost: energy(2),
     effects: [{
             text: ["Do this twice: pay an action to play a card in your hand twice."],
@@ -7083,6 +7084,18 @@ var redistribute = {
         }]
 };
 buyable(redistribute, 4, 'absurd', { replacers: [startsWithCharge(redistribute.name, 2)] });
+var manor = {
+    name: 'Manor',
+    buyCost: coin(6),
+    fixedCost: energy(1),
+    triggers: [{
+            text: 'Whenever you pay @, gain that many vp.',
+            kind: 'cost',
+            handles: function (e) { return e.cost.energy > 0; },
+            transform: function (e) { return gainPoints(e.cost.energy); }
+        }]
+};
+register(manor, 'test');
 // ------------------ Testing -------------------
 var freeMoney = { name: 'Free money',
     fixedCost: energy(0),

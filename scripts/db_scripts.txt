@@ -1,14 +1,33 @@
-##### campaign migrations
+##### setting up db from scratch
 
-### alter users to have max_stars set to 1
+CREATE TABLE dailies (
+    key TEXT PRIMARY KEY,
+    secret TEXT NOT NULL,
+    version TEXT,
+    best_score INTEGER,
+    best_user TEXT,
+    url TEXT NOT NULL,
+    type TEXT NOT NULL
+);
 
-ALTER TABLE campaign_users ADD COLUMN max_stars INTEGER NOT NULL DEFAULT 1;
+CREATE TABLE links (id TEXT PRIMARY KEY, url TEXT NOT NULL);
+ALTER TABLE links ADD CONSTRAINT unique_id UNIQUE (id);
 
-### alter campaign_scores to not use a foreign key
+CREATE TABLE scoreboard (
+    username TEXT NOT NULL,
+    score INTEGER NOT NULL,
+    submitted TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    version TEXT,
+    history TEXT,
+    url TEXT NOT NULL
+);
 
-ALTER TABLE campaign_scores DROP CONSTRAINT campaign_scores_level_fkey;
+CREATE TABLE secrets (
+    key TEXT PRIMARY KEY,
+    secret TEXT NOT NULL
+);
 
-### tables
+### campign tables
 
 CREATE TABLE campaign_levels (
 key TEXT PRIMARY KEY,
@@ -23,7 +42,7 @@ threshold INTEGER NOT NULL
 );
 
 CREATE TABLE campaign_scores (
-level TEXT references campaign_levels(key),
+level TEXT,
 username TEXT references campaign_users(name),
 score INTEGER NOT NULL
 );
@@ -33,7 +52,8 @@ ALTER TABLE campaign_scores ALTER COLUMN username SET NOT NULL;
 
 CREATE TABLE campaign_users(
 name TEXT PRIMARY KEY,
-password_hash TEXT NOT NULL
+password_hash TEXT NOT NULL,
+max_stars INTEGER NOT NULL DEFAULT 1;
 );
 
 CREATE TABLE campaign_requirements(

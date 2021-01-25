@@ -1369,6 +1369,7 @@ function bindHelp(state:State, ui:webUI) {
             "If an effect instructs you to play or buy a card, you don't have to pay the normal cost.",
             "You can activate the abilities of cards in play, marked with (ability).",
             "Effects marked with (effect) apply whenever the card is in play.",
+            "If a card has an (effect), then put it in play after playing it, instead of discarding it.",
             "Effects marked with (static) apply whenever the card is in the supply or events zone.",
             `&nbsp;`,
             `Other help:`,

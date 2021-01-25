@@ -549,9 +549,9 @@ function last(xs) {
 function maxStarsGivenAwardsSoFar(awardsSoFar) {
     if (awardsSoFar < 5)
         return 1;
-    else if (awardsSoFar < 20)
+    else if (awardsSoFar < 25)
         return 2;
-    else if (awardsSoFar < 150)
+    else if (awardsSoFar < 125)
         return 3;
     return 4;
 }
