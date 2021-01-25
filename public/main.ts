@@ -17,7 +17,13 @@ import { playGame, initialState, verifyScore} from './logic.js'
 import { Replay, coerceReplayVersion, parseReplay, MalformedReplay } from './logic.js'
 import { allCards, allEvents, randomPlaceholder } from './logic.js'
 import { VERSION, DEFAULT_VP_GOAL } from './logic.js'
-import { MalformedSpec, getTutorialSpec, specToURL, specFromURL } from './logic.js'
+import { MalformedSpec, specToURL, specFromURL } from './logic.js'
+
+// register cards
+import './cards/absurd.js'
+import {throneRoom, duplicate} from './cards/base.js'
+import './cards/expansion.js'
+import './cards/test.js'
 
 // --------------------- Hotkeys
 
@@ -1337,6 +1343,14 @@ function renderTutorialMessage(text:string[]) {
         }
     })
     $('#tutorialNext').on('click', next)
+}
+
+function getTutorialSpec(): GameSpec {
+    return {
+        cards:[throneRoom],
+        events:[duplicate],
+        kind: 'pick'
+    }
 }
 
 export function loadTutorial(){
