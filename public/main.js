@@ -85,7 +85,7 @@ import { Shadow, State, Card } from './logic.js';
 import { renderCost, renderEnergy } from './logic.js';
 import { emptyState } from './logic.js';
 import { logTypes } from './logic.js';
-import { sets } from './logic.js';
+import { sets } from './cards/index.js';
 import { SetState, Undo, InvalidHistory } from './logic.js';
 import { playGame, initialState } from './logic.js';
 import { coerceReplayVersion, parseReplay, MalformedReplay } from './logic.js';
