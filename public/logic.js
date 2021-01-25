@@ -4355,7 +4355,7 @@ var palace = { name: 'Palace',
 buyable(palace, 5, 'base');
 var Innovation = 'Innovation';
 var innovation = { name: Innovation,
-    effects: [actionsEffect(1)],
+    effects: [actionsEffect(1), toPlay()],
 };
 buyable(innovation, 6, 'base', { triggers: [{
             text: "When you create a card in your discard,\n    discard an " + innovation.name + " from play in order to play it.\n    (If you have multiple, discard the oldest.)",
@@ -4819,11 +4819,17 @@ const hirelings:CardSpec = {
 }
 buyable(hirelings, 3)
 */
+function toPlay() {
+    return {
+        text: ["Put this in play."],
+        transform: function (state, c) { return move(c, 'play'); }
+    };
+}
 //TODO: "buy normal way" should maybe be it's own trigger with a cost field?
 var haggler = {
     name: 'Haggler',
     fixedCost: energy(1),
-    effects: [coinsEffect(2)],
+    effects: [coinsEffect(2), toPlay()],
 };
 buyable(haggler, 5, 'base', {
     triggers: [{

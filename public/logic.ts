@@ -3905,7 +3905,7 @@ buyable(palace, 5, 'base')
 
 const Innovation:string = 'Innovation'
 const innovation:CardSpec = {name: Innovation,
-    effects: [actionsEffect(1)],
+    effects: [actionsEffect(1), toPlay()],
 }
 buyable(innovation, 6, 'base', {triggers: [{
     text: `When you create a card in your discard,
@@ -4316,11 +4316,18 @@ const hirelings:CardSpec = {
 buyable(hirelings, 3)
 */
 
+function toPlay(): Effect {
+    return {
+        text: [`Put this in play.`],
+        transform: (state, c) => move(c, 'play')
+    }
+}
+
 //TODO: "buy normal way" should maybe be it's own trigger with a cost field?
 const haggler:CardSpec = {
     name: 'Haggler',
     fixedCost: energy(1),
-    effects: [coinsEffect(2)],
+    effects: [coinsEffect(2), toPlay()],
 }
 buyable(haggler, 5, 'base', {
     triggers: [{
