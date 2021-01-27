@@ -7110,60 +7110,56 @@ var ballista = {
                 "Gain a card from the supply whose cost is at most the sum of their costs."],
             transform: function (s, card) { return function (state) {
                 return __awaiter(this, void 0, void 0, function () {
-                    var targets, targets_3, targets_3_1, target, e_48_1, cost, targets_4, targets_4_1, target;
-                    var _a, e_48, _b, e_49, _c;
-                    return __generator(this, function (_d) {
-                        switch (_d.label) {
-                            case 0: return [4 /*yield*/, multichoice(state, 'Choose up to two cards to play.', state.hand.map(asChoice), 2)];
+                    var targets, i, target, cost, targets_3, targets_3_1, target;
+                    var _a, e_48, _b;
+                    return __generator(this, function (_c) {
+                        switch (_c.label) {
+                            case 0:
+                                targets = [];
+                                i = 0;
+                                _c.label = 1;
                             case 1:
-                                _a = __read.apply(void 0, [_d.sent(), 2]), state = _a[0], targets = _a[1];
-                                _d.label = 2;
+                                if (!(i < 2)) return [3 /*break*/, 8];
+                                target = void 0;
+                                return [4 /*yield*/, choice(state, 'Choose a card to play then trash.', allowNull(state.hand.map(asChoice)))];
                             case 2:
-                                _d.trys.push([2, 8, 9, 10]);
-                                targets_3 = __values(targets), targets_3_1 = targets_3.next();
-                                _d.label = 3;
-                            case 3:
-                                if (!!targets_3_1.done) return [3 /*break*/, 7];
-                                target = targets_3_1.value;
+                                _a = __read.apply(void 0, [_c.sent(), 2]), state = _a[0], target = _a[1];
+                                if (!(target != null)) return [3 /*break*/, 5];
                                 return [4 /*yield*/, target.play(card)(state)];
-                            case 4:
-                                state = _d.sent();
+                            case 3:
+                                state = _c.sent();
                                 return [4 /*yield*/, trash(target)(state)];
+                            case 4:
+                                state = _c.sent();
+                                targets.push(target);
+                                _c.label = 5;
                             case 5:
-                                state = _d.sent();
-                                _d.label = 6;
+                                if (!(i == 0)) return [3 /*break*/, 7];
+                                return [4 /*yield*/, tick(card)(state)];
                             case 6:
-                                targets_3_1 = targets_3.next();
-                                return [3 /*break*/, 3];
-                            case 7: return [3 /*break*/, 10];
+                                state = _c.sent();
+                                _c.label = 7;
+                            case 7:
+                                i++;
+                                return [3 /*break*/, 1];
                             case 8:
-                                e_48_1 = _d.sent();
-                                e_48 = { error: e_48_1 };
-                                return [3 /*break*/, 10];
-                            case 9:
-                                try {
-                                    if (targets_3_1 && !targets_3_1.done && (_b = targets_3.return)) _b.call(targets_3);
-                                }
-                                finally { if (e_48) throw e_48.error; }
-                                return [7 /*endfinally*/];
-                            case 10:
                                 cost = __assign(__assign({}, free), { buys: 1 });
                                 try {
-                                    for (targets_4 = __values(targets), targets_4_1 = targets_4.next(); !targets_4_1.done; targets_4_1 = targets_4.next()) {
-                                        target = targets_4_1.value;
+                                    for (targets_3 = __values(targets), targets_3_1 = targets_3.next(); !targets_3_1.done; targets_3_1 = targets_3.next()) {
+                                        target = targets_3_1.value;
                                         cost = addCosts(cost, target.cost('buy', state));
                                     }
                                 }
-                                catch (e_49_1) { e_49 = { error: e_49_1 }; }
+                                catch (e_48_1) { e_48 = { error: e_48_1 }; }
                                 finally {
                                     try {
-                                        if (targets_4_1 && !targets_4_1.done && (_c = targets_4.return)) _c.call(targets_4);
+                                        if (targets_3_1 && !targets_3_1.done && (_b = targets_3.return)) _b.call(targets_3);
                                     }
-                                    finally { if (e_49) throw e_49.error; }
+                                    finally { if (e_48) throw e_48.error; }
                                 }
                                 return [4 /*yield*/, applyToTarget(function (target2) { return target2.buy(card); }, 'Choose a card to buy.', function (s) { return s.supply.filter(function (c) { return leq(c.cost('buy', state), cost); }); })(state)];
-                            case 11:
-                                state = _d.sent();
+                            case 9:
+                                state = _c.sent();
                                 return [2 /*return*/, state];
                         }
                     });

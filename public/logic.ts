@@ -6502,14 +6502,18 @@ const ballista:CardSpec = {
                 `Gain a card from the supply whose cost is at most the sum of their costs.`],
                 
         transform: (s, card) => async function(state) {
-            let targets:Card[]; [state, targets] = await multichoice(state,
-                'Choose up to two cards to play.',
-                state.hand.map(asChoice),
-                2
-            )
-            for (const target of targets) {
-                state = await target.play(card)(state)
-                state = await trash(target)(state)
+            const targets:Card[] = [];
+            for (let i = 0; i < 2; i ++) {
+                let target:Card|null; [state, target] = await choice(state,
+                    'Choose a card to play then trash.',
+                    allowNull(state.hand.map(asChoice))
+                )
+                if (target != null) {
+                    state = await target.play(card)(state)
+                    state = await trash(target)(state)
+                    targets.push(target)
+                }
+                if (i == 0) state = await tick(card)(state)
             }
             let cost:Cost = {...free, buys:1}
             for (const target of targets) {
@@ -6527,7 +6531,6 @@ const ballista:CardSpec = {
     }]
 }
 register(ballista, 'test')
-
 
 // ------------------ Testing -------------------
 
