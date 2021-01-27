@@ -6498,29 +6498,30 @@ const ballista:CardSpec = {
     name: 'Ballista',
     buyCost: coin(5),
     effects: [{
-        text: [`Play then trash two cards from your hand.`,
-                `If you do, gain a card from the supply whose cost is at most the sum of their costs.`],
+        text: [`Play then trash up to two cards from your hand.`,
+                `Gain a card from the supply whose cost is at most the sum of their costs.`],
                 
         transform: (s, card) => async function(state) {
             let targets:Card[]; [state, targets] = await multichoice(state,
-                'Choose two cards to play.',
+                'Choose up to two cards to play.',
                 state.hand.map(asChoice),
-                2, 2
+                2
             )
             for (const target of targets) {
                 state = await target.play(card)(state)
                 state = await trash(target)(state)
             }
-            if (targets.length == 2) {
-                const cost = addCosts(targets[0].cost('buy', state), targets[1].cost('buy', state))
-                state = await applyToTarget(
-                    target2 => target2.buy(card),
-                    'Choose a card to buy.',
-                    s => s.supply.filter(c => leq(
-                        c.cost('buy', state), cost
-                    ))
-                )(state)
+            let cost:Cost = {...free, buys:1}
+            for (const target of targets) {
+                cost = addCosts(cost, target.cost('buy', state))
             }
+            state = await applyToTarget(
+                target2 => target2.buy(card),
+                'Choose a card to buy.',
+                s => s.supply.filter(c => leq(
+                    c.cost('buy', state), cost
+                ))
+            )(state)
             return state
         }
     }]
