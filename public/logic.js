@@ -7102,6 +7102,65 @@ var manor = {
         }]
 };
 register(manor, 'test');
+var ballista = {
+    name: 'Ballista',
+    buyCost: coin(5),
+    effects: [{
+            text: ["Play then trash two cards from your hand.",
+                "If you do, gain a card from the supply whose cost is at most the sum of their costs."],
+            transform: function (s, card) { return function (state) {
+                return __awaiter(this, void 0, void 0, function () {
+                    var targets, targets_3, targets_3_1, target, e_48_1, cost_3;
+                    var _a, e_48, _b;
+                    return __generator(this, function (_c) {
+                        switch (_c.label) {
+                            case 0: return [4 /*yield*/, multichoice(state, 'Choose two cards to play.', state.hand.map(asChoice), 2, 2)];
+                            case 1:
+                                _a = __read.apply(void 0, [_c.sent(), 2]), state = _a[0], targets = _a[1];
+                                _c.label = 2;
+                            case 2:
+                                _c.trys.push([2, 8, 9, 10]);
+                                targets_3 = __values(targets), targets_3_1 = targets_3.next();
+                                _c.label = 3;
+                            case 3:
+                                if (!!targets_3_1.done) return [3 /*break*/, 7];
+                                target = targets_3_1.value;
+                                return [4 /*yield*/, target.play(card)(state)];
+                            case 4:
+                                state = _c.sent();
+                                return [4 /*yield*/, trash(target)(state)];
+                            case 5:
+                                state = _c.sent();
+                                _c.label = 6;
+                            case 6:
+                                targets_3_1 = targets_3.next();
+                                return [3 /*break*/, 3];
+                            case 7: return [3 /*break*/, 10];
+                            case 8:
+                                e_48_1 = _c.sent();
+                                e_48 = { error: e_48_1 };
+                                return [3 /*break*/, 10];
+                            case 9:
+                                try {
+                                    if (targets_3_1 && !targets_3_1.done && (_b = targets_3.return)) _b.call(targets_3);
+                                }
+                                finally { if (e_48) throw e_48.error; }
+                                return [7 /*endfinally*/];
+                            case 10:
+                                if (!(targets.length == 2)) return [3 /*break*/, 12];
+                                cost_3 = addCosts(targets[0].cost('buy', state), targets[1].cost('buy', state));
+                                return [4 /*yield*/, applyToTarget(function (target2) { return target2.buy(card); }, 'Choose a card to buy.', function (s) { return s.supply.filter(function (c) { return leq(c.cost('buy', state), cost_3); }); })(state)];
+                            case 11:
+                                state = _c.sent();
+                                _c.label = 12;
+                            case 12: return [2 /*return*/, state];
+                        }
+                    });
+                });
+            }; }
+        }]
+};
+register(ballista, 'test');
 // ------------------ Testing -------------------
 var freeMoney = { name: 'Free money',
     fixedCost: energy(0),
