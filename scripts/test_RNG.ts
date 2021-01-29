@@ -1,4 +1,5 @@
 import { cardsAndEvents, makeKingdom, GameSpec, Kingdom } from '../public/logic.js'
+import { allCardsEvents } from '../public/main.js'
 
 const N = 100000
 const counts:Map<string, number> = new Map()
@@ -9,8 +10,8 @@ function increment<T>(x:Map<T, number>, key:T): void {
 
 for (let i = 0; i < N; i++) {
 	const seed = `testseed.${i}`
-	const spec:GameSpec = {kind: 'full', seed: seed}
-	const kingdom:Kingdom = makeKingdom(spec)
+	const spec:GameSpec = {kind: 'full', randomizer: {seed: seed, expansions: ['base']}}
+	const kingdom:Kingdom = makeKingdom(spec, allCardsEvents)
 	const names:string[] = kingdom.cards.map(c => c.name)
 	for (const a of names) {
 		for (const b of names) {

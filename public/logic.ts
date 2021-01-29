@@ -723,13 +723,13 @@ export class State {
             actions:this.origin().future
         })
     }
-    static fromReplayString(s:string, spec:GameSpec): State {
-        return State.fromReplay(parseReplay(s), spec)
+    static fromReplayString(s:string, spec:GameSpec, allCardsEvents: Kingdom): State {
+        return State.fromReplay(parseReplay(s), spec, allCardsEvents)
     }
-    static fromReplay(replay:Replay, spec:GameSpec): State {
+    static fromReplay(replay:Replay, spec:GameSpec, allCardsEvents: Kingdom): State {
         if (replay.version != VERSION)
             throw new VersionMismatch(replay.version || 'null');
-        return initialState(spec).update({future:replay.actions})
+        return initialState(spec, allCardsEvents).update({future:replay.actions})
     }
 }
 
@@ -1781,29 +1781,6 @@ function undo(startState: State): State {
     }
 }
 
-export async function verifyScore(spec:GameSpec, history:string, score:number): Promise<[boolean, string]> {
-    try {
-        await playGame(State.fromReplayString(history, spec))
-        return [true, ""] //unreachable
-    } catch(e) {
-        if (e instanceof ReplayVictory) {
-            if (e.state.energy == score)
-                return [true, ""]
-            else
-                return [false, `Computed score was ${e.state.energy}`]
-        } else if (e instanceof InvalidHistory) {
-            return [false, `${e}`]
-        } else if (e instanceof VersionMismatch) {
-            return [false, `${e}`]
-        } else if (e instanceof ReplayEnded) {
-            return [false, `${e}`]
-        } else {
-            throw e
-        }
-    }
-}
-
-
 
 // --------------------- act
 
@@ -1948,7 +1925,7 @@ type SetSpec = {
 }
 
 export type ExpansionName = 'base' | 'expansion' | 'absurd' | 'test'
-const expansionNames:ExpansionName[] = ['base', 'expansion', 'absurd', 'test']
+export const expansionNames:ExpansionName[] = ['base', 'expansion', 'absurd', 'test']
 type SetName = 'core' | ExpansionName
 
 function emptySet(): SetSpec {
@@ -1963,17 +1940,21 @@ export const sets = {
     'test': emptySet(),
 }
 
-export function makeKingdom(spec:GameSpec): Kingdom {
+export function cardsFrom(kind:'cards'|'events', expansions:ExpansionName[]) {
+    return expansions.map(c => sets[c][kind]).flat(1)
+}
+
+export function makeKingdom(spec:GameSpec, allKingdom: Kingdom): Kingdom {
     switch (spec.kind) {
         case 'test':
             return {
-                cards:allCards,
-                events:allEvents.concat(cheats),
+                cards:allKingdom.cards,
+                events:allKingdom.events.concat(cheats),
             }
         case 'pick':
             return {cards:spec.cards, events:spec.events}
         case 'goal':
-            return makeKingdom(spec.spec)
+            return makeKingdom(spec.spec, allKingdom)
         default:
             const kingdom = cardsAndEvents(spec)
             const expansions = usableExpansions(spec)
@@ -1984,7 +1965,7 @@ export function makeKingdom(spec:GameSpec): Kingdom {
     }
 }
 
-function randomSeed(): string {
+export function randomSeed(): string {
     return Math.random().toString(36).substring(2, 7)
 }
 
@@ -2008,7 +1989,7 @@ function normalizePreservingCase(xs:string[]): string[] {
     }
     return xs.map(f).sort(stringComp)
 }
-function normalize(xs:string[]): string[] {
+export function normalize(xs:string[]): string[] {
     return xs.map(normalizeString).sort(stringComp)
 }
 
@@ -2018,7 +1999,7 @@ function makeDictionary(xs:CardSpec[]): Map<string, CardSpec> {
     return result
 }
 
-function extractList(names:string[], xs:CardSpec[]): SlotSpec[] {
+export function extractList(names:string[], xs:CardSpec[]): SlotSpec[] {
     const dictionary = makeDictionary(xs)
     const result:SlotSpec[] = []
     for (const name of names) {
@@ -2086,7 +2067,7 @@ export function specToURL(spec:GameSpec): string {
     return mapToURL(args)
 }
 
-function split(s:string, sep:string): string[] {
+export function split(s:string, sep:string): string[] {
     if (s.length == 0) {
         return []
     } else  {
@@ -2109,78 +2090,6 @@ export function parseExpansionString(expansionString:string|null): ExpansionName
     return expansions;
 }
 
-export function specFromURL(search:string, excludeGoal:boolean = false): GameSpec {
-    const searchParams = new URLSearchParams(search)
-    if (!excludeGoal) {
-        const vp_goal:string|null = searchParams.get('vp')
-        if (vp_goal !== null) {
-            return {kind:'goal',
-                    vp: Number(vp_goal),
-                    spec: specFromURL(search, true)}
-        }
-    }
-    const urlKind:string|null = searchParams.get('kind')
-    const cardsString:string|null = searchParams.get('cards')
-    const cards:string[] = (cardsString === null) ? []
-        : normalize(split(cardsString, ','))
-    const eventsString:string|null = searchParams.get('events')
-    const events:string[] = (eventsString === null) ? []
-        : normalize(split(eventsString, ','))
-    const expansionString:string|null = searchParams.get('expansions')
-    const expansions:ExpansionName[] = parseExpansionString(expansionString)
-    const seed:string|null = searchParams.get('seed') || randomSeed()
-    let kind:string
-
-    function pickOrPickR() {
-        if (cards.indexOf(RANDOM) >= 0 || events.indexOf(RANDOM) >= 0) {
-            return 'pickR'
-        } else {
-            return 'pick'
-        }
-    }
-
-    if (urlKind !== null) {
-        if (urlKind == 'pick' || urlKind == 'pickR') kind = pickOrPickR()
-        else kind = urlKind
-    } else {
-        if (cards.length == 0 && events.length == 0) kind = 'full';
-        else kind = pickOrPickR()
-    }
-
-    switch(kind) {
-        case 'full':
-            return {kind:kind, randomizer: {seed:seed, expansions: expansions}}
-        case 'pick':
-            const cardSpecs:CardSpec[] = [];
-            const eventSpecs:CardSpec[] = [];
-            if (cards !== null) {
-                for (const card of extractList(cards, allCards)) {
-                    if (card == RANDOM) throw new MalformedSpec('Random card is only allowable in type pickR');
-                    else cardSpecs.push(card)
-                }
-            }
-            if (events !== null) {
-                for (const card of extractList(events, allEvents)) {
-                    if (card == RANDOM) throw new MalformedSpec('Random card is only allowable in type pickR');
-                    else eventSpecs.push(card)
-                }
-            }
-            return {kind:kind, cards:cardSpecs, events:eventSpecs}
-        case 'require':
-            return {
-                kind:kind, randomizer: {seed:seed, expansions:expansions},
-                cards: (cards === null) ? [] : extractList(cards, allCards),
-                events: (events === null) ? [] : extractList(events, allEvents),
-            }
-        case 'pickR':
-            return {kind:kind, randomizer: {seed:seed, expansions:expansions},
-                    cards:(cards === null) ? [] : extractList(cards, allCards),
-                    events:(events === null) ? [] : extractList(events, allEvents)}
-        case 'test': return {kind: 'test'}
-        default: throw new MalformedSpec(`Invalid kind ${kind}`)
-    }
-}
-
 function pickRandoms(slots:SlotSpec[], source:CardSpec[], seed:string): CardSpec[] {
     const taken:Set<string> = new Set()
     const result:CardSpec[] = []
@@ -2199,27 +2108,17 @@ function pickRandoms(slots:SlotSpec[], source:CardSpec[], seed:string): CardSpec
     ))
 }
 
-function goalForSpec(spec:GameSpec): number {
+export function goalForSpec(spec:GameSpec): number {
     switch (spec.kind) {
         case 'goal': return spec.vp
         default: return DEFAULT_VP_GOAL
     }
 }
 
-export function normalizeURL(url:string): string{
-	const spec:GameSpec = specFromURL(url)
-    const kingdom:Kingdom = makeKingdom(spec)
-    let normalizedSpec:GameSpec = {
-        kind:'goal', vp:goalForSpec(spec),
-        spec: {kind:'pick', cards:kingdom.cards, events:kingdom.events}
-    }
-    return specToURL(normalizedSpec)
-}
-
-export function initialState(spec:GameSpec): State {
+export function initialState(spec:GameSpec, allCardsEvents: Kingdom): State {
     const startingHand:CardSpec[] = [copper, copper, copper, estate, estate]
 
-    const kingdom:Kingdom = makeKingdom(spec)
+    const kingdom:Kingdom = makeKingdom(spec, allCardsEvents)
 
     const variableSupplies = kingdom.cards.slice()
     const variableEvents = kingdom.events.slice()
@@ -2725,15 +2624,3 @@ const doItAll:CardSpec = {name: 'Do it all',
 }
 cheats.push(doItAll)
 
-
-// ------------ Random placeholder --------------
-
-export const randomPlaceholder:CardSpec = {name: RANDOM}
-
-
-function cardsFrom(kind:'cards'|'events', expansions:ExpansionName[]) {
-    return expansions.map(c => sets[c][kind]).flat(1)
-}
-
-export const allCards:CardSpec[] = cardsFrom('cards', expansionNames)
-export const allEvents:CardSpec[] = cardsFrom('events', expansionNames)

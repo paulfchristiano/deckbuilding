@@ -13,17 +13,14 @@ import { emptyState } from './logic.js'
 import { LogType, logTypes } from './logic.js'
 import { Option, OptionRender, HotkeyHint, sets, ExpansionName } from './logic.js'
 import { UI, SetState, Undo, Victory, InvalidHistory, ReplayEnded } from './logic.js'
-import { playGame, initialState, verifyScore} from './logic.js'
+import { playGame, initialState} from './logic.js'
 import { Replay, coerceReplayVersion, parseReplay, MalformedReplay } from './logic.js'
-import { allCards, allEvents, randomPlaceholder } from './logic.js'
+import { expansionNames, specToURL, cardsFrom } from './logic.js'
 import { VERSION, DEFAULT_VP_GOAL } from './logic.js'
-import { MalformedSpec, specToURL, specFromURL } from './logic.js'
+import { MalformedSpec } from './logic.js'
 
-// register cards
-import './cards/absurd.js'
 import {throneRoom, duplicate} from './cards/base.js'
-import './cards/expansion.js'
-import './cards/test.js'
+import {specFromURL, allCardsEvents, randomPlaceholder} from './kingdoms.js'
 
 // --------------------- Hotkeys
 
@@ -1354,7 +1351,7 @@ function getTutorialSpec(): GameSpec {
 }
 
 export function loadTutorial(){
-    const state = initialState(getTutorialSpec())
+    const state = initialState(getTutorialSpec(), allCardsEvents)
     startGame(state, new tutorialUI(tutorialStages))
 }
 
@@ -1631,13 +1628,13 @@ export function load(fixedURL:string=''): void {
     let state:State;
     if (history !== null) {
         try {
-            state = State.fromReplay(history, spec)
+            state = State.fromReplay(history, spec, allCardsEvents)
         } catch(e) {
             alert(`Error loading history: ${e}`);
-            state = initialState(spec);
+            state = initialState(spec, allCardsEvents);
         }
     } else {
-        state = initialState(spec)
+        state = initialState(spec, allCardsEvents)
     }
 
     startGame(state)
@@ -1666,7 +1663,7 @@ function restart(state:State): void {
     //TODO: clear hearatbeat? (currently assumes spec is the same...)
     const spec = state.spec
     const ui = state.ui
-    state = initialState(spec)
+    state = initialState(spec, allCardsEvents)
     globalRendererState.userURL = false
     window.history.pushState(null, "")
     playGame(state.attachUI(ui)).catch(e => {

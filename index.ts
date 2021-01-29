@@ -1,7 +1,8 @@
 import express from 'express'
 import path from 'path'
 const PORT = process.env.PORT || 5000
-import {verifyScore, VERSION, specFromURL, specToURL, normalizeURL } from './public/logic.js'
+import {VERSION, specToURL } from './public/logic.js'
+import {verifyScore, specFromURL, normalizeURL } from './public/kingdoms.js'
 import {Credentials, hashPassword, CampaignInfo} from './public/campaign.js'
 
 import postgres from 'postgres'

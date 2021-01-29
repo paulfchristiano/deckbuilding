@@ -1,3 +1,4 @@
+"use strict";
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
     return new (P || (P = Promise))(function (resolve, reject) {
@@ -34,33 +35,7 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
         if (op[0] & 5) throw op[1]; return { value: op[0] ? op[1] : void 0, done: true };
     }
 };
-var __values = (this && this.__values) || function(o) {
-    var s = typeof Symbol === "function" && Symbol.iterator, m = s && o[s], i = 0;
-    if (m) return m.call(o);
-    if (o && typeof o.length === "number") return {
-        next: function () {
-            if (o && i >= o.length) o = void 0;
-            return { value: o && o[i++], done: !o };
-        }
-    };
-    throw new TypeError(s ? "Object is not iterable." : "Symbol.iterator is not defined.");
-};
-var __read = (this && this.__read) || function (o, n) {
-    var m = typeof Symbol === "function" && o[Symbol.iterator];
-    if (!m) return o;
-    var i = m.call(o), r, ar = [], e;
-    try {
-        while ((n === void 0 || n-- > 0) && !(r = i.next()).done) ar.push(r.value);
-    }
-    catch (error) { e = { error: error }; }
-    finally {
-        try {
-            if (r && !r.done && (m = i["return"])) m.call(i);
-        }
-        finally { if (e) throw e.error; }
-    }
-    return ar;
-};
+exports.__esModule = true;
 function makeCredentials(username, password) {
     return { username: username, hashedPassword: hashPassword(username, password) };
 }
@@ -75,7 +50,7 @@ function logout() {
 function escapePeriods(id) {
     return id.replace('.', '\\.');
 }
-export function getCredentials() {
+function getCredentials() {
     var username = localStorage.campaignUsername;
     var hashedPassword = localStorage.hashedPassword;
     if (username !== undefined && hashedPassword !== undefined) {
@@ -88,17 +63,17 @@ export function getCredentials() {
         return null;
     }
 }
+exports.getCredentials = getCredentials;
 function toggleRules() {
     var active = $('#rules').attr('active');
     console.log(active);
     $('#rules').attr('active', (active == 'true') ? 'false' : 'true');
 }
-export function load() {
+function load() {
     return __awaiter(this, void 0, void 0, function () {
-        var credentials, lookupAwardsByLevel, info, _a, _b, _c, name_1, url, _d, _e, _f, name_2, reason, _g, _h, _j, name_3, awards, _k, _l, _m, name_4, awards;
-        var e_1, _o, e_2, _p, e_3, _q, e_4, _r;
-        return __generator(this, function (_s) {
-            switch (_s.label) {
+        var credentials, lookupAwardsByLevel, info, _i, _a, _b, name_1, url, _c, _d, _e, name_2, reason, _f, _g, _h, name_3, awards, _j, _k, _l, name_4, awards;
+        return __generator(this, function (_m) {
+            switch (_m.label) {
                 case 0:
                     credentials = getCredentials();
                     $('#logoutButton').click(logout);
@@ -113,73 +88,38 @@ export function load() {
                     lookupAwardsByLevel = new Map();
                     return [4 /*yield*/, getCampaignInfo(credentials)];
                 case 2:
-                    info = _s.sent();
+                    info = _m.sent();
                     $('#numAwards').text(" " + info.numAwards);
-                    try {
-                        for (_a = __values(info.urls), _b = _a.next(); !_b.done; _b = _a.next()) {
-                            _c = __read(_b.value, 2), name_1 = _c[0], url = _c[1];
-                            if (url !== null) {
-                                $("#" + $.escapeSelector(name_1) + " a").attr('href', "play?campaign&" + url);
-                            }
+                    for (_i = 0, _a = info.urls; _i < _a.length; _i++) {
+                        _b = _a[_i], name_1 = _b[0], url = _b[1];
+                        if (url !== null) {
+                            $("#" + $.escapeSelector(name_1) + " a").attr('href', "play?campaign&" + url);
                         }
                     }
-                    catch (e_1_1) { e_1 = { error: e_1_1 }; }
-                    finally {
-                        try {
-                            if (_b && !_b.done && (_o = _a.return)) _o.call(_a);
-                        }
-                        finally { if (e_1) throw e_1.error; }
+                    for (_c = 0, _d = info.lockReasons; _c < _d.length; _c++) {
+                        _e = _d[_c], name_2 = _e[0], reason = _e[1];
+                        $("#" + $.escapeSelector(name_2) + " .req").html(" (&#128274;" + reason + ")");
                     }
-                    try {
-                        for (_d = __values(info.lockReasons), _e = _d.next(); !_e.done; _e = _d.next()) {
-                            _f = __read(_e.value, 2), name_2 = _f[0], reason = _f[1];
-                            $("#" + $.escapeSelector(name_2) + " .req").html(" (&#128274;" + reason + ")");
-                        }
+                    for (_f = 0, _g = info.awardsByLevel; _f < _g.length; _f++) {
+                        _h = _g[_f], name_3 = _h[0], awards = _h[1];
+                        $("#" + $.escapeSelector(name_3) + " .stars").text(renderStars(awards));
+                        lookupAwardsByLevel.set(name_3, awards);
                     }
-                    catch (e_2_1) { e_2 = { error: e_2_1 }; }
-                    finally {
-                        try {
-                            if (_e && !_e.done && (_p = _d.return)) _p.call(_d);
+                    for (_j = 0, _k = info.availableAwardsByLevel; _j < _k.length; _j++) {
+                        _l = _k[_j], name_4 = _l[0], awards = _l[1];
+                        console.log([name_4, awards]);
+                        if (awards >= 4 && (lookupAwardsByLevel.get(name_4) || 0) < awards) {
+                            $("#" + $.escapeSelector(name_4)).append(' [!]');
                         }
-                        finally { if (e_2) throw e_2.error; }
-                    }
-                    try {
-                        for (_g = __values(info.awardsByLevel), _h = _g.next(); !_h.done; _h = _g.next()) {
-                            _j = __read(_h.value, 2), name_3 = _j[0], awards = _j[1];
-                            $("#" + $.escapeSelector(name_3) + " .stars").text(renderStars(awards));
-                            lookupAwardsByLevel.set(name_3, awards);
-                        }
-                    }
-                    catch (e_3_1) { e_3 = { error: e_3_1 }; }
-                    finally {
-                        try {
-                            if (_h && !_h.done && (_q = _g.return)) _q.call(_g);
-                        }
-                        finally { if (e_3) throw e_3.error; }
-                    }
-                    try {
-                        for (_k = __values(info.availableAwardsByLevel), _l = _k.next(); !_l.done; _l = _k.next()) {
-                            _m = __read(_l.value, 2), name_4 = _m[0], awards = _m[1];
-                            console.log([name_4, awards]);
-                            if (awards >= 4 && (lookupAwardsByLevel.get(name_4) || 0) < awards) {
-                                $("#" + $.escapeSelector(name_4)).append(' [!]');
-                            }
-                        }
-                    }
-                    catch (e_4_1) { e_4 = { error: e_4_1 }; }
-                    finally {
-                        try {
-                            if (_l && !_l.done && (_r = _k.return)) _r.call(_k);
-                        }
-                        finally { if (e_4) throw e_4.error; }
                     }
                     displayStarUnlocks(info.maxStars);
-                    _s.label = 3;
+                    _m.label = 3;
                 case 3: return [2 /*return*/];
             }
         });
     });
 }
+exports.load = load;
 function displayStarUnlocks(maxStars) {
     if (maxStars >= 2) {
         $('#unlock1').html("You've unlocked a second star on each level!");
@@ -330,9 +270,10 @@ function getCampaignInfo(credentials) {
 }
 //this is intended only to prevent dev from seeing plaintext passwords
 //(hopefully no users reuse passwords anyway, but might as well)
-export function hashPassword(username, password) {
+function hashPassword(username, password) {
     return hash(password).toString(16);
 }
+exports.hashPassword = hashPassword;
 // Source: https://werxltd.com/wp/2010/05/13/javascript-implementation-of-javas-string-hashcode-method/
 // (definitely not a PRF)
 function hash(s) {
@@ -342,4 +283,3 @@ function hash(s) {
     }
     return hash;
 }
-//# sourceMappingURL=campaign.js.map

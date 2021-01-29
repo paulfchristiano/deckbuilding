@@ -840,13 +840,13 @@ var State = /** @class */ (function () {
             actions: this.origin().future
         });
     };
-    State.fromReplayString = function (s, spec) {
-        return State.fromReplay(parseReplay(s), spec);
+    State.fromReplayString = function (s, spec, allCardsEvents) {
+        return State.fromReplay(parseReplay(s), spec, allCardsEvents);
     };
-    State.fromReplay = function (replay, spec) {
+    State.fromReplay = function (replay, spec, allCardsEvents) {
         if (replay.version != VERSION)
             throw new VersionMismatch(replay.version || 'null');
-        return initialState(spec).update({ future: replay.actions });
+        return initialState(spec, allCardsEvents).update({ future: replay.actions });
     };
     return State;
 }());
@@ -2186,43 +2186,6 @@ function undo(startState) {
         }
     }
 }
-export function verifyScore(spec, history, score) {
-    return __awaiter(this, void 0, void 0, function () {
-        var e_30;
-        return __generator(this, function (_a) {
-            switch (_a.label) {
-                case 0:
-                    _a.trys.push([0, 2, , 3]);
-                    return [4 /*yield*/, playGame(State.fromReplayString(history, spec))];
-                case 1:
-                    _a.sent();
-                    return [2 /*return*/, [true, ""]]; //unreachable
-                case 2:
-                    e_30 = _a.sent();
-                    if (e_30 instanceof ReplayVictory) {
-                        if (e_30.state.energy == score)
-                            return [2 /*return*/, [true, ""]];
-                        else
-                            return [2 /*return*/, [false, "Computed score was " + e_30.state.energy]];
-                    }
-                    else if (e_30 instanceof InvalidHistory) {
-                        return [2 /*return*/, [false, "" + e_30]];
-                    }
-                    else if (e_30 instanceof VersionMismatch) {
-                        return [2 /*return*/, [false, "" + e_30]];
-                    }
-                    else if (e_30 instanceof ReplayEnded) {
-                        return [2 /*return*/, [false, "" + e_30]];
-                    }
-                    else {
-                        throw e_30;
-                    }
-                    return [3 /*break*/, 3];
-                case 3: return [2 /*return*/];
-            }
-        });
-    });
-}
 // --------------------- act
 // This is the 'default' choice the player makes when nothing else is happening
 function logAct(state, act, card) {
@@ -2301,7 +2264,7 @@ export function nameComp(a, b) {
 }
 function lexical(comps) {
     return function (a, b) {
-        var e_31, _a;
+        var e_30, _a;
         try {
             for (var comps_1 = __values(comps), comps_1_1 = comps_1.next(); !comps_1_1.done; comps_1_1 = comps_1.next()) {
                 var comp = comps_1_1.value;
@@ -2310,12 +2273,12 @@ function lexical(comps) {
                     return result;
             }
         }
-        catch (e_31_1) { e_31 = { error: e_31_1 }; }
+        catch (e_30_1) { e_30 = { error: e_30_1 }; }
         finally {
             try {
                 if (comps_1_1 && !comps_1_1.done && (_a = comps_1.return)) _a.call(comps_1);
             }
-            finally { if (e_31) throw e_31.error; }
+            finally { if (e_30) throw e_30.error; }
         }
         return 0;
     };
@@ -2361,7 +2324,7 @@ function usableExpansions(spec) {
         default: return spec.randomizer.expansions;
     }
 }
-var expansionNames = ['base', 'expansion', 'absurd', 'test'];
+export var expansionNames = ['base', 'expansion', 'absurd', 'test'];
 function emptySet() {
     return { 'cards': [], 'events': [] };
 }
@@ -2372,17 +2335,20 @@ export var sets = {
     'absurd': emptySet(),
     'test': emptySet(),
 };
-export function makeKingdom(spec) {
+export function cardsFrom(kind, expansions) {
+    return expansions.map(function (c) { return sets[c][kind]; }).flat(1);
+}
+export function makeKingdom(spec, allKingdom) {
     switch (spec.kind) {
         case 'test':
             return {
-                cards: allCards,
-                events: allEvents.concat(cheats),
+                cards: allKingdom.cards,
+                events: allKingdom.events.concat(cheats),
             };
         case 'pick':
             return { cards: spec.cards, events: spec.events };
         case 'goal':
-            return makeKingdom(spec.spec);
+            return makeKingdom(spec.spec, allKingdom);
         default:
             var kingdom = cardsAndEvents(spec);
             var expansions = usableExpansions(spec);
@@ -2392,7 +2358,7 @@ export function makeKingdom(spec) {
             };
     }
 }
-function randomSeed() {
+export function randomSeed() {
     return Math.random().toString(36).substring(2, 7);
 }
 var MalformedSpec = /** @class */ (function (_super) {
@@ -2418,11 +2384,11 @@ function normalizePreservingCase(xs) {
     }
     return xs.map(f).sort(stringComp);
 }
-function normalize(xs) {
+export function normalize(xs) {
     return xs.map(normalizeString).sort(stringComp);
 }
 function makeDictionary(xs) {
-    var e_32, _a;
+    var e_31, _a;
     var result = new Map();
     try {
         for (var xs_2 = __values(xs), xs_2_1 = xs_2.next(); !xs_2_1.done; xs_2_1 = xs_2.next()) {
@@ -2430,17 +2396,17 @@ function makeDictionary(xs) {
             result.set(normalizeString(x.name), x);
         }
     }
-    catch (e_32_1) { e_32 = { error: e_32_1 }; }
+    catch (e_31_1) { e_31 = { error: e_31_1 }; }
     finally {
         try {
             if (xs_2_1 && !xs_2_1.done && (_a = xs_2.return)) _a.call(xs_2);
         }
-        finally { if (e_32) throw e_32.error; }
+        finally { if (e_31) throw e_31.error; }
     }
     return result;
 }
-function extractList(names, xs) {
-    var e_33, _a;
+export function extractList(names, xs) {
+    var e_32, _a;
     var dictionary = makeDictionary(xs);
     var result = [];
     try {
@@ -2457,12 +2423,12 @@ function extractList(names, xs) {
             }
         }
     }
-    catch (e_33_1) { e_33 = { error: e_33_1 }; }
+    catch (e_32_1) { e_32 = { error: e_32_1 }; }
     finally {
         try {
             if (names_1_1 && !names_1_1.done && (_a = names_1.return)) _a.call(names_1);
         }
-        finally { if (e_33) throw e_33.error; }
+        finally { if (e_32) throw e_32.error; }
     }
     return result;
 }
@@ -2470,7 +2436,7 @@ function mapToURL(args) {
     return Array.from(args.entries()).map(function (x) { return x[0] + "=" + x[1]; }).join('&');
 }
 function renderSlots(slots) {
-    var e_34, _a;
+    var e_33, _a;
     var result = [];
     try {
         for (var slots_1 = __values(slots), slots_1_1 = slots_1.next(); !slots_1_1.done; slots_1_1 = slots_1.next()) {
@@ -2481,12 +2447,12 @@ function renderSlots(slots) {
                 result.push(slot.name);
         }
     }
-    catch (e_34_1) { e_34 = { error: e_34_1 }; }
+    catch (e_33_1) { e_33 = { error: e_33_1 }; }
     finally {
         try {
             if (slots_1_1 && !slots_1_1.done && (_a = slots_1.return)) _a.call(slots_1);
         }
-        finally { if (e_34) throw e_34.error; }
+        finally { if (e_33) throw e_33.error; }
     }
     return normalizePreservingCase(result).join(',');
 }
@@ -2527,7 +2493,7 @@ export function specToURL(spec) {
     }
     return mapToURL(args);
 }
-function split(s, sep) {
+export function split(s, sep) {
     if (s.length == 0) {
         return [];
     }
@@ -2536,7 +2502,7 @@ function split(s, sep) {
     }
 }
 export function parseExpansionString(expansionString) {
-    var e_35, _a;
+    var e_34, _a;
     var expansionStrings = (expansionString === null) ? ['base']
         : normalize(split(expansionString, ','));
     var expansions = [];
@@ -2552,117 +2518,17 @@ export function parseExpansionString(expansionString) {
             }
         }
     }
-    catch (e_35_1) { e_35 = { error: e_35_1 }; }
+    catch (e_34_1) { e_34 = { error: e_34_1 }; }
     finally {
         try {
             if (expansionStrings_1_1 && !expansionStrings_1_1.done && (_a = expansionStrings_1.return)) _a.call(expansionStrings_1);
         }
-        finally { if (e_35) throw e_35.error; }
+        finally { if (e_34) throw e_34.error; }
     }
     return expansions;
 }
-export function specFromURL(search, excludeGoal) {
-    var e_36, _a, e_37, _b;
-    if (excludeGoal === void 0) { excludeGoal = false; }
-    var searchParams = new URLSearchParams(search);
-    if (!excludeGoal) {
-        var vp_goal = searchParams.get('vp');
-        if (vp_goal !== null) {
-            return { kind: 'goal',
-                vp: Number(vp_goal),
-                spec: specFromURL(search, true) };
-        }
-    }
-    var urlKind = searchParams.get('kind');
-    var cardsString = searchParams.get('cards');
-    var cards = (cardsString === null) ? []
-        : normalize(split(cardsString, ','));
-    var eventsString = searchParams.get('events');
-    var events = (eventsString === null) ? []
-        : normalize(split(eventsString, ','));
-    var expansionString = searchParams.get('expansions');
-    var expansions = parseExpansionString(expansionString);
-    var seed = searchParams.get('seed') || randomSeed();
-    var kind;
-    function pickOrPickR() {
-        if (cards.indexOf(RANDOM) >= 0 || events.indexOf(RANDOM) >= 0) {
-            return 'pickR';
-        }
-        else {
-            return 'pick';
-        }
-    }
-    if (urlKind !== null) {
-        if (urlKind == 'pick' || urlKind == 'pickR')
-            kind = pickOrPickR();
-        else
-            kind = urlKind;
-    }
-    else {
-        if (cards.length == 0 && events.length == 0)
-            kind = 'full';
-        else
-            kind = pickOrPickR();
-    }
-    switch (kind) {
-        case 'full':
-            return { kind: kind, randomizer: { seed: seed, expansions: expansions } };
-        case 'pick':
-            var cardSpecs = [];
-            var eventSpecs = [];
-            if (cards !== null) {
-                try {
-                    for (var _c = __values(extractList(cards, allCards)), _d = _c.next(); !_d.done; _d = _c.next()) {
-                        var card = _d.value;
-                        if (card == RANDOM)
-                            throw new MalformedSpec('Random card is only allowable in type pickR');
-                        else
-                            cardSpecs.push(card);
-                    }
-                }
-                catch (e_36_1) { e_36 = { error: e_36_1 }; }
-                finally {
-                    try {
-                        if (_d && !_d.done && (_a = _c.return)) _a.call(_c);
-                    }
-                    finally { if (e_36) throw e_36.error; }
-                }
-            }
-            if (events !== null) {
-                try {
-                    for (var _e = __values(extractList(events, allEvents)), _f = _e.next(); !_f.done; _f = _e.next()) {
-                        var card = _f.value;
-                        if (card == RANDOM)
-                            throw new MalformedSpec('Random card is only allowable in type pickR');
-                        else
-                            eventSpecs.push(card);
-                    }
-                }
-                catch (e_37_1) { e_37 = { error: e_37_1 }; }
-                finally {
-                    try {
-                        if (_f && !_f.done && (_b = _e.return)) _b.call(_e);
-                    }
-                    finally { if (e_37) throw e_37.error; }
-                }
-            }
-            return { kind: kind, cards: cardSpecs, events: eventSpecs };
-        case 'require':
-            return {
-                kind: kind, randomizer: { seed: seed, expansions: expansions },
-                cards: (cards === null) ? [] : extractList(cards, allCards),
-                events: (events === null) ? [] : extractList(events, allEvents),
-            };
-        case 'pickR':
-            return { kind: kind, randomizer: { seed: seed, expansions: expansions },
-                cards: (cards === null) ? [] : extractList(cards, allCards),
-                events: (events === null) ? [] : extractList(events, allEvents) };
-        case 'test': return { kind: 'test' };
-        default: throw new MalformedSpec("Invalid kind " + kind);
-    }
-}
 function pickRandoms(slots, source, seed) {
-    var e_38, _a;
+    var e_35, _a;
     var taken = new Set();
     var result = [];
     var randoms = 0;
@@ -2678,33 +2544,24 @@ function pickRandoms(slots, source, seed) {
             }
         }
     }
-    catch (e_38_1) { e_38 = { error: e_38_1 }; }
+    catch (e_35_1) { e_35 = { error: e_35_1 }; }
     finally {
         try {
             if (slots_2_1 && !slots_2_1.done && (_a = slots_2.return)) _a.call(slots_2);
         }
-        finally { if (e_38) throw e_38.error; }
+        finally { if (e_35) throw e_35.error; }
     }
     return result.concat(randomChoices(source.filter(function (x) { return !taken.has(x.name); }), randoms, hash(seed)));
 }
-function goalForSpec(spec) {
+export function goalForSpec(spec) {
     switch (spec.kind) {
         case 'goal': return spec.vp;
         default: return DEFAULT_VP_GOAL;
     }
 }
-export function normalizeURL(url) {
-    var spec = specFromURL(url);
-    var kingdom = makeKingdom(spec);
-    var normalizedSpec = {
-        kind: 'goal', vp: goalForSpec(spec),
-        spec: { kind: 'pick', cards: kingdom.cards, events: kingdom.events }
-    };
-    return specToURL(normalizedSpec);
-}
-export function initialState(spec) {
+export function initialState(spec, allCardsEvents) {
     var startingHand = [copper, copper, copper, estate, estate];
-    var kingdom = makeKingdom(spec);
+    var kingdom = makeKingdom(spec, allCardsEvents);
     var variableSupplies = kingdom.cards.slice();
     var variableEvents = kingdom.events.slice();
     variableSupplies.sort(supplyComp);
@@ -2784,7 +2641,7 @@ function reversed(it) {
 }
 // ------------------------- Browsing
 function undoOrSet(to, from) {
-    var e_39, _a;
+    var e_36, _a;
     var newHistory = to.origin().future;
     var oldHistory = from.origin().future;
     var newRedo = from.redo.slice();
@@ -2801,12 +2658,12 @@ function undoOrSet(to, from) {
                 }
             }
         }
-        catch (e_39_1) { e_39 = { error: e_39_1 }; }
+        catch (e_36_1) { e_36 = { error: e_36_1 }; }
         finally {
             try {
                 if (_c && !_c.done && (_a = _b.return)) _a.call(_b);
             }
-            finally { if (e_39) throw e_39.error; }
+            finally { if (e_36) throw e_36.error; }
         }
     }
     return predecessor ? to.update({ redo: newRedo, ui: from.ui }) : to;
@@ -3205,11 +3062,4 @@ var doItAll = { name: 'Do it all',
         }, refreshEffect(100), coinsEffect(100), buysEffect(100)]
 };
 cheats.push(doItAll);
-// ------------ Random placeholder --------------
-export var randomPlaceholder = { name: RANDOM };
-function cardsFrom(kind, expansions) {
-    return expansions.map(function (c) { return sets[c][kind]; }).flat(1);
-}
-export var allCards = cardsFrom('cards', expansionNames);
-export var allEvents = cardsFrom('events', expansionNames);
 //# sourceMappingURL=logic.js.map

@@ -89,14 +89,11 @@ import { sets } from './logic.js';
 import { SetState, Undo, InvalidHistory } from './logic.js';
 import { playGame, initialState } from './logic.js';
 import { coerceReplayVersion, parseReplay, MalformedReplay } from './logic.js';
-import { randomPlaceholder } from './logic.js';
+import { specToURL } from './logic.js';
 import { VERSION, DEFAULT_VP_GOAL } from './logic.js';
-import { MalformedSpec, specToURL, specFromURL } from './logic.js';
-// register cards
-import './cards/absurd.js';
+import { MalformedSpec } from './logic.js';
 import { throneRoom, duplicate } from './cards/base.js';
-import './cards/expansion.js';
-import './cards/test.js';
+import { specFromURL, allCardsEvents, randomPlaceholder } from './kingdoms.js';
 var keyListeners = new Map();
 var symbolHotkeys = ['!', '%', '^', '&', '*', '(', ')', '-', '+', '=', '{', '}', '[', ']']; // '@', '#', '$' are confusing
 var lowerHotkeys = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm',
@@ -1413,7 +1410,7 @@ function getTutorialSpec() {
     };
 }
 export function loadTutorial() {
-    var state = initialState(getTutorialSpec());
+    var state = initialState(getTutorialSpec(), allCardsEvents);
     startGame(state, new tutorialUI(tutorialStages));
 }
 // ------------------------------------------ Help
@@ -1686,15 +1683,15 @@ export function load(fixedURL) {
     var state;
     if (history !== null) {
         try {
-            state = State.fromReplay(history, spec);
+            state = State.fromReplay(history, spec, allCardsEvents);
         }
         catch (e) {
             alert("Error loading history: " + e);
-            state = initialState(spec);
+            state = initialState(spec, allCardsEvents);
         }
     }
     else {
-        state = initialState(spec);
+        state = initialState(spec, allCardsEvents);
     }
     startGame(state);
 }
@@ -1720,7 +1717,7 @@ function restart(state) {
     //TODO: clear hearatbeat? (currently assumes spec is the same...)
     var spec = state.spec;
     var ui = state.ui;
-    state = initialState(spec);
+    state = initialState(spec, allCardsEvents);
     globalRendererState.userURL = false;
     window.history.pushState(null, "");
     playGame(state.attachUI(ui)).catch(function (e) {

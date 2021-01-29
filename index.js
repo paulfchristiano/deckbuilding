@@ -78,7 +78,8 @@ var __read = (this && this.__read) || function (o, n) {
 };
 import express from 'express';
 var PORT = process.env.PORT || 5000;
-import { verifyScore, VERSION, specFromURL, normalizeURL } from './public/logic.js';
+import { VERSION } from './public/logic.js';
+import { verifyScore, specFromURL, normalizeURL } from './public/kingdoms.js';
 import postgres from 'postgres';
 var sql = (process.env.DATABASE_URL == undefined) ? null : postgres(process.env.DATABASE_URL);
 //TODO: get rid of these any's
