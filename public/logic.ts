@@ -4819,10 +4819,10 @@ const inspiration:CardSpec = {
         })
     }],
     staticTriggers: [{
-        text: 'At the start of the game, put 3 charge tokens on this.',
+        text: 'At the start of the game, put 2 charge tokens on this.',
         kind: 'gameStart',
         handles: ()=>true,
-        transform: (e, s, c) => charge(c, 3),
+        transform: (e, s, c) => charge(c, 2),
     }],
     restrictions: [{
         test: (c, state, kind) => c.charge == 0 && kind == 'use'
@@ -5434,7 +5434,7 @@ const brigade:CardSpec = {name: 'Brigade',
         }
     }]
 }
-buyable(brigade, 4, 'expansion')
+buyable(brigade, 3, 'expansion')
 
 const recruiter:CardSpec = {
     name: 'Recruiter',
@@ -5463,14 +5463,14 @@ const exoticMarket:CardSpec = {
 }
 register(exoticMarket, 'expansion')
 
-const royalChambers:CardSpec = {
-    name: 'Royal Chambers',
-    buyCost: coin(6),
+const queensCourt:CardSpec = {
+    name: "Queen's Court",
+    buyCost: coin(9),
     fixedCost: energy(2),
     effects: [{
-        text: [`Do this twice: pay an action to play a card in your hand twice.`],
+        text: [`Do this three times: pay an action to play a card in your hand twice.`],
         transform: (s, card) => async function(state) {
-            for (let i = 0; i < 2; i++) {
+            for (let i = 0; i < 3; i++) {
                 state = await payToDo(payAction, applyToTarget(
                     target => doAll([
                         target.play(card),
@@ -5483,7 +5483,7 @@ const royalChambers:CardSpec = {
         }
     }]
 }
-register(royalChambers, 'expansion')
+register(queensCourt, 'expansion')
 
 const sculpt:CardSpec = {
     name: 'Sculpt',
@@ -5980,7 +5980,6 @@ const exploit:CardSpec = {
     }]
 }
 registerEvent(exploit, 'expansion')
-*/
 
 const treasury:CardSpec = {
     name: 'Treasury',
@@ -5994,6 +5993,7 @@ const treasury:CardSpec = {
     }]
 }
 buyable(treasury, 4, 'expansion')
+*/
 
 const statue:CardSpec = {
     name: 'Statue',
@@ -6010,7 +6010,7 @@ buyable(statue, 5, 'expansion')
 
 const scepter:CardSpec = {
     name: 'Scepter',
-    fixedCost: energy(1),
+    fixedCost: energy(2),
     effects: [{
         text: [`Pay an action to play a card in your hand three times then trash it.`],
         transform: (state, card) => payToDo(payAction, applyToTarget(
@@ -6498,26 +6498,22 @@ const ballista:CardSpec = {
     name: 'Ballista',
     buyCost: coin(5),
     effects: [{
-        text: [`Play then trash up to two cards from your hand.`,
-                `Gain a card from the supply whose cost is at most the sum of their costs.`],
+        text: [`Do this twice: you may play then trash a card in your hand.`,
+               `Gain a card in the supply whose cost is at most the total cost of cards you played.`],
                 
         transform: (s, card) => async function(state) {
-            const targets:Card[] = [];
+            let cost:Cost = {...free, buys:1}
             for (let i = 0; i < 2; i ++) {
                 let target:Card|null; [state, target] = await choice(state,
                     'Choose a card to play then trash.',
                     allowNull(state.hand.map(asChoice))
                 )
                 if (target != null) {
+                    cost = addCosts(cost, target.cost('buy', state))
                     state = await target.play(card)(state)
                     state = await trash(target)(state)
-                    targets.push(target)
                 }
                 if (i == 0) state = await tick(card)(state)
-            }
-            let cost:Cost = {...free, buys:1}
-            for (const target of targets) {
-                cost = addCosts(cost, target.cost('buy', state))
             }
             state = await applyToTarget(
                 target2 => target2.buy(card),

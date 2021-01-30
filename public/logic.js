@@ -5348,10 +5348,10 @@ var inspiration = {
             }); }
         }],
     staticTriggers: [{
-            text: 'At the start of the game, put 3 charge tokens on this.',
+            text: 'At the start of the game, put 2 charge tokens on this.',
             kind: 'gameStart',
             handles: function () { return true; },
-            transform: function (e, s, c) { return charge(c, 3); },
+            transform: function (e, s, c) { return charge(c, 2); },
         }],
     restrictions: [{
             test: function (c, state, kind) { return c.charge == 0 && kind == 'use'; }
@@ -5921,7 +5921,7 @@ var brigade = { name: 'Brigade',
             }
         }]
 };
-buyable(brigade, 4, 'expansion');
+buyable(brigade, 3, 'expansion');
 var recruiter = {
     name: 'Recruiter',
     relatedCards: [villager, fair],
@@ -5946,12 +5946,12 @@ var exoticMarket = {
     effects: [actionsEffect(2), coinsEffect(1), buysEffect(1)]
 };
 register(exoticMarket, 'expansion');
-var royalChambers = {
-    name: 'Royal Chambers',
-    buyCost: coin(6),
+var queensCourt = {
+    name: "Queen's Court",
+    buyCost: coin(9),
     fixedCost: energy(2),
     effects: [{
-            text: ["Do this twice: pay an action to play a card in your hand twice."],
+            text: ["Do this three times: pay an action to play a card in your hand twice."],
             transform: function (s, card) { return function (state) {
                 return __awaiter(this, void 0, void 0, function () {
                     var i;
@@ -5961,7 +5961,7 @@ var royalChambers = {
                                 i = 0;
                                 _a.label = 1;
                             case 1:
-                                if (!(i < 2)) return [3 /*break*/, 4];
+                                if (!(i < 3)) return [3 /*break*/, 4];
                                 return [4 /*yield*/, payToDo(payAction, applyToTarget(function (target) { return doAll([
                                         target.play(card),
                                         target.play(card),
@@ -5980,7 +5980,7 @@ var royalChambers = {
             }; }
         }]
 };
-register(royalChambers, 'expansion');
+register(queensCourt, 'expansion');
 var sculpt = {
     name: 'Sculpt',
     buyCost: coin(3),
@@ -6477,19 +6477,20 @@ const exploit:CardSpec = {
     }]
 }
 registerEvent(exploit, 'expansion')
-*/
-var treasury = {
+
+const treasury:CardSpec = {
     name: 'Treasury',
     fixedCost: energy(1),
     effects: [actionsEffect(3)],
     triggers: [{
-            text: "Whenever you gain more than one action, gain that much $ minus one.",
-            kind: 'resource',
-            handles: function (e) { return e.resource == 'actions' && e.amount > 1; },
-            transform: function (e) { return gainCoins(e.amount - 1); }
-        }]
-};
-buyable(treasury, 4, 'expansion');
+        text: `Whenever you gain more than one action, gain that much $ minus one.`,
+        kind: 'resource',
+        handles: e => e.resource == 'actions' && e.amount > 1,
+        transform: e => gainCoins(e.amount - 1)
+    }]
+}
+buyable(treasury, 4, 'expansion')
+*/
 var statue = {
     name: 'Statue',
     fixedCost: energy(1),
@@ -6504,7 +6505,7 @@ var statue = {
 buyable(statue, 5, 'expansion');
 var scepter = {
     name: 'Scepter',
-    fixedCost: energy(1),
+    fixedCost: energy(2),
     effects: [{
             text: ["Pay an action to play a card in your hand three times then trash it."],
             transform: function (state, card) { return payToDo(payAction, applyToTarget(function (target) { return doAll([
@@ -7106,60 +7107,45 @@ var ballista = {
     name: 'Ballista',
     buyCost: coin(5),
     effects: [{
-            text: ["Play then trash up to two cards from your hand.",
-                "Gain a card from the supply whose cost is at most the sum of their costs."],
+            text: ["Do this twice: you may play then trash a card in your hand.",
+                "Gain a card in the supply whose cost is at most the total cost of cards you played."],
             transform: function (s, card) { return function (state) {
                 return __awaiter(this, void 0, void 0, function () {
-                    var targets, i, target, cost, targets_3, targets_3_1, target;
-                    var _a, e_48, _b;
-                    return __generator(this, function (_c) {
-                        switch (_c.label) {
+                    var cost, i, target;
+                    var _a;
+                    return __generator(this, function (_b) {
+                        switch (_b.label) {
                             case 0:
-                                targets = [];
+                                cost = __assign(__assign({}, free), { buys: 1 });
                                 i = 0;
-                                _c.label = 1;
+                                _b.label = 1;
                             case 1:
                                 if (!(i < 2)) return [3 /*break*/, 8];
                                 target = void 0;
                                 return [4 /*yield*/, choice(state, 'Choose a card to play then trash.', allowNull(state.hand.map(asChoice)))];
                             case 2:
-                                _a = __read.apply(void 0, [_c.sent(), 2]), state = _a[0], target = _a[1];
+                                _a = __read.apply(void 0, [_b.sent(), 2]), state = _a[0], target = _a[1];
                                 if (!(target != null)) return [3 /*break*/, 5];
+                                cost = addCosts(cost, target.cost('buy', state));
                                 return [4 /*yield*/, target.play(card)(state)];
                             case 3:
-                                state = _c.sent();
+                                state = _b.sent();
                                 return [4 /*yield*/, trash(target)(state)];
                             case 4:
-                                state = _c.sent();
-                                targets.push(target);
-                                _c.label = 5;
+                                state = _b.sent();
+                                _b.label = 5;
                             case 5:
                                 if (!(i == 0)) return [3 /*break*/, 7];
                                 return [4 /*yield*/, tick(card)(state)];
                             case 6:
-                                state = _c.sent();
-                                _c.label = 7;
+                                state = _b.sent();
+                                _b.label = 7;
                             case 7:
                                 i++;
                                 return [3 /*break*/, 1];
-                            case 8:
-                                cost = __assign(__assign({}, free), { buys: 1 });
-                                try {
-                                    for (targets_3 = __values(targets), targets_3_1 = targets_3.next(); !targets_3_1.done; targets_3_1 = targets_3.next()) {
-                                        target = targets_3_1.value;
-                                        cost = addCosts(cost, target.cost('buy', state));
-                                    }
-                                }
-                                catch (e_48_1) { e_48 = { error: e_48_1 }; }
-                                finally {
-                                    try {
-                                        if (targets_3_1 && !targets_3_1.done && (_b = targets_3.return)) _b.call(targets_3);
-                                    }
-                                    finally { if (e_48) throw e_48.error; }
-                                }
-                                return [4 /*yield*/, applyToTarget(function (target2) { return target2.buy(card); }, 'Choose a card to buy.', function (s) { return s.supply.filter(function (c) { return leq(c.cost('buy', state), cost); }); })(state)];
+                            case 8: return [4 /*yield*/, applyToTarget(function (target2) { return target2.buy(card); }, 'Choose a card to buy.', function (s) { return s.supply.filter(function (c) { return leq(c.cost('buy', state), cost); }); })(state)];
                             case 9:
-                                state = _c.sent();
+                                state = _b.sent();
                                 return [2 /*return*/, state];
                         }
                     });
