@@ -6046,7 +6046,7 @@ buyable(farmland, 8, 'expansion')
 
 const hallOfEchoes:CardSpec = {
     name: 'Hall of Echoes',
-    fixedCost: {...free, energy:1, coin:3},
+    fixedCost: {...free, energy:1, coin:5},
     effects: [{
         text: [`For each card in your hand without an echo token,
                 create a copy in your hand with an echo token.`],

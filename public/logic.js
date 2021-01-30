@@ -6537,7 +6537,7 @@ var farmland = {
 buyable(farmland, 8, 'expansion');
 var hallOfEchoes = {
     name: 'Hall of Echoes',
-    fixedCost: __assign(__assign({}, free), { energy: 1, coin: 3 }),
+    fixedCost: __assign(__assign({}, free), { energy: 1, coin: 5 }),
     effects: [{
             text: ["For each card in your hand without an echo token,\n                create a copy in your hand with an echo token."],
             transform: function (state) { return doAll(state.hand.filter(function (c) { return c.count('echo') == 0; }).map(function (c) { return create(c.spec, 'hand', function (x) { return addToken(x, 'echo'); }); })); }
