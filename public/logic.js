@@ -2376,8 +2376,8 @@ export function makeKingdom(spec) {
     switch (spec.kind) {
         case 'test':
             return {
-                cards: allCards,
-                events: allEvents.concat(cheats),
+                cards: allCards(),
+                events: allEvents().concat(cheats),
             };
         case 'pick':
             return { cards: spec.cards, events: spec.events };
@@ -2612,7 +2612,7 @@ export function specFromURL(search, excludeGoal) {
             var eventSpecs = [];
             if (cards !== null) {
                 try {
-                    for (var _c = __values(extractList(cards, allCards)), _d = _c.next(); !_d.done; _d = _c.next()) {
+                    for (var _c = __values(extractList(cards, allCards())), _d = _c.next(); !_d.done; _d = _c.next()) {
                         var card = _d.value;
                         if (card == RANDOM)
                             throw new MalformedSpec('Random card is only allowable in type pickR');
@@ -2630,7 +2630,7 @@ export function specFromURL(search, excludeGoal) {
             }
             if (events !== null) {
                 try {
-                    for (var _e = __values(extractList(events, allEvents)), _f = _e.next(); !_f.done; _f = _e.next()) {
+                    for (var _e = __values(extractList(events, allEvents())), _f = _e.next(); !_f.done; _f = _e.next()) {
                         var card = _f.value;
                         if (card == RANDOM)
                             throw new MalformedSpec('Random card is only allowable in type pickR');
@@ -2650,13 +2650,13 @@ export function specFromURL(search, excludeGoal) {
         case 'require':
             return {
                 kind: kind, randomizer: { seed: seed, expansions: expansions },
-                cards: (cards === null) ? [] : extractList(cards, allCards),
-                events: (events === null) ? [] : extractList(events, allEvents),
+                cards: (cards === null) ? [] : extractList(cards, allCards()),
+                events: (events === null) ? [] : extractList(events, allEvents()),
             };
         case 'pickR':
             return { kind: kind, randomizer: { seed: seed, expansions: expansions },
-                cards: (cards === null) ? [] : extractList(cards, allCards),
-                events: (events === null) ? [] : extractList(events, allEvents) };
+                cards: (cards === null) ? [] : extractList(cards, allCards()),
+                events: (events === null) ? [] : extractList(events, allEvents()) };
         case 'test': return { kind: 'test' };
         default: throw new MalformedSpec("Invalid kind " + kind);
     }
@@ -3210,6 +3210,10 @@ export var randomPlaceholder = { name: RANDOM };
 function cardsFrom(kind, expansions) {
     return expansions.map(function (c) { return sets[c][kind]; }).flat(1);
 }
-export var allCards = cardsFrom('cards', expansionNames);
-export var allEvents = cardsFrom('events', expansionNames);
+export function allCards() {
+    return cardsFrom('cards', expansionNames);
+}
+export function allEvents() {
+    return cardsFrom('events', expansionNames);
+}
 //# sourceMappingURL=logic.js.map

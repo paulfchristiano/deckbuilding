@@ -1967,8 +1967,8 @@ export function makeKingdom(spec:GameSpec): Kingdom {
     switch (spec.kind) {
         case 'test':
             return {
-                cards:allCards,
-                events:allEvents.concat(cheats),
+                cards:allCards(),
+                events:allEvents().concat(cheats),
             }
         case 'pick':
             return {cards:spec.cards, events:spec.events}
@@ -2154,13 +2154,13 @@ export function specFromURL(search:string, excludeGoal:boolean = false): GameSpe
             const cardSpecs:CardSpec[] = [];
             const eventSpecs:CardSpec[] = [];
             if (cards !== null) {
-                for (const card of extractList(cards, allCards)) {
+                for (const card of extractList(cards, allCards())) {
                     if (card == RANDOM) throw new MalformedSpec('Random card is only allowable in type pickR');
                     else cardSpecs.push(card)
                 }
             }
             if (events !== null) {
-                for (const card of extractList(events, allEvents)) {
+                for (const card of extractList(events, allEvents())) {
                     if (card == RANDOM) throw new MalformedSpec('Random card is only allowable in type pickR');
                     else eventSpecs.push(card)
                 }
@@ -2169,13 +2169,13 @@ export function specFromURL(search:string, excludeGoal:boolean = false): GameSpe
         case 'require':
             return {
                 kind:kind, randomizer: {seed:seed, expansions:expansions},
-                cards: (cards === null) ? [] : extractList(cards, allCards),
-                events: (events === null) ? [] : extractList(events, allEvents),
+                cards: (cards === null) ? [] : extractList(cards, allCards()),
+                events: (events === null) ? [] : extractList(events, allEvents()),
             }
         case 'pickR':
             return {kind:kind, randomizer: {seed:seed, expansions:expansions},
-                    cards:(cards === null) ? [] : extractList(cards, allCards),
-                    events:(events === null) ? [] : extractList(events, allEvents)}
+                    cards:(cards === null) ? [] : extractList(cards, allCards()),
+                    events:(events === null) ? [] : extractList(events, allEvents())}
         case 'test': return {kind: 'test'}
         default: throw new MalformedSpec(`Invalid kind ${kind}`)
     }
@@ -2735,5 +2735,9 @@ function cardsFrom(kind:'cards'|'events', expansions:ExpansionName[]) {
     return expansions.map(c => sets[c][kind]).flat(1)
 }
 
-export const allCards:CardSpec[] = cardsFrom('cards', expansionNames)
-export const allEvents:CardSpec[] = cardsFrom('events', expansionNames)
+export function allCards(): CardSpec[] {
+  return cardsFrom('cards', expansionNames)
+}
+export function allEvents(): CardSpec[] {
+  return cardsFrom('events', expansionNames)
+}
