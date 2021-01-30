@@ -186,10 +186,10 @@ const inspiration:CardSpec = {
         })
     }],
     staticTriggers: [{
-        text: 'At the start of the game, put 3 charge tokens on this.',
+        text: 'At the start of the game, put 2 charge tokens on this.',
         kind: 'gameStart',
         handles: ()=>true,
-        transform: (e, s, c) => charge(c, 3),
+        transform: (e, s, c) => charge(c, 2),
     }],
     restrictions: [{
         test: (c, state, kind) => c.charge == 0 && kind == 'use'
@@ -801,7 +801,7 @@ const brigade:CardSpec = {name: 'Brigade',
         }
     }]
 }
-buyable(brigade, 4, 'expansion')
+buyable(brigade, 3, 'expansion')
 
 const recruiter:CardSpec = {
     name: 'Recruiter',
@@ -830,14 +830,14 @@ const exoticMarket:CardSpec = {
 }
 register(exoticMarket, 'expansion')
 
-const royalChambers:CardSpec = {
-    name: 'Royal Chambers',
-    buyCost: coin(6),
+const queensCourt:CardSpec = {
+    name: "Queen's Court",
+    buyCost: coin(9),
     fixedCost: energy(2),
     effects: [{
-        text: [`Do this twice: pay an action to play a card in your hand twice.`],
+        text: [`Do this three times: pay an action to play a card in your hand twice.`],
         transform: (s, card) => async function(state) {
-            for (let i = 0; i < 2; i++) {
+            for (let i = 0; i < 3; i++) {
                 state = await payToDo(payAction, applyToTarget(
                     target => doAll([
                         target.play(card),
@@ -850,7 +850,7 @@ const royalChambers:CardSpec = {
         }
     }]
 }
-register(royalChambers, 'expansion')
+register(queensCourt, 'expansion')
 
 const sculpt:CardSpec = {
     name: 'Sculpt',
@@ -1347,7 +1347,6 @@ const exploit:CardSpec = {
     }]
 }
 registerEvent(exploit, 'expansion')
-*/
 
 const treasury:CardSpec = {
     name: 'Treasury',
@@ -1361,6 +1360,7 @@ const treasury:CardSpec = {
     }]
 }
 buyable(treasury, 4, 'expansion')
+*/
 
 const statue:CardSpec = {
     name: 'Statue',
@@ -1377,7 +1377,7 @@ buyable(statue, 5, 'expansion')
 
 const scepter:CardSpec = {
     name: 'Scepter',
-    fixedCost: energy(1),
+    fixedCost: energy(2),
     effects: [{
         text: [`Pay an action to play a card in your hand three times then trash it.`],
         transform: (state, card) => payToDo(payAction, applyToTarget(
@@ -1426,4 +1426,3 @@ const hallOfEchoes:CardSpec = {
     staticReplacers: [fragileEcho()],
 }
 registerEvent(hallOfEchoes, 'expansion')
-

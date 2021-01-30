@@ -238,10 +238,10 @@ var inspiration = {
             }); }
         }],
     staticTriggers: [{
-            text: 'At the start of the game, put 3 charge tokens on this.',
+            text: 'At the start of the game, put 2 charge tokens on this.',
             kind: 'gameStart',
             handles: function () { return true; },
-            transform: function (e, s, c) { return charge(c, 3); },
+            transform: function (e, s, c) { return charge(c, 2); },
         }],
     restrictions: [{
             test: function (c, state, kind) { return c.charge == 0 && kind == 'use'; }
@@ -812,7 +812,7 @@ var brigade = { name: 'Brigade',
             }
         }]
 };
-buyable(brigade, 4, 'expansion');
+buyable(brigade, 3, 'expansion');
 var recruiter = {
     name: 'Recruiter',
     relatedCards: [villager, fair],
@@ -837,12 +837,12 @@ var exoticMarket = {
     effects: [actionsEffect(2), coinsEffect(1), buysEffect(1)]
 };
 register(exoticMarket, 'expansion');
-var royalChambers = {
-    name: 'Royal Chambers',
-    buyCost: coin(6),
+var queensCourt = {
+    name: "Queen's Court",
+    buyCost: coin(9),
     fixedCost: energy(2),
     effects: [{
-            text: ["Do this twice: pay an action to play a card in your hand twice."],
+            text: ["Do this three times: pay an action to play a card in your hand twice."],
             transform: function (s, card) { return function (state) {
                 return __awaiter(this, void 0, void 0, function () {
                     var i;
@@ -852,7 +852,7 @@ var royalChambers = {
                                 i = 0;
                                 _a.label = 1;
                             case 1:
-                                if (!(i < 2)) return [3 /*break*/, 4];
+                                if (!(i < 3)) return [3 /*break*/, 4];
                                 return [4 /*yield*/, payToDo(payAction, applyToTarget(function (target) { return doAll([
                                         target.play(card),
                                         target.play(card),
@@ -871,7 +871,7 @@ var royalChambers = {
             }; }
         }]
 };
-register(royalChambers, 'expansion');
+register(queensCourt, 'expansion');
 var sculpt = {
     name: 'Sculpt',
     buyCost: coin(3),
@@ -1368,19 +1368,20 @@ const exploit:CardSpec = {
     }]
 }
 registerEvent(exploit, 'expansion')
-*/
-var treasury = {
+
+const treasury:CardSpec = {
     name: 'Treasury',
     fixedCost: energy(1),
     effects: [actionsEffect(3)],
     triggers: [{
-            text: "Whenever you gain more than one action, gain that much $ minus one.",
-            kind: 'resource',
-            handles: function (e) { return e.resource == 'actions' && e.amount > 1; },
-            transform: function (e) { return gainCoins(e.amount - 1); }
-        }]
-};
-buyable(treasury, 4, 'expansion');
+        text: `Whenever you gain more than one action, gain that much $ minus one.`,
+        kind: 'resource',
+        handles: e => e.resource == 'actions' && e.amount > 1,
+        transform: e => gainCoins(e.amount - 1)
+    }]
+}
+buyable(treasury, 4, 'expansion')
+*/
 var statue = {
     name: 'Statue',
     fixedCost: energy(1),
@@ -1395,7 +1396,7 @@ var statue = {
 buyable(statue, 5, 'expansion');
 var scepter = {
     name: 'Scepter',
-    fixedCost: energy(1),
+    fixedCost: energy(2),
     effects: [{
             text: ["Pay an action to play a card in your hand three times then trash it."],
             transform: function (state, card) { return payToDo(payAction, applyToTarget(function (target) { return doAll([
