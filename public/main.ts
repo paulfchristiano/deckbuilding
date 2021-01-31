@@ -20,10 +20,7 @@ import { VERSION, DEFAULT_VP_GOAL } from './logic.js'
 import { MalformedSpec, specToURL, specFromURL } from './logic.js'
 
 // register cards
-import './cards/absurd.js'
-import {throneRoom, duplicate} from './cards/base.js'
-import './cards/expansion.js'
-import './cards/test.js'
+import {throneRoom, duplicate} from './cards/index.js'
 
 // --------------------- Hotkeys
 

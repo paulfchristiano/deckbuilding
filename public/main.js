@@ -93,10 +93,7 @@ import { randomPlaceholder } from './logic.js';
 import { VERSION, DEFAULT_VP_GOAL } from './logic.js';
 import { MalformedSpec, specToURL, specFromURL } from './logic.js';
 // register cards
-import './cards/absurd.js';
-import { throneRoom, duplicate } from './cards/base.js';
-import './cards/expansion.js';
-import './cards/test.js';
+import { throneRoom, duplicate } from './cards/index.js';
 var keyListeners = new Map();
 var symbolHotkeys = ['!', '%', '^', '&', '*', '(', ')', '-', '+', '=', '{', '}', '[', ']']; // '@', '#', '$' are confusing
 var lowerHotkeys = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm',
