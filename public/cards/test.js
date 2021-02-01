@@ -72,7 +72,9 @@ var __values = (this && this.__values) || function(o) {
     };
     throw new TypeError(s ? "Object is not iterable." : "Symbol.iterator is not defined.");
 };
-import { choice, asChoice, trash, addCosts, leq, free, gainPoints, allowNull, tick, register, coin, energy, applyToTarget, } from '../logic.js';
+import { choice, asChoice, trash, addCosts, leq, free, gainPoints, allowNull, tick, coin, energy, applyToTarget, } from '../logic.js';
+export var cards = [];
+export var events = [];
 var manor = {
     name: 'Manor',
     buyCost: coin(6),
@@ -84,7 +86,7 @@ var manor = {
             transform: function (e) { return gainPoints(e.cost.energy); }
         }]
 };
-register(manor, 'test');
+cards.push(manor);
 var ballista = {
     name: 'Ballista',
     buyCost: coin(5),
@@ -150,4 +152,5 @@ var ballista = {
             }; }
         }]
 };
+cards.push(ballista);
 //# sourceMappingURL=test.js.map

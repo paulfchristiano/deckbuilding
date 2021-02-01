@@ -2424,6 +2424,7 @@ function normalize(xs) {
 function makeDictionary(xs) {
     var e_32, _a;
     var result = new Map();
+    console.log(xs);
     try {
         for (var xs_2 = __values(xs), xs_2_1 = xs_2.next(); !xs_2_1.done; xs_2_1 = xs_2.next()) {
             var x = xs_2_1.value;
@@ -2827,7 +2828,7 @@ export function createEffect(spec, zone, n) {
         transform: function () { return repeat(create(spec, zone), n); },
     };
 }
-function supplyForCard(card, cost, extra) {
+export function supplyForCard(card, cost, extra) {
     if (extra === void 0) { extra = {}; }
     var buyTriggers = (extra.onBuy || []).map(function (t) { return ({
         kind: 'buy',
@@ -2873,9 +2874,6 @@ function makeCard(card, cost, selfdestruct) {
         effects: effects,
         relatedCards: [card],
     };
-}
-export function registerEvent(card, set) {
-    sets[set]['events'].push(card);
 }
 //
 //
@@ -2985,40 +2983,40 @@ export var refresh = { name: 'Refresh',
     fixedCost: energy(4),
     effects: [refreshEffect(5)],
 };
-registerEvent(refresh, 'core');
+sets.core.events.push(refresh);
 export var copper = { name: 'Copper',
     buyCost: coin(0),
     effects: [coinsEffect(1)]
 };
-register(copper, 'core');
+sets.core.cards.push(copper);
 export var silver = { name: 'Silver',
     buyCost: coin(3),
     effects: [coinsEffect(2)]
 };
-register(silver, 'core');
+sets.core.cards.push(silver);
 export var gold = { name: 'Gold',
     buyCost: coin(6),
     effects: [coinsEffect(3)]
 };
-register(gold, 'core');
+sets.core.cards.push(gold);
 export var estate = { name: 'Estate',
     buyCost: coin(1),
     fixedCost: energy(1),
     effects: [pointsEffect(1)]
 };
-register(estate, 'core');
+sets.core.cards.push(estate);
 export var duchy = { name: 'Duchy',
     buyCost: coin(4),
     fixedCost: energy(1),
     effects: [pointsEffect(2)]
 };
-register(duchy, 'core');
+sets.core.cards.push(duchy);
 export var province = { name: 'Province',
     buyCost: coin(8),
     fixedCost: energy(1),
     effects: [pointsEffect(3)]
 };
-register(province, 'core');
+sets.core.cards.push(province);
 //
 //
 // ------ CORE CREATED CARDS ------
@@ -3063,17 +3061,6 @@ export var fair = {
 //
 // ----- MIXINS -----
 //
-export function register(card, set) {
-    sets[set].cards.push(card);
-}
-export function buyable(card, n, set, extra) {
-    if (extra === void 0) { extra = {}; }
-    card.buyCost = coin(n);
-    register(supplyForCard(card, coin(n), extra), set);
-}
-export function buyableFree(card, coins, set) {
-    buyable(card, coins, set, { onBuy: [buyEffect()] });
-}
 function playAgain(target, source) {
     if (source === void 0) { source = unk; }
     return function (state) {

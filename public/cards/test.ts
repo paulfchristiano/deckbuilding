@@ -2,11 +2,14 @@ import {
   CardSpec, Card, choice, asChoice, trash, Cost, addCosts,
   leq, Effect, move, payToDo, free,
   gainPoints, allowNull, tick,
-  register, villager, buyable, registerEvent, actionsEffect, buyEffect, pointsEffect, refreshEffect,
+  villager, actionsEffect, buyEffect, pointsEffect, refreshEffect,
   targetedEffect, chargeEffect,
   coin, energy,
   applyToTarget,
 } from '../logic.js'
+
+export const cards:CardSpec[] = [];
+export const events:CardSpec[] = [];
 
 const manor:CardSpec = {
     name: 'Manor',
@@ -19,7 +22,7 @@ const manor:CardSpec = {
         transform: e => gainPoints(e.cost.energy)
     }]
 }
-register(manor, 'test')
+cards.push(manor)
 
 const ballista:CardSpec = {
     name: 'Ballista',
@@ -57,4 +60,5 @@ const ballista:CardSpec = {
         }
     }]
 }
+cards.push(ballista)
 

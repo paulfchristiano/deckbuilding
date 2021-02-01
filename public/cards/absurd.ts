@@ -9,8 +9,7 @@ import {
   gainResource,
   createAndTrack, doAll, moveMany, multichoice,
   chooseNatural,
-  Victory,
-  register, villager, buyable, registerEvent,
+  Victory,  villager,
   actionsEffect, buyEffect, pointsEffect, refreshEffect, coinsEffect,
   targetedEffect, chargeEffect, createEffect,
   startsWithCharge,
@@ -19,10 +18,14 @@ import {
   dedupBy,
   coin, energy,
   repeat,
+  supplyForCard
 } from '../logic.js'
 
 
 // ----------------- Absurd --------------------
+
+export const cards:CardSpec[]= [];
+export const events:CardSpec[] = [];
 
 const confusion:CardSpec = {
     name: 'Confusion',
@@ -39,7 +42,7 @@ const confusion:CardSpec = {
         transform: e => move(e.card, 'supply')
     }]
 }
-register(confusion, 'absurd')
+events.push(confusion)
 
 const chaos:CardSpec = {
     name: 'Chaos',
@@ -57,7 +60,7 @@ const chaos:CardSpec = {
         transform: e => move(e.card, 'discard')
     }]
 }
-register(chaos, 'absurd')
+events.push(chaos)
 
 const misplace:CardSpec = {
     name: 'Misplace',
@@ -82,7 +85,7 @@ const misplace:CardSpec = {
         transform: e => move(e.card, 'supply')
     }]
 }
-registerEvent(misplace, 'absurd')
+events.push(misplace)
 
 let echoName = 'Weird Echo'
 const weirdEcho:CardSpec = {name: echoName,
@@ -108,11 +111,12 @@ const weirdEcho:CardSpec = {name: echoName,
         transform: e => move(e.card, 'play')
     }]
 }
-register(weirdEcho, 'absurd')
+cards.push(weirdEcho)
 
 const weirdCarpenter:CardSpec = {
     name: 'Weird Carpenter',
     fixedCost: energy(1),
+    buyCost: coin(5),
     effects: [buyEffect(), {
         text: [`+1 action per card in play.`],
         transform: (state, card) => gainActions(state.play.length, card)
@@ -124,7 +128,7 @@ const weirdCarpenter:CardSpec = {
         transform: e => move(e.card, 'play')
     }]
 }
-buyable(weirdCarpenter, 5, 'absurd')
+cards.push(weirdCarpenter)
 /*
 const amalgam:CardSpec = {
     name: 'Amalgam',
@@ -132,7 +136,7 @@ const amalgam:CardSpec = {
     buyCost: coin(3),
     effects: [coinsEffect(3)]
 }
-register(amalgam, 'absurd')
+cards.push(amalgam)
 */
 
 const shinySilver:CardSpec = {
@@ -140,7 +144,7 @@ const shinySilver:CardSpec = {
     buyCost: coin(2.5),
     effects: [coinsEffect(2.5)]
 }
-register(shinySilver, 'absurd')
+cards.push(shinySilver)
 
 const xSpec:CardSpec = {name: 'X'}
 const ySpec:CardSpec = {name: 'Y'}
@@ -172,7 +176,7 @@ const metaHatchery:CardSpec = {
         }
     }]
 }
-register(metaHatchery, 'absurd')
+cards.push(metaHatchery)
 
 const invertedPalace:CardSpec = {
     name: 'Inverted Palace',
@@ -180,7 +184,7 @@ const invertedPalace:CardSpec = {
     fixedCost: coin(5),
     effects: [actionsEffect(2), pointsEffect(2), coinsEffect(2)],
 }
-register(invertedPalace, 'absurd')
+cards.push(invertedPalace)
 
 /* Change name, and make resources round down? */
 /*
@@ -189,7 +193,7 @@ const unfocus:CardSpec = {
     fixedCost: energy(0.01),
     effects: [actionsEffect(1)]
 }
-registerEvent(unfocus, 'absurd')
+events.push(unfocus)
 */
 
 function concatIfdef<T>(xs:T[]|undefined, ys:T[]|undefined): T[] {
@@ -236,7 +240,7 @@ const combiner:CardSpec = {
         }
     }]
 }
-register(combiner, 'absurd')
+cards.push(combiner)
 
 const merge:CardSpec = {
     name: 'Merge',
@@ -259,7 +263,7 @@ const merge:CardSpec = {
         }
     }]
 }
-registerEvent(merge, 'absurd')
+events.push(merge)
 
 const idealize:CardSpec = {
     name: 'Idealize',
@@ -283,7 +287,7 @@ const idealize:CardSpec = {
         replace: e => ({...e, cost: {...e.cost, energy: e.cost.energy + e.card.count('ideal')}})
     }]
 }
-registerEvent(idealize, 'absurd')
+events.push(idealize)
 
 const enshrine:CardSpec = {
     name: 'Enshrine',
@@ -300,7 +304,7 @@ const enshrine:CardSpec = {
         replace: (p, state) => ({...p, cost: addCosts(p.cost, {...p.card.cost('buy', state), buys:0})})
     }]
 }
-registerEvent(enshrine, 'absurd')
+events.push(enshrine)
 
 const reify:CardSpec = {
     name: 'Reify',
@@ -315,7 +319,7 @@ const reify:CardSpec = {
     }],
     staticReplacers: [fragileEcho()],
 }
-registerEvent(reify, 'absurd')
+events.push(reify)
 
 const showOff:CardSpec = {
     name: 'Show Off',
@@ -338,7 +342,7 @@ const showOff:CardSpec = {
         }
     }],
 }
-registerEvent(showOff, 'absurd')
+events.push(showOff)
 
 function cardsInState(s:State): Card[] {
     return s.events.concat(s.supply).concat(s.hand).concat(s.play).concat(s.discard)
@@ -383,10 +387,10 @@ const reconfigure:CardSpec = {
         )
     }]
 }
-buyable(reconfigure, 4, 'absurd', {onBuy: [{
+cards.push(supplyForCard(reconfigure, coin(4), {onBuy: [{
     text: [`Add a reconfigure token to each card in your hand.`],
     transform: state => doAll(state.hand.map(c => addToken(c, 'reconfigure')))
-}]})
+}]}))
 
 const steal:CardSpec = {
     name: 'Steal',
@@ -397,7 +401,7 @@ const steal:CardSpec = {
         state => state.supply
     )]
 }
-registerEvent(steal, 'absurd')
+events.push(steal)
 
 const hoard:CardSpec = {
     name: 'Hoard',
@@ -407,7 +411,7 @@ const hoard:CardSpec = {
         transform: s => moveMany(cardsInState(s), 'hand')
     }]
 }
-registerEvent(hoard, 'absurd')
+events.push(hoard)
 
 const redistribute:CardSpec = {
     name: 'Redistribute',
@@ -441,5 +445,5 @@ const redistribute:CardSpec = {
         }
     }]
 }
-buyable(redistribute, 4, 'absurd', {replacers: [startsWithCharge(redistribute.name, 2)]})
+cards.push(supplyForCard(redistribute, coin(4), {replacers: [startsWithCharge(redistribute.name, 2)]}))
 

@@ -2014,6 +2014,7 @@ function normalize(xs:string[]): string[] {
 
 function makeDictionary(xs:CardSpec[]): Map<string, CardSpec> {
     const result:Map<string, CardSpec> = new Map()
+    console.log(xs)
     for (const x of xs) result.set(normalizeString(x.name), x);
     return result
 }
@@ -2320,7 +2321,7 @@ interface Extras {
     onBuy?:Effect[];
     afterBuy?:Effect[];
 }
-function supplyForCard(
+export function supplyForCard(
     card:CardSpec,
     cost:Cost,
     extra:Extras={}
@@ -2376,11 +2377,6 @@ function makeCard(card:CardSpec, cost:Cost, selfdestruct:boolean=false):CardSpec
         relatedCards: [card],
     }
 }
-
-export function registerEvent(card:CardSpec, set:SetName):void {
-    sets[set]['events'].push(card)
-}
-
 
 //
 //
@@ -2479,46 +2475,46 @@ export const refresh:CardSpec = {name: 'Refresh',
     fixedCost: energy(4),
     effects: [refreshEffect(5)],
 }
-registerEvent(refresh, 'core')
+sets.core.events.push(refresh)
 
 export const copper:CardSpec = {name: 'Copper',
     buyCost: coin(0),
     effects: [coinsEffect(1)]
 }
-register(copper, 'core')
+sets.core.cards.push(copper)
 
 export const silver:CardSpec = {name: 'Silver',
     buyCost: coin(3),
     effects: [coinsEffect(2)]
 }
-register(silver, 'core')
+sets.core.cards.push(silver)
 
 export const gold:CardSpec = {name: 'Gold',
     buyCost: coin(6),
     effects: [coinsEffect(3)]
 }
-register(gold, 'core')
+sets.core.cards.push(gold)
 
 export const estate:CardSpec = {name: 'Estate',
     buyCost: coin(1),
     fixedCost: energy(1),
     effects: [pointsEffect(1)]
 }
-register(estate, 'core')
+sets.core.cards.push(estate)
 
 export const duchy:CardSpec = {name: 'Duchy',
     buyCost: coin(4),
     fixedCost: energy(1),
     effects: [pointsEffect(2)]
 }
-register(duchy, 'core')
+sets.core.cards.push(duchy)
 
 export const province:CardSpec = {name: 'Province',
     buyCost: coin(8),
     fixedCost: energy(1),
     effects: [pointsEffect(3)]
 }
-register(province, 'core')
+sets.core.cards.push(province)
 
 //
 //
@@ -2576,17 +2572,6 @@ export const fair:CardSpec = {
 //
 // ----- MIXINS -----
 //
-
-export function register(card:CardSpec, set:SetName):void {
-    sets[set].cards.push(card)
-}
-export function buyable(card:CardSpec, n:number, set:SetName, extra:Extras={}) {
-    card.buyCost = coin(n)
-    register(supplyForCard(card, coin(n), extra), set)
-}
-export function buyableFree(card:CardSpec, coins:number, set:SetName): void {
-    buyable(card, coins, set, {onBuy: [buyEffect()]})
-}
 
 
 function playAgain(target:Card, source:Source=unk): Transform {

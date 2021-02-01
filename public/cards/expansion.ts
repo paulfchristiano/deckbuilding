@@ -9,8 +9,7 @@ import { CardSpec, Card, choice, asChoice, trash, Cost, addCosts, leq, Effect,
   State, payCost, subtractCost, aOrNum,
   allowNull,
   villager, fair, refresh,
-  buyable,
-  registerEvent, register,
+  supplyForCard,
   actionsEffect, buyEffect, buysEffect, pointsEffect, coinsEffect,
   refreshEffect, recycleEffect,
   reflectTrigger,
@@ -32,6 +31,9 @@ import { CardSpec, Card, choice, asChoice, trash, Cost, addCosts, leq, Effect,
 
 // ------------------- Expansion ---------------
 
+export const cards:CardSpec[] = [];
+export const events:CardSpec[] = [];
+
 const flourish:CardSpec = {
     name: 'Flourish',
     fixedCost: energy(1),
@@ -46,7 +48,7 @@ const flourish:CardSpec = {
         test: (c, s, k) => s.points < s.find(c).count('cost')
     }]
 }
-registerEvent(flourish, 'expansion')
+events.push(flourish)
 
 const greed:CardSpec = {
     name: 'Greed',
@@ -63,21 +65,21 @@ const greed:CardSpec = {
         }
     }]
 }
-registerEvent(greed, 'expansion')
+events.push(greed)
 
 const strive:CardSpec = {
     name: 'Strive',
     fixedCost: {...free, energy:2, coin:3},
     effects: [workshopEffect(7)]
 }
-registerEvent(strive, 'expansion')
+events.push(strive)
 
 const delve:CardSpec = {
     name: 'Delve',
     fixedCost: coin(2),
     effects: [createEffect(silver)]
 }
-registerEvent(delve, 'expansion')
+events.push(delve)
 
 const hesitation:CardSpec = {
     name: 'Hesitation',
@@ -93,7 +95,7 @@ const hesitation:CardSpec = {
         replace: p => ({...p, cost: {...p.cost, energy:p.cost.energy + 1}})
     }]
 }
-//registerEvent(hesitation, 'expansion')
+//events.push(hesitation)
 
 /*
 const pillage:CardSpec = {
@@ -121,7 +123,7 @@ const pillage:CardSpec = {
         )
     }]
 }
-registerEvent(pillage, 'expansion')
+events.push(pillage)
 */
 
 const festival:CardSpec = {
@@ -130,7 +132,7 @@ const festival:CardSpec = {
     effects: [createInPlayEffect(fair, 3)],
     relatedCards: [fair]
 }
-registerEvent(festival, 'expansion')
+events.push(festival)
 
 /*
 const Import:CardSpec = {
@@ -159,7 +161,7 @@ const Import:CardSpec = {
         ])})
     }]
 }
-registerEvent(Import, 'expansion')
+events.push(Import)
 */
 
 const squeeze:CardSpec = {
@@ -173,30 +175,25 @@ const squeeze:CardSpec = {
         replace: p => ({...p, amount:0}),
     }]
 }
-registerEvent(squeeze, 'expansion')
+events.push(squeeze)
 
 const inspiration:CardSpec = {
     name: 'Inspiration',
+    variableCosts: [costPer(energy(1))],
     effects: [{
-        text: ['Remove a charge token from this to double your actions and buys.'],
-        transform: (s, c) => payToDo(discharge(c, 1), async function(state) {
+        text: ['Double your actions and buys.'],
+        transform: (s, c) => async function(state) {
             state = await gainActions(state.actions)(state)
             state = await gainBuys(state.buys)(state)
             return state
-        })
-    }],
-    staticTriggers: [{
-        text: 'At the start of the game, put 2 charge tokens on this.',
-        kind: 'gameStart',
-        handles: ()=>true,
-        transform: (e, s, c) => charge(c, 2),
-    }],
+        }
+    }, incrementCost()],
     restrictions: [{
         test: (c, state, kind) => c.charge == 0 && kind == 'use'
     }]
 
 }
-registerEvent(inspiration, 'expansion')
+events.push(inspiration)
 
 /*
 const chain:CardSpec = {
@@ -223,7 +220,7 @@ const chain:CardSpec = {
         )
     }]
 }
-registerEvent(chain, 'expansion')
+events.push(chain)
 */
 
 function buyCheaper(card:Card, s:State, source:Source): Transform {
@@ -253,7 +250,7 @@ const bargain:CardSpec = {
         transform: (e, s, c) => buyCheaper(e.card, s, c)
     }]
 }
-registerEvent(bargain, 'expansion')
+events.push(bargain)
 
 const haggle:CardSpec = {
     name: 'Haggle',
@@ -267,7 +264,7 @@ const haggle:CardSpec = {
         transform: (e, s, c) => payToDo(discharge(c, 1), buyCheaper(e.card, s, c)),
     }]
 }
-registerEvent(haggle, 'expansion')
+events.push(haggle)
 
 const horse:CardSpec = {
     name: 'Horse',
@@ -280,7 +277,7 @@ const ride:CardSpec = {
     relatedCards:[horse],
     effects: [createEffect(horse)]
 }
-registerEvent(ride, 'expansion')
+events.push(ride)
 
 const foreshadow:CardSpec = {
     name:'Foreshadow',
@@ -291,7 +288,7 @@ const foreshadow:CardSpec = {
         state => state.discard,
     )],
 }
-registerEvent(foreshadow, 'expansion')
+events.push(foreshadow)
 
 const splay:CardSpec = {
     name:'Splay',
@@ -329,7 +326,7 @@ const splay:CardSpec = {
         }
     }]
 }
-registerEvent(splay, 'expansion')
+events.push(splay)
 
 const recover:CardSpec = {
     name: 'Recover',
@@ -342,7 +339,7 @@ const recover:CardSpec = {
         2
     ), incrementCost()]
 }
-registerEvent(recover, 'expansion')
+events.push(recover)
 
 function multitargetedEffect(
     f: (targets:Card[], c:Card) => Transform,
@@ -371,7 +368,7 @@ const regroup:CardSpec = {
         state => state.discard, 4
     )]
 }
-registerEvent(regroup, 'expansion')
+events.push(regroup)
 
 /*
 const multitask:CardSpec = {
@@ -383,7 +380,7 @@ const multitask:CardSpec = {
         (state, c) => state.events.filter(card => card.id != c.id)
     )]
 }
-registerEvent(multitask, 'expansion')
+events.push(multitask)
 */
 const summon:CardSpec = {
     name: 'Summon',
@@ -397,7 +394,7 @@ const summon:CardSpec = {
     )],
     staticReplacers: [fragileEcho('echo')]
 }
-registerEvent(summon, 'expansion')
+events.push(summon)
 
 /*
 const misfitName:string = 'Misfit'
@@ -437,7 +434,7 @@ const misfit:CardSpec = {
         }, fragileEcho(),
     ]
 }
-register(misfit, 'expansion')
+cards.push($1)
 */
 
 /*
@@ -484,7 +481,7 @@ const bandOfMisfits:CardSpec = {
         }, fragileEcho(),
     ]
 }
-register(bandOfMisfits, 'expansion')
+cards.push(bandOfMisfits)
 */
 
 function magpieEffect(): Effect {
@@ -499,7 +496,7 @@ const magpie:CardSpec = {
     buyCost: coin(2),
     effects: [coinsEffect(1), magpieEffect()]
 }
-register(magpie, 'expansion')
+cards.push(magpie)
 
 const crown:CardSpec = {
     name: 'Crown',
@@ -511,7 +508,7 @@ const crown:CardSpec = {
     )],
     staticTriggers: [reflectTrigger('crown')],
 }
-register(crown, 'expansion')
+cards.push(crown)
 
 const remake:CardSpec = {
     name: 'Remake',
@@ -542,7 +539,7 @@ const remake:CardSpec = {
         }
     }]
 }
-registerEvent(remake, 'expansion')
+events.push(remake)
 
 /*
 const remake:CardSpec = {
@@ -575,7 +572,7 @@ const remake:CardSpec = {
         }
     }]
 }
-register(remake, 'expansion')
+cards.push(remake)
 */
 
 const ferry:CardSpec = {
@@ -594,7 +591,7 @@ const ferry:CardSpec = {
         replace: p => ({...p, cost: reducedCost(p.cost, coin(p.card.count('ferry')), true)})
     }]
 }
-register(ferry, 'expansion')
+cards.push(ferry)
 
 const develop:CardSpec = {
     name: 'Develop',
@@ -639,7 +636,7 @@ const develop:CardSpec = {
         }
     }]
 }
-register(develop, 'expansion')
+cards.push(develop)
 
 const logistics = {
     name: 'Logistics',
@@ -648,7 +645,7 @@ const logistics = {
     effects: [],
     replacers: [costReduce('use', energy(1), true)]
 }
-register(logistics, 'expansion')
+cards.push(logistics)
 
 const territory:CardSpec = {
     name: 'Territory',
@@ -659,7 +656,7 @@ const territory:CardSpec = {
         transform: (s, c) => move(c, 'hand')
     }]
 }
-register(territory, 'expansion')
+cards.push(territory)
 
 const resound:CardSpec = {
     name: 'Resound',
@@ -672,7 +669,7 @@ const resound:CardSpec = {
     }],
     staticReplacers: [fragileEcho('echo')]
 }
-registerEvent(resound, 'expansion')
+events.push(resound)
 /*
 const fossilize:CardSpec = {
     name: 'Fossilize',
@@ -694,7 +691,7 @@ const fossilize:CardSpec = {
     }],
     staticTriggers: [fragileEcho('fragile')]
 }
-register(fossilize, 'expansion')
+cards.push(fossilize)
 */
 
 const harrowName = 'Harrow'
@@ -716,7 +713,7 @@ const harrow:CardSpec = {
         }
     }]
 }
-register(harrow, 'expansion')
+cards.push(harrow)
 
 const churnName = "Churn"
 const churn:CardSpec = {
@@ -731,7 +728,7 @@ const churn:CardSpec = {
         replace: p => ({...p, cost: addCosts(p.cost, energy(1))})
     }]
 }
-register(churn, 'expansion')
+cards.push(churn)
 
 const smithy:CardSpec = {
     name: 'Smithy',
@@ -739,14 +736,14 @@ const smithy:CardSpec = {
     fixedCost: energy(1),
     effects: [actionsEffect(3), buysEffect(1)],
 }
-register(smithy, 'expansion')
+cards.push(smithy)
 
 const marketSquare:CardSpec = {
     name: 'Market Square',
     relatedCards: [fair],
     effects: [actionsEffect(1), buysEffect(1)],
 }
-buyable(marketSquare, 2, 'expansion', {afterBuy: [createInPlayEffect(fair, 2)]})
+cards.push(supplyForCard(marketSquare, coin(2), {afterBuy: [createInPlayEffect(fair, 2)]}))
 
 /*
 const brigade:CardSpec = {name: 'Brigade',
@@ -774,11 +771,12 @@ const brigade:CardSpec = {name: 'Brigade',
         }
     }]
 }
-buyable(brigade, 4, 'expansion')
+cards.push(supplyForCard((brigade, 4, 'expansion')
 */
 
 const brigade:CardSpec = {name: 'Brigade',
     effects: [],
+    buyCost: coin(3),
     replacers: [{
         text: `Cards you play cost @ less if they have no brigade token on them.
                Whenever this reduces a card's cost, put a brigade token on it,
@@ -801,14 +799,15 @@ const brigade:CardSpec = {name: 'Brigade',
         }
     }]
 }
-buyable(brigade, 3, 'expansion')
+cards.push(brigade)
 
 const recruiter:CardSpec = {
     name: 'Recruiter',
+    buyCost: coin(3),
     relatedCards: [villager, fair],
     effects: [createInPlayEffect(fair), createInPlayEffect(villager)]
 }
-buyable(recruiter, 3, 'expansion')
+cards.push(recruiter)
 
 const silversmith:CardSpec = {
     name: 'Silversmith',
@@ -821,14 +820,14 @@ const silversmith:CardSpec = {
         transform: e => gainActions(1),
     }]
 }
-register(silversmith, 'expansion')
+cards.push(silversmith)
 
 const exoticMarket:CardSpec = {
     name: 'Exotic Market',
     buyCost: coin(5),
     effects: [actionsEffect(2), coinsEffect(1), buysEffect(1)]
 }
-register(exoticMarket, 'expansion')
+cards.push(exoticMarket)
 
 const queensCourt:CardSpec = {
     name: "Queen's Court",
@@ -850,7 +849,7 @@ const queensCourt:CardSpec = {
         }
     }]
 }
-register(queensCourt, 'expansion')
+cards.push(queensCourt)
 
 const sculpt:CardSpec = {
     name: 'Sculpt',
@@ -861,7 +860,7 @@ const sculpt:CardSpec = {
         state => state.hand
     )]
 }
-register(sculpt, 'expansion')
+cards.push(sculpt)
 
 const masterpiece:CardSpec = {
     name: 'Masterpiece',
@@ -869,7 +868,7 @@ const masterpiece:CardSpec = {
     fixedCost: energy(1),
     effects: [coinsEffect(5)]
 }
-register(masterpiece, 'expansion')
+cards.push(masterpiece)
 
 function workshopTransform(n:number, source:Source): Transform {
     return applyToTarget(
@@ -895,7 +894,7 @@ const greatFeast:CardSpec = {
         }
     }, trashThis()]
 }
-register(greatFeast, 'expansion')
+cards.push(greatFeast)
 
 /*
 const scaffold:CardSpec = {
@@ -916,7 +915,7 @@ const scaffold:CardSpec = {
         }
     }, trashThis()]
 }
-register(scaffold, 'expansion')
+cards.push(scaffold)
 */
 
 const universityName = 'University'
@@ -931,7 +930,7 @@ const university:CardSpec = {
         replace: (p, s) => ({...p, cost: reducedCost(p.cost, coin(s.actions), true)})
     }]
 }
-register(university, 'expansion')
+cards.push(university)
 
 const steelName = 'Steel'
 const steel:CardSpec = {
@@ -948,14 +947,14 @@ const steel:CardSpec = {
             : {...p, effects: [(c:Card) => payCost({...free, buys: 1})].concat(p.effects)}
     }]
 }
-register(steel, 'expansion')
+cards.push(steel)
 
 const silverMine:CardSpec = {
     name: 'Silver Mine',
     buyCost: coin(6),
     effects: [actionsEffect(1), createEffect(silver, 'hand', 2)]
 }
-register(silverMine, 'expansion')
+cards.push(silverMine)
 
 const livery:CardSpec = {
     name: "Livery",
@@ -970,14 +969,14 @@ const livery:CardSpec = {
         transform: () => repeat(create(horse, 'discard'), 2)
     }]
 }
-register(livery, 'expansion')
+cards.push(livery)
 
 const stables:CardSpec = {
     name: 'Stables',
     relatedCards: [horse],
     effects: [createEffect(horse, 'discard', 2)]
 }
-buyable(stables, 3, 'expansion', {onBuy: [{
+cards.push(supplyForCard(stables, coin(3), {onBuy: [{
     text: [`Pay all actions to create that many ${horse.name}s in your discard.`],
     transform: () => async function(state) {
         const n = state.actions
@@ -985,7 +984,7 @@ buyable(stables, 3, 'expansion', {onBuy: [{
         state = await repeat(create(horse), n)(state)
         return state
     }
-}]})
+}]}))
 
 const bustlingVillage:CardSpec = {
     name: 'Bustling Village',
@@ -996,7 +995,7 @@ const bustlingVillage:CardSpec = {
         transform: s => gainActions(Math.min(3, s.play.filter(c => c.name == villager.name).length)),
     }, createInPlayEffect(villager)]
 }
-register(bustlingVillage, 'expansion')
+cards.push(bustlingVillage)
 
 /*
 const inn:CardSpec = {
@@ -1005,7 +1004,7 @@ const inn:CardSpec = {
     relatedCards: [horse, villager],
     effects: [createEffect(horse, 'discard', 2), createInPlayEffect(villager, 2)],
 }
-register(inn, 'expansion')
+cards.push(inn)
 */
 
 const guildHall:CardSpec = {
@@ -1024,7 +1023,7 @@ const guildHall:CardSpec = {
         }
     }]
 }
-register(guildHall, 'expansion')
+cards.push(guildHall)
 /*
 const overextend:CardSpec = {
     name: 'Overextend',
@@ -1038,7 +1037,7 @@ const overextend:CardSpec = {
         replace: p => ({...p, cost: addCosts(p.cost, energy(1))})
     }]
 }
-register(overextend, 'expansion')
+cards.push(overextend)
 */
 
 const contraband:CardSpec = {
@@ -1052,14 +1051,14 @@ const contraband:CardSpec = {
         replace: p => ({...p, cost: addCosts(p.cost, coin(1))})
     }]
 }
-register(contraband, 'expansion')
+cards.push(contraband)
 /*
 const diamond:CardSpec = {
     name: 'Diamond',
     buyCost: coin(4),
     effects: [coinsEffect(2), pointsEffect(1)],
 }
-register(diamond, 'expansion')
+cards.push(diamond)
 */
 
 const lurkerName = 'Lurker'
@@ -1088,7 +1087,7 @@ const lurker:CardSpec = {
         }
     }]
 }
-register(lurker, 'expansion')
+cards.push(lurker)
 
 const kiln:CardSpec = {
     name: 'Kiln',
@@ -1102,7 +1101,7 @@ const kiln:CardSpec = {
         transform: (e, s, c) => doAll([move(c, 'discard'), create(e.card.spec, 'discard')])
     }]
 }
-register(kiln, 'expansion')
+cards.push(kiln)
 
 /*
 const werewolfName = 'Werewolf'
@@ -1128,7 +1127,7 @@ const werewolf:CardSpec = {
         transform: (e, s, c) => charge(c)
     }]
 }
-register(werewolf, 'expansion')
+cards.push(werewolf)
 */
 
 const moon:CardSpec = {
@@ -1157,7 +1156,7 @@ const werewolf:CardSpec = {
             gainActions(3)
     }]
 }
-register(werewolf, 'expansion')
+cards.push(werewolf)
 
 const uncoverName = 'Uncover'
 const uncover:CardSpec = {
@@ -1183,9 +1182,9 @@ const uncover:CardSpec = {
         }
     }]
 }
-buyable(uncover, 4, 'expansion', {
+cards.push(supplyForCard(uncover,coin(4), {
     replacers: [startsWithCharge(uncover.name, 3)]
-})
+}))
 
 const masonry:CardSpec = {
     name: 'Masonry',
@@ -1203,7 +1202,7 @@ const masonry:CardSpec = {
         ))
     }]
 }
-registerEvent(masonry, 'expansion')
+events.push(masonry)
 
 const swap:CardSpec = {
     name: 'Swap',
@@ -1222,7 +1221,7 @@ const swap:CardSpec = {
         ))
     }]
 }
-registerEvent(swap, 'expansion')
+events.push(swap)
 
 const infrastructure:CardSpec = {
     name: 'Infrastructure',
@@ -1256,7 +1255,7 @@ const planning:CardSpec = {
         transform: (e, state, card) => repeat(create(infrastructure, 'play'), e.cost.energy)
     }]
 }
-register(planning, 'expansion')
+cards.push(planning)
 
 const privateWorks:CardSpec = {
     name: 'Private Works',
@@ -1264,7 +1263,7 @@ const privateWorks:CardSpec = {
     fixedCost: {...free, coin:4, energy:1},
     effects: [createInPlayEffect(infrastructure, 2)]
 }
-registerEvent(privateWorks, 'expansion')
+events.push(privateWorks)
 
 function gainExactly(n:number):Effect {
     return targetedEffect(
@@ -1296,7 +1295,7 @@ const alliance:CardSpec = {
         transform: () => doAll([province, duchy, estate, gold, silver, copper].map(c => create(c)))
     }]
 }
-registerEvent(alliance, 'expansion')
+events.push(alliance)
 
 const buildUp:CardSpec = {
     name: 'Build Up',
@@ -1305,7 +1304,7 @@ const buildUp:CardSpec = {
     effects: [createInPlayEffect(infrastructure), incrementCost()],
     relatedCards: [infrastructure]
 }
-registerEvent(buildUp, 'expansion')
+events.push(buildUp)
 
 /*
 const avenue:CardSpec = {
@@ -1327,7 +1326,7 @@ const avenue:CardSpec = {
         )
     }]
 }
-buyable(avenue, 5, 'expansion')
+cards.push(supplyForCard((avenue, 5, 'expansion')
 */
 
 const inn:CardSpec = {
@@ -1335,7 +1334,7 @@ const inn:CardSpec = {
     relatedCards: [villager, horse],
     effects: [createInPlayEffect(villager, 2)]
 }
-buyable(inn, 5, 'expansion', {onBuy: [createEffect(horse, 'discard', 3)]})
+cards.push(supplyForCard(inn,coin(5), {onBuy: [createEffect(horse, 'discard', 3)]}))
 
 /*
 const exploit:CardSpec = {
@@ -1346,7 +1345,7 @@ const exploit:CardSpec = {
         transform: state => doAll(state.play.map(c => doAll([trash(c), gainPoints(1)])))
     }]
 }
-registerEvent(exploit, 'expansion')
+events.push(exploit)
 
 const treasury:CardSpec = {
     name: 'Treasury',
@@ -1359,11 +1358,12 @@ const treasury:CardSpec = {
         transform: e => gainCoins(e.amount - 1)
     }]
 }
-buyable(treasury, 4, 'expansion')
+cards.push(supplyForCard((treasury, 4, 'expansion')
 */
 
 const statue:CardSpec = {
     name: 'Statue',
+    buyCost: coin(5),
     fixedCost: energy(1),
     effects: [],
     triggers: [{
@@ -1373,11 +1373,12 @@ const statue:CardSpec = {
         transform: e => gainPoints(1),
     }]
 }
-buyable(statue, 5, 'expansion')
+cards.push(statue)
 
 const scepter:CardSpec = {
     name: 'Scepter',
     fixedCost: energy(2),
+    buyCost: coin(7),
     effects: [{
         text: [`Pay an action to play a card in your hand three times then trash it.`],
         transform: (state, card) => payToDo(payAction, applyToTarget(
@@ -1393,12 +1394,13 @@ const scepter:CardSpec = {
         ))
     }]
 }
-buyable(scepter, 7, 'expansion')
+cards.push(scepter)
 
 const farmlandName = 'Farmland'
 const farmland:CardSpec = {
     name: farmlandName,
     fixedCost: energy(3),
+    buyCost: coin(8),
     effects: [],
     restrictions: [{
         test: (card, state, kind) =>
@@ -1409,7 +1411,7 @@ const farmland:CardSpec = {
         transform: (s, c) => payToDo(discardFromPlay(c), gainPoints(7)),
     }],
 }
-buyable(farmland, 8, 'expansion')
+cards.push(farmland)
 
 const hallOfEchoes:CardSpec = {
     name: 'Hall of Echoes',
@@ -1425,4 +1427,4 @@ const hallOfEchoes:CardSpec = {
     }],
     staticReplacers: [fragileEcho()],
 }
-registerEvent(hallOfEchoes, 'expansion')
+events.push(hallOfEchoes)

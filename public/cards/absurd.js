@@ -72,8 +72,10 @@ var __values = (this && this.__values) || function(o) {
     };
     throw new TypeError(s ? "Object is not iterable." : "Symbol.iterator is not defined.");
 };
-import { choice, asChoice, trash, addCosts, move, create, payToDo, free, discharge, addToken, removeToken, gainActions, gainResource, createAndTrack, doAll, moveMany, multichoice, chooseNatural, Victory, register, buyable, registerEvent, actionsEffect, buyEffect, pointsEffect, coinsEffect, targetedEffect, chargeEffect, createEffect, startsWithCharge, applyToTarget, fragileEcho, dedupBy, coin, energy, repeat, } from '../logic.js';
+import { choice, asChoice, trash, addCosts, move, create, payToDo, free, discharge, addToken, removeToken, gainActions, gainResource, createAndTrack, doAll, moveMany, multichoice, chooseNatural, Victory, actionsEffect, buyEffect, pointsEffect, coinsEffect, targetedEffect, chargeEffect, createEffect, startsWithCharge, applyToTarget, fragileEcho, dedupBy, coin, energy, repeat, supplyForCard } from '../logic.js';
 // ----------------- Absurd --------------------
+export var cards = [];
+export var events = [];
 var confusion = {
     name: 'Confusion',
     buyCost: free,
@@ -89,7 +91,7 @@ var confusion = {
             transform: function (e) { return move(e.card, 'supply'); }
         }]
 };
-register(confusion, 'absurd');
+events.push(confusion);
 var chaos = {
     name: 'Chaos',
     buyCost: coin(3),
@@ -102,7 +104,7 @@ var chaos = {
             transform: function (e) { return move(e.card, 'discard'); }
         }]
 };
-register(chaos, 'absurd');
+events.push(chaos);
 var misplace = {
     name: 'Misplace',
     fixedCost: __assign(__assign({}, free), { energy: 1, coin: 2 }),
@@ -124,7 +126,7 @@ var misplace = {
             transform: function (e) { return move(e.card, 'supply'); }
         }]
 };
-registerEvent(misplace, 'absurd');
+events.push(misplace);
 var echoName = 'Weird Echo';
 var weirdEcho = { name: echoName,
     buyCost: coin(7), effects: [targetedEffect(function (target, card) { return function (state) {
@@ -155,10 +157,11 @@ var weirdEcho = { name: echoName,
             transform: function (e) { return move(e.card, 'play'); }
         }]
 };
-register(weirdEcho, 'absurd');
+cards.push(weirdEcho);
 var weirdCarpenter = {
     name: 'Weird Carpenter',
     fixedCost: energy(1),
+    buyCost: coin(5),
     effects: [buyEffect(), {
             text: ["+1 action per card in play."],
             transform: function (state, card) { return gainActions(state.play.length, card); }
@@ -170,7 +173,7 @@ var weirdCarpenter = {
             transform: function (e) { return move(e.card, 'play'); }
         }]
 };
-buyable(weirdCarpenter, 5, 'absurd');
+cards.push(weirdCarpenter);
 /*
 const amalgam:CardSpec = {
     name: 'Amalgam',
@@ -178,14 +181,14 @@ const amalgam:CardSpec = {
     buyCost: coin(3),
     effects: [coinsEffect(3)]
 }
-register(amalgam, 'absurd')
+cards.push(amalgam)
 */
 var shinySilver = {
     name: 'Shiny Silver',
     buyCost: coin(2.5),
     effects: [coinsEffect(2.5)]
 };
-register(shinySilver, 'absurd');
+cards.push(shinySilver);
 var xSpec = { name: 'X' };
 var ySpec = { name: 'Y' };
 function xHatchery(x) {
@@ -225,14 +228,14 @@ var metaHatchery = {
             }; }
         }]
 };
-register(metaHatchery, 'absurd');
+cards.push(metaHatchery);
 var invertedPalace = {
     name: 'Inverted Palace',
     buyCost: energy(1),
     fixedCost: coin(5),
     effects: [actionsEffect(2), pointsEffect(2), coinsEffect(2)],
 };
-register(invertedPalace, 'absurd');
+cards.push(invertedPalace);
 /* Change name, and make resources round down? */
 /*
 const unfocus:CardSpec = {
@@ -240,7 +243,7 @@ const unfocus:CardSpec = {
     fixedCost: energy(0.01),
     effects: [actionsEffect(1)]
 }
-registerEvent(unfocus, 'absurd')
+events.push(unfocus)
 */
 function concatIfdef(xs, ys) {
     return (xs || []).concat(ys || []);
@@ -298,7 +301,7 @@ var combiner = {
             }; }
         }]
 };
-register(combiner, 'absurd');
+cards.push(combiner);
 var merge = {
     name: 'Merge',
     fixedCost: energy(1),
@@ -332,7 +335,7 @@ var merge = {
             }; }
         }]
 };
-registerEvent(merge, 'absurd');
+events.push(merge);
 var idealize = {
     name: 'Idealize',
     fixedCost: __assign(__assign({}, free), { coin: 2, energy: 1 }),
@@ -368,7 +371,7 @@ var idealize = {
             replace: function (e) { return (__assign(__assign({}, e), { cost: __assign(__assign({}, e.cost), { energy: e.cost.energy + e.card.count('ideal') }) })); }
         }]
 };
-registerEvent(idealize, 'absurd');
+events.push(idealize);
 var enshrine = {
     name: 'Enshrine',
     fixedCost: energy(1),
@@ -380,7 +383,7 @@ var enshrine = {
             replace: function (p, state) { return (__assign(__assign({}, p), { cost: addCosts(p.cost, __assign(__assign({}, p.card.cost('buy', state)), { buys: 0 })) })); }
         }]
 };
-registerEvent(enshrine, 'absurd');
+events.push(enshrine);
 var reify = {
     name: 'Reify',
     fixedCost: energy(1),
@@ -390,7 +393,7 @@ var reify = {
         }],
     staticReplacers: [fragileEcho()],
 };
-registerEvent(reify, 'absurd');
+events.push(reify);
 var showOff = {
     name: 'Show Off',
     effects: [chargeEffect()],
@@ -421,7 +424,7 @@ var showOff = {
             }; }
         }],
 };
-registerEvent(showOff, 'absurd');
+events.push(showOff);
 function cardsInState(s) {
     return s.events.concat(s.supply).concat(s.hand).concat(s.play).concat(s.discard);
 }
@@ -515,16 +518,16 @@ var reconfigure = {
             }; }, 'Choose a card to reconfigure.', function (state) { return cardsInState(state); }); }
         }]
 };
-buyable(reconfigure, 4, 'absurd', { onBuy: [{
+cards.push(supplyForCard(reconfigure, coin(4), { onBuy: [{
             text: ["Add a reconfigure token to each card in your hand."],
             transform: function (state) { return doAll(state.hand.map(function (c) { return addToken(c, 'reconfigure'); })); }
-        }] });
+        }] }));
 var steal = {
     name: 'Steal',
     fixedCost: __assign(__assign({}, free), { energy: 1, coin: 3 }),
     effects: [targetedEffect(function (target) { return move(target, 'discard'); }, "Move a supply to your discard.", function (state) { return state.supply; })]
 };
-registerEvent(steal, 'absurd');
+events.push(steal);
 var hoard = {
     name: 'Hoard',
     fixedCost: __assign(__assign({}, free), { energy: 2, coin: 8 }),
@@ -533,7 +536,7 @@ var hoard = {
             transform: function (s) { return moveMany(cardsInState(s), 'hand'); }
         }]
 };
-registerEvent(hoard, 'absurd');
+events.push(hoard);
 var redistribute = {
     name: 'Redistribute',
     effects: [{
@@ -618,5 +621,5 @@ var redistribute = {
             }; }
         }]
 };
-buyable(redistribute, 4, 'absurd', { replacers: [startsWithCharge(redistribute.name, 2)] });
+cards.push(supplyForCard(redistribute, coin(4), { replacers: [startsWithCharge(redistribute.name, 2)] }));
 //# sourceMappingURL=absurd.js.map
