@@ -4,6 +4,8 @@ const PORT = process.env.PORT || 5000
 import {verifyScore, VERSION, specFromURL, specToURL, normalizeURL } from './public/logic.js'
 import {Credentials, hashPassword, CampaignInfo} from './public/campaign.js'
 
+import './public/cards/index.js'
+
 import postgres from 'postgres'
 const sql = (process.env.DATABASE_URL == undefined) ? null : postgres(process.env.DATABASE_URL)
 

@@ -91,7 +91,9 @@ import { playGame, initialState } from './logic.js';
 import { coerceReplayVersion, parseReplay, MalformedReplay } from './logic.js';
 import { randomPlaceholder } from './logic.js';
 import { VERSION, DEFAULT_VP_GOAL } from './logic.js';
-import { MalformedSpec, getTutorialSpec, specToURL, specFromURL } from './logic.js';
+import { MalformedSpec, specToURL, specFromURL } from './logic.js';
+// register cards
+import { throneRoom, duplicate } from './cards/index.js';
 var keyListeners = new Map();
 var symbolHotkeys = ['!', '%', '^', '&', '*', '(', ')', '-', '+', '=', '{', '}', '[', ']']; // '@', '#', '$' are confusing
 var lowerHotkeys = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm',
@@ -1399,6 +1401,13 @@ function renderTutorialMessage(text) {
         }
     });
     $('#tutorialNext').on('click', next);
+}
+function getTutorialSpec() {
+    return {
+        cards: [throneRoom],
+        events: [duplicate],
+        kind: 'pick'
+    };
 }
 export function loadTutorial() {
     var state = initialState(getTutorialSpec());
