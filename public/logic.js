@@ -2,7 +2,7 @@ var __extends = (this && this.__extends) || (function () {
     var extendStatics = function (d, b) {
         extendStatics = Object.setPrototypeOf ||
             ({ __proto__: [] } instanceof Array && function (d, b) { d.__proto__ = b; }) ||
-            function (d, b) { for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p]; };
+            function (d, b) { for (var p in b) if (Object.prototype.hasOwnProperty.call(b, p)) d[p] = b[p]; };
         return extendStatics(d, b);
     };
     return function (d, b) {
@@ -155,7 +155,7 @@ function repeatSymbol(s, n) {
 export var free = { coin: 0, energy: 0, actions: 0, buys: 0, effects: [], tests: [] };
 var unk = { name: '?' }; //Used as a default when we don't know the source
 var Card = /** @class */ (function () {
-    function Card(spec, id, ticks, tokens, place,
+    function Card(spec, id, ticks, tokens, place, 
     // we assign each card the smallest unused index in its current zone, for consistency of hotkey mappings
     zoneIndex) {
         if (ticks === void 0) { ticks = [0]; }
@@ -3195,8 +3195,7 @@ var freePoints = { name: 'Free points',
 };
 cheats.push(freePoints);
 var doItAll = { name: 'Do it all',
-    fixedCost: energy(0),
-    effects: [{
+    fixedCost: energy(0), effects: [{
             text: ["Remove all mire tokens from all cards."],
             transform: function (state) { return doAll(state.discard.concat(state.play).concat(state.hand).map(function (c) { return removeToken(c, 'mire', 'all'); })); }
         }, {

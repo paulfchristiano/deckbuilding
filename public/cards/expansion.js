@@ -790,8 +790,7 @@ const brigade:CardSpec = {name: 'Brigade',
 buyable(brigade, 4, 'expansion')
 */
 var brigade = { name: 'Brigade',
-    effects: [],
-    replacers: [{
+    effects: [], replacers: [{
             text: "Cards you play cost @ less if they have no brigade token on them.\n               Whenever this reduces a card's cost, put a brigade token on it,\n               discard this, and get +$1 and +1 action.",
             kind: 'cost',
             handles: function (x, state) { return (x.actionKind == 'play' && x.card.count('brigade') == 0); },

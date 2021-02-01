@@ -127,8 +127,7 @@ var misplace = {
 registerEvent(misplace, 'absurd');
 var echoName = 'Weird Echo';
 var weirdEcho = { name: echoName,
-    buyCost: coin(7),
-    effects: [targetedEffect(function (target, card) { return function (state) {
+    buyCost: coin(7), effects: [targetedEffect(function (target, card) { return function (state) {
             return __awaiter(this, void 0, void 0, function () {
                 var copy;
                 var _a;
@@ -149,9 +148,7 @@ var weirdEcho = { name: echoName,
                     }
                 });
             });
-        }; }, "Create a fresh copy of a card you have in play,\n         then put an echo token on the copy and play it.", function (state) { return dedupBy(state.play, function (c) { return c.spec; }); })],
-    staticReplacers: [fragileEcho('echo')],
-    staticTriggers: [{
+        }; }, "Create a fresh copy of a card you have in play,\n         then put an echo token on the copy and play it.", function (state) { return dedupBy(state.play, function (c) { return c.spec; }); })], staticReplacers: [fragileEcho('echo')], staticTriggers: [{
             text: "After playing a card, put it into play unless its name contains the word \"Echo\".",
             kind: 'afterPlay',
             handles: function (e) { return !e.card.name.includes("Echo"); },
