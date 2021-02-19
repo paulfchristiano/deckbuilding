@@ -2424,7 +2424,6 @@ function normalize(xs) {
 function makeDictionary(xs) {
     var e_32, _a;
     var result = new Map();
-    console.log(xs);
     try {
         for (var xs_2 = __values(xs), xs_2_1 = xs_2.next(); !xs_2_1.done; xs_2_1 = xs_2.next()) {
             var x = xs_2_1.value;

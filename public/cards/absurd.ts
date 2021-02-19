@@ -60,7 +60,7 @@ const chaos:CardSpec = {
         transform: e => move(e.card, 'discard')
     }]
 }
-events.push(chaos)
+cards.push(chaos)
 
 const misplace:CardSpec = {
     name: 'Misplace',

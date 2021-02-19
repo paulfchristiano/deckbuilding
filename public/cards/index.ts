@@ -15,7 +15,5 @@ registerAll(base.cards, base.events, 'base')
 registerAll(expansion.cards, expansion.events, 'expansion')
 registerAll(test.cards, test.events, 'test')
 
-console.log(sets.expansion.cards)
-
 export const throneRoom = base.throneRoom;
 export const duplicate = base.duplicate;

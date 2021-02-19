@@ -1506,7 +1506,7 @@ export function leq(cost1:Cost, cost2:Cost) {
 
 export type Token = 'charge' | 'cost' | 'mirror' | 'duplicate' | 'twin' | 'synergy' |
     'shelter' | 'echo' | 'decay' | 'burden' | 'pathfinding' | 'neglect' |
-    'reuse' | 'polish' | 'priority' | 'parallelize' | 'art' |
+    'reuse' | 'polish' | 'priority' | 'parallelize' | 'art' | 'reduce' |
     'mire' | 'onslaught' | 'expedite' | 'replicate' | 'reflect' | 'brigade' |
     'pillage' | 'bargain' | 'splay' | 'crown' | 'ferry' | 'ideal' | 'reconfigure'
 
@@ -2014,7 +2014,6 @@ function normalize(xs:string[]): string[] {
 
 function makeDictionary(xs:CardSpec[]): Map<string, CardSpec> {
     const result:Map<string, CardSpec> = new Map()
-    console.log(xs)
     for (const x of xs) result.set(normalizeString(x.name), x);
     return result
 }

@@ -12,7 +12,6 @@ registerAll(absurd.cards, absurd.events, 'absurd');
 registerAll(base.cards, base.events, 'base');
 registerAll(expansion.cards, expansion.events, 'expansion');
 registerAll(test.cards, test.events, 'test');
-console.log(sets.expansion.cards);
 export var throneRoom = base.throneRoom;
 export var duplicate = base.duplicate;
 //# sourceMappingURL=index.js.map

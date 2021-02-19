@@ -1543,7 +1543,6 @@ function campaignHeartbeat(spec:GameSpec, interval?:any): void {
             return
         }
         let [personalBest, nextStar, starsWon, totalStars] = x
-        console.log(x)
         const starStr = (totalStars > 1)
             ? `<div>Stars won: ${starsWon}/${totalStars}</div>`
             : ``

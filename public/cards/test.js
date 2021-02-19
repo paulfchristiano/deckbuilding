@@ -72,7 +72,7 @@ var __values = (this && this.__values) || function(o) {
     };
     throw new TypeError(s ? "Object is not iterable." : "Symbol.iterator is not defined.");
 };
-import { choice, asChoice, trash, addCosts, leq, free, gainPoints, allowNull, tick, coin, energy, applyToTarget, } from '../logic.js';
+import { choice, asChoice, trash, addCosts, leq, gainPoints, free, addToken, tick, allowNull, targetedEffect, energy, coin, applyToTarget, } from '../logic.js';
 export var cards = [];
 export var events = [];
 var manor = {
@@ -153,4 +153,17 @@ var ballista = {
         }]
 };
 cards.push(ballista);
+var reducerCard = { name: 'Reducer Card',
+    buyCost: coin(5), effects: [targetedEffect(function (target, card) { return addToken(target, 'reduce'); }, "Put a reduce token on a card. Cards you play cost @ less to play for each reduce token on them.", function (state) { return state.hand; })],
+    staticReplacers: [{
+            text: "Cards you play cost @ less to play for each reduce token on them",
+            kind: 'cost',
+            handles: function (x, state, card) { return state.find(x.card).count('reduce') > 0; },
+            replace: function (x, state, card) {
+                var reduction = Math.min(x.cost.energy, state.find(x.card).count('reduce'));
+                return __assign(__assign({}, x), { cost: __assign(__assign({}, x.cost), { energy: x.cost.energy - reduction }) });
+            }
+        }]
+};
+cards.push(reducerCard);
 //# sourceMappingURL=test.js.map

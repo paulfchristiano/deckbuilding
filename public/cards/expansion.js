@@ -239,10 +239,7 @@ var inspiration = {
                     });
                 });
             }; }
-        }, incrementCost()],
-    restrictions: [{
-            test: function (c, state, kind) { return c.charge == 0 && kind == 'use'; }
-        }]
+        }, incrementCost()]
 };
 events.push(inspiration);
 /*

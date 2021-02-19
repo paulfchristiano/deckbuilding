@@ -187,10 +187,7 @@ const inspiration:CardSpec = {
             state = await gainBuys(state.buys)(state)
             return state
         }
-    }, incrementCost()],
-    restrictions: [{
-        test: (c, state, kind) => c.charge == 0 && kind == 'use'
-    }]
+    }, incrementCost()]
 
 }
 events.push(inspiration)

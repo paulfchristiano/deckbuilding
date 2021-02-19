@@ -1,12 +1,32 @@
-import {
-  CardSpec, Card, choice, asChoice, trash, Cost, addCosts,
-  leq, Effect, move, payToDo, free,
-  gainPoints, allowNull, tick,
-  villager, actionsEffect, buyEffect, pointsEffect, refreshEffect,
-  targetedEffect, chargeEffect,
-  coin, energy,
-  applyToTarget,
-} from '../logic.js'
+import { CardSpec, Card, choice, asChoice, trash, Cost, addCosts, leq, Effect,
+    gainPoints, gainActions, gainCoins, gainBuys, free, create,
+    doAll, multichoice,
+    ActionKind,
+    moveMany, addToken, removeToken, payToDo,
+    tick, eq, move, noop,
+    CostParams, Transform, Source,
+    charge, discharge,
+    State, payCost, subtractCost, aOrNum,
+    allowNull,
+    villager, fair, refresh,
+    supplyForCard,
+    actionsEffect, buyEffect, buysEffect, pointsEffect, coinsEffect,
+    refreshEffect, recycleEffect,
+    reflectTrigger,
+    createInPlayEffect,
+    targetedEffect, workshopEffect, chargeEffect,
+    startsWithCharge,
+    energy, coin,
+    useRefresh, costReduce, reducedCost,
+    applyToTarget,
+    countNameTokens, nameHasToken,
+    incrementCost, costPer,
+    createEffect, repeat,
+    copper, silver, gold, estate, duchy, province,
+    trashOnLeavePlay, discardFromPlay, trashThis,
+    payAction,
+    fragileEcho,
+  } from '../logic.js'
 
 export const cards:CardSpec[] = [];
 export const events:CardSpec[] = [];
@@ -62,3 +82,27 @@ const ballista:CardSpec = {
 }
 cards.push(ballista)
 
+const reducerCard:CardSpec = {name: 'Reducer Card',
+    buyCost: coin(5),
+    effects: [targetedEffect(
+        (target, card) => addToken(target, 'reduce'),
+        `Put a reduce token on a card. Cards you play cost @ less to play for each reduce token on them.`,
+        state => state.hand)],
+    staticReplacers: [{
+        text: `Cards you play cost @ less to play for each reduce token on them`,
+        kind: 'cost',
+        handles: (x, state, card) => state.find(x.card).count('reduce') > 0,
+        replace: function(x:CostParams, state:State, card:Card) {
+            const reduction = Math.min(
+                x.cost.energy,
+                state.find(x.card).count('reduce')
+            )
+            return {...x, cost:{...x.cost,
+                energy:x.cost.energy-reduction,
+                //effects:x.cost.effects.concat([removeToken(x.card, 'reduce', reduction, true)])
+            }}
+        }
+        }]
+    }
+    
+cards.push(reducerCard)

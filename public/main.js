@@ -1600,7 +1600,6 @@ function campaignHeartbeat(spec, interval) {
             return;
         }
         var _a = __read(x, 4), personalBest = _a[0], nextStar = _a[1], starsWon = _a[2], totalStars = _a[3];
-        console.log(x);
         var starStr = (totalStars > 1)
             ? "<div>Stars won: " + starsWon + "/" + totalStars + "</div>"
             : "";

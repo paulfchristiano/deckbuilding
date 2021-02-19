@@ -104,7 +104,7 @@ var chaos = {
             transform: function (e) { return move(e.card, 'discard'); }
         }]
 };
-events.push(chaos);
+cards.push(chaos);
 var misplace = {
     name: 'Misplace',
     fixedCost: __assign(__assign({}, free), { energy: 1, coin: 2 }),
