@@ -67,12 +67,14 @@ const greed:CardSpec = {
 }
 events.push(greed)
 
+/*
 const strive:CardSpec = {
     name: 'Strive',
     fixedCost: {...free, energy:2, coin:3},
     effects: [workshopEffect(7)]
 }
 events.push(strive)
+*/
 
 const delve:CardSpec = {
     name: 'Delve',
@@ -129,7 +131,7 @@ events.push(pillage)
 const festival:CardSpec = {
     name: 'Festival',
     fixedCost: energy(1),
-    effects: [createInPlayEffect(fair, 3)],
+    effects: [createInPlayEffect(fair, 2)],
     relatedCards: [fair]
 }
 events.push(festival)
@@ -289,7 +291,7 @@ events.push(foreshadow)
 
 const splay:CardSpec = {
     name:'Splay',
-    fixedCost: energy(2),
+    fixedCost: {...free, energy: 1, coin: 1},
     effects: [{
         text: [`Put a splay token on each supply.`],
         transform: s => doAll(s.supply.map(c => addToken(c, 'splay')))
@@ -386,8 +388,8 @@ const summon:CardSpec = {
         (targets, card) => doAll(targets.map(target =>
             create(target.spec, 'hand', c => addToken(c, 'echo'))
         )),
-        `Choose up to three cards in the supply. Create a copy of each in your hand with an echo token.`,
-        s => s.supply, 3
+        `Choose up to three cards in the supply costing up to $6. Create a copy of each in your hand with an echo token.`,
+        s => s.supply.filter(c => leq(c.cost('buy', s), coin(6))), 3
     )],
     staticReplacers: [fragileEcho('echo')]
 }
@@ -694,17 +696,19 @@ cards.push(fossilize)
 const harrowName = 'Harrow'
 const harrow:CardSpec = {
     name: harrowName,
-    buyCost: coin(3),
+    buyCost: coin(4),
     effects: [{
-        text: [`Discard your hand, then put that many cards from your discard into your hand.`],
+        text: [`Discard any number of cards from your hand, then put that many cards from your discard into your hand.`],
         transform: () => async function(state) {
-            const cards:Card[] = state.hand
+            let cards; [state, cards] = await multichoice(state,
+                `Discard any number of cards.`,
+                state.hand.map(asChoice))
             const n = cards.length
             state = await moveMany(cards, 'discard')(state)
             let targets; [state, targets] = await multichoice(state,
-                `Choose up to ${n} cards to put into your hand.`,
+                `Choose ${n} cards to put into your hand.`,
                 state.discard.map(asChoice),
-                n)
+                n, n)
             state = await moveMany(targets, 'hand')(state)
             return state
         }
@@ -961,8 +965,8 @@ const livery:CardSpec = {
     effects: [coinsEffect(2)],
     triggers: [{
         kind: 'afterBuy',
-        text: `After buying a card costing $4 or more, create ${aOrNum(2, horse.name)} in your discard.`,
-        handles: (e,s) => e.card.cost('buy', s).coin >= 1,
+        text: `After buying a card costing $3 or more, create ${aOrNum(2, horse.name)} in your discard.`,
+        handles: (e,s) => e.card.cost('buy', s).coin >= 3,
         transform: () => repeat(create(horse, 'discard'), 2)
     }]
 }
@@ -1056,7 +1060,6 @@ const diamond:CardSpec = {
     effects: [coinsEffect(2), pointsEffect(1)],
 }
 cards.push(diamond)
-*/
 
 const lurkerName = 'Lurker'
 const lurker:CardSpec = {
@@ -1085,6 +1088,7 @@ const lurker:CardSpec = {
     }]
 }
 cards.push(lurker)
+*/
 
 const kiln:CardSpec = {
     name: 'Kiln',
