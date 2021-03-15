@@ -267,6 +267,7 @@ events.push(haggle)
 
 const horse:CardSpec = {
     name: 'Horse',
+    buyCost: coin(1),
     effects: [actionsEffect(2), trashThis()]
 }
 

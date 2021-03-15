@@ -300,6 +300,7 @@ var haggle = {
 events.push(haggle);
 var horse = {
     name: 'Horse',
+    buyCost: coin(1),
     effects: [actionsEffect(2), trashThis()]
 };
 var ride = {
