@@ -81,7 +81,7 @@ var PORT = process.env.PORT || 5000;
 import { verifyScore, VERSION, specFromURL, normalizeURL } from './public/logic.js';
 import './public/cards/index.js';
 import postgres from 'postgres';
-var sql = (process.env.DATABASE_URL == undefined) ? null : postgres(process.env.DATABASE_URL);
+var sql = (process.env.DATABASE_URL == undefined) ? null : postgres(process.env.DATABASE_URL, { ssl: true });
 //TODO: get rid of these any's
 //TODO: this is probably horribly insecure
 //TODO: fix parameter parsing
@@ -232,7 +232,7 @@ function makeDailyKey(type, inputDate) {
     if (inputDate === void 0) { inputDate = null; }
     var d = (inputDate == null) ? new Date() : new Date(inputDate);
     //TODO: this seems like a bad way to handle timezones...
-    d.setMinutes(d.getMinutes() + d.getTimezoneOffset() - 300); //east coast time
+    d.setMinutes(d.getMinutes() + d.getTimezoneOffset() - 240); //east coast time
     switch (type) {
         case 'weekly':
             //new weekly challenges only at beginning of Monday

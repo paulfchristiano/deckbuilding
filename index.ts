@@ -7,7 +7,7 @@ import {Credentials, hashPassword, CampaignInfo} from './public/campaign.js'
 import './public/cards/index.js'
 
 import postgres from 'postgres'
-const sql = (process.env.DATABASE_URL == undefined) ? null : postgres(process.env.DATABASE_URL)
+const sql = (process.env.DATABASE_URL == undefined) ? null : postgres(process.env.DATABASE_URL, {ssl: true})
 
 //TODO: get rid of these any's
 //TODO: this is probably horribly insecure
@@ -94,7 +94,7 @@ const dailyTypes:DailyType[] = ['weekly', 'daily']
 function makeDailyKey(type:DailyType, inputDate:Date|null=null): string {
   const d:Date = (inputDate == null) ? new Date() : new Date(inputDate)
   //TODO: this seems like a bad way to handle timezones...
-  d.setMinutes(d.getMinutes() + d.getTimezoneOffset() - 300) //east coast time
+  d.setMinutes(d.getMinutes() + d.getTimezoneOffset() - 240) //east coast time
   switch (type) {
     case 'weekly':
       //new weekly challenges only at beginning of Monday
