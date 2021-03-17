@@ -7,7 +7,10 @@ import {Credentials, hashPassword, CampaignInfo} from './public/campaign.js'
 import './public/cards/index.js'
 
 import postgres from 'postgres'
-const sql = (process.env.DATABASE_URL == undefined) ? null : postgres(process.env.DATABASE_URL, {ssl: true})
+const sql = (process.env.DATABASE_URL == undefined) ? null : postgres(
+  process.env.DATABASE_URL,
+  {ssl: {rejectUnauthorized: false}}
+)
 
 //TODO: get rid of these any's
 //TODO: this is probably horribly insecure

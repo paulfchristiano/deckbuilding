@@ -81,7 +81,7 @@ var PORT = process.env.PORT || 5000;
 import { verifyScore, VERSION, specFromURL, normalizeURL } from './public/logic.js';
 import './public/cards/index.js';
 import postgres from 'postgres';
-var sql = (process.env.DATABASE_URL == undefined) ? null : postgres(process.env.DATABASE_URL, { ssl: true });
+var sql = (process.env.DATABASE_URL == undefined) ? null : postgres(process.env.DATABASE_URL, { ssl: { rejectUnauthorized: false } });
 //TODO: get rid of these any's
 //TODO: this is probably horribly insecure
 //TODO: fix parameter parsing
