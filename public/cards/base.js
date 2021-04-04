@@ -72,7 +72,7 @@ var __values = (this && this.__values) || function(o) {
     };
     throw new TypeError(s ? "Object is not iterable." : "Symbol.iterator is not defined.");
 };
-import { choice, asChoice, trash, addCosts, subtractCost, multiplyCosts, eq, leq, noop, gainPoints, gainActions, gainCoins, gainBuys, free, create, move, doAll, multichoice, renderCost, moveMany, payToDo, payCost, addToken, removeToken, charge, discharge, uncharge, asNumberedChoices, allowNull, setResource, tick, a, num, createAndTrack, villager, fair, supplyForCard, actionsEffect, buyEffect, buysEffect, pointsEffect, refreshEffect, recycleEffect, createInPlayEffect, chargeEffect, targetedEffect, workshopEffect, coinsEffect, reflectTrigger, energy, coin, repeat, costPer, incrementCost, costReduceNext, countNameTokens, nameHasToken, startsWithCharge, useRefresh, costReduce, applyToTarget, playTwice, payAction, sortHand, discardFromPlay, trashThis, fragileEcho, copper, gold, estate, duchy, dedupBy, } from '../logic.js';
+import { choice, asChoice, trash, addCosts, subtractCost, multiplyCosts, eq, leq, noop, gainPoints, gainActions, gainCoins, gainBuys, free, create, move, doAll, multichoice, renderCost, moveMany, payToDo, payCost, addToken, removeToken, charge, discharge, asNumberedChoices, allowNull, setResource, tick, a, num, createAndTrack, villager, fair, supplyForCard, actionsEffect, buyEffect, buysEffect, pointsEffect, refreshEffect, recycleEffect, createInPlayEffect, chargeEffect, targetedEffect, workshopEffect, coinsEffect, reflectTrigger, energy, coin, repeat, costPer, incrementCost, costReduceNext, countNameTokens, nameHasToken, startsWithCharge, useRefresh, costReduce, applyToTarget, playTwice, payAction, sortHand, discardFromPlay, trashThis, fragileEcho, copper, gold, estate, duchy, dedupBy } from '../logic.js';
 export var cards = [];
 export var events = [];
 /*
@@ -95,7 +95,7 @@ const hound:CardSpec = {name: 'Hound',
 buyableFree(hound, 2)
 */
 var transmogrify = { name: 'Transmogrify', effects: [{
-            text: ["Trash a card in your hand.\n                If you do, choose a card in the supply costing up to $2 more than it.\n                Create a fresh copy of that card in your hand."],
+            text: ["Trash a card in your hand.\n                If you do, choose a card in the supply costing up to $2 more than it.\n                Create a copy of that card in your hand."],
             transform: function () { return function (state) {
                 return __awaiter(this, void 0, void 0, function () {
                     var target, cost_1, target2;
@@ -161,7 +161,7 @@ var village = { name: 'Village',
     effects: [actionsEffect(1), createInPlayEffect(villager)],
     relatedCards: [villager],
 };
-cards.push(supplyForCard(village, coin(4)));
+cards.push(supplyForCard(village, coin(3)));
 var bridge = { name: 'Bridge',
     fixedCost: energy(1),
     effects: [coinsEffect(1), buyEffect()],
@@ -169,7 +169,7 @@ var bridge = { name: 'Bridge',
 };
 cards.push(supplyForCard(bridge, coin(4)));
 var conclave = { name: 'Conclave', replacers: [{
-            text: "Cards you play cost @ less if they don't share a name\n               with a card in your discard or in play.\n               Whenever this reduces a cost, discard it and +$2.",
+            text: "Cards @ less to play if they don't share a name\n               with a card in your discard or in play.\n               Whenever this reduces a cost, discard it and +$2.",
             kind: 'cost',
             handles: function (x, state) { return (x.actionKind == 'play' && state.discard.concat(state.play).every(function (c) { return c.name != x.card.name; })); },
             replace: function (x, state, card) {
@@ -191,7 +191,7 @@ cards.push(supplyForCard(conclave, coin(4)));
 var lab = { name: 'Lab',
     effects: [actionsEffect(2)]
 };
-cards.push(supplyForCard(lab, coin(3)));
+cards.push(supplyForCard(lab, coin(2)));
 function throneroomEffect() {
     return {
         text: ["Pay an action to play a card in your hand twice."],
@@ -366,7 +366,7 @@ var parallelize = { name: 'Parallelize', fixedCost: __assign(__assign({}, free),
             transform: function (state) { return doAll(state.hand.map(function (c) { return addToken(c, 'parallelize'); })); }
         }],
     staticReplacers: [{
-            text: "Cards you play cost @ less to play for each parallelize token on them.\n            Whenever this reduces a card's cost by one or more @,\n            remove that many parallelize tokens from it.",
+            text: "Cards cost @ less to play for each parallelize token on them.\n            Whenever this reduces a card's cost by one or more @,\n            remove that many parallelize tokens from it.",
             kind: 'cost',
             handles: function (x, state, card) { return x.actionKind == 'play' && x.card.count('parallelize') > 0; },
             replace: function (x, state, card) {
@@ -609,7 +609,7 @@ var factory = { name: 'Factory',
 };
 cards.push(supplyForCard(factory, coin(3)));
 var imitation = { name: 'Imitation',
-    fixedCost: energy(1), effects: [targetedEffect(function (target, card) { return create(target.spec, 'hand'); }, 'Choose a card in your hand. Create a fresh copy of it in your hand.', function (state) { return state.hand; })]
+    fixedCost: energy(1), effects: [targetedEffect(function (target, card) { return create(target.spec, 'hand'); }, 'Choose a card in your hand. Create a copy of it in your hand.', function (state) { return state.hand; })]
 };
 cards.push(supplyForCard(imitation, coin(3)));
 var feast = { name: 'Feast',
@@ -724,7 +724,7 @@ var lackeys = { name: 'Lackeys',
 cards.push(supplyForCard(lackeys, coin(3), { onBuy: [createInPlayEffect(villager, 1)] }));
 var goldMine = { name: 'Gold Mine',
     fixedCost: energy(1), effects: [{
-            text: ['Create two golds in your hand.'],
+            text: ['Create two Golds in your hand.'],
             transform: function () { return doAll([create(gold, 'hand'), create(gold, 'hand')]); },
         }]
 };
@@ -748,13 +748,8 @@ function robust(card) {
 var expedite = {
     name: 'Expedite',
     fixedCost: energy(1),
-    effects: [targetedEffect(function (card) { return addToken(card, 'expedite', 1); }, 'Put an expedite token on a card in the supply.', function (state) { return state.supply; })],
-    staticTriggers: [{
-            text: "Whenever you create a card whose supply has an expedite token,\n               remove an expedite token to play the card.",
-            kind: 'create',
-            handles: function (e, state) { return nameHasToken(e.card, 'expedite', state); },
-            transform: function (e, state, card) { return payToDo(applyToTarget(function (target) { return removeToken(target, 'expedite', 1, true); }, 'Remove an expedite token.', function (s) { return s.supply.filter(function (target) { return target.name == e.card.name; }); }, { cost: true }), e.card.play(card)); }
-        }]
+    effects: [chargeEffect()],
+    staticReplacers: [playReplacer("Whenever you would create a card in your discard,\n            if this has a charge token then instead\n            remove a charge token to set the card aside and play it.", function (p, s, c) { return s.find(c).charge > 0; }, function (p, s, c) { return discharge(c, 1); })]
 };
 events.push(expedite);
 function removeAllSupplyTokens(token) {
@@ -763,7 +758,7 @@ function removeAllSupplyTokens(token) {
         transform: function (state, card) { return doAll(state.supply.map(function (s) { return removeToken(s, token, 'all'); })); }
     };
 }
-var synergy = { name: 'Synergy', fixedCost: __assign(__assign({}, free), { coin: 4, energy: 1 }),
+var synergy = { name: 'Synergy', fixedCost: __assign(__assign({}, free), { coin: 3, energy: 1 }),
     effects: [removeAllSupplyTokens('synergy'), {
             text: ['Put synergy tokens on two cards in the supply.'],
             transform: function () { return function (state) {
@@ -990,34 +985,15 @@ var reflect = { name: 'Reflect',
     variableCosts: [costPer({ coin: 1 })], effects: [incrementCost(), targetedEffect(function (target, card) { return addToken(target, 'reflect'); }, 'Put a reflect token on a card in your hand', function (state) { return state.hand; })], staticTriggers: [reflectTrigger('reflect')], };
 events.push(reflect);
 var replicate = { name: 'Replicate',
-    fixedCost: energy(1), effects: [targetedEffect(function (card) { return addToken(card, 'replicate', 1); }, 'Put a replicate token on a card in the supply.', function (state) { return state.supply; })],
-    staticTriggers: [{
-            text: "After buying a card with a replicate token on it other than with this,\n        remove a replicate token from it to buy it again.",
+    fixedCost: energy(1),
+    effects: [chargeEffect()], staticTriggers: [{
+            text: "After buying a card other than with this,\n            remove a charge token from this to to buy the card again.",
             kind: 'afterBuy',
-            handles: function (e, state, card) {
-                if (e.source.name == card.name)
-                    return false;
-                var target = state.find(e.card);
-                return target.count('replicate') > 0;
-            },
-            transform: function (e, state, card) {
-                return payToDo(removeToken(e.card, 'replicate'), e.card.buy(card));
-            }
+            handles: function (e, s, c) { return s.find(c).charge > 0 && e.source.id != c.id; },
+            transform: function (e, s, c) { return payToDo(discharge(c, 1), e.card.buy(c)); }
         }]
 };
 events.push(replicate);
-function setCoinEffect(n) {
-    return {
-        text: ["Set $ to " + n + "."],
-        transform: function (s, c) { return setResource('coin', n, c); },
-    };
-}
-function setBuyEffect(n) {
-    return {
-        text: ["Set buys to " + n + "."],
-        transform: function (s, c) { return setResource('buys', n, c); },
-    };
-}
 /*
 const inflation:CardSpec = {name: 'Inflation',
     calculatedCost: costPlus(energy(3), energy(1)),
@@ -1080,13 +1056,13 @@ buyable(goldsmith, 7)
 */
 var procession = { name: 'Procession',
     fixedCost: energy(1), effects: [{
-            text: ["Pay one action to play a card in your hand twice,\n                then trash it and buy a card in the supply\n                costing exactly $1 or $2 more."],
+            text: ["Pay one action to play a card in your hand twice,\n                then trash it and create a copy of a card in the supply\n                costing exactly $1 or $2 more."],
             transform: function (state, card) { return payToDo(payAction, applyToTarget(function (target) { return doAll([
                 target.play(card),
                 tick(card),
                 target.play(card),
                 trash(target),
-                applyToTarget(function (target2) { return target2.buy(card); }, 'Choose a card to buy.', function (s) { return s.supply.filter(function (c) { return eq(c.cost('buy', s), addCosts(target.cost('buy', s), { coin: 1 })) || eq(c.cost('buy', s), addCosts(target.cost('buy', s), { coin: 2 })); }); })
+                applyToTarget(function (target2) { return create(target2.spec); }, 'Choose a card to buy.', function (s) { return s.supply.filter(function (c) { return eq(c.cost('buy', s), addCosts(target.cost('buy', s), { coin: 1 })) || eq(c.cost('buy', s), addCosts(target.cost('buy', s), { coin: 2 })); }); })
             ]); }, 'Choose a card to play twice.', function (s) { return s.hand; })); }
         }]
 };
@@ -1118,7 +1094,7 @@ var echo = { name: 'Echo', effects: [targetedEffect(function (target, card) { re
                     }
                 });
             });
-        }; }, "Create a fresh copy of a card you have in play,\n         then put an echo token on the copy and play it.", function (state) { return dedupBy(state.play, function (c) { return c.spec; }); })]
+        }; }, "Create a copy of a card you have in play,\n         then put an echo token on the copy and play it.", function (state) { return dedupBy(state.play, function (c) { return c.spec; }); })]
 };
 cards.push(supplyForCard(echo, coin(6), { replacers: [fragileEcho('echo')] }));
 var mastermind = {
@@ -1166,27 +1142,6 @@ var mastermind = {
         }],
 };
 cards.push(supplyForCard(mastermind, coin(6)));
-function chargeVillage() {
-    return {
-        text: "Cards you play cost @ less for each charge token on this.\n            Whenever this reduces a cost by one or more @, remove that many charge tokens from this.",
-        kind: 'cost',
-        handles: function (x, state, card) { return (x.actionKind == 'play') && card.charge > 0; },
-        replace: function (x, state, card) {
-            card = state.find(card);
-            var reduction = Math.min(x.cost.energy, card.charge);
-            return __assign(__assign({}, x), { cost: __assign(__assign({}, x.cost), { energy: x.cost.energy - reduction, effects: x.cost.effects.concat([discharge(card, reduction)]) }) });
-        }
-    };
-}
-function unchargeOnMove() {
-    return {
-        text: 'Whenever this leaves play, remove all charge tokens from it.',
-        kind: 'move',
-        handles: function (x, state, card) { return (x.card.id == card.id &&
-            x.fromZone == 'play' && !x.skip); },
-        replace: function (x, state, card) { return (__assign(__assign({}, x), { effects: x.effects.concat([uncharge(card)]) })); }
-    };
-}
 var recruitment = {
     name: 'Recruitment',
     relatedCards: [villager, fair],
@@ -1247,38 +1202,24 @@ var palace = { name: 'Palace',
     effects: [actionsEffect(2), pointsEffect(2), coinsEffect(2)]
 };
 cards.push(supplyForCard(palace, coin(5)));
+function playReplacer(text, condition, cost) {
+    return {
+        kind: 'create',
+        text: text,
+        handles: function (p, s, c) { return p.zone == 'discard' && condition(p, s, c); },
+        replace: function (p, s, c) { return (__assign(__assign({}, p), { zone: 'void', effects: p.effects.concat([
+                function (t) { return payToDo(cost(p, s, c), t.play(c), move(t, 'discard')); }
+            ]) })); }
+    };
+}
 var Innovation = 'Innovation';
 var innovation = { name: Innovation,
-    effects: [actionsEffect(1), toPlay()],
+    effects: [actionsEffect(1)], replacers: [playReplacer("Whenever you would create a card in your discard,\n        instead discard this to set the card aside and play it.", function (p, s, c) { return s.find(c).place == 'play'; }, function (p, s, c) { return discardFromPlay(c); })]
 };
-cards.push(supplyForCard(innovation, coin(6), { triggers: [{
-            text: "When you create a card in your discard,\n    discard an " + innovation.name + " from play in order to play it.\n    (If you have multiple, discard the oldest.)",
-            kind: 'create',
-            handles: function (e) { return e.zone == 'discard'; },
-            transform: function (e, state, card) { return function (state) {
-                return __awaiter(this, void 0, void 0, function () {
-                    var innovations;
-                    return __generator(this, function (_a) {
-                        switch (_a.label) {
-                            case 0:
-                                innovations = state.play.filter(function (c) { return c.name == innovation.name; });
-                                if (!(innovations.length > 0)) return [3 /*break*/, 3];
-                                return [4 /*yield*/, move(innovations[0], 'discard')(state)];
-                            case 1:
-                                state = _a.sent();
-                                return [4 /*yield*/, e.card.play(card)(state)];
-                            case 2:
-                                state = _a.sent();
-                                _a.label = 3;
-                            case 3: return [2 /*return*/, state];
-                        }
-                    });
-                });
-            }; }
-        }] }));
+cards.push(supplyForCard(innovation, coin(6)));
 var formation = { name: 'Formation',
     effects: [], replacers: [{
-            text: 'Cards you play cost @ less if they share a name with a card in your discard or in play.'
+            text: 'Cards cost @ less to play if they share a name with a card in your discard or in play.'
                 + ' Whenever this reduces a cost, discard it and +2 actions.',
             kind: 'cost',
             handles: function (x, state) { return x.actionKind == 'play'
@@ -1427,7 +1368,7 @@ var lostArts = {
             });
         }; }, "Put eight art tokens on a card in the supply.\n        Remove all art tokens from other cards in the supply.", function (s) { return s.supply; })],
     staticReplacers: [{
-            text: "Cards you play cost @ less for each art token on their supply.\n               Whenever this reduces a cost by one or more @,\n               remove that many art tokens.",
+            text: "Cards cost @ less to play for each art token on their supply.\n               Whenever this reduces a cost by one or more @,\n               remove that many art tokens.",
             kind: 'cost',
             handles: function (x, state, card) { return (x.actionKind == 'play')
                 && nameHasToken(x.card, 'art', state); },
@@ -1697,7 +1638,7 @@ var hireling = {
                 ]) })); }
         }]
 };
-cards.push(supplyForCard(hireling, coin(2)));
+cards.push(supplyForCard(hireling, coin(3)));
 /*
 const hirelings:CardSpec = {
     name: 'Hirelings',
@@ -1968,17 +1909,12 @@ var prioritize = {
     name: 'Prioritize',
     fixedCost: __assign(__assign({}, free), { energy: 1, coin: 3 }),
     effects: [targetedEffect(function (card) { return addToken(card, 'priority', 6); }, 'Put six priority tokens on a card in the supply.', function (state) { return state.supply; })],
-    staticTriggers: [{
-            text: "Whenever you create a card whose supply\n            has a priority token,\n            remove a priority token to play the card.",
-            kind: 'create',
-            handles: function (e, state) { return nameHasToken(e.card, 'priority', state); },
-            transform: function (e, state, card) { return payToDo(applyToTarget(function (target) { return removeToken(target, 'priority', 1, true); }, 'Remove a priority token.', function (s) { return s.supply.filter(function (target) { return target.name == e.card.name; }); }, { cost: true }), e.card.play(card)); }
-        }]
+    staticReplacers: [playReplacer("Whenever you would create a card in your discard\n        whose supply has a priority token,\n        instead remove a priority token to set the card aside and play it.", function (p, s, c) { return nameHasToken(p.spec, 'priority', s); }, function (p, s, c) { return applyToTarget(function (t) { return removeToken(t, 'priority', 1, true); }, 'Remove a priority token.', function (state) { return state.supply.filter(function (t) { return t.name == p.spec.name; }); }, { cost: true }); })]
 };
 events.push(prioritize);
 var composting = {
     name: 'Composting',
-    effects: [actionsEffect(1)],
+    effects: [],
     triggers: [{
             kind: 'cost',
             text: "Whenever you pay @,\n        you may put a card from your discard into your hand.",
@@ -2036,7 +1972,7 @@ cards.push(supplyForCard(fairyGold, coin(3), {
 }));
 var pathfinding = {
     name: 'Pathfinding',
-    fixedCost: __assign(__assign({}, free), { coin: 7, energy: 1 }),
+    fixedCost: coin(6),
     effects: [removeAllSupplyTokens('pathfinding'), targetedEffect(function (target) { return addToken(target, 'pathfinding'); }, "Put a pathfinding token on a card in the supply other than Copper.", function (state) { return state.supply.filter(function (target) { return target.name != copper.name; }); })],
     staticTriggers: [{
             kind: 'play',
@@ -2046,15 +1982,23 @@ var pathfinding = {
         }]
 };
 events.push(pathfinding);
+var fortuneName = 'Fortune';
 var fortune = {
-    name: 'Fortune',
+    name: fortuneName,
     effects: [{
             text: ["Double your $."],
             transform: function (state, card) { return gainCoins(state.coin); }
         }, {
             text: ["Double your buys."],
             transform: function (state, card) { return gainBuys(state.buys); }
+        }],
+    staticTriggers: [{
+            kind: 'create',
+            text: "Whenever you create " + a(fortuneName) + ", trash this from the supply.",
+            handles: function (e) { return e.card.name == fortuneName; },
+            transform: function (e, s, c) { return trash(c); },
         }]
 };
-cards.push(supplyForCard(fortune, coin(12), { afterBuy: [{ text: ['trash it from the supply.'], transform: function (s, c) { return trash(c); } }] }));
+cards.push(supplyForCard(fortune, coin(12)));
+//cards.push(supplyForCard(fortune, coin(12), {afterBuy: [{text: ['trash it from the supply.'], transform: (s, c) => trash(c)}]}))
 //# sourceMappingURL=base.js.map

@@ -1,4 +1,4 @@
-export const VERSION = "1.8"
+export const VERSION = "1.8.1"
 
 // ----------------------------- Formatting
 
@@ -906,7 +906,7 @@ export interface CostParams {kind:'cost', actionKind: ActionKind, card:Card, cos
 interface CostIncreaseParams {kind:'costIncrease', actionKind: ActionKind, card:Card, cost:Cost}
 export interface MoveParams {kind:'move', card:Card, fromZone:PlaceName, toZone:PlaceName, effects:Transform[], skip:boolean}
 interface VictoryParams {kind: 'victory', victory: boolean}
-interface CreateParams {
+export interface CreateParams {
     kind:'create',
     spec:CardSpec,
     zone:ZoneName|null,
@@ -1046,8 +1046,8 @@ export function createAndTrack(
         let card:Card|null = null
         if (params.zone !=  null) {
             [state, card] = createRaw(state, spec, params.zone)
-            for (const effect of params.effects) state = await effect(card)(state)
             state = state.log(`Created ${a(card.name)} in ${params.zone}`)
+            for (const effect of params.effects) state = await effect(card)(state)
             state = await trigger({kind:'create', card:card, zone:params.zone})(state)
         }
         return [card, state]
@@ -1346,7 +1346,7 @@ export function countNameTokens(card:Card, token:Token, state:State): number {
     )
 }
 
-export function nameHasToken(card:Card, token:Token, state:State): boolean {
+export function nameHasToken(card:Card|CardSpec, token:Token, state:State): boolean {
     return state.supply.some(s => s.name == card.name && s.count(token) > 0)
 }
 
@@ -1426,11 +1426,11 @@ function doOrAbort(f:Transform, fallback:Transform|null=null): Transform {
     }
 }
 
-export function payToDo(cost:Transform, effect:Transform): Transform {
+export function payToDo(cost:Transform, effect:Transform, fallback:Transform|null=null): Transform {
     return doOrAbort(async function(state) {
         state = await cost(state)
         return effect(state)
-    })
+    }, fallback)
 }
 
 export function doAll(effects:Transform[]): Transform {
@@ -2347,8 +2347,8 @@ export function supplyForCard(
     return {
         ...card,
         buyCost: cost,
-        staticTriggers: triggers,
-        staticReplacers: extra.replacers,
+        staticTriggers: (card.staticTriggers || []).concat(triggers),
+        staticReplacers: (card.staticReplacers || []).concat(extra.replacers || []),
     }
 }
 export function energy(n:number):Cost {
@@ -2537,7 +2537,7 @@ function villageReplacer(): Replacer<CostParams> {
 export const villager:CardSpec = {
     name: 'Villager',
     replacers: [{
-        text: `Cards you play cost @ less. Whenever this reduces a cost, trash it.`,
+        text: `Cards cost @ less to play. Whenever this reduces a cost, trash it.`,
         kind: 'cost',
         handles: x => x.actionKind == 'play',
         replace: function(x:CostParams, state:State, card:Card) {
@@ -2581,12 +2581,14 @@ function playAgain(target:Card, source:Source=unk): Transform {
     }
 }
 
-function descriptorForKind(kind:ActionKind):string {
+function costReduceDescriptor(kind:ActionKind, reduction:Partial<Cost>, nonzero:boolean):string {
+    const d:string = renderCost(reduction, true)
+    const s:string = nonzero ? ' unless it would make them free.' : '.'
     switch (kind) {
-        case 'play': return 'Cards you play'
-        case 'buy': return 'Cards you buy'
-        case 'use': return 'Events you use'
-        case 'activate': return 'Abilities you use'
+        case 'play': return `Cards cost ${d} less to play`
+        case 'buy': return `Cards cost ${d} less to buy`
+        case 'use': return `Events cost ${d} less to use`
+        case 'activate': return `Abilities cost ${d} less to use`
         default: return assertNever(kind)
     }
 }
@@ -2608,10 +2610,8 @@ export function costReduce(
     reduction:Partial<Cost>,
     nonzero:boolean=false,
 ): Replacer<CostParams> {
-    const descriptor = descriptorForKind(kind)
     return {
-        text: `${descriptor} cost ${renderCost(reduction, true)}
-               less${nonzero ? ' unless it would make them free' : ''}.`,
+        text: costReduceDescriptor(kind, reduction, nonzero),
         kind: 'cost',
         handles: x => x.actionKind == kind,
         replace: function(x:CostParams, state:State) {
@@ -2626,11 +2626,9 @@ export function costReduceNext(
     reduction:Partial<Cost>,
     nonzero:boolean=false
 ): Replacer<CostParams> {
-    const descriptor = descriptorForKind(kind)
     return {
-        text: `${descriptor} cost ${renderCost(reduction, true)}
-               less${nonzero ? ' unless it would make them free' : ''}.
-        Whenever this reduces a cost, discard it.`,
+        text: costReduceDescriptor(kind, reduction, nonzero) +
+            ' Whenever this reduces a cost, discard it',
         kind: 'cost',
         handles: x => x.actionKind == kind,
         replace: function(x:CostParams, state:State, card:Card) {

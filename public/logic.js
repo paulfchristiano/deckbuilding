@@ -85,7 +85,7 @@ var __read = (this && this.__read) || function (o, n) {
     }
     return ar;
 };
-export var VERSION = "1.8";
+export var VERSION = "1.8.1";
 // ----------------------------- Formatting
 export function renderCost(cost, full) {
     var e_1, _a;
@@ -1229,6 +1229,7 @@ export function createAndTrack(spec, zone) {
                         card = null;
                         if (!(params.zone != null)) return [3 /*break*/, 10];
                         _c = __read(createRaw(state, spec, params.zone), 2), state = _c[0], card = _c[1];
+                        state = state.log("Created " + a(card.name) + " in " + params.zone);
                         _e.label = 1;
                     case 1:
                         _e.trys.push([1, 6, 7, 8]);
@@ -1255,9 +1256,7 @@ export function createAndTrack(spec, zone) {
                         }
                         finally { if (e_24) throw e_24.error; }
                         return [7 /*endfinally*/];
-                    case 8:
-                        state = state.log("Created " + a(card.name) + " in " + params.zone);
-                        return [4 /*yield*/, trigger({ kind: 'create', card: card, zone: params.zone })(state)];
+                    case 8: return [4 /*yield*/, trigger({ kind: 'create', card: card, zone: params.zone })(state)];
                     case 9:
                         state = _e.sent();
                         _e.label = 10;
@@ -1784,7 +1783,8 @@ function doOrAbort(f, fallback) {
         });
     };
 }
-export function payToDo(cost, effect) {
+export function payToDo(cost, effect, fallback) {
+    if (fallback === void 0) { fallback = null; }
     return doOrAbort(function (state) {
         return __awaiter(this, void 0, void 0, function () {
             return __generator(this, function (_a) {
@@ -1796,7 +1796,7 @@ export function payToDo(cost, effect) {
                 }
             });
         });
-    });
+    }, fallback);
 }
 export function doAll(effects) {
     return function (state) {
@@ -2846,7 +2846,7 @@ export function supplyForCard(card, cost, extra) {
     var triggers = buyTriggers
         .concat(afterTriggers)
         .concat(extra.triggers || []);
-    return __assign(__assign({}, card), { buyCost: cost, staticTriggers: triggers, staticReplacers: extra.replacers });
+    return __assign(__assign({}, card), { buyCost: cost, staticTriggers: (card.staticTriggers || []).concat(triggers), staticReplacers: (card.staticReplacers || []).concat(extra.replacers || []) });
 }
 export function energy(n) {
     return __assign(__assign({}, free), { energy: n });
@@ -3034,7 +3034,7 @@ function villageReplacer() {
 export var villager = {
     name: 'Villager',
     replacers: [{
-            text: "Cards you play cost @ less. Whenever this reduces a cost, trash it.",
+            text: "Cards cost @ less to play. Whenever this reduces a cost, trash it.",
             kind: 'cost',
             handles: function (x) { return x.actionKind == 'play'; },
             replace: function (x, state, card) {
@@ -3079,12 +3079,14 @@ function playAgain(target, source) {
         });
     };
 }
-function descriptorForKind(kind) {
+function costReduceDescriptor(kind, reduction, nonzero) {
+    var d = renderCost(reduction, true);
+    var s = nonzero ? ' unless it would make them free.' : '.';
     switch (kind) {
-        case 'play': return 'Cards you play';
-        case 'buy': return 'Cards you buy';
-        case 'use': return 'Events you use';
-        case 'activate': return 'Abilities you use';
+        case 'play': return "Cards cost " + d + " less to play";
+        case 'buy': return "Cards cost " + d + " less to buy";
+        case 'use': return "Events cost " + d + " less to use";
+        case 'activate': return "Abilities cost " + d + " less to use";
         default: return assertNever(kind);
     }
 }
@@ -3103,9 +3105,8 @@ export function reducedCost(cost, reduction, nonzero) {
 }
 export function costReduce(kind, reduction, nonzero) {
     if (nonzero === void 0) { nonzero = false; }
-    var descriptor = descriptorForKind(kind);
     return {
-        text: descriptor + " cost " + renderCost(reduction, true) + "\n               less" + (nonzero ? ' unless it would make them free' : '') + ".",
+        text: costReduceDescriptor(kind, reduction, nonzero),
         kind: 'cost',
         handles: function (x) { return x.actionKind == kind; },
         replace: function (x, state) {
@@ -3116,9 +3117,9 @@ export function costReduce(kind, reduction, nonzero) {
 }
 export function costReduceNext(kind, reduction, nonzero) {
     if (nonzero === void 0) { nonzero = false; }
-    var descriptor = descriptorForKind(kind);
     return {
-        text: descriptor + " cost " + renderCost(reduction, true) + "\n               less" + (nonzero ? ' unless it would make them free' : '') + ".\n        Whenever this reduces a cost, discard it.",
+        text: costReduceDescriptor(kind, reduction, nonzero) +
+            ' Whenever this reduces a cost, discard it',
         kind: 'cost',
         handles: function (x) { return x.actionKind == kind; },
         replace: function (x, state, card) {

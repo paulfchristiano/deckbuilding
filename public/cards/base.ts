@@ -1,3 +1,4 @@
+import { text } from 'express';
 import {
   CardSpec, Card, choice, asChoice, trash,
   Cost, addCosts, subtractCost, multiplyCosts,
@@ -32,6 +33,7 @@ import {
   trashThis, fragileEcho,
   copper, gold, estate, duchy,
   dedupBy,
+  CreateParams
 } from '../logic.js'
 
 export const cards:CardSpec[] = [];
@@ -62,7 +64,7 @@ const transmogrify:CardSpec = {name: 'Transmogrify',
     effects: [{
         text: [`Trash a card in your hand.
                 If you do, choose a card in the supply costing up to $2 more than it.
-                Create a fresh copy of that card in your hand.`],
+                Create a copy of that card in your hand.`],
         transform: () => async function(state) {
             let target:Card|null; [state, target] = await choice(state,
                 'Choose a card to transmogrify.',
@@ -118,7 +120,7 @@ const village:CardSpec = {name: 'Village',
     effects:  [actionsEffect(1), createInPlayEffect(villager)],
     relatedCards: [villager],
 }
-cards.push(supplyForCard(village, coin(4)))
+cards.push(supplyForCard(village, coin(3)))
 
 const bridge:CardSpec = {name: 'Bridge',
     fixedCost: energy(1),
@@ -129,7 +131,7 @@ cards.push(supplyForCard(bridge, coin(4)))
 
 const conclave:CardSpec = {name: 'Conclave',
     replacers: [{
-        text: `Cards you play cost @ less if they don't share a name
+        text: `Cards @ less to play if they don't share a name
                with a card in your discard or in play.
                Whenever this reduces a cost, discard it and +$2.`,
         kind: 'cost',
@@ -153,7 +155,7 @@ cards.push(supplyForCard(conclave, coin(4)))
 const lab:CardSpec = {name: 'Lab',
     effects: [actionsEffect(2)]
 }
-cards.push(supplyForCard(lab, coin(3)))
+cards.push(supplyForCard(lab, coin(2)))
 
 function throneroomEffect(): Effect {
     return {
@@ -327,7 +329,7 @@ const parallelize:CardSpec = {name: 'Parallelize',
         transform: state => doAll(state.hand.map(c => addToken(c, 'parallelize')))
     }],
     staticReplacers: [{
-        text: `Cards you play cost @ less to play for each parallelize token on them.
+        text: `Cards cost @ less to play for each parallelize token on them.
             Whenever this reduces a card's cost by one or more @,
             remove that many parallelize tokens from it.`,
         kind: 'cost',
@@ -566,7 +568,7 @@ const imitation:CardSpec = {name: 'Imitation',
     fixedCost: energy(1),
     effects: [targetedEffect(
         (target, card) => create(target.spec, 'hand'),
-        'Choose a card in your hand. Create a fresh copy of it in your hand.',
+        'Choose a card in your hand. Create a copy of it in your hand.',
         state => state.hand,
     )]
 }
@@ -691,7 +693,7 @@ cards.push(supplyForCard(lackeys, coin(3), {onBuy:[createInPlayEffect(villager, 
 const goldMine:CardSpec = {name: 'Gold Mine',
     fixedCost: energy(1),
     effects: [{
-        text: ['Create two golds in your hand.'],
+        text: ['Create two Golds in your hand.'],
         transform: () => doAll([create(gold, 'hand'), create(gold, 'hand')]),
     }]
 }
@@ -717,23 +719,14 @@ function robust(card:Card):Replacer<MoveParams> {
 const expedite: CardSpec = {
     name: 'Expedite',
     fixedCost: energy(1),
-    effects: [targetedEffect(
-        card => addToken(card, 'expedite', 1),
-        'Put an expedite token on a card in the supply.',
-        state => state.supply,
-    )],
-    staticTriggers: [{
-        text: `Whenever you create a card whose supply has an expedite token,
-               remove an expedite token to play the card.`,
-        kind: 'create',
-        handles: (e, state) => nameHasToken(e.card, 'expedite', state),
-        transform: (e, state, card) => payToDo(applyToTarget(
-                target => removeToken(target, 'expedite', 1, true),
-                'Remove an expedite token.',
-                s => s.supply.filter(target => target.name == e.card.name),
-                {cost:true},
-            ), e.card.play(card))
-    }]
+    effects: [chargeEffect()],
+    staticReplacers: [playReplacer(
+        `Whenever you would create a card in your discard,
+            if this has a charge token then instead
+            remove a charge token to set the card aside and play it.`,
+        (p, s, c) => s.find(c).charge > 0,
+        (p, s, c) => discharge(c, 1)
+    )]
 }
 events.push(expedite)
 
@@ -745,7 +738,7 @@ function removeAllSupplyTokens(token:Token): Effect {
 }
 
 const synergy:CardSpec = {name: 'Synergy',
-    fixedCost: {...free, coin:4, energy:1},
+    fixedCost: {...free, coin:3, energy:1},
     effects: [removeAllSupplyTokens('synergy'), {
         text: ['Put synergy tokens on two cards in the supply.'],
         transform: () => async function(state) {
@@ -975,39 +968,16 @@ events.push(reflect)
 
 const replicate:CardSpec = {name: 'Replicate',
     fixedCost: energy(1),
-    effects: [targetedEffect(
-        card => addToken(card, 'replicate', 1),
-        'Put a replicate token on a card in the supply.',
-        state => state.supply,
-    )],
+    effects: [chargeEffect()],
     staticTriggers: [{
-        text: `After buying a card with a replicate token on it other than with this,
-        remove a replicate token from it to buy it again.`,
-        kind:'afterBuy',
-        handles: (e, state, card) => {
-            if (e.source.name == card.name) return false
-            const target:Card = state.find(e.card);
-            return target.count('replicate') > 0
-        },
-        transform: (e, state, card) =>
-            payToDo(removeToken(e.card, 'replicate'), e.card.buy(card))
+        text: `After buying a card other than with this,
+            remove a charge token from this to to buy the card again.`,
+        kind: 'afterBuy',
+        handles: (e, s, c) => s.find(c).charge > 0 && e.source.id != c.id,
+        transform: (e, s, c) => payToDo(discharge(c, 1), e.card.buy(c))
     }]
 }
 events.push(replicate)
-
-function setCoinEffect(n:number) {
-    return {
-        text: [`Set $ to ${n}.`],
-        transform: (s:State, c:Card) => setResource('coin', n, c),
-    }
-}
-
-function setBuyEffect(n:number) {
-    return {
-        text: [`Set buys to ${n}.`],
-        transform: (s:State, c:Card) => setResource('buys', n, c),
-    }
-}
 
 /*
 const inflation:CardSpec = {name: 'Inflation',
@@ -1081,7 +1051,7 @@ const procession:CardSpec = {name: 'Procession',
     fixedCost: energy(1),
     effects: [{
         text: [`Pay one action to play a card in your hand twice,
-                then trash it and buy a card in the supply
+                then trash it and create a copy of a card in the supply
                 costing exactly $1 or $2 more.`],
         transform: (state, card) => payToDo(payAction, applyToTarget(
             target => doAll([
@@ -1090,7 +1060,7 @@ const procession:CardSpec = {name: 'Procession',
                 target.play(card),
                 trash(target),
                 applyToTarget(
-                    target2 => target2.buy(card),
+                    target2 => create(target2.spec),
                     'Choose a card to buy.',
                     s => s.supply.filter(c => eq(
                         c.cost('buy', s),
@@ -1123,7 +1093,7 @@ const echo:CardSpec = {name: 'Echo',
             }
             return state
         },
-        `Create a fresh copy of a card you have in play,
+        `Create a copy of a card you have in play,
          then put an echo token on the copy and play it.`,
         state => dedupBy(state.play, c => c.spec)
     )]
@@ -1171,33 +1141,6 @@ const mastermind:CardSpec = {
     }],
 }
 cards.push(supplyForCard(mastermind, coin(6)))
-
-function chargeVillage(): Replacer<CostParams> {
-    return {
-        text: `Cards you play cost @ less for each charge token on this.
-            Whenever this reduces a cost by one or more @, remove that many charge tokens from this.`,
-        kind: 'cost',
-        handles: (x, state, card) => (x.actionKind == 'play') && card.charge > 0,
-        replace: (x, state, card) => {
-            card = state.find(card)
-            const reduction = Math.min(x.cost.energy, card.charge)
-            return {...x, cost:{...x.cost,
-                energy:x.cost.energy-reduction,
-                effects:x.cost.effects.concat([discharge(card, reduction)])
-            }}
-        }
-    }
-}
-
-function unchargeOnMove(): Replacer<MoveParams> {
-    return {
-        text: 'Whenever this leaves play, remove all charge tokens from it.',
-        kind: 'move',
-        handles: (x, state, card) => (x.card.id == card.id &&
-            x.fromZone == 'play' && !x.skip),
-        replace: (x, state, card) => ({...x, effects:x.effects.concat([uncharge(card)])})
-    }
-}
 
 const recruitment:CardSpec = {
     name: 'Recruitment',
@@ -1260,30 +1203,37 @@ const palace:CardSpec = {name: 'Palace',
 }
 cards.push(supplyForCard(palace, coin(5)))
 
+function playReplacer(
+    text:string,
+    condition: (p: CreateParams, s:State, c:Card) => boolean,
+    cost: (p:CreateParams, s:State, c:Card) => Transform
+): Replacer<CreateParams> {
+    return {
+        kind: 'create',
+        text: text,
+        handles: (p, s, c) => p.zone == 'discard' && condition(p, s, c),
+        replace: (p, s, c) => ({...p, zone: 'void', effects: p.effects.concat([
+            t => payToDo(cost(p, s, c), t.play(c), move(t, 'discard'))  
+        ])})
+    }
+}
+
 const Innovation:string = 'Innovation'
 const innovation:CardSpec = {name: Innovation,
-    effects: [actionsEffect(1), toPlay()],
+    effects: [actionsEffect(1)],
+    replacers: [playReplacer(
+        `Whenever you would create a card in your discard,
+        instead discard this to set the card aside and play it.`,
+        (p, s, c) => s.find(c).place == 'play',
+        (p, s, c) => discardFromPlay(c),
+    )]
 }
-cards.push(supplyForCard(innovation, coin(6), {triggers: [{
-    text: `When you create a card in your discard,
-    discard an ${innovation.name} from play in order to play it.
-    (If you have multiple, discard the oldest.)`,
-    kind: 'create',
-    handles: e => e.zone == 'discard',
-    transform: (e, state, card) => async function(state) {
-    	const innovations = state.play.filter(c => c.name == innovation.name);
-    	if (innovations.length > 0) {
-    		state = await move(innovations[0], 'discard')(state)
-    		state = await e.card.play(card)(state)
-    	}
-    	return state
-    }
-}]}))
+cards.push(supplyForCard(innovation, coin(6)))
 
 const formation:CardSpec = {name: 'Formation',
     effects: [],
     replacers: [{
-        text: 'Cards you play cost @ less if they share a name with a card in your discard or in play.'
+        text: 'Cards cost @ less to play if they share a name with a card in your discard or in play.'
          + ' Whenever this reduces a cost, discard it and +2 actions.',
         kind: 'cost',
         handles: (x, state) => x.actionKind == 'play'
@@ -1398,7 +1348,7 @@ const lostArts:CardSpec = {
         s => s.supply
     )],
     staticReplacers: [{
-        text: `Cards you play cost @ less for each art token on their supply.
+        text: `Cards cost @ less to play for each art token on their supply.
                Whenever this reduces a cost by one or more @,
                remove that many art tokens.`,
         kind: 'cost',
@@ -1656,7 +1606,7 @@ const hireling:CardSpec = {
         ])})
     }]
 }
-cards.push(supplyForCard(hireling, coin(2)))
+cards.push(supplyForCard(hireling, coin(3)))
 /*
 const hirelings:CardSpec = {
     name: 'Hirelings',
@@ -1916,25 +1866,24 @@ const prioritize:CardSpec = {
         'Put six priority tokens on a card in the supply.',
         state => state.supply,
     )],
-    staticTriggers: [{
-        text: `Whenever you create a card whose supply
-            has a priority token,
-            remove a priority token to play the card.`,
-        kind: 'create',
-        handles: (e, state) => nameHasToken(e.card, 'priority', state),
-        transform: (e, state, card) => payToDo(applyToTarget(
-                target => removeToken(target, 'priority', 1, true),
-                'Remove a priority token.',
-                s => s.supply.filter(target => target.name == e.card.name),
-                {cost:true},
-            ), e.card.play(card))
-    }]
+    staticReplacers: [playReplacer(
+        `Whenever you would create a card in your discard
+        whose supply has a priority token,
+        instead remove a priority token to set the card aside and play it.`,
+        (p, s, c) => nameHasToken(p.spec, 'priority', s),
+        (p, s, c) => applyToTarget(
+            t => removeToken(t, 'priority', 1, true),
+            'Remove a priority token.',
+            state => state.supply.filter(t => t.name == p.spec.name),
+            {cost: true}
+        )
+    )]
 }
 events.push(prioritize)
 
 const composting:CardSpec = {
     name: 'Composting',
-    effects: [actionsEffect(1)],
+    effects: [],
     triggers: [{
         kind: 'cost',
         text: `Whenever you pay @,
@@ -1976,7 +1925,7 @@ cards.push(supplyForCard(fairyGold, coin(3), {
 
 const pathfinding:CardSpec = {
     name: 'Pathfinding',
-    fixedCost: {...free, coin:7, energy:1},
+    fixedCost: coin(6),
     effects: [removeAllSupplyTokens('pathfinding'), targetedEffect(
         target => addToken(target, 'pathfinding'),
         `Put a pathfinding token on a card in the supply other than Copper.`,
@@ -1992,15 +1941,23 @@ const pathfinding:CardSpec = {
 }
 events.push(pathfinding)
 
+const fortuneName = 'Fortune'
 const fortune:CardSpec = {
-    name: 'Fortune',
+    name: fortuneName,
     effects: [{
         text: [`Double your $.`],
         transform: (state, card) => gainCoins(state.coin)
     }, {
         text: [`Double your buys.`],
         transform: (state, card) => gainBuys(state.buys)
+    }],
+    staticTriggers: [{
+        kind: 'create',
+        text: `Whenever you create ${a(fortuneName)}, trash this from the supply.`,
+        handles: e => e.card.name == fortuneName,
+        transform: (e, s, c) => trash(c),        
     }]
 }
-cards.push(supplyForCard(fortune, coin(12), {afterBuy: [{text: ['trash it from the supply.'], transform: (s, c) => trash(c)}]}))
+cards.push(supplyForCard(fortune, coin(12)))
+//cards.push(supplyForCard(fortune, coin(12), {afterBuy: [{text: ['trash it from the supply.'], transform: (s, c) => trash(c)}]}))
 
