@@ -53,13 +53,13 @@ events.push(flourish)
 
 const greed:CardSpec = {
     name: 'Greed',
-    fixedCost: {...free, energy:1, coin:1},
+    fixedCost: {...free, energy:1},
     effects: [{
-        text: [`Pay all vp. For each vp lost, +$2, +1 action, and +1 buy.`],
+        text: [`Pay all vp. For each vp lost, +$1, +1 action, and +1 buy.`],
         transform: () => async function(state) {
             const n = state.points
             state = await gainPoints(-n)(state)
-            state = await gainCoins(2*n)(state)
+            state = await gainCoins(n)(state)
             state = await gainActions(n)(state)
             state = await gainCoins(n)(state)
             return state

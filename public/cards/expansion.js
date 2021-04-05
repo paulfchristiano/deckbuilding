@@ -86,9 +86,9 @@ var flourish = {
 events.push(flourish);
 var greed = {
     name: 'Greed',
-    fixedCost: __assign(__assign({}, free), { energy: 1, coin: 1 }),
+    fixedCost: __assign(__assign({}, free), { energy: 1 }),
     effects: [{
-            text: ["Pay all vp. For each vp lost, +$2, +1 action, and +1 buy."],
+            text: ["Pay all vp. For each vp lost, +$1, +1 action, and +1 buy."],
             transform: function () { return function (state) {
                 return __awaiter(this, void 0, void 0, function () {
                     var n;
@@ -99,7 +99,7 @@ var greed = {
                                 return [4 /*yield*/, gainPoints(-n)(state)];
                             case 1:
                                 state = _a.sent();
-                                return [4 /*yield*/, gainCoins(2 * n)(state)];
+                                return [4 /*yield*/, gainCoins(n)(state)];
                             case 2:
                                 state = _a.sent();
                                 return [4 /*yield*/, gainActions(n)(state)];
