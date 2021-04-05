@@ -823,19 +823,41 @@ function insertAt(zone:Zone, card:Card): Zone {
     return zone.concat([card])
 }
 
-function createRaw(state:State, spec:CardSpec, zone:ZoneName='discard', loc:InsertLocation='bottom'): [State, Card] {
+function createRaw(state:State, spec:CardSpec, zone:ZoneName='discard', tokens?:Map<Token, number>): [State, Card] {
     let id:number; [state, id] = state.makeID()
     const card:Card = new Card(spec, id)
+    if (tokens != undefined) {
+        for (const [token, n] of tokens) {
+            card.tokens.set(token, n)
+        }
+    }
     state = state.addToZone(card, zone)
     return [state, card]
 }
 
-function createRawMulti(state:State, specs:CardSpec[], zone:ZoneName='discard', loc:InsertLocation='bottom'): State {
+function createRawMulti(state:State, specs:CardSpec[], zone:ZoneName='discard'): State {
     for (const spec of specs) {
-        let card; [state, card] = createRaw(state, spec, zone, loc)
+        let card; [state, card] = createRaw(state, spec, zone)
     }
     return state
 }
+
+function countDistinct<T>(xs:T[]): number {
+    const distinct:Set<T> = new Set()
+    let result:number = 0
+    for (const x of xs) {
+        if (!distinct.has(x)) {
+            result += 1
+            distinct.add(x)
+        }
+    }
+    return result
+}
+
+export function countDistinctNames(xs:Card[]): number {
+    return countDistinct(xs.map(c => c.name))
+}
+
 
 // --------------------- Events and triggers
 
@@ -910,6 +932,7 @@ export interface CreateParams {
     kind:'create',
     spec:CardSpec,
     zone:ZoneName|null,
+    tokens?:Map<Token,number>,
     effects:Array<(c:Card) => Transform>
 }
 
@@ -1045,8 +1068,9 @@ export function createAndTrack(
         spec = params.spec
         let card:Card|null = null
         if (params.zone !=  null) {
-            [state, card] = createRaw(state, spec, params.zone)
+            [state, card] = createRaw(state, spec, params.zone, params.tokens)
             state = state.log(`Created ${a(card.name)} in ${params.zone}`)
+            console.log(params.tokens)
             for (const effect of params.effects) state = await effect(card)(state)
             state = await trigger({kind:'create', card:card, zone:params.zone})(state)
         }
@@ -1367,12 +1391,20 @@ export function incrementCost(): Effect {
     }
 }
 
+function incrementMap<K>(m:Map<K, number>, k:K, n:number): void {
+    m.set(k, (m.get(k) || 0) + n)
+}
+
 export function startsWithCharge(name:string, n:number):Replacer<CreateParams> {
     return {
         text: `Each ${name} is created with ${aOrNum(n, 'charge token')} on it.`,
         kind: 'create',
         handles: p => p.spec.name == name,
-        replace: p => ({...p, effects:p.effects.concat([c => charge(c, n)])})
+        replace: function(p:CreateParams) {
+            const tokens:Map<Token, number> = p.tokens || new Map()
+            incrementMap(tokens, 'charge', n)
+            return {...p, tokens:tokens}
+        }
     }
 }
 
@@ -1507,7 +1539,7 @@ export function leq(cost1:Cost, cost2:Cost) {
 export type Token = 'charge' | 'cost' | 'mirror' | 'duplicate' | 'twin' | 'synergy' |
     'shelter' | 'echo' | 'decay' | 'burden' | 'pathfinding' | 'neglect' |
     'reuse' | 'polish' | 'priority' | 'parallelize' | 'art' | 'reduce' |
-    'mire' | 'onslaught' | 'expedite' | 'replicate' | 'reflect' | 'brigade' |
+    'mire' | 'onslaught' | 'accelerate' | 'reflect' | 'brigade' | 'bulk' |
     'pillage' | 'bargain' | 'splay' | 'crown' | 'ferry' | 'ideal' | 'reconfigure'
 
 export function discharge(card:Card, n:number): Transform {
@@ -2552,6 +2584,22 @@ export const villager:CardSpec = {
         }
     }, trashOnLeavePlay()]
 }
+
+export function playReplacer(
+    text:string,
+    condition: (p: CreateParams, s:State, c:Card) => boolean,
+    cost: (p:CreateParams, s:State, c:Card) => Transform
+): Replacer<CreateParams> {
+    return {
+        kind: 'create',
+        text: text,
+        handles: (p, s, c) => p.zone == 'discard' && condition(p, s, c),
+        replace: (p, s, c) => ({...p, zone: 'void', effects: p.effects.concat([
+            t => payToDo(cost(p, s, c), t.play(c), move(t, 'discard'))  
+        ])})
+    }
+}
+
 
 export const fair:CardSpec = {
     name: 'Fair',

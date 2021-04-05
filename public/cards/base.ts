@@ -19,7 +19,7 @@ import {
   createAndTrack,
   villager, fair,
   supplyForCard,
-  actionsEffect, buyEffect, buysEffect, pointsEffect,
+  actionsEffect, buyEffect, buysEffect, pointsEffect, createEffect,
   refreshEffect, recycleEffect, createInPlayEffect, chargeEffect,
   targetedEffect, workshopEffect,
   coinsEffect,
@@ -32,8 +32,8 @@ import {
   playTwice, payAction, sortHand, discardFromPlay,
   trashThis, fragileEcho,
   copper, gold, estate, duchy,
-  dedupBy,
-  CreateParams
+  dedupBy, countDistinctNames,
+  playReplacer
 } from '../logic.js'
 
 export const cards:CardSpec[] = [];
@@ -692,10 +692,7 @@ cards.push(supplyForCard(lackeys, coin(3), {onBuy:[createInPlayEffect(villager, 
 
 const goldMine:CardSpec = {name: 'Gold Mine',
     fixedCost: energy(1),
-    effects: [{
-        text: ['Create two Golds in your hand.'],
-        transform: () => doAll([create(gold, 'hand'), create(gold, 'hand')]),
-    }]
+    effects: [createEffect(gold, 'hand', 2)]
 }
 cards.push(supplyForCard(goldMine, coin(6)))
 
@@ -1006,11 +1003,6 @@ const inflation:CardSpec = {name: 'Inflation',
         kind: 'cost',
         handles: (p, state) => p.actionKind == 'buy',
         replace: (p, state, card) => ({...p, cost:addCosts(p.cost, {coin:card.count('cost')})})
-    }, {
-        text: `Events that cost at least $1 cost $1 more to use for each cost token on this.`,
-        kind: 'cost',
-        handles: (p, state) => p.actionKind == 'use' && p.cost.coin > 0,
-        replace: (p, state, card) => ({...p, cost:addCosts(p.cost, {coin:card.count('cost')})})
     }]
 }
 events.push(inflation)
@@ -1167,15 +1159,15 @@ const hatchery:CardSpec = {name: 'Hatchery',
     fixedCost: energy(0),
     relatedCards: [dragon],
     effects: [actionsEffect(1), {
-        text: [`If this has a charge token, remove it and
-                create ${a(dragon.name)} in your discard.
+        text: [`If this has two charge tokens, remove one and
+                create ${a(dragon.name)} in your hand.
                 Otherwise, put a charge token on this.`],
         transform: (state, card) => {
             const c = state.find(card);
-            return (c.charge >= 1)
+            return (c.charge >= 2)
                 ? doAll([
                     discharge(c, 1),
-                    create(dragon, 'discard')
+                    create(dragon, 'hand')
                 ]) : charge(c)
         }
     }]
@@ -1203,20 +1195,6 @@ const palace:CardSpec = {name: 'Palace',
 }
 cards.push(supplyForCard(palace, coin(5)))
 
-function playReplacer(
-    text:string,
-    condition: (p: CreateParams, s:State, c:Card) => boolean,
-    cost: (p:CreateParams, s:State, c:Card) => Transform
-): Replacer<CreateParams> {
-    return {
-        kind: 'create',
-        text: text,
-        handles: (p, s, c) => p.zone == 'discard' && condition(p, s, c),
-        replace: (p, s, c) => ({...p, zone: 'void', effects: p.effects.concat([
-            t => payToDo(cost(p, s, c), t.play(c), move(t, 'discard'))  
-        ])})
-    }
-}
 
 const Innovation:string = 'Innovation'
 const innovation:CardSpec = {name: Innovation,
@@ -1525,21 +1503,6 @@ const banquet:CardSpec = {
 }
 cards.push(supplyForCard(banquet, coin(3)))
 
-function countDistinct<T>(xs:T[]): number {
-    const distinct:Set<T> = new Set()
-    let result:number = 0
-    for (const x of xs) {
-        if (!distinct.has(x)) {
-            result += 1
-            distinct.add(x)
-        }
-    }
-    return result
-}
-
-function countDistinctNames(xs:Card[]): number {
-    return countDistinct(xs.map(c => c.name))
-}
 
 const harvest:CardSpec = {
     name:'Harvest',
@@ -1606,7 +1569,7 @@ const hireling:CardSpec = {
         ])})
     }]
 }
-cards.push(supplyForCard(hireling, coin(3)))
+cards.push(supplyForCard(hireling, coin(2)))
 /*
 const hirelings:CardSpec = {
     name: 'Hirelings',

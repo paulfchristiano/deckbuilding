@@ -72,7 +72,7 @@ var __values = (this && this.__values) || function(o) {
     };
     throw new TypeError(s ? "Object is not iterable." : "Symbol.iterator is not defined.");
 };
-import { choice, asChoice, trash, addCosts, subtractCost, multiplyCosts, eq, leq, noop, gainPoints, gainActions, gainCoins, gainBuys, free, create, move, doAll, multichoice, renderCost, moveMany, payToDo, payCost, addToken, removeToken, charge, discharge, asNumberedChoices, allowNull, setResource, tick, a, num, createAndTrack, villager, fair, supplyForCard, actionsEffect, buyEffect, buysEffect, pointsEffect, refreshEffect, recycleEffect, createInPlayEffect, chargeEffect, targetedEffect, workshopEffect, coinsEffect, reflectTrigger, energy, coin, repeat, costPer, incrementCost, costReduceNext, countNameTokens, nameHasToken, startsWithCharge, useRefresh, costReduce, applyToTarget, playTwice, payAction, sortHand, discardFromPlay, trashThis, fragileEcho, copper, gold, estate, duchy, dedupBy } from '../logic.js';
+import { choice, asChoice, trash, addCosts, subtractCost, multiplyCosts, eq, leq, noop, gainPoints, gainActions, gainCoins, gainBuys, free, create, move, doAll, multichoice, renderCost, moveMany, payToDo, payCost, addToken, removeToken, charge, discharge, asNumberedChoices, allowNull, setResource, tick, a, num, createAndTrack, villager, fair, supplyForCard, actionsEffect, buyEffect, buysEffect, pointsEffect, createEffect, refreshEffect, recycleEffect, createInPlayEffect, chargeEffect, targetedEffect, workshopEffect, coinsEffect, reflectTrigger, energy, coin, repeat, costPer, incrementCost, costReduceNext, countNameTokens, nameHasToken, startsWithCharge, useRefresh, costReduce, applyToTarget, playTwice, payAction, sortHand, discardFromPlay, trashThis, fragileEcho, copper, gold, estate, duchy, dedupBy, countDistinctNames, playReplacer } from '../logic.js';
 export var cards = [];
 export var events = [];
 /*
@@ -723,10 +723,8 @@ var lackeys = { name: 'Lackeys',
 };
 cards.push(supplyForCard(lackeys, coin(3), { onBuy: [createInPlayEffect(villager, 1)] }));
 var goldMine = { name: 'Gold Mine',
-    fixedCost: energy(1), effects: [{
-            text: ['Create two Golds in your hand.'],
-            transform: function () { return doAll([create(gold, 'hand'), create(gold, 'hand')]); },
-        }]
+    fixedCost: energy(1),
+    effects: [createEffect(gold, 'hand', 2)]
 };
 cards.push(supplyForCard(goldMine, coin(6)));
 function fragile(card) {
@@ -1020,11 +1018,6 @@ var inflation = { name: 'Inflation',
             kind: 'cost',
             handles: function (p, state) { return p.actionKind == 'buy'; },
             replace: function (p, state, card) { return (__assign(__assign({}, p), { cost: addCosts(p.cost, { coin: card.count('cost') }) })); }
-        }, {
-            text: "Events that cost at least $1 cost $1 more to use for each cost token on this.",
-            kind: 'cost',
-            handles: function (p, state) { return p.actionKind == 'use' && p.cost.coin > 0; },
-            replace: function (p, state, card) { return (__assign(__assign({}, p), { cost: addCosts(p.cost, { coin: card.count('cost') }) })); }
         }]
 };
 events.push(inflation);
@@ -1160,13 +1153,13 @@ var dragon = { name: 'Dragon',
 var hatchery = { name: 'Hatchery',
     fixedCost: energy(0),
     relatedCards: [dragon], effects: [actionsEffect(1), {
-            text: ["If this has a charge token, remove it and\n                create " + a(dragon.name) + " in your discard.\n                Otherwise, put a charge token on this."],
+            text: ["If this has two charge tokens, remove one and\n                create " + a(dragon.name) + " in your hand.\n                Otherwise, put a charge token on this."],
             transform: function (state, card) {
                 var c = state.find(card);
-                return (c.charge >= 1)
+                return (c.charge >= 2)
                     ? doAll([
                         discharge(c, 1),
-                        create(dragon, 'discard')
+                        create(dragon, 'hand')
                     ]) : charge(c);
             }
         }]
@@ -1202,16 +1195,6 @@ var palace = { name: 'Palace',
     effects: [actionsEffect(2), pointsEffect(2), coinsEffect(2)]
 };
 cards.push(supplyForCard(palace, coin(5)));
-function playReplacer(text, condition, cost) {
-    return {
-        kind: 'create',
-        text: text,
-        handles: function (p, s, c) { return p.zone == 'discard' && condition(p, s, c); },
-        replace: function (p, s, c) { return (__assign(__assign({}, p), { zone: 'void', effects: p.effects.concat([
-                function (t) { return payToDo(cost(p, s, c), t.play(c), move(t, 'discard')); }
-            ]) })); }
-    };
-}
 var Innovation = 'Innovation';
 var innovation = { name: Innovation,
     effects: [actionsEffect(1)], replacers: [playReplacer("Whenever you would create a card in your discard,\n        instead discard this to set the card aside and play it.", function (p, s, c) { return s.find(c).place == 'play'; }, function (p, s, c) { return discardFromPlay(c); })]
@@ -1521,31 +1504,6 @@ var banquet = {
         }]
 };
 cards.push(supplyForCard(banquet, coin(3)));
-function countDistinct(xs) {
-    var e_4, _a;
-    var distinct = new Set();
-    var result = 0;
-    try {
-        for (var xs_1 = __values(xs), xs_1_1 = xs_1.next(); !xs_1_1.done; xs_1_1 = xs_1.next()) {
-            var x = xs_1_1.value;
-            if (!distinct.has(x)) {
-                result += 1;
-                distinct.add(x);
-            }
-        }
-    }
-    catch (e_4_1) { e_4 = { error: e_4_1 }; }
-    finally {
-        try {
-            if (xs_1_1 && !xs_1_1.done && (_a = xs_1.return)) _a.call(xs_1);
-        }
-        finally { if (e_4) throw e_4.error; }
-    }
-    return result;
-}
-function countDistinctNames(xs) {
-    return countDistinct(xs.map(function (c) { return c.name; }));
-}
 var harvest = {
     name: 'Harvest',
     fixedCost: energy(1),
@@ -1638,7 +1596,7 @@ var hireling = {
                 ]) })); }
         }]
 };
-cards.push(supplyForCard(hireling, coin(3)));
+cards.push(supplyForCard(hireling, coin(2)));
 /*
 const hirelings:CardSpec = {
     name: 'Hirelings',

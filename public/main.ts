@@ -1368,9 +1368,9 @@ function bindHelp(state:State, ui:webUI) {
         const helpLines:string[] = [
             `Rules:`,
             `The goal of the game is to get to ${DEFAULT_VP_GOAL} points (vp) using as little energy (@) as possible.`,
-            `You can buy a card by spending a buy and pay its buy cost.`,
-            `When you buy a card, create a copy of it in your discard pile.`,
-            `You can play a card by spending an action and pay its cost.`,
+            `You can buy a card by spending a buy and paying its buy cost.`,
+            `When you buy a card, create a copy of it. Cards you create go in your discard by default.`,
+            `You can play a card by spending an action and paying its cost.`,
             `When you play a card, put it in the resolving zone and follow its instructions.`,
             `After playing a card, discard it if it's still in the resolving zone.`,
             `You can use an event by paying its cost. When you use an event, folllow its instructions.`,

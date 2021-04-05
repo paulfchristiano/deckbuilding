@@ -931,35 +931,73 @@ function firstFreeIndex(cards) {
 function insertAt(zone, card) {
     return zone.concat([card]);
 }
-function createRaw(state, spec, zone, loc) {
-    var _a;
+function createRaw(state, spec, zone, tokens) {
+    var _a, e_13, _b;
     if (zone === void 0) { zone = 'discard'; }
-    if (loc === void 0) { loc = 'bottom'; }
     var id;
     _a = __read(state.makeID(), 2), state = _a[0], id = _a[1];
     var card = new Card(spec, id);
+    if (tokens != undefined) {
+        try {
+            for (var tokens_1 = __values(tokens), tokens_1_1 = tokens_1.next(); !tokens_1_1.done; tokens_1_1 = tokens_1.next()) {
+                var _c = __read(tokens_1_1.value, 2), token = _c[0], n = _c[1];
+                card.tokens.set(token, n);
+            }
+        }
+        catch (e_13_1) { e_13 = { error: e_13_1 }; }
+        finally {
+            try {
+                if (tokens_1_1 && !tokens_1_1.done && (_b = tokens_1.return)) _b.call(tokens_1);
+            }
+            finally { if (e_13) throw e_13.error; }
+        }
+    }
     state = state.addToZone(card, zone);
     return [state, card];
 }
-function createRawMulti(state, specs, zone, loc) {
-    var e_13, _a, _b;
+function createRawMulti(state, specs, zone) {
+    var e_14, _a, _b;
     if (zone === void 0) { zone = 'discard'; }
-    if (loc === void 0) { loc = 'bottom'; }
     try {
         for (var specs_1 = __values(specs), specs_1_1 = specs_1.next(); !specs_1_1.done; specs_1_1 = specs_1.next()) {
             var spec = specs_1_1.value;
             var card = void 0;
-            _b = __read(createRaw(state, spec, zone, loc), 2), state = _b[0], card = _b[1];
+            _b = __read(createRaw(state, spec, zone), 2), state = _b[0], card = _b[1];
         }
     }
-    catch (e_13_1) { e_13 = { error: e_13_1 }; }
+    catch (e_14_1) { e_14 = { error: e_14_1 }; }
     finally {
         try {
             if (specs_1_1 && !specs_1_1.done && (_a = specs_1.return)) _a.call(specs_1);
         }
-        finally { if (e_13) throw e_13.error; }
+        finally { if (e_14) throw e_14.error; }
     }
     return state;
+}
+function countDistinct(xs) {
+    var e_15, _a;
+    var distinct = new Set();
+    var result = 0;
+    try {
+        for (var xs_1 = __values(xs), xs_1_1 = xs_1.next(); !xs_1_1.done; xs_1_1 = xs_1.next()) {
+            var x = xs_1_1.value;
+            if (!distinct.has(x)) {
+                result += 1;
+                distinct.add(x);
+            }
+        }
+    }
+    catch (e_15_1) { e_15 = { error: e_15_1 }; }
+    finally {
+        try {
+            if (xs_1_1 && !xs_1_1.done && (_a = xs_1.return)) _a.call(xs_1);
+        }
+        finally { if (e_15) throw e_15.error; }
+    }
+    return result;
+}
+export function countDistinctNames(xs) {
+    return countDistinct(xs.map(function (c) { return c.name; }));
 }
 //e is an event that just happened
 //each card in play and aura can have a followup
@@ -967,8 +1005,8 @@ function createRawMulti(state, specs, zone, loc) {
 function trigger(e) {
     return function (state) {
         return __awaiter(this, void 0, void 0, function () {
-            var initialState, triggers, _a, _b, card, _c, _d, trigger_1, _e, _f, card, _g, _h, trigger_2, triggers_1, triggers_1_1, _j, card, rawTrigger, trigger_3, e_14_1;
-            var e_15, _k, e_16, _l, e_17, _m, e_18, _o, e_14, _p;
+            var initialState, triggers, _a, _b, card, _c, _d, trigger_1, _e, _f, card, _g, _h, trigger_2, triggers_1, triggers_1_1, _j, card, rawTrigger, trigger_3, e_16_1;
+            var e_17, _k, e_18, _l, e_19, _m, e_20, _o, e_16, _p;
             return __generator(this, function (_q) {
                 switch (_q.label) {
                     case 0:
@@ -978,40 +1016,15 @@ function trigger(e) {
                             for (_a = __values(state.events.concat(state.supply)), _b = _a.next(); !_b.done; _b = _a.next()) {
                                 card = _b.value;
                                 try {
-                                    for (_c = (e_16 = void 0, __values(card.staticTriggers())), _d = _c.next(); !_d.done; _d = _c.next()) {
+                                    for (_c = (e_18 = void 0, __values(card.staticTriggers())), _d = _c.next(); !_d.done; _d = _c.next()) {
                                         trigger_1 = _d.value;
                                         triggers.push([card, trigger_1]);
-                                    }
-                                }
-                                catch (e_16_1) { e_16 = { error: e_16_1 }; }
-                                finally {
-                                    try {
-                                        if (_d && !_d.done && (_l = _c.return)) _l.call(_c);
-                                    }
-                                    finally { if (e_16) throw e_16.error; }
-                                }
-                            }
-                        }
-                        catch (e_15_1) { e_15 = { error: e_15_1 }; }
-                        finally {
-                            try {
-                                if (_b && !_b.done && (_k = _a.return)) _k.call(_a);
-                            }
-                            finally { if (e_15) throw e_15.error; }
-                        }
-                        try {
-                            for (_e = __values(state.play), _f = _e.next(); !_f.done; _f = _e.next()) {
-                                card = _f.value;
-                                try {
-                                    for (_g = (e_18 = void 0, __values(card.triggers())), _h = _g.next(); !_h.done; _h = _g.next()) {
-                                        trigger_2 = _h.value;
-                                        triggers.push([card, trigger_2]);
                                     }
                                 }
                                 catch (e_18_1) { e_18 = { error: e_18_1 }; }
                                 finally {
                                     try {
-                                        if (_h && !_h.done && (_o = _g.return)) _o.call(_g);
+                                        if (_d && !_d.done && (_l = _c.return)) _l.call(_c);
                                     }
                                     finally { if (e_18) throw e_18.error; }
                                 }
@@ -1020,9 +1033,34 @@ function trigger(e) {
                         catch (e_17_1) { e_17 = { error: e_17_1 }; }
                         finally {
                             try {
-                                if (_f && !_f.done && (_m = _e.return)) _m.call(_e);
+                                if (_b && !_b.done && (_k = _a.return)) _k.call(_a);
                             }
                             finally { if (e_17) throw e_17.error; }
+                        }
+                        try {
+                            for (_e = __values(state.play), _f = _e.next(); !_f.done; _f = _e.next()) {
+                                card = _f.value;
+                                try {
+                                    for (_g = (e_20 = void 0, __values(card.triggers())), _h = _g.next(); !_h.done; _h = _g.next()) {
+                                        trigger_2 = _h.value;
+                                        triggers.push([card, trigger_2]);
+                                    }
+                                }
+                                catch (e_20_1) { e_20 = { error: e_20_1 }; }
+                                finally {
+                                    try {
+                                        if (_h && !_h.done && (_o = _g.return)) _o.call(_g);
+                                    }
+                                    finally { if (e_20) throw e_20.error; }
+                                }
+                            }
+                        }
+                        catch (e_19_1) { e_19 = { error: e_19_1 }; }
+                        finally {
+                            try {
+                                if (_f && !_f.done && (_m = _e.return)) _m.call(_e);
+                            }
+                            finally { if (e_19) throw e_19.error; }
                         }
                         _q.label = 1;
                     case 1:
@@ -1046,14 +1084,14 @@ function trigger(e) {
                         return [3 /*break*/, 2];
                     case 5: return [3 /*break*/, 8];
                     case 6:
-                        e_14_1 = _q.sent();
-                        e_14 = { error: e_14_1 };
+                        e_16_1 = _q.sent();
+                        e_16 = { error: e_16_1 };
                         return [3 /*break*/, 8];
                     case 7:
                         try {
                             if (triggers_1_1 && !triggers_1_1.done && (_p = triggers_1.return)) _p.call(triggers_1);
                         }
-                        finally { if (e_14) throw e_14.error; }
+                        finally { if (e_16) throw e_16.error; }
                         return [7 /*endfinally*/];
                     case 8: return [2 /*return*/, state];
                 }
@@ -1062,46 +1100,21 @@ function trigger(e) {
     };
 }
 function replace(x, state) {
-    var e_19, _a, e_20, _b, e_21, _c, e_22, _d, e_23, _e;
+    var e_21, _a, e_22, _b, e_23, _c, e_24, _d, e_25, _e;
     var replacers = [];
     try {
         for (var _f = __values(state.events.concat(state.supply)), _g = _f.next(); !_g.done; _g = _f.next()) {
             var card = _g.value;
             try {
-                for (var _h = (e_20 = void 0, __values(card.staticReplacers())), _j = _h.next(); !_j.done; _j = _h.next()) {
+                for (var _h = (e_22 = void 0, __values(card.staticReplacers())), _j = _h.next(); !_j.done; _j = _h.next()) {
                     var replacer = _j.value;
-                    replacers.push([card, replacer]);
-                }
-            }
-            catch (e_20_1) { e_20 = { error: e_20_1 }; }
-            finally {
-                try {
-                    if (_j && !_j.done && (_b = _h.return)) _b.call(_h);
-                }
-                finally { if (e_20) throw e_20.error; }
-            }
-        }
-    }
-    catch (e_19_1) { e_19 = { error: e_19_1 }; }
-    finally {
-        try {
-            if (_g && !_g.done && (_a = _f.return)) _a.call(_f);
-        }
-        finally { if (e_19) throw e_19.error; }
-    }
-    try {
-        for (var _k = __values(state.play), _l = _k.next(); !_l.done; _l = _k.next()) {
-            var card = _l.value;
-            try {
-                for (var _m = (e_22 = void 0, __values(card.replacers())), _o = _m.next(); !_o.done; _o = _m.next()) {
-                    var replacer = _o.value;
                     replacers.push([card, replacer]);
                 }
             }
             catch (e_22_1) { e_22 = { error: e_22_1 }; }
             finally {
                 try {
-                    if (_o && !_o.done && (_d = _m.return)) _d.call(_m);
+                    if (_j && !_j.done && (_b = _h.return)) _b.call(_h);
                 }
                 finally { if (e_22) throw e_22.error; }
             }
@@ -1110,9 +1123,34 @@ function replace(x, state) {
     catch (e_21_1) { e_21 = { error: e_21_1 }; }
     finally {
         try {
-            if (_l && !_l.done && (_c = _k.return)) _c.call(_k);
+            if (_g && !_g.done && (_a = _f.return)) _a.call(_f);
         }
         finally { if (e_21) throw e_21.error; }
+    }
+    try {
+        for (var _k = __values(state.play), _l = _k.next(); !_l.done; _l = _k.next()) {
+            var card = _l.value;
+            try {
+                for (var _m = (e_24 = void 0, __values(card.replacers())), _o = _m.next(); !_o.done; _o = _m.next()) {
+                    var replacer = _o.value;
+                    replacers.push([card, replacer]);
+                }
+            }
+            catch (e_24_1) { e_24 = { error: e_24_1 }; }
+            finally {
+                try {
+                    if (_o && !_o.done && (_d = _m.return)) _d.call(_m);
+                }
+                finally { if (e_24) throw e_24.error; }
+            }
+        }
+    }
+    catch (e_23_1) { e_23 = { error: e_23_1 }; }
+    finally {
+        try {
+            if (_l && !_l.done && (_c = _k.return)) _c.call(_k);
+        }
+        finally { if (e_23) throw e_23.error; }
     }
     try {
         for (var replacers_1 = __values(replacers), replacers_1_1 = replacers_1.next(); !replacers_1_1.done; replacers_1_1 = replacers_1.next()) {
@@ -1125,12 +1163,12 @@ function replace(x, state) {
             }
         }
     }
-    catch (e_23_1) { e_23 = { error: e_23_1 }; }
+    catch (e_25_1) { e_25 = { error: e_25_1 }; }
     finally {
         try {
             if (replacers_1_1 && !replacers_1_1.done && (_e = replacers_1.return)) _e.call(replacers_1);
         }
-        finally { if (e_23) throw e_23.error; }
+        finally { if (e_25) throw e_25.error; }
     }
     return x;
 }
@@ -1218,8 +1256,8 @@ export function createAndTrack(spec, zone) {
     if (zone === void 0) { zone = 'discard'; }
     return function (state) {
         return __awaiter(this, void 0, void 0, function () {
-            var params, card, _a, _b, effect, e_24_1;
-            var _c, e_24, _d;
+            var params, card, _a, _b, effect, e_26_1;
+            var _c, e_26, _d;
             return __generator(this, function (_e) {
                 switch (_e.label) {
                     case 0:
@@ -1228,8 +1266,9 @@ export function createAndTrack(spec, zone) {
                         spec = params.spec;
                         card = null;
                         if (!(params.zone != null)) return [3 /*break*/, 10];
-                        _c = __read(createRaw(state, spec, params.zone), 2), state = _c[0], card = _c[1];
+                        _c = __read(createRaw(state, spec, params.zone, params.tokens), 2), state = _c[0], card = _c[1];
                         state = state.log("Created " + a(card.name) + " in " + params.zone);
+                        console.log(params.tokens);
                         _e.label = 1;
                     case 1:
                         _e.trys.push([1, 6, 7, 8]);
@@ -1247,14 +1286,14 @@ export function createAndTrack(spec, zone) {
                         return [3 /*break*/, 2];
                     case 5: return [3 /*break*/, 8];
                     case 6:
-                        e_24_1 = _e.sent();
-                        e_24 = { error: e_24_1 };
+                        e_26_1 = _e.sent();
+                        e_26 = { error: e_26_1 };
                         return [3 /*break*/, 8];
                     case 7:
                         try {
                             if (_b && !_b.done && (_d = _a.return)) _d.call(_a);
                         }
-                        finally { if (e_24) throw e_24.error; }
+                        finally { if (e_26) throw e_26.error; }
                         return [7 /*endfinally*/];
                     case 8: return [4 /*yield*/, trigger({ kind: 'create', card: card, zone: params.zone })(state)];
                     case 9:
@@ -1274,8 +1313,8 @@ export function move(card, toZone, logged) {
     if (logged === void 0) { logged = false; }
     return function (state) {
         return __awaiter(this, void 0, void 0, function () {
-            var params, _a, _b, effect, e_25_1;
-            var e_25, _c;
+            var params, _a, _b, effect, e_27_1;
+            var e_27, _c;
             return __generator(this, function (_d) {
                 switch (_d.label) {
                     case 0:
@@ -1317,14 +1356,14 @@ export function move(card, toZone, logged) {
                         return [3 /*break*/, 3];
                     case 6: return [3 /*break*/, 9];
                     case 7:
-                        e_25_1 = _d.sent();
-                        e_25 = { error: e_25_1 };
+                        e_27_1 = _d.sent();
+                        e_27 = { error: e_27_1 };
                         return [3 /*break*/, 9];
                     case 8:
                         try {
                             if (_b && !_b.done && (_c = _a.return)) _c.call(_a);
                         }
-                        finally { if (e_25) throw e_25.error; }
+                        finally { if (e_27) throw e_27.error; }
                         return [7 /*endfinally*/];
                     case 9: return [2 /*return*/, state];
                 }
@@ -1427,8 +1466,8 @@ export function payCost(c, source) {
     if (source === void 0) { source = unk; }
     return function (state) {
         return __awaiter(this, void 0, void 0, function () {
-            var _a, _b, effect, e_26_1;
-            var e_26, _c;
+            var _a, _b, effect, e_28_1;
+            var e_28, _c;
             return __generator(this, function (_d) {
                 switch (_d.label) {
                     case 0:
@@ -1471,14 +1510,14 @@ export function payCost(c, source) {
                         return [3 /*break*/, 2];
                     case 5: return [3 /*break*/, 8];
                     case 6:
-                        e_26_1 = _d.sent();
-                        e_26 = { error: e_26_1 };
+                        e_28_1 = _d.sent();
+                        e_28 = { error: e_28_1 };
                         return [3 /*break*/, 8];
                     case 7:
                         try {
                             if (_b && !_b.done && (_c = _a.return)) _c.call(_a);
                         }
-                        finally { if (e_26) throw e_26.error; }
+                        finally { if (e_28) throw e_28.error; }
                         return [7 /*endfinally*/];
                     case 8: return [2 /*return*/, trigger({ kind: 'cost', cost: c, source: source })(state)];
                 }
@@ -1490,8 +1529,8 @@ export function gainResource(resource, amount, source) {
     if (source === void 0) { source = unk; }
     return function (state) {
         return __awaiter(this, void 0, void 0, function () {
-            var newResources, params, _a, _b, transform, e_27_1;
-            var e_27, _c;
+            var newResources, params, _a, _b, transform, e_29_1;
+            var e_29, _c;
             return __generator(this, function (_d) {
                 switch (_d.label) {
                     case 0:
@@ -1536,14 +1575,14 @@ export function gainResource(resource, amount, source) {
                         return [3 /*break*/, 2];
                     case 5: return [3 /*break*/, 8];
                     case 6:
-                        e_27_1 = _d.sent();
-                        e_27 = { error: e_27_1 };
+                        e_29_1 = _d.sent();
+                        e_29 = { error: e_29_1 };
                         return [3 /*break*/, 8];
                     case 7:
                         try {
                             if (_b && !_b.done && (_c = _a.return)) _c.call(_a);
                         }
-                        finally { if (e_27) throw e_27.error; }
+                        finally { if (e_29) throw e_29.error; }
                         return [7 /*endfinally*/];
                     case 8: return [2 /*return*/, trigger({ kind: 'resource', resource: resource, amount: amount, source: source })(state)];
                 }
@@ -1647,7 +1686,7 @@ export function fragileEcho(t) {
     };
 }
 export function dedupBy(xs, f) {
-    var e_28, _a;
+    var e_30, _a;
     var result = [];
     var _loop_1 = function (x) {
         if (result.every(function (r) { return f(r) != f(x); })) {
@@ -1655,17 +1694,17 @@ export function dedupBy(xs, f) {
         }
     };
     try {
-        for (var xs_1 = __values(xs), xs_1_1 = xs_1.next(); !xs_1_1.done; xs_1_1 = xs_1.next()) {
-            var x = xs_1_1.value;
+        for (var xs_2 = __values(xs), xs_2_1 = xs_2.next(); !xs_2_1.done; xs_2_1 = xs_2.next()) {
+            var x = xs_2_1.value;
             _loop_1(x);
         }
     }
-    catch (e_28_1) { e_28 = { error: e_28_1 }; }
+    catch (e_30_1) { e_30 = { error: e_30_1 }; }
     finally {
         try {
-            if (xs_1_1 && !xs_1_1.done && (_a = xs_1.return)) _a.call(xs_1);
+            if (xs_2_1 && !xs_2_1.done && (_a = xs_2.return)) _a.call(xs_2);
         }
-        finally { if (e_28) throw e_28.error; }
+        finally { if (e_30) throw e_30.error; }
     }
     return result;
 }
@@ -1716,12 +1755,19 @@ export function incrementCost() {
         transform: function (s, c) { return addToken(c, 'cost'); }
     };
 }
+function incrementMap(m, k, n) {
+    m.set(k, (m.get(k) || 0) + n);
+}
 export function startsWithCharge(name, n) {
     return {
         text: "Each " + name + " is created with " + aOrNum(n, 'charge token') + " on it.",
         kind: 'create',
         handles: function (p) { return p.spec.name == name; },
-        replace: function (p) { return (__assign(__assign({}, p), { effects: p.effects.concat([function (c) { return charge(c, n); }]) })); }
+        replace: function (p) {
+            var tokens = p.tokens || new Map();
+            incrementMap(tokens, 'charge', n);
+            return __assign(__assign({}, p), { tokens: tokens });
+        }
     };
 }
 export function literalOptions(xs, keys) {
@@ -1840,7 +1886,7 @@ export function addCosts(a, b) {
     };
 }
 export function multiplyCosts(c, n) {
-    var e_29, _a;
+    var e_31, _a;
     var result = {};
     try {
         for (var allCostResources_1 = __values(allCostResources), allCostResources_1_1 = allCostResources_1.next(); !allCostResources_1_1.done; allCostResources_1_1 = allCostResources_1.next()) {
@@ -1850,12 +1896,12 @@ export function multiplyCosts(c, n) {
                 result[resource] = n * r;
         }
     }
-    catch (e_29_1) { e_29 = { error: e_29_1 }; }
+    catch (e_31_1) { e_31 = { error: e_31_1 }; }
     finally {
         try {
             if (allCostResources_1_1 && !allCostResources_1_1.done && (_a = allCostResources_1.return)) _a.call(allCostResources_1);
         }
-        finally { if (e_29) throw e_29.error; }
+        finally { if (e_31) throw e_31.error; }
     }
     if (c.effects != undefined) {
         result.effects = [];
@@ -2188,7 +2234,7 @@ function undo(startState) {
 }
 export function verifyScore(spec, history, score) {
     return __awaiter(this, void 0, void 0, function () {
-        var e_30;
+        var e_32;
         return __generator(this, function (_a) {
             switch (_a.label) {
                 case 0:
@@ -2198,24 +2244,24 @@ export function verifyScore(spec, history, score) {
                     _a.sent();
                     return [2 /*return*/, [true, ""]]; //unreachable
                 case 2:
-                    e_30 = _a.sent();
-                    if (e_30 instanceof ReplayVictory) {
-                        if (e_30.state.energy == score)
+                    e_32 = _a.sent();
+                    if (e_32 instanceof ReplayVictory) {
+                        if (e_32.state.energy == score)
                             return [2 /*return*/, [true, ""]];
                         else
-                            return [2 /*return*/, [false, "Computed score was " + e_30.state.energy]];
+                            return [2 /*return*/, [false, "Computed score was " + e_32.state.energy]];
                     }
-                    else if (e_30 instanceof InvalidHistory) {
-                        return [2 /*return*/, [false, "" + e_30]];
+                    else if (e_32 instanceof InvalidHistory) {
+                        return [2 /*return*/, [false, "" + e_32]];
                     }
-                    else if (e_30 instanceof VersionMismatch) {
-                        return [2 /*return*/, [false, "" + e_30]];
+                    else if (e_32 instanceof VersionMismatch) {
+                        return [2 /*return*/, [false, "" + e_32]];
                     }
-                    else if (e_30 instanceof ReplayEnded) {
-                        return [2 /*return*/, [false, "" + e_30]];
+                    else if (e_32 instanceof ReplayEnded) {
+                        return [2 /*return*/, [false, "" + e_32]];
                     }
                     else {
-                        throw e_30;
+                        throw e_32;
                     }
                     return [3 /*break*/, 3];
                 case 3: return [2 /*return*/];
@@ -2301,7 +2347,7 @@ export function nameComp(a, b) {
 }
 function lexical(comps) {
     return function (a, b) {
-        var e_31, _a;
+        var e_33, _a;
         try {
             for (var comps_1 = __values(comps), comps_1_1 = comps_1.next(); !comps_1_1.done; comps_1_1 = comps_1.next()) {
                 var comp = comps_1_1.value;
@@ -2310,12 +2356,12 @@ function lexical(comps) {
                     return result;
             }
         }
-        catch (e_31_1) { e_31 = { error: e_31_1 }; }
+        catch (e_33_1) { e_33 = { error: e_33_1 }; }
         finally {
             try {
                 if (comps_1_1 && !comps_1_1.done && (_a = comps_1.return)) _a.call(comps_1);
             }
-            finally { if (e_31) throw e_31.error; }
+            finally { if (e_33) throw e_33.error; }
         }
         return 0;
     };
@@ -2422,25 +2468,25 @@ function normalize(xs) {
     return xs.map(normalizeString).sort(stringComp);
 }
 function makeDictionary(xs) {
-    var e_32, _a;
+    var e_34, _a;
     var result = new Map();
     try {
-        for (var xs_2 = __values(xs), xs_2_1 = xs_2.next(); !xs_2_1.done; xs_2_1 = xs_2.next()) {
-            var x = xs_2_1.value;
+        for (var xs_3 = __values(xs), xs_3_1 = xs_3.next(); !xs_3_1.done; xs_3_1 = xs_3.next()) {
+            var x = xs_3_1.value;
             result.set(normalizeString(x.name), x);
         }
     }
-    catch (e_32_1) { e_32 = { error: e_32_1 }; }
+    catch (e_34_1) { e_34 = { error: e_34_1 }; }
     finally {
         try {
-            if (xs_2_1 && !xs_2_1.done && (_a = xs_2.return)) _a.call(xs_2);
+            if (xs_3_1 && !xs_3_1.done && (_a = xs_3.return)) _a.call(xs_3);
         }
-        finally { if (e_32) throw e_32.error; }
+        finally { if (e_34) throw e_34.error; }
     }
     return result;
 }
 function extractList(names, xs) {
-    var e_33, _a;
+    var e_35, _a;
     var dictionary = makeDictionary(xs);
     var result = [];
     try {
@@ -2457,12 +2503,12 @@ function extractList(names, xs) {
             }
         }
     }
-    catch (e_33_1) { e_33 = { error: e_33_1 }; }
+    catch (e_35_1) { e_35 = { error: e_35_1 }; }
     finally {
         try {
             if (names_1_1 && !names_1_1.done && (_a = names_1.return)) _a.call(names_1);
         }
-        finally { if (e_33) throw e_33.error; }
+        finally { if (e_35) throw e_35.error; }
     }
     return result;
 }
@@ -2470,7 +2516,7 @@ function mapToURL(args) {
     return Array.from(args.entries()).map(function (x) { return x[0] + "=" + x[1]; }).join('&');
 }
 function renderSlots(slots) {
-    var e_34, _a;
+    var e_36, _a;
     var result = [];
     try {
         for (var slots_1 = __values(slots), slots_1_1 = slots_1.next(); !slots_1_1.done; slots_1_1 = slots_1.next()) {
@@ -2481,12 +2527,12 @@ function renderSlots(slots) {
                 result.push(slot.name);
         }
     }
-    catch (e_34_1) { e_34 = { error: e_34_1 }; }
+    catch (e_36_1) { e_36 = { error: e_36_1 }; }
     finally {
         try {
             if (slots_1_1 && !slots_1_1.done && (_a = slots_1.return)) _a.call(slots_1);
         }
-        finally { if (e_34) throw e_34.error; }
+        finally { if (e_36) throw e_36.error; }
     }
     return normalizePreservingCase(result).join(',');
 }
@@ -2536,7 +2582,7 @@ function split(s, sep) {
     }
 }
 export function parseExpansionString(expansionString) {
-    var e_35, _a;
+    var e_37, _a;
     var expansionStrings = (expansionString === null) ? ['base']
         : normalize(split(expansionString, ','));
     var expansions = [];
@@ -2552,17 +2598,17 @@ export function parseExpansionString(expansionString) {
             }
         }
     }
-    catch (e_35_1) { e_35 = { error: e_35_1 }; }
+    catch (e_37_1) { e_37 = { error: e_37_1 }; }
     finally {
         try {
             if (expansionStrings_1_1 && !expansionStrings_1_1.done && (_a = expansionStrings_1.return)) _a.call(expansionStrings_1);
         }
-        finally { if (e_35) throw e_35.error; }
+        finally { if (e_37) throw e_37.error; }
     }
     return expansions;
 }
 export function specFromURL(search, excludeGoal) {
-    var e_36, _a, e_37, _b;
+    var e_38, _a, e_39, _b;
     if (excludeGoal === void 0) { excludeGoal = false; }
     var searchParams = new URLSearchParams(search);
     if (!excludeGoal) {
@@ -2620,12 +2666,12 @@ export function specFromURL(search, excludeGoal) {
                             cardSpecs.push(card);
                     }
                 }
-                catch (e_36_1) { e_36 = { error: e_36_1 }; }
+                catch (e_38_1) { e_38 = { error: e_38_1 }; }
                 finally {
                     try {
                         if (_d && !_d.done && (_a = _c.return)) _a.call(_c);
                     }
-                    finally { if (e_36) throw e_36.error; }
+                    finally { if (e_38) throw e_38.error; }
                 }
             }
             if (events !== null) {
@@ -2638,12 +2684,12 @@ export function specFromURL(search, excludeGoal) {
                             eventSpecs.push(card);
                     }
                 }
-                catch (e_37_1) { e_37 = { error: e_37_1 }; }
+                catch (e_39_1) { e_39 = { error: e_39_1 }; }
                 finally {
                     try {
                         if (_f && !_f.done && (_b = _e.return)) _b.call(_e);
                     }
-                    finally { if (e_37) throw e_37.error; }
+                    finally { if (e_39) throw e_39.error; }
                 }
             }
             return { kind: kind, cards: cardSpecs, events: eventSpecs };
@@ -2662,7 +2708,7 @@ export function specFromURL(search, excludeGoal) {
     }
 }
 function pickRandoms(slots, source, seed) {
-    var e_38, _a;
+    var e_40, _a;
     var taken = new Set();
     var result = [];
     var randoms = 0;
@@ -2678,12 +2724,12 @@ function pickRandoms(slots, source, seed) {
             }
         }
     }
-    catch (e_38_1) { e_38 = { error: e_38_1 }; }
+    catch (e_40_1) { e_40 = { error: e_40_1 }; }
     finally {
         try {
             if (slots_2_1 && !slots_2_1.done && (_a = slots_2.return)) _a.call(slots_2);
         }
-        finally { if (e_38) throw e_38.error; }
+        finally { if (e_40) throw e_40.error; }
     }
     return result.concat(randomChoices(source.filter(function (x) { return !taken.has(x.name); }), randoms, hash(seed)));
 }
@@ -2784,7 +2830,7 @@ function reversed(it) {
 }
 // ------------------------- Browsing
 function undoOrSet(to, from) {
-    var e_39, _a;
+    var e_41, _a;
     var newHistory = to.origin().future;
     var oldHistory = from.origin().future;
     var newRedo = from.redo.slice();
@@ -2801,12 +2847,12 @@ function undoOrSet(to, from) {
                 }
             }
         }
-        catch (e_39_1) { e_39 = { error: e_39_1 }; }
+        catch (e_41_1) { e_41 = { error: e_41_1 }; }
         finally {
             try {
                 if (_c && !_c.done && (_a = _b.return)) _a.call(_b);
             }
-            finally { if (e_39) throw e_39.error; }
+            finally { if (e_41) throw e_41.error; }
         }
     }
     return predecessor ? to.update({ redo: newRedo, ui: from.ui }) : to;
@@ -3047,6 +3093,16 @@ export var villager = {
             }
         }, trashOnLeavePlay()]
 };
+export function playReplacer(text, condition, cost) {
+    return {
+        kind: 'create',
+        text: text,
+        handles: function (p, s, c) { return p.zone == 'discard' && condition(p, s, c); },
+        replace: function (p, s, c) { return (__assign(__assign({}, p), { zone: 'void', effects: p.effects.concat([
+                function (t) { return payToDo(cost(p, s, c), t.play(c), move(t, 'discard')); }
+            ]) })); }
+    };
+}
 export var fair = {
     name: 'Fair',
     replacers: [{
