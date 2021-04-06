@@ -105,7 +105,7 @@ var greed = {
                                 return [4 /*yield*/, gainActions(n)(state)];
                             case 3:
                                 state = _a.sent();
-                                return [4 /*yield*/, gainCoins(n)(state)];
+                                return [4 /*yield*/, gainBuys(n)(state)];
                             case 4:
                                 state = _a.sent();
                                 return [2 /*return*/, state];

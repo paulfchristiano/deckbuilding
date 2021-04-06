@@ -61,7 +61,7 @@ const greed:CardSpec = {
             state = await gainPoints(-n)(state)
             state = await gainCoins(n)(state)
             state = await gainActions(n)(state)
-            state = await gainCoins(n)(state)
+            state = await gainBuys(n)(state)
             return state
         }
     }]
