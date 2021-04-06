@@ -798,7 +798,7 @@ var marketSquare = {
     relatedCards: [fair],
     effects: [actionsEffect(1), buysEffect(1)],
 };
-cards.push(supplyForCard(marketSquare, coin(2), { afterBuy: [createInPlayEffect(fair, 2)] }));
+cards.push(supplyForCard(marketSquare, coin(2), { afterBuy: [createInPlayEffect(fair, 1)] }));
 /*
 const brigade:CardSpec = {name: 'Brigade',
     effects: [],
@@ -1318,7 +1318,7 @@ events.push(masonry)
 var swap = {
     name: 'Swap',
     fixedCost: coin(1),
-    effects: [targetedEffect(function (target) { return doAll([trash(target), applyToTarget(function (target2) { return create(target2.spec); }, "Choose a card to copy.", function (state) { return state.supply.filter(function (sup) { return leq(sup.cost('buy', state), target.cost('buy', state)); }); })]); }, 'Trash a card in your discard to create a copy of a card in the supply with equal or lesser cost.', function (state) { return state.discard; })],
+    effects: [targetedEffect(function (target) { return doAll([trash(target), applyToTarget(function (target2) { return create(target2.spec, 'hand'); }, "Choose a card to copy.", function (state) { return state.supply.filter(function (sup) { return leq(sup.cost('buy', state), target.cost('buy', state)); }); })]); }, "Trash a card in your hand. Choose a card in the supply with equal or lesser cost and create a copy in your hand.", function (state) { return state.hand; })],
 };
 events.push(swap);
 var infrastructure = {

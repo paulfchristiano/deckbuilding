@@ -785,7 +785,7 @@ const marketSquare:CardSpec = {
     relatedCards: [fair],
     effects: [actionsEffect(1), buysEffect(1)],
 }
-cards.push(supplyForCard(marketSquare, coin(2), {afterBuy: [createInPlayEffect(fair, 2)]}))
+cards.push(supplyForCard(marketSquare, coin(2), {afterBuy: [createInPlayEffect(fair, 1)]}))
 
 /*
 const brigade:CardSpec = {name: 'Brigade',
@@ -1284,12 +1284,12 @@ const swap:CardSpec = {
     fixedCost: coin(1),
     effects: [targetedEffect(
         target => doAll([trash(target), applyToTarget(
-            target2 => create(target2.spec),
+            target2 => create(target2.spec, 'hand'),
             `Choose a card to copy.`,
             state => state.supply.filter(sup => leq(sup.cost('buy', state), target.cost('buy', state)))
         )]),
-        'Trash a card in your discard to create a copy of a card in the supply with equal or lesser cost.',
-        state => state.discard,
+        `Trash a card in your hand. Choose a card in the supply with equal or lesser cost and create a copy in your hand.`,
+        state => state.hand,
     )],
 }
 events.push(swap)
