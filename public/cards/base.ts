@@ -131,7 +131,7 @@ cards.push(supplyForCard(bridge, coin(4)))
 
 const conclave:CardSpec = {name: 'Conclave',
     replacers: [{
-        text: `Cards @ less to play if they don't share a name
+        text: `Cards cost @ less to play if they don't share a name
                with a card in your discard or in play.
                Whenever this reduces a cost, discard it and +$2.`,
         kind: 'cost',
