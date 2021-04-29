@@ -1411,6 +1411,7 @@ function getTutorialSpec() {
 }
 export function loadTutorial() {
     var state = initialState(getTutorialSpec());
+    console.log(state);
     startGame(state, new tutorialUI(tutorialStages));
 }
 // ------------------------------------------ Help

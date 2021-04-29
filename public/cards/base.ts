@@ -165,10 +165,11 @@ function throneroomEffect(): Effect {
 }
 
 export const throneRoom:CardSpec = {name: 'Throne Room',
+    buyCost: coin(5),
     fixedCost: energy(1),
     effects: [throneroomEffect()]
 }
-cards.push(supplyForCard(throneRoom, coin(5)))
+cards.push(throneRoom)
 
 const coppersmith:CardSpec = {name: 'Coppersmith',
     fixedCost: energy(1),

@@ -1352,6 +1352,7 @@ function getTutorialSpec(): GameSpec {
 
 export function loadTutorial(){
     const state = initialState(getTutorialSpec())
+    console.log(state)
     startGame(state, new tutorialUI(tutorialStages))
 }
 

@@ -169,7 +169,7 @@ var bridge = { name: 'Bridge',
 };
 cards.push(supplyForCard(bridge, coin(4)));
 var conclave = { name: 'Conclave', replacers: [{
-            text: "Cards @ less to play if they don't share a name\n               with a card in your discard or in play.\n               Whenever this reduces a cost, discard it and +$2.",
+            text: "Cards cost @ less to play if they don't share a name\n               with a card in your discard or in play.\n               Whenever this reduces a cost, discard it and +$2.",
             kind: 'cost',
             handles: function (x, state) { return (x.actionKind == 'play' && state.discard.concat(state.play).every(function (c) { return c.name != x.card.name; })); },
             replace: function (x, state, card) {
@@ -199,10 +199,11 @@ function throneroomEffect() {
     };
 }
 export var throneRoom = { name: 'Throne Room',
+    buyCost: coin(5),
     fixedCost: energy(1),
     effects: [throneroomEffect()]
 };
-cards.push(supplyForCard(throneRoom, coin(5)));
+cards.push(throneRoom);
 var coppersmith = { name: 'Coppersmith',
     fixedCost: energy(1), triggers: [{
             kind: 'play',
