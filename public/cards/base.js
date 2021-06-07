@@ -864,7 +864,7 @@ var focus = { name: 'Focus',
 events.push(focus);
 var sacrifice = { name: 'Sacrifice', effects: [actionsEffect(1), buyEffect(), targetedEffect(function (target, card) { return doAll([target.play(card), trash(target)]); }, 'Play a card in your hand, then trash it.', function (state) { return state.hand; })]
 };
-cards.push(supplyForCard(sacrifice, coin(4)));
+cards.push(supplyForCard(sacrifice, coin(3)));
 var herbs = { name: 'Herbs',
     effects: [coinsEffect(1), buyEffect()]
 };

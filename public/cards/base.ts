@@ -838,7 +838,7 @@ const sacrifice:CardSpec = {name: 'Sacrifice',
         'Play a card in your hand, then trash it.',
         state => state.hand)]
 }
-cards.push(supplyForCard(sacrifice, coin(4)))
+cards.push(supplyForCard(sacrifice, coin(3)))
 
 const herbs:CardSpec = {name: 'Herbs',
     effects: [coinsEffect(1), buyEffect()]
