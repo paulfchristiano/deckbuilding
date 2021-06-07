@@ -1,4 +1,4 @@
-export const VERSION = "1.8.1"
+export const VERSION = "1.8.2"
 
 // ----------------------------- Formatting
 
@@ -1050,9 +1050,10 @@ export function create(
     spec:CardSpec,
     zone:ZoneName='discard',
     postprocess:(c:Card) =>Transform=()=>noop,
+    tokens?:Map<Token, number>
 ): Transform {
     return async function(state:State) {
-        let card; [card, state] = await createAndTrack(spec, zone)(state)
+        let card; [card, state] = await createAndTrack(spec, zone, tokens)(state)
         if (card != null) state = await postprocess(card)(state)
         return state
     }
@@ -1061,18 +1062,18 @@ export function create(
 export function createAndTrack(
     spec:CardSpec,
     zone:ZoneName='discard',
+    tokens?:Map<Token, number>
 ): ((s:State) => Promise<[Card|null, State]>) {
     return async function(state: State): Promise<[Card|null, State]> {
-        let params:CreateParams = {kind:'create', spec:spec, zone:zone, effects:[]}
+        let params:CreateParams = {kind:'create', spec:spec, zone:zone, effects:[], tokens:tokens}
         params = replace(params, state)
         spec = params.spec
         let card:Card|null = null
         if (params.zone !=  null) {
             [state, card] = createRaw(state, spec, params.zone, params.tokens)
-            state = state.log(`Created ${a(card.name)} in ${params.zone}`)
             console.log(params.tokens)
-            for (const effect of params.effects) state = await effect(card)(state)
             state = await trigger({kind:'create', card:card, zone:params.zone})(state)
+            for (const effect of params.effects) state = await effect(card)(state)
         }
         return [card, state]
     }
@@ -2595,7 +2596,14 @@ export function playReplacer(
         text: text,
         handles: (p, s, c) => p.zone == 'discard' && condition(p, s, c),
         replace: (p, s, c) => ({...p, zone: 'void', effects: p.effects.concat([
-            t => payToDo(cost(p, s, c), t.play(c), move(t, 'discard'))  
+            () => cost(p, s, c),
+            t => async function(state) {
+                t = state.find(t)
+                if (t.place == 'void') {
+                    state = await t.play(c)(state)
+                }
+                return state
+            }
         ])})
     }
 }

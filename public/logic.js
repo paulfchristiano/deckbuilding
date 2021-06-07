@@ -85,7 +85,7 @@ var __read = (this && this.__read) || function (o, n) {
     }
     return ar;
 };
-export var VERSION = "1.8.1";
+export var VERSION = "1.8.2";
 // ----------------------------- Formatting
 export function renderCost(cost, full) {
     var e_1, _a;
@@ -1229,7 +1229,7 @@ export function tick(card) {
     };
 }
 // ---------------------------------- Transformations that move cards
-export function create(spec, zone, postprocess) {
+export function create(spec, zone, postprocess, tokens) {
     if (zone === void 0) { zone = 'discard'; }
     if (postprocess === void 0) { postprocess = function () { return noop; }; }
     return function (state) {
@@ -1238,7 +1238,7 @@ export function create(spec, zone, postprocess) {
             var _a;
             return __generator(this, function (_b) {
                 switch (_b.label) {
-                    case 0: return [4 /*yield*/, createAndTrack(spec, zone)(state)];
+                    case 0: return [4 /*yield*/, createAndTrack(spec, zone, tokens)(state)];
                     case 1:
                         _a = __read.apply(void 0, [_b.sent(), 2]), card = _a[0], state = _a[1];
                         if (!(card != null)) return [3 /*break*/, 3];
@@ -1252,7 +1252,7 @@ export function create(spec, zone, postprocess) {
         });
     };
 }
-export function createAndTrack(spec, zone) {
+export function createAndTrack(spec, zone, tokens) {
     if (zone === void 0) { zone = 'discard'; }
     return function (state) {
         return __awaiter(this, void 0, void 0, function () {
@@ -1261,45 +1261,43 @@ export function createAndTrack(spec, zone) {
             return __generator(this, function (_e) {
                 switch (_e.label) {
                     case 0:
-                        params = { kind: 'create', spec: spec, zone: zone, effects: [] };
+                        params = { kind: 'create', spec: spec, zone: zone, effects: [], tokens: tokens };
                         params = replace(params, state);
                         spec = params.spec;
                         card = null;
-                        if (!(params.zone != null)) return [3 /*break*/, 10];
+                        if (!(params.zone != null)) return [3 /*break*/, 9];
                         _c = __read(createRaw(state, spec, params.zone, params.tokens), 2), state = _c[0], card = _c[1];
-                        state = state.log("Created " + a(card.name) + " in " + params.zone);
                         console.log(params.tokens);
-                        _e.label = 1;
+                        return [4 /*yield*/, trigger({ kind: 'create', card: card, zone: params.zone })(state)];
                     case 1:
-                        _e.trys.push([1, 6, 7, 8]);
-                        _a = __values(params.effects), _b = _a.next();
+                        state = _e.sent();
                         _e.label = 2;
                     case 2:
-                        if (!!_b.done) return [3 /*break*/, 5];
+                        _e.trys.push([2, 7, 8, 9]);
+                        _a = __values(params.effects), _b = _a.next();
+                        _e.label = 3;
+                    case 3:
+                        if (!!_b.done) return [3 /*break*/, 6];
                         effect = _b.value;
                         return [4 /*yield*/, effect(card)(state)];
-                    case 3:
-                        state = _e.sent();
-                        _e.label = 4;
                     case 4:
+                        state = _e.sent();
+                        _e.label = 5;
+                    case 5:
                         _b = _a.next();
-                        return [3 /*break*/, 2];
-                    case 5: return [3 /*break*/, 8];
-                    case 6:
+                        return [3 /*break*/, 3];
+                    case 6: return [3 /*break*/, 9];
+                    case 7:
                         e_26_1 = _e.sent();
                         e_26 = { error: e_26_1 };
-                        return [3 /*break*/, 8];
-                    case 7:
+                        return [3 /*break*/, 9];
+                    case 8:
                         try {
                             if (_b && !_b.done && (_d = _a.return)) _d.call(_a);
                         }
                         finally { if (e_26) throw e_26.error; }
                         return [7 /*endfinally*/];
-                    case 8: return [4 /*yield*/, trigger({ kind: 'create', card: card, zone: params.zone })(state)];
-                    case 9:
-                        state = _e.sent();
-                        _e.label = 10;
-                    case 10: return [2 /*return*/, [card, state]];
+                    case 9: return [2 /*return*/, [card, state]];
                 }
             });
         });
@@ -3099,7 +3097,23 @@ export function playReplacer(text, condition, cost) {
         text: text,
         handles: function (p, s, c) { return p.zone == 'discard' && condition(p, s, c); },
         replace: function (p, s, c) { return (__assign(__assign({}, p), { zone: 'void', effects: p.effects.concat([
-                function (t) { return payToDo(cost(p, s, c), t.play(c), move(t, 'discard')); }
+                function () { return cost(p, s, c); },
+                function (t) { return function (state) {
+                    return __awaiter(this, void 0, void 0, function () {
+                        return __generator(this, function (_a) {
+                            switch (_a.label) {
+                                case 0:
+                                    t = state.find(t);
+                                    if (!(t.place == 'void')) return [3 /*break*/, 2];
+                                    return [4 /*yield*/, t.play(c)(state)];
+                                case 1:
+                                    state = _a.sent();
+                                    _a.label = 2;
+                                case 2: return [2 /*return*/, state];
+                            }
+                        });
+                    });
+                }; }
             ]) })); }
     };
 }

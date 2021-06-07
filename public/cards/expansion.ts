@@ -557,7 +557,7 @@ const remake:CardSpec = {
                     state = await trash(card)(state)
                     const cost = addCosts(card.cost('buy', state), coin(2))
                     let target:Card|null; [state, target] = await choice(state,
-                        `Choose a card to buy (${i} remaining).`,
+                        `Choose a card to copy (${i} remaining).`,
                         state.supply.filter(t => leq(t.cost('buy', state), cost)).map(asChoice)
                     )
                     if (target != null) state = await create(target.spec)(state)

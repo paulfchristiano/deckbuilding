@@ -206,15 +206,21 @@ cards.push(supplyForCard(celebration, coin(8), {replacers: [{
     replace: p => ({...p, zone:'play'})
 }]}))
 
-const Plow = 'Plow'
-const plow:CardSpec = {name: Plow,
+const plowName = 'Plow'
+const plow:CardSpec = {name: plowName,
     fixedCost: energy(1),
     effects: [{
-        text: [`Put all non-${Plow} cards from your discard into your hand.`],
+        text: [`Put your discard into your hand.`],
         transform: state => doAll([
-            moveMany(state.discard.filter(c => c.name != Plow), 'hand'),
+            moveMany(state.discard, 'hand'),
             sortHand
         ])
+    }, toPlay()],
+    staticReplacers: [{
+        kind: 'create',
+        text: `Whenever you would create a ${plowName}, create it in play.`,
+        handles: p => p.spec.name == plowName,
+        replace: p => ({...p, zone:'play'})
     }]
 }
 cards.push(supplyForCard(plow, coin(4)))
@@ -493,6 +499,31 @@ const investment:CardSpec = {name: 'Investment',
 }
 cards.push(supplyForCard(investment, coin(4), {replacers: [startsWithCharge(investment.name, 2)]}))
 
+//TODO check this
+const populate:CardSpec = {name: 'Populate',
+    fixedCost: {...free, coin:2, energy:2},
+    effects: [chargeEffect()],
+    staticTriggers: [{
+        kind: 'afterBuy',
+        text: `After buying a card the normal way,
+        remove a charge token from this to buy up to 5 other cards
+        with equal or lesser cost.`,
+        handles: e => e.source.name == 'act',
+        transform: (e, s, c) => payToDo(discharge(c, 1), async function(state) {
+            let targets; [state, targets] = await multichoice(state,
+                'Choose up to 5 other cards to buy',
+                state.supply.filter(target => 
+                    leq(target.cost('buy', state), e.card.cost('buy', state))
+                    && target.id != e.card.id
+                ).map(asChoice), 5)
+            for (const target of targets) {
+                state = await target.buy(c)(state)
+            }
+            return state
+        })
+    }]
+}
+/*
 const populate:CardSpec = {name: 'Populate',
     fixedCost: {...free, coin:8, energy:2},
     effects: [{
@@ -508,6 +539,7 @@ const populate:CardSpec = {name: 'Populate',
         }
     }]
 }
+*/
 events.push(populate)
 
 export const duplicate:CardSpec = {name: 'Duplicate',
@@ -721,9 +753,10 @@ const expedite: CardSpec = {
     staticReplacers: [playReplacer(
         `Whenever you would create a card in your discard,
             if this has a charge token then instead
-            remove a charge token to set the card aside and play it.`,
+            remove a charge token to set the card aside.
+            Then play it if it is set aside.`,
         (p, s, c) => s.find(c).charge > 0,
-        (p, s, c) => discharge(c, 1)
+        (p, s, c) => charge(c, -1)
     )]
 }
 events.push(expedite)
@@ -1054,7 +1087,7 @@ const procession:CardSpec = {name: 'Procession',
                 trash(target),
                 applyToTarget(
                     target2 => create(target2.spec),
-                    'Choose a card to buy.',
+                    'Choose a card to copy.',
                     s => s.supply.filter(c => eq(
                         c.cost('buy', s),
                         addCosts(target.cost('buy', s), {coin:1})
@@ -1067,7 +1100,7 @@ const procession:CardSpec = {name: 'Procession',
         ))
     }]
 }
-cards.push(supplyForCard(procession, coin(4)))
+cards.push(supplyForCard(procession, coin(5)))
 
 const publicWorks:CardSpec = {name: 'Public Works',
     buyCost: coin(6),
@@ -1076,18 +1109,24 @@ const publicWorks:CardSpec = {name: 'Public Works',
 }
 cards.push(publicWorks)
 
+function singleMap<S, T>(s:S, t:T): Map<S, T> {
+    const result = new Map()
+    result.set(s, t)
+    return result
+}
+
 const echo:CardSpec = {name: 'Echo',
     effects: [targetedEffect(
         (target, card) => async function(state) {
-            let copy:Card|null; [copy, state] = await createAndTrack(target.spec, 'void')(state)
-            if (copy != null) {
-                state = await addToken(copy, 'echo')(state)
+            let copy:Card|null; [copy, state] = await createAndTrack(target.spec, 'void', singleMap('echo', 1))(state)
+            if (copy != null && state.find(copy).place == 'void') {
                 state = await copy.play(card)(state)
             }
             return state
         },
-        `Create a copy of a card you have in play,
-         then put an echo token on the copy and play it.`,
+        `Choose a card you have in play.
+         Create a copy set aside with an echo token on it.
+         Then play the card if it is still set aside.`,
         state => dedupBy(state.play, c => c.spec)
     )]
 }
@@ -1202,7 +1241,8 @@ const innovation:CardSpec = {name: Innovation,
     effects: [actionsEffect(1)],
     replacers: [playReplacer(
         `Whenever you would create a card in your discard,
-        instead discard this to set the card aside and play it.`,
+        instead discard this to set the card aside.
+        Then play it if it is still set aside.`,
         (p, s, c) => s.find(c).place == 'play',
         (p, s, c) => discardFromPlay(c),
     )]
@@ -1833,13 +1873,13 @@ const prioritize:CardSpec = {
     staticReplacers: [playReplacer(
         `Whenever you would create a card in your discard
         whose supply has a priority token,
-        instead remove a priority token to set the card aside and play it.`,
+        instead remove a priority token to set the card aside.
+        Then play it if it is still set aside.`,
         (p, s, c) => nameHasToken(p.spec, 'priority', s),
         (p, s, c) => applyToTarget(
             t => removeToken(t, 'priority', 1, true),
             'Remove a priority token.',
-            state => state.supply.filter(t => t.name == p.spec.name),
-            {cost: true}
+            state => state.supply.filter(t => t.name == p.spec.name)
         )
     )]
 }

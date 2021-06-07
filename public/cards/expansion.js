@@ -553,7 +553,7 @@ var remake = {
                                                 state = _c.sent();
                                                 cost_1 = addCosts(card.cost('buy', state), coin(2));
                                                 target = void 0;
-                                                return [4 /*yield*/, choice(state, "Choose a card to buy (" + i + " remaining).", state.supply.filter(function (t) { return leq(t.cost('buy', state), cost_1); }).map(asChoice))];
+                                                return [4 /*yield*/, choice(state, "Choose a card to copy (" + i + " remaining).", state.supply.filter(function (t) { return leq(t.cost('buy', state), cost_1); }).map(asChoice))];
                                             case 4:
                                                 _b = __read.apply(void 0, [_c.sent(), 2]), state = _b[0], target = _b[1];
                                                 if (!(target != null)) return [3 /*break*/, 6];
