@@ -61,7 +61,7 @@ var __read = (this && this.__read) || function (o, n) {
     }
     return ar;
 };
-import { choice, asChoice, trash, addCosts, leq, gainPoints, gainActions, gainCoins, gainBuys, free, create, doAll, multichoice, moveMany, addToken, removeToken, payToDo, tick, eq, move, noop, charge, discharge, payCost, subtractCost, aOrNum, allowNull, villager, fair, refresh, supplyForCard, actionsEffect, buysEffect, pointsEffect, coinsEffect, reflectTrigger, createInPlayEffect, targetedEffect, chargeEffect, startsWithCharge, energy, coin, useRefresh, costReduce, reducedCost, applyToTarget, countNameTokens, nameHasToken, incrementCost, costPer, createEffect, repeat, copper, silver, gold, estate, duchy, province, trashOnLeavePlay, discardFromPlay, trashThis, payAction, fragileEcho, num, playReplacer, countDistinctNames } from '../logic.js';
+import { choice, asChoice, trash, addCosts, leq, gainPoints, gainActions, gainCoins, gainBuys, free, create, doAll, multichoice, moveMany, addToken, removeToken, payToDo, tick, eq, move, noop, charge, discharge, payCost, subtractCost, aOrNum, allowNull, villager, fair, refresh, supplyForCard, actionsEffect, buysEffect, pointsEffect, coinsEffect, reflectTrigger, createInPlayEffect, targetedEffect, chargeEffect, startsWithCharge, energy, coin, useRefresh, costReduce, reducedCost, applyToTarget, countNameTokens, nameHasToken, incrementCost, costPer, createEffect, repeat, copper, silver, gold, estate, duchy, province, trashOnLeavePlay, discardFromPlay, trashThis, payAction, fragileEcho, playReplacer, countDistinctNames } from '../logic.js';
 // ------------------- Expansion ---------------
 export var cards = [];
 export var events = [];
@@ -69,11 +69,11 @@ var flourish = {
     name: 'Flourish',
     fixedCost: energy(1),
     effects: [{
-            text: ["Double the number of cost tokens on this, then add one."],
+            text: ["Double the number of cost tokens on this."],
             transform: function (s, c) { return function (state) {
                 return __awaiter(this, void 0, void 0, function () {
                     return __generator(this, function (_a) {
-                        return [2 /*return*/, addToken(c, 'cost', state.find(c).count('cost') + 1)(state)];
+                        return [2 /*return*/, addToken(c, 'cost', state.find(c).count('cost'))(state)];
                     });
                 });
             }; }
@@ -81,6 +81,12 @@ var flourish = {
     restrictions: [{
             text: 'You must have at least 1 vp per cost token on this.',
             test: function (c, s, k) { return s.points < s.find(c).count('cost'); }
+        }],
+    staticTriggers: [{
+            kind: 'gameStart',
+            text: 'At the start of the game put a cost token on this.',
+            handles: function () { return true; },
+            transform: function (e, s, c) { return addToken(c, 'cost'); }
         }]
 };
 events.push(flourish);
@@ -124,12 +130,14 @@ const strive:CardSpec = {
 }
 events.push(strive)
 */
-var delve = {
+/*
+const delve:CardSpec = {
     name: 'Delve',
     fixedCost: coin(2),
     effects: [createEffect(silver)]
-};
-events.push(delve);
+}
+events.push(delve)
+*/
 var hesitation = {
     name: 'Hesitation',
     restrictions: [{
@@ -513,8 +521,8 @@ function magpieEffect() {
 }
 var magpie = {
     name: 'Magpie',
-    buyCost: coin(2),
-    effects: [coinsEffect(1), magpieEffect()]
+    buyCost: coin(3),
+    effects: [coinsEffect(2), magpieEffect()]
 };
 cards.push(magpie);
 var crown = {
@@ -758,34 +766,32 @@ var harrow = {
         }]
 };
 cards.push(harrow);
-var chiselPlowName = "Chisel Plow";
-var chiselPlow = {
+/*
+const chiselPlowName = "Chisel Plow"
+const chiselPlow:CardSpec = {
     name: chiselPlowName,
     buyCost: coin(4),
     fixedCost: energy(1),
     effects: [{
-            text: ["If you have less than " + num(3, chiselPlowName) + " in play,\n            put your discard into your hand and put this in play."],
-            transform: function (s, card) { return function (state) {
-                return __awaiter(this, void 0, void 0, function () {
-                    return __generator(this, function (_a) {
-                        switch (_a.label) {
-                            case 0:
-                                if (!(state.play.filter(function (c) { return c.name == chiselPlowName; }).length < 3)) return [3 /*break*/, 3];
-                                return [4 /*yield*/, moveMany(state.discard, 'hand')(state)];
-                            case 1:
-                                state = _a.sent();
-                                return [4 /*yield*/, move(card, 'play')(state)];
-                            case 2:
-                                state = _a.sent();
-                                _a.label = 3;
-                            case 3: return [2 /*return*/, state];
-                        }
-                    });
-                });
-            }; }
-        }],
-};
-cards.push(chiselPlow);
+        text: [`If you have less than ${num(3, chiselPlowName)} in play,
+            put your discard into your hand and put this in play.`],
+        transform: (s, card) => async function(state) {
+            if (state.play.filter(c => c.name == chiselPlowName).length < 3) {
+                state = await moveMany(state.discard, 'hand')(state)
+                state = await move(card, 'play')(state)
+            }
+            return state
+        }
+    }],
+    replacers: [{
+        text: `Cards named ${churnName} cost an additional @ to play.`,
+        kind: 'costIncrease',
+        handles: p => (p.card.name == churnName) && (p.actionKind == 'play'),
+        replace: p => ({...p, cost: addCosts(p.cost, energy(1))})
+    }]
+}
+cards.push(chiselPlow)
+*/
 var smithy = {
     name: 'Smithy',
     buyCost: coin(4),
@@ -828,9 +834,9 @@ const brigade:CardSpec = {name: 'Brigade',
 cards.push(supplyForCard((brigade, 4, 'expansion')
 */
 var brigade = { name: 'Brigade',
-    effects: [],
-    buyCost: coin(3), replacers: [{
-            text: "Cards you play cost @ less if they have no brigade token on them.\n               Whenever this reduces a card's cost, put a brigade token on it,\n               discard this, and get +$1 and +1 action.",
+    buyCost: coin(3),
+    effects: [actionsEffect(1), coinsEffect(1)], replacers: [{
+            text: "Cards you play cost @ less if they have no brigade token on them.\n               Whenever this reduces a card's cost, put a brigade token on it and discard this.",
             kind: 'cost',
             handles: function (x, state) { return (x.actionKind == 'play' && x.card.count('brigade') == 0); },
             replace: function (x, state, card) {
@@ -1011,12 +1017,14 @@ var steel = {
         }]
 };
 cards.push(steel);
-var silverMine = {
+/*
+const silverMine:CardSpec = {
     name: 'Silver Mine',
     buyCost: coin(6),
     effects: [actionsEffect(1), createEffect(silver, 'hand', 2)]
-};
-cards.push(silverMine);
+}
+cards.push(silverMine)
+*/
 var livery = {
     name: "Livery",
     buyCost: coin(4),
@@ -1094,7 +1102,7 @@ var guildHall = {
     name: 'Guild Hall',
     buyCost: coin(5),
     fixedCost: energy(1),
-    effects: [coinsEffect(2)],
+    effects: [coinsEffect(3)],
     triggers: [{
             text: "Whenever you use an event,\n            discard this to use it again.",
             kind: 'use',
@@ -1382,8 +1390,8 @@ var alliance = {
 };
 events.push(alliance);
 var buildUp = {
-    name: 'Build Up',
-    fixedCost: coin(1),
+    name: 'Urbanize',
+    fixedCost: coin(3),
     variableCosts: [costPer(coin(1))],
     effects: [createInPlayEffect(infrastructure), incrementCost()],
     relatedCards: [infrastructure]
@@ -1483,8 +1491,8 @@ var farmland = {
             }
         }],
     ability: [{
-            text: ["If you have no other " + farmlandName + "s in play, discard this for +7 vp."],
-            transform: function (s, c) { return payToDo(discardFromPlay(c), gainPoints(7)); },
+            text: ["If you have no other " + farmlandName + "s in play, discard this for +8 vp."],
+            transform: function (s, c) { return payToDo(discardFromPlay(c), gainPoints(8)); },
         }],
 };
 cards.push(farmland);

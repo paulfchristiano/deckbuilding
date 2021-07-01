@@ -39,14 +39,20 @@ const flourish:CardSpec = {
     name: 'Flourish',
     fixedCost: energy(1),
     effects: [{
-        text: [`Double the number of cost tokens on this, then add one.`],
+        text: [`Double the number of cost tokens on this.`],
         transform: (s, c) => async function(state) {
-            return addToken(c, 'cost', state.find(c).count('cost') + 1)(state)
+            return addToken(c, 'cost', state.find(c).count('cost'))(state)
         }
     }, useRefresh()],
     restrictions: [{
         text: 'You must have at least 1 vp per cost token on this.',
         test: (c, s, k) => s.points < s.find(c).count('cost')
+    }],
+    staticTriggers: [{
+        kind: 'gameStart',
+        text: 'At the start of the game put a cost token on this.',
+        handles: () => true,
+        transform: (e, s, c) => addToken(c, 'cost')
     }]
 }
 events.push(flourish)
@@ -77,12 +83,14 @@ const strive:CardSpec = {
 events.push(strive)
 */
 
+/*
 const delve:CardSpec = {
     name: 'Delve',
     fixedCost: coin(2),
     effects: [createEffect(silver)]
 }
 events.push(delve)
+*/
 
 const hesitation:CardSpec = {
     name: 'Hesitation',
@@ -521,8 +529,8 @@ function magpieEffect(): Effect {
 
 const magpie:CardSpec = {
     name: 'Magpie',
-    buyCost: coin(2),
-    effects: [coinsEffect(1), magpieEffect()]
+    buyCost: coin(3),
+    effects: [coinsEffect(2), magpieEffect()]
 }
 cards.push(magpie)
 
@@ -745,6 +753,7 @@ const harrow:CardSpec = {
 }
 cards.push(harrow)
 
+/*
 const chiselPlowName = "Chisel Plow"
 const chiselPlow:CardSpec = {
     name: chiselPlowName,
@@ -761,16 +770,15 @@ const chiselPlow:CardSpec = {
             return state
         }
     }],
-    /*
     replacers: [{
         text: `Cards named ${churnName} cost an additional @ to play.`,
         kind: 'costIncrease',
         handles: p => (p.card.name == churnName) && (p.actionKind == 'play'),
         replace: p => ({...p, cost: addCosts(p.cost, energy(1))})
     }]
-    */
 }
 cards.push(chiselPlow)
+*/
 
 const smithy:CardSpec = {
     name: 'Smithy',
@@ -817,12 +825,11 @@ cards.push(supplyForCard((brigade, 4, 'expansion')
 */
 
 const brigade:CardSpec = {name: 'Brigade',
-    effects: [],
     buyCost: coin(3),
+    effects: [actionsEffect(1), coinsEffect(1)],
     replacers: [{
         text: `Cards you play cost @ less if they have no brigade token on them.
-               Whenever this reduces a card's cost, put a brigade token on it,
-               discard this, and get +$1 and +1 action.`,
+               Whenever this reduces a card's cost, put a brigade token on it and discard this.`,
         kind: 'cost',
         handles: (x, state) => (x.actionKind == 'play' && x.card.count('brigade') == 0),
         replace: function(x:CostParams, state:State, card:Card) {
@@ -996,12 +1003,14 @@ const steel:CardSpec = {
 }
 cards.push(steel)
 
+/*
 const silverMine:CardSpec = {
     name: 'Silver Mine',
     buyCost: coin(6),
     effects: [actionsEffect(1), createEffect(silver, 'hand', 2)]
 }
 cards.push(silverMine)
+*/
 
 const livery:CardSpec = {
     name: "Livery",
@@ -1062,7 +1071,7 @@ const guildHall:CardSpec = {
     name: 'Guild Hall',
     buyCost: coin(5),
     fixedCost: energy(1),
-    effects: [coinsEffect(2)],
+    effects: [coinsEffect(3)],
     triggers: [{
         text: `Whenever you use an event,
             discard this to use it again.`,
@@ -1369,8 +1378,8 @@ const alliance:CardSpec = {
 events.push(alliance)
 
 const buildUp:CardSpec = {
-    name: 'Build Up',
-    fixedCost: coin(1),
+    name: 'Urbanize',
+    fixedCost: coin(3),
     variableCosts: [costPer(coin(1))],
     effects: [createInPlayEffect(infrastructure), incrementCost()],
     relatedCards: [infrastructure]
@@ -1478,8 +1487,8 @@ const farmland:CardSpec = {
             kind == 'activate' && state.play.some(c => c.name == farmlandName && c.id != card.id)
     }],
     ability: [{
-        text: [`If you have no other ${farmlandName}s in play, discard this for +7 vp.`],
-        transform: (s, c) => payToDo(discardFromPlay(c), gainPoints(7)),
+        text: [`If you have no other ${farmlandName}s in play, discard this for +8 vp.`],
+        transform: (s, c) => payToDo(discardFromPlay(c), gainPoints(8)),
     }],
 }
 cards.push(farmland)

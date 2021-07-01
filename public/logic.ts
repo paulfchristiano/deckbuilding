@@ -2639,12 +2639,12 @@ function playAgain(target:Card, source:Source=unk): Transform {
 
 function costReduceDescriptor(kind:ActionKind, reduction:Partial<Cost>, nonzero:boolean):string {
     const d:string = renderCost(reduction, true)
-    const s:string = nonzero ? ' unless it would make them free.' : '.'
+    const s:string = nonzero ? ' but not zero' : ''
     switch (kind) {
-        case 'play': return `Cards cost ${d} less to play`
-        case 'buy': return `Cards cost ${d} less to buy`
-        case 'use': return `Events cost ${d} less to use`
-        case 'activate': return `Abilities cost ${d} less to use`
+        case 'play': return `Cards cost ${d} less to play${s}.`
+        case 'buy': return `Cards cost ${d} less to buy${s}.`
+        case 'use': return `Events cost ${d} less to use${s}.`
+        case 'activate': return `Abilities cost ${d} less to use${s}.`
         default: return assertNever(kind)
     }
 }

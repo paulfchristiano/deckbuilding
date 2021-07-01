@@ -3151,12 +3151,12 @@ function playAgain(target, source) {
 }
 function costReduceDescriptor(kind, reduction, nonzero) {
     var d = renderCost(reduction, true);
-    var s = nonzero ? ' unless it would make them free.' : '.';
+    var s = nonzero ? ' but not zero' : '';
     switch (kind) {
-        case 'play': return "Cards cost " + d + " less to play";
-        case 'buy': return "Cards cost " + d + " less to buy";
-        case 'use': return "Events cost " + d + " less to use";
-        case 'activate': return "Abilities cost " + d + " less to use";
+        case 'play': return "Cards cost " + d + " less to play" + s + ".";
+        case 'buy': return "Cards cost " + d + " less to buy" + s + ".";
+        case 'use': return "Events cost " + d + " less to use" + s + ".";
+        case 'activate': return "Abilities cost " + d + " less to use" + s + ".";
         default: return assertNever(kind);
     }
 }
