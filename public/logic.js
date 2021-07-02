@@ -85,7 +85,7 @@ var __read = (this && this.__read) || function (o, n) {
     }
     return ar;
 };
-export var VERSION = "1.8.2";
+export var VERSION = "1.8.3";
 // ----------------------------- Formatting
 export function renderCost(cost, full) {
     var e_1, _a;
@@ -1330,10 +1330,10 @@ export function move(card, toZone, logged) {
                                 state = state.log("Trashed " + card.name + " from " + card.place);
                         }
                         else {
-                            state = state.addToZone(card, toZone);
                             if (!logged)
                                 state = state.log("Moved " + card.name + " from " + card.place + " to " + toZone);
                         }
+                        state = state.addToZone(card, toZone);
                         return [4 /*yield*/, trigger({ kind: 'move', fromZone: card.place, toZone: toZone, card: card })(state)];
                     case 1:
                         state = _d.sent();

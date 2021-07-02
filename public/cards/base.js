@@ -72,7 +72,7 @@ var __values = (this && this.__values) || function(o) {
     };
     throw new TypeError(s ? "Object is not iterable." : "Symbol.iterator is not defined.");
 };
-import { choice, asChoice, trash, addCosts, subtractCost, multiplyCosts, eq, leq, noop, gainPoints, gainActions, gainCoins, gainBuys, free, create, move, doAll, multichoice, renderCost, moveMany, payToDo, payCost, addToken, removeToken, charge, discharge, asNumberedChoices, allowNull, setResource, tick, a, num, createAndTrack, villager, fair, supplyForCard, actionsEffect, buyEffect, buysEffect, pointsEffect, createEffect, refreshEffect, recycleEffect, createInPlayEffect, chargeEffect, targetedEffect, workshopEffect, coinsEffect, reflectTrigger, energy, coin, repeat, costPer, incrementCost, costReduceNext, countNameTokens, nameHasToken, startsWithCharge, useRefresh, costReduce, applyToTarget, playTwice, payAction, sortHand, discardFromPlay, trashThis, fragileEcho, copper, gold, estate, duchy, dedupBy, countDistinctNames, playReplacer } from '../logic.js';
+import { choice, asChoice, trash, addCosts, subtractCost, multiplyCosts, eq, leq, noop, gainPoints, gainActions, gainCoins, gainBuys, free, create, move, doAll, multichoice, renderCost, moveMany, payToDo, payCost, addToken, removeToken, charge, discharge, asNumberedChoices, allowNull, setResource, tick, a, num, createAndTrack, villager, fair, supplyForCard, actionsEffect, buyEffect, buysEffect, pointsEffect, createEffect, refreshEffect, recycleEffect, createInPlayEffect, chargeEffect, targetedEffect, workshopEffect, coinsEffect, reflectTrigger, energy, coin, repeat, costPer, incrementCost, costReduceNext, countNameTokens, nameHasToken, startsWithCharge, useRefresh, costReduce, applyToTarget, playTwice, payAction, sortHand, discardFromPlay, trashThis, fragileEcho, copper, gold, estate, duchy, dedupBy, countDistinctNames, playReplacer, trashOnLeavePlay } from '../logic.js';
 export var cards = [];
 export var events = [];
 /*
@@ -993,17 +993,36 @@ var gardens = { name: "Gardens",
         }]
 };
 cards.push(supplyForCard(gardens, coin(4)));
-var decay = { name: 'Decay',
-    fixedCost: coin(1), effects: [
-        targetedEffect(function (target) { return removeToken(target, 'decay'); }, 'Remove a decay token from a card.', function (s) { return s.hand.concat(s.play).concat(s.discard)
-            .filter(function (c) { return c.count('decay') > 0; }); })
+/*
+const decay:CardSpec = {name: 'Decay',
+    fixedCost: coin(1),
+    effects: [
+        targetedEffect(
+            target => removeToken(target, 'decay'),
+            'Remove a decay token from a card.',
+            s => s.hand.concat(s.play).concat(s.discard)
+                       .filter(c => c.count('decay') > 0)
+        )
     ],
     staticTriggers: [{
-            text: "Whenever you move a card to your hand,\n            if it has two or more decay tokens on it trash it,\n            otherwise put a decay token on it.",
-            kind: 'move',
-            handles: function (e) { return e.toZone == 'hand'; },
-            transform: function (e) { return (e.card.count('decay') >= 2) ?
-                trash(e.card) : addToken(e.card, 'decay'); }
+        text: `Whenever you move a card to your hand,
+            if it has two or more decay tokens on it trash it,
+            otherwise put a decay token on it.`,
+        kind: 'move',
+        handles: e => e.toZone == 'hand',
+        transform: e => (e.card.count('decay') >= 2) ?
+            trash(e.card) : addToken(e.card, 'decay')
+    }]
+}
+events.push(decay)
+*/
+var decay = { name: 'Decay',
+    fixedCost: coin(1),
+    effects: [chargeEffect()], staticTriggers: [{
+            text: "After playing a card,\n            remove a charge token from this.\n            If you can't, put a decay token on the card.\n            If it already had a decay token trash it instead.",
+            kind: 'afterPlay',
+            handles: function () { return true; },
+            transform: function (e, s, c) { return payToDo(discharge(c, 1), noop, s.find(e.card).count('decay') > 0 ? trash(e.card) : addToken(e.card, 'decay')); }
         }]
 };
 events.push(decay);
@@ -1121,48 +1140,32 @@ var echo = { name: 'Echo', effects: [targetedEffect(function (target, card) { re
         }; }, "Choose a card you have in play.\n         Create a copy set aside with an echo token on it.\n         Then play the card if it is still set aside.", function (state) { return dedupBy(state.play, function (c) { return c.spec; }); })]
 };
 cards.push(supplyForCard(echo, coin(6), { replacers: [fragileEcho('echo')] }));
+var tactic = {
+    name: 'Tactic',
+    ability: [{
+            text: ["Trash this and pay an action\n        to play a card from your hand three times."],
+            transform: function (state, card) { return payToDo(payCost(__assign(__assign({}, free), { actions: 1, effects: [trash(card)] })), applyToTarget(function (target) { return doAll([
+                target.play(card),
+                tick(card),
+                target.play(card),
+                tick(card),
+                target.play(card)
+            ]); }, 'Choose a card to play three times.', function (s) { return s.hand; })); }
+        }],
+    restrictions: [{
+            test: function (c, s, k) { return k == 'activate' && (s.actions < 1); },
+        }],
+    replacers: [trashOnLeavePlay()]
+};
 var mastermind = {
     name: 'Mastermind',
     fixedCost: energy(1),
-    effects: [],
-    restrictions: [{
-            test: function (c, s, k) { return k == 'activate' && (c.charge < 1); }
-        }],
+    relatedCards: [tactic],
     replacers: [{
-            text: "Whenever you would move this from play to your hand,\n        instead leave it in play. If it doesn't have a charge token on it, put one on it.",
+            text: "Whenever you would move this to your hand, first create a " + tactic.name + " in play.",
             kind: 'move',
-            handles: function (x, state, card) { return (x.fromZone == 'play' && x.toZone == 'hand'
-                && x.card.id == card.id); },
-            replace: function (x, state, card) {
-                return (__assign(__assign({}, x), { skip: true, effects: x.effects.concat([
-                        function (state) {
-                            return __awaiter(this, void 0, void 0, function () {
-                                return __generator(this, function (_a) {
-                                    switch (_a.label) {
-                                        case 0:
-                                            if (!(state.find(card).charge == 0)) return [3 /*break*/, 2];
-                                            return [4 /*yield*/, charge(card, 1)(state)];
-                                        case 1:
-                                            state = _a.sent();
-                                            _a.label = 2;
-                                        case 2: return [2 /*return*/, state];
-                                    }
-                                });
-                            });
-                        }
-                    ]) }));
-            }
-        }],
-    ability: [{
-            text: ["Remove a charge token from this and pay an action\n        to play a card from your hand three times. If you do, discard this."],
-            transform: function (state, card) { return payToDo(payCost(__assign(__assign({}, free), { actions: 1, effects: [discharge(card, 1)] })), applyToTarget(function (target) { return doAll([
-                target.play(card),
-                tick(card),
-                target.play(card),
-                tick(card),
-                target.play(card),
-                move(card, 'discard')
-            ]); }, 'Choose a card to play three times.', function (s) { return s.hand; })); }
+            handles: function (p, s, c) { return p.toZone == 'hand' && p.card.id == c.id; },
+            replace: function (p) { return (__assign(__assign({}, p), { effects: p.effects.concat([create(tactic, 'play')]) })); }
         }],
 };
 cards.push(supplyForCard(mastermind, coin(6)));

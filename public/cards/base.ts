@@ -33,7 +33,7 @@ import {
   trashThis, fragileEcho,
   copper, gold, estate, duchy,
   dedupBy, countDistinctNames,
-  playReplacer
+  playReplacer, trashOnLeavePlay
 } from '../logic.js'
 
 export const cards:CardSpec[] = [];
@@ -963,6 +963,7 @@ const gardens:CardSpec = {name: "Gardens",
 }
 cards.push(supplyForCard(gardens, coin(4)))
 
+/*
 const decay:CardSpec = {name: 'Decay',
     fixedCost: coin(1),
     effects: [
@@ -981,6 +982,22 @@ const decay:CardSpec = {name: 'Decay',
         handles: e => e.toZone == 'hand',
         transform: e => (e.card.count('decay') >= 2) ?
             trash(e.card) : addToken(e.card, 'decay')
+    }]
+}
+events.push(decay)
+*/
+const decay:CardSpec = {name: 'Decay',
+    fixedCost: coin(1),
+    effects: [chargeEffect()],
+    staticTriggers: [{
+        text: `After playing a card,
+            remove a charge token from this.
+            If you can't, put a decay token on the card.
+            If it already had a decay token trash it instead.`,
+        kind: 'afterPlay',
+        handles: () => true,
+        transform: (e, s, c) => payToDo(discharge(c, 1), noop,
+            s.find(e.card).count('decay') > 0 ? trash(e.card) : addToken(e.card, 'decay'))
     }]
 }
 events.push(decay)
@@ -1132,45 +1149,42 @@ const echo:CardSpec = {name: 'Echo',
 }
 cards.push(supplyForCard(echo, coin(6), {replacers: [fragileEcho('echo')]}))
 
-const mastermind:CardSpec = {
-    name: 'Mastermind',
-    fixedCost: energy(1),
-    effects: [],
-    restrictions: [{
-        test: (c:Card, s:State, k:ActionKind) => k == 'activate' && (c.charge < 1)
-    }],
-    replacers: [{
-        text: `Whenever you would move this from play to your hand,
-        instead leave it in play. If it doesn't have a charge token on it, put one on it.`,
-        kind:'move',
-        handles: (x, state, card) => (x.fromZone == 'play' && x.toZone == 'hand'
-            && x.card.id == card.id),
-        replace: (x, state, card) =>
-            ({...x, skip:true, effects:x.effects.concat([
-                async function(state) {
-                    if (state.find(card).charge == 0) state = await charge(card, 1)(state)
-                    return state
-                }
-            ])})
-    }],
+const tactic:CardSpec = {
+    name: 'Tactic',
     ability:[{
-        text: [`Remove a charge token from this and pay an action
-        to play a card from your hand three times. If you do, discard this.`],
+        text: [`Trash this and pay an action
+        to play a card from your hand three times.`],
         transform: (state, card) => payToDo(payCost({
-            ...free, actions:1, effects:[discharge(card, 1)]
+            ...free, actions:1, effects:[trash(card)]
         }), applyToTarget(
             target => doAll([
                 target.play(card),
                 tick(card),
                 target.play(card),
                 tick(card),
-                target.play(card),
-                move(card, 'discard')
+                target.play(card)
             ]),
             'Choose a card to play three times.',
             s => s.hand
         ))
     }],
+    restrictions: [{
+        test: (c:Card, s:State, k:ActionKind) => k == 'activate' && (s.actions < 1),
+    }],
+    replacers: [trashOnLeavePlay()]
+}
+
+const mastermind:CardSpec = {
+    name: 'Mastermind',
+    fixedCost: energy(1),
+    relatedCards: [tactic],
+    replacers: [{
+        text: `Whenever you would move this to your hand, first create a ${tactic.name} in play.`,
+        kind:'move',
+        handles: (p, s, c) => p.toZone == 'hand' && p.card.id == c.id,
+        replace: p => ({...p, effects: p.effects.concat([create(tactic, 'play')])}) 
+    }],
+
 }
 cards.push(supplyForCard(mastermind, coin(6)))
 

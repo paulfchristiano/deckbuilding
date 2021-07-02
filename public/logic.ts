@@ -1,4 +1,4 @@
-export const VERSION = "1.8.2"
+export const VERSION = "1.8.3"
 
 // ----------------------------- Formatting
 
@@ -1096,9 +1096,9 @@ export function move(card:Card, toZone:PlaceName, logged:boolean=false): Transfo
             if (toZone == 'void') {
                 if (!logged) state = state.log(`Trashed ${card.name} from ${card.place}`)
             } else {
-                state = state.addToZone(card, toZone)
                 if (!logged) state = state.log(`Moved ${card.name} from ${card.place} to ${toZone}`)
             }
+            state = state.addToZone(card, toZone)
             state = await trigger({kind:'move', fromZone:card.place, toZone:toZone, card:card})(state)
         }
         for (const effect of params.effects) {
