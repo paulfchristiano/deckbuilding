@@ -644,7 +644,7 @@ const recycle:CardSpec = {name: 'Recycle',
 events.push(recycle)
 
 const twin:CardSpec = {name: 'Twin',
-    fixedCost: {...free, energy:1, coin:5},
+    fixedCost: {...free, energy:1, coin:3},
     effects: [targetedEffect(
         target => addToken(target, 'twin'),
         'Put a twin token on a card in your hand.',
