@@ -25,7 +25,7 @@ import { CardSpec, Card, choice, asChoice, trash, Cost, addCosts, leq, Effect,
   copper, silver, gold, estate, duchy, province,
   trashOnLeavePlay, discardFromPlay, trashThis,
   payAction,
-  fragileEcho,
+  fragileEcho, Token,
   num, playReplacer, countDistinctNames
 } from '../logic.js'
 
@@ -674,12 +674,30 @@ const develop:CardSpec = {
 }
 cards.push(develop)
 
-const logistics = {
+const logisticsToken:Token = 'logistics'
+const logistics:CardSpec = {
     name: 'Logistics',
-    buyCost: coin(6),
+    buyCost: coin(5),
     fixedCost: energy(1),
-    effects: [],
-    replacers: [costReduce('use', energy(1), true)]
+    effects: [{
+        text: [`Put a ${logisticsToken} token on each supply.`],
+        transform: s => doAll(s.events.map(e => addToken(e, 'logistics')))
+    }],
+    replacers: [{
+        text: `Events cost @ less for each logistics token on them but not zero. Whenever this reduces a cost, remove a logistics token.`,
+        kind: 'cost',
+        handles: p => (p.actionKind == 'use' && p.card.count('logistics') > 0),
+        replace: (p, state) => {
+            const card = state.find(p.card)
+            const nonEnergy = p.cost.coin > 0
+            const maxReduction = (p.cost.coin > 0) ? p.cost.energy : p.cost.energy - 1
+            const reduction = Math.min(maxReduction, card.count('logistics'))
+            return {...p, cost:{...p.cost,
+                energy:p.cost.energy-reduction,
+                effects:p.cost.effects.concat([removeToken(card, 'logistics', reduction)])
+            }}
+        }
+    }]
 }
 cards.push(logistics)
 
@@ -1322,7 +1340,8 @@ const infrastructure:CardSpec = {
     }, trashOnLeavePlay()]
 }
 
-const planning:CardSpec = {
+/*
+const :CardSpec = {
     name: 'Planning',
     buyCost: coin(6),
     effects: [],
@@ -1336,6 +1355,8 @@ const planning:CardSpec = {
     }]
 }
 cards.push(planning)
+*/
+
 
 const privateWorks:CardSpec = {
     name: 'Private Works',
@@ -1377,6 +1398,7 @@ const alliance:CardSpec = {
 }
 events.push(alliance)
 
+/*
 const buildUp:CardSpec = {
     name: 'Urbanize',
     fixedCost: coin(3),
@@ -1386,7 +1408,6 @@ const buildUp:CardSpec = {
 }
 events.push(buildUp)
 
-/*
 const avenue:CardSpec = {
     name: 'Avenue',
     effects: [actionsEffect(1), coinsEffect(1)],

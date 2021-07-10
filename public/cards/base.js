@@ -610,7 +610,7 @@ var workshop = { name: 'Workshop',
     fixedCost: energy(0),
     effects: [workshopEffect(4)],
 };
-cards.push(supplyForCard(workshop, coin(4)));
+cards.push(supplyForCard(workshop, coin(3)));
 var shippingLane = { name: 'Shipping Lane',
     fixedCost: energy(1),
     effects: [coinsEffect(2)], triggers: [{
@@ -1507,37 +1507,55 @@ var artificer = {
             }; }
         }]
 };
-cards.push(supplyForCard(artificer, coin(3)));
-var banquet = {
+cards.push(supplyForCard(artificer, coin(4)));
+/*
+const banquet:CardSpec = {
     name: 'Banquet',
     restrictions: [{
-            test: function (c, s, k) {
-                return k == 'activate' &&
-                    s.hand.some(function (c) { return c.count('neglect') > 0; });
-            }
-        }],
+        test: (c:Card, s:State, k:ActionKind) =>
+            k == 'activate' &&
+            s.hand.some(c => c.count('neglect') > 0)
+    }],
     effects: [coinsEffect(3), {
-            text: ['Put a neglect token on each card in your hand.'],
-            transform: function (state) { return doAll(state.hand.map(function (c) { return addToken(c, 'neglect'); })); },
-        }],
+        text: ['Put a neglect token on each card in your hand.'],
+        transform: state => doAll(state.hand.map(c => addToken(c, 'neglect'))),
+    }],
     triggers: [{
-            text: "Whenever a card moves, remove all neglect tokens from it.",
-            kind: 'move',
-            handles: function (p) { return p.fromZone != p.toZone; },
-            transform: function (p) { return removeToken(p.card, 'neglect', 'all'); }
-        }],
+        text: `Whenever a card moves, remove all neglect tokens from it.`,
+        kind: 'move',
+        handles: p => p.fromZone != p.toZone,
+        transform: p => removeToken(p.card, 'neglect', 'all')
+
+    }],
     replacers: [{
-            text: "Whenever you'd move this to your hand, instead leave it in play.",
-            kind: 'move',
-            handles: function (p, state, card) { return p.card.id == card.id && p.toZone == 'hand'; },
-            replace: function (p, state, card) { return (__assign(__assign({}, p), { skip: true })); }
+        text: `Whenever you'd move this to your hand, instead leave it in play.`,
+        kind: 'move',
+        handles: (p, state, card) => p.card.id == card.id && p.toZone == 'hand',
+        replace: (p, state, card) => ({...p, skip:true})
+    }],
+    ability:[{
+        text: [`If you have no cards in your hand with neglect tokens on them,
+        discard this for +$3.`],
+        transform: (state, card) => payToDo(discardFromPlay(card), gainCoins(3))
+    }]
+}
+cards.push(supplyForCard(banquet, coin(3)))
+*/
+var banquet = {
+    name: 'Banquet',
+    buyCost: coin(3),
+    restrictions: [{
+            test: function (c, s, k) { return k == 'activate' && s.hand.length > 0; }
+        }],
+    effects: [{
+            text: ["+$1 for each card in your hand up to +$3"],
+            transform: function (state) { return gainCoins(Math.min(3, state.hand.length)); }
         }],
     ability: [{
-            text: ["If you have no cards in your hand with neglect tokens on them,\n        discard this for +$3."],
+            text: ["If you have no cards in your hand, discard this for +$3"],
             transform: function (state, card) { return payToDo(discardFromPlay(card), gainCoins(3)); }
         }]
 };
-cards.push(supplyForCard(banquet, coin(3)));
 var harvest = {
     name: 'Harvest',
     fixedCost: energy(1),
@@ -1604,6 +1622,28 @@ var secretChamber = {
                             case 1:
                                 _a = __read.apply(void 0, [_b.sent(), 2]), state = _a[0], targets = _a[1];
                                 return [4 /*yield*/, moveMany(targets, 'discard')(state)];
+                            case 2:
+                                state = _b.sent();
+                                return [4 /*yield*/, gainCoins(targets.length)(state)];
+                            case 3:
+                                state = _b.sent();
+                                return [2 /*return*/, state];
+                        }
+                    });
+                });
+            }; }
+        }, {
+            text: ["Trash any number of cards from your discard for +$1 each."],
+            transform: function () { return function (state) {
+                return __awaiter(this, void 0, void 0, function () {
+                    var targets;
+                    var _a;
+                    return __generator(this, function (_b) {
+                        switch (_b.label) {
+                            case 0: return [4 /*yield*/, multichoice(state, 'Trash any number of cards for +$1 each.', state.discard.map(asChoice))];
+                            case 1:
+                                _a = __read.apply(void 0, [_b.sent(), 2]), state = _a[0], targets = _a[1];
+                                return [4 /*yield*/, moveMany(targets, 'void')(state)];
                             case 2:
                                 state = _b.sent();
                                 return [4 /*yield*/, gainCoins(targets.length)(state)];

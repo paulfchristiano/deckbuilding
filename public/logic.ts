@@ -1541,7 +1541,8 @@ export type Token = 'charge' | 'cost' | 'mirror' | 'duplicate' | 'twin' | 'syner
     'shelter' | 'echo' | 'decay' | 'burden' | 'pathfinding' | 'neglect' |
     'reuse' | 'polish' | 'priority' | 'parallelize' | 'art' | 'reduce' |
     'mire' | 'onslaught' | 'accelerate' | 'reflect' | 'brigade' | 'bulk' |
-    'pillage' | 'bargain' | 'splay' | 'crown' | 'ferry' | 'ideal' | 'reconfigure'
+    'pillage' | 'bargain' | 'splay' | 'crown' | 'ferry' | 'ideal' | 'reconfigure' |
+    'logistics'
 
 export function discharge(card:Card, n:number): Transform {
     return charge(card, -n, true)

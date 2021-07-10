@@ -573,7 +573,7 @@ const workshop:CardSpec = {name: 'Workshop',
     fixedCost: energy(0),
     effects: [workshopEffect(4)],
 }
-cards.push(supplyForCard(workshop, coin(4)))
+cards.push(supplyForCard(workshop, coin(3)))
 
 const shippingLane:CardSpec = {name: 'Shipping Lane',
     fixedCost: energy(1),
@@ -1524,8 +1524,9 @@ const artificer:CardSpec = {
 
     }]
 }
-cards.push(supplyForCard(artificer, coin(3)))
+cards.push(supplyForCard(artificer, coin(4)))
 
+/*
 const banquet:CardSpec = {
     name: 'Banquet',
     restrictions: [{
@@ -1557,6 +1558,24 @@ const banquet:CardSpec = {
     }]
 }
 cards.push(supplyForCard(banquet, coin(3)))
+*/
+const banquet:CardSpec = {
+    name: 'Banquet',
+    buyCost: coin(3),
+    restrictions: [{
+        test: (c:Card, s:State, k:ActionKind) => k == 'activate' && s.hand.length > 0
+    }],
+    effects: [{
+        text: [`+$1 for each card in your hand up to +$3`],
+        transform: state => gainCoins(Math.min(3, state.hand.length))
+    }],
+    ability: [{
+        text: [`If you have no cards in your hand, discard this for +$3`],
+        transform: (state, card) => payToDo(discardFromPlay(card), gainCoins(3))
+    }]
+    
+}
+
 
 
 const harvest:CardSpec = {
@@ -1602,6 +1621,16 @@ const secretChamber:CardSpec = {
                 'Discard any number of cards for +$1 each.',
                 state.hand.map(asChoice))
             state = await moveMany(targets, 'discard')(state)
+            state = await gainCoins(targets.length)(state)
+            return state
+        }
+    }, {
+        text: [`Trash any number of cards from your discard for +$1 each.`],
+        transform: () => async function(state) {
+            let targets; [state, targets] = await multichoice(state,
+                'Trash any number of cards for +$1 each.',
+                state.discard.map(asChoice))
+            state = await moveMany(targets, 'void')(state)
             state = await gainCoins(targets.length)(state)
             return state
         }

@@ -61,7 +61,7 @@ var __read = (this && this.__read) || function (o, n) {
     }
     return ar;
 };
-import { choice, asChoice, trash, addCosts, leq, gainPoints, gainActions, gainCoins, gainBuys, free, create, doAll, multichoice, moveMany, addToken, removeToken, payToDo, tick, eq, move, noop, charge, discharge, payCost, subtractCost, aOrNum, allowNull, villager, fair, refresh, supplyForCard, actionsEffect, buysEffect, pointsEffect, coinsEffect, reflectTrigger, createInPlayEffect, targetedEffect, chargeEffect, startsWithCharge, energy, coin, useRefresh, costReduce, reducedCost, applyToTarget, countNameTokens, nameHasToken, incrementCost, costPer, createEffect, repeat, copper, silver, gold, estate, duchy, province, trashOnLeavePlay, discardFromPlay, trashThis, payAction, fragileEcho, playReplacer, countDistinctNames } from '../logic.js';
+import { choice, asChoice, trash, addCosts, leq, gainPoints, gainActions, gainCoins, gainBuys, free, create, doAll, multichoice, moveMany, addToken, removeToken, payToDo, tick, eq, move, noop, charge, discharge, payCost, subtractCost, aOrNum, allowNull, villager, fair, refresh, supplyForCard, actionsEffect, buysEffect, pointsEffect, coinsEffect, reflectTrigger, createInPlayEffect, targetedEffect, chargeEffect, startsWithCharge, energy, coin, useRefresh, reducedCost, applyToTarget, countNameTokens, nameHasToken, incrementCost, costPer, createEffect, repeat, copper, silver, gold, estate, duchy, province, trashOnLeavePlay, discardFromPlay, trashThis, payAction, fragileEcho, playReplacer, countDistinctNames } from '../logic.js';
 // ------------------- Expansion ---------------
 export var cards = [];
 export var events = [];
@@ -682,12 +682,27 @@ var develop = {
         }]
 };
 cards.push(develop);
+var logisticsToken = 'logistics';
 var logistics = {
     name: 'Logistics',
-    buyCost: coin(6),
+    buyCost: coin(5),
     fixedCost: energy(1),
-    effects: [],
-    replacers: [costReduce('use', energy(1), true)]
+    effects: [{
+            text: ["Put a " + logisticsToken + " token on each supply."],
+            transform: function (s) { return doAll(s.events.map(function (e) { return addToken(e, 'logistics'); })); }
+        }],
+    replacers: [{
+            text: "Events cost @ less for each logistics token on them but not zero. Whenever this reduces a cost, remove a logistics token.",
+            kind: 'cost',
+            handles: function (p) { return (p.actionKind == 'use' && p.card.count('logistics') > 0); },
+            replace: function (p, state) {
+                var card = state.find(p.card);
+                var nonEnergy = p.cost.coin > 0;
+                var maxReduction = (p.cost.coin > 0) ? p.cost.energy : p.cost.energy - 1;
+                var reduction = Math.min(maxReduction, card.count('logistics'));
+                return __assign(__assign({}, p), { cost: __assign(__assign({}, p.cost), { energy: p.cost.energy - reduction, effects: p.cost.effects.concat([removeToken(card, 'logistics', reduction)]) }) });
+            }
+        }]
 };
 cards.push(logistics);
 var territory = {
@@ -1345,19 +1360,22 @@ var infrastructure = {
             }
         }, trashOnLeavePlay()]
 };
-var planning = {
+/*
+const :CardSpec = {
     name: 'Planning',
     buyCost: coin(6),
     effects: [],
     relatedCards: [infrastructure],
     triggers: [{
-            text: "Whenever you pay @,\n               create that many " + infrastructure.name + "s in play.",
-            kind: 'cost',
-            handles: function (e, state, card) { return e.cost.energy > 0; },
-            transform: function (e, state, card) { return repeat(create(infrastructure, 'play'), e.cost.energy); }
-        }]
-};
-cards.push(planning);
+        text: `Whenever you pay @,
+               create that many ${infrastructure.name}s in play.`,
+        kind: 'cost',
+        handles: (e, state, card) => e.cost.energy > 0,
+        transform: (e, state, card) => repeat(create(infrastructure, 'play'), e.cost.energy)
+    }]
+}
+cards.push(planning)
+*/
 var privateWorks = {
     name: 'Private Works',
     relatedCards: [infrastructure],
@@ -1389,15 +1407,16 @@ var alliance = {
         }]
 };
 events.push(alliance);
-var buildUp = {
+/*
+const buildUp:CardSpec = {
     name: 'Urbanize',
     fixedCost: coin(3),
     variableCosts: [costPer(coin(1))],
     effects: [createInPlayEffect(infrastructure), incrementCost()],
     relatedCards: [infrastructure]
-};
-events.push(buildUp);
-/*
+}
+events.push(buildUp)
+
 const avenue:CardSpec = {
     name: 'Avenue',
     effects: [actionsEffect(1), coinsEffect(1)],
