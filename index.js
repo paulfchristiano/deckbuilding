@@ -80,8 +80,10 @@ import express from 'express';
 var PORT = process.env.PORT || 5000;
 import { verifyScore, VERSION, specFromURL, normalizeURL } from './public/logic.js';
 import './public/cards/index.js';
+var db_url = process.env.DATABASE_URL;
+var runningLocally = (db_url == undefined || db_url.search('localhost') > 0);
 import postgres from 'postgres';
-var sql = (process.env.DATABASE_URL == undefined) ? null : postgres(process.env.DATABASE_URL, { ssl: { rejectUnauthorized: false } });
+var sql = (db_url == undefined) ? null : postgres(db_url, runningLocally ? {} : { ssl: { rejectUnauthorized: false } });
 //TODO: get rid of these any's
 //TODO: this is probably horribly insecure
 //TODO: fix parameter parsing
@@ -280,6 +282,7 @@ function submitForDaily(username, url, score) {
         return __generator(this, function (_c) {
             switch (_c.label) {
                 case 0:
+                    console.log("Submitting for daily:", username, url, score);
                     if (sql == null)
                         return [2 /*return*/];
                     _c.label = 1;
@@ -294,6 +297,7 @@ function submitForDaily(username, url, score) {
                     return [4 /*yield*/, dailyURL(type)];
                 case 3:
                     if (!(_a == (_c.sent()))) return [3 /*break*/, 5];
+                    console.log("Logging daily of type " + type);
                     return [4 /*yield*/, sql(templateObject_8 || (templateObject_8 = __makeTemplateObject(["\n            UPDATE dailies\n            SET best_user = ", ", best_score=", ", version=", "\n            WHERE url = ", " AND type = ", " AND\n                (version = ", " OR version ISNULL) AND\n                (best_score > ", " OR best_score ISNULL)\n        "], ["\n            UPDATE dailies\n            SET best_user = ", ", best_score=", ", version=", "\n            WHERE url = ", " AND type = ", " AND\n                (version = ", " OR version ISNULL) AND\n                (best_score > ", " OR best_score ISNULL)\n        "])), username, score, VERSION, url, type, VERSION, score)];
                 case 4:
                     _c.sent();

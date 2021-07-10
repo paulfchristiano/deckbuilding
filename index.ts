@@ -6,10 +6,15 @@ import {Credentials, hashPassword, CampaignInfo} from './public/campaign.js'
 
 import './public/cards/index.js'
 
+const db_url = process.env.DATABASE_URL
+
+
+const runningLocally = (db_url == undefined || db_url.search('localhost') > 0)
+
 import postgres from 'postgres'
-const sql = (process.env.DATABASE_URL == undefined) ? null : postgres(
-  process.env.DATABASE_URL,
-  {ssl: {rejectUnauthorized: false}}
+const sql = (db_url == undefined) ? null : postgres(
+  db_url,
+  runningLocally ? {} : {ssl: {rejectUnauthorized: false}}
 )
 
 //TODO: get rid of these any's
@@ -131,9 +136,11 @@ function makeDailyURL(key:string, secret:string) {
 }
 
 async function submitForDaily(username:string, url:string, score:number): Promise<void> {
+  console.log("Submitting for daily:", username, url, score)
     if (sql == null) return;
     for (const type of dailyTypes) {
       if (url == await dailyURL(type)) {
+        console.log(`Logging daily of type ${type}`)
         await sql`
             UPDATE dailies
             SET best_user = ${username}, best_score=${score}, version=${VERSION}
