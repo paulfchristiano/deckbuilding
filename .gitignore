@@ -1,5 +1,6 @@
 node_modules/
 package-lock.json
+database_instructions.txt
 tsconfig.tsbuildinfo
 *.sublime-project
 *.sublime-workspace

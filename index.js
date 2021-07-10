@@ -298,6 +298,7 @@ function submitForDaily(username, url, score) {
                 case 3:
                     if (!(_a == (_c.sent()))) return [3 /*break*/, 5];
                     console.log("Logging daily of type " + type);
+                    console.log("\n        UPDATE dailies\n        SET best_user = " + username + ", best_score=" + score + ", version=" + VERSION + "\n        WHERE url = " + url + " AND type = " + type + " AND\n            (version = " + VERSION + " OR version ISNULL) AND\n            (best_score > " + score + " OR best_score ISNULL)\n        ");
                     return [4 /*yield*/, sql(templateObject_8 || (templateObject_8 = __makeTemplateObject(["\n            UPDATE dailies\n            SET best_user = ", ", best_score=", ", version=", "\n            WHERE url = ", " AND type = ", " AND\n                (version = ", " OR version ISNULL) AND\n                (best_score > ", " OR best_score ISNULL)\n        "], ["\n            UPDATE dailies\n            SET best_user = ", ", best_score=", ", version=", "\n            WHERE url = ", " AND type = ", " AND\n                (version = ", " OR version ISNULL) AND\n                (best_score > ", " OR best_score ISNULL)\n        "])), username, score, VERSION, url, type, VERSION, score)];
                 case 4:
                     _c.sent();

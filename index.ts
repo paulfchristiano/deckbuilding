@@ -141,6 +141,13 @@ async function submitForDaily(username:string, url:string, score:number): Promis
     for (const type of dailyTypes) {
       if (url == await dailyURL(type)) {
         console.log(`Logging daily of type ${type}`)
+        console.log(`
+        UPDATE dailies
+        SET best_user = ${username}, best_score=${score}, version=${VERSION}
+        WHERE url = ${url} AND type = ${type} AND
+            (version = ${VERSION} OR version ISNULL) AND
+            (best_score > ${score} OR best_score ISNULL)
+        `)
         await sql`
             UPDATE dailies
             SET best_user = ${username}, best_score=${score}, version=${VERSION}
