@@ -177,54 +177,118 @@ function ensureNextMonth() {
                     i = 0;
                     _b.label = 1;
                 case 1:
-                    if (!(i < 30)) return [3 /*break*/, 15];
+                    if (!(i < 30)) return [3 /*break*/, 16];
                     _b.label = 2;
                 case 2:
-                    _b.trys.push([2, 11, 12, 13]);
+                    _b.trys.push([2, 12, 13, 14]);
                     dailyTypes_1 = (e_2 = void 0, __values(dailyTypes)), dailyTypes_1_1 = dailyTypes_1.next();
                     _b.label = 3;
                 case 3:
-                    if (!!dailyTypes_1_1.done) return [3 /*break*/, 10];
+                    if (!!dailyTypes_1_1.done) return [3 /*break*/, 11];
                     type = dailyTypes_1_1.value;
                     key = makeDailyKey(type, d);
                     secret = void 0;
                     return [4 /*yield*/, sql(templateObject_4 || (templateObject_4 = __makeTemplateObject(["SELECT secret FROM secrets WHERE key=", ""], ["SELECT secret FROM secrets WHERE key=", ""])), key)];
                 case 4:
                     results = _b.sent();
-                    if (!(results.length == 0)) return [3 /*break*/, 6];
+                    _b.label = 5;
+                case 5:
+                    if (!(results.length == 0)) return [3 /*break*/, 8];
                     secret = randomString();
                     return [4 /*yield*/, sql(templateObject_5 || (templateObject_5 = __makeTemplateObject(["INSERT INTO secrets (key, secret)\n                                  VALUES (", ", ", ")\n                      ON CONFLICT DO NOTHING"], ["INSERT INTO secrets (key, secret)\n                                  VALUES (", ", ", ")\n                      ON CONFLICT DO NOTHING"])), key, secret)];
-                case 5:
-                    _b.sent();
-                    return [3 /*break*/, 7];
                 case 6:
-                    secret = results[0].secret;
-                    _b.label = 7;
-                case 7: return [4 /*yield*/, sql(templateObject_6 || (templateObject_6 = __makeTemplateObject(["\n              INSERT INTO dailies (type, key, secret, url)\n                          values (", ", ", ", ", ", ", ")\n              ON CONFLICT DO NOTHING\n          "], ["\n              INSERT INTO dailies (type, key, secret, url)\n                          values (", ", ", ", ", ", ", ")\n              ON CONFLICT DO NOTHING\n          "])), type, key, secret, makeDailyURL(key, secret))];
-                case 8:
                     _b.sent();
-                    _b.label = 9;
+                    return [4 /*yield*/, sql(templateObject_6 || (templateObject_6 = __makeTemplateObject(["SELECT secret FROM secrets WHERE key=", ""], ["SELECT secret FROM secrets WHERE key=", ""])), key)];
+                case 7:
+                    results = _b.sent();
+                    return [3 /*break*/, 5];
+                case 8:
+                    secret = results[0].secret;
+                    return [4 /*yield*/, sql(templateObject_7 || (templateObject_7 = __makeTemplateObject(["\n              INSERT INTO dailies (type, key, secret, url)\n                          values (", ", ", ", ", ", ", ")\n              ON CONFLICT DO NOTHING\n          "], ["\n              INSERT INTO dailies (type, key, secret, url)\n                          values (", ", ", ", ", ", ", ")\n              ON CONFLICT DO NOTHING\n          "])), type, key, secret, makeDailyURL(key, secret))];
                 case 9:
+                    _b.sent();
+                    _b.label = 10;
+                case 10:
                     dailyTypes_1_1 = dailyTypes_1.next();
                     return [3 /*break*/, 3];
-                case 10: return [3 /*break*/, 13];
-                case 11:
+                case 11: return [3 /*break*/, 14];
+                case 12:
                     e_2_1 = _b.sent();
                     e_2 = { error: e_2_1 };
-                    return [3 /*break*/, 13];
-                case 12:
+                    return [3 /*break*/, 14];
+                case 13:
                     try {
                         if (dailyTypes_1_1 && !dailyTypes_1_1.done && (_a = dailyTypes_1.return)) _a.call(dailyTypes_1);
                     }
                     finally { if (e_2) throw e_2.error; }
                     return [7 /*endfinally*/];
-                case 13:
-                    d.setDate(d.getDate() + 1);
-                    _b.label = 14;
                 case 14:
+                    d.setDate(d.getDate() + 1);
+                    _b.label = 15;
+                case 15:
                     i++;
                     return [3 /*break*/, 1];
-                case 15: return [2 /*return*/];
+                case 16: return [2 /*return*/];
+            }
+        });
+    });
+}
+function fixupNextMonth() {
+    return __awaiter(this, void 0, void 0, function () {
+        var d, i, dailyTypes_2, dailyTypes_2_1, type, key, secret, results, url, e_3_1;
+        var e_3, _a;
+        return __generator(this, function (_b) {
+            switch (_b.label) {
+                case 0:
+                    if (sql == null)
+                        return [2 /*return*/];
+                    d = new Date();
+                    i = 0;
+                    _b.label = 1;
+                case 1:
+                    if (!(i < 30)) return [3 /*break*/, 12];
+                    _b.label = 2;
+                case 2:
+                    _b.trys.push([2, 8, 9, 10]);
+                    dailyTypes_2 = (e_3 = void 0, __values(dailyTypes)), dailyTypes_2_1 = dailyTypes_2.next();
+                    _b.label = 3;
+                case 3:
+                    if (!!dailyTypes_2_1.done) return [3 /*break*/, 7];
+                    type = dailyTypes_2_1.value;
+                    key = makeDailyKey(type, d);
+                    secret = void 0;
+                    return [4 /*yield*/, sql(templateObject_8 || (templateObject_8 = __makeTemplateObject(["SELECT secret FROM secrets WHERE key=", ""], ["SELECT secret FROM secrets WHERE key=", ""])), key)];
+                case 4:
+                    results = _b.sent();
+                    if (results.length == 0)
+                        return [3 /*break*/, 6];
+                    secret = results[0].secret;
+                    url = makeDailyURL(key, secret);
+                    return [4 /*yield*/, sql(templateObject_9 || (templateObject_9 = __makeTemplateObject(["\n            INSERT INTO dailies (type, key, secret, url)\n                        values (", ", ", ", ", ", ", ")\n            ON CONFLICT(key, type) DO UPDATE SET\n              secret=", ",\n              url=", ",\n              best_user=NULL,\n              best_score=NULL,\n              version=NULL\n        "], ["\n            INSERT INTO dailies (type, key, secret, url)\n                        values (", ", ", ", ", ", ", ")\n            ON CONFLICT(key, type) DO UPDATE SET\n              secret=", ",\n              url=", ",\n              best_user=NULL,\n              best_score=NULL,\n              version=NULL\n        "])), type, key, secret, url, secret, url)];
+                case 5:
+                    _b.sent();
+                    _b.label = 6;
+                case 6:
+                    dailyTypes_2_1 = dailyTypes_2.next();
+                    return [3 /*break*/, 3];
+                case 7: return [3 /*break*/, 10];
+                case 8:
+                    e_3_1 = _b.sent();
+                    e_3 = { error: e_3_1 };
+                    return [3 /*break*/, 10];
+                case 9:
+                    try {
+                        if (dailyTypes_2_1 && !dailyTypes_2_1.done && (_a = dailyTypes_2.return)) _a.call(dailyTypes_2);
+                    }
+                    finally { if (e_3) throw e_3.error; }
+                    return [7 /*endfinally*/];
+                case 10:
+                    d.setDate(d.getDate() + 1);
+                    _b.label = 11;
+                case 11:
+                    i++;
+                    return [3 /*break*/, 1];
+                case 12: return [2 /*return*/];
             }
         });
     });
@@ -257,7 +321,7 @@ function dailyURL(type) {
                     _a.label = 1;
                 case 1:
                     if (!true) return [3 /*break*/, 6];
-                    return [4 /*yield*/, sql(templateObject_7 || (templateObject_7 = __makeTemplateObject(["\n          SELECT secret FROM secrets\n          WHERE key=", "\n        "], ["\n          SELECT secret FROM secrets\n          WHERE key=", "\n        "])), key)];
+                    return [4 /*yield*/, sql(templateObject_10 || (templateObject_10 = __makeTemplateObject(["\n          SELECT secret FROM secrets\n          WHERE key=", "\n        "], ["\n          SELECT secret FROM secrets\n          WHERE key=", "\n        "])), key)];
                 case 2:
                     results = _a.sent();
                     if (!(results.length == 0)) return [3 /*break*/, 4];
@@ -277,8 +341,8 @@ function makeDailyURL(key, secret) {
 }
 function submitForDaily(username, url, score) {
     return __awaiter(this, void 0, void 0, function () {
-        var dailyTypes_2, dailyTypes_2_1, type, _a, e_3_1;
-        var e_3, _b;
+        var dailyTypes_3, dailyTypes_3_1, type, _a, e_4_1;
+        var e_4, _b;
         return __generator(this, function (_c) {
             switch (_c.label) {
                 case 0:
@@ -288,34 +352,34 @@ function submitForDaily(username, url, score) {
                     _c.label = 1;
                 case 1:
                     _c.trys.push([1, 7, 8, 9]);
-                    dailyTypes_2 = __values(dailyTypes), dailyTypes_2_1 = dailyTypes_2.next();
+                    dailyTypes_3 = __values(dailyTypes), dailyTypes_3_1 = dailyTypes_3.next();
                     _c.label = 2;
                 case 2:
-                    if (!!dailyTypes_2_1.done) return [3 /*break*/, 6];
-                    type = dailyTypes_2_1.value;
+                    if (!!dailyTypes_3_1.done) return [3 /*break*/, 6];
+                    type = dailyTypes_3_1.value;
                     _a = url;
                     return [4 /*yield*/, dailyURL(type)];
                 case 3:
                     if (!(_a == (_c.sent()))) return [3 /*break*/, 5];
                     console.log("Logging daily of type " + type);
                     console.log("\n        UPDATE dailies\n        SET best_user = " + username + ", best_score=" + score + ", version=" + VERSION + "\n        WHERE url = " + url + " AND type = " + type + " AND\n            (version = " + VERSION + " OR version ISNULL) AND\n            (best_score > " + score + " OR best_score ISNULL)\n        ");
-                    return [4 /*yield*/, sql(templateObject_8 || (templateObject_8 = __makeTemplateObject(["\n            UPDATE dailies\n            SET best_user = ", ", best_score=", ", version=", "\n            WHERE url = ", " AND type = ", " AND\n                (version = ", " OR version ISNULL) AND\n                (best_score > ", " OR best_score ISNULL)\n        "], ["\n            UPDATE dailies\n            SET best_user = ", ", best_score=", ", version=", "\n            WHERE url = ", " AND type = ", " AND\n                (version = ", " OR version ISNULL) AND\n                (best_score > ", " OR best_score ISNULL)\n        "])), username, score, VERSION, url, type, VERSION, score)];
+                    return [4 /*yield*/, sql(templateObject_11 || (templateObject_11 = __makeTemplateObject(["\n            UPDATE dailies\n            SET best_user = ", ", best_score=", ", version=", "\n            WHERE url = ", " AND type = ", " AND\n                (version = ", " OR version ISNULL) AND\n                (best_score > ", " OR best_score ISNULL)\n        "], ["\n            UPDATE dailies\n            SET best_user = ", ", best_score=", ", version=", "\n            WHERE url = ", " AND type = ", " AND\n                (version = ", " OR version ISNULL) AND\n                (best_score > ", " OR best_score ISNULL)\n        "])), username, score, VERSION, url, type, VERSION, score)];
                 case 4:
                     _c.sent();
                     _c.label = 5;
                 case 5:
-                    dailyTypes_2_1 = dailyTypes_2.next();
+                    dailyTypes_3_1 = dailyTypes_3.next();
                     return [3 /*break*/, 2];
                 case 6: return [3 /*break*/, 9];
                 case 7:
-                    e_3_1 = _c.sent();
-                    e_3 = { error: e_3_1 };
+                    e_4_1 = _c.sent();
+                    e_4 = { error: e_4_1 };
                     return [3 /*break*/, 9];
                 case 8:
                     try {
-                        if (dailyTypes_2_1 && !dailyTypes_2_1.done && (_b = dailyTypes_2.return)) _b.call(dailyTypes_2);
+                        if (dailyTypes_3_1 && !dailyTypes_3_1.done && (_b = dailyTypes_3.return)) _b.call(dailyTypes_3);
                     }
-                    finally { if (e_3) throw e_3.error; }
+                    finally { if (e_4) throw e_4.error; }
                     return [7 /*endfinally*/];
                 case 9: return [2 /*return*/];
             }
@@ -339,12 +403,12 @@ function serveMain(req, res) {
 function verifyAllCampaignLevels() {
     return __awaiter(this, void 0, void 0, function () {
         var result, rows, rows_1, rows_1_1, row, url;
-        var e_4, _a;
+        var e_5, _a;
         return __generator(this, function (_b) {
             switch (_b.label) {
                 case 0:
                     result = [];
-                    return [4 /*yield*/, sql(templateObject_9 || (templateObject_9 = __makeTemplateObject(["\n    SELECT url, key FROM campaign_levels;\n  "], ["\n    SELECT url, key FROM campaign_levels;\n  "])))];
+                    return [4 /*yield*/, sql(templateObject_12 || (templateObject_12 = __makeTemplateObject(["\n    SELECT url, key FROM campaign_levels;\n  "], ["\n    SELECT url, key FROM campaign_levels;\n  "])))];
                 case 1:
                     rows = _b.sent();
                     try {
@@ -361,12 +425,12 @@ function verifyAllCampaignLevels() {
                             }
                         }
                     }
-                    catch (e_4_1) { e_4 = { error: e_4_1 }; }
+                    catch (e_5_1) { e_5 = { error: e_5_1 }; }
                     finally {
                         try {
                             if (rows_1_1 && !rows_1_1.done && (_a = rows_1.return)) _a.call(rows_1);
                         }
-                        finally { if (e_4) throw e_4.error; }
+                        finally { if (e_5) throw e_5.error; }
                     }
                     return [2 /*return*/, result];
             }
@@ -374,22 +438,22 @@ function verifyAllCampaignLevels() {
     });
 }
 function dailyTypeFromReq(req) {
-    var e_5, _a;
+    var e_6, _a;
     var typeString = req.query.type;
     var type = undefined;
     try {
-        for (var dailyTypes_3 = __values(dailyTypes), dailyTypes_3_1 = dailyTypes_3.next(); !dailyTypes_3_1.done; dailyTypes_3_1 = dailyTypes_3.next()) {
-            var dailyType = dailyTypes_3_1.value;
+        for (var dailyTypes_4 = __values(dailyTypes), dailyTypes_4_1 = dailyTypes_4.next(); !dailyTypes_4_1.done; dailyTypes_4_1 = dailyTypes_4.next()) {
+            var dailyType = dailyTypes_4_1.value;
             if (typeString == dailyType)
                 type = dailyType;
         }
     }
-    catch (e_5_1) { e_5 = { error: e_5_1 }; }
+    catch (e_6_1) { e_6 = { error: e_6_1 }; }
     finally {
         try {
-            if (dailyTypes_3_1 && !dailyTypes_3_1.done && (_a = dailyTypes_3.return)) _a.call(dailyTypes_3);
+            if (dailyTypes_4_1 && !dailyTypes_4_1.done && (_a = dailyTypes_4.return)) _a.call(dailyTypes_4);
         }
-        finally { if (e_5) throw e_5.error; }
+        finally { if (e_6) throw e_6.error; }
     }
     if (typeString === undefined)
         type = 'daily';
@@ -455,17 +519,17 @@ function serveDaily(req, res) {
 }
 function freeToSpoil(url) {
     return __awaiter(this, void 0, void 0, function () {
-        var dailyTypes_4, dailyTypes_4_1, type, dailyURLs, isCampaign, e_6_1;
-        var e_6, _a;
+        var dailyTypes_5, dailyTypes_5_1, type, dailyURLs, isCampaign, e_7_1;
+        var e_7, _a;
         return __generator(this, function (_b) {
             switch (_b.label) {
                 case 0:
                     _b.trys.push([0, 6, 7, 8]);
-                    dailyTypes_4 = __values(dailyTypes), dailyTypes_4_1 = dailyTypes_4.next();
+                    dailyTypes_5 = __values(dailyTypes), dailyTypes_5_1 = dailyTypes_5.next();
                     _b.label = 1;
                 case 1:
-                    if (!!dailyTypes_4_1.done) return [3 /*break*/, 5];
-                    type = dailyTypes_4_1.value;
+                    if (!!dailyTypes_5_1.done) return [3 /*break*/, 5];
+                    type = dailyTypes_5_1.value;
                     return [4 /*yield*/, Promise.all(dailyTypes.map(dailyURL))];
                 case 2:
                     dailyURLs = _b.sent();
@@ -474,18 +538,18 @@ function freeToSpoil(url) {
                     isCampaign = _b.sent();
                     return [2 /*return*/, (dailyURLs.every(function (x) { return x != url; }) && !isCampaign)];
                 case 4:
-                    dailyTypes_4_1 = dailyTypes_4.next();
+                    dailyTypes_5_1 = dailyTypes_5.next();
                     return [3 /*break*/, 1];
                 case 5: return [3 /*break*/, 8];
                 case 6:
-                    e_6_1 = _b.sent();
-                    e_6 = { error: e_6_1 };
+                    e_7_1 = _b.sent();
+                    e_7 = { error: e_7_1 };
                     return [3 /*break*/, 8];
                 case 7:
                     try {
-                        if (dailyTypes_4_1 && !dailyTypes_4_1.done && (_a = dailyTypes_4.return)) _a.call(dailyTypes_4);
+                        if (dailyTypes_5_1 && !dailyTypes_5_1.done && (_a = dailyTypes_5.return)) _a.call(dailyTypes_5);
                     }
-                    finally { if (e_6) throw e_6.error; }
+                    finally { if (e_7) throw e_7.error; }
                     return [7 /*endfinally*/];
                 case 8: return [2 /*return*/];
             }
@@ -497,7 +561,7 @@ function isCampaignLevel(url) {
         var levels;
         return __generator(this, function (_a) {
             switch (_a.label) {
-                case 0: return [4 /*yield*/, sql(templateObject_10 || (templateObject_10 = __makeTemplateObject(["SELECT key\n    FROM campaign_levels WHERE url=", ""], ["SELECT key\n    FROM campaign_levels WHERE url=", ""])), url)];
+                case 0: return [4 /*yield*/, sql(templateObject_13 || (templateObject_13 = __makeTemplateObject(["SELECT key\n    FROM campaign_levels WHERE url=", ""], ["SELECT key\n    FROM campaign_levels WHERE url=", ""])), url)];
                 case 1:
                     levels = _a.sent();
                     return [2 /*return*/, levels.length > 0];
@@ -508,12 +572,12 @@ function isCampaignLevel(url) {
 function serveDailiesByType(type, res) {
     return __awaiter(this, void 0, void 0, function () {
         var results, results_1, results_1_1, result, err_3;
-        var e_7, _a;
+        var e_8, _a;
         return __generator(this, function (_b) {
             switch (_b.label) {
                 case 0:
                     _b.trys.push([0, 2, , 3]);
-                    return [4 /*yield*/, sql(templateObject_11 || (templateObject_11 = __makeTemplateObject(["\n          SELECT key, url, version, best_score, best_user, type,\n                 to_date(key, 'MM.DD.YYYY') as date\n          FROM dailies\n          WHERE type = ", "\n          ORDER BY date DESC\n      "], ["\n          SELECT key, url, version, best_score, best_user, type,\n                 to_date(key, 'MM.DD.YYYY') as date\n          FROM dailies\n          WHERE type = ", "\n          ORDER BY date DESC\n      "])), type)];
+                    return [4 /*yield*/, sql(templateObject_14 || (templateObject_14 = __makeTemplateObject(["\n          SELECT key, url, version, best_score, best_user, type,\n                 to_date(key, 'MM.DD.YYYY') as date\n          FROM dailies\n          WHERE type = ", "\n          ORDER BY date DESC\n      "], ["\n          SELECT key, url, version, best_score, best_user, type,\n                 to_date(key, 'MM.DD.YYYY') as date\n          FROM dailies\n          WHERE type = ", "\n          ORDER BY date DESC\n      "])), type)];
                 case 1:
                     results = _b.sent();
                     try {
@@ -522,12 +586,12 @@ function serveDailiesByType(type, res) {
                             results.current = (result.version == VERSION);
                         }
                     }
-                    catch (e_7_1) { e_7 = { error: e_7_1 }; }
+                    catch (e_8_1) { e_8 = { error: e_8_1 }; }
                     finally {
                         try {
                             if (results_1_1 && !results_1_1.done && (_a = results_1.return)) _a.call(results_1);
                         }
-                        finally { if (e_7) throw e_7.error; }
+                        finally { if (e_8) throw e_8.error; }
                     }
                     res.render('pages/dailies', { type: type, dailies: results.filter(function (r) { return r.best_user != null; }) });
                     return [3 /*break*/, 3];
@@ -567,13 +631,13 @@ function getCampaignInfo(username, cheat) {
     if (cheat === void 0) { cheat = false; }
     return __awaiter(this, void 0, void 0, function () {
         var maxStars, scores, scoreByLevel, scores_1, scores_1_1, row, awards, passedLevels, awardsByLevel, availableAwardsByLevel, numAwards, awards_1, awards_1_1, row, score, availableAwards, currentAwards, newMaxStars, lockedLevels, requirements, requirements_1, requirements_1_1, row, currentReqs, levels, urls, lockReasons, levels_1, levels_1_1, row, req, starStr;
-        var e_8, _a, e_9, _b, e_10, _c, e_11, _d;
+        var e_9, _a, e_10, _b, e_11, _c, e_12, _d;
         return __generator(this, function (_e) {
             switch (_e.label) {
                 case 0: return [4 /*yield*/, userMaxStars(username)];
                 case 1:
                     maxStars = _e.sent();
-                    return [4 /*yield*/, sql(templateObject_12 || (templateObject_12 = __makeTemplateObject(["SELECT level, score, username\n    FROM campaign_scores WHERE username = ", ""], ["SELECT level, score, username\n    FROM campaign_scores WHERE username = ", ""])), username)];
+                    return [4 /*yield*/, sql(templateObject_15 || (templateObject_15 = __makeTemplateObject(["SELECT level, score, username\n    FROM campaign_scores WHERE username = ", ""], ["SELECT level, score, username\n    FROM campaign_scores WHERE username = ", ""])), username)];
                 case 2:
                     scores = _e.sent();
                     scoreByLevel = new Map();
@@ -583,14 +647,14 @@ function getCampaignInfo(username, cheat) {
                             scoreByLevel.set(row.level, row.score);
                         }
                     }
-                    catch (e_8_1) { e_8 = { error: e_8_1 }; }
+                    catch (e_9_1) { e_9 = { error: e_9_1 }; }
                     finally {
                         try {
                             if (scores_1_1 && !scores_1_1.done && (_a = scores_1.return)) _a.call(scores_1);
                         }
-                        finally { if (e_8) throw e_8.error; }
+                        finally { if (e_9) throw e_9.error; }
                     }
-                    return [4 /*yield*/, sql(templateObject_13 || (templateObject_13 = __makeTemplateObject(["SELECT level, threshold, core\n    FROM campaign_awards"], ["SELECT level, threshold, core\n    FROM campaign_awards"])))];
+                    return [4 /*yield*/, sql(templateObject_16 || (templateObject_16 = __makeTemplateObject(["SELECT level, threshold, core\n    FROM campaign_awards"], ["SELECT level, threshold, core\n    FROM campaign_awards"])))];
                 case 3:
                     awards = _e.sent();
                     passedLevels = new Set();
@@ -616,22 +680,22 @@ function getCampaignInfo(username, cheat) {
                             }
                         }
                     }
-                    catch (e_9_1) { e_9 = { error: e_9_1 }; }
+                    catch (e_10_1) { e_10 = { error: e_10_1 }; }
                     finally {
                         try {
                             if (awards_1_1 && !awards_1_1.done && (_b = awards_1.return)) _b.call(awards_1);
                         }
-                        finally { if (e_9) throw e_9.error; }
+                        finally { if (e_10) throw e_10.error; }
                     }
                     newMaxStars = maxStarsGivenAwardsSoFar(numAwards);
                     if (!(newMaxStars > maxStars)) return [3 /*break*/, 5];
-                    return [4 /*yield*/, sql(templateObject_14 || (templateObject_14 = __makeTemplateObject(["UPDATE campaign_users\n              SET max_stars = ", "\n              WHERE name = ", ""], ["UPDATE campaign_users\n              SET max_stars = ", "\n              WHERE name = ", ""])), newMaxStars, username)];
+                    return [4 /*yield*/, sql(templateObject_17 || (templateObject_17 = __makeTemplateObject(["UPDATE campaign_users\n              SET max_stars = ", "\n              WHERE name = ", ""], ["UPDATE campaign_users\n              SET max_stars = ", "\n              WHERE name = ", ""])), newMaxStars, username)];
                 case 4:
                     _e.sent();
                     return [2 /*return*/, getCampaignInfo(username, cheat)];
                 case 5:
                     lockedLevels = new Map();
-                    return [4 /*yield*/, sql(templateObject_15 || (templateObject_15 = __makeTemplateObject(["SELECT destination, req FROM campaign_requirements"], ["SELECT destination, req FROM campaign_requirements"])))];
+                    return [4 /*yield*/, sql(templateObject_18 || (templateObject_18 = __makeTemplateObject(["SELECT destination, req FROM campaign_requirements"], ["SELECT destination, req FROM campaign_requirements"])))];
                 case 6:
                     requirements = _e.sent();
                     try {
@@ -643,14 +707,14 @@ function getCampaignInfo(username, cheat) {
                             }
                         }
                     }
-                    catch (e_10_1) { e_10 = { error: e_10_1 }; }
+                    catch (e_11_1) { e_11 = { error: e_11_1 }; }
                     finally {
                         try {
                             if (requirements_1_1 && !requirements_1_1.done && (_c = requirements_1.return)) _c.call(requirements_1);
                         }
-                        finally { if (e_10) throw e_10.error; }
+                        finally { if (e_11) throw e_11.error; }
                     }
-                    return [4 /*yield*/, sql(templateObject_16 || (templateObject_16 = __makeTemplateObject(["SELECT key, url, points_required from campaign_levels"], ["SELECT key, url, points_required from campaign_levels"])))];
+                    return [4 /*yield*/, sql(templateObject_19 || (templateObject_19 = __makeTemplateObject(["SELECT key, url, points_required from campaign_levels"], ["SELECT key, url, points_required from campaign_levels"])))];
                 case 7:
                     levels = _e.sent();
                     urls = [];
@@ -672,12 +736,12 @@ function getCampaignInfo(username, cheat) {
                             }
                         }
                     }
-                    catch (e_11_1) { e_11 = { error: e_11_1 }; }
+                    catch (e_12_1) { e_12 = { error: e_12_1 }; }
                     finally {
                         try {
                             if (levels_1_1 && !levels_1_1.done && (_d = levels_1.return)) _d.call(levels_1);
                         }
-                        finally { if (e_11) throw e_11.error; }
+                        finally { if (e_12) throw e_12.error; }
                     }
                     return [2 /*return*/, {
                             urls: urls,
@@ -734,7 +798,7 @@ express()
     });
 }); })
     .post('/signup', function (req, res) { return __awaiter(void 0, void 0, void 0, function () {
-    var credentials, e_12;
+    var credentials, e_13;
     return __generator(this, function (_a) {
         switch (_a.label) {
             case 0:
@@ -757,15 +821,15 @@ express()
                 res.send('ok');
                 return [3 /*break*/, 5];
             case 4:
-                e_12 = _a.sent();
-                res.send(e_12);
+                e_13 = _a.sent();
+                res.send(e_13);
                 return [3 /*break*/, 5];
             case 5: return [2 /*return*/];
         }
     });
 }); })
     .post('/login', function (req, res) { return __awaiter(void 0, void 0, void 0, function () {
-    var credentials, success, e_13;
+    var credentials, success, e_14;
     return __generator(this, function (_a) {
         switch (_a.label) {
             case 0:
@@ -787,8 +851,8 @@ express()
                 }
                 return [3 /*break*/, 4];
             case 3:
-                e_13 = _a.sent();
-                res.send(e_13);
+                e_14 = _a.sent();
+                res.send(e_14);
                 return [3 /*break*/, 4];
             case 4: return [2 /*return*/];
         }
@@ -803,7 +867,7 @@ express()
                 _a.label = 1;
             case 1:
                 _a.trys.push([1, 3, , 4]);
-                return [4 /*yield*/, sql(templateObject_17 || (templateObject_17 = __makeTemplateObject(["\n          INSERT INTO links (id, url)\n          VALUES (", ", ", ")\n        "], ["\n          INSERT INTO links (id, url)\n          VALUES (", ", ", ")\n        "])), id, decodeURIComponent(req.query.url))];
+                return [4 /*yield*/, sql(templateObject_20 || (templateObject_20 = __makeTemplateObject(["\n          INSERT INTO links (id, url)\n          VALUES (", ", ", ")\n        "], ["\n          INSERT INTO links (id, url)\n          VALUES (", ", ", ")\n        "])), id, decodeURIComponent(req.query.url))];
             case 2:
                 results = _a.sent();
                 res.send('ok');
@@ -820,7 +884,7 @@ express()
     var results;
     return __generator(this, function (_a) {
         switch (_a.label) {
-            case 0: return [4 /*yield*/, sql(templateObject_18 || (templateObject_18 = __makeTemplateObject(["\n        SELECT id, url FROM links\n        WHERE id=", "\n      "], ["\n        SELECT id, url FROM links\n        WHERE id=", "\n      "])), req.params.id)];
+            case 0: return [4 /*yield*/, sql(templateObject_21 || (templateObject_21 = __makeTemplateObject(["\n        SELECT id, url FROM links\n        WHERE id=", "\n      "], ["\n        SELECT id, url FROM links\n        WHERE id=", "\n      "])), req.params.id)];
             case 1:
                 results = _a.sent();
                 if (results.length < 1) {
@@ -845,9 +909,20 @@ express()
         }
     });
 }); })
+    .get('/fixup', function (req, res) { return __awaiter(void 0, void 0, void 0, function () {
+    return __generator(this, function (_a) {
+        switch (_a.label) {
+            case 0: return [4 /*yield*/, fixupNextMonth()];
+            case 1:
+                _a.sent();
+                res.redirect('dailies');
+                return [2 /*return*/];
+        }
+    });
+}); })
     .get('/campaignHeartbeat', function (req, res) { return __awaiter(void 0, void 0, void 0, function () {
     var credentials, success, version, username, url, scores, score, awards, nextAward, totalAwards, wonAwards, awards_2, awards_2_1, award, maxStars;
-    var e_14, _a;
+    var e_15, _a;
     return __generator(this, function (_b) {
         switch (_b.label) {
             case 0:
@@ -869,11 +944,11 @@ express()
                 }
                 username = credentials.username;
                 url = decodeURIComponent(req.query.url);
-                return [4 /*yield*/, sql(templateObject_19 || (templateObject_19 = __makeTemplateObject(["SELECT s.score\n        FROM campaign_scores s\n        JOIN campaign_levels l ON s.level = l.key\n        WHERE l.url = ", " AND s.username = ", " "], ["SELECT s.score\n        FROM campaign_scores s\n        JOIN campaign_levels l ON s.level = l.key\n        WHERE l.url = ", " AND s.username = ", " "])), url, username)];
+                return [4 /*yield*/, sql(templateObject_22 || (templateObject_22 = __makeTemplateObject(["SELECT s.score\n        FROM campaign_scores s\n        JOIN campaign_levels l ON s.level = l.key\n        WHERE l.url = ", " AND s.username = ", " "], ["SELECT s.score\n        FROM campaign_scores s\n        JOIN campaign_levels l ON s.level = l.key\n        WHERE l.url = ", " AND s.username = ", " "])), url, username)];
             case 2:
                 scores = _b.sent();
                 score = (scores.length > 0) ? scores[0].score : NaN;
-                return [4 /*yield*/, sql(templateObject_20 || (templateObject_20 = __makeTemplateObject(["SELECT a.threshold\n        FROM campaign_awards a\n        JOIN campaign_levels l ON a.level = l.key\n        WHERE l.url = ", ""], ["SELECT a.threshold\n        FROM campaign_awards a\n        JOIN campaign_levels l ON a.level = l.key\n        WHERE l.url = ", ""])), url)];
+                return [4 /*yield*/, sql(templateObject_23 || (templateObject_23 = __makeTemplateObject(["SELECT a.threshold\n        FROM campaign_awards a\n        JOIN campaign_levels l ON a.level = l.key\n        WHERE l.url = ", ""], ["SELECT a.threshold\n        FROM campaign_awards a\n        JOIN campaign_levels l ON a.level = l.key\n        WHERE l.url = ", ""])), url)];
             case 3:
                 awards = _b.sent();
                 nextAward = NaN;
@@ -891,12 +966,12 @@ express()
                         }
                     }
                 }
-                catch (e_14_1) { e_14 = { error: e_14_1 }; }
+                catch (e_15_1) { e_15 = { error: e_15_1 }; }
                 finally {
                     try {
                         if (awards_2_1 && !awards_2_1.done && (_a = awards_2.return)) _a.call(awards_2);
                     }
-                    finally { if (e_14) throw e_14.error; }
+                    finally { if (e_15) throw e_15.error; }
                 }
                 return [4 /*yield*/, userMaxStars(credentials.username)];
             case 4:
@@ -912,7 +987,7 @@ express()
 }); })
     .post('/campaignSubmit', function (req, res) { return __awaiter(void 0, void 0, void 0, function () {
     var credentials, success, username, url, spec, score, history, _a, valid, explanation, levels, key, scores, newAwards, oldScore, awards, nextAward, awards_3, awards_3_1, award, threshold;
-    var e_15, _b;
+    var e_16, _b;
     return __generator(this, function (_c) {
         switch (_c.label) {
             case 0:
@@ -939,22 +1014,22 @@ express()
                     res.send("Score did not validate: " + explanation);
                     return [2 /*return*/];
                 }
-                return [4 /*yield*/, sql(templateObject_21 || (templateObject_21 = __makeTemplateObject(["SELECT key\n        FROM campaign_levels WHERE url=", ""], ["SELECT key\n        FROM campaign_levels WHERE url=", ""])), url)];
+                return [4 /*yield*/, sql(templateObject_24 || (templateObject_24 = __makeTemplateObject(["SELECT key\n        FROM campaign_levels WHERE url=", ""], ["SELECT key\n        FROM campaign_levels WHERE url=", ""])), url)];
             case 3:
                 levels = _c.sent();
                 if (levels.length == 0) {
                     res.send('campaign level not found');
                 }
                 key = levels[0].key;
-                return [4 /*yield*/, sql(templateObject_22 || (templateObject_22 = __makeTemplateObject(["SELECT score\n        FROM campaign_scores\n        WHERE level = ", " and username=", ""], ["SELECT score\n        FROM campaign_scores\n        WHERE level = ", " and username=", ""])), key, username)];
+                return [4 /*yield*/, sql(templateObject_25 || (templateObject_25 = __makeTemplateObject(["SELECT score\n        FROM campaign_scores\n        WHERE level = ", " and username=", ""], ["SELECT score\n        FROM campaign_scores\n        WHERE level = ", " and username=", ""])), key, username)];
             case 4:
                 scores = _c.sent();
                 newAwards = 0;
-                return [4 /*yield*/, sql(templateObject_23 || (templateObject_23 = __makeTemplateObject(["INSERT INTO campaign_scores (username, level, score)\n        VALUES (", ", ", ", ", ")\n        ON CONFLICT ON CONSTRAINT only_top\n        DO UPDATE SET score = LEAST(campaign_scores.score, ", ")"], ["INSERT INTO campaign_scores (username, level, score)\n        VALUES (", ", ", ", ", ")\n        ON CONFLICT ON CONSTRAINT only_top\n        DO UPDATE SET score = LEAST(campaign_scores.score, ", ")"])), username, key, score, score)];
+                return [4 /*yield*/, sql(templateObject_26 || (templateObject_26 = __makeTemplateObject(["INSERT INTO campaign_scores (username, level, score)\n        VALUES (", ", ", ", ", ")\n        ON CONFLICT ON CONSTRAINT only_top\n        DO UPDATE SET score = LEAST(campaign_scores.score, ", ")"], ["INSERT INTO campaign_scores (username, level, score)\n        VALUES (", ", ", ", ", ")\n        ON CONFLICT ON CONSTRAINT only_top\n        DO UPDATE SET score = LEAST(campaign_scores.score, ", ")"])), username, key, score, score)];
             case 5:
                 _c.sent();
                 oldScore = (scores.length > 0) ? scores[0].score : NaN;
-                return [4 /*yield*/, sql(templateObject_24 || (templateObject_24 = __makeTemplateObject(["SELECT threshold\n        FROM campaign_awards\n        WHERE level = ", ""], ["SELECT threshold\n        FROM campaign_awards\n        WHERE level = ", ""])), key)];
+                return [4 /*yield*/, sql(templateObject_27 || (templateObject_27 = __makeTemplateObject(["SELECT threshold\n        FROM campaign_awards\n        WHERE level = ", ""], ["SELECT threshold\n        FROM campaign_awards\n        WHERE level = ", ""])), key)];
             case 6:
                 awards = _c.sent();
                 nextAward = NaN;
@@ -973,12 +1048,12 @@ express()
                         }
                     }
                 }
-                catch (e_15_1) { e_15 = { error: e_15_1 }; }
+                catch (e_16_1) { e_16 = { error: e_16_1 }; }
                 finally {
                     try {
                         if (awards_3_1 && !awards_3_1.done && (_b = awards_3.return)) _b.call(awards_3);
                     }
-                    finally { if (e_15) throw e_15.error; }
+                    finally { if (e_16) throw e_16.error; }
                 }
                 res.send({ priorBest: oldScore, newAwards: newAwards, nextAward: nextAward });
                 return [2 /*return*/];
@@ -1001,7 +1076,7 @@ express()
                     res.send('version mismatch');
                     return [2 /*return*/];
                 }
-                return [4 /*yield*/, sql(templateObject_25 || (templateObject_25 = __makeTemplateObject(["\n              SELECT username, score, submitted FROM scoreboard\n              WHERE url=", " AND version=", "\n              ORDER BY score ASC, submitted ASC\n          "], ["\n              SELECT username, score, submitted FROM scoreboard\n              WHERE url=", " AND version=", "\n              ORDER BY score ASC, submitted ASC\n          "])), url, version)];
+                return [4 /*yield*/, sql(templateObject_28 || (templateObject_28 = __makeTemplateObject(["\n              SELECT username, score, submitted FROM scoreboard\n              WHERE url=", " AND version=", "\n              ORDER BY score ASC, submitted ASC\n          "], ["\n              SELECT username, score, submitted FROM scoreboard\n              WHERE url=", " AND version=", "\n              ORDER BY score ASC, submitted ASC\n          "])), url, version)];
             case 1:
                 results = _a.sent();
                 if (results.length == 0)
@@ -1028,7 +1103,7 @@ express()
                     res.send('Not connected to a database');
                     return [2 /*return*/];
                 }
-                return [4 /*yield*/, sql(templateObject_26 || (templateObject_26 = __makeTemplateObject(["\n              SELECT username, score, submitted, url, version FROM scoreboard\n              ORDER BY submitted DESC\n              LIMIT 100\n          "], ["\n              SELECT username, score, submitted, url, version FROM scoreboard\n              ORDER BY submitted DESC\n              LIMIT 100\n          "])))];
+                return [4 /*yield*/, sql(templateObject_29 || (templateObject_29 = __makeTemplateObject(["\n              SELECT username, score, submitted, url, version FROM scoreboard\n              ORDER BY submitted DESC\n              LIMIT 100\n          "], ["\n              SELECT username, score, submitted, url, version FROM scoreboard\n              ORDER BY submitted DESC\n              LIMIT 100\n          "])))];
             case 1:
                 results = _a.sent();
                 recents = results.map(function (result) { return ({
@@ -1085,7 +1160,7 @@ express()
 }); })
     .get('/scoreboard', function (req, res) { return __awaiter(void 0, void 0, void 0, function () {
     var url, results, spoilers_1, entries, entriesByVersion, bestTime, entries_1, entries_1_1, entry, versionEntries, err_8;
-    var e_16, _a;
+    var e_17, _a;
     return __generator(this, function (_b) {
         switch (_b.label) {
             case 0:
@@ -1095,7 +1170,7 @@ express()
                     res.send('Not connected to a database.');
                     return [2 /*return*/];
                 }
-                return [4 /*yield*/, sql(templateObject_27 || (templateObject_27 = __makeTemplateObject(["\n              SELECT username, score, submitted, version, history FROM scoreboard\n              WHERE url=", "\n              ORDER BY version DESC, score ASC, submitted ASC\n          "], ["\n              SELECT username, score, submitted, version, history FROM scoreboard\n              WHERE url=", "\n              ORDER BY version DESC, score ASC, submitted ASC\n          "])), url)];
+                return [4 /*yield*/, sql(templateObject_30 || (templateObject_30 = __makeTemplateObject(["\n              SELECT username, score, submitted, version, history FROM scoreboard\n              WHERE url=", "\n              ORDER BY version DESC, score ASC, submitted ASC\n          "], ["\n              SELECT username, score, submitted, version, history FROM scoreboard\n              WHERE url=", "\n              ORDER BY version DESC, score ASC, submitted ASC\n          "])), url)];
             case 1:
                 results = _b.sent();
                 return [4 /*yield*/, freeToSpoil(url)];
@@ -1125,12 +1200,12 @@ express()
                         versionEntries.push(entry);
                     }
                 }
-                catch (e_16_1) { e_16 = { error: e_16_1 }; }
+                catch (e_17_1) { e_17 = { error: e_17_1 }; }
                 finally {
                     try {
                         if (entries_1_1 && !entries_1_1.done && (_a = entries_1.return)) _a.call(entries_1);
                     }
-                    finally { if (e_16) throw e_16.error; }
+                    finally { if (e_17) throw e_17.error; }
                 }
                 res.render('pages/scoreboard', { entriesByVersion: entriesByVersion, url: url, currentVersion: VERSION });
                 return [3 /*break*/, 4];
@@ -1168,7 +1243,7 @@ express()
             case 1:
                 _a = __read.apply(void 0, [_b.sent(), 2]), valid = _a[0], explanation = _a[1];
                 if (!valid) return [3 /*break*/, 4];
-                return [4 /*yield*/, sql(templateObject_28 || (templateObject_28 = __makeTemplateObject(["\n                  INSERT INTO scoreboard (username, score, url, version, history)\n                  VALUES (", ", ", ", ", ", ", ", ", ")\n                "], ["\n                  INSERT INTO scoreboard (username, score, url, version, history)\n                  VALUES (", ", ", ", ", ", ", ", ", ")\n                "])), username, score, url, VERSION, history_1)];
+                return [4 /*yield*/, sql(templateObject_31 || (templateObject_31 = __makeTemplateObject(["\n                  INSERT INTO scoreboard (username, score, url, version, history)\n                  VALUES (", ", ", ", ", ", ", ", ", ")\n                "], ["\n                  INSERT INTO scoreboard (username, score, url, version, history)\n                  VALUES (", ", ", ", ", ", ", ", ", ")\n                "])), username, score, url, VERSION, history_1)];
             case 2:
                 results = _b.sent();
                 return [4 /*yield*/, submitForDaily(username, url, score)];
@@ -1190,5 +1265,5 @@ express()
     });
 }); })
     .listen(PORT, function () { return console.log("Listening on " + PORT); });
-var templateObject_1, templateObject_2, templateObject_3, templateObject_4, templateObject_5, templateObject_6, templateObject_7, templateObject_8, templateObject_9, templateObject_10, templateObject_11, templateObject_12, templateObject_13, templateObject_14, templateObject_15, templateObject_16, templateObject_17, templateObject_18, templateObject_19, templateObject_20, templateObject_21, templateObject_22, templateObject_23, templateObject_24, templateObject_25, templateObject_26, templateObject_27, templateObject_28;
+var templateObject_1, templateObject_2, templateObject_3, templateObject_4, templateObject_5, templateObject_6, templateObject_7, templateObject_8, templateObject_9, templateObject_10, templateObject_11, templateObject_12, templateObject_13, templateObject_14, templateObject_15, templateObject_16, templateObject_17, templateObject_18, templateObject_19, templateObject_20, templateObject_21, templateObject_22, templateObject_23, templateObject_24, templateObject_25, templateObject_26, templateObject_27, templateObject_28, templateObject_29, templateObject_30, templateObject_31;
 //# sourceMappingURL=index.js.map

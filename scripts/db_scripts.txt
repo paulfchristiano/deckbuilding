@@ -1,7 +1,7 @@
 ##### setting up db from scratch
 
 CREATE TABLE dailies (
-    key TEXT PRIMARY KEY,
+    key TEXT KEY,
     secret TEXT NOT NULL,
     version TEXT,
     best_score INTEGER,
@@ -9,6 +9,7 @@ CREATE TABLE dailies (
     url TEXT NOT NULL,
     type TEXT NOT NULL
 );
+ALTER TABLE dailies ADD CONSTRAINT unique_key_per_type UNIQUE (key, type);
 
 CREATE TABLE links (id TEXT PRIMARY KEY, url TEXT NOT NULL);
 ALTER TABLE links ADD CONSTRAINT unique_id UNIQUE (id);

@@ -77,15 +77,15 @@ async function ensureNextMonth(): Promise<void> {
         for (const type of dailyTypes) {
           const key = makeDailyKey(type, d)
           let secret:string;
-          const results = await sql`SELECT secret FROM secrets WHERE key=${key}`
-          if (results.length == 0) {
+          let results = await sql`SELECT secret FROM secrets WHERE key=${key}`
+          while (results.length == 0) {
             secret = randomString();
             await sql`INSERT INTO secrets (key, secret)
                                   VALUES (${key}, ${secret})
                       ON CONFLICT DO NOTHING`
-          } else {
-            secret = results[0].secret
+            results = await sql`SELECT secret FROM secrets WHERE key=${key}`
           }
+          secret = results[0].secret
           await sql`
               INSERT INTO dailies (type, key, secret, url)
                           values (${type}, ${key}, ${secret}, ${makeDailyURL(key, secret)})
@@ -94,6 +94,33 @@ async function ensureNextMonth(): Promise<void> {
         }
         d.setDate(d.getDate() + 1)
     }
+}
+
+async function fixupNextMonth(): Promise<void> {
+  if (sql == null) return
+  const d:Date = new Date()
+  for (let i = 0; i < 30; i++) {
+      for (const type of dailyTypes) {
+        const key = makeDailyKey(type, d)
+        let secret:string;
+        let results = await sql`SELECT secret FROM secrets WHERE key=${key}`
+        if (results.length == 0) continue
+        secret = results[0].secret
+        const url = makeDailyURL(key, secret)
+        await sql`
+            INSERT INTO dailies (type, key, secret, url)
+                        values (${type}, ${key}, ${secret}, ${url})
+            ON CONFLICT(key, type) DO UPDATE SET
+              secret=${secret},
+              url=${url},
+              best_user=NULL,
+              best_score=NULL,
+              version=NULL
+        `
+      }
+      d.setDate(d.getDate() + 1)
+  }
+
 }
 
 type DailyType = 'weekly' | 'daily'
@@ -433,6 +460,10 @@ express()
     .get('/verify', async (req: any, res: any) => {
       const results = await verifyAllCampaignLevels()
       res.send(results.map(x => `<p>${x}</p>`).join(''))
+    })
+    .get('/fixup', async (req: any, res:any) => {
+      await fixupNextMonth()
+      res.redirect('dailies')
     })
     .get('/campaignHeartbeat', async (req:any, res:any) => {
       const credentials:Credentials = {
