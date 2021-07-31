@@ -6,10 +6,15 @@ import {Credentials, hashPassword, CampaignInfo} from './public/campaign.js'
 
 import './public/cards/index.js'
 
+const db_url = process.env.DATABASE_URL
+
+
+const runningLocally = (db_url == undefined || db_url.search('localhost') > 0)
+
 import postgres from 'postgres'
-const sql = (process.env.DATABASE_URL == undefined) ? null : postgres(
-  process.env.DATABASE_URL,
-  {ssl: {rejectUnauthorized: false}}
+const sql = (db_url == undefined) ? null : postgres(
+  db_url,
+  runningLocally ? {} : {ssl: {rejectUnauthorized: false}}
 )
 
 //TODO: get rid of these any's
@@ -72,15 +77,15 @@ async function ensureNextMonth(): Promise<void> {
         for (const type of dailyTypes) {
           const key = makeDailyKey(type, d)
           let secret:string;
-          const results = await sql`SELECT secret FROM secrets WHERE key=${key}`
-          if (results.length == 0) {
+          let results = await sql`SELECT secret FROM secrets WHERE key=${key}`
+          while (results.length == 0) {
             secret = randomString();
             await sql`INSERT INTO secrets (key, secret)
                                   VALUES (${key}, ${secret})
                       ON CONFLICT DO NOTHING`
-          } else {
-            secret = results[0].secret
+            results = await sql`SELECT secret FROM secrets WHERE key=${key}`
           }
+          secret = results[0].secret
           await sql`
               INSERT INTO dailies (type, key, secret, url)
                           values (${type}, ${key}, ${secret}, ${makeDailyURL(key, secret)})
@@ -89,6 +94,33 @@ async function ensureNextMonth(): Promise<void> {
         }
         d.setDate(d.getDate() + 1)
     }
+}
+
+async function fixupNextMonth(): Promise<void> {
+  if (sql == null) return
+  const d:Date = new Date()
+  for (let i = 0; i < 30; i++) {
+      for (const type of dailyTypes) {
+        const key = makeDailyKey(type, d)
+        let secret:string;
+        let results = await sql`SELECT secret FROM secrets WHERE key=${key}`
+        if (results.length == 0) continue
+        secret = results[0].secret
+        const url = makeDailyURL(key, secret)
+        await sql`
+            INSERT INTO dailies (type, key, secret, url)
+                        values (${type}, ${key}, ${secret}, ${url})
+            ON CONFLICT(key, type) DO UPDATE SET
+              secret=${secret},
+              url=${url},
+              best_user=NULL,
+              best_score=NULL,
+              version=NULL
+        `
+      }
+      d.setDate(d.getDate() + 1)
+  }
+
 }
 
 type DailyType = 'weekly' | 'daily'
@@ -131,9 +163,18 @@ function makeDailyURL(key:string, secret:string) {
 }
 
 async function submitForDaily(username:string, url:string, score:number): Promise<void> {
+  console.log("Submitting for daily:", username, url, score)
     if (sql == null) return;
     for (const type of dailyTypes) {
       if (url == await dailyURL(type)) {
+        console.log(`Logging daily of type ${type}`)
+        console.log(`
+        UPDATE dailies
+        SET best_user = ${username}, best_score=${score}, version=${VERSION}
+        WHERE url = ${url} AND type = ${type} AND
+            (version = ${VERSION} OR version ISNULL) AND
+            (best_score > ${score} OR best_score ISNULL)
+        `)
         await sql`
             UPDATE dailies
             SET best_user = ${username}, best_score=${score}, version=${VERSION}
@@ -419,6 +460,10 @@ express()
     .get('/verify', async (req: any, res: any) => {
       const results = await verifyAllCampaignLevels()
       res.send(results.map(x => `<p>${x}</p>`).join(''))
+    })
+    .get('/fixup', async (req: any, res:any) => {
+      await fixupNextMonth()
+      res.redirect('dailies')
     })
     .get('/campaignHeartbeat', async (req:any, res:any) => {
       const credentials:Credentials = {
