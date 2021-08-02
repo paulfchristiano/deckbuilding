@@ -33,7 +33,7 @@ import {
   trashThis, fragileEcho,
   copper, gold, estate, duchy,
   dedupBy, countDistinctNames,
-  playReplacer, trashOnLeavePlay
+  playReplacer, trashOnLeavePlay, stayInPlay
 } from '../logic.js'
 
 export const cards:CardSpec[] = [];
@@ -920,7 +920,7 @@ cards.push(supplyForCard(platinum, coin(8)))
 
 const greatSmithy:CardSpec = {name: 'Great Smithy',
     fixedCost: energy(2),
-    effects: [actionsEffect(6), buysEffect(2)]
+    effects: [actionsEffect(8), buysEffect(2)]
 }
 cards.push(supplyForCard(greatSmithy, coin(6)))
 
@@ -1171,7 +1171,7 @@ const tactic:CardSpec = {
     restrictions: [{
         test: (c:Card, s:State, k:ActionKind) => k == 'activate' && (s.actions < 1),
     }],
-    replacers: [trashOnLeavePlay()]
+    replacers: [stayInPlay()]
 }
 
 const mastermind:CardSpec = {
@@ -1179,7 +1179,7 @@ const mastermind:CardSpec = {
     fixedCost: energy(1),
     relatedCards: [tactic],
     replacers: [{
-        text: `Whenever you would move this to your hand, first create a ${tactic.name} in play.`,
+        text: `When you move this to your hand, create a ${tactic.name} in play.`,
         kind:'move',
         handles: (p, s, c) => p.toZone == 'hand' && p.card.id == c.id,
         replace: p => ({...p, effects: p.effects.concat([create(tactic, 'play')])}) 
@@ -1317,8 +1317,7 @@ const fountain:CardSpec = {
     fixedCost: energy(0),
     effects: [refreshEffect(5, false)],
 }
-cards.push(supplyForCard(fountain, coin(4)))
-
+cards.push(supplyForCard(fountain, coin(5)))
 /*
 const chameleon:CardSpec = {
     name:'Chameleon',
@@ -1575,7 +1574,7 @@ const banquet:CardSpec = {
     }]
     
 }
-
+cards.push(banquet)
 
 
 const harvest:CardSpec = {
@@ -1614,7 +1613,7 @@ buyable(horseTraders, 4)
 const secretChamber:CardSpec = {
     name: 'Secret Chamber',
     fixedCost: energy(1),
-    effects: [{
+    effects: [buyEffect(), {
         text: [`Discard any number of cards from your hand for +$1 each.`],
         transform: () => async function(state) {
             let targets; [state, targets] = await multichoice(state,

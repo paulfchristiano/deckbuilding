@@ -2563,6 +2563,15 @@ export function trashOnLeavePlay():Replacer<MoveParams> {
     }
 }
 
+export function stayInPlay():Replacer<MoveParams> {
+    return {
+        text: `This doesn't move to your hand.`,
+        kind: 'move',
+        handles: (x, state, card) => x.card.id == card.id && x.fromZone == 'play' && x.toZone == 'hand',
+        replace: x => ({...x, skip: true})
+    }
+}
+
 
 function villageReplacer(): Replacer<CostParams> {
     return costReduceNext('play', {energy:1})

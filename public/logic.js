@@ -3072,6 +3072,14 @@ export function trashOnLeavePlay() {
         replace: function (x) { return (__assign(__assign({}, x), { toZone: 'void' })); }
     };
 }
+export function stayInPlay() {
+    return {
+        text: "This doesn't move to your hand.",
+        kind: 'move',
+        handles: function (x, state, card) { return x.card.id == card.id && x.fromZone == 'play' && x.toZone == 'hand'; },
+        replace: function (x) { return (__assign(__assign({}, x), { skip: true })); }
+    };
+}
 function villageReplacer() {
     return costReduceNext('play', { energy: 1 });
 }

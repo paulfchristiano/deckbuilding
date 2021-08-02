@@ -72,7 +72,7 @@ var __values = (this && this.__values) || function(o) {
     };
     throw new TypeError(s ? "Object is not iterable." : "Symbol.iterator is not defined.");
 };
-import { choice, asChoice, trash, addCosts, subtractCost, multiplyCosts, eq, leq, noop, gainPoints, gainActions, gainCoins, gainBuys, free, create, move, doAll, multichoice, renderCost, moveMany, payToDo, payCost, addToken, removeToken, charge, discharge, asNumberedChoices, allowNull, setResource, tick, a, num, createAndTrack, villager, fair, supplyForCard, actionsEffect, buyEffect, buysEffect, pointsEffect, createEffect, refreshEffect, recycleEffect, createInPlayEffect, chargeEffect, targetedEffect, workshopEffect, coinsEffect, reflectTrigger, energy, coin, repeat, costPer, incrementCost, costReduceNext, countNameTokens, nameHasToken, startsWithCharge, useRefresh, costReduce, applyToTarget, playTwice, payAction, sortHand, discardFromPlay, trashThis, fragileEcho, copper, gold, estate, duchy, dedupBy, countDistinctNames, playReplacer, trashOnLeavePlay } from '../logic.js';
+import { choice, asChoice, trash, addCosts, subtractCost, multiplyCosts, eq, leq, noop, gainPoints, gainActions, gainCoins, gainBuys, free, create, move, doAll, multichoice, renderCost, moveMany, payToDo, payCost, addToken, removeToken, charge, discharge, asNumberedChoices, allowNull, setResource, tick, a, num, createAndTrack, villager, fair, supplyForCard, actionsEffect, buyEffect, buysEffect, pointsEffect, createEffect, refreshEffect, recycleEffect, createInPlayEffect, chargeEffect, targetedEffect, workshopEffect, coinsEffect, reflectTrigger, energy, coin, repeat, costPer, incrementCost, costReduceNext, countNameTokens, nameHasToken, startsWithCharge, useRefresh, costReduce, applyToTarget, playTwice, payAction, sortHand, discardFromPlay, trashThis, fragileEcho, copper, gold, estate, duchy, dedupBy, countDistinctNames, playReplacer, stayInPlay } from '../logic.js';
 export var cards = [];
 export var events = [];
 /*
@@ -960,7 +960,7 @@ var platinum = { name: "Platinum",
 cards.push(supplyForCard(platinum, coin(8)));
 var greatSmithy = { name: 'Great Smithy',
     fixedCost: energy(2),
-    effects: [actionsEffect(6), buysEffect(2)]
+    effects: [actionsEffect(8), buysEffect(2)]
 };
 cards.push(supplyForCard(greatSmithy, coin(6)));
 var resume = { name: 'Resume',
@@ -1155,14 +1155,14 @@ var tactic = {
     restrictions: [{
             test: function (c, s, k) { return k == 'activate' && (s.actions < 1); },
         }],
-    replacers: [trashOnLeavePlay()]
+    replacers: [stayInPlay()]
 };
 var mastermind = {
     name: 'Mastermind',
     fixedCost: energy(1),
     relatedCards: [tactic],
     replacers: [{
-            text: "Whenever you would move this to your hand, first create a " + tactic.name + " in play.",
+            text: "When you move this to your hand, create a " + tactic.name + " in play.",
             kind: 'move',
             handles: function (p, s, c) { return p.toZone == 'hand' && p.card.id == c.id; },
             replace: function (p) { return (__assign(__assign({}, p), { effects: p.effects.concat([create(tactic, 'play')]) })); }
@@ -1295,7 +1295,7 @@ var fountain = {
     fixedCost: energy(0),
     effects: [refreshEffect(5, false)],
 };
-cards.push(supplyForCard(fountain, coin(4)));
+cards.push(supplyForCard(fountain, coin(5)));
 /*
 const chameleon:CardSpec = {
     name:'Chameleon',
@@ -1556,6 +1556,7 @@ var banquet = {
             transform: function (state, card) { return payToDo(discardFromPlay(card), gainCoins(3)); }
         }]
 };
+cards.push(banquet);
 var harvest = {
     name: 'Harvest',
     fixedCost: energy(1),
@@ -1610,7 +1611,7 @@ buyable(horseTraders, 4)
 var secretChamber = {
     name: 'Secret Chamber',
     fixedCost: energy(1),
-    effects: [{
+    effects: [buyEffect(), {
             text: ["Discard any number of cards from your hand for +$1 each."],
             transform: function () { return function (state) {
                 return __awaiter(this, void 0, void 0, function () {
