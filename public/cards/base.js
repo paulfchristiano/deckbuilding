@@ -1611,7 +1611,7 @@ buyable(horseTraders, 4)
 var secretChamber = {
     name: 'Secret Chamber',
     fixedCost: energy(1),
-    effects: [buyEffect(), {
+    effects: [{
             text: ["Discard any number of cards from your hand for +$1 each."],
             transform: function () { return function (state) {
                 return __awaiter(this, void 0, void 0, function () {

@@ -1613,7 +1613,7 @@ buyable(horseTraders, 4)
 const secretChamber:CardSpec = {
     name: 'Secret Chamber',
     fixedCost: energy(1),
-    effects: [buyEffect(), {
+    effects: [{
         text: [`Discard any number of cards from your hand for +$1 each.`],
         transform: () => async function(state) {
             let targets; [state, targets] = await multichoice(state,
