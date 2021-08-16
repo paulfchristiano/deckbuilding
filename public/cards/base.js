@@ -1551,8 +1551,14 @@ var banquet = {
             text: ["+$1 for each card in your hand up to +$3"],
             transform: function (state) { return gainCoins(Math.min(3, state.hand.length)); }
         }],
+    replacers: [{
+            text: "Whenever you'd move this to your hand, instead leave it in play.",
+            kind: 'move',
+            handles: function (p, state, card) { return p.card.id == card.id && p.toZone == 'hand'; },
+            replace: function (p, state, card) { return (__assign(__assign({}, p), { skip: true })); }
+        }],
     ability: [{
-            text: ["If you have no cards in your hand, discard this for +$3"],
+            text: ["If you have no cards in your hand, discard this for +$3."],
             transform: function (state, card) { return payToDo(discardFromPlay(card), gainCoins(3)); }
         }]
 };

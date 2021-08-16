@@ -1568,8 +1568,14 @@ const banquet:CardSpec = {
         text: [`+$1 for each card in your hand up to +$3`],
         transform: state => gainCoins(Math.min(3, state.hand.length))
     }],
+    replacers: [{
+        text: `Whenever you'd move this to your hand, instead leave it in play.`,
+        kind: 'move',
+        handles: (p, state, card) => p.card.id == card.id && p.toZone == 'hand',
+        replace: (p, state, card) => ({...p, skip:true})
+    }],
     ability: [{
-        text: [`If you have no cards in your hand, discard this for +$3`],
+        text: [`If you have no cards in your hand, discard this for +$3.`],
         transform: (state, card) => payToDo(discardFromPlay(card), gainCoins(3))
     }]
     
