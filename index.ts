@@ -199,7 +199,12 @@ async function migrateScores(): Promise<string> {
       try {
         const spec = specFromURL(result.url)
         console.log(`spec is ${spec}`);
-        [valid, explanation] = await verifyScore(spec, result.history, result.score)
+        if (result.history == '' || result.history == null) {
+          valid = false;
+          explanation = "No history provided"
+        } else {
+          [valid, explanation] = await verifyScore(spec, result.history, result.score)
+        }
       } catch (e:any) {
         if (e instanceof MalformedSpec) {
           valid = false;

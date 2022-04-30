@@ -400,24 +400,29 @@ function migrateScores() {
                     failed = 0;
                     _c.label = 2;
                 case 2:
-                    _c.trys.push([2, 13, 14, 15]);
+                    _c.trys.push([2, 15, 16, 17]);
                     results_1 = __values(results), results_1_1 = results_1.next();
                     _c.label = 3;
                 case 3:
-                    if (!!results_1_1.done) return [3 /*break*/, 12];
+                    if (!!results_1_1.done) return [3 /*break*/, 14];
                     result = results_1_1.value;
                     console.log("migrating " + result.username + "'s " + result.score + " on " + result.url);
                     valid = void 0, explanation = void 0;
                     _c.label = 4;
                 case 4:
-                    _c.trys.push([4, 6, , 7]);
+                    _c.trys.push([4, 8, , 9]);
                     spec = specFromURL(result.url);
                     console.log("spec is " + spec);
-                    return [4 /*yield*/, verifyScore(spec, result.history, result.score)];
-                case 5:
-                    _b = __read.apply(void 0, [_c.sent(), 2]), valid = _b[0], explanation = _b[1];
+                    if (!(result.history == '' || result.history == null)) return [3 /*break*/, 5];
+                    valid = false;
+                    explanation = "No history provided";
                     return [3 /*break*/, 7];
+                case 5: return [4 /*yield*/, verifyScore(spec, result.history, result.score)];
                 case 6:
+                    _b = __read.apply(void 0, [_c.sent(), 2]), valid = _b[0], explanation = _b[1];
+                    _c.label = 7;
+                case 7: return [3 /*break*/, 9];
+                case 8:
                     e_5 = _c.sent();
                     if (e_5 instanceof MalformedSpec) {
                         valid = false;
@@ -426,37 +431,37 @@ function migrateScores() {
                     else {
                         throw e_5;
                     }
-                    return [3 /*break*/, 7];
-                case 7:
-                    if (!valid) return [3 /*break*/, 9];
+                    return [3 /*break*/, 9];
+                case 9:
+                    if (!valid) return [3 /*break*/, 11];
                     console.log("valid, migrating");
                     return [4 /*yield*/, sql(templateObject_13 || (templateObject_13 = __makeTemplateObject(["UPDATE scoreboard\n              SET version=", "\n              WHERE url=", " AND score=", " AND history=", "\n          "], ["UPDATE scoreboard\n              SET version=", "\n              WHERE url=", " AND score=", " AND history=", "\n          "])), VERSION, result.url, result.score, result.history)];
-                case 8:
-                    _c.sent();
-                    migrated += 1;
-                    return [3 /*break*/, 11];
-                case 9:
-                    console.log("invalid because of " + explanation + ", marking knownobsolete");
-                    return [4 /*yield*/, sql(templateObject_14 || (templateObject_14 = __makeTemplateObject(["UPDATE scoreboard\n              SET knownobsolete=TRUE\n              WHERE url=", " AND score=", " AND history=", ""], ["UPDATE scoreboard\n              SET knownobsolete=TRUE\n              WHERE url=", " AND score=", " AND history=", ""])), result.url, result.score, result.history)];
                 case 10:
                     _c.sent();
-                    failed += 1;
-                    _c.label = 11;
+                    migrated += 1;
+                    return [3 /*break*/, 13];
                 case 11:
+                    console.log("invalid because of " + explanation + ", marking knownobsolete");
+                    return [4 /*yield*/, sql(templateObject_14 || (templateObject_14 = __makeTemplateObject(["UPDATE scoreboard\n              SET knownobsolete=TRUE\n              WHERE url=", " AND score=", " AND history=", ""], ["UPDATE scoreboard\n              SET knownobsolete=TRUE\n              WHERE url=", " AND score=", " AND history=", ""])), result.url, result.score, result.history)];
+                case 12:
+                    _c.sent();
+                    failed += 1;
+                    _c.label = 13;
+                case 13:
                     results_1_1 = results_1.next();
                     return [3 /*break*/, 3];
-                case 12: return [3 /*break*/, 15];
-                case 13:
+                case 14: return [3 /*break*/, 17];
+                case 15:
                     e_6_1 = _c.sent();
                     e_6 = { error: e_6_1 };
-                    return [3 /*break*/, 15];
-                case 14:
+                    return [3 /*break*/, 17];
+                case 16:
                     try {
                         if (results_1_1 && !results_1_1.done && (_a = results_1.return)) _a.call(results_1);
                     }
                     finally { if (e_6) throw e_6.error; }
                     return [7 /*endfinally*/];
-                case 15: return [2 /*return*/, "Migrated " + migrated + ", Failed " + failed];
+                case 17: return [2 /*return*/, "Migrated " + migrated + ", Failed " + failed];
             }
         });
     });
