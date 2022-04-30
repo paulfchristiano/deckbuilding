@@ -1,7 +1,7 @@
 import express from 'express'
 import path from 'path'
 const PORT = process.env.PORT || 5000
-import {verifyScore, VERSION, specFromURL, specToURL, normalizeURL } from './public/logic.js'
+import {verifyScore, VERSION, specFromURL, specToURL, normalizeURL, MalformedSpec } from './public/logic.js'
 import {Credentials, hashPassword, CampaignInfo} from './public/campaign.js'
 
 import './public/cards/index.js'
@@ -195,9 +195,19 @@ async function migrateScores(): Promise<string> {
   
   for (const result of results) {
       console.log(`migrating ${result.username}'s ${result.score} on ${result.url}`)
-      const spec = specFromURL(result.url)
-      console.log(`spec is ${spec}`)
-      const [valid, explanation] = await verifyScore(spec, result.history, result.score)
+      let valid:boolean, explanation:string;
+      try {
+        const spec = specFromURL(result.url)
+        console.log(`spec is ${spec}`);
+        [valid, explanation] = await verifyScore(spec, result.history, result.score)
+      } catch (e:any) {
+        if (e instanceof MalformedSpec) {
+          valid = false;
+          explanation = `${e.message}`
+        } else {
+          throw e
+        }
+      }
       if (valid) {
           console.log(`valid, migrating`)
           await sql`UPDATE scoreboard
@@ -206,7 +216,7 @@ async function migrateScores(): Promise<string> {
           `
           migrated += 1
       } else {
-          console.log(`invalid because of ${explanation}, marking migrated`)
+          console.log(`invalid because of ${explanation}, marking knownobsolete`)
           await sql`UPDATE scoreboard
               SET knownobsolete=TRUE
               WHERE url=${result.url} AND score=${result.score} AND history=${result.history}`

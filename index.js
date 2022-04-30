@@ -78,7 +78,7 @@ var __read = (this && this.__read) || function (o, n) {
 };
 import express from 'express';
 var PORT = process.env.PORT || 5000;
-import { verifyScore, VERSION, specFromURL, normalizeURL } from './public/logic.js';
+import { verifyScore, VERSION, specFromURL, normalizeURL, MalformedSpec } from './public/logic.js';
 import './public/cards/index.js';
 var db_url = process.env.DATABASE_URL;
 var runningLocally = (db_url == undefined || db_url.search('localhost') > 0);
@@ -388,8 +388,8 @@ function submitForDaily(username, url, score) {
 }
 function migrateScores() {
     return __awaiter(this, void 0, void 0, function () {
-        var results, migrated, failed, results_1, results_1_1, result, spec, _a, valid, explanation, e_5_1;
-        var e_5, _b;
+        var results, migrated, failed, results_1, results_1_1, result, valid, explanation, spec, e_5, e_6_1;
+        var e_6, _a, _b;
         return __generator(this, function (_c) {
             switch (_c.label) {
                 case 0: return [4 /*yield*/, sql(templateObject_12 || (templateObject_12 = __makeTemplateObject(["SELECT * FROM scoreboard WHERE knownobsolete=FALSE AND version!=", ""], ["SELECT * FROM scoreboard WHERE knownobsolete=FALSE AND version!=", ""])), VERSION)];
@@ -400,47 +400,63 @@ function migrateScores() {
                     failed = 0;
                     _c.label = 2;
                 case 2:
-                    _c.trys.push([2, 10, 11, 12]);
+                    _c.trys.push([2, 13, 14, 15]);
                     results_1 = __values(results), results_1_1 = results_1.next();
                     _c.label = 3;
                 case 3:
-                    if (!!results_1_1.done) return [3 /*break*/, 9];
+                    if (!!results_1_1.done) return [3 /*break*/, 12];
                     result = results_1_1.value;
                     console.log("migrating " + result.username + "'s " + result.score + " on " + result.url);
+                    valid = void 0, explanation = void 0;
+                    _c.label = 4;
+                case 4:
+                    _c.trys.push([4, 6, , 7]);
                     spec = specFromURL(result.url);
                     console.log("spec is " + spec);
                     return [4 /*yield*/, verifyScore(spec, result.history, result.score)];
-                case 4:
-                    _a = __read.apply(void 0, [_c.sent(), 2]), valid = _a[0], explanation = _a[1];
-                    if (!valid) return [3 /*break*/, 6];
+                case 5:
+                    _b = __read.apply(void 0, [_c.sent(), 2]), valid = _b[0], explanation = _b[1];
+                    return [3 /*break*/, 7];
+                case 6:
+                    e_5 = _c.sent();
+                    if (e_5 instanceof MalformedSpec) {
+                        valid = false;
+                        explanation = "" + e_5.message;
+                    }
+                    else {
+                        throw e_5;
+                    }
+                    return [3 /*break*/, 7];
+                case 7:
+                    if (!valid) return [3 /*break*/, 9];
                     console.log("valid, migrating");
                     return [4 /*yield*/, sql(templateObject_13 || (templateObject_13 = __makeTemplateObject(["UPDATE scoreboard\n              SET version=", "\n              WHERE url=", " AND score=", " AND history=", "\n          "], ["UPDATE scoreboard\n              SET version=", "\n              WHERE url=", " AND score=", " AND history=", "\n          "])), VERSION, result.url, result.score, result.history)];
-                case 5:
+                case 8:
                     _c.sent();
                     migrated += 1;
-                    return [3 /*break*/, 8];
-                case 6:
-                    console.log("invalid because of " + explanation + ", marking migrated");
+                    return [3 /*break*/, 11];
+                case 9:
+                    console.log("invalid because of " + explanation + ", marking knownobsolete");
                     return [4 /*yield*/, sql(templateObject_14 || (templateObject_14 = __makeTemplateObject(["UPDATE scoreboard\n              SET knownobsolete=TRUE\n              WHERE url=", " AND score=", " AND history=", ""], ["UPDATE scoreboard\n              SET knownobsolete=TRUE\n              WHERE url=", " AND score=", " AND history=", ""])), result.url, result.score, result.history)];
-                case 7:
+                case 10:
                     _c.sent();
                     failed += 1;
-                    _c.label = 8;
-                case 8:
+                    _c.label = 11;
+                case 11:
                     results_1_1 = results_1.next();
                     return [3 /*break*/, 3];
-                case 9: return [3 /*break*/, 12];
-                case 10:
-                    e_5_1 = _c.sent();
-                    e_5 = { error: e_5_1 };
-                    return [3 /*break*/, 12];
-                case 11:
+                case 12: return [3 /*break*/, 15];
+                case 13:
+                    e_6_1 = _c.sent();
+                    e_6 = { error: e_6_1 };
+                    return [3 /*break*/, 15];
+                case 14:
                     try {
-                        if (results_1_1 && !results_1_1.done && (_b = results_1.return)) _b.call(results_1);
+                        if (results_1_1 && !results_1_1.done && (_a = results_1.return)) _a.call(results_1);
                     }
-                    finally { if (e_5) throw e_5.error; }
+                    finally { if (e_6) throw e_6.error; }
                     return [7 /*endfinally*/];
-                case 12: return [2 /*return*/, "Migrated " + migrated + ", Failed " + failed];
+                case 15: return [2 /*return*/, "Migrated " + migrated + ", Failed " + failed];
             }
         });
     });
@@ -462,7 +478,7 @@ function serveMain(req, res) {
 function verifyAllCampaignLevels() {
     return __awaiter(this, void 0, void 0, function () {
         var result, rows, rows_1, rows_1_1, row, url;
-        var e_6, _a;
+        var e_7, _a;
         return __generator(this, function (_b) {
             switch (_b.label) {
                 case 0:
@@ -484,12 +500,12 @@ function verifyAllCampaignLevels() {
                             }
                         }
                     }
-                    catch (e_6_1) { e_6 = { error: e_6_1 }; }
+                    catch (e_7_1) { e_7 = { error: e_7_1 }; }
                     finally {
                         try {
                             if (rows_1_1 && !rows_1_1.done && (_a = rows_1.return)) _a.call(rows_1);
                         }
-                        finally { if (e_6) throw e_6.error; }
+                        finally { if (e_7) throw e_7.error; }
                     }
                     return [2 /*return*/, result];
             }
@@ -497,7 +513,7 @@ function verifyAllCampaignLevels() {
     });
 }
 function dailyTypeFromReq(req) {
-    var e_7, _a;
+    var e_8, _a;
     var typeString = req.query.type;
     var type = undefined;
     try {
@@ -507,12 +523,12 @@ function dailyTypeFromReq(req) {
                 type = dailyType;
         }
     }
-    catch (e_7_1) { e_7 = { error: e_7_1 }; }
+    catch (e_8_1) { e_8 = { error: e_8_1 }; }
     finally {
         try {
             if (dailyTypes_4_1 && !dailyTypes_4_1.done && (_a = dailyTypes_4.return)) _a.call(dailyTypes_4);
         }
-        finally { if (e_7) throw e_7.error; }
+        finally { if (e_8) throw e_8.error; }
     }
     if (typeString === undefined)
         type = 'daily';
@@ -578,8 +594,8 @@ function serveDaily(req, res) {
 }
 function freeToSpoil(url) {
     return __awaiter(this, void 0, void 0, function () {
-        var dailyTypes_5, dailyTypes_5_1, type, dailyURLs, isCampaign, e_8_1;
-        var e_8, _a;
+        var dailyTypes_5, dailyTypes_5_1, type, dailyURLs, isCampaign, e_9_1;
+        var e_9, _a;
         return __generator(this, function (_b) {
             switch (_b.label) {
                 case 0:
@@ -601,14 +617,14 @@ function freeToSpoil(url) {
                     return [3 /*break*/, 1];
                 case 5: return [3 /*break*/, 8];
                 case 6:
-                    e_8_1 = _b.sent();
-                    e_8 = { error: e_8_1 };
+                    e_9_1 = _b.sent();
+                    e_9 = { error: e_9_1 };
                     return [3 /*break*/, 8];
                 case 7:
                     try {
                         if (dailyTypes_5_1 && !dailyTypes_5_1.done && (_a = dailyTypes_5.return)) _a.call(dailyTypes_5);
                     }
-                    finally { if (e_8) throw e_8.error; }
+                    finally { if (e_9) throw e_9.error; }
                     return [7 /*endfinally*/];
                 case 8: return [2 /*return*/];
             }
@@ -631,7 +647,7 @@ function isCampaignLevel(url) {
 function serveDailiesByType(type, res) {
     return __awaiter(this, void 0, void 0, function () {
         var results, results_2, results_2_1, result, err_3;
-        var e_9, _a;
+        var e_10, _a;
         return __generator(this, function (_b) {
             switch (_b.label) {
                 case 0:
@@ -645,12 +661,12 @@ function serveDailiesByType(type, res) {
                             results.current = (result.version == VERSION);
                         }
                     }
-                    catch (e_9_1) { e_9 = { error: e_9_1 }; }
+                    catch (e_10_1) { e_10 = { error: e_10_1 }; }
                     finally {
                         try {
                             if (results_2_1 && !results_2_1.done && (_a = results_2.return)) _a.call(results_2);
                         }
-                        finally { if (e_9) throw e_9.error; }
+                        finally { if (e_10) throw e_10.error; }
                     }
                     res.render('pages/dailies', { type: type, dailies: results.filter(function (r) { return r.best_user != null; }) });
                     return [3 /*break*/, 3];
@@ -690,7 +706,7 @@ function getCampaignInfo(username, cheat) {
     if (cheat === void 0) { cheat = false; }
     return __awaiter(this, void 0, void 0, function () {
         var maxStars, scores, scoreByLevel, scores_1, scores_1_1, row, awards, passedLevels, awardsByLevel, availableAwardsByLevel, numAwards, awards_1, awards_1_1, row, score, availableAwards, currentAwards, newMaxStars, lockedLevels, requirements, requirements_1, requirements_1_1, row, currentReqs, levels, urls, lockReasons, levels_1, levels_1_1, row, req, starStr;
-        var e_10, _a, e_11, _b, e_12, _c, e_13, _d;
+        var e_11, _a, e_12, _b, e_13, _c, e_14, _d;
         return __generator(this, function (_e) {
             switch (_e.label) {
                 case 0: return [4 /*yield*/, userMaxStars(username)];
@@ -706,12 +722,12 @@ function getCampaignInfo(username, cheat) {
                             scoreByLevel.set(row.level, row.score);
                         }
                     }
-                    catch (e_10_1) { e_10 = { error: e_10_1 }; }
+                    catch (e_11_1) { e_11 = { error: e_11_1 }; }
                     finally {
                         try {
                             if (scores_1_1 && !scores_1_1.done && (_a = scores_1.return)) _a.call(scores_1);
                         }
-                        finally { if (e_10) throw e_10.error; }
+                        finally { if (e_11) throw e_11.error; }
                     }
                     return [4 /*yield*/, sql(templateObject_19 || (templateObject_19 = __makeTemplateObject(["SELECT level, threshold, core\n    FROM campaign_awards"], ["SELECT level, threshold, core\n    FROM campaign_awards"])))];
                 case 3:
@@ -739,12 +755,12 @@ function getCampaignInfo(username, cheat) {
                             }
                         }
                     }
-                    catch (e_11_1) { e_11 = { error: e_11_1 }; }
+                    catch (e_12_1) { e_12 = { error: e_12_1 }; }
                     finally {
                         try {
                             if (awards_1_1 && !awards_1_1.done && (_b = awards_1.return)) _b.call(awards_1);
                         }
-                        finally { if (e_11) throw e_11.error; }
+                        finally { if (e_12) throw e_12.error; }
                     }
                     newMaxStars = maxStarsGivenAwardsSoFar(numAwards);
                     if (!(newMaxStars > maxStars)) return [3 /*break*/, 5];
@@ -766,12 +782,12 @@ function getCampaignInfo(username, cheat) {
                             }
                         }
                     }
-                    catch (e_12_1) { e_12 = { error: e_12_1 }; }
+                    catch (e_13_1) { e_13 = { error: e_13_1 }; }
                     finally {
                         try {
                             if (requirements_1_1 && !requirements_1_1.done && (_c = requirements_1.return)) _c.call(requirements_1);
                         }
-                        finally { if (e_12) throw e_12.error; }
+                        finally { if (e_13) throw e_13.error; }
                     }
                     return [4 /*yield*/, sql(templateObject_22 || (templateObject_22 = __makeTemplateObject(["SELECT key, url, points_required from campaign_levels"], ["SELECT key, url, points_required from campaign_levels"])))];
                 case 7:
@@ -795,12 +811,12 @@ function getCampaignInfo(username, cheat) {
                             }
                         }
                     }
-                    catch (e_13_1) { e_13 = { error: e_13_1 }; }
+                    catch (e_14_1) { e_14 = { error: e_14_1 }; }
                     finally {
                         try {
                             if (levels_1_1 && !levels_1_1.done && (_d = levels_1.return)) _d.call(levels_1);
                         }
-                        finally { if (e_13) throw e_13.error; }
+                        finally { if (e_14) throw e_14.error; }
                     }
                     return [2 /*return*/, {
                             urls: urls,
@@ -857,7 +873,7 @@ express()
     });
 }); })
     .post('/signup', function (req, res) { return __awaiter(void 0, void 0, void 0, function () {
-    var credentials, e_14;
+    var credentials, e_15;
     return __generator(this, function (_a) {
         switch (_a.label) {
             case 0:
@@ -880,15 +896,15 @@ express()
                 res.send('ok');
                 return [3 /*break*/, 5];
             case 4:
-                e_14 = _a.sent();
-                res.send(e_14);
+                e_15 = _a.sent();
+                res.send(e_15);
                 return [3 /*break*/, 5];
             case 5: return [2 /*return*/];
         }
     });
 }); })
     .post('/login', function (req, res) { return __awaiter(void 0, void 0, void 0, function () {
-    var credentials, success, e_15;
+    var credentials, success, e_16;
     return __generator(this, function (_a) {
         switch (_a.label) {
             case 0:
@@ -910,8 +926,8 @@ express()
                 }
                 return [3 /*break*/, 4];
             case 3:
-                e_15 = _a.sent();
-                res.send(e_15);
+                e_16 = _a.sent();
+                res.send(e_16);
                 return [3 /*break*/, 4];
             case 4: return [2 /*return*/];
         }
@@ -993,7 +1009,7 @@ express()
 }); })
     .get('/campaignHeartbeat', function (req, res) { return __awaiter(void 0, void 0, void 0, function () {
     var credentials, success, version, username, url, scores, score, awards, nextAward, totalAwards, wonAwards, awards_2, awards_2_1, award, maxStars;
-    var e_16, _a;
+    var e_17, _a;
     return __generator(this, function (_b) {
         switch (_b.label) {
             case 0:
@@ -1037,12 +1053,12 @@ express()
                         }
                     }
                 }
-                catch (e_16_1) { e_16 = { error: e_16_1 }; }
+                catch (e_17_1) { e_17 = { error: e_17_1 }; }
                 finally {
                     try {
                         if (awards_2_1 && !awards_2_1.done && (_a = awards_2.return)) _a.call(awards_2);
                     }
-                    finally { if (e_16) throw e_16.error; }
+                    finally { if (e_17) throw e_17.error; }
                 }
                 return [4 /*yield*/, userMaxStars(credentials.username)];
             case 4:
@@ -1058,7 +1074,7 @@ express()
 }); })
     .post('/campaignSubmit', function (req, res) { return __awaiter(void 0, void 0, void 0, function () {
     var credentials, success, username, url, spec, score, history, _a, valid, explanation, levels, key, scores, newAwards, oldScore, awards, nextAward, awards_3, awards_3_1, award, threshold;
-    var e_17, _b;
+    var e_18, _b;
     return __generator(this, function (_c) {
         switch (_c.label) {
             case 0:
@@ -1119,12 +1135,12 @@ express()
                         }
                     }
                 }
-                catch (e_17_1) { e_17 = { error: e_17_1 }; }
+                catch (e_18_1) { e_18 = { error: e_18_1 }; }
                 finally {
                     try {
                         if (awards_3_1 && !awards_3_1.done && (_b = awards_3.return)) _b.call(awards_3);
                     }
-                    finally { if (e_17) throw e_17.error; }
+                    finally { if (e_18) throw e_18.error; }
                 }
                 res.send({ priorBest: oldScore, newAwards: newAwards, nextAward: nextAward });
                 return [2 /*return*/];
@@ -1231,7 +1247,7 @@ express()
 }); })
     .get('/scoreboard', function (req, res) { return __awaiter(void 0, void 0, void 0, function () {
     var url, results, spoilers_1, entries, entriesByVersion, bestTime, entries_1, entries_1_1, entry, versionEntries, err_8;
-    var e_18, _a;
+    var e_19, _a;
     return __generator(this, function (_b) {
         switch (_b.label) {
             case 0:
@@ -1271,12 +1287,12 @@ express()
                         versionEntries.push(entry);
                     }
                 }
-                catch (e_18_1) { e_18 = { error: e_18_1 }; }
+                catch (e_19_1) { e_19 = { error: e_19_1 }; }
                 finally {
                     try {
                         if (entries_1_1 && !entries_1_1.done && (_a = entries_1.return)) _a.call(entries_1);
                     }
-                    finally { if (e_18) throw e_18.error; }
+                    finally { if (e_19) throw e_19.error; }
                 }
                 res.render('pages/scoreboard', { entriesByVersion: entriesByVersion, url: url, currentVersion: VERSION });
                 return [3 /*break*/, 4];
