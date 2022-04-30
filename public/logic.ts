@@ -727,8 +727,8 @@ export class State {
         return State.fromReplay(parseReplay(s), spec)
     }
     static fromReplay(replay:Replay, spec:GameSpec): State {
-        if (replay.version != VERSION)
-            throw new VersionMismatch(replay.version || 'null');
+        /*if (replay.version != VERSION)
+            throw new VersionMismatch(replay.version || 'null');*/
         return initialState(spec).update({future:replay.actions})
     }
 }

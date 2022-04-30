@@ -62,6 +62,16 @@ destination TEXT references campaign_levels(key),
 req TEXT references campaign_levels(key)
 );
 
+333 migration column
+
+# adding from scratch
+
+ALTER TABLE scoreboard ADD COLUMN knownobsolete BOOLEAN NOT NULL DEFAULT FALSE;
+
+# renaming
+
+ALTER TABLE scoreboard RENAME COLUMN migrated TO knownobsolete;
+
 ### resetting daily
 
 UPDATE dailies SET best_user = NULL,

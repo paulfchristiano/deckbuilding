@@ -186,6 +186,37 @@ async function submitForDaily(username:string, url:string, score:number): Promis
     }
 }
 
+async function migrateScores(): Promise<string> {
+  let results = await sql`SELECT * FROM scoreboard WHERE knownobsolete=FALSE AND version!=${VERSION}`;
+
+  console.log(`migrating ${results.length} scores...`)
+  let migrated = 0;
+  let failed = 0;
+  
+  for (const result of results) {
+      console.log(`migrating ${result.username}'s ${result.score} on ${result.url}`)
+      const spec = specFromURL(result.url)
+      console.log(`spec is ${spec}`)
+      const [valid, explanation] = await verifyScore(spec, result.history, result.score)
+      if (valid) {
+          console.log(`valid, migrating`)
+          await sql`UPDATE scoreboard
+              SET version=${VERSION}
+              WHERE url=${result.url} AND score=${result.score} AND history=${result.history}
+          `
+          migrated += 1
+      } else {
+          console.log(`invalid because of ${explanation}, marking migrated`)
+          await sql`UPDATE scoreboard
+              SET knownobsolete=TRUE
+              WHERE url=${result.url} AND score=${result.score} AND history=${result.history}`
+          failed += 1
+      }
+  }
+
+  return `Migrated ${migrated}, Failed ${failed}`
+}
+
 type RecentEntry = {version:string, age:string, score:number, username:string, url:string}
 
 async function serveMain(req:any, res:any) {
@@ -433,6 +464,10 @@ express()
       } catch (e) {
         res.send(e)
       }
+    })
+    .post('/migrate', async (req: any, res:any) => {
+      const results = await migrateScores()
+      res.send(`<p>${results}</p>`)
     })
     .get('/link', async (req: any, res:any) => {
       const id = req.query.id;

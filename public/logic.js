@@ -844,8 +844,8 @@ var State = /** @class */ (function () {
         return State.fromReplay(parseReplay(s), spec);
     };
     State.fromReplay = function (replay, spec) {
-        if (replay.version != VERSION)
-            throw new VersionMismatch(replay.version || 'null');
+        /*if (replay.version != VERSION)
+            throw new VersionMismatch(replay.version || 'null');*/
         return initialState(spec).update({ future: replay.actions });
     };
     return State;
