@@ -1,7 +1,7 @@
 import express from 'express'
 import path from 'path'
 const PORT = process.env.PORT || 5000
-import {verifyScore, VERSION, specFromURL, specToURL, normalizeURL, MalformedSpec } from './public/logic.js'
+import {verifyScore, VERSION, specFromURL, specToURL, normalizeURL, MalformedSpec, MalformedReplay } from './public/logic.js'
 import {Credentials, hashPassword, CampaignInfo} from './public/campaign.js'
 
 import './public/cards/index.js'
@@ -206,7 +206,7 @@ async function migrateScores(): Promise<string> {
           [valid, explanation] = await verifyScore(spec, result.history, result.score)
         }
       } catch (e:any) {
-        if (e instanceof MalformedSpec) {
+        if (e instanceof MalformedSpec || e instanceof MalformedReplay) {
           valid = false;
           explanation = `${e.message}`
         } else {

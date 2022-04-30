@@ -78,7 +78,7 @@ var __read = (this && this.__read) || function (o, n) {
 };
 import express from 'express';
 var PORT = process.env.PORT || 5000;
-import { verifyScore, VERSION, specFromURL, normalizeURL, MalformedSpec } from './public/logic.js';
+import { verifyScore, VERSION, specFromURL, normalizeURL, MalformedSpec, MalformedReplay } from './public/logic.js';
 import './public/cards/index.js';
 var db_url = process.env.DATABASE_URL;
 var runningLocally = (db_url == undefined || db_url.search('localhost') > 0);
@@ -424,7 +424,7 @@ function migrateScores() {
                 case 7: return [3 /*break*/, 9];
                 case 8:
                     e_5 = _c.sent();
-                    if (e_5 instanceof MalformedSpec) {
+                    if (e_5 instanceof MalformedSpec || e_5 instanceof MalformedReplay) {
                         valid = false;
                         explanation = "" + e_5.message;
                     }
