@@ -337,7 +337,7 @@ function dailyURL(type) {
     });
 }
 function makeDailyURL(key, secret) {
-    return "seed=" + key + "." + secret;
+    return "seed=" + key + "." + secret + "&expansions=base,expansion";
 }
 function submitForDaily(username, url, score) {
     return __awaiter(this, void 0, void 0, function () {
@@ -412,7 +412,6 @@ function migrateScores() {
                 case 4:
                     _c.trys.push([4, 8, , 9]);
                     spec = specFromURL(result.url);
-                    console.log("spec is " + spec);
                     if (!(result.history == '' || result.history == null)) return [3 /*break*/, 5];
                     valid = false;
                     explanation = "No history provided";

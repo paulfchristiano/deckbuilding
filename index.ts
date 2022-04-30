@@ -159,7 +159,7 @@ async function dailyURL(type:DailyType): Promise<string> {
 }
 
 function makeDailyURL(key:string, secret:string) {
-  return `seed=${key}.${secret}`
+  return `seed=${key}.${secret}&expansions=base,expansion`
 }
 
 async function submitForDaily(username:string, url:string, score:number): Promise<void> {
@@ -198,7 +198,6 @@ async function migrateScores(): Promise<string> {
       let valid:boolean, explanation:string;
       try {
         const spec = specFromURL(result.url)
-        console.log(`spec is ${spec}`);
         if (result.history == '' || result.history == null) {
           valid = false;
           explanation = "No history provided"
