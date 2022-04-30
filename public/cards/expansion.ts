@@ -26,7 +26,8 @@ import { CardSpec, Card, choice, asChoice, trash, Cost, addCosts, leq, Effect,
   trashOnLeavePlay, discardFromPlay, trashThis,
   payAction,
   fragileEcho, Token,
-  num, playReplacer, countDistinctNames
+  num, playReplacer, countDistinctNames,
+  sortHand
 } from '../logic.js'
 
 
@@ -188,8 +189,8 @@ const squeeze:CardSpec = {
 }
 events.push(squeeze)
 
-const inspiration:CardSpec = {
-    name: 'Inspiration',
+const inspire:CardSpec = {
+    name: 'Inspire',
     variableCosts: [costPer(energy(1))],
     effects: [{
         text: ['Double your actions and buys.'],
@@ -201,7 +202,7 @@ const inspiration:CardSpec = {
     }, incrementCost()]
 
 }
-events.push(inspiration)
+events.push(inspire)
 
 /*
 const chain:CardSpec = {
@@ -246,8 +247,8 @@ const bulkOrder:CardSpec = {
     name: 'Bulk Order',
     fixedCost: {...free, energy:1, coin:2},
     effects: [targetedEffect(
-        card => addToken(card, 'bulk', 6),
-        'Put six bulk tokens on a card in the supply.',
+        card => addToken(card, 'bulk', 5),
+        'Put five bulk tokens on a card in the supply.',
         state => state.supply,
     )],
 
@@ -398,11 +399,11 @@ function multitargetedEffect(
 const regroup:CardSpec = {
     name: 'Regroup',
     fixedCost: energy(2),
-    effects: [actionsEffect(2), buysEffect(1), multitargetedEffect(
-        targets => moveMany(targets, 'hand'),
-        'Put up to four cards from your discard into your hand.',
-        state => state.discard, 4
-    )]
+    restrictions: [{
+        text: 'You must have at most 5 cards in your discard.',
+        test: (c, s, k) => s.discard.length > 5,
+    }],
+    effects: [actionsEffect(2), buysEffect(1), recycleEffect()],
 }
 events.push(regroup)
 
@@ -683,13 +684,12 @@ const logistics:CardSpec = {
         text: [`Put a ${logisticsToken} token on each supply.`],
         transform: s => doAll(s.events.map(e => addToken(e, 'logistics')))
     }],
-    replacers: [{
+    staticReplacers: [{
         text: `Events cost @ less for each logistics token on them but not zero. Whenever this reduces a cost, remove a logistics token.`,
         kind: 'cost',
         handles: p => (p.actionKind == 'use' && p.card.count('logistics') > 0),
         replace: (p, state) => {
             const card = state.find(p.card)
-            const nonEnergy = p.cost.coin > 0
             const maxReduction = (p.cost.coin > 0) ? p.cost.energy : p.cost.energy - 1
             const reduction = Math.min(maxReduction, card.count('logistics'))
             return {...p, cost:{...p.cost,
@@ -712,8 +712,8 @@ const territory:CardSpec = {
 }
 cards.push(territory)
 
-const lastStand:CardSpec = {
-    name: 'Last Stand',
+const reprise:CardSpec = {
+    name: 'Reprise',
     fixedCost: energy(1),
     effects: [{
         text: [`Put each card in your discard into your hand with an echo token on it.`],
@@ -723,7 +723,7 @@ const lastStand:CardSpec = {
     }],
     staticReplacers: [fragileEcho('echo')]
 }
-events.push(lastStand)
+events.push(reprise)
 /*
 const fossilize:CardSpec = {
     name: 'Fossilize',
@@ -753,7 +753,7 @@ const harrow:CardSpec = {
     name: harrowName,
     buyCost: coin(4),
     effects: [{
-        text: [`Discard any number of cards from your hand, then put that many cards from your discard into your hand.`],
+        text: [`Discard any number of cards from your hand, then put that many non-${harrowName} cards from your discard into your hand.`],
         transform: () => async function(state) {
             let cards; [state, cards] = await multichoice(state,
                 `Discard any number of cards.`,
@@ -762,7 +762,7 @@ const harrow:CardSpec = {
             state = await moveMany(cards, 'discard')(state)
             let targets; [state, targets] = await multichoice(state,
                 `Choose ${n} cards to put into your hand.`,
-                state.discard.map(asChoice),
+                state.discard.filter(c => c.name != harrowName).map(asChoice),
                 n, n)
             state = await moveMany(targets, 'hand')(state)
             return state
@@ -844,12 +844,25 @@ cards.push(supplyForCard((brigade, 4, 'expansion')
 
 const brigade:CardSpec = {name: 'Brigade',
     buyCost: coin(3),
-    effects: [actionsEffect(1), coinsEffect(1)],
-    replacers: [{
-        text: `Cards you play cost @ less if they have no brigade token on them.
-               Whenever this reduces a card's cost, put a brigade token on it and discard this.`,
+    staticReplacers: [{
+        text: `Cards cost @ more to play for each brigade token on them.
+               Whenever this increases a card's cost, remove all brigade tokens from it.`,
         kind: 'cost',
-        handles: (x, state) => (x.actionKind == 'play' && x.card.count('brigade') == 0),
+        handles: (x, state, card) => (x.actionKind == 'play')
+            && state.find(x.card).count('brigade') > 0,
+        replace: (x, state, card) => {
+            const increase = x.card.count('brigade')
+            return {...x, cost:{...x.cost,
+                energy:x.cost.energy+increase,
+                effects: x.cost.effects.concat([removeToken(x.card, 'brigade', 'all')]),
+            }}
+        }
+    }],
+    replacers: [{
+        text: `Cards you play cost @ less.
+               Whenever this reduces a card's cost, put a brigade token on it.`,
+        kind: 'cost',
+        handles: (x, state) => (x.actionKind == 'play'),
         replace: function(x:CostParams, state:State, card:Card) {
             const newCost:Cost = subtractCost(x.cost, {energy:1})
             if (!eq(newCost, x.cost)) {
@@ -934,13 +947,13 @@ const sculpt:CardSpec = {
 }
 cards.push(sculpt)
 
-const masterpiece:CardSpec = {
-    name: 'Masterpiece',
+const tapestry:CardSpec = {
+    name: 'Tapestry',
     buyCost:coin(4),
     fixedCost: energy(1),
     effects: [coinsEffect(5)]
 }
-cards.push(masterpiece)
+cards.push(tapestry)
 
 function workshopTransform(n:number, source:Source): Transform {
     return applyToTarget(
@@ -994,16 +1007,26 @@ const universityName = 'University'
 const university:CardSpec = {
     name: universityName,
     buyCost: coin(12),
-    effects: [actionsEffect(4), buysEffect(1)],
+    effects: [actionsEffect(4), buysEffect(2)],
+/*    effects: [{
+        text: [`Gain a card costing up to $1 per action you have.`],
+        transform: (s, c) => workshopTransform(s.actions, c)
+    }],
+*/
+    relatedCards:[fair],
     staticReplacers: [{
-        text: `${universityName} costs $1 less to buy for each action you have, but not zero.`,
+        text: `${universityName} costs $1 less per action you have, but not less than $1.`,
         kind: 'cost',
         handles: p => (p.card.name == universityName) && p.actionKind == 'buy',
-        replace: (p, s) => ({...p, cost: reducedCost(p.cost, coin(s.actions), true)})
+        replace: function(p, s) {
+            const k = Math.max(Math.min(s.actions, p.cost.coin-1), 0)
+            return {...p, cost: addCosts(p.cost, {coin: -k})}
+        }
     }]
 }
 cards.push(university)
 
+/*
 const steelName = 'Steel'
 const steel:CardSpec = {
     name: steelName,
@@ -1020,15 +1043,14 @@ const steel:CardSpec = {
     }]
 }
 cards.push(steel)
+*/
 
-/*
 const silverMine:CardSpec = {
     name: 'Silver Mine',
     buyCost: coin(6),
     effects: [actionsEffect(1), createEffect(silver, 'hand', 2)]
 }
 cards.push(silverMine)
-*/
 
 const livery:CardSpec = {
     name: "Livery",
@@ -1173,9 +1195,9 @@ const kiln:CardSpec = {
     fixedCost: energy(1),
     effects: [coinsEffect(2)],
     triggers: [{
-        text: `After playing a card with this in play, discard this to create a copy of the card you played.`,
-        kind: 'afterPlay',
-        handles: (e, s, c) => s.find(c).place == 'play' && e.before.find(c).place == 'play',
+        text: `When you play a card, discard this to create a copy of the card you played.`,
+        kind: 'play',
+        handles: (e, s, c) => true,
         transform: (e, s, c) => doAll([move(c, 'discard'), create(e.card.spec, 'discard')])
     }]
 }
@@ -1447,10 +1469,13 @@ const exploit:CardSpec = {
     }]
 }
 events.push(exploit)
+*/
 
+/*
 const treasury:CardSpec = {
     name: 'Treasury',
     fixedCost: energy(1),
+    buyCost: coin(3),
     effects: [actionsEffect(3)],
     triggers: [{
         text: `Whenever you gain more than one action, gain that much $ minus one.`,
@@ -1459,13 +1484,13 @@ const treasury:CardSpec = {
         transform: e => gainCoins(e.amount - 1)
     }]
 }
-cards.push(supplyForCard((treasury, 4, 'expansion')
+cards.push(treasury)
 */
 
 const statue:CardSpec = {
     name: 'Statue',
     buyCost: coin(5),
-    fixedCost: energy(1),
+    fixedCost: energy(2),
     effects: [],
     triggers: [{
         text: `Whenever you buy a card costing $1 or more, +1 vp.`,
@@ -1508,8 +1533,11 @@ const farmland:CardSpec = {
             kind == 'activate' && state.play.some(c => c.name == farmlandName && c.id != card.id)
     }],
     ability: [{
-        text: [`If you have no other ${farmlandName}s in play, discard this for +8 vp.`],
-        transform: (s, c) => payToDo(discardFromPlay(c), gainPoints(8)),
+        text: [`If you have no other ${farmlandName}s in play, discard this. If it is in your discard, +8 vp.`],
+        transform: (s, c) => payToDo(discardFromPlay(c), async function(state) {
+            if (state.find(c).place == 'discard') return gainPoints(8)(state)
+            return state
+        }),
     }],
 }
 cards.push(farmland)

@@ -85,7 +85,7 @@ var __read = (this && this.__read) || function (o, n) {
     }
     return ar;
 };
-export var VERSION = "1.8.3.1";
+export var VERSION = "2";
 // ----------------------------- Formatting
 export function renderCost(cost, full) {
     var e_1, _a;

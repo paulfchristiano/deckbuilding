@@ -114,7 +114,7 @@ const till:CardSpec = {name: Till,
         }
     }]
 }
-cards.push(supplyForCard(till, coin(3)))
+cards.push(supplyForCard(till, coin(4)))
 
 const village:CardSpec = {name: 'Village',
     effects:  [actionsEffect(1), createInPlayEffect(villager)],
@@ -209,13 +209,7 @@ cards.push(supplyForCard(celebration, coin(8), {replacers: [{
 const plowName = 'Plow'
 const plow:CardSpec = {name: plowName,
     fixedCost: energy(1),
-    effects: [{
-        text: [`Put your discard into your hand.`],
-        transform: state => doAll([
-            moveMany(state.discard, 'hand'),
-            sortHand
-        ])
-    }, toPlay()],
+    effects: [recycleEffect(), toPlay()],
     staticReplacers: [{
         kind: 'create',
         text: `Whenever you would create a ${plowName}, create it in play.`,
@@ -466,9 +460,9 @@ registerEvent(coffers)
 */
 
 const vibrantCity:CardSpec = {name: 'Vibrant City',
-    effects: [pointsEffect(1), actionsEffect(1)],
+    effects: [pointsEffect(2), actionsEffect(1)],
 }
-cards.push(supplyForCard(vibrantCity, coin(3)))
+cards.push(supplyForCard(vibrantCity, coin(5)))
 
 function chargeUpTo(max:number): Effect {
     return {
@@ -483,7 +477,7 @@ const frontier:CardSpec = {name: 'Frontier',
     effects: [{
         text: ['+1 vp per charge token on this.'],
         transform: (state, card) => gainPoints(state.find(card).charge, card)
-    }, chargeEffect()]
+    }, chargeUpTo(6)]
 }
 cards.push(supplyForCard(
     frontier, coin(7), 
@@ -506,16 +500,16 @@ const populate:CardSpec = {name: 'Populate',
     staticTriggers: [{
         kind: 'afterBuy',
         text: `After buying a card the normal way,
-        remove a charge token from this to buy up to 5 other cards
+        remove a charge token from this to buy up to 4 other cards
         with equal or lesser cost.`,
         handles: e => e.source.name == 'act',
         transform: (e, s, c) => payToDo(discharge(c, 1), async function(state) {
             let targets; [state, targets] = await multichoice(state,
-                'Choose up to 5 other cards to buy',
+                'Choose up to 4 other cards to buy',
                 state.supply.filter(target => 
                     leq(target.cost('buy', state), e.card.cost('buy', state))
                     && target.id != e.card.id
-                ).map(asChoice), 5)
+                ).map(asChoice), 4)
             for (const target of targets) {
                 state = await target.buy(c)(state)
             }
@@ -990,14 +984,23 @@ const decay:CardSpec = {name: 'Decay',
     fixedCost: coin(1),
     effects: [chargeEffect()],
     staticTriggers: [{
-        text: `After playing a card,
+        text: `When you play a card from your hand,
             remove a charge token from this.
-            If you can't, put a decay token on the card.
-            If it already had a decay token trash it instead.`,
-        kind: 'afterPlay',
-        handles: () => true,
-        transform: (e, s, c) => payToDo(discharge(c, 1), noop,
-            s.find(e.card).count('decay') > 0 ? trash(e.card) : addToken(e.card, 'decay'))
+            If you can't, put a decay token on the card.`,
+        kind: 'play',
+        handles: function (e) {
+          const place =  e.card.place
+          return place == 'hand'
+        },
+        transform: (e, s, c) => payToDo(discharge(c, 1), noop, addToken(e.card, 'decay'))
+    }],
+    staticReplacers: [{
+        text: `Whenever a card with two or more decay tokens would move to your hand or discard,
+               trash it instead.`,
+        kind: 'move',
+        handles: (p, state) => state.find(p.card).count('decay') > 1
+            && (p.toZone == 'hand' || p.toZone == 'discard'),
+        replace: p => ({...p, toZone: 'void'})
     }]
 }
 events.push(decay)
@@ -1641,7 +1644,7 @@ const secretChamber:CardSpec = {
         }
     }]
 }
-cards.push(supplyForCard(secretChamber, coin(3)))
+cards.push(supplyForCard(secretChamber, coin(4)))
 
 
 const hireling:CardSpec = {
@@ -1797,7 +1800,7 @@ events.push(polish)
 
 const mire:CardSpec = {
     name: 'Mire',
-    fixedCost: energy(4),
+    fixedCost: energy(3),
     effects: [{
         text: [`Remove all mire tokens from all cards.`],
         transform: (state:State) => doAll(state.discard.concat(state.play).concat(state.hand).map(
@@ -1914,7 +1917,7 @@ const prioritize:CardSpec = {
     name: 'Prioritize',
     fixedCost: {...free, energy:1, coin:3},
     effects: [targetedEffect(
-        card => addToken(card, 'priority', 6),
+        card => addToken(card, 'priority', 5),
         'Put six priority tokens on a card in the supply.',
         state => state.supply,
     )],
