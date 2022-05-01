@@ -1918,7 +1918,7 @@ const prioritize:CardSpec = {
     fixedCost: {...free, energy:1, coin:3},
     effects: [targetedEffect(
         card => addToken(card, 'priority', 5),
-        'Put six priority tokens on a card in the supply.',
+        'Put five priority tokens on a card in the supply.',
         state => state.supply,
     )],
     staticReplacers: [playReplacer(

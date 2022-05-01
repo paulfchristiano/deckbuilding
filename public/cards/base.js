@@ -1951,7 +1951,7 @@ cards.push(supplyForCard(highway, coin(6), { replacers: [{
 var prioritize = {
     name: 'Prioritize',
     fixedCost: __assign(__assign({}, free), { energy: 1, coin: 3 }),
-    effects: [targetedEffect(function (card) { return addToken(card, 'priority', 5); }, 'Put six priority tokens on a card in the supply.', function (state) { return state.supply; })],
+    effects: [targetedEffect(function (card) { return addToken(card, 'priority', 5); }, 'Put five priority tokens on a card in the supply.', function (state) { return state.supply; })],
     staticReplacers: [playReplacer("Whenever you would create a card in your discard\n        whose supply has a priority token,\n        instead remove a priority token to set the card aside.\n        Then play it if it is still set aside.", function (p, s, c) { return nameHasToken(p.spec, 'priority', s); }, function (p, s, c) { return applyToTarget(function (t) { return removeToken(t, 'priority', 1, true); }, 'Remove a priority token.', function (state) { return state.supply.filter(function (t) { return t.name == p.spec.name; }); }); })]
 };
 events.push(prioritize);
