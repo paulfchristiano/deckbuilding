@@ -337,7 +337,7 @@ function dailyURL(type) {
     });
 }
 function makeDailyURL(key, secret) {
-    return "seed=" + key + "." + secret + "&expansions=base,expansion";
+    return "expansions=base,expansion&seed=" + key + "." + secret;
 }
 function submitForDaily(username, url, score) {
     return __awaiter(this, void 0, void 0, function () {
@@ -598,39 +598,16 @@ function serveDaily(req, res) {
 }
 function freeToSpoil(url) {
     return __awaiter(this, void 0, void 0, function () {
-        var dailyTypes_5, dailyTypes_5_1, type, dailyURLs, isCampaign, e_9_1;
-        var e_9, _a;
-        return __generator(this, function (_b) {
-            switch (_b.label) {
-                case 0:
-                    _b.trys.push([0, 6, 7, 8]);
-                    dailyTypes_5 = __values(dailyTypes), dailyTypes_5_1 = dailyTypes_5.next();
-                    _b.label = 1;
+        var dailyURLs, isCampaign;
+        return __generator(this, function (_a) {
+            switch (_a.label) {
+                case 0: return [4 /*yield*/, Promise.all(dailyTypes.map(dailyURL))];
                 case 1:
-                    if (!!dailyTypes_5_1.done) return [3 /*break*/, 5];
-                    type = dailyTypes_5_1.value;
-                    return [4 /*yield*/, Promise.all(dailyTypes.map(dailyURL))];
-                case 2:
-                    dailyURLs = _b.sent();
+                    dailyURLs = _a.sent();
                     return [4 /*yield*/, isCampaignLevel(url)];
-                case 3:
-                    isCampaign = _b.sent();
+                case 2:
+                    isCampaign = _a.sent();
                     return [2 /*return*/, (dailyURLs.every(function (x) { return x != url; }) && !isCampaign)];
-                case 4:
-                    dailyTypes_5_1 = dailyTypes_5.next();
-                    return [3 /*break*/, 1];
-                case 5: return [3 /*break*/, 8];
-                case 6:
-                    e_9_1 = _b.sent();
-                    e_9 = { error: e_9_1 };
-                    return [3 /*break*/, 8];
-                case 7:
-                    try {
-                        if (dailyTypes_5_1 && !dailyTypes_5_1.done && (_a = dailyTypes_5.return)) _a.call(dailyTypes_5);
-                    }
-                    finally { if (e_9) throw e_9.error; }
-                    return [7 /*endfinally*/];
-                case 8: return [2 /*return*/];
             }
         });
     });
@@ -651,7 +628,7 @@ function isCampaignLevel(url) {
 function serveDailiesByType(type, res) {
     return __awaiter(this, void 0, void 0, function () {
         var results, results_2, results_2_1, result, err_3;
-        var e_10, _a;
+        var e_9, _a;
         return __generator(this, function (_b) {
             switch (_b.label) {
                 case 0:
@@ -665,12 +642,12 @@ function serveDailiesByType(type, res) {
                             results.current = (result.version == VERSION);
                         }
                     }
-                    catch (e_10_1) { e_10 = { error: e_10_1 }; }
+                    catch (e_9_1) { e_9 = { error: e_9_1 }; }
                     finally {
                         try {
                             if (results_2_1 && !results_2_1.done && (_a = results_2.return)) _a.call(results_2);
                         }
-                        finally { if (e_10) throw e_10.error; }
+                        finally { if (e_9) throw e_9.error; }
                     }
                     res.render('pages/dailies', { type: type, dailies: results.filter(function (r) { return r.best_user != null; }) });
                     return [3 /*break*/, 3];
@@ -710,7 +687,7 @@ function getCampaignInfo(username, cheat) {
     if (cheat === void 0) { cheat = false; }
     return __awaiter(this, void 0, void 0, function () {
         var maxStars, scores, scoreByLevel, scores_1, scores_1_1, row, awards, passedLevels, awardsByLevel, availableAwardsByLevel, numAwards, awards_1, awards_1_1, row, score, availableAwards, currentAwards, newMaxStars, lockedLevels, requirements, requirements_1, requirements_1_1, row, currentReqs, levels, urls, lockReasons, levels_1, levels_1_1, row, req, starStr;
-        var e_11, _a, e_12, _b, e_13, _c, e_14, _d;
+        var e_10, _a, e_11, _b, e_12, _c, e_13, _d;
         return __generator(this, function (_e) {
             switch (_e.label) {
                 case 0: return [4 /*yield*/, userMaxStars(username)];
@@ -726,12 +703,12 @@ function getCampaignInfo(username, cheat) {
                             scoreByLevel.set(row.level, row.score);
                         }
                     }
-                    catch (e_11_1) { e_11 = { error: e_11_1 }; }
+                    catch (e_10_1) { e_10 = { error: e_10_1 }; }
                     finally {
                         try {
                             if (scores_1_1 && !scores_1_1.done && (_a = scores_1.return)) _a.call(scores_1);
                         }
-                        finally { if (e_11) throw e_11.error; }
+                        finally { if (e_10) throw e_10.error; }
                     }
                     return [4 /*yield*/, sql(templateObject_19 || (templateObject_19 = __makeTemplateObject(["SELECT level, threshold, core\n    FROM campaign_awards"], ["SELECT level, threshold, core\n    FROM campaign_awards"])))];
                 case 3:
@@ -759,12 +736,12 @@ function getCampaignInfo(username, cheat) {
                             }
                         }
                     }
-                    catch (e_12_1) { e_12 = { error: e_12_1 }; }
+                    catch (e_11_1) { e_11 = { error: e_11_1 }; }
                     finally {
                         try {
                             if (awards_1_1 && !awards_1_1.done && (_b = awards_1.return)) _b.call(awards_1);
                         }
-                        finally { if (e_12) throw e_12.error; }
+                        finally { if (e_11) throw e_11.error; }
                     }
                     newMaxStars = maxStarsGivenAwardsSoFar(numAwards);
                     if (!(newMaxStars > maxStars)) return [3 /*break*/, 5];
@@ -786,12 +763,12 @@ function getCampaignInfo(username, cheat) {
                             }
                         }
                     }
-                    catch (e_13_1) { e_13 = { error: e_13_1 }; }
+                    catch (e_12_1) { e_12 = { error: e_12_1 }; }
                     finally {
                         try {
                             if (requirements_1_1 && !requirements_1_1.done && (_c = requirements_1.return)) _c.call(requirements_1);
                         }
-                        finally { if (e_13) throw e_13.error; }
+                        finally { if (e_12) throw e_12.error; }
                     }
                     return [4 /*yield*/, sql(templateObject_22 || (templateObject_22 = __makeTemplateObject(["SELECT key, url, points_required from campaign_levels"], ["SELECT key, url, points_required from campaign_levels"])))];
                 case 7:
@@ -815,12 +792,12 @@ function getCampaignInfo(username, cheat) {
                             }
                         }
                     }
-                    catch (e_14_1) { e_14 = { error: e_14_1 }; }
+                    catch (e_13_1) { e_13 = { error: e_13_1 }; }
                     finally {
                         try {
                             if (levels_1_1 && !levels_1_1.done && (_d = levels_1.return)) _d.call(levels_1);
                         }
-                        finally { if (e_14) throw e_14.error; }
+                        finally { if (e_13) throw e_13.error; }
                     }
                     return [2 /*return*/, {
                             urls: urls,
@@ -877,7 +854,7 @@ express()
     });
 }); })
     .post('/signup', function (req, res) { return __awaiter(void 0, void 0, void 0, function () {
-    var credentials, e_15;
+    var credentials, e_14;
     return __generator(this, function (_a) {
         switch (_a.label) {
             case 0:
@@ -900,15 +877,15 @@ express()
                 res.send('ok');
                 return [3 /*break*/, 5];
             case 4:
-                e_15 = _a.sent();
-                res.send(e_15);
+                e_14 = _a.sent();
+                res.send(e_14);
                 return [3 /*break*/, 5];
             case 5: return [2 /*return*/];
         }
     });
 }); })
     .post('/login', function (req, res) { return __awaiter(void 0, void 0, void 0, function () {
-    var credentials, success, e_16;
+    var credentials, success, e_15;
     return __generator(this, function (_a) {
         switch (_a.label) {
             case 0:
@@ -930,8 +907,8 @@ express()
                 }
                 return [3 /*break*/, 4];
             case 3:
-                e_16 = _a.sent();
-                res.send(e_16);
+                e_15 = _a.sent();
+                res.send(e_15);
                 return [3 /*break*/, 4];
             case 4: return [2 /*return*/];
         }
@@ -1013,7 +990,7 @@ express()
 }); })
     .get('/campaignHeartbeat', function (req, res) { return __awaiter(void 0, void 0, void 0, function () {
     var credentials, success, version, username, url, scores, score, awards, nextAward, totalAwards, wonAwards, awards_2, awards_2_1, award, maxStars;
-    var e_17, _a;
+    var e_16, _a;
     return __generator(this, function (_b) {
         switch (_b.label) {
             case 0:
@@ -1057,12 +1034,12 @@ express()
                         }
                     }
                 }
-                catch (e_17_1) { e_17 = { error: e_17_1 }; }
+                catch (e_16_1) { e_16 = { error: e_16_1 }; }
                 finally {
                     try {
                         if (awards_2_1 && !awards_2_1.done && (_a = awards_2.return)) _a.call(awards_2);
                     }
-                    finally { if (e_17) throw e_17.error; }
+                    finally { if (e_16) throw e_16.error; }
                 }
                 return [4 /*yield*/, userMaxStars(credentials.username)];
             case 4:
@@ -1078,7 +1055,7 @@ express()
 }); })
     .post('/campaignSubmit', function (req, res) { return __awaiter(void 0, void 0, void 0, function () {
     var credentials, success, username, url, spec, score, history, _a, valid, explanation, levels, key, scores, newAwards, oldScore, awards, nextAward, awards_3, awards_3_1, award, threshold;
-    var e_18, _b;
+    var e_17, _b;
     return __generator(this, function (_c) {
         switch (_c.label) {
             case 0:
@@ -1139,12 +1116,12 @@ express()
                         }
                     }
                 }
-                catch (e_18_1) { e_18 = { error: e_18_1 }; }
+                catch (e_17_1) { e_17 = { error: e_17_1 }; }
                 finally {
                     try {
                         if (awards_3_1 && !awards_3_1.done && (_b = awards_3.return)) _b.call(awards_3);
                     }
-                    finally { if (e_18) throw e_18.error; }
+                    finally { if (e_17) throw e_17.error; }
                 }
                 res.send({ priorBest: oldScore, newAwards: newAwards, nextAward: nextAward });
                 return [2 /*return*/];
@@ -1251,7 +1228,7 @@ express()
 }); })
     .get('/scoreboard', function (req, res) { return __awaiter(void 0, void 0, void 0, function () {
     var url, results, spoilers_1, entries, entriesByVersion, bestTime, entries_1, entries_1_1, entry, versionEntries, err_8;
-    var e_19, _a;
+    var e_18, _a;
     return __generator(this, function (_b) {
         switch (_b.label) {
             case 0:
@@ -1291,12 +1268,12 @@ express()
                         versionEntries.push(entry);
                     }
                 }
-                catch (e_19_1) { e_19 = { error: e_19_1 }; }
+                catch (e_18_1) { e_18 = { error: e_18_1 }; }
                 finally {
                     try {
                         if (entries_1_1 && !entries_1_1.done && (_a = entries_1.return)) _a.call(entries_1);
                     }
-                    finally { if (e_19) throw e_19.error; }
+                    finally { if (e_18) throw e_18.error; }
                 }
                 res.render('pages/scoreboard', { entriesByVersion: entriesByVersion, url: url, currentVersion: VERSION });
                 return [3 /*break*/, 4];

@@ -269,7 +269,7 @@ const idealize:CardSpec = {
     name: 'Idealize',
     fixedCost: {...free, coin:2, energy:1},
     effects: [{
-        text: [`Move a card in your hand to the supply and put an ideal token on it.`],
+        text: [`Move a card in your hand to the events and put an ideal token on it.`],
         transform: () => async function(state) {
             let target:Card|null; [state, target] = await choice(state,
                 'Choose a card to idealize.', state.hand.map(asChoice))

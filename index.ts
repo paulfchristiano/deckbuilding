@@ -159,7 +159,7 @@ async function dailyURL(type:DailyType): Promise<string> {
 }
 
 function makeDailyURL(key:string, secret:string) {
-  return `seed=${key}.${secret}&expansions=base,expansion`
+  return `expansions=base,expansion&seed=${key}.${secret}`
 }
 
 async function submitForDaily(username:string, url:string, score:number): Promise<void> {
@@ -296,11 +296,9 @@ async function serveDaily(req:any, res:any) {
 }
 
 async function freeToSpoil(url:string) {
-  for (const type of dailyTypes) {
-    const dailyURLs:string[] = await Promise.all(dailyTypes.map(dailyURL))
-	const isCampaign = await isCampaignLevel(url)
-    return (dailyURLs.every(x => x != url) && !isCampaign)
-  }
+  const dailyURLs:string[] = await Promise.all(dailyTypes.map(dailyURL))
+  const isCampaign = await isCampaignLevel(url)
+  return (dailyURLs.every(x => x != url) && !isCampaign)
 }
 
 async function isCampaignLevel(url:string) {
