@@ -871,9 +871,6 @@ var brigade = { name: 'Brigade',
                 if (!eq(newCost, x.cost)) {
                     newCost.effects = newCost.effects.concat([
                         addToken(x.card, 'brigade'),
-                        move(card, 'discard'),
-                        gainCoins(1),
-                        gainActions(1),
                     ]);
                     return __assign(__assign({}, x), { cost: newCost });
                 }

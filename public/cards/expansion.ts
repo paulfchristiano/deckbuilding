@@ -868,9 +868,6 @@ const brigade:CardSpec = {name: 'Brigade',
             if (!eq(newCost, x.cost)) {
                 newCost.effects = newCost.effects.concat([
                     addToken(x.card, 'brigade'),
-                    move(card, 'discard'),
-                    gainCoins(1),
-                    gainActions(1),
                 ])
                 return {...x, cost:newCost}
             } else {
