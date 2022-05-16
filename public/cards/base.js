@@ -187,7 +187,7 @@ var conclave = { name: 'Conclave', replacers: [{
             }
         }]
 };
-cards.push(supplyForCard(conclave, coin(4)));
+cards.push(supplyForCard(conclave, coin(3)));
 var lab = { name: 'Lab',
     effects: [actionsEffect(2)]
 };
@@ -1644,7 +1644,7 @@ var secretChamber = {
                 });
             }; }
         }, {
-            text: ["Trash any number of cards from your discard for +$1 each."],
+            text: ["Trash any number of cards from your discard for +1 buy each."],
             transform: function () { return function (state) {
                 return __awaiter(this, void 0, void 0, function () {
                     var targets;
@@ -1657,7 +1657,7 @@ var secretChamber = {
                                 return [4 /*yield*/, moveMany(targets, 'void')(state)];
                             case 2:
                                 state = _b.sent();
-                                return [4 /*yield*/, gainCoins(targets.length)(state)];
+                                return [4 /*yield*/, gainBuys(targets.length)(state)];
                             case 3:
                                 state = _b.sent();
                                 return [2 /*return*/, state];
@@ -1667,7 +1667,7 @@ var secretChamber = {
             }; }
         }]
 };
-cards.push(supplyForCard(secretChamber, coin(4)));
+cards.push(supplyForCard(secretChamber, coin(3)));
 var hireling = {
     name: 'Hireling',
     relatedCards: [fair],

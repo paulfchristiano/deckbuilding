@@ -843,7 +843,7 @@ cards.push(supplyForCard((brigade, 4, 'expansion')
 */
 
 const brigade:CardSpec = {name: 'Brigade',
-    buyCost: coin(3),
+    buyCost: coin(4),
     staticReplacers: [{
         text: `Cards cost @ more to play for each brigade token on them.
                Whenever this increases a card's cost, remove all brigade tokens from it.`,
@@ -868,7 +868,6 @@ const brigade:CardSpec = {name: 'Brigade',
             if (!eq(newCost, x.cost)) {
                 newCost.effects = newCost.effects.concat([
                     addToken(x.card, 'brigade'),
-                    move(card, 'discard'),
                     gainCoins(1),
                     gainActions(1),
                 ])
@@ -1008,12 +1007,6 @@ const university:CardSpec = {
     name: universityName,
     buyCost: coin(12),
     effects: [actionsEffect(4), buysEffect(2)],
-/*    effects: [{
-        text: [`Gain a card costing up to $1 per action you have.`],
-        transform: (s, c) => workshopTransform(s.actions, c)
-    }],
-*/
-    relatedCards:[fair],
     staticReplacers: [{
         text: `${universityName} costs $1 less per action you have, but not less than $1.`,
         kind: 'cost',
@@ -1288,7 +1281,7 @@ cards.push(supplyForCard(churn,coin(4), {
 
 const accelerate:CardSpec = {
     name: 'Accelerate',
-    fixedCost: {...free, energy:1, coin:3},
+    fixedCost: {...free, energy:1, coin:4},
     effects: [{
         text: [`Put an accelerate token on each card in the supply.`],
         transform: (state, card) => doAll(state.supply.map(c => addToken(c, 'accelerate')))

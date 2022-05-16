@@ -852,7 +852,7 @@ const brigade:CardSpec = {name: 'Brigade',
 cards.push(supplyForCard((brigade, 4, 'expansion')
 */
 var brigade = { name: 'Brigade',
-    buyCost: coin(3), staticReplacers: [{
+    buyCost: coin(4), staticReplacers: [{
             text: "Cards cost @ more to play for each brigade token on them.\n               Whenever this increases a card's cost, remove all brigade tokens from it.",
             kind: 'cost',
             handles: function (x, state, card) { return (x.actionKind == 'play')
@@ -871,7 +871,6 @@ var brigade = { name: 'Brigade',
                 if (!eq(newCost, x.cost)) {
                     newCost.effects = newCost.effects.concat([
                         addToken(x.card, 'brigade'),
-                        move(card, 'discard'),
                         gainCoins(1),
                         gainActions(1),
                     ]);
@@ -1022,12 +1021,6 @@ var university = {
     name: universityName,
     buyCost: coin(12),
     effects: [actionsEffect(4), buysEffect(2)],
-    /*    effects: [{
-            text: [`Gain a card costing up to $1 per action you have.`],
-            transform: (s, c) => workshopTransform(s.actions, c)
-        }],
-    */
-    relatedCards: [fair],
     staticReplacers: [{
             text: universityName + " costs $1 less per action you have, but not less than $1.",
             kind: 'cost',
@@ -1334,7 +1327,7 @@ cards.push(supplyForCard(churn, coin(4), {
 }));
 var accelerate = {
     name: 'Accelerate',
-    fixedCost: __assign(__assign({}, free), { energy: 1, coin: 3 }),
+    fixedCost: __assign(__assign({}, free), { energy: 1, coin: 4 }),
     effects: [{
             text: ["Put an accelerate token on each card in the supply."],
             transform: function (state, card) { return doAll(state.supply.map(function (c) { return addToken(c, 'accelerate'); })); }

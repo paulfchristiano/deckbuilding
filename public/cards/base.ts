@@ -150,7 +150,7 @@ const conclave:CardSpec = {name: 'Conclave',
         }
     }]
 }
-cards.push(supplyForCard(conclave, coin(4)))
+cards.push(supplyForCard(conclave, coin(3)))
 
 const lab:CardSpec = {name: 'Lab',
     effects: [actionsEffect(2)]
@@ -1633,18 +1633,18 @@ const secretChamber:CardSpec = {
             return state
         }
     }, {
-        text: [`Trash any number of cards from your discard for +$1 each.`],
+        text: [`Trash any number of cards from your discard for +1 buy each.`],
         transform: () => async function(state) {
             let targets; [state, targets] = await multichoice(state,
                 'Trash any number of cards for +$1 each.',
                 state.discard.map(asChoice))
             state = await moveMany(targets, 'void')(state)
-            state = await gainCoins(targets.length)(state)
+            state = await gainBuys(targets.length)(state)
             return state
         }
     }]
 }
-cards.push(supplyForCard(secretChamber, coin(4)))
+cards.push(supplyForCard(secretChamber, coin(3)))
 
 
 const hireling:CardSpec = {
