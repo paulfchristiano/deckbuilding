@@ -112,7 +112,7 @@ var misplace = {
     staticTriggers: [{
             text: "After buying a card the normal way, remove a charge token from this to buy all other cards in the supply with the same name.",
             kind: 'afterBuy',
-            handles: function (e, s, c) { return c.charge > 0 && e.source.name == 'act'; },
+            handles: function (e, s, c) { return c.charge > 0 && e.source == 'act'; },
             transform: function (e, s, c) { return payToDo(discharge(c, 1), doAll(s.supply.filter(function (target) { return target.name == e.card.name && target.id != e.card.id; }).map(function (target) { return target.buy(c); }))); }
         }, {
             text: "After buying a card, move it to your discard.",

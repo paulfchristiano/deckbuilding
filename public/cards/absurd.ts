@@ -69,7 +69,7 @@ const misplace:CardSpec = {
     staticTriggers: [{
         text: `After buying a card the normal way, remove a charge token from this to buy all other cards in the supply with the same name.`,
         kind: 'afterBuy',
-        handles: (e, s, c) => c.charge > 0 && e.source.name == 'act',
+        handles: (e, s, c) => c.charge > 0 && e.source == 'act',
         transform: (e, s, c) => payToDo(discharge(c, 1),
             doAll(s.supply.filter(target => target.name == e.card.name && target.id != e.card.id).map(target => target.buy(c)))
         )

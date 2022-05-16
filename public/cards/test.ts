@@ -39,7 +39,7 @@ const manor:CardSpec = {
         text: 'Whenever you pay @, gain that many vp.',
         kind: 'cost',
         handles: (e) => e.cost.energy > 0,
-        transform: e => gainPoints(e.cost.energy)
+        transform: (e, s, c) => gainPoints(e.cost.energy, c)
     }]
 }
 cards.push(manor)

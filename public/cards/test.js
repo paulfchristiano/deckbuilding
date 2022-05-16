@@ -83,7 +83,7 @@ var manor = {
             text: 'Whenever you pay @, gain that many vp.',
             kind: 'cost',
             handles: function (e) { return e.cost.energy > 0; },
-            transform: function (e) { return gainPoints(e.cost.energy); }
+            transform: function (e, s, c) { return gainPoints(e.cost.energy, c); }
         }]
 };
 cards.push(manor);
