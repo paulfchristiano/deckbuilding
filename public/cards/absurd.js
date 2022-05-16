@@ -340,7 +340,7 @@ var idealize = {
     name: 'Idealize',
     fixedCost: __assign(__assign({}, free), { coin: 2, energy: 1 }),
     effects: [{
-            text: ["Move a card in your hand to the supply and put an ideal token on it."],
+            text: ["Move a card in your hand to the events and put an ideal token on it."],
             transform: function () { return function (state) {
                 return __awaiter(this, void 0, void 0, function () {
                     var target;

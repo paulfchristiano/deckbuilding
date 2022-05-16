@@ -1,7 +1,7 @@
 import express from 'express'
 import path from 'path'
 const PORT = process.env.PORT || 5000
-import {verifyScore, VERSION, specFromURL, specToURL, normalizeURL } from './public/logic.js'
+import {verifyScore, VERSION, specFromURL, specToURL, normalizeURL, MalformedSpec, MalformedReplay } from './public/logic.js'
 import {Credentials, hashPassword, CampaignInfo} from './public/campaign.js'
 
 import './public/cards/index.js'
@@ -159,7 +159,7 @@ async function dailyURL(type:DailyType): Promise<string> {
 }
 
 function makeDailyURL(key:string, secret:string) {
-  return `seed=${key}.${secret}`
+  return `expansions=base,expansion&seed=${key}.${secret}`
 }
 
 async function submitForDaily(username:string, url:string, score:number): Promise<void> {
@@ -184,6 +184,51 @@ async function submitForDaily(username:string, url:string, score:number): Promis
         `
       }
     }
+}
+
+async function migrateScores(): Promise<string> {
+  let results = await sql`SELECT * FROM scoreboard WHERE knownobsolete=FALSE AND version!=${VERSION}`;
+
+  console.log(`migrating ${results.length} scores...`)
+  let migrated = 0;
+  let failed = 0;
+  
+  for (const result of results) {
+      console.log(`migrating ${result.username}'s ${result.score} on ${result.url}`)
+      let valid:boolean, explanation:string;
+      try {
+        const spec = specFromURL(result.url)
+        if (result.history == '' || result.history == null) {
+          valid = false;
+          explanation = "No history provided"
+        } else {
+          [valid, explanation] = await verifyScore(spec, result.history, result.score)
+        }
+      } catch (e:any) {
+        if (e instanceof MalformedSpec || e instanceof MalformedReplay) {
+          valid = false;
+          explanation = `${e.message}`
+        } else {
+          throw e
+        }
+      }
+      if (valid) {
+          console.log(`valid, migrating`)
+          await sql`UPDATE scoreboard
+              SET version=${VERSION}
+              WHERE url=${result.url} AND score=${result.score} AND history=${result.history}
+          `
+          migrated += 1
+      } else {
+          console.log(`invalid because of ${explanation}, marking knownobsolete`)
+          await sql`UPDATE scoreboard
+              SET knownobsolete=TRUE
+              WHERE url=${result.url} AND score=${result.score} AND history=${result.history}`
+          failed += 1
+      }
+  }
+
+  return `Migrated ${migrated}, Failed ${failed}`
 }
 
 type RecentEntry = {version:string, age:string, score:number, username:string, url:string}
@@ -251,11 +296,9 @@ async function serveDaily(req:any, res:any) {
 }
 
 async function freeToSpoil(url:string) {
-  for (const type of dailyTypes) {
-    const dailyURLs:string[] = await Promise.all(dailyTypes.map(dailyURL))
-	const isCampaign = await isCampaignLevel(url)
-    return (dailyURLs.every(x => x != url) && !isCampaign)
-  }
+  const dailyURLs:string[] = await Promise.all(dailyTypes.map(dailyURL))
+  const isCampaign = await isCampaignLevel(url)
+  return (dailyURLs.every(x => x != url) && !isCampaign)
 }
 
 async function isCampaignLevel(url:string) {
@@ -433,6 +476,10 @@ express()
       } catch (e) {
         res.send(e)
       }
+    })
+    .post('/migrate', async (req: any, res:any) => {
+      const results = await migrateScores()
+      res.send(`<p>${results}</p>`)
     })
     .get('/link', async (req: any, res:any) => {
       const id = req.query.id;

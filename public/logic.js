@@ -844,8 +844,8 @@ var State = /** @class */ (function () {
         return State.fromReplay(parseReplay(s), spec);
     };
     State.fromReplay = function (replay, spec) {
-        if (replay.version != VERSION)
-            throw new VersionMismatch(replay.version || 'null');
+        /*if (replay.version != VERSION)
+            throw new VersionMismatch(replay.version || 'null');*/
         return initialState(spec).update({ future: replay.actions });
     };
     return State;
@@ -1267,7 +1267,6 @@ export function createAndTrack(spec, zone, tokens) {
                         card = null;
                         if (!(params.zone != null)) return [3 /*break*/, 9];
                         _c = __read(createRaw(state, spec, params.zone, params.tokens), 2), state = _c[0], card = _c[1];
-                        console.log(params.tokens);
                         return [4 /*yield*/, trigger({ kind: 'create', card: card, zone: params.zone })(state)];
                     case 1:
                         state = _e.sent();

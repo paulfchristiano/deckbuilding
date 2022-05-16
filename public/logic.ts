@@ -727,8 +727,8 @@ export class State {
         return State.fromReplay(parseReplay(s), spec)
     }
     static fromReplay(replay:Replay, spec:GameSpec): State {
-        if (replay.version != VERSION)
-            throw new VersionMismatch(replay.version || 'null');
+        /*if (replay.version != VERSION)
+            throw new VersionMismatch(replay.version || 'null');*/
         return initialState(spec).update({future:replay.actions})
     }
 }
@@ -1071,7 +1071,6 @@ export function createAndTrack(
         let card:Card|null = null
         if (params.zone !=  null) {
             [state, card] = createRaw(state, spec, params.zone, params.tokens)
-            console.log(params.tokens)
             state = await trigger({kind:'create', card:card, zone:params.zone})(state)
             for (const effect of params.effects) state = await effect(card)(state)
         }
