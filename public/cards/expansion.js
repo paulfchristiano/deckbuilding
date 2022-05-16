@@ -61,7 +61,7 @@ var __read = (this && this.__read) || function (o, n) {
     }
     return ar;
 };
-import { choice, asChoice, trash, addCosts, leq, gainPoints, gainActions, gainCoins, gainBuys, free, create, doAll, multichoice, moveMany, addToken, removeToken, payToDo, tick, eq, move, noop, charge, discharge, payCost, subtractCost, aOrNum, allowNull, villager, fair, refresh, supplyForCard, actionsEffect, buysEffect, pointsEffect, coinsEffect, recycleEffect, reflectTrigger, createInPlayEffect, targetedEffect, chargeEffect, startsWithCharge, energy, coin, useRefresh, reducedCost, applyToTarget, countNameTokens, nameHasToken, incrementCost, costPer, createEffect, repeat, copper, silver, gold, estate, duchy, province, trashOnLeavePlay, discardFromPlay, trashThis, payAction, fragileEcho, playReplacer, countDistinctNames } from '../logic.js';
+import { choice, asChoice, trash, addCosts, leq, gainPoints, gainActions, gainCoins, gainBuys, free, create, doAll, multichoice, moveMany, addToken, removeToken, payToDo, tick, eq, move, noop, charge, discharge, payCost, subtractCost, aOrNum, allowNull, villager, fair, supplyForCard, actionsEffect, buysEffect, pointsEffect, coinsEffect, recycleEffect, reflectTrigger, createInPlayEffect, targetedEffect, chargeEffect, startsWithCharge, energy, coin, useRefresh, reducedCost, applyToTarget, countNameTokens, nameHasToken, incrementCost, costPer, createEffect, repeat, copper, silver, gold, estate, duchy, province, trashOnLeavePlay, discardFromPlay, trashThis, payAction, fragileEcho, playReplacer, countDistinctNames, sourceHasName } from '../logic.js';
 // ------------------- Expansion ---------------
 export var cards = [];
 export var events = [];
@@ -95,23 +95,23 @@ var greed = {
     fixedCost: __assign(__assign({}, free), { energy: 1 }),
     effects: [{
             text: ["Pay all vp. For each vp lost, +$1, +1 action, and +1 buy."],
-            transform: function () { return function (state) {
+            transform: function (s, card) { return function (state) {
                 return __awaiter(this, void 0, void 0, function () {
                     var n;
                     return __generator(this, function (_a) {
                         switch (_a.label) {
                             case 0:
                                 n = state.points;
-                                return [4 /*yield*/, gainPoints(-n)(state)];
+                                return [4 /*yield*/, gainPoints(-n, card)(state)];
                             case 1:
                                 state = _a.sent();
-                                return [4 /*yield*/, gainCoins(n)(state)];
+                                return [4 /*yield*/, gainCoins(n, card)(state)];
                             case 2:
                                 state = _a.sent();
-                                return [4 /*yield*/, gainActions(n)(state)];
+                                return [4 /*yield*/, gainActions(n, card)(state)];
                             case 3:
                                 state = _a.sent();
-                                return [4 /*yield*/, gainBuys(n)(state)];
+                                return [4 /*yield*/, gainBuys(n, card)(state)];
                             case 4:
                                 state = _a.sent();
                                 return [2 /*return*/, state];
@@ -222,10 +222,10 @@ var squeeze = {
     fixedCost: energy(1),
     effects: [actionsEffect(1)],
     staticReplacers: [{
-            text: "You can't gain actions from " + refresh.name + ".",
+            text: "You can't gain more than 1 action at a time from events.",
             kind: 'resource',
-            handles: function (p, s, c) { return p.resource == 'actions' && p.source.name == refresh.name; },
-            replace: function (p) { return (__assign(__assign({}, p), { amount: 0 })); },
+            handles: function (p, s, c) { return p.resource == 'actions' && p.source != 'act' && s.find(p.source).place == 'events'; },
+            replace: function (p) { return (__assign(__assign({}, p), { amount: Math.min(p.amount, 1) })); },
         }]
 };
 events.push(squeeze);
@@ -238,10 +238,10 @@ var inspire = {
                 return __awaiter(this, void 0, void 0, function () {
                     return __generator(this, function (_a) {
                         switch (_a.label) {
-                            case 0: return [4 /*yield*/, gainActions(state.actions)(state)];
+                            case 0: return [4 /*yield*/, gainActions(state.actions, c)(state)];
                             case 1:
                                 state = _a.sent();
-                                return [4 /*yield*/, gainBuys(state.buys)(state)];
+                                return [4 /*yield*/, gainBuys(state.buys, c)(state)];
                             case 2:
                                 state = _a.sent();
                                 return [2 /*return*/, state];
@@ -249,7 +249,13 @@ var inspire = {
                     });
                 });
             }; }
-        }, incrementCost()]
+        }, incrementCost()],
+    staticReplacers: [{
+            text: copper.name + " costs $1 more to buy if this has a cost token on it.",
+            kind: 'cost',
+            handles: function (p, state, card) { return p.actionKind == 'buy' && p.card.name == copper.name && state.find(card).count('cost') > 0; },
+            replace: function (p, state, card) { return (__assign(__assign({}, p), { cost: addCosts(p.cost, coin(1)) })); }
+        }]
 };
 events.push(inspire);
 /*
@@ -284,13 +290,13 @@ function buyCheaper(card, s, source) {
 }
 var bulkOrder = {
     name: 'Bulk Order',
-    fixedCost: __assign(__assign({}, free), { energy: 1, coin: 2 }),
+    fixedCost: __assign(__assign({}, free), { energy: 1, coin: 3 }),
     effects: [targetedEffect(function (card) { return addToken(card, 'bulk', 5); }, 'Put five bulk tokens on a card in the supply.', function (state) { return state.supply; })],
     staticTriggers: [{
             text: "After buying a card with a bulk token on it other than with this,\n        remove a bulk token from it to buy it again.",
             kind: 'afterBuy',
             handles: function (e, state, card) {
-                if (e.source.name == card.name)
+                if (sourceHasName(e.source, card.name))
                     return false;
                 var target = state.find(e.card);
                 return target.count('bulk') > 0;
@@ -896,12 +902,12 @@ var metalworker = {
             kind: 'play',
             text: "When you play a " + silver.name + ", +1 action.",
             handles: function (e) { return e.card.name == silver.name; },
-            transform: function (e) { return gainActions(1); },
+            transform: function (e, s, c) { return gainActions(1, c); },
         }, {
             kind: 'play',
             text: "When you play a " + gold.name + ", +1 action and +1 buy.",
             handles: function (e) { return e.card.name == gold.name; },
-            transform: function (e) { return doAll([gainActions(1), gainBuys(1)]); },
+            transform: function (e, s, c) { return doAll([gainActions(1, c), gainBuys(1, c)]); },
         }]
 };
 cards.push(metalworker);
@@ -927,7 +933,7 @@ var queensCourt = {
                                 _a.label = 1;
                             case 1:
                                 if (!(i < 3)) return [3 /*break*/, 4];
-                                return [4 /*yield*/, payToDo(payAction, applyToTarget(function (target) { return doAll([
+                                return [4 /*yield*/, payToDo(payAction(card), applyToTarget(function (target) { return doAll([
                                         target.play(card),
                                         target.play(card),
                                     ]); }, 'Choose a card to play twice.', function (s) { return s.hand; }, { optional: 'None' }))(state)];
@@ -1075,14 +1081,14 @@ var stables = {
 };
 cards.push(supplyForCard(stables, coin(2), { onBuy: [{
             text: ["Pay all actions to create that many " + horse.name + "s in your discard."],
-            transform: function () { return function (state) {
+            transform: function (s, c) { return function (state) {
                 return __awaiter(this, void 0, void 0, function () {
                     var n;
                     return __generator(this, function (_a) {
                         switch (_a.label) {
                             case 0:
                                 n = state.actions;
-                                return [4 /*yield*/, payCost(__assign(__assign({}, free), { actions: n }))(state)];
+                                return [4 /*yield*/, payCost(__assign(__assign({}, free), { actions: n }), c)(state)];
                             case 1:
                                 state = _a.sent();
                                 return [4 /*yield*/, repeat(create(horse), n)(state)];
@@ -1100,14 +1106,14 @@ var bustlingVillage = {
     relatedCards: [villager],
     effects: [{
             text: ["+1 action for each differently-named card in play."],
-            transform: function (state) { return function (state) {
+            transform: function (state, card) { return function (state) {
                 return __awaiter(this, void 0, void 0, function () {
                     var n;
                     return __generator(this, function (_a) {
                         switch (_a.label) {
                             case 0:
                                 n = countDistinctNames(state.play);
-                                return [4 /*yield*/, gainActions(n)(state)];
+                                return [4 /*yield*/, gainActions(n, card)(state)];
                             case 1:
                                 state = _a.sent();
                                 return [2 /*return*/, state];
@@ -1270,10 +1276,11 @@ var werewolf = {
             text: ["If there is no " + moon.name + " in play, create one."],
             transform: function (s) { return (s.play.some(function (c) { return c.name == moon.name; })) ? noop : create(moon, 'play'); },
         }, {
-            text: ["If a " + moon.name + " in play has an odd number of charge tokens, +$3 and +1 buy.\n                Otherwise, +3 actions."],
-            transform: function (s) { return (s.play.some(function (c) { return c.name == moon.name && c.charge % 2 == 1; })) ?
-                doAll([gainCoins(3), gainBuys(1)]) :
-                gainActions(3); }
+            text: ["If a " + moon.name + " in play has an odd number of charge tokens, trash a card, +$3 and +1 buy.",
+                "Otherwise, +3 actions."],
+            transform: function (s, c) { return (s.play.some(function (c) { return c.name == moon.name && c.charge % 2 == 1; })) ?
+                doAll([applyToTarget(function (card) { return trash(card); }, "Trash a card in your hand.", function (state) { return state.hand; }), gainCoins(3, c), gainBuys(1, c)]) :
+                gainActions(3, c); }
         }]
 };
 cards.push(werewolf);
@@ -1493,7 +1500,7 @@ var statue = {
             text: "Whenever you buy a card costing $1 or more, +1 vp.",
             kind: 'buy',
             handles: function (e, s) { return e.card.cost('buy', s).coin > 0; },
-            transform: function (e) { return gainPoints(1); },
+            transform: function (e, s, c) { return gainPoints(1, c); },
         }]
 };
 cards.push(statue);
@@ -1503,7 +1510,7 @@ var scepter = {
     buyCost: coin(7),
     effects: [{
             text: ["Pay an action to play a card in your hand three times then trash it."],
-            transform: function (state, card) { return payToDo(payAction, applyToTarget(function (target) { return doAll([
+            transform: function (state, card) { return payToDo(payAction(card), applyToTarget(function (target) { return doAll([
                 target.play(card),
                 tick(card),
                 target.play(card),
@@ -1531,7 +1538,7 @@ var farmland = {
                 return __awaiter(this, void 0, void 0, function () {
                     return __generator(this, function (_a) {
                         if (state.find(c).place == 'discard')
-                            return [2 /*return*/, gainPoints(8)(state)];
+                            return [2 /*return*/, gainPoints(8, c)(state)];
                         return [2 /*return*/, state];
                     });
                 });

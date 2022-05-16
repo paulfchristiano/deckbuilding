@@ -27,7 +27,8 @@ import { CardSpec, Card, choice, asChoice, trash, Cost, addCosts, leq, Effect,
   payAction,
   fragileEcho, Token,
   num, playReplacer, countDistinctNames,
-  sortHand
+  sortHand,
+  sourceHasName
 } from '../logic.js'
 
 
@@ -63,12 +64,12 @@ const greed:CardSpec = {
     fixedCost: {...free, energy:1},
     effects: [{
         text: [`Pay all vp. For each vp lost, +$1, +1 action, and +1 buy.`],
-        transform: () => async function(state) {
+        transform: (s, card) => async function(state) {
             const n = state.points
-            state = await gainPoints(-n)(state)
-            state = await gainCoins(n)(state)
-            state = await gainActions(n)(state)
-            state = await gainBuys(n)(state)
+            state = await gainPoints(-n, card)(state)
+            state = await gainCoins(n, card)(state)
+            state = await gainActions(n, card)(state)
+            state = await gainBuys(n, card)(state)
             return state
         }
     }]
@@ -181,10 +182,10 @@ const squeeze:CardSpec = {
     fixedCost: energy(1),
     effects: [actionsEffect(1)],
     staticReplacers: [{
-        text: `You can't gain actions from ${refresh.name}.`,
+        text: `You can't gain more than 1 action at a time from events.`,
         kind: 'resource',
-        handles: (p, s, c) => p.resource == 'actions' && p.source.name == refresh.name,
-        replace: p => ({...p, amount:0}),
+        handles: (p, s, c) => p.resource == 'actions' && p.source != 'act' && s.find(p.source).place == 'events',
+        replace: p => ({...p, amount:Math.min(p.amount, 1)}),
     }]
 }
 events.push(squeeze)
@@ -195,11 +196,17 @@ const inspire:CardSpec = {
     effects: [{
         text: ['Double your actions and buys.'],
         transform: (s, c) => async function(state) {
-            state = await gainActions(state.actions)(state)
-            state = await gainBuys(state.buys)(state)
+            state = await gainActions(state.actions, c)(state)
+            state = await gainBuys(state.buys, c)(state)
             return state
         }
-    }, incrementCost()]
+    }, incrementCost()],
+    staticReplacers: [{
+        text: `${copper.name} costs $1 more to buy if this has a cost token on it.`,
+        kind: 'cost',
+        handles: (p, state, card) => p.actionKind == 'buy' && p.card.name == copper.name && state.find(card).count('cost') > 0,
+        replace: (p, state, card) => ({...p, cost:addCosts(p.cost, coin(1))})
+    }]
 
 }
 events.push(inspire)
@@ -245,7 +252,7 @@ function buyCheaper(card:Card, s:State, source:Source): Transform {
 
 const bulkOrder:CardSpec = {
     name: 'Bulk Order',
-    fixedCost: {...free, energy:1, coin:2},
+    fixedCost: {...free, energy:1, coin:3},
     effects: [targetedEffect(
         card => addToken(card, 'bulk', 5),
         'Put five bulk tokens on a card in the supply.',
@@ -257,7 +264,7 @@ const bulkOrder:CardSpec = {
         remove a bulk token from it to buy it again.`,
         kind:'afterBuy',
         handles: (e, state, card) => {
-            if (e.source.name == card.name) return false
+            if (sourceHasName(e.source, card.name)) return false
             const target:Card = state.find(e.card);
             return target.count('bulk') > 0
         },
@@ -894,12 +901,12 @@ const metalworker:CardSpec = {
         kind: 'play',
         text: `When you play a ${silver.name}, +1 action.`,
         handles: e => e.card.name == silver.name,
-        transform: e => gainActions(1),
+        transform: (e, s, c)  => gainActions(1, c),
     }, {
         kind: 'play',
         text: `When you play a ${gold.name}, +1 action and +1 buy.`,
         handles: e => e.card.name == gold.name,
-        transform: e => doAll([gainActions(1), gainBuys(1)]),
+        transform: (e, s, c) => doAll([gainActions(1, c), gainBuys(1, c)]),
     }]
 }
 cards.push(metalworker)
@@ -919,7 +926,7 @@ const queensCourt:CardSpec = {
         text: [`Do this three times: pay an action to play a card in your hand twice.`],
         transform: (s, card) => async function(state) {
             for (let i = 0; i < 3; i++) {
-                state = await payToDo(payAction, applyToTarget(
+                state = await payToDo(payAction(card), applyToTarget(
                     target => doAll([
                         target.play(card),
                         target.play(card),
@@ -1065,9 +1072,9 @@ const stables:CardSpec = {
 }
 cards.push(supplyForCard(stables, coin(2), {onBuy: [{
     text: [`Pay all actions to create that many ${horse.name}s in your discard.`],
-    transform: () => async function(state) {
+    transform: (s, c) => async function(state) {
         const n = state.actions
-        state = await payCost({...free, actions:n})(state)
+        state = await payCost({...free, actions:n}, c)(state)
         state = await repeat(create(horse), n)(state)
         return state
     }
@@ -1079,9 +1086,9 @@ const bustlingVillage:CardSpec = {
     relatedCards: [villager],
     effects: [{
         text: [`+1 action for each differently-named card in play.`],
-        transform: state => async function(state) {
+        transform: (state, card) => async function(state) {
             const n = countDistinctNames(state.play)
-            state = await gainActions(n)(state)
+            state = await gainActions(n, card)(state)
             return state
         }
     }, createInPlayEffect(villager)]
@@ -1240,11 +1247,11 @@ const werewolf:CardSpec = {
         text: [`If there is no ${moon.name} in play, create one.`],
         transform: s => (s.play.some(c => c.name == moon.name)) ? noop : create(moon, 'play'),
     }, {
-        text: [`If a ${moon.name} in play has an odd number of charge tokens, +$3 and +1 buy.
-                Otherwise, +3 actions.`],
-        transform: s => (s.play.some(c => c.name == moon.name && c.charge % 2 == 1)) ?
-            doAll([gainCoins(3), gainBuys(1)]) :
-            gainActions(3)
+        text: [`If a ${moon.name} in play has an odd number of charge tokens, trash a card, +$3 and +1 buy.`,
+                `Otherwise, +3 actions.`],
+        transform: (s, c) => (s.play.some(c => c.name == moon.name && c.charge % 2 == 1)) ?
+            doAll([applyToTarget(card => trash(card), "Trash a card in your hand.", state => state.hand), gainCoins(3, c), gainBuys(1, c)]) :
+            gainActions(3, c)
     }]
 }
 cards.push(werewolf)
@@ -1487,7 +1494,7 @@ const statue:CardSpec = {
         text: `Whenever you buy a card costing $1 or more, +1 vp.`,
         kind: 'buy',
         handles: (e, s) => e.card.cost('buy', s).coin > 0,
-        transform: e => gainPoints(1),
+        transform: (e, s, c) => gainPoints(1, c),
     }]
 }
 cards.push(statue)
@@ -1498,7 +1505,7 @@ const scepter:CardSpec = {
     buyCost: coin(7),
     effects: [{
         text: [`Pay an action to play a card in your hand three times then trash it.`],
-        transform: (state, card) => payToDo(payAction, applyToTarget(
+        transform: (state, card) => payToDo(payAction(card), applyToTarget(
             target => doAll([
                 target.play(card),
                 tick(card),
@@ -1526,7 +1533,7 @@ const farmland:CardSpec = {
     ability: [{
         text: [`If you have no other ${farmlandName}s in play, discard this. If it is in your discard, +8 vp.`],
         transform: (s, c) => payToDo(discardFromPlay(c), async function(state) {
-            if (state.find(c).place == 'discard') return gainPoints(8)(state)
+            if (state.find(c).place == 'discard') return gainPoints(8, c)(state)
             return state
         }),
     }],

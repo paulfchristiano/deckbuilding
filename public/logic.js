@@ -85,7 +85,7 @@ var __read = (this && this.__read) || function (o, n) {
     }
     return ar;
 };
-export var VERSION = "2";
+export var VERSION = "2.1";
 // ----------------------------- Formatting
 export function renderCost(cost, full) {
     var e_1, _a;
@@ -153,7 +153,9 @@ function repeatSymbol(s, n) {
     return parts.join('');
 }
 export var free = { coin: 0, energy: 0, actions: 0, buys: 0, effects: [], tests: [] };
-var unk = { name: '?' }; //Used as a default when we don't know the source
+export function sourceHasName(s, name) {
+    return s != 'act' && s.name == name;
+}
 var Card = /** @class */ (function () {
     function Card(spec, id, ticks, tokens, place, 
     // we assign each card the smallest unused index in its current zone, for consistency of hotkey mappings
@@ -257,19 +259,15 @@ var Card = /** @class */ (function () {
         };
     };
     Card.prototype.play = function (source) {
-        if (source === void 0) { source = unk; }
         return this.activate('play', source);
     };
     Card.prototype.buy = function (source) {
-        if (source === void 0) { source = unk; }
         return this.activate('buy', source);
     };
     Card.prototype.use = function (source) {
-        if (source === void 0) { source = unk; }
         return this.activate('use', source);
     };
     Card.prototype.activate = function (kind, source) {
-        if (source === void 0) { source = unk; }
         var card = this;
         return function (state) {
             return __awaiter(this, void 0, void 0, function () {
@@ -1303,7 +1301,6 @@ export function createAndTrack(spec, zone, tokens) {
     };
 }
 export function createAndPlay(spec, source) {
-    if (source === void 0) { source = unk; }
     return create(spec, 'void', (function (c) { return c.play(source); }));
 }
 export function move(card, toZone, logged) {
@@ -1460,7 +1457,6 @@ var CostNotPaid = /** @class */ (function (_super) {
     return CostNotPaid;
 }(Error));
 export function payCost(c, source) {
-    if (source === void 0) { source = unk; }
     return function (state) {
         return __awaiter(this, void 0, void 0, function () {
             var _a, _b, effect, e_28_1;
@@ -1523,7 +1519,6 @@ export function payCost(c, source) {
     };
 }
 export function gainResource(resource, amount, source) {
-    if (source === void 0) { source = unk; }
     return function (state) {
         return __awaiter(this, void 0, void 0, function () {
             var newResources, params, _a, _b, transform, e_29_1;
@@ -1588,7 +1583,6 @@ export function gainResource(resource, amount, source) {
     };
 }
 export function setResource(resource, amount, source) {
-    if (source === void 0) { source = unk; }
     return function (state) {
         return __awaiter(this, void 0, void 0, function () {
             return __generator(this, function (_a) {
@@ -1598,7 +1592,6 @@ export function setResource(resource, amount, source) {
     };
 }
 export function gainActions(n, source) {
-    if (source === void 0) { source = unk; }
     return function (state) {
         return __awaiter(this, void 0, void 0, function () {
             return __generator(this, function (_a) {
@@ -1630,12 +1623,10 @@ var ReplayVictory = /** @class */ (function (_super) {
 }(Error));
 export { ReplayVictory };
 function gainEnergy(n, source) {
-    if (source === void 0) { source = unk; }
     return gainResource('energy', n, source);
 }
 export var DEFAULT_VP_GOAL = 40;
 export function gainPoints(n, source) {
-    if (source === void 0) { source = unk; }
     return function (state) {
         return __awaiter(this, void 0, void 0, function () {
             var vp_goal, victoryParams;
@@ -1657,14 +1648,11 @@ export function gainPoints(n, source) {
     };
 }
 export function gainCoins(n, source) {
-    if (source === void 0) { source = unk; }
     return gainResource('coin', n, source);
 }
 export function gainBuys(n, source) {
-    if (source === void 0) { source = unk; }
     return gainResource('buys', n, source);
 }
-export var gainBuy = gainBuys(1);
 export function dischargeCost(c, n) {
     if (n === void 0) { n = 1; }
     return __assign(__assign({}, free), { effects: [discharge(c, n)], tests: [function (state) { return state.find(c).charge >= n; }] });
@@ -1705,7 +1693,7 @@ export function dedupBy(xs, f) {
     }
     return result;
 }
-export var payAction = payCost(__assign(__assign({}, free), { actions: 1 }));
+export function payAction(c) { return payCost(__assign(__assign({}, free), { actions: 1 }), c); }
 export function tickEffect() {
     return {
         text: [],
@@ -1722,7 +1710,7 @@ export function playTwice(card) {
 export function throneroomEffect() {
     return {
         text: ["Pay an action to play a card in your hand twice."],
-        transform: function (state, card) { return payToDo(payAction, playTwice(card)); }
+        transform: function (state, card) { return payToDo(payAction(card), playTwice(card)); }
     };
 }
 export function useRefresh() {
@@ -1787,7 +1775,7 @@ export function reflectTrigger(token) {
         kind: 'afterPlay',
         handles: function (e, state, card) {
             var played = state.find(e.card);
-            return played.count(token) > 0 && e.source.name != card.name;
+            return played.count(token) > 0 && !sourceHasName(e.source, card.name);
         },
         transform: function (e, s, card) { return doAll([
             removeToken(e.card, token),
@@ -2294,7 +2282,7 @@ function act(state) {
                         throw new Error('No valid options.');
                     }
                     _a = __read(picked, 2), card = _a[0], kind = _a[1];
-                    return [2 /*return*/, payToDo(card.payCost(kind), card.activate(kind, { name: 'act' }))(state)];
+                    return [2 /*return*/, payToDo(card.payCost(kind), card.activate(kind, 'act'))(state)];
             }
         });
     });
@@ -2953,13 +2941,13 @@ export function refreshEffect(n, doRecycle) {
             return __awaiter(this, void 0, void 0, function () {
                 return __generator(this, function (_a) {
                     switch (_a.label) {
-                        case 0: return [4 /*yield*/, setResource('coin', 0)(state)];
+                        case 0: return [4 /*yield*/, setResource('coin', 0, card)(state)];
                         case 1:
                             state = _a.sent();
-                            return [4 /*yield*/, setResource('actions', 0)(state)];
+                            return [4 /*yield*/, setResource('actions', 0, card)(state)];
                         case 2:
                             state = _a.sent();
-                            return [4 /*yield*/, setResource('buys', 0)(state)];
+                            return [4 /*yield*/, setResource('buys', 0, card)(state)];
                         case 3:
                             state = _a.sent();
                             if (!doRecycle) return [3 /*break*/, 5];
@@ -2970,7 +2958,7 @@ export function refreshEffect(n, doRecycle) {
                         case 5: return [4 /*yield*/, gainActions(n, card)(state)];
                         case 6:
                             state = _a.sent();
-                            return [4 /*yield*/, gainBuy(state)];
+                            return [4 /*yield*/, gainBuys(1, card)(state)];
                         case 7:
                             state = _a.sent();
                             return [2 /*return*/, state];
@@ -3138,7 +3126,6 @@ export var fair = {
 // ----- MIXINS -----
 //
 function playAgain(target, source) {
-    if (source === void 0) { source = unk; }
     return function (state) {
         return __awaiter(this, void 0, void 0, function () {
             return __generator(this, function (_a) {

@@ -1,4 +1,4 @@
-export const VERSION = "2"
+export const VERSION = "2.1"
 
 // ----------------------------- Formatting
 
@@ -122,11 +122,11 @@ export interface Ability {
     effects: Effect[];
 }
 
-export interface Source {
-    id?: number;
-    name: string;
+export type Source = Card | 'act'
+
+export function sourceHasName(s:Source, name:string): boolean {
+    return s != 'act' && s.name == name
 }
-const unk:Source = {name:'?'} //Used as a default when we don't know the source
 
 interface CardUpdate {
     ticks?: number[];
@@ -229,16 +229,16 @@ export class Card {
             )(state)
         }
     }
-    play(source:Source=unk): Transform {
+    play(source:Source): Transform {
         return this.activate('play', source)
     }
-    buy(source:Source=unk): Transform {
+    buy(source:Source): Transform {
         return this.activate('buy', source)
     }
-    use(source:Source=unk): Transform {
+    use(source:Source): Transform {
         return this.activate('use', source)
     }
-    activate(kind:ActionKind, source:Source=unk) {
+    activate(kind:ActionKind, source:Source) {
         let card:Card = this
         return async function(state:State) {
             card = state.find(card)
@@ -1078,7 +1078,7 @@ export function createAndTrack(
     }
 }
 
-export function createAndPlay(spec:CardSpec, source:Source=unk): Transform {
+export function createAndPlay(spec:CardSpec, source:Source): Transform {
     return create(spec, 'void', (c => c.play(source)))
 }
 
@@ -1174,7 +1174,7 @@ class CostNotPaid extends Error {
     }
 }
 
-export function payCost(c:Cost, source:Source=unk): Transform {
+export function payCost(c:Cost, source:Source): Transform {
     return async function(state:State): Promise<State> {
         if (state.coin < c.coin) throw new CostNotPaid("Not enough coin")
         if (state.actions < c.actions) throw new CostNotPaid("Not enough actions")
@@ -1202,7 +1202,7 @@ export function payCost(c:Cost, source:Source=unk): Transform {
     }
 }
 
-export function gainResource(resource:ResourceName, amount:number, source:Source=unk) {
+export function gainResource(resource:ResourceName, amount:number, source:Source) {
     return async function(state:State): Promise<State> {
         if (amount == 0) return state
         const newResources =  {
@@ -1232,7 +1232,7 @@ export function gainResource(resource:ResourceName, amount:number, source:Source
     }
 }
 
-export function setResource(resource:ResourceName, amount:number, source:Source=unk) {
+export function setResource(resource:ResourceName, amount:number, source:Source) {
     return async function(state:State) {
         return gainResource(
             resource,
@@ -1242,7 +1242,7 @@ export function setResource(resource:ResourceName, amount:number, source:Source=
     }
 }
 
-export function gainActions(n:number, source:Source=unk): Transform {
+export function gainActions(n:number, source:Source): Transform {
     return async function(state:State) {
         return gainResource('actions', n, source)(state)
     }
@@ -1262,12 +1262,12 @@ export class ReplayVictory extends Error {
     }
 }
 
-function gainEnergy(n:number, source:Source=unk): Transform {
+function gainEnergy(n:number, source:Source): Transform {
     return gainResource('energy', n, source)
 }
 
 export const DEFAULT_VP_GOAL = 40
-export function gainPoints(n:number, source:Source=unk): Transform {
+export function gainPoints(n:number, source:Source): Transform {
     return async function(state) {
         state = await gainResource('points', n, source)(state)
         const vp_goal = state.vp_goal
@@ -1279,15 +1279,13 @@ export function gainPoints(n:number, source:Source=unk): Transform {
     }
 }
 
-export function gainCoins(n:number, source:Source=unk): Transform {
+export function gainCoins(n:number, source:Source): Transform {
     return gainResource('coin', n, source)
 }
 
-export function gainBuys(n:number, source:Source=unk): Transform {
+export function gainBuys(n:number, source:Source): Transform {
     return gainResource('buys', n, source)
 }
-
-export const gainBuy = gainBuys(1)
 
 export function dischargeCost(c:Card, n:number=1): Cost {
     return {...free,
@@ -1324,7 +1322,7 @@ export function dedupBy<T>(xs:T[], f:(x:T) => any): T[] {
     return result
 }
 
-export const payAction = payCost({...free, actions:1})
+export function payAction(c:Card): Transform { return payCost({...free, actions:1}, c) }
 
 export function tickEffect(): Effect {
     return {
@@ -1346,7 +1344,7 @@ export function playTwice(card:Card): Transform {
 export function throneroomEffect(): Effect {
     return {
         text: [`Pay an action to play a card in your hand twice.`],
-        transform: (state, card) => payToDo(payAction, playTwice(card))
+        transform: (state, card) => payToDo(payAction(card), playTwice(card))
     }
 }
 
@@ -1430,7 +1428,7 @@ export function reflectTrigger(token:Token): Trigger<AfterPlayEvent> {
         kind:'afterPlay',
         handles: (e, state, card) => {
             const played:Card = state.find(e.card)
-            return played.count(token) > 0 && e.source.name != card.name
+            return played.count(token) > 0 && !sourceHasName(e.source, card.name)
         },
         transform: (e, s, card) => doAll([
             removeToken(e.card, token),
@@ -1863,7 +1861,7 @@ async function act(state:State): Promise<State> {
         throw new Error('No valid options.');
     }
     const [card, kind] = picked
-    return payToDo(card.payCost(kind), card.activate(kind, {name:'act'}))(state)
+    return payToDo(card.payCost(kind), card.activate(kind, 'act'))(state)
 }
 
 function canPay(cost:Cost, state:State): boolean {
@@ -2442,12 +2440,12 @@ export function refreshEffect(n:number, doRecycle:boolean=true): Effect {
     return {
         text: text,
         transform: (state, card) => async function(state) {
-            state = await setResource('coin', 0)(state)
-            state = await setResource('actions', 0)(state)
-            state = await setResource('buys', 0)(state)
+            state = await setResource('coin', 0, card)(state)
+            state = await setResource('actions', 0, card)(state)
+            state = await setResource('buys', 0, card)(state)
             if (doRecycle) state = await ploughTransform(state);
             state = await gainActions(n, card)(state)
-            state = await gainBuy(state)
+            state = await gainBuys(1, card)(state)
             return state
         }
     }
@@ -2638,7 +2636,7 @@ export const fair:CardSpec = {
 //
 
 
-function playAgain(target:Card, source:Source=unk): Transform {
+function playAgain(target:Card, source:Source): Transform {
     return async function(state:State) {
         target = state.find(target)
         if (target.place == 'discard') state = await target.play(source)(state)
