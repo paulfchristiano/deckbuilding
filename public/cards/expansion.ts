@@ -28,7 +28,8 @@ import { CardSpec, Card, choice, asChoice, trash, Cost, addCosts, leq, Effect,
   fragileEcho, Token,
   num, playReplacer, countDistinctNames,
   sortHand,
-  sourceHasName
+  sourceHasName,
+  renderCostOrZero
 } from '../logic.js'
 
 
@@ -41,20 +42,14 @@ const flourish:CardSpec = {
     name: 'Flourish',
     fixedCost: energy(1),
     effects: [{
-        text: [`Double the number of cost tokens on this.`],
+        text: [`Double the number of cost tokens on this, then add one.`],
         transform: (s, c) => async function(state) {
-            return addToken(c, 'cost', state.find(c).count('cost'))(state)
+            return addToken(c, 'cost', state.find(c).count('cost') + 1)(state)
         }
     }, useRefresh()],
     restrictions: [{
         text: 'You must have at least 1 vp per cost token on this.',
         test: (c, s, k) => s.points < s.find(c).count('cost')
-    }],
-    staticTriggers: [{
-        kind: 'gameStart',
-        text: 'At the start of the game put a cost token on this.',
-        handles: () => true,
-        transform: (e, s, c) => addToken(c, 'cost')
     }]
 }
 events.push(flourish)
@@ -535,12 +530,12 @@ function magpieEffect(): Effect {
     }
 }
 
-const magpie:CardSpec = {
-    name: 'Magpie',
+const rats:CardSpec = {
+    name: 'Rats',
     buyCost: coin(3),
-    effects: [coinsEffect(2), magpieEffect()]
+    effects: [coinsEffect(2), targetedEffect(c => trash(c), 'Trash a card in your hand.', s => s.hand), magpieEffect()]
 }
-cards.push(magpie)
+cards.push(rats)
 
 const crown:CardSpec = {
     name: 'Crown',
@@ -698,7 +693,7 @@ const logistics:CardSpec = {
         replace: (p, state) => {
             const card = state.find(p.card)
             const maxReduction = (p.cost.coin > 0) ? p.cost.energy : p.cost.energy - 1
-            const reduction = Math.min(maxReduction, card.count('logistics'))
+            const reduction = Math.max(Math.min(maxReduction, card.count('logistics')), 0)
             return {...p, cost:{...p.cost,
                 energy:p.cost.energy-reduction,
                 effects:p.cost.effects.concat([removeToken(card, 'logistics', reduction)])
@@ -904,9 +899,9 @@ const metalworker:CardSpec = {
         transform: (e, s, c)  => gainActions(1, c),
     }, {
         kind: 'play',
-        text: `When you play a ${gold.name}, +1 action and +1 buy.`,
+        text: `When you play a ${gold.name}, +1 buy.`,
         handles: e => e.card.name == gold.name,
-        transform: (e, s, c) => doAll([gainActions(1, c), gainBuys(1, c)]),
+        transform: (e, s, c) => doAll([gainBuys(1, c)]),
     }]
 }
 cards.push(metalworker)
@@ -1105,6 +1100,7 @@ const inn:CardSpec = {
 cards.push(inn)
 */
 
+/*
 const guildHall:CardSpec = {
     name: 'Guild Hall',
     buyCost: coin(5),
@@ -1122,6 +1118,48 @@ const guildHall:CardSpec = {
     }]
 }
 cards.push(guildHall)
+*/
+
+const ritual:CardSpec = {
+    name: 'Ritual',
+    buyCost: coin(4),
+    effects: [{
+        text: [`Play then trash two cards from your hand.`,
+                `If you do, choose a card in the supply whose cost is less than or equal to the sum of their costs, and create a copy in your discard.`],
+        transform: (s, card) => async function(state) {
+            let target1:Card|null; [state, target1] = await choice(
+                state,
+                'Choose a card to play then trash.',
+                state.hand.map(asChoice)
+            )
+            if (target1 == null) return s
+            state = await target1.play(card)(state)
+            state = await trash(target1)(state)
+            let target2:Card|null; [state, target2] = await choice(
+                state,
+                `Choose a second card to play then trash (${renderCostOrZero(target1.cost('buy', state))} so far)`,
+                state.hand.map(asChoice)
+            )
+            if (target2 == null) return s
+            state = await target2.play(card)(state)
+            state = await trash(target2)(state)
+            let cost:Cost = {...free, buys:1}
+            for (const target of [target1, target2]) {
+                cost = addCosts(cost, target.cost('buy', state))
+            }
+            state = await applyToTarget(
+                copyTarget => create(copyTarget.spec, 'discard'),
+                'Choose a card to copy.',
+                s => s.supply.filter(c => leq(
+                    c.cost('buy', state), cost
+                ))
+            )(state)
+            return state
+        }
+    }]
+}
+cards.push(ritual)
+
 /*
 const overextend:CardSpec = {
     name: 'Overextend',
@@ -1187,6 +1225,23 @@ const lurker:CardSpec = {
 cards.push(lurker)
 */
 
+const ingot:CardSpec = {
+    name: 'Ingot',
+    buyCost: coin(3),
+    effects: [coinsEffect(1), buysEffect(1)],
+    ability: [{
+        text: [`Trash this for +$1 and +3 actions.`],
+        transform: (state, c) => async function(state) {
+            state = await trash(c)(state)
+            state = await gainCoins(1, c)(state)
+            state = await gainActions(3, c)(state)
+            return state
+        }
+    }]
+}
+cards.push(ingot)
+
+/*
 const kiln:CardSpec = {
     name: 'Kiln',
     buyCost: coin(3),
@@ -1200,8 +1255,6 @@ const kiln:CardSpec = {
     }]
 }
 cards.push(kiln)
-
-/*
 const werewolfName = 'Werewolf'
 const werewolf:CardSpec = {
     name: 'Werewolf',
@@ -1487,13 +1540,13 @@ cards.push(treasury)
 
 const statue:CardSpec = {
     name: 'Statue',
-    buyCost: coin(5),
-    fixedCost: energy(2),
-    effects: [],
+    buyCost: coin(3),
+    fixedCost: energy(1),
+    effects: [buysEffect(1)],
     triggers: [{
-        text: `Whenever you buy a card costing $1 or more, +1 vp.`,
+        text: `Whenever you buy a card costing $3 or more, +1 vp.`,
         kind: 'buy',
-        handles: (e, s) => e.card.cost('buy', s).coin > 0,
+        handles: (e, s) => e.card.cost('buy', s).coin >= 3,
         transform: (e, s, c) => gainPoints(1, c),
     }]
 }
@@ -1525,25 +1578,20 @@ const farmland:CardSpec = {
     name: farmlandName,
     fixedCost: energy(3),
     buyCost: coin(8),
-    effects: [],
-    restrictions: [{
-        test: (card, state, kind) =>
-            kind == 'activate' && state.play.some(c => c.name == farmlandName && c.id != card.id)
-    }],
-    ability: [{
-        text: [`If you have no other ${farmlandName}s in play, discard this. If it is in your discard, +8 vp.`],
-        transform: (s, c) => payToDo(discardFromPlay(c), async function(state) {
-            if (state.find(c).place == 'discard') return gainPoints(8, c)(state)
-            return state
-        }),
+    staticTriggers: [{
+        kind: 'play',
+        text: `Whenever you play a ${farmlandName} the normal way, +7 vp.`,
+        handles: e => e.source == 'act' && e.card.name == farmlandName,
+        transform: (e, s, c) => gainPoints(7, c) 
     }],
 }
 cards.push(farmland)
 
 const hallOfEchoes:CardSpec = {
     name: 'Hall of Echoes',
-    fixedCost: {...free, energy:1, coin:5},
-    effects: [{
+    fixedCost: {...free, energy:1, coin:2},
+    variableCosts: [costPer({coin:2})],
+    effects: [incrementCost(), {
         text: [`For each card in your hand without an echo token,
                 create a copy in your hand with an echo token.`],
         transform: state => doAll(

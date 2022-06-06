@@ -1,4 +1,4 @@
-export const VERSION = "2.0.1"
+export const VERSION = "2.1"
 
 // ----------------------------- Formatting
 
@@ -10,6 +10,10 @@ export function renderCost(cost:Partial<Cost>, full:boolean=false): string {
         if (x != undefined && x > 0) parts.push(renderResource(name, x))
     }
     return parts.join(' ')
+}
+
+export function renderCostOrZero(cost:Partial<Cost>): string {
+    return renderCost(cost) || '$0'
 }
 
 //renders either "1 x" or "n xs" as appropriate

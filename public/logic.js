@@ -85,7 +85,7 @@ var __read = (this && this.__read) || function (o, n) {
     }
     return ar;
 };
-export var VERSION = "2.0.1";
+export var VERSION = "2.1";
 // ----------------------------- Formatting
 export function renderCost(cost, full) {
     var e_1, _a;
@@ -108,6 +108,9 @@ export function renderCost(cost, full) {
         finally { if (e_1) throw e_1.error; }
     }
     return parts.join(' ');
+}
+export function renderCostOrZero(cost) {
+    return renderCost(cost) || '$0';
 }
 //renders either "1 x" or "n xs" as appropriate
 export function num(n, x) {

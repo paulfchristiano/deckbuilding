@@ -380,12 +380,12 @@ const travelingFair:CardSpec = {name:'Traveling Fair',
 events.push(travelingFair)
 
 const philanthropy:CardSpec = {name: 'Philanthropy',
-    fixedCost: {...free, coin:6, energy:1},
+    fixedCost: {...free, coin:10, energy:1},
     effects: [{
         text: ['Pay all $.', '+1 vp per $ paid.'],
         transform: (s, c) => async function(state) {
             const n = state.coin
-            state = await payCost({...free, coin:n}, c)(state)
+            state = await payCost({...free,  coin:n}, c)(state)
             state = await gainPoints(n, c)(state)
             return state
         }
@@ -1153,6 +1153,7 @@ const echo:CardSpec = {name: 'Echo',
 }
 cards.push(supplyForCard(echo, coin(6), {replacers: [fragileEcho('echo')]}))
 
+/*
 const tactic:CardSpec = {
     name: 'Tactic',
     ability:[{
@@ -1191,6 +1192,47 @@ const mastermind:CardSpec = {
 
 }
 cards.push(supplyForCard(mastermind, coin(6)))
+*/
+const tactic:CardSpec = {
+    name: 'Tactic',
+    ability:[{
+        text: [`Remove a charge token from this, trash it, and pay an action
+        to play a card from your hand three times.`],
+        transform: (state, card) => payToDo(payCost({
+            ...free, actions:1, effects:[discharge(card, 1), trash(card)]
+        }, card), applyToTarget(
+            target => doAll([
+                target.play(card),
+                tick(card),
+                target.play(card),
+                tick(card),
+                target.play(card)
+            ]),
+            'Choose a card to play three times.',
+            s => s.hand
+        ))
+    }],
+    restrictions: [{
+        test: (c:Card, s:State, k:ActionKind) => k == 'activate' && ((s.actions < 1) || c.charge == 0),
+    }],
+    replacers: [{
+        text: `Whenever you would move this to your hand,
+               instead put a charge token on this.`,
+        kind: 'move',
+        handles: (p, s, c) => p.card.id == c.id && p.toZone == 'hand' && p.skip == false,
+        replace: (p, s, c) => ({...p, skip:true, effects:p.effects.concat([
+            charge(c, 1),
+        ])})
+    }]
+}
+
+const mastermind:CardSpec = {
+    name: 'Mastermind',
+    fixedCost: energy(1),
+    relatedCards: [tactic],
+    effects: [createInPlayEffect(tactic)]
+}
+cards.push(supplyForCard(mastermind, coin(6)))
 
 const recruitment:CardSpec = {
     name: 'Recruitment',
@@ -1211,7 +1253,7 @@ cards.push(supplyForCard(recruitment, coin(3)))
 const dragon:CardSpec = {name: 'Dragon',
     buyCost: coin(7),
     effects: [targetedEffect(c => trash(c), 'Trash a card in your hand.', s => s.hand),
-              coinsEffect(5), actionsEffect(3), buyEffect()]
+              coinsEffect(4), actionsEffect(4), buyEffect()]
 }
 const hatchery:CardSpec = {name: 'Hatchery',
     fixedCost: energy(0),
@@ -1637,7 +1679,7 @@ const secretChamber:CardSpec = {
         text: [`Trash any number of cards from your discard for +1 buy each.`],
         transform: (s, card) => async function(state) {
             let targets; [state, targets] = await multichoice(state,
-                'Trash any number of cards for +$1 each.',
+                'Trash any number of cards for +1 buy each.',
                 state.discard.map(asChoice))
             state = await moveMany(targets, 'void')(state)
             state = await gainBuys(targets.length, card)(state)

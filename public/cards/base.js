@@ -72,7 +72,7 @@ var __values = (this && this.__values) || function(o) {
     };
     throw new TypeError(s ? "Object is not iterable." : "Symbol.iterator is not defined.");
 };
-import { choice, asChoice, trash, addCosts, subtractCost, multiplyCosts, eq, leq, noop, gainPoints, gainActions, gainCoins, gainBuys, free, create, move, doAll, multichoice, renderCost, moveMany, payToDo, payCost, addToken, removeToken, charge, discharge, asNumberedChoices, allowNull, setResource, tick, a, num, createAndTrack, villager, fair, supplyForCard, actionsEffect, buyEffect, buysEffect, pointsEffect, createEffect, refreshEffect, recycleEffect, createInPlayEffect, chargeEffect, targetedEffect, workshopEffect, coinsEffect, reflectTrigger, energy, coin, repeat, costPer, incrementCost, costReduceNext, countNameTokens, nameHasToken, startsWithCharge, useRefresh, costReduce, applyToTarget, playTwice, payAction, discardFromPlay, trashThis, fragileEcho, copper, gold, estate, duchy, dedupBy, countDistinctNames, playReplacer, stayInPlay, sourceHasName } from '../logic.js';
+import { choice, asChoice, trash, addCosts, subtractCost, multiplyCosts, eq, leq, noop, gainPoints, gainActions, gainCoins, gainBuys, free, create, move, doAll, multichoice, renderCost, moveMany, payToDo, payCost, addToken, removeToken, charge, discharge, asNumberedChoices, allowNull, setResource, tick, a, num, createAndTrack, villager, fair, supplyForCard, actionsEffect, buyEffect, buysEffect, pointsEffect, createEffect, refreshEffect, recycleEffect, createInPlayEffect, chargeEffect, targetedEffect, workshopEffect, coinsEffect, reflectTrigger, energy, coin, repeat, costPer, incrementCost, costReduceNext, countNameTokens, nameHasToken, startsWithCharge, useRefresh, costReduce, applyToTarget, playTwice, payAction, discardFromPlay, trashThis, fragileEcho, copper, gold, estate, duchy, dedupBy, countDistinctNames, playReplacer, sourceHasName } from '../logic.js';
 export var cards = [];
 export var events = [];
 /*
@@ -400,7 +400,7 @@ var travelingFair = { name: 'Traveling Fair',
     relatedCards: [fair],
 };
 events.push(travelingFair);
-var philanthropy = { name: 'Philanthropy', fixedCost: __assign(__assign({}, free), { coin: 6, energy: 1 }),
+var philanthropy = { name: 'Philanthropy', fixedCost: __assign(__assign({}, free), { coin: 10, energy: 1 }),
     effects: [{
             text: ['Pay all $.', '+1 vp per $ paid.'],
             transform: function (s, c) { return function (state) {
@@ -1144,11 +1144,51 @@ var echo = { name: 'Echo', effects: [targetedEffect(function (target, card) { re
         }; }, "Choose a card you have in play.\n         Create a copy set aside with an echo token on it.\n         Then play the card if it is still set aside.", function (state) { return dedupBy(state.play, function (c) { return c.spec; }); })]
 };
 cards.push(supplyForCard(echo, coin(6), { replacers: [fragileEcho('echo')] }));
+/*
+const tactic:CardSpec = {
+    name: 'Tactic',
+    ability:[{
+        text: [`Trash this and pay an action
+        to play a card from your hand three times.`],
+        transform: (state, card) => payToDo(payCost({
+            ...free, actions:1, effects:[trash(card)]
+        }, card), applyToTarget(
+            target => doAll([
+                target.play(card),
+                tick(card),
+                target.play(card),
+                tick(card),
+                target.play(card)
+            ]),
+            'Choose a card to play three times.',
+            s => s.hand
+        ))
+    }],
+    restrictions: [{
+        test: (c:Card, s:State, k:ActionKind) => k == 'activate' && (s.actions < 1),
+    }],
+    replacers: [stayInPlay()]
+}
+
+const mastermind:CardSpec = {
+    name: 'Mastermind',
+    fixedCost: energy(1),
+    relatedCards: [tactic],
+    replacers: [{
+        text: `When you move this to your hand, create a ${tactic.name} in play.`,
+        kind:'move',
+        handles: (p, s, c) => p.toZone == 'hand' && p.card.id == c.id,
+        replace: p => ({...p, effects: p.effects.concat([create(tactic, 'play')])})
+    }],
+
+}
+cards.push(supplyForCard(mastermind, coin(6)))
+*/
 var tactic = {
     name: 'Tactic',
     ability: [{
-            text: ["Trash this and pay an action\n        to play a card from your hand three times."],
-            transform: function (state, card) { return payToDo(payCost(__assign(__assign({}, free), { actions: 1, effects: [trash(card)] }), card), applyToTarget(function (target) { return doAll([
+            text: ["Remove a charge token from this, trash it, and pay an action\n        to play a card from your hand three times."],
+            transform: function (state, card) { return payToDo(payCost(__assign(__assign({}, free), { actions: 1, effects: [discharge(card, 1), trash(card)] }), card), applyToTarget(function (target) { return doAll([
                 target.play(card),
                 tick(card),
                 target.play(card),
@@ -1157,20 +1197,22 @@ var tactic = {
             ]); }, 'Choose a card to play three times.', function (s) { return s.hand; })); }
         }],
     restrictions: [{
-            test: function (c, s, k) { return k == 'activate' && (s.actions < 1); },
+            test: function (c, s, k) { return k == 'activate' && ((s.actions < 1) || c.charge == 0); },
         }],
-    replacers: [stayInPlay()]
+    replacers: [{
+            text: "Whenever you would move this to your hand,\n               instead put a charge token on this.",
+            kind: 'move',
+            handles: function (p, s, c) { return p.card.id == c.id && p.toZone == 'hand' && p.skip == false; },
+            replace: function (p, s, c) { return (__assign(__assign({}, p), { skip: true, effects: p.effects.concat([
+                    charge(c, 1),
+                ]) })); }
+        }]
 };
 var mastermind = {
     name: 'Mastermind',
     fixedCost: energy(1),
     relatedCards: [tactic],
-    replacers: [{
-            text: "When you move this to your hand, create a " + tactic.name + " in play.",
-            kind: 'move',
-            handles: function (p, s, c) { return p.toZone == 'hand' && p.card.id == c.id; },
-            replace: function (p) { return (__assign(__assign({}, p), { effects: p.effects.concat([create(tactic, 'play')]) })); }
-        }],
+    effects: [createInPlayEffect(tactic)]
 };
 cards.push(supplyForCard(mastermind, coin(6)));
 var recruitment = {
@@ -1186,7 +1228,7 @@ var recruitment = {
 };
 cards.push(supplyForCard(recruitment, coin(3)));
 var dragon = { name: 'Dragon',
-    buyCost: coin(7), effects: [targetedEffect(function (c) { return trash(c); }, 'Trash a card in your hand.', function (s) { return s.hand; }), coinsEffect(5), actionsEffect(3), buyEffect()]
+    buyCost: coin(7), effects: [targetedEffect(function (c) { return trash(c); }, 'Trash a card in your hand.', function (s) { return s.hand; }), coinsEffect(4), actionsEffect(4), buyEffect()]
 };
 var hatchery = { name: 'Hatchery',
     fixedCost: energy(0),
@@ -1651,7 +1693,7 @@ var secretChamber = {
                     var _a;
                     return __generator(this, function (_b) {
                         switch (_b.label) {
-                            case 0: return [4 /*yield*/, multichoice(state, 'Trash any number of cards for +$1 each.', state.discard.map(asChoice))];
+                            case 0: return [4 /*yield*/, multichoice(state, 'Trash any number of cards for +1 buy each.', state.discard.map(asChoice))];
                             case 1:
                                 _a = __read.apply(void 0, [_b.sent(), 2]), state = _a[0], targets = _a[1];
                                 return [4 /*yield*/, moveMany(targets, 'void')(state)];
