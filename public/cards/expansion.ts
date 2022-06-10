@@ -1132,7 +1132,7 @@ const ritual:CardSpec = {
                 'Choose a card to play then trash.',
                 state.hand.map(asChoice)
             )
-            if (target1 == null) return s
+            if (target1 == null) return state
             state = await target1.play(card)(state)
             state = await trash(target1)(state)
             let target2:Card|null; [state, target2] = await choice(
@@ -1140,7 +1140,7 @@ const ritual:CardSpec = {
                 `Choose a second card to play then trash (${renderCostOrZero(target1.cost('buy', state))} so far)`,
                 state.hand.map(asChoice)
             )
-            if (target2 == null) return s
+            if (target2 == null) return state
             state = await target2.play(card)(state)
             state = await trash(target2)(state)
             let cost:Cost = {...free, buys:1}

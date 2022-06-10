@@ -1173,7 +1173,7 @@ var ritual = {
                             case 1:
                                 _c = __read.apply(void 0, [_f.sent(), 2]), state = _c[0], target1 = _c[1];
                                 if (target1 == null)
-                                    return [2 /*return*/, s];
+                                    return [2 /*return*/, state];
                                 return [4 /*yield*/, target1.play(card)(state)];
                             case 2:
                                 state = _f.sent();
@@ -1184,7 +1184,7 @@ var ritual = {
                             case 4:
                                 _d = __read.apply(void 0, [_f.sent(), 2]), state = _d[0], target2 = _d[1];
                                 if (target2 == null)
-                                    return [2 /*return*/, s];
+                                    return [2 /*return*/, state];
                                 return [4 /*yield*/, target2.play(card)(state)];
                             case 5:
                                 state = _f.sent();
