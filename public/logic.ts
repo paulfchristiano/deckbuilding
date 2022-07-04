@@ -1,4 +1,4 @@
-export const VERSION = "2.1"
+export const VERSION = "2.1.1"
 
 // ----------------------------- Formatting
 
@@ -2462,12 +2462,12 @@ export function recycleEffect(): Effect {
     }
 }
 
-export function workshopEffect(n:number):Effect {
+export function workshopEffect(n:number, except:string):Effect {
     return targetedEffect(
         (target, card) => target.buy(card),
-        `Buy a card in the supply costing up to $${n}.`,
+        `Buy a card in the supply costing up to $${n} not named ${except}.`,
         state => state.supply.filter(
-            x => leq(x.cost('buy', state), coin(n))
+            x => leq(x.cost('buy', state), coin(n)) && x.name != except
         )
     )
 }

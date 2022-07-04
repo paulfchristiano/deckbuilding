@@ -600,9 +600,10 @@ var royalSeal = { name: 'Royal Seal',
     relatedCards: [fair]
 };
 cards.push(supplyForCard(royalSeal, coin(5)));
-var workshop = { name: 'Workshop',
+var workshopName = 'Workshop';
+var workshop = { name: workshopName,
     fixedCost: energy(0),
-    effects: [workshopEffect(4)],
+    effects: [workshopEffect(4, workshopName)],
 };
 cards.push(supplyForCard(workshop, coin(3)));
 var shippingLane = { name: 'Shipping Lane',
@@ -626,9 +627,10 @@ var shippingLane = { name: 'Shipping Lane',
         }]
 };
 cards.push(supplyForCard(shippingLane, coin(5)));
-var factory = { name: 'Factory',
+var factoryName = 'Factory';
+var factory = { name: factoryName,
     fixedCost: energy(1),
-    effects: [workshopEffect(6)],
+    effects: [workshopEffect(6, factoryName)],
 };
 cards.push(supplyForCard(factory, coin(3)));
 var imitation = { name: 'Imitation',
@@ -1391,45 +1393,16 @@ var lostArts = {
     name: 'Lost Arts',
     effects: [targetedEffect(function (card) { return function (state) {
             return __awaiter(this, void 0, void 0, function () {
-                var _a, _b, c, e_3_1;
-                var e_3, _c;
-                return __generator(this, function (_d) {
-                    switch (_d.label) {
+                return __generator(this, function (_a) {
+                    switch (_a.label) {
                         case 0: return [4 /*yield*/, addToken(card, 'art', 8)(state)];
                         case 1:
-                            state = _d.sent();
-                            _d.label = 2;
-                        case 2:
-                            _d.trys.push([2, 7, 8, 9]);
-                            _a = __values(state.supply), _b = _a.next();
-                            _d.label = 3;
-                        case 3:
-                            if (!!_b.done) return [3 /*break*/, 6];
-                            c = _b.value;
-                            if (!(c.id != card.id)) return [3 /*break*/, 5];
-                            return [4 /*yield*/, removeToken(c, 'art', 'all')(state)];
-                        case 4:
-                            state = _d.sent();
-                            _d.label = 5;
-                        case 5:
-                            _b = _a.next();
-                            return [3 /*break*/, 3];
-                        case 6: return [3 /*break*/, 9];
-                        case 7:
-                            e_3_1 = _d.sent();
-                            e_3 = { error: e_3_1 };
-                            return [3 /*break*/, 9];
-                        case 8:
-                            try {
-                                if (_b && !_b.done && (_c = _a.return)) _c.call(_a);
-                            }
-                            finally { if (e_3) throw e_3.error; }
-                            return [7 /*endfinally*/];
-                        case 9: return [2 /*return*/, state];
+                            state = _a.sent();
+                            return [2 /*return*/, state];
                     }
                 });
             });
-        }; }, "Put eight art tokens on a card in the supply.\n        Remove all art tokens from other cards in the supply.", function (s) { return s.supply; })],
+        }; }, "Put eight art tokens on a card in the supply.", function (s) { return s.supply; })],
     staticReplacers: [{
             text: "Cards cost @ less to play for each art token on their supply.\n               Whenever this reduces a cost by one or more @,\n               remove that many art tokens.",
             kind: 'cost',
@@ -1453,7 +1426,7 @@ var grandMarket = {
             s.discard.some(x => x.name == copper.name)
     }],
     */
-    effects: [coinsEffect(2), actionsEffect(1), buyEffect()],
+    effects: [actionsEffect(1), coinsEffect(2), buysEffect(2)],
 };
 cards.push(supplyForCard(grandMarket, coin(5)));
 /*
@@ -1472,7 +1445,7 @@ buyable(greatHearth, 3)
 var Industry = 'Industry';
 function industryTransform(n, except, source) {
     if (except === void 0) { except = Industry; }
-    return applyToTarget(function (target) { return target.buy(source); }, "Buy a card in the supply costing up to $" + n + " not named " + except + ".", function (state) { return state.supply.filter(function (x) { return leq(x.cost('buy', state), coin(n)) && x.name != Industry; }); });
+    return applyToTarget(function (target) { return target.buy(source); }, "Buy a card in the supply costing up to $" + n + " not named " + except + ".", function (state) { return state.supply.filter(function (x) { return leq(x.cost('buy', state), coin(n)) && x.name != except; }); });
 }
 var industry = {
     name: Industry,
@@ -2058,7 +2031,7 @@ cards.push(supplyForCard(fairyGold, coin(3), {
 var pathfinding = {
     name: 'Pathfinding',
     fixedCost: coin(6),
-    effects: [removeAllSupplyTokens('pathfinding'), targetedEffect(function (target) { return addToken(target, 'pathfinding'); }, "Put a pathfinding token on a card in the supply other than Copper.", function (state) { return state.supply.filter(function (target) { return target.name != copper.name; }); })],
+    effects: [targetedEffect(function (target) { return addToken(target, 'pathfinding'); }, "Put a pathfinding token on a card in the supply other than Copper.", function (state) { return state.supply.filter(function (target) { return target.name != copper.name; }); })],
     staticTriggers: [{
             kind: 'play',
             text: "Whenever you play a card whose supply\n        has a  pathfinding token on it, +1 action.",

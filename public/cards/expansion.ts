@@ -331,7 +331,7 @@ events.push(redouble)
 
 const splay:CardSpec = {
     name:'Splay',
-    fixedCost: {...free, energy: 1, coin: 1},
+    fixedCost: {...free, energy: 1},
     effects: [{
         text: [`Put a splay token on each supply.`],
         transform: s => doAll(s.supply.map(c => addToken(c, 'splay')))
@@ -908,7 +908,7 @@ cards.push(metalworker)
 
 const exoticMarket:CardSpec = {
     name: 'Exotic Market',
-    buyCost: coin(5),
+    buyCost: coin(4),
     effects: [actionsEffect(2), coinsEffect(1), buysEffect(1)]
 }
 cards.push(exoticMarket)
@@ -938,10 +938,41 @@ cards.push(queensCourt)
 const sculpt:CardSpec = {
     name: 'Sculpt',
     buyCost: coin(3),
-    effects: [targetedEffect(
+    /*effects: [{
+        text: [`Choose one: discard a card in your hand to create two copies of it in your discard,
+        or trash a card in your discard to return up to two cards with the same name to your hand.`],
+        transform: () => async function(state) {
+            let target:Card|null; [state, target] = await choice(
+                state,
+                `Choose a card in your hand to discard in order to create two copies;
+                or choose a card in your discard to trash in order to return up to two cards with the same name to your hand.`,
+                state.hand.concat(state.discard).map(asChoice)
+            )
+            if (target === null) {
+                return state
+            } else if (state.find(target).place == 'discard') {
+                state = await trash(target)(state)
+                const name:string = target.name
+                let targets:Card[]; [state, targets] = await multichoice(
+                    state,
+                    `Choose up to 2 cards named ${name} to return to your hand`,
+                    state.discard.filter(c => c.name == name).map(asChoice),
+                    2
+                )
+                state = await moveMany(targets, 'hand')(state)
+                return state
+            } else if (state.find(target).place == 'hand') {
+                state = await move(target, 'discard')(state)
+                state = await repeat(create(target.spec, 'discard'), 2)(state)
+                return state
+            }
+            return state
+        }
+    }]*/
+    effects: [actionsEffect(1), targetedEffect(
         target => doAll([move(target, 'discard'), repeat(create(target.spec, 'discard'), 2)]),
         'Discard a card in your hand to create two copies of it in your discard.',
-        state => state.hand
+        state => state.hand,
     )]
 }
 cards.push(sculpt)
@@ -950,7 +981,7 @@ const tapestry:CardSpec = {
     name: 'Tapestry',
     buyCost:coin(4),
     fixedCost: energy(1),
-    effects: [coinsEffect(5)]
+    effects: [coinsEffect(4), createInPlayEffect(fair)]
 }
 cards.push(tapestry)
 
@@ -1394,25 +1425,6 @@ const swap:CardSpec = {
 }
 events.push(swap)
 
-const infrastructure:CardSpec = {
-    name: 'Infrastructure',
-    replacers: [{
-        text: `Events cost @ less to use. Whenever this reduces a cost, trash it.`,
-        kind: 'cost',
-        handles: x => x.actionKind == 'use',
-        replace: function(x:CostParams, state:State, card:Card) {
-            if (x.cost.energy > 0) {
-                return {...x, cost: {...x.cost,
-                    energy:x.cost.energy - 1,
-                    effects:x.cost.effects.concat([trash(card)])
-                }}
-            } else {
-                return x
-            }
-        }
-    }, trashOnLeavePlay()]
-}
-
 /*
 const :CardSpec = {
     name: 'Planning',
@@ -1430,9 +1442,30 @@ const :CardSpec = {
 cards.push(planning)
 */
 
+const privateWorksName:string = 'Private Works'
+
+const infrastructure:CardSpec = {
+    name: 'Infrastructure',
+    replacers: [{
+        text: `Events other than ${privateWorksName} cost @ less to use. Whenever this reduces a cost, trash it.`,
+        kind: 'cost',
+        handles: x => x.actionKind == 'use' && x.card.name != privateWorksName,
+        replace: function(x:CostParams, state:State, card:Card) {
+            if (x.cost.energy > 0) {
+                return {...x, cost: {...x.cost,
+                    energy:x.cost.energy - 1,
+                    effects:x.cost.effects.concat([trash(card)])
+                }}
+            } else {
+                return x
+            }
+        }
+    }, trashOnLeavePlay()]
+}
+
 
 const privateWorks:CardSpec = {
-    name: 'Private Works',
+    name: privateWorksName,
     relatedCards: [infrastructure],
     fixedCost: {...free, coin:4, energy:1},
     effects: [createInPlayEffect(infrastructure, 2)]
@@ -1589,9 +1622,8 @@ cards.push(farmland)
 
 const hallOfEchoes:CardSpec = {
     name: 'Hall of Echoes',
-    fixedCost: {...free, energy:1, coin:2},
-    variableCosts: [costPer({coin:2})],
-    effects: [incrementCost(), {
+    fixedCost: {...free, energy:1, coin:3},
+    effects: [{
         text: [`For each card in your hand without an echo token,
                 create a copy in your hand with an echo token.`],
         transform: state => doAll(

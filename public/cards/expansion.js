@@ -363,7 +363,7 @@ var redouble = {
 events.push(redouble);
 var splay = {
     name: 'Splay',
-    fixedCost: __assign(__assign({}, free), { energy: 1, coin: 1 }),
+    fixedCost: __assign(__assign({}, free), { energy: 1 }),
     effects: [{
             text: ["Put a splay token on each supply."],
             transform: function (s) { return doAll(s.supply.map(function (c) { return addToken(c, 'splay'); })); }
@@ -918,7 +918,7 @@ var metalworker = {
 cards.push(metalworker);
 var exoticMarket = {
     name: 'Exotic Market',
-    buyCost: coin(5),
+    buyCost: coin(4),
     effects: [actionsEffect(2), coinsEffect(1), buysEffect(1)]
 };
 cards.push(exoticMarket);
@@ -960,14 +960,45 @@ cards.push(queensCourt);
 var sculpt = {
     name: 'Sculpt',
     buyCost: coin(3),
-    effects: [targetedEffect(function (target) { return doAll([move(target, 'discard'), repeat(create(target.spec, 'discard'), 2)]); }, 'Discard a card in your hand to create two copies of it in your discard.', function (state) { return state.hand; })]
+    /*effects: [{
+        text: [`Choose one: discard a card in your hand to create two copies of it in your discard,
+        or trash a card in your discard to return up to two cards with the same name to your hand.`],
+        transform: () => async function(state) {
+            let target:Card|null; [state, target] = await choice(
+                state,
+                `Choose a card in your hand to discard in order to create two copies;
+                or choose a card in your discard to trash in order to return up to two cards with the same name to your hand.`,
+                state.hand.concat(state.discard).map(asChoice)
+            )
+            if (target === null) {
+                return state
+            } else if (state.find(target).place == 'discard') {
+                state = await trash(target)(state)
+                const name:string = target.name
+                let targets:Card[]; [state, targets] = await multichoice(
+                    state,
+                    `Choose up to 2 cards named ${name} to return to your hand`,
+                    state.discard.filter(c => c.name == name).map(asChoice),
+                    2
+                )
+                state = await moveMany(targets, 'hand')(state)
+                return state
+            } else if (state.find(target).place == 'hand') {
+                state = await move(target, 'discard')(state)
+                state = await repeat(create(target.spec, 'discard'), 2)(state)
+                return state
+            }
+            return state
+        }
+    }]*/
+    effects: [actionsEffect(1), targetedEffect(function (target) { return doAll([move(target, 'discard'), repeat(create(target.spec, 'discard'), 2)]); }, 'Discard a card in your hand to create two copies of it in your discard.', function (state) { return state.hand; })]
 };
 cards.push(sculpt);
 var tapestry = {
     name: 'Tapestry',
     buyCost: coin(4),
     fixedCost: energy(1),
-    effects: [coinsEffect(5)]
+    effects: [coinsEffect(4), createInPlayEffect(fair)]
 };
 cards.push(tapestry);
 function workshopTransform(n, source) {
@@ -1451,22 +1482,6 @@ var swap = {
     effects: [targetedEffect(function (target) { return doAll([trash(target), applyToTarget(function (target2) { return create(target2.spec, 'hand'); }, "Choose a card to copy.", function (state) { return state.supply.filter(function (sup) { return leq(sup.cost('buy', state), target.cost('buy', state)); }); })]); }, "Trash a card in your hand. Choose a card in the supply with equal or lesser cost and create a copy in your hand.", function (state) { return state.hand; })],
 };
 events.push(swap);
-var infrastructure = {
-    name: 'Infrastructure',
-    replacers: [{
-            text: "Events cost @ less to use. Whenever this reduces a cost, trash it.",
-            kind: 'cost',
-            handles: function (x) { return x.actionKind == 'use'; },
-            replace: function (x, state, card) {
-                if (x.cost.energy > 0) {
-                    return __assign(__assign({}, x), { cost: __assign(__assign({}, x.cost), { energy: x.cost.energy - 1, effects: x.cost.effects.concat([trash(card)]) }) });
-                }
-                else {
-                    return x;
-                }
-            }
-        }, trashOnLeavePlay()]
-};
 /*
 const :CardSpec = {
     name: 'Planning',
@@ -1483,8 +1498,25 @@ const :CardSpec = {
 }
 cards.push(planning)
 */
+var privateWorksName = 'Private Works';
+var infrastructure = {
+    name: 'Infrastructure',
+    replacers: [{
+            text: "Events other than " + privateWorksName + " cost @ less to use. Whenever this reduces a cost, trash it.",
+            kind: 'cost',
+            handles: function (x) { return x.actionKind == 'use' && x.card.name != privateWorksName; },
+            replace: function (x, state, card) {
+                if (x.cost.energy > 0) {
+                    return __assign(__assign({}, x), { cost: __assign(__assign({}, x.cost), { energy: x.cost.energy - 1, effects: x.cost.effects.concat([trash(card)]) }) });
+                }
+                else {
+                    return x;
+                }
+            }
+        }, trashOnLeavePlay()]
+};
 var privateWorks = {
-    name: 'Private Works',
+    name: privateWorksName,
     relatedCards: [infrastructure],
     fixedCost: __assign(__assign({}, free), { coin: 4, energy: 1 }),
     effects: [createInPlayEffect(infrastructure, 2)]
@@ -1622,9 +1654,8 @@ var farmland = {
 cards.push(farmland);
 var hallOfEchoes = {
     name: 'Hall of Echoes',
-    fixedCost: __assign(__assign({}, free), { energy: 1, coin: 2 }),
-    variableCosts: [costPer({ coin: 2 })],
-    effects: [incrementCost(), {
+    fixedCost: __assign(__assign({}, free), { energy: 1, coin: 3 }),
+    effects: [{
             text: ["For each card in your hand without an echo token,\n                create a copy in your hand with an echo token."],
             transform: function (state) { return doAll(state.hand.filter(function (c) { return c.count('echo') == 0; }).map(function (c) { return create(c.spec, 'hand', function (x) { return addToken(x, 'echo'); }); })); }
         }],

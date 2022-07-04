@@ -85,7 +85,7 @@ var __read = (this && this.__read) || function (o, n) {
     }
     return ar;
 };
-export var VERSION = "2.1";
+export var VERSION = "2.1.1";
 // ----------------------------- Formatting
 export function renderCost(cost, full) {
     var e_1, _a;
@@ -2977,8 +2977,8 @@ export function recycleEffect() {
         transform: function (state) { return doAll([moveMany(state.discard, 'hand'), sortHand]); }
     };
 }
-export function workshopEffect(n) {
-    return targetedEffect(function (target, card) { return target.buy(card); }, "Buy a card in the supply costing up to $" + n + ".", function (state) { return state.supply.filter(function (x) { return leq(x.cost('buy', state), coin(n)); }); });
+export function workshopEffect(n, except) {
+    return targetedEffect(function (target, card) { return target.buy(card); }, "Buy a card in the supply costing up to $" + n + " not named " + except + ".", function (state) { return state.supply.filter(function (x) { return leq(x.cost('buy', state), coin(n)) && x.name != except; }); });
 }
 export function coinsEffect(n) {
     return {

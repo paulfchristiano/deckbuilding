@@ -564,9 +564,10 @@ const royalSeal:CardSpec = {name: 'Royal Seal',
 }
 cards.push(supplyForCard(royalSeal, coin(5)))
 
-const workshop:CardSpec = {name: 'Workshop',
+const workshopName = 'Workshop'
+const workshop:CardSpec = {name: workshopName,
     fixedCost: energy(0),
-    effects: [workshopEffect(4)],
+    effects: [workshopEffect(4, workshopName)],
 }
 cards.push(supplyForCard(workshop, coin(3)))
 
@@ -586,9 +587,10 @@ const shippingLane:CardSpec = {name: 'Shipping Lane',
 }
 cards.push(supplyForCard(shippingLane, coin(5)))
 
-const factory:CardSpec = {name: 'Factory',
+const factoryName = 'Factory'
+const factory:CardSpec = {name: factoryName,
     fixedCost: energy(1),
-    effects: [workshopEffect(6)],
+    effects: [workshopEffect(6, factoryName)],
 }
 cards.push(supplyForCard(factory, coin(3)))
 
@@ -1414,15 +1416,9 @@ const lostArts:CardSpec = {
     effects: [targetedEffect(
         card => async function(state) {
             state = await addToken(card, 'art', 8)(state)
-            for (const c of state.supply) {
-                if (c.id != card.id) {
-                    state = await removeToken(c, 'art', 'all')(state)
-                }
-            }
             return state
         },
-        `Put eight art tokens on a card in the supply.
-        Remove all art tokens from other cards in the supply.`,
+        `Put eight art tokens on a card in the supply.`,
         s => s.supply
     )],
     staticReplacers: [{
@@ -1466,7 +1462,7 @@ const grandMarket:CardSpec = {
             s.discard.some(x => x.name == copper.name)
     }],
     */
-    effects: [coinsEffect(2), actionsEffect(1), buyEffect()],
+    effects: [actionsEffect(1), coinsEffect(2), buysEffect(2)],
 }
 cards.push(supplyForCard(grandMarket, coin(5)))
 
@@ -1489,7 +1485,7 @@ function industryTransform(n:number, except:string=Industry, source:Source):Tran
         target => target.buy(source),
         `Buy a card in the supply costing up to $${n} not named ${except}.`,
         state => state.supply.filter(
-            x => leq(x.cost('buy', state), coin(n)) && x.name != Industry
+            x => leq(x.cost('buy', state), coin(n)) && x.name != except
         )
     )
 }
@@ -2024,7 +2020,7 @@ cards.push(supplyForCard(fairyGold, coin(3), {
 const pathfinding:CardSpec = {
     name: 'Pathfinding',
     fixedCost: coin(6),
-    effects: [removeAllSupplyTokens('pathfinding'), targetedEffect(
+    effects: [targetedEffect(
         target => addToken(target, 'pathfinding'),
         `Put a pathfinding token on a card in the supply other than Copper.`,
         state => state.supply.filter(target => target.name != copper.name)
