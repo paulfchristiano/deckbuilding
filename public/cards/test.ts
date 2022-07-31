@@ -106,3 +106,19 @@ const reducerCard:CardSpec = {name: 'Reducer Card',
     }
     
 cards.push(reducerCard)
+
+
+const governorName = 'Governor'
+const governor:CardSpec = {
+    name: governorName,
+    buyCost: coin(6),
+    relatedCards: [villager],
+    effects: [actionsEffect(2), buysEffect(1), createInPlayEffect(villager)],
+    staticTriggers: [{
+        kind: 'buy',
+        handles: (e) => (e.card.name == province.name),
+        text: `Whenever you buy a ${province.name}, put all ${governorName}s in your discard into your hand.`,
+        transform: (e, s) => moveMany(s.discard.filter(card => card.name == governorName), 'hand')
+    }]
+}
+cards.push(governor)

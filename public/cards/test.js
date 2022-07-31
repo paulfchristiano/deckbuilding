@@ -72,7 +72,7 @@ var __values = (this && this.__values) || function(o) {
     };
     throw new TypeError(s ? "Object is not iterable." : "Symbol.iterator is not defined.");
 };
-import { choice, asChoice, trash, addCosts, leq, gainPoints, free, addToken, tick, allowNull, targetedEffect, energy, coin, applyToTarget, } from '../logic.js';
+import { choice, asChoice, trash, addCosts, leq, gainPoints, free, moveMany, addToken, tick, allowNull, villager, actionsEffect, buysEffect, createInPlayEffect, targetedEffect, energy, coin, applyToTarget, province, } from '../logic.js';
 export var cards = [];
 export var events = [];
 var manor = {
@@ -166,4 +166,18 @@ var reducerCard = { name: 'Reducer Card',
         }]
 };
 cards.push(reducerCard);
+var governorName = 'Governor';
+var governor = {
+    name: governorName,
+    buyCost: coin(6),
+    relatedCards: [villager],
+    effects: [actionsEffect(2), buysEffect(1), createInPlayEffect(villager)],
+    staticTriggers: [{
+            kind: 'buy',
+            handles: function (e) { return (e.card.name == province.name); },
+            text: "Whenever you buy a " + province.name + ", put all " + governorName + "s in your discard into your hand.",
+            transform: function (e, s) { return moveMany(s.discard.filter(function (card) { return card.name == governorName; }), 'hand'); }
+        }]
+};
+cards.push(governor);
 //# sourceMappingURL=test.js.map
