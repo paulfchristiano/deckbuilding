@@ -122,3 +122,20 @@ const governor:CardSpec = {
     }]
 }
 cards.push(governor)
+
+const betterGreed:CardSpec = {
+    name: 'Better Greed',
+    fixedCost: {...free, energy:1},
+    effects: [{
+        text: [`Pay all vp. For each vp lost, +$2, +1 action, and +1 buy.`],
+        transform: (s, card) => async function(state) {
+            const n = state.points
+            state = await gainPoints(-n, card)(state)
+            state = await gainCoins(2*n, card)(state)
+            state = await gainActions(n, card)(state)
+            state = await gainBuys(n, card)(state)
+            return state
+        }
+    }]
+}
+events.push(betterGreed)

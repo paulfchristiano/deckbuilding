@@ -72,7 +72,7 @@ var __values = (this && this.__values) || function(o) {
     };
     throw new TypeError(s ? "Object is not iterable." : "Symbol.iterator is not defined.");
 };
-import { choice, asChoice, trash, addCosts, leq, gainPoints, free, moveMany, addToken, tick, allowNull, villager, actionsEffect, buysEffect, createInPlayEffect, targetedEffect, energy, coin, applyToTarget, province, } from '../logic.js';
+import { choice, asChoice, trash, addCosts, leq, gainPoints, gainActions, gainCoins, gainBuys, free, moveMany, addToken, tick, allowNull, villager, actionsEffect, buysEffect, createInPlayEffect, targetedEffect, energy, coin, applyToTarget, province, } from '../logic.js';
 export var cards = [];
 export var events = [];
 var manor = {
@@ -180,4 +180,36 @@ var governor = {
         }]
 };
 cards.push(governor);
+var betterGreed = {
+    name: 'Better Greed',
+    fixedCost: __assign(__assign({}, free), { energy: 1 }),
+    effects: [{
+            text: ["Pay all vp. For each vp lost, +$2, +1 action, and +1 buy."],
+            transform: function (s, card) { return function (state) {
+                return __awaiter(this, void 0, void 0, function () {
+                    var n;
+                    return __generator(this, function (_a) {
+                        switch (_a.label) {
+                            case 0:
+                                n = state.points;
+                                return [4 /*yield*/, gainPoints(-n, card)(state)];
+                            case 1:
+                                state = _a.sent();
+                                return [4 /*yield*/, gainCoins(2 * n, card)(state)];
+                            case 2:
+                                state = _a.sent();
+                                return [4 /*yield*/, gainActions(n, card)(state)];
+                            case 3:
+                                state = _a.sent();
+                                return [4 /*yield*/, gainBuys(n, card)(state)];
+                            case 4:
+                                state = _a.sent();
+                                return [2 /*return*/, state];
+                        }
+                    });
+                });
+            }; }
+        }]
+};
+events.push(betterGreed);
 //# sourceMappingURL=test.js.map
