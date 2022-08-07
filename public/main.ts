@@ -401,14 +401,20 @@ interface RendererState {
 }
 
 const globalRendererState:RendererState = {
-    hotkeysOn:false,
+    hotkeysOn:JSON.parse(localStorage.getItem('hotkeysOn')!) === true,
     userURL:true,
     viewingKingdom:false,
     viewingMacros:false,
     hotkeyMapper: new HotkeyMapper(),
     tokenRenderer: new TokenRenderer(),
     logType:'energy',
-    compress: {play: false, supply: false, events: false, hand: false, discard: false}
+    compress: {
+        play: JSON.parse(localStorage.getItem('compressplay')!) === true, 
+        supply: false, 
+        events: false, 
+        hand: JSON.parse(localStorage.getItem('compresshand')!) === true, 
+        discard: JSON.parse(localStorage.getItem('compressdiscard')!) === true
+    }
 }
 
 type ZoneName = 'play' | 'supply' | 'events' | 'hand' | 'discard'
@@ -522,6 +528,7 @@ function renderState(
         e.unbind('click')
         e.click(() => {
             globalRendererState.compress[zone] = !globalRendererState.compress[zone];
+            localStorage.setItem(`compress${zone}`, JSON.stringify(globalRendererState.compress[zone]));
             renderZone(state, zone, settings);
         })
     }
@@ -1100,6 +1107,7 @@ function unbindPlayMacroButtons(ui:webUI) {
 function bindHotkeyToggle(ui:webUI) {
     function pick() {
         globalRendererState.hotkeysOn = !globalRendererState.hotkeysOn
+        localStorage.setItem('hotkeysOn', JSON.stringify(globalRendererState.hotkeysOn))
         ui.render()
     }
     keyListeners.set('/', pick)
