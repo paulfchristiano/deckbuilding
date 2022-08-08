@@ -34,7 +34,7 @@ import {
   copper, gold, estate, duchy,
   dedupBy, countDistinctNames,
   playReplacer, trashOnLeavePlay, stayInPlay,
-  sourceHasName, Source
+  sourceHasName, Source, cannotUse
 } from '../logic.js'
 
 export const cards:CardSpec[] = [];
@@ -427,10 +427,7 @@ buyable(territory, 5)
 */
 
 const vault:CardSpec = {name: 'Vault',
-    restrictions: [{
-        text: undefined,
-        test: (c:Card, s:State, k:ActionKind) => k == 'use'
-    }],
+    restrictions: [cannotUse],
     staticReplacers: [{
         text: `You can't lose actions, $, or buys (other than by paying costs).`,
         kind: 'resource',
@@ -983,6 +980,7 @@ const decay:CardSpec = {name: 'Decay',
 }
 events.push(decay)
 */
+/*
 const decay:CardSpec = {name: 'Decay',
     fixedCost: coin(1),
     effects: [chargeEffect()],
@@ -1005,6 +1003,24 @@ const decay:CardSpec = {name: 'Decay',
             && (p.toZone == 'hand' || p.toZone == 'discard'),
         replace: p => ({...p, toZone: 'void'})
     }]
+}
+events.push(decay)
+*/
+const decay:CardSpec = {
+    name: 'Decay',
+    restrictions: [cannotUse],
+    staticTriggers: [{
+        text: `When you play a card with fewer than two decay tokens on it the normal way, put a decay token on it.`,
+        kind: 'play',
+        handles: e => e.card.count('decay') < 2 && e.source == 'act',
+        transform: (e, s, c) => addToken(e.card, 'decay'),
+    }],
+    staticReplacers: [{
+        kind: 'costIncrease',
+        text: `Cards with two or more decay tokens on them cost an additional $1 to play,`,
+        handles: e => e.actionKind == 'play' && e.card.count('decay') >= 2,
+        replace: p => ({...p, cost:addCosts(p.cost, coin(1))})
+    }] 
 }
 events.push(decay)
 
@@ -1149,7 +1165,7 @@ const echo:CardSpec = {name: 'Echo',
         },
         `Choose a card you have in play.
          Create a copy set aside with an echo token on it.
-         Then play the card if it is still set aside.`,
+         Then play the card if it is set aside.`,
         state => dedupBy(state.play, c => c.spec)
     )]
 }
@@ -1309,7 +1325,7 @@ const innovation:CardSpec = {name: Innovation,
         (p, s, c) => discardFromPlay(c),
     )]
 }
-cards.push(supplyForCard(innovation, coin(6)))
+cards.push(supplyForCard(innovation, coin(5)))
 
 const formation:CardSpec = {name: 'Formation',
     effects: [],
@@ -1505,7 +1521,7 @@ cards.push(supplyForCard(industry, coin(6)))
 
 const homesteading:CardSpec = {
     name: 'Homesteading',
-    effects: [actionsEffect(1)],
+    effects: [createInPlayEffect(villager)],
     relatedCards: [villager],
     triggers: [{
         text: `Whenever you play ${a(estate.name)} or ${duchy.name},
@@ -1607,8 +1623,8 @@ const banquet:CardSpec = {
         test: (c:Card, s:State, k:ActionKind) => k == 'activate' && s.hand.length > 0
     }],
     effects: [{
-        text: [`+$1 for each card in your hand up to +$3`],
-        transform: (state, c) => gainCoins(Math.min(3, state.hand.length), c)
+        text: [`If you have three or more cards in your hand, +$3.`],
+        transform: (state, c) => (state.hand.length >= 3) ? gainCoins(3, c) : noop
     }],
     replacers: [{
         text: `Whenever you'd move this to your hand, instead leave it in play.`,

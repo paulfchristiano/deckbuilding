@@ -1,4 +1,4 @@
-export const VERSION = "2.1.1"
+export const VERSION = "2.1.2"
 
 // ----------------------------- Formatting
 
@@ -1439,6 +1439,11 @@ export function reflectTrigger(token:Token): Trigger<AfterPlayEvent> {
             e.card.play(card),
         ]),
     }
+}
+
+export const cannotUse:Restriction = {
+    text: undefined,
+    test: (c:Card, s:State, k:ActionKind) => k == 'use'
 }
 
 

@@ -85,7 +85,7 @@ var __read = (this && this.__read) || function (o, n) {
     }
     return ar;
 };
-export var VERSION = "2.1.1";
+export var VERSION = "2.1.2";
 // ----------------------------- Formatting
 export function renderCost(cost, full) {
     var e_1, _a;
@@ -1786,6 +1786,10 @@ export function reflectTrigger(token) {
         ]); },
     };
 }
+export var cannotUse = {
+    text: undefined,
+    test: function (c, s, k) { return k == 'use'; }
+};
 // ------------------------ Utilities for manipulating transformations
 function doOrAbort(f, fallback) {
     if (fallback === void 0) { fallback = null; }

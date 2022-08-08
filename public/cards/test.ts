@@ -25,7 +25,7 @@ import { CardSpec, Card, choice, asChoice, trash, Cost, addCosts, leq, Effect,
     copper, silver, gold, estate, duchy, province,
     trashOnLeavePlay, discardFromPlay, trashThis,
     payAction,
-    fragileEcho,
+    fragileEcho, cannotUse
   } from '../logic.js'
 
 export const cards:CardSpec[] = [];
@@ -108,20 +108,6 @@ const reducerCard:CardSpec = {name: 'Reducer Card',
 cards.push(reducerCard)
 
 
-const governorName = 'Governor'
-const governor:CardSpec = {
-    name: governorName,
-    buyCost: coin(6),
-    relatedCards: [villager],
-    effects: [actionsEffect(2), buysEffect(1), createInPlayEffect(villager)],
-    staticTriggers: [{
-        kind: 'buy',
-        handles: (e) => (e.card.name == province.name),
-        text: `Whenever you buy a ${province.name}, put all ${governorName}s in your discard into your hand.`,
-        transform: (e, s) => moveMany(s.discard.filter(card => card.name == governorName), 'hand')
-    }]
-}
-cards.push(governor)
 
 const betterGreed:CardSpec = {
     name: 'Better Greed',
@@ -139,3 +125,21 @@ const betterGreed:CardSpec = {
     }]
 }
 events.push(betterGreed)
+
+const newDecay:CardSpec = {
+    name: 'New Decay',
+    restrictions: [cannotUse],
+    staticTriggers: [{
+        text: `When you play a card with fewer than two decay tokens on it, put a decay token on it.`,
+        kind: 'play',
+        handles: e => e.card.count('decay') < 2,
+        transform: (e, s, c) => addToken(e.card, 'decay'),
+    }],
+    staticReplacers: [{
+        kind: 'costIncrease',
+        text: `Cards with two or more decay tokens on them cost an additional $1 to play,`,
+        handles: e => e.actionKind == 'play' && e.card.count('decay') >= 2,
+        replace: p => ({...p, cost:addCosts(p.cost, coin(1))})
+    }] 
+}
+events.push(newDecay)

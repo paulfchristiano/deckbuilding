@@ -409,10 +409,10 @@ const globalRendererState:RendererState = {
     tokenRenderer: new TokenRenderer(),
     logType:'energy',
     compress: {
-        play: JSON.parse(localStorage.getItem('compressplay')!) === true, 
-        supply: false, 
-        events: false, 
-        hand: JSON.parse(localStorage.getItem('compresshand')!) === true, 
+        play: JSON.parse(localStorage.getItem('compressplay')!) === true,
+        supply: false,
+        events: false,
+        hand: JSON.parse(localStorage.getItem('compresshand')!) === true,
         discard: JSON.parse(localStorage.getItem('compressdiscard')!) === true
     }
 }

@@ -72,7 +72,7 @@ var __values = (this && this.__values) || function(o) {
     };
     throw new TypeError(s ? "Object is not iterable." : "Symbol.iterator is not defined.");
 };
-import { choice, asChoice, trash, addCosts, leq, gainPoints, gainActions, gainCoins, gainBuys, free, moveMany, addToken, tick, allowNull, villager, actionsEffect, buysEffect, createInPlayEffect, targetedEffect, energy, coin, applyToTarget, province, } from '../logic.js';
+import { choice, asChoice, trash, addCosts, leq, gainPoints, gainActions, gainCoins, gainBuys, free, addToken, tick, allowNull, targetedEffect, energy, coin, applyToTarget, cannotUse } from '../logic.js';
 export var cards = [];
 export var events = [];
 var manor = {
@@ -166,20 +166,6 @@ var reducerCard = { name: 'Reducer Card',
         }]
 };
 cards.push(reducerCard);
-var governorName = 'Governor';
-var governor = {
-    name: governorName,
-    buyCost: coin(6),
-    relatedCards: [villager],
-    effects: [actionsEffect(2), buysEffect(1), createInPlayEffect(villager)],
-    staticTriggers: [{
-            kind: 'buy',
-            handles: function (e) { return (e.card.name == province.name); },
-            text: "Whenever you buy a " + province.name + ", put all " + governorName + "s in your discard into your hand.",
-            transform: function (e, s) { return moveMany(s.discard.filter(function (card) { return card.name == governorName; }), 'hand'); }
-        }]
-};
-cards.push(governor);
 var betterGreed = {
     name: 'Better Greed',
     fixedCost: __assign(__assign({}, free), { energy: 1 }),
@@ -212,4 +198,21 @@ var betterGreed = {
         }]
 };
 events.push(betterGreed);
+var newDecay = {
+    name: 'New Decay',
+    restrictions: [cannotUse],
+    staticTriggers: [{
+            text: "When you play a card with fewer than two decay tokens on it, put a decay token on it.",
+            kind: 'play',
+            handles: function (e) { return e.card.count('decay') < 2; },
+            transform: function (e, s, c) { return addToken(e.card, 'decay'); },
+        }],
+    staticReplacers: [{
+            kind: 'costIncrease',
+            text: "Cards with two or more decay tokens on them cost an additional $1 to play,",
+            handles: function (e) { return e.actionKind == 'play' && e.card.count('decay') >= 2; },
+            replace: function (p) { return (__assign(__assign({}, p), { cost: addCosts(p.cost, coin(1)) })); }
+        }]
+};
+events.push(newDecay);
 //# sourceMappingURL=test.js.map

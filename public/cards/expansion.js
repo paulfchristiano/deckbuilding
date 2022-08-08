@@ -72,7 +72,7 @@ var __values = (this && this.__values) || function(o) {
     };
     throw new TypeError(s ? "Object is not iterable." : "Symbol.iterator is not defined.");
 };
-import { choice, asChoice, trash, addCosts, leq, gainPoints, gainActions, gainCoins, gainBuys, free, create, doAll, multichoice, moveMany, addToken, removeToken, payToDo, tick, eq, move, noop, charge, discharge, payCost, subtractCost, aOrNum, allowNull, villager, fair, supplyForCard, actionsEffect, buysEffect, pointsEffect, coinsEffect, recycleEffect, reflectTrigger, createInPlayEffect, targetedEffect, chargeEffect, startsWithCharge, energy, coin, useRefresh, reducedCost, applyToTarget, countNameTokens, nameHasToken, incrementCost, costPer, createEffect, repeat, copper, silver, gold, estate, duchy, province, trashOnLeavePlay, trashThis, payAction, fragileEcho, playReplacer, countDistinctNames, sourceHasName, renderCostOrZero } from '../logic.js';
+import { choice, asChoice, trash, addCosts, leq, gainPoints, gainActions, gainCoins, gainBuys, free, create, doAll, multichoice, moveMany, addToken, removeToken, payToDo, tick, eq, move, noop, charge, discharge, payCost, aOrNum, allowNull, villager, fair, supplyForCard, actionsEffect, buysEffect, pointsEffect, coinsEffect, recycleEffect, reflectTrigger, createInPlayEffect, targetedEffect, chargeEffect, startsWithCharge, energy, coin, useRefresh, reducedCost, applyToTarget, countNameTokens, nameHasToken, incrementCost, costPer, createEffect, repeat, copper, silver, gold, estate, duchy, province, trashOnLeavePlay, trashThis, payAction, fragileEcho, playReplacer, countDistinctNames, sourceHasName, renderCostOrZero } from '../logic.js';
 // ------------------- Expansion ---------------
 export var cards = [];
 export var events = [];
@@ -861,37 +861,57 @@ const brigade:CardSpec = {name: 'Brigade',
     }]
 }
 cards.push(supplyForCard((brigade, 4, 'expansion')
-*/
-var brigade = { name: 'Brigade',
-    buyCost: coin(4), staticReplacers: [{
-            text: "Cards cost @ more to play for each brigade token on them.\n               Whenever this increases a card's cost, remove all brigade tokens from it.",
-            kind: 'cost',
-            handles: function (x, state, card) { return (x.actionKind == 'play')
-                && state.find(x.card).count('brigade') > 0; },
-            replace: function (x, state, card) {
-                var increase = x.card.count('brigade');
-                return __assign(__assign({}, x), { cost: __assign(__assign({}, x.cost), { energy: x.cost.energy + increase, effects: x.cost.effects.concat([removeToken(x.card, 'brigade', 'all')]) }) });
-            }
-        }],
+
+const brigade:CardSpec = {name: 'Brigade',
+    buyCost: coin(4),
+    staticReplacers: [{
+        text: `Cards cost @ more to play for each brigade token on them.
+               Whenever this increases a card's cost, remove all brigade tokens from it.`,
+        kind: 'cost',
+        handles: (x, state, card) => (x.actionKind == 'play')
+            && state.find(x.card).count('brigade') > 0,
+        replace: (x, state, card) => {
+            const increase = x.card.count('brigade')
+            return {...x, cost:{...x.cost,
+                energy:x.cost.energy+increase,
+                effects: x.cost.effects.concat([removeToken(x.card, 'brigade', 'all')]),
+            }}
+        }
+    }],
     replacers: [{
-            text: "Cards you play cost @ less.\n               Whenever this reduces a card's cost, put a brigade token on it.",
-            kind: 'cost',
-            handles: function (x, state) { return (x.actionKind == 'play'); },
-            replace: function (x, state, card) {
-                var newCost = subtractCost(x.cost, { energy: 1 });
-                if (!eq(newCost, x.cost)) {
-                    newCost.effects = newCost.effects.concat([
-                        addToken(x.card, 'brigade'),
-                    ]);
-                    return __assign(__assign({}, x), { cost: newCost });
-                }
-                else {
-                    return x;
-                }
+        text: `Cards you play cost @ less.
+               Whenever this reduces a card's cost, put a brigade token on it.`,
+        kind: 'cost',
+        handles: (x, state) => (x.actionKind == 'play'),
+        replace: function(x:CostParams, state:State, card:Card) {
+            const newCost:Cost = subtractCost(x.cost, {energy:1})
+            if (!eq(newCost, x.cost)) {
+                newCost.effects = newCost.effects.concat([
+                    addToken(x.card, 'brigade'),
+                ])
+                return {...x, cost:newCost}
+            } else {
+                return x
             }
+        }
+    }]
+}
+cards.push(brigade)
+*/
+var governorName = 'Governor';
+var governor = {
+    name: governorName,
+    buyCost: coin(6),
+    relatedCards: [villager],
+    effects: [actionsEffect(2), buysEffect(1), createInPlayEffect(villager)],
+    staticTriggers: [{
+            kind: 'buy',
+            handles: function (e) { return (e.card.name == province.name); },
+            text: "Whenever you buy a " + province.name + ", put all " + governorName + "s in your discard into your hand.",
+            transform: function (e, s) { return moveMany(s.discard.filter(function (card) { return card.name == governorName; }), 'hand'); }
         }]
 };
-cards.push(brigade);
+cards.push(governor);
 var tavern = {
     name: 'Tavern',
     buyCost: coin(3),
@@ -1262,16 +1282,25 @@ const overextend:CardSpec = {
 }
 cards.push(overextend)
 */
-var contraband = {
-    name: 'Contraband',
-    buyCost: coin(3),
-    effects: [coinsEffect(3), buysEffect(3)],
+var embargo = {
+    name: 'Embargo',
     replacers: [{
             text: "Cards cost $1 more to buy.",
             kind: 'costIncrease',
             handles: function (p) { return p.actionKind == 'buy'; },
             replace: function (p) { return (__assign(__assign({}, p), { cost: addCosts(p.cost, coin(1)) })); }
-        }]
+        }, {
+            text: "Events costing at least $1 cost an additional $1 to buy.",
+            kind: 'costIncrease',
+            handles: function (p) { return p.actionKind == 'use' && p.cost.coin > 0; },
+            replace: function (p) { return (__assign(__assign({}, p), { cost: addCosts(p.cost, coin(1)) })); }
+        }, trashOnLeavePlay()]
+};
+var contraband = {
+    name: 'Contraband',
+    buyCost: coin(4),
+    effects: [coinsEffect(4), buysEffect(4), createInPlayEffect(embargo)],
+    relatedCards: [embargo],
 };
 cards.push(contraband);
 /*
@@ -1444,8 +1473,8 @@ var churn = {
             }; }
         }]
 };
-cards.push(supplyForCard(churn, coin(4), {
-    replacers: [startsWithCharge(churn.name, 3)]
+cards.push(supplyForCard(churn, coin(3), {
+    replacers: [startsWithCharge(churn.name, 2)]
 }));
 var accelerate = {
     name: 'Accelerate',
@@ -1454,7 +1483,7 @@ var accelerate = {
             text: ["Put an accelerate token on each card in the supply."],
             transform: function (state, card) { return doAll(state.supply.map(function (c) { return addToken(c, 'accelerate'); })); }
         }],
-    staticReplacers: [playReplacer("Whenever you would create a card in your discard\n        whose supply has an accelerate token,\n        instead remove an accelerate token to set the card aside and play it.", function (p, s, c) { return nameHasToken(p.spec, 'accelerate', s); }, function (p, s, c) { return applyToTarget(function (t) { return removeToken(t, 'accelerate', 1, true); }, 'Remove an accelerate token.', function (state) { return state.supply.filter(function (t) { return t.name == p.spec.name; }); }, { cost: true }); })]
+    staticReplacers: [playReplacer("Whenever you would create a card in your discard\n        whose supply has an accelerate token,\n        instead remove an accelerate token to set the card aside.\n        Then play it it is set aside.", function (p, s, c) { return nameHasToken(p.spec, 'accelerate', s); }, function (p, s, c) { return applyToTarget(function (t) { return removeToken(t, 'accelerate', 1, true); }, 'Remove an accelerate token.', function (state) { return state.supply.filter(function (t) { return t.name == p.spec.name; }); }, { cost: true }); })]
 };
 events.push(accelerate);
 /*
@@ -1518,7 +1547,7 @@ var infrastructure = {
 var privateWorks = {
     name: privateWorksName,
     relatedCards: [infrastructure],
-    fixedCost: __assign(__assign({}, free), { coin: 4, energy: 1 }),
+    fixedCost: __assign(__assign({}, free), { coin: 3, energy: 1 }),
     effects: [createInPlayEffect(infrastructure, 2)]
 };
 events.push(privateWorks);
@@ -1582,7 +1611,7 @@ var inn = {
     relatedCards: [villager, horse],
     effects: [createInPlayEffect(villager, 2)]
 };
-cards.push(supplyForCard(inn, coin(5), { onBuy: [createEffect(horse, 'discard', 3)] }));
+cards.push(supplyForCard(inn, coin(5), { afterBuy: [createEffect(horse, 'discard', 3)] }));
 /*
 const exploit:CardSpec = {
     name: 'Exploit',

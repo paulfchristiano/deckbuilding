@@ -842,7 +842,6 @@ const brigade:CardSpec = {name: 'Brigade',
     }]
 }
 cards.push(supplyForCard((brigade, 4, 'expansion')
-*/
 
 const brigade:CardSpec = {name: 'Brigade',
     buyCost: coin(4),
@@ -879,6 +878,22 @@ const brigade:CardSpec = {name: 'Brigade',
     }]
 }
 cards.push(brigade)
+*/
+
+const governorName = 'Governor'
+const governor:CardSpec = {
+    name: governorName,
+    buyCost: coin(6),
+    relatedCards: [villager],
+    effects: [actionsEffect(2), buysEffect(1), createInPlayEffect(villager)],
+    staticTriggers: [{
+        kind: 'buy',
+        handles: (e) => (e.card.name == province.name),
+        text: `Whenever you buy a ${province.name}, put all ${governorName}s in your discard into your hand.`,
+        transform: (e, s) => moveMany(s.discard.filter(card => card.name == governorName), 'hand')
+    }]
+}
+cards.push(governor)
 
 const tavern:CardSpec = {
     name: 'Tavern',
@@ -1207,16 +1222,26 @@ const overextend:CardSpec = {
 cards.push(overextend)
 */
 
-const contraband:CardSpec = {
-    name: 'Contraband',
-    buyCost: coin(3),
-    effects: [coinsEffect(3), buysEffect(3)],
+const embargo:CardSpec = {
+    name: 'Embargo',
     replacers: [{
         text: `Cards cost $1 more to buy.`,
         kind: 'costIncrease',
         handles: p => p.actionKind == 'buy',
         replace: p => ({...p, cost: addCosts(p.cost, coin(1))})
-    }]
+    }, {
+        text: `Events costing at least $1 cost an additional $1 to buy.`,
+        kind: 'costIncrease',
+        handles: p => p.actionKind == 'use' && p.cost.coin > 0,
+        replace: p => ({...p, cost:addCosts(p.cost, coin(1))})
+    }, trashOnLeavePlay()]
+}
+
+const contraband:CardSpec = {
+    name: 'Contraband',
+    buyCost: coin(4),
+    effects: [coinsEffect(4), buysEffect(4), createInPlayEffect(embargo)],
+    relatedCards: [embargo],
 }
 cards.push(contraband)
 /*
@@ -1364,8 +1389,8 @@ const churn:CardSpec = {
         }
     }]
 }
-cards.push(supplyForCard(churn,coin(4), {
-    replacers: [startsWithCharge(churn.name, 3)]
+cards.push(supplyForCard(churn,coin(3), {
+    replacers: [startsWithCharge(churn.name, 2)]
 }))
 
 const accelerate:CardSpec = {
@@ -1378,7 +1403,8 @@ const accelerate:CardSpec = {
     staticReplacers: [playReplacer(
         `Whenever you would create a card in your discard
         whose supply has an accelerate token,
-        instead remove an accelerate token to set the card aside and play it.`,
+        instead remove an accelerate token to set the card aside.
+        Then play it it is set aside.`,
         (p, s, c) => nameHasToken(p.spec, 'accelerate', s),
         (p, s, c) => applyToTarget(
             t => removeToken(t, 'accelerate', 1, true),
@@ -1467,7 +1493,7 @@ const infrastructure:CardSpec = {
 const privateWorks:CardSpec = {
     name: privateWorksName,
     relatedCards: [infrastructure],
-    fixedCost: {...free, coin:4, energy:1},
+    fixedCost: {...free, coin:3, energy:1},
     effects: [createInPlayEffect(infrastructure, 2)]
 }
 events.push(privateWorks)
@@ -1541,7 +1567,7 @@ const inn:CardSpec = {
     relatedCards: [villager, horse],
     effects: [createInPlayEffect(villager, 2)]
 }
-cards.push(supplyForCard(inn,coin(5), {onBuy: [createEffect(horse, 'discard', 3)]}))
+cards.push(supplyForCard(inn,coin(5), {afterBuy: [createEffect(horse, 'discard', 3)]}))
 
 /*
 const exploit:CardSpec = {
