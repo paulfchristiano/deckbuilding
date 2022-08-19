@@ -443,9 +443,10 @@ function sketchMap<T>(x:Map<T, number>): string {
     return kvs.join(',')
 }
 // two cards are rendered together in compress mode iff they have the same sketch
-function sketchCard(card:Card, pickMap:Map<RenderKey, number>|undefined) {
+function sketchCard(card:Card, settings:RenderSettings) {
     return `${card.name}${sketchMap(card.tokens)}
-            ${getIfDef(pickMap, card.id)}`
+            ${getIfDef(settings.pickMap, card.id)}
+            ${getIfDef(settings.optionsMap, card.id)}`
 }
 
 type PickMap = Map<RenderKey, number>|undefined
@@ -454,14 +455,14 @@ type PickMap = Map<RenderKey, number>|undefined
 // For each includes the first, last, and # of cards with that sketch
 function sketchCards(
     cards:Card[],
-    pickMap:PickMap
+    settings:RenderSettings,
 ): Array<[string, {first: Card, last: Card, count: number}]> {
     const sketches:string[] = []
     const counts:Map<string, number> = new Map()
     const first:Map<string, Card> = new Map()
     const last:Map<string, Card> = new Map()
     for (const card of cards) {
-        const s = sketchCard(card, pickMap)
+        const s = sketchCard(card, settings)
         if (counts.get(s) === undefined) {
             sketches.push(s)
             first.set(s, card)
@@ -498,7 +499,7 @@ function renderZone(state:State, zone:ZoneName, settings:RenderSettings = {}) {
     const cards:Card[] = state.zones.get(zone) || []
     const compress:boolean = globalRendererState.compress[zone]
     if (compress) {
-        const sketches = sketchCards(cards, settings.pickMap)
+        const sketches = sketchCards(cards, settings)
         e.html(sketches.map(
             data => render(data[1].last, data[1].count || 0, settings.hotkeyMap?.get(data[1].first.id))
         ).join(''))

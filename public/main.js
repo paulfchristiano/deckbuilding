@@ -523,12 +523,12 @@ function sketchMap(x) {
     return kvs.join(',');
 }
 // two cards are rendered together in compress mode iff they have the same sketch
-function sketchCard(card, pickMap) {
-    return "" + card.name + sketchMap(card.tokens) + "\n            " + getIfDef(pickMap, card.id);
+function sketchCard(card, settings) {
+    return "" + card.name + sketchMap(card.tokens) + "\n            " + getIfDef(settings.pickMap, card.id) + "\n            " + getIfDef(settings.optionsMap, card.id);
 }
 // Returns a list of distinct sketches appearing amongst cards, in order
 // For each includes the first, last, and # of cards with that sketch
-function sketchCards(cards, pickMap) {
+function sketchCards(cards, settings) {
     var e_10, _a;
     var sketches = [];
     var counts = new Map();
@@ -537,7 +537,7 @@ function sketchCards(cards, pickMap) {
     try {
         for (var cards_2 = __values(cards), cards_2_1 = cards_2.next(); !cards_2_1.done; cards_2_1 = cards_2.next()) {
             var card = cards_2_1.value;
-            var s = sketchCard(card, pickMap);
+            var s = sketchCard(card, settings);
             if (counts.get(s) === undefined) {
                 sketches.push(s);
                 first.set(s, card);
@@ -584,7 +584,7 @@ function renderZone(state, zone, settings) {
     var cards = state.zones.get(zone) || [];
     var compress = globalRendererState.compress[zone];
     if (compress) {
-        var sketches = sketchCards(cards, settings.pickMap);
+        var sketches = sketchCards(cards, settings);
         e.html(sketches.map(function (data) { var _a; return render(data[1].last, data[1].count || 0, (_a = settings.hotkeyMap) === null || _a === void 0 ? void 0 : _a.get(data[1].first.id)); }).join(''));
     }
     else {
