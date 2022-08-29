@@ -21,6 +21,7 @@ import { MalformedSpec, specToURL, specFromURL } from './logic.js'
 
 // register cards
 import {throneRoom, duplicate} from './cards/index.js'
+import { count } from 'console'
 
 // --------------------- Hotkeys
 
@@ -441,52 +442,66 @@ function sketchMap<T>(x:Map<T, number>): string {
     kvs.sort()
     return kvs.join(',')
 }
+// two cards are rendered together in compress mode iff they have the same sketch
+function sketchCard(card:Card, settings:RenderSettings) {
+    return `${card.name}${sketchMap(card.tokens)}
+            ${getIfDef(settings.pickMap, card.id)}
+            ${getIfDef(settings.optionsMap, card.id)}`
+}
+
+type PickMap = Map<RenderKey, number>|undefined
+
+// Returns a list of distinct sketches appearing amongst cards, in order
+// For each includes the first, last, and # of cards with that sketch
+function sketchCards(
+    cards:Card[],
+    settings:RenderSettings,
+): Array<[string, {first: Card, last: Card, count: number}]> {
+    const sketches:string[] = []
+    const counts:Map<string, number> = new Map()
+    const first:Map<string, Card> = new Map()
+    const last:Map<string, Card> = new Map()
+    for (const card of cards) {
+        const s = sketchCard(card, settings)
+        if (counts.get(s) === undefined) {
+            sketches.push(s)
+            first.set(s, card)
+        }
+        counts.set(s, (counts.get(s) || 0) + 1)
+        last.set(s, card)
+    }
+    return sketches.map(s => [s, {first: first.get(s) as Card, last: last.get(s) as Card, count: counts.get(s) || 0}])
+}
 
 function renderZone(state:State, zone:ZoneName, settings:RenderSettings = {}) {
     const e = $(`#${zone}`)
     const optionsFns:(((shifted:boolean) => void)[]) = []
     const optionsIds:number[] = []
-    function render(card:Card, count:number=1): string {
+    function render(card:Card, count:number=1, forceHotkey:Key|undefined=undefined): string {
     	let option:number|undefined;
-    	let optionFn = getIfDef(settings.optionsMap, card.id)
+    	const optionFn = getIfDef(settings.optionsMap, card.id)
+        const hotkey = forceHotkey||getIfDef(settings.hotkeyMap, card.id);
     	if (optionFn !== undefined) {
     		option = optionsFns.length
     		optionsFns.push(optionFn)
     		optionsIds.push(card.id)
+            if (hotkey !== undefined) keyListeners.set(hotkey, () => optionFn(false))
     	}
         const cardRenderOptions:CardRenderOptions = {
             option: option,
-            hotkey: getIfDef(settings.hotkeyMap, card.id),
+            hotkey: hotkey,
             pick: getIfDef(settings.pickMap, card.id),
         }
         return renderCard(card, state, zone,
             cardRenderOptions,
             globalRendererState.tokenRenderer, count)
     }
-    // two cards are rendered together in compress mode iff they have the same sketch
-    function sketch(card:Card) {
-        return `${card.name}${sketchMap(card.tokens)}
-                ${getIfDef(settings.pickMap, card.id)}
-                ${getIfDef(settings.optionsMap, card.id)}`
-    }
     const cards:Card[] = state.zones.get(zone) || []
     const compress:boolean = globalRendererState.compress[zone]
-    const sketches = cards.map(sketch)
     if (compress) {
-        const seen:Set<string> = new Set()
-        const counts:Map<string, number> = new Map()
-        const distinctCards:Card[] = []
-        for (const card of cards) {
-            const s = sketch(card)
-            if (counts.get(s) === undefined) {
-                distinctCards.push(card)
-            }
-            counts.set(s, (counts.get(s) || 0) + 1)
-        }
-        const distinctCounts:number[] = distinctCards.map(c => counts.get(sketch(c)) || 0)
-        const rendered:string[] = []
-        e.html(distinctCards.map(
-            (card, i) => render(card, distinctCounts[i])
+        const sketches = sketchCards(cards, settings)
+        e.html(sketches.map(
+            data => render(data[1].last, data[1].count || 0, settings.hotkeyMap?.get(data[1].first.id))
         ).join(''))
     } else {
         e.html(cards.map(c => render(c)).join(''))
@@ -879,18 +894,14 @@ function renderChoice(
         }
     }
 
-    let hotkeyMap:Map<RenderKey,Key>;
     let pickMap:Map<RenderKey,number>;
-    if (globalRendererState.hotkeysOn) {
-        hotkeyMap = globalRendererState.hotkeyMapper.map(state, options)
-    }
-    else {
-        hotkeyMap = new Map()
-    }
     pickMap = new Map()
     for (const [i, x] of picks.entries()) {
         pickMap.set(renderKey(x), i)
     }
+    const hotkeyMap:Map<RenderKey,Key> = (globalRendererState.hotkeysOn)
+        ? globalRendererState.hotkeyMapper.map(state, options)
+        : new Map()
     renderState(state, {
         hotkeyMap: hotkeyMap,
         optionsMap:optionsMap,
@@ -906,20 +917,13 @@ function renderChoice(
     $('#choicePrompt').html(choicePrompt)
     $('#options').empty()
     for (const option of stringOptions) {
+        const hotkey = hotkeyMap.get(option.render)
         $('#options').append(renderStringOption(
-            option, hotkeyMap.get(option.render), pickMap.get(option.render))
+            option, hotkey, pickMap.get(option.render))
         )
-        const e = renderStringOption
     }
     $('#undoArea').html(renderSpecials(state))
     if (ui !== null) bindSpecials(state, ui)
-
-    for (let i = 0; i < options.length; i++) {
-        const option = options[i];
-        const f: (shifted:boolean) => void = option.value;
-        let hotkey:Key|undefined = hotkeyMap.get(renderKey(option.render))
-        if (hotkey != undefined) keyListeners.set(hotkey, () => f(false))
-    }
 
 }
 
@@ -927,6 +931,7 @@ function renderChoice(
 
 function renderStringOption(option:StringOption, hotkey?:Key, pick?:number) {
     const hotkeyText = (hotkey!==undefined) ? renderHotkey(hotkey) : ''
+    if (hotkey!==undefined) keyListeners.set(hotkey, () => option.value(false))
     const picktext:string = (pick !== undefined) ? `<div class='pickorder'>${pick}</div>` : ''
     const e = $(`<span class='option' choosable chosen='false'>${picktext}${hotkeyText}${option.render}</span>`)
     bindClickEvent(e, option.value)

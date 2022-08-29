@@ -522,73 +522,84 @@ function sketchMap(x) {
     kvs.sort();
     return kvs.join(',');
 }
+// two cards are rendered together in compress mode iff they have the same sketch
+function sketchCard(card, settings) {
+    return "" + card.name + sketchMap(card.tokens) + "\n            " + getIfDef(settings.pickMap, card.id) + "\n            " + getIfDef(settings.optionsMap, card.id);
+}
+// Returns a list of distinct sketches appearing amongst cards, in order
+// For each includes the first, last, and # of cards with that sketch
+function sketchCards(cards, settings) {
+    var e_10, _a;
+    var sketches = [];
+    var counts = new Map();
+    var first = new Map();
+    var last = new Map();
+    try {
+        for (var cards_2 = __values(cards), cards_2_1 = cards_2.next(); !cards_2_1.done; cards_2_1 = cards_2.next()) {
+            var card = cards_2_1.value;
+            var s = sketchCard(card, settings);
+            if (counts.get(s) === undefined) {
+                sketches.push(s);
+                first.set(s, card);
+            }
+            counts.set(s, (counts.get(s) || 0) + 1);
+            last.set(s, card);
+        }
+    }
+    catch (e_10_1) { e_10 = { error: e_10_1 }; }
+    finally {
+        try {
+            if (cards_2_1 && !cards_2_1.done && (_a = cards_2.return)) _a.call(cards_2);
+        }
+        finally { if (e_10) throw e_10.error; }
+    }
+    return sketches.map(function (s) { return [s, { first: first.get(s), last: last.get(s), count: counts.get(s) || 0 }]; });
+}
 function renderZone(state, zone, settings) {
-    var e_10, _a, e_11, _b;
+    var e_11, _a;
     if (settings === void 0) { settings = {}; }
     var e = $("#" + zone);
     var optionsFns = [];
     var optionsIds = [];
-    function render(card, count) {
+    function render(card, count, forceHotkey) {
         if (count === void 0) { count = 1; }
+        if (forceHotkey === void 0) { forceHotkey = undefined; }
         var option;
         var optionFn = getIfDef(settings.optionsMap, card.id);
+        var hotkey = forceHotkey || getIfDef(settings.hotkeyMap, card.id);
         if (optionFn !== undefined) {
             option = optionsFns.length;
             optionsFns.push(optionFn);
             optionsIds.push(card.id);
+            if (hotkey !== undefined)
+                keyListeners.set(hotkey, function () { return optionFn(false); });
         }
         var cardRenderOptions = {
             option: option,
-            hotkey: getIfDef(settings.hotkeyMap, card.id),
+            hotkey: hotkey,
             pick: getIfDef(settings.pickMap, card.id),
         };
         return renderCard(card, state, zone, cardRenderOptions, globalRendererState.tokenRenderer, count);
     }
-    // two cards are rendered together in compress mode iff they have the same sketch
-    function sketch(card) {
-        return "" + card.name + sketchMap(card.tokens) + "\n                " + getIfDef(settings.pickMap, card.id) + "\n                " + getIfDef(settings.optionsMap, card.id);
-    }
     var cards = state.zones.get(zone) || [];
     var compress = globalRendererState.compress[zone];
-    var sketches = cards.map(sketch);
     if (compress) {
-        var seen = new Set();
-        var counts_1 = new Map();
-        var distinctCards = [];
-        try {
-            for (var cards_2 = __values(cards), cards_2_1 = cards_2.next(); !cards_2_1.done; cards_2_1 = cards_2.next()) {
-                var card = cards_2_1.value;
-                var s = sketch(card);
-                if (counts_1.get(s) === undefined) {
-                    distinctCards.push(card);
-                }
-                counts_1.set(s, (counts_1.get(s) || 0) + 1);
-            }
-        }
-        catch (e_10_1) { e_10 = { error: e_10_1 }; }
-        finally {
-            try {
-                if (cards_2_1 && !cards_2_1.done && (_a = cards_2.return)) _a.call(cards_2);
-            }
-            finally { if (e_10) throw e_10.error; }
-        }
-        var distinctCounts_1 = distinctCards.map(function (c) { return counts_1.get(sketch(c)) || 0; });
-        var rendered = [];
-        e.html(distinctCards.map(function (card, i) { return render(card, distinctCounts_1[i]); }).join(''));
+        var sketches = sketchCards(cards, settings);
+        e.html(sketches.map(function (data) { var _a; return render(data[1].last, data[1].count || 0, (_a = settings.hotkeyMap) === null || _a === void 0 ? void 0 : _a.get(data[1].first.id)); }).join(''));
     }
     else {
         e.html(cards.map(function (c) { return render(c); }).join(''));
     }
     try {
-        for (var _c = __values(optionsFns.entries()), _d = _c.next(); !_d.done; _d = _c.next()) {
-            var _e = __read(_d.value, 2), i = _e[0], fn = _e[1];
+        for (var _b = __values(optionsFns.entries()), _c = _b.next(); !_c.done; _c = _b.next()) {
+            var _d = __read(_c.value, 2), i = _d[0], fn = _d[1];
             bindClickEvent(e.find("#card" + optionsIds[i]), fn);
         }
     }
     catch (e_11_1) { e_11 = { error: e_11_1 }; }
     finally {
         try {
-            if (_d && !_d.done && (_b = _c.return)) _b.call(_c);
+            if (_c && !_c.done && (_a = _b.return)) _a.call(_b);
         }
         finally { if (e_11) throw e_11.error; }
     }
@@ -712,10 +723,10 @@ function macroMismatch(card, macroCard) {
         var e_15, _a;
         try {
             for (var _b = __values(from.tokens.entries()), _c = _b.next(); !_c.done; _c = _b.next()) {
-                var _d = __read(_c.value, 2), token = _d[0], count = _d[1];
+                var _d = __read(_c.value, 2), token = _d[0], count_1 = _d[1];
                 // We count a disagreement only on the side with more tokens
                 // (since it might not appear in the tokens dict on the other side)
-                if ((to.tokens.get(token) || 0) < count) {
+                if ((to.tokens.get(token) || 0) < count_1) {
                     result += 1;
                 }
             }
@@ -967,14 +978,7 @@ function renderChoice(ui, state, choicePrompt, options, picks) {
         else if (typeof rendered === 'number') {
         }
     }
-    var hotkeyMap;
     var pickMap;
-    if (globalRendererState.hotkeysOn) {
-        hotkeyMap = globalRendererState.hotkeyMapper.map(state, options);
-    }
-    else {
-        hotkeyMap = new Map();
-    }
     pickMap = new Map();
     try {
         for (var _c = __values(picks.entries()), _d = _c.next(); !_d.done; _d = _c.next()) {
@@ -989,6 +993,9 @@ function renderChoice(ui, state, choicePrompt, options, picks) {
         }
         finally { if (e_16) throw e_16.error; }
     }
+    var hotkeyMap = (globalRendererState.hotkeysOn)
+        ? globalRendererState.hotkeyMapper.map(state, options)
+        : new Map();
     renderState(state, {
         hotkeyMap: hotkeyMap,
         optionsMap: optionsMap,
@@ -1004,8 +1011,8 @@ function renderChoice(ui, state, choicePrompt, options, picks) {
     try {
         for (var stringOptions_1 = __values(stringOptions), stringOptions_1_1 = stringOptions_1.next(); !stringOptions_1_1.done; stringOptions_1_1 = stringOptions_1.next()) {
             var option = stringOptions_1_1.value;
-            $('#options').append(renderStringOption(option, hotkeyMap.get(option.render), pickMap.get(option.render)));
-            var e = renderStringOption;
+            var hotkey = hotkeyMap.get(option.render);
+            $('#options').append(renderStringOption(option, hotkey, pickMap.get(option.render)));
         }
     }
     catch (e_17_1) { e_17 = { error: e_17_1 }; }
@@ -1018,19 +1025,11 @@ function renderChoice(ui, state, choicePrompt, options, picks) {
     $('#undoArea').html(renderSpecials(state));
     if (ui !== null)
         bindSpecials(state, ui);
-    var _loop_3 = function (i) {
-        var option = options[i];
-        var f = option.value;
-        var hotkey = hotkeyMap.get(renderKey(option.render));
-        if (hotkey != undefined)
-            keyListeners.set(hotkey, function () { return f(false); });
-    };
-    for (var i = 0; i < options.length; i++) {
-        _loop_3(i);
-    }
 }
 function renderStringOption(option, hotkey, pick) {
     var hotkeyText = (hotkey !== undefined) ? renderHotkey(hotkey) : '';
+    if (hotkey !== undefined)
+        keyListeners.set(hotkey, function () { return option.value(false); });
     var picktext = (pick !== undefined) ? "<div class='pickorder'>" + pick + "</div>" : '';
     var e = $("<span class='option' choosable chosen='false'>" + picktext + hotkeyText + option.render + "</span>");
     bindClickEvent(e, option.value);
@@ -1172,7 +1171,7 @@ function bindPlayMacroButtons(ui) {
             ui.resolveWithMacro();
         }
     }
-    var _loop_4 = function (i, macro) {
+    var _loop_3 = function (i, macro) {
         var e = $("[option='macro" + i + "'");
         e.off('click');
         e.on('click', function (e) { return onClick(i, e.shiftKey); });
@@ -1180,7 +1179,7 @@ function bindPlayMacroButtons(ui) {
     try {
         for (var _b = __values(ui.macros.entries()), _c = _b.next(); !_c.done; _c = _b.next()) {
             var _d = __read(_c.value, 2), i = _d[0], macro = _d[1];
-            _loop_4(i, macro);
+            _loop_3(i, macro);
         }
     }
     catch (e_18_1) { e_18 = { error: e_18_1 }; }

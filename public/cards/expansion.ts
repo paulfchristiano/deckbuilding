@@ -1422,14 +1422,13 @@ const accelerate:CardSpec = {
     staticReplacers: [playReplacer(
         `Whenever you would create a card in your discard
         whose supply has an accelerate token,
-        instead remove an accelerate token to set the card aside.
+        instead remove an accelerate token and set the card aside.
         Then play it it is set aside.`,
         (p, s, c) => nameHasToken(p.spec, 'accelerate', s),
         (p, s, c) => applyToTarget(
             t => removeToken(t, 'accelerate', 1, true),
             'Remove an accelerate token.',
-            state => state.supply.filter(t => t.name == p.spec.name),
-            {cost: true}
+            state => state.supply.filter(t => t.name == p.spec.name)
         )
     )]
 }

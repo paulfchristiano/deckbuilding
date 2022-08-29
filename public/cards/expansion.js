@@ -1507,7 +1507,7 @@ var accelerate = {
             text: ["Put an accelerate token on each card in the supply."],
             transform: function (state, card) { return doAll(state.supply.map(function (c) { return addToken(c, 'accelerate'); })); }
         }],
-    staticReplacers: [playReplacer("Whenever you would create a card in your discard\n        whose supply has an accelerate token,\n        instead remove an accelerate token to set the card aside.\n        Then play it it is set aside.", function (p, s, c) { return nameHasToken(p.spec, 'accelerate', s); }, function (p, s, c) { return applyToTarget(function (t) { return removeToken(t, 'accelerate', 1, true); }, 'Remove an accelerate token.', function (state) { return state.supply.filter(function (t) { return t.name == p.spec.name; }); }, { cost: true }); })]
+    staticReplacers: [playReplacer("Whenever you would create a card in your discard\n        whose supply has an accelerate token,\n        instead remove an accelerate token and set the card aside.\n        Then play it it is set aside.", function (p, s, c) { return nameHasToken(p.spec, 'accelerate', s); }, function (p, s, c) { return applyToTarget(function (t) { return removeToken(t, 'accelerate', 1, true); }, 'Remove an accelerate token.', function (state) { return state.supply.filter(function (t) { return t.name == p.spec.name; }); }); })]
 };
 events.push(accelerate);
 /*

@@ -1979,7 +1979,7 @@ const prioritize:CardSpec = {
     staticReplacers: [playReplacer(
         `Whenever you would create a card in your discard
         whose supply has a priority token,
-        instead remove a priority token to set the card aside.
+        instead remove a priority token and set the card aside.
         Then play it if it is still set aside.`,
         (p, s, c) => nameHasToken(p.spec, 'priority', s),
         (p, s, c) => applyToTarget(
