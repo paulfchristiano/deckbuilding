@@ -1301,7 +1301,7 @@ const coffers:CardSpec = {
     buyCost: coin(3),
     effects: [coinsEffect(1), buysEffect(1), chargeEffect(1)],
     ability: [{
-        text: [`Trash this. For each charge token onit, +$1 and +1 action.`],
+        text: [`Trash this. For each charge token on it, +$1 and +1 action.`],
         transform: (state, c) => async function(state) {
             const n = state.find(c).charge
             state = await trash(c)(state)

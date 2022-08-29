@@ -1361,7 +1361,7 @@ var coffers = {
     buyCost: coin(3),
     effects: [coinsEffect(1), buysEffect(1), chargeEffect(1)],
     ability: [{
-            text: ["Trash this. For each charge token onit, +$1 and +1 action."],
+            text: ["Trash this. For each charge token on it, +$1 and +1 action."],
             transform: function (state, c) { return function (state) {
                 return __awaiter(this, void 0, void 0, function () {
                     var n;
