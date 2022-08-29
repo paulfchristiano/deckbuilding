@@ -373,7 +373,7 @@ function costPerN(increment:Partial<Cost>, n:number): VariableCost {
 
 const travelingFair:CardSpec = {name:'Traveling Fair',
     fixedCost: coin(1),
-    variableCosts: [costPerN(coin(1), 10)],
+    variableCosts: [costPerN(coin(1), 5)],
     effects: [incrementCost(), buyEffect(), createInPlayEffect(fair)],
     relatedCards: [fair],
 }

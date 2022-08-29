@@ -395,7 +395,7 @@ function costPerN(increment, n) {
 }
 var travelingFair = { name: 'Traveling Fair',
     fixedCost: coin(1),
-    variableCosts: [costPerN(coin(1), 10)],
+    variableCosts: [costPerN(coin(1), 5)],
     effects: [incrementCost(), buyEffect(), createInPlayEffect(fair)],
     relatedCards: [fair],
 };

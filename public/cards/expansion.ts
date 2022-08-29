@@ -703,13 +703,28 @@ const logistics:CardSpec = {
 }
 cards.push(logistics)
 
+async function territoryTransform(state:State): Promise<State> {
+    return create(territory, 'hand')(state)
+}
+/*
+{
+    text: [`Put this in your hand.`],
+    transform: (s, c) => move(c, 'hand')
+}
+*/
+
+const territoryName = 'Territory'
+
 const territory:CardSpec = {
-    name: 'Territory',
+    name: territoryName,
     buyCost: coin(10),
     fixedCost: energy(1),
-    effects: [pointsEffect(2), {
-        text: ['Put this in your hand.'],
-        transform: (s, c) => move(c, 'hand')
+    effects: [pointsEffect(2)],
+    staticReplacers: [{
+        kind: 'move',
+        text: `When you play a ${territoryName} from your hand, leave it there.`,
+        handles: p => p.card.name == territoryName && p.toZone == 'resolving' && p.fromZone == 'hand',
+        replace: p => ({...p, skip: true})
     }]
 }
 cards.push(territory)
@@ -1281,21 +1296,22 @@ const lurker:CardSpec = {
 cards.push(lurker)
 */
 
-const ingot:CardSpec = {
-    name: 'Ingot',
+const coffers:CardSpec = {
+    name: 'Coffers',
     buyCost: coin(3),
-    effects: [coinsEffect(1), buysEffect(1)],
+    effects: [coinsEffect(1), buysEffect(1), chargeEffect(1)],
     ability: [{
-        text: [`Trash this for +$1 and +3 actions.`],
+        text: [`Trash this. For each charge token onit, +$1 and +1 action.`],
         transform: (state, c) => async function(state) {
+            const n = state.find(c).charge
             state = await trash(c)(state)
-            state = await gainCoins(1, c)(state)
-            state = await gainActions(3, c)(state)
+            state = await gainCoins(n, c)(state)
+            state = await gainActions(n, c)(state)
             return state
         }
     }]
 }
-cards.push(ingot)
+cards.push(coffers)
 
 /*
 const kiln:CardSpec = {
@@ -1380,13 +1396,16 @@ const churn:CardSpec = {
             return state
         }
     }, {
-        text: [`Remove a charge token from this.`],
+        text: [`Remove a charge token from this. If you can't, trash it.`],
         transform: (state, card) => async function(state) {
             if (state.find(card).charge > 0) {
                 state = await discharge(card, 1)(state)
+            } else {
+                state = await trash(card)(state)
             }
             return state
         }
+
     }]
 }
 cards.push(supplyForCard(churn,coin(3), {

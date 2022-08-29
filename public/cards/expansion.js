@@ -719,13 +719,30 @@ var logistics = {
         }]
 };
 cards.push(logistics);
+function territoryTransform(state) {
+    return __awaiter(this, void 0, void 0, function () {
+        return __generator(this, function (_a) {
+            return [2 /*return*/, create(territory, 'hand')(state)];
+        });
+    });
+}
+/*
+{
+    text: [`Put this in your hand.`],
+    transform: (s, c) => move(c, 'hand')
+}
+*/
+var territoryName = 'Territory';
 var territory = {
-    name: 'Territory',
+    name: territoryName,
     buyCost: coin(10),
     fixedCost: energy(1),
-    effects: [pointsEffect(2), {
-            text: ['Put this in your hand.'],
-            transform: function (s, c) { return move(c, 'hand'); }
+    effects: [pointsEffect(2)],
+    staticReplacers: [{
+            kind: 'move',
+            text: "When you play a " + territoryName + " from your hand, leave it there.",
+            handles: function (p) { return p.card.name == territoryName && p.toZone == 'resolving' && p.fromZone == 'hand'; },
+            replace: function (p) { return (__assign(__assign({}, p), { skip: true })); }
         }]
 };
 cards.push(territory);
@@ -1339,23 +1356,26 @@ const lurker:CardSpec = {
 }
 cards.push(lurker)
 */
-var ingot = {
-    name: 'Ingot',
+var coffers = {
+    name: 'Coffers',
     buyCost: coin(3),
-    effects: [coinsEffect(1), buysEffect(1)],
+    effects: [coinsEffect(1), buysEffect(1), chargeEffect(1)],
     ability: [{
-            text: ["Trash this for +$1 and +3 actions."],
+            text: ["Trash this. For each charge token onit, +$1 and +1 action."],
             transform: function (state, c) { return function (state) {
                 return __awaiter(this, void 0, void 0, function () {
+                    var n;
                     return __generator(this, function (_a) {
                         switch (_a.label) {
-                            case 0: return [4 /*yield*/, trash(c)(state)];
+                            case 0:
+                                n = state.find(c).charge;
+                                return [4 /*yield*/, trash(c)(state)];
                             case 1:
                                 state = _a.sent();
-                                return [4 /*yield*/, gainCoins(1, c)(state)];
+                                return [4 /*yield*/, gainCoins(n, c)(state)];
                             case 2:
                                 state = _a.sent();
-                                return [4 /*yield*/, gainActions(3, c)(state)];
+                                return [4 /*yield*/, gainActions(n, c)(state)];
                             case 3:
                                 state = _a.sent();
                                 return [2 /*return*/, state];
@@ -1365,7 +1385,7 @@ var ingot = {
             }; }
         }]
 };
-cards.push(ingot);
+cards.push(coffers);
 /*
 const kiln:CardSpec = {
     name: 'Kiln',
@@ -1455,7 +1475,7 @@ var churn = {
                 });
             }; }
         }, {
-            text: ["Remove a charge token from this."],
+            text: ["Remove a charge token from this. If you can't, trash it."],
             transform: function (state, card) { return function (state) {
                 return __awaiter(this, void 0, void 0, function () {
                     return __generator(this, function (_a) {
@@ -1465,8 +1485,12 @@ var churn = {
                                 return [4 /*yield*/, discharge(card, 1)(state)];
                             case 1:
                                 state = _a.sent();
-                                _a.label = 2;
-                            case 2: return [2 /*return*/, state];
+                                return [3 /*break*/, 4];
+                            case 2: return [4 /*yield*/, trash(card)(state)];
+                            case 3:
+                                state = _a.sent();
+                                _a.label = 4;
+                            case 4: return [2 /*return*/, state];
                         }
                     });
                 });
