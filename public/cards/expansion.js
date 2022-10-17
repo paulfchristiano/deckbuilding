@@ -72,7 +72,7 @@ var __values = (this && this.__values) || function(o) {
     };
     throw new TypeError(s ? "Object is not iterable." : "Symbol.iterator is not defined.");
 };
-import { choice, asChoice, trash, addCosts, leq, gainPoints, gainActions, gainCoins, gainBuys, free, create, doAll, multichoice, moveMany, addToken, removeToken, payToDo, tick, eq, move, noop, charge, discharge, payCost, aOrNum, allowNull, villager, fair, supplyForCard, actionsEffect, buysEffect, pointsEffect, coinsEffect, recycleEffect, reflectTrigger, createInPlayEffect, targetedEffect, chargeEffect, startsWithCharge, energy, coin, useRefresh, reducedCost, applyToTarget, countNameTokens, nameHasToken, incrementCost, costPer, createEffect, repeat, copper, silver, gold, estate, duchy, province, trashOnLeavePlay, trashThis, payAction, fragileEcho, playReplacer, countDistinctNames, sourceHasName, renderCostOrZero } from '../logic.js';
+import { choice, asChoice, trash, addCosts, leq, gainPoints, gainActions, gainCoins, gainBuys, free, create, doAll, multichoice, moveMany, addToken, removeToken, payToDo, tick, eq, move, noop, charge, discharge, payCost, aOrNum, allowNull, villager, fair, supplyForCard, actionsEffect, buysEffect, pointsEffect, coinsEffect, recycleEffect, reflectTrigger, createInPlayEffect, targetedEffect, chargeEffect, startsWithCharge, energy, coin, useRefresh, reducedCost, applyToTarget, countNameTokens, nameHasToken, incrementCost, costPer, createEffect, repeat, copper, silver, gold, estate, duchy, province, trashOnLeavePlay, trashThis, payAction, fragileEcho, num, playReplacer, countDistinctNames, sourceHasName, renderCostOrZero } from '../logic.js';
 // ------------------- Expansion ---------------
 export var cards = [];
 export var events = [];
@@ -1463,7 +1463,7 @@ var churn = {
                         switch (_b.label) {
                             case 0:
                                 n = state.find(card).charge;
-                                return [4 /*yield*/, multichoice(state, "Choose " + n + " cards to put into your hand.", state.discard.filter(function (c) { return c.name != churnName; }).map(asChoice), n)];
+                                return [4 /*yield*/, multichoice(state, "Choose " + num(n, 'card') + " cards to put into your hand.", state.discard.filter(function (c) { return c.name != churnName; }).map(asChoice), n)];
                             case 1:
                                 _a = __read.apply(void 0, [_b.sent(), 2]), state = _a[0], cards = _a[1];
                                 return [4 /*yield*/, moveMany(cards, 'hand')(state)];

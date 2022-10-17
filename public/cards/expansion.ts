@@ -1389,7 +1389,7 @@ const churn:CardSpec = {
         transform: (state, card) => async function(state) {
             const n = state.find(card).charge
             let cards:Card[]; [state, cards] = await multichoice(state,
-                `Choose ${n} cards to put into your hand.`,
+                `Choose ${num(n, 'card')} cards to put into your hand.`,
                 state.discard.filter(c => c.name != churnName).map(asChoice), n
             )
             state = await moveMany(cards, 'hand')(state)
