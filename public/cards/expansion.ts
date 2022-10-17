@@ -553,13 +553,13 @@ const remake:CardSpec = {
     name: 'Remake',
     fixedCost: {...free, coin:3, energy:1},
     effects: [{
-        text: [`Do this up to six times: trash a card in your hand,
+        text: [`Do this up to five times: trash a card in your hand,
         then create a copy of a card in the supply costing up to $2 more.`],
         transform: (s, c) => async function(state) {
-            const N = 6;
-            for (let i = N-1; i >= 0; i--) {
+            const N = 5;
+            for (let i = 0; i < N; i++) {
                 let card:Card|null; [state, card] = await choice(state,
-                    `Choose a card to remake (${i} remaining).`,
+                    `Choose a card to trash (${i+1} of ${N}).`,
                     allowNull(state.hand.map(asChoice))
                 )
                 if (card == null) {
@@ -568,7 +568,7 @@ const remake:CardSpec = {
                     state = await trash(card)(state)
                     const cost = addCosts(card.cost('buy', state), coin(2))
                     let target:Card|null; [state, target] = await choice(state,
-                        `Choose a card to copy (${i} remaining).`,
+                        `Choose a card to create (${i+1} of ${N}).`,
                         state.supply.filter(t => leq(t.cost('buy', state), cost)).map(asChoice)
                     )
                     if (target != null) state = await create(target.spec)(state)
@@ -680,7 +680,7 @@ cards.push(develop)
 const logisticsToken:Token = 'logistics'
 const logistics:CardSpec = {
     name: 'Logistics',
-    buyCost: coin(5),
+    buyCost: coin(6),
     fixedCost: energy(1),
     effects: [{
         text: [`Put a ${logisticsToken} token on each supply.`],
@@ -1396,11 +1396,12 @@ const churn:CardSpec = {
             return state
         }
     }, {
-        text: [`Remove a charge token from this. If you can't, trash it.`],
+        text: [`Remove a charge token from this. Then if it has no charge tokens, trash it.`],
         transform: (state, card) => async function(state) {
             if (state.find(card).charge > 0) {
                 state = await discharge(card, 1)(state)
-            } else {
+            }
+            if (state.find(card).charge == 0) {
                 state = await trash(card)(state)
             }
             return state

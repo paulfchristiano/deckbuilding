@@ -551,14 +551,14 @@ var remake = {
     name: 'Remake',
     fixedCost: __assign(__assign({}, free), { coin: 3, energy: 1 }),
     effects: [{
-            text: ["Do this up to six times: trash a card in your hand,\n        then create a copy of a card in the supply costing up to $2 more."],
+            text: ["Do this up to five times: trash a card in your hand,\n        then create a copy of a card in the supply costing up to $2 more."],
             transform: function (s, c) { return function (state) {
                 return __awaiter(this, void 0, void 0, function () {
                     var N, _loop_1, i, state_1;
                     return __generator(this, function (_a) {
                         switch (_a.label) {
                             case 0:
-                                N = 6;
+                                N = 5;
                                 _loop_1 = function (i) {
                                     var card, cost_1, target;
                                     var _a, _b;
@@ -566,7 +566,7 @@ var remake = {
                                         switch (_c.label) {
                                             case 0:
                                                 card = void 0;
-                                                return [4 /*yield*/, choice(state, "Choose a card to remake (" + i + " remaining).", allowNull(state.hand.map(asChoice)))];
+                                                return [4 /*yield*/, choice(state, "Choose a card to trash (" + (i + 1) + " of " + N + ").", allowNull(state.hand.map(asChoice)))];
                                             case 1:
                                                 _a = __read.apply(void 0, [_c.sent(), 2]), state = _a[0], card = _a[1];
                                                 if (!(card == null)) return [3 /*break*/, 2];
@@ -576,7 +576,7 @@ var remake = {
                                                 state = _c.sent();
                                                 cost_1 = addCosts(card.cost('buy', state), coin(2));
                                                 target = void 0;
-                                                return [4 /*yield*/, choice(state, "Choose a card to copy (" + i + " remaining).", state.supply.filter(function (t) { return leq(t.cost('buy', state), cost_1); }).map(asChoice))];
+                                                return [4 /*yield*/, choice(state, "Choose a card to create (" + (i + 1) + " of " + N + ").", state.supply.filter(function (t) { return leq(t.cost('buy', state), cost_1); }).map(asChoice))];
                                             case 4:
                                                 _b = __read.apply(void 0, [_c.sent(), 2]), state = _b[0], target = _b[1];
                                                 if (!(target != null)) return [3 /*break*/, 6];
@@ -588,10 +588,10 @@ var remake = {
                                         }
                                     });
                                 };
-                                i = N - 1;
+                                i = 0;
                                 _a.label = 1;
                             case 1:
-                                if (!(i >= 0)) return [3 /*break*/, 4];
+                                if (!(i < N)) return [3 /*break*/, 4];
                                 return [5 /*yield**/, _loop_1(i)];
                             case 2:
                                 state_1 = _a.sent();
@@ -599,7 +599,7 @@ var remake = {
                                     return [3 /*break*/, 4];
                                 _a.label = 3;
                             case 3:
-                                i--;
+                                i++;
                                 return [3 /*break*/, 1];
                             case 4: return [2 /*return*/, state];
                         }
@@ -700,7 +700,7 @@ cards.push(develop);
 var logisticsToken = 'logistics';
 var logistics = {
     name: 'Logistics',
-    buyCost: coin(5),
+    buyCost: coin(6),
     fixedCost: energy(1),
     effects: [{
             text: ["Put a " + logisticsToken + " token on each supply."],
@@ -1475,7 +1475,7 @@ var churn = {
                 });
             }; }
         }, {
-            text: ["Remove a charge token from this. If you can't, trash it."],
+            text: ["Remove a charge token from this. Then if it has no charge tokens, trash it."],
             transform: function (state, card) { return function (state) {
                 return __awaiter(this, void 0, void 0, function () {
                     return __generator(this, function (_a) {
@@ -1485,8 +1485,10 @@ var churn = {
                                 return [4 /*yield*/, discharge(card, 1)(state)];
                             case 1:
                                 state = _a.sent();
-                                return [3 /*break*/, 4];
-                            case 2: return [4 /*yield*/, trash(card)(state)];
+                                _a.label = 2;
+                            case 2:
+                                if (!(state.find(card).charge == 0)) return [3 /*break*/, 4];
+                                return [4 /*yield*/, trash(card)(state)];
                             case 3:
                                 state = _a.sent();
                                 _a.label = 4;

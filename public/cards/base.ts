@@ -491,7 +491,7 @@ const investment:CardSpec = {name: 'Investment',
 }
 cards.push(supplyForCard(investment, coin(4), {replacers: [startsWithCharge(investment.name, 2)]}))
 
-//TODO check this
+/*
 const populate:CardSpec = {name: 'Populate',
     fixedCost: {...free, coin:2, energy:2},
     effects: [chargeEffect()],
@@ -515,15 +515,15 @@ const populate:CardSpec = {name: 'Populate',
         })
     }]
 }
-/*
+*/
 const populate:CardSpec = {name: 'Populate',
     fixedCost: {...free, coin:8, energy:2},
     effects: [{
-        text: ['Buy up to 6 cards in the supply.'],
+        text: ['Buy up to 5 cards in the supply each costing up to $8.'],
         transform: (s, card) => async function(state) {
             let targets; [state, targets] = await multichoice(state,
-                'Choose up to 6 cards to buy',
-                state.supply.map(asChoice), 6)
+                'Choose up to 5 cards to buy',
+                state.supply.filter(target => leq(target.cost('buy', state), coin(8))).map(asChoice), 5)
             for (const target of targets) {
                 state = await target.buy(card)(state)
             }
@@ -531,7 +531,6 @@ const populate:CardSpec = {name: 'Populate',
         }
     }]
 }
-*/
 events.push(populate)
 
 export const duplicate:CardSpec = {name: 'Duplicate',
@@ -2017,11 +2016,12 @@ const fairyGold:CardSpec = {
         text: [`+$1 per charge token on this.`],
         transform: (state, card) => gainCoins(state.find(card).charge, card),
     }, {
-        text: [`Remove a charge token from this. If you can't, trash it.`],
+        text: [`Remove a charge token from this. Then if it has no charge tokens, trash it.`],
         transform: (state, card) => async function(state) {
             if (state.find(card).charge > 0) {
                 state = await discharge(card, 1)(state)
-            } else {
+            }
+            if (state.find(card).charge == 0) {
                 state = await trash(card)(state)
             }
             return state

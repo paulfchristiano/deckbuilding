@@ -504,21 +504,41 @@ var investment = { name: 'Investment',
         }, chargeUpTo(6)]
 };
 cards.push(supplyForCard(investment, coin(4), { replacers: [startsWithCharge(investment.name, 2)] }));
-//TODO check this
-var populate = { name: 'Populate', fixedCost: __assign(__assign({}, free), { coin: 2, energy: 2 }), effects: [chargeEffect()], staticTriggers: [{
-            kind: 'afterBuy',
-            text: "After buying a card the normal way,\n        remove a charge token from this to buy up to 4 other cards\n        with equal or lesser cost.",
-            handles: function (e) { return e.source == 'act'; },
-            transform: function (e, s, c) { return payToDo(discharge(c, 1), function (state) {
+/*
+const populate:CardSpec = {name: 'Populate',
+    fixedCost: {...free, coin:2, energy:2},
+    effects: [chargeEffect()],
+    staticTriggers: [{
+        kind: 'afterBuy',
+        text: `After buying a card the normal way,
+        remove a charge token from this to buy up to 4 other cards
+        with equal or lesser cost.`,
+        handles: e => e.source == 'act',
+        transform: (e, s, c) => payToDo(discharge(c, 1), async function(state) {
+            let targets; [state, targets] = await multichoice(state,
+                'Choose up to 4 other cards to buy',
+                state.supply.filter(target =>
+                    leq(target.cost('buy', state), e.card.cost('buy', state))
+                    && target.id != e.card.id
+                ).map(asChoice), 4)
+            for (const target of targets) {
+                state = await target.buy(c)(state)
+            }
+            return state
+        })
+    }]
+}
+*/
+var populate = { name: 'Populate', fixedCost: __assign(__assign({}, free), { coin: 8, energy: 2 }),
+    effects: [{
+            text: ['Buy up to 5 cards in the supply each costing up to $8.'],
+            transform: function (s, card) { return function (state) {
                 return __awaiter(this, void 0, void 0, function () {
                     var targets, targets_1, targets_1_1, target, e_1_1;
                     var _a, e_1, _b;
                     return __generator(this, function (_c) {
                         switch (_c.label) {
-                            case 0: return [4 /*yield*/, multichoice(state, 'Choose up to 4 other cards to buy', state.supply.filter(function (target) {
-                                    return leq(target.cost('buy', state), e.card.cost('buy', state))
-                                        && target.id != e.card.id;
-                                }).map(asChoice), 4)];
+                            case 0: return [4 /*yield*/, multichoice(state, 'Choose up to 5 cards to buy', state.supply.filter(function (target) { return leq(target.cost('buy', state), coin(8)); }).map(asChoice), 5)];
                             case 1:
                                 _a = __read.apply(void 0, [_c.sent(), 2]), state = _a[0], targets = _a[1];
                                 _c.label = 2;
@@ -529,7 +549,7 @@ var populate = { name: 'Populate', fixedCost: __assign(__assign({}, free), { coi
                             case 3:
                                 if (!!targets_1_1.done) return [3 /*break*/, 6];
                                 target = targets_1_1.value;
-                                return [4 /*yield*/, target.buy(c)(state)];
+                                return [4 /*yield*/, target.buy(card)(state)];
                             case 4:
                                 state = _c.sent();
                                 _c.label = 5;
@@ -551,26 +571,9 @@ var populate = { name: 'Populate', fixedCost: __assign(__assign({}, free), { coi
                         }
                     });
                 });
-            }); }
+            }; }
         }]
 };
-/*
-const populate:CardSpec = {name: 'Populate',
-    fixedCost: {...free, coin:8, energy:2},
-    effects: [{
-        text: ['Buy up to 6 cards in the supply.'],
-        transform: (s, card) => async function(state) {
-            let targets; [state, targets] = await multichoice(state,
-                'Choose up to 6 cards to buy',
-                state.supply.map(asChoice), 6)
-            for (const target of targets) {
-                state = await target.buy(card)(state)
-            }
-            return state
-        }
-    }]
-}
-*/
 events.push(populate);
 export var duplicate = { name: 'Duplicate', fixedCost: __assign(__assign({}, free), { coin: 4, energy: 1 }),
     effects: [{
@@ -2023,7 +2026,7 @@ var fairyGold = {
             text: ["+$1 per charge token on this."],
             transform: function (state, card) { return gainCoins(state.find(card).charge, card); },
         }, {
-            text: ["Remove a charge token from this. If you can't, trash it."],
+            text: ["Remove a charge token from this. Then if it has no charge tokens, trash it."],
             transform: function (state, card) { return function (state) {
                 return __awaiter(this, void 0, void 0, function () {
                     return __generator(this, function (_a) {
@@ -2033,8 +2036,10 @@ var fairyGold = {
                                 return [4 /*yield*/, discharge(card, 1)(state)];
                             case 1:
                                 state = _a.sent();
-                                return [3 /*break*/, 4];
-                            case 2: return [4 /*yield*/, trash(card)(state)];
+                                _a.label = 2;
+                            case 2:
+                                if (!(state.find(card).charge == 0)) return [3 /*break*/, 4];
+                                return [4 /*yield*/, trash(card)(state)];
                             case 3:
                                 state = _a.sent();
                                 _a.label = 4;
