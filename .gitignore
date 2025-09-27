@@ -8,3 +8,5 @@ tsconfig.tsbuildinfo
 *.js.map
 *~
 *.swp
+logs.txt
+*.log
