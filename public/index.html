@@ -15,23 +15,62 @@
     <link rel="stylesheet" type="text/css" href="style.css"/>
     <title>Roguelike Deckbuilder</title>
     <style>
-        #landingPage {
+        #stageScreen {
+            display: flex;
+            min-height: 80vh;
+        }
+        #progressSidebar {
+            width: 60px;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+        }
+        #progressLine {
             display: flex;
             flex-direction: column;
             align-items: center;
-            justify-content: center;
-            min-height: 80vh;
-            gap: 15px;
+            gap: 0;
+            position: relative;
         }
-        .columnsContainer {
-            display: flex;
-            gap: 40px;
-            align-items: flex-start;
+        #progressLine::before {
+            content: '';
+            position: absolute;
+            top: 10px;
+            bottom: 10px;
+            width: 2px;
+            background: #ccc;
+            z-index: 0;
         }
-        .column {
+        .progressCircle {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #ccc;
+            border: 2px solid #ccc;
+            margin: 10px 0;
+            z-index: 1;
+        }
+        .progressCircle.completed {
+            background: #4a4;
+            border-color: #4a4;
+        }
+        .progressCircle.current {
+            background: #fff;
+            border-color: #44a;
+            border-width: 3px;
+        }
+        #stageContent {
+            flex: 1;
             display: flex;
             flex-direction: column;
-            gap: 15px;
+            align-items: center;
+            padding: 20px;
+        }
+        .stageSection {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            align-items: center;
         }
         .gameRow {
             display: flex;
@@ -39,23 +78,20 @@
             justify-content: center;
             position: relative;
         }
-        #landingPage .option {
+        #stageScreen .option {
             cursor: pointer;
             font-size: 1.5em;
             padding: 15px 30px;
             min-width: 200px;
         }
-        #landingPage .option[disabled] {
+        #stageScreen .option[disabled] {
             cursor: default;
             opacity: 0.5;
         }
-        .scoreDisplay {
-            color: #999;
+        #kingdomInfo {
+            color: #666;
             font-size: 0.9em;
-            display: none;
-            position: absolute;
-            left: calc(100% + 10px);
-            white-space: nowrap;
+            margin-top: 5px;
         }
         #gameContainer {
             display: none;
@@ -72,29 +108,41 @@
         #cardPickerOptions .option {
             cursor: pointer;
         }
+        #victoryScreen {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 80vh;
+            gap: 20px;
+        }
+        #victoryScreen .option {
+            cursor: pointer;
+            font-size: 1.5em;
+            padding: 15px 30px;
+        }
     </style>
 </head>
 
 <body>
 
-<div id="landingPage">
-    <h1>Roguelike Deckbuilder</h1>
-    <div class="columnsContainer">
-        <div class="column">
-            <div class="gameRow">
-                <span class="option" id="game0" choosable></span>
-                <span class="scoreDisplay" id="score0"></span>
-            </div>
-            <div class="gameRow">
-                <span class="option" id="game1" choosable></span>
-                <span class="scoreDisplay" id="score1"></span>
-            </div>
-            <div class="gameRow">
-                <span class="option" id="game2" choosable></span>
-                <span class="scoreDisplay" id="score2"></span>
-            </div>
+<div id="stageScreen">
+    <div id="progressSidebar">
+        <div id="progressLine">
+            <div class="progressCircle" data-stage="1"></div>
+            <div class="progressCircle" data-stage="2"></div>
+            <div class="progressCircle" data-stage="3"></div>
+            <div class="progressCircle" data-stage="4"></div>
+            <div class="progressCircle" data-stage="5"></div>
+            <div class="progressCircle" data-stage="6"></div>
+            <div class="progressCircle" data-stage="7"></div>
+            <div class="progressCircle" data-stage="8"></div>
+            <div class="progressCircle" data-stage="9"></div>
         </div>
-        <div class="column">
+    </div>
+    <div id="stageContent">
+        <h2 id="stageTitle">Stage 1</h2>
+        <div class="stageSection">
             <div class="gameRow">
                 <span class="option" id="addCard0" choosable>Add Card</span>
             </div>
@@ -105,6 +153,12 @@
                 <span class="option" id="addEvent0" choosable>Add Event</span>
             </div>
         </div>
+        <div class="stageSection" style="margin-top: 20px;">
+            <div class="gameRow">
+                <span class="option" id="playKingdom" choosable>Play Kingdom</span>
+            </div>
+            <div id="kingdomInfo"></div>
+        </div>
     </div>
 </div>
 
@@ -114,6 +168,12 @@
     <div style="margin-top: 10px;">
         <span class="option" id="cardPickerCancel" choosable>Cancel</span>
     </div>
+</div>
+
+<div id="victoryScreen" style="display: none;">
+    <h1>Congratulations!</h1>
+    <p>You completed all 9 stages!</p>
+    <span class="option" id="restartGame" choosable>Play Again</span>
 </div>
 
 <div id="gameContainer">

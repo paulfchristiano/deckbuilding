@@ -902,13 +902,11 @@ var webUI = /** @class */ (function () {
     //(would be nice to clean this up so you use undo to go back)
     webUI.prototype.victory = function (state) {
         return __awaiter(this, void 0, void 0, function () {
-            var ui, score, doneAction, submitOrUndo;
+            var ui, doneAction, submitOrUndo;
             return __generator(this, function (_a) {
                 ui = this;
-                score = state.energy;
                 doneAction = function () {
-                    saveScore(state, score);
-                    goBackToLanding();
+                    onKingdomVictory();
                 };
                 submitOrUndo = function () {
                     return new Promise(function (resolve, reject) {
@@ -1081,7 +1079,7 @@ function bindSpecials(state, ui) {
     bindBack();
 }
 function bindBack() {
-    $("[option='back']").on('click', function () { return goBackToLanding(); });
+    $("[option='back']").on('click', function () { return goBackToStage(); });
 }
 function bindViewKingdom(state) {
     function onClick() {
@@ -1740,30 +1738,15 @@ export function loadPicker(picked_sets) {
     }
     renderChoice(null, state, 'Choose which events and cards to use.', state.supply.map(function (card, i) { return makeOption(card, i, 'card'); }).concat(state.events.map(function (card, i) { return makeOption(card, i, 'event'); })));
 }
-var currentGameOptions = [];
-var currentGameIndex = -1;
-var addButtonStates = [];
+// ----------------------------------- Landing Page
+// Stage-based game state
+var TOTAL_STAGES = 9;
+var currentStage = 1;
+var currentKingdom = null;
+var currentVPModeName = '';
+var stageAddButtonStates = [];
 var collectedCards = [];
 var collectedEvents = [];
-function generateAddButtonOptions() {
-    var cardPool = allCards().filter(function (c) {
-        return !vpCardNames.has(c.name) &&
-            c.name !== 'Copper' && c.name !== 'Silver' && c.name !== 'Gold';
-    });
-    var eventPool = allEvents().filter(function (e) {
-        return !vpEventNames.has(e.name) && e.name !== 'Refresh';
-    });
-    // Shuffle and pick random cards/events
-    var shuffledCards = shuffleArray(__spreadArray([], __read(cardPool), false));
-    var shuffledEvents = shuffleArray(__spreadArray([], __read(eventPool), false));
-    addButtonStates = [
-        { kind: 'card', options: shuffledCards.slice(0, 3), used: false, selectedCard: null },
-        { kind: 'card', options: shuffledCards.slice(3, 6), used: false, selectedCard: null },
-        { kind: 'event', options: shuffledEvents.slice(0, 3), used: false, selectedCard: null },
-    ];
-    collectedCards = [];
-    collectedEvents = [];
-}
 function shuffleArray(array) {
     var _a;
     for (var i = array.length - 1; i > 0; i--) {
@@ -1772,9 +1755,51 @@ function shuffleArray(array) {
     }
     return array;
 }
+function generateRandomSeed() {
+    return Math.random().toString(36).substring(2, 10);
+}
+// Simple hash function matching the one in logic.ts
+function hashString(s) {
+    var hash = 0;
+    for (var i = 0; i < s.length; i++) {
+        hash = ((hash << 5) - hash) + s.charCodeAt(i);
+    }
+    return hash;
+}
+function generateStageOptions() {
+    // Generate add button options for this stage
+    var cardPool = allCards().filter(function (c) {
+        return !vpCardNames.has(c.name) &&
+            c.name !== 'Copper' && c.name !== 'Silver' && c.name !== 'Gold' &&
+            !collectedCards.some(function (cc) { return cc.name === c.name; });
+    });
+    var eventPool = allEvents().filter(function (e) {
+        return !vpEventNames.has(e.name) && e.name !== 'Refresh' &&
+            !collectedEvents.some(function (ce) { return ce.name === e.name; });
+    });
+    var shuffledCards = shuffleArray(__spreadArray([], __read(cardPool), false));
+    var shuffledEvents = shuffleArray(__spreadArray([], __read(eventPool), false));
+    stageAddButtonStates = [
+        { kind: 'card', options: shuffledCards.slice(0, 3), used: false, selectedCard: null },
+        { kind: 'card', options: shuffledCards.slice(3, 6), used: false, selectedCard: null },
+        { kind: 'event', options: shuffledEvents.slice(0, 3), used: false, selectedCard: null },
+    ];
+    // Generate kingdom for this stage
+    var seed = generateRandomSeed();
+    var h = hashString(seed + 'vpmode');
+    var modeIndex = ((h % vpModes.length) + vpModes.length) % vpModes.length;
+    currentKingdom = {
+        kind: 'full',
+        randomizer: {
+            seed: seed,
+            expansions: ['base', 'expansion']
+        }
+    };
+    currentVPModeName = vpModes[modeIndex].name;
+}
 function showCardPicker(buttonIndex) {
     var e_21, _a;
-    var state = addButtonStates[buttonIndex];
+    var state = stageAddButtonStates[buttonIndex];
     if (state.used)
         return;
     var title = state.kind === 'card' ? 'Choose a card:' : 'Choose an event:';
@@ -1805,7 +1830,7 @@ function hideCardPicker() {
     $('#cardPickerDialog').attr('active', 'false');
 }
 function selectCard(buttonIndex, card) {
-    var state = addButtonStates[buttonIndex];
+    var state = stageAddButtonStates[buttonIndex];
     state.used = true;
     state.selectedCard = card;
     if (state.kind === 'card') {
@@ -1814,12 +1839,11 @@ function selectCard(buttonIndex, card) {
     else {
         collectedEvents.push(card);
     }
-    // Update button appearance
     updateAddButtonDisplay(buttonIndex);
     hideCardPicker();
 }
 function updateAddButtonDisplay(buttonIndex) {
-    var state = addButtonStates[buttonIndex];
+    var state = stageAddButtonStates[buttonIndex];
     var buttonId = buttonIndex < 2 ? "#addCard".concat(buttonIndex) : '#addEvent0';
     if (state.used && state.selectedCard) {
         $(buttonId).text(state.selectedCard.name);
@@ -1831,8 +1855,8 @@ function setupAddButtons() {
     var _a, _b;
     var _loop_5 = function (i) {
         var buttonId = "#addCard".concat(i);
-        if (addButtonStates[i].used) {
-            $(buttonId).text(((_a = addButtonStates[i].selectedCard) === null || _a === void 0 ? void 0 : _a.name) || 'Add Card');
+        if (stageAddButtonStates[i].used) {
+            $(buttonId).text(((_a = stageAddButtonStates[i].selectedCard) === null || _a === void 0 ? void 0 : _a.name) || 'Add Card');
             $(buttonId).attr('disabled', 'true');
             $(buttonId).removeAttr('choosable');
         }
@@ -1842,7 +1866,7 @@ function setupAddButtons() {
             $(buttonId).attr('choosable', 'true');
         }
         $(buttonId).off('click').on('click', function () {
-            if (!addButtonStates[i].used)
+            if (!stageAddButtonStates[i].used)
                 showCardPicker(i);
         });
     };
@@ -1850,8 +1874,8 @@ function setupAddButtons() {
         _loop_5(i);
     }
     var eventButtonId = '#addEvent0';
-    if (addButtonStates[2].used) {
-        $(eventButtonId).text(((_b = addButtonStates[2].selectedCard) === null || _b === void 0 ? void 0 : _b.name) || 'Add Event');
+    if (stageAddButtonStates[2].used) {
+        $(eventButtonId).text(((_b = stageAddButtonStates[2].selectedCard) === null || _b === void 0 ? void 0 : _b.name) || 'Add Event');
         $(eventButtonId).attr('disabled', 'true');
         $(eventButtonId).removeAttr('choosable');
     }
@@ -1861,132 +1885,84 @@ function setupAddButtons() {
         $(eventButtonId).attr('choosable', 'true');
     }
     $(eventButtonId).off('click').on('click', function () {
-        if (!addButtonStates[2].used)
+        if (!stageAddButtonStates[2].used)
             showCardPicker(2);
     });
 }
-// Score management - stores in memory per-kingdom
-function saveScore(state, score) {
-    if (currentGameIndex < 0 || currentGameIndex >= currentGameOptions.length)
-        return;
-    var option = currentGameOptions[currentGameIndex];
-    // Lower score is better (less energy used)
-    if (option.bestScore === null || score < option.bestScore) {
-        option.bestScore = score;
-    }
-}
-function getRandomizerSeed(spec) {
-    switch (spec.kind) {
-        case 'test':
-        case 'pick':
-            return null;
-        case 'goal':
-            return getRandomizerSeed(spec.spec);
-        default:
-            return spec.randomizer.seed;
-    }
-}
-function generateRandomSeed() {
-    return Math.random().toString(36).substring(2, 10);
-}
-function generateGameOptions() {
-    var options = [];
-    var usedModeIndices = new Set();
-    // Generate 3 games with different VP modes
-    for (var i = 0; i < 3; i++) {
-        var seed = void 0;
-        var modeIndex 
-        // Keep generating seeds until we get a unique VP mode
-        = void 0;
-        // Keep generating seeds until we get a unique VP mode
-        do {
-            seed = generateRandomSeed();
-            var h = hashString(seed + 'vpmode');
-            modeIndex = ((h % vpModes.length) + vpModes.length) % vpModes.length;
-        } while (usedModeIndices.has(modeIndex));
-        usedModeIndices.add(modeIndex);
-        var spec = {
-            kind: 'full',
-            randomizer: {
-                seed: seed,
-                expansions: ['base', 'expansion']
-            }
-        };
-        options.push({
-            spec: spec,
-            vpModeName: vpModes[modeIndex].name,
-            bestScore: null
-        });
-    }
-    return options;
-}
-// Simple hash function matching the one in logic.ts
-function hashString(s) {
-    var hash = 0;
-    for (var i = 0; i < s.length; i++) {
-        hash = ((hash << 5) - hash) + s.charCodeAt(i);
-    }
-    return hash;
+function updateProgressSidebar() {
+    $('.progressCircle').each(function () {
+        var stage = parseInt($(this).attr('data-stage') || '0');
+        $(this).removeClass('completed current');
+        if (stage < currentStage) {
+            $(this).addClass('completed');
+        }
+        else if (stage === currentStage) {
+            $(this).addClass('current');
+        }
+    });
 }
 export function showLandingPage() {
-    // Generate new game options if not already generated
-    if (currentGameOptions.length === 0) {
-        currentGameOptions = generateGameOptions();
-        generateAddButtonOptions();
-    }
-    // Set up add card/event buttons
-    setupAddButtons();
-    var _loop_6 = function (i) {
-        var option = currentGameOptions[i];
-        $("#game".concat(i)).text(option.vpModeName);
-        $("#game".concat(i)).off('click').on('click', function () { return startGameFromOption(i); });
-        // Update score display
-        if (option.bestScore !== null) {
-            $("#score".concat(i)).text("Score: ".concat(option.bestScore)).show();
-        }
-        else {
-            $("#score".concat(i)).hide();
-        }
-    };
-    // Update button labels and scores
-    for (var i = 0; i < 3; i++) {
-        _loop_6(i);
-    }
-    // Set up back button
-    $('#backButton').off('click').on('click', function () { return goBackToLanding(); });
-    // Show landing page, hide game
-    $('#landingPage').show();
-    $('#gameContainer').hide();
+    // Initialize first stage
+    currentStage = 1;
+    collectedCards = [];
+    collectedEvents = [];
+    generateStageOptions();
+    showStageScreen();
 }
-function startGameFromOption(index) {
-    var option = currentGameOptions[index];
-    currentGameIndex = index;
-    // Hide landing page, show game
-    $('#landingPage').hide();
+function showStageScreen() {
+    // Update stage title
+    $('#stageTitle').text("Stage ".concat(currentStage));
+    // Update progress sidebar
+    updateProgressSidebar();
+    // Set up add buttons
+    setupAddButtons();
+    // Set up play kingdom button
+    $('#playKingdom').text("Play: ".concat(currentVPModeName));
+    $('#playKingdom').off('click').on('click', startCurrentKingdom);
+    // Set up back button
+    $('#backButton').off('click').on('click', goBackToStage);
+    // Show stage screen, hide game
+    $('#stageScreen').show();
+    $('#gameContainer').hide();
+    $('#victoryScreen').hide();
+}
+function startCurrentKingdom() {
+    if (!currentKingdom)
+        return;
+    // Hide stage screen, show game
+    $('#stageScreen').hide();
     $('#gameContainer').show();
-    // Remove focus from button to allow keyboard events to work
+    // Remove focus from button
     if (document.activeElement instanceof HTMLElement) {
         document.activeElement.blur();
     }
     // Start the game with collected cards/events
-    var state = initialState(option.spec, collectedCards, collectedEvents);
+    var state = initialState(currentKingdom, collectedCards, collectedEvents);
     startGame(state);
 }
-function goBackToLanding() {
-    // Update score displays
-    for (var i = 0; i < currentGameOptions.length; i++) {
-        var option = currentGameOptions[i];
-        if (option.bestScore !== null) {
-            $("#score".concat(i)).text("Score: ".concat(option.bestScore)).show();
-        }
-        else {
-            $("#score".concat(i)).hide();
-        }
+function goBackToStage() {
+    showStageScreen();
+}
+function advanceToNextStage() {
+    currentStage++;
+    if (currentStage > TOTAL_STAGES) {
+        showFinalVictory();
     }
-    // Update add buttons
-    setupAddButtons();
-    // Show landing page with same options (don't regenerate)
-    $('#landingPage').show();
+    else {
+        generateStageOptions();
+        showStageScreen();
+    }
+}
+function showFinalVictory() {
+    $('#stageScreen').hide();
     $('#gameContainer').hide();
+    $('#victoryScreen').show();
+    $('#restartGame').off('click').on('click', function () {
+        showLandingPage();
+    });
+}
+// Called when player wins a kingdom
+function onKingdomVictory() {
+    advanceToNextStage();
 }
 //# sourceMappingURL=main.js.map

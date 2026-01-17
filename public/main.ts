@@ -805,12 +805,9 @@ class webUI {
     //(would be nice to clean this up so you use undo to go back)
     async victory(state:State): Promise<void> {
         const ui:webUI = this;
-        const score = state.energy
-
-        // Save score and return to landing page
+        // Advance to next stage on victory
         const doneAction = () => {
-            saveScore(state, score)
-            goBackToLanding()
+            onKingdomVictory()
         }
 
         const submitOrUndo: () => Promise<void> = () =>
@@ -993,7 +990,7 @@ function bindSpecials(
 }
 
 function bindBack(): void {
-    $(`[option='back']`).on('click', () => goBackToLanding())
+    $(`[option='back']`).on('click', () => goBackToStage())
 }
 
 function bindViewKingdom(state:State): void {
@@ -1717,14 +1714,11 @@ export function loadPicker(picked_sets: ExpansionName[]): void {
 
 // ----------------------------------- Landing Page
 
-interface GameOption {
-    spec: GameSpec
-    vpModeName: string
-    bestScore: number | null
-}
-
-let currentGameOptions: GameOption[] = []
-let currentGameIndex: number = -1
+// Stage-based game state
+const TOTAL_STAGES = 9
+let currentStage: number = 1
+let currentKingdom: GameSpec | null = null
+let currentVPModeName: string = ''
 
 // Deck building state
 interface AddButtonState {
@@ -1734,32 +1728,9 @@ interface AddButtonState {
     selectedCard: CardSpec | null
 }
 
-let addButtonStates: AddButtonState[] = []
+let stageAddButtonStates: AddButtonState[] = []
 let collectedCards: CardSpec[] = []
 let collectedEvents: CardSpec[] = []
-
-function generateAddButtonOptions(): void {
-    const cardPool = allCards().filter(c =>
-        !vpCardNames.has(c.name) &&
-        c.name !== 'Copper' && c.name !== 'Silver' && c.name !== 'Gold'
-    )
-    const eventPool = allEvents().filter(e =>
-        !vpEventNames.has(e.name) && e.name !== 'Refresh'
-    )
-
-    // Shuffle and pick random cards/events
-    const shuffledCards = shuffleArray([...cardPool])
-    const shuffledEvents = shuffleArray([...eventPool])
-
-    addButtonStates = [
-        { kind: 'card', options: shuffledCards.slice(0, 3), used: false, selectedCard: null },
-        { kind: 'card', options: shuffledCards.slice(3, 6), used: false, selectedCard: null },
-        { kind: 'event', options: shuffledEvents.slice(0, 3), used: false, selectedCard: null },
-    ]
-
-    collectedCards = []
-    collectedEvents = []
-}
 
 function shuffleArray<T>(array: T[]): T[] {
     for (let i = array.length - 1; i > 0; i--) {
@@ -1769,8 +1740,57 @@ function shuffleArray<T>(array: T[]): T[] {
     return array
 }
 
+function generateRandomSeed(): string {
+    return Math.random().toString(36).substring(2, 10)
+}
+
+// Simple hash function matching the one in logic.ts
+function hashString(s: string): number {
+    let hash = 0
+    for (let i = 0; i < s.length; i++) {
+        hash = ((hash << 5) - hash) + s.charCodeAt(i)
+    }
+    return hash
+}
+
+function generateStageOptions(): void {
+    // Generate add button options for this stage
+    const cardPool = allCards().filter(c =>
+        !vpCardNames.has(c.name) &&
+        c.name !== 'Copper' && c.name !== 'Silver' && c.name !== 'Gold' &&
+        !collectedCards.some(cc => cc.name === c.name)
+    )
+    const eventPool = allEvents().filter(e =>
+        !vpEventNames.has(e.name) && e.name !== 'Refresh' &&
+        !collectedEvents.some(ce => ce.name === e.name)
+    )
+
+    const shuffledCards = shuffleArray([...cardPool])
+    const shuffledEvents = shuffleArray([...eventPool])
+
+    stageAddButtonStates = [
+        { kind: 'card', options: shuffledCards.slice(0, 3), used: false, selectedCard: null },
+        { kind: 'card', options: shuffledCards.slice(3, 6), used: false, selectedCard: null },
+        { kind: 'event', options: shuffledEvents.slice(0, 3), used: false, selectedCard: null },
+    ]
+
+    // Generate kingdom for this stage
+    const seed = generateRandomSeed()
+    const h = hashString(seed + 'vpmode')
+    const modeIndex = ((h % vpModes.length) + vpModes.length) % vpModes.length
+
+    currentKingdom = {
+        kind: 'full',
+        randomizer: {
+            seed: seed,
+            expansions: ['base', 'expansion']
+        }
+    }
+    currentVPModeName = vpModes[modeIndex].name
+}
+
 function showCardPicker(buttonIndex: number): void {
-    const state = addButtonStates[buttonIndex]
+    const state = stageAddButtonStates[buttonIndex]
     if (state.used) return
 
     const title = state.kind === 'card' ? 'Choose a card:' : 'Choose an event:'
@@ -1792,7 +1812,7 @@ function hideCardPicker(): void {
 }
 
 function selectCard(buttonIndex: number, card: CardSpec): void {
-    const state = addButtonStates[buttonIndex]
+    const state = stageAddButtonStates[buttonIndex]
     state.used = true
     state.selectedCard = card
 
@@ -1802,13 +1822,12 @@ function selectCard(buttonIndex: number, card: CardSpec): void {
         collectedEvents.push(card)
     }
 
-    // Update button appearance
     updateAddButtonDisplay(buttonIndex)
     hideCardPicker()
 }
 
 function updateAddButtonDisplay(buttonIndex: number): void {
-    const state = addButtonStates[buttonIndex]
+    const state = stageAddButtonStates[buttonIndex]
     const buttonId = buttonIndex < 2 ? `#addCard${buttonIndex}` : '#addEvent0'
 
     if (state.used && state.selectedCard) {
@@ -1821,8 +1840,8 @@ function updateAddButtonDisplay(buttonIndex: number): void {
 function setupAddButtons(): void {
     for (let i = 0; i < 2; i++) {
         const buttonId = `#addCard${i}`
-        if (addButtonStates[i].used) {
-            $(buttonId).text(addButtonStates[i].selectedCard?.name || 'Add Card')
+        if (stageAddButtonStates[i].used) {
+            $(buttonId).text(stageAddButtonStates[i].selectedCard?.name || 'Add Card')
             $(buttonId).attr('disabled', 'true')
             $(buttonId).removeAttr('choosable')
         } else {
@@ -1831,13 +1850,13 @@ function setupAddButtons(): void {
             $(buttonId).attr('choosable', 'true')
         }
         $(buttonId).off('click').on('click', () => {
-            if (!addButtonStates[i].used) showCardPicker(i)
+            if (!stageAddButtonStates[i].used) showCardPicker(i)
         })
     }
 
     const eventButtonId = '#addEvent0'
-    if (addButtonStates[2].used) {
-        $(eventButtonId).text(addButtonStates[2].selectedCard?.name || 'Add Event')
+    if (stageAddButtonStates[2].used) {
+        $(eventButtonId).text(stageAddButtonStates[2].selectedCard?.name || 'Add Event')
         $(eventButtonId).attr('disabled', 'true')
         $(eventButtonId).removeAttr('choosable')
     } else {
@@ -1846,148 +1865,96 @@ function setupAddButtons(): void {
         $(eventButtonId).attr('choosable', 'true')
     }
     $(eventButtonId).off('click').on('click', () => {
-        if (!addButtonStates[2].used) showCardPicker(2)
+        if (!stageAddButtonStates[2].used) showCardPicker(2)
     })
 }
 
-// Score management - stores in memory per-kingdom
-function saveScore(state: State, score: number): void {
-    if (currentGameIndex < 0 || currentGameIndex >= currentGameOptions.length) return
-
-    const option = currentGameOptions[currentGameIndex]
-    // Lower score is better (less energy used)
-    if (option.bestScore === null || score < option.bestScore) {
-        option.bestScore = score
-    }
-}
-
-function getRandomizerSeed(spec: GameSpec): string | null {
-    switch (spec.kind) {
-        case 'test':
-        case 'pick':
-            return null
-        case 'goal':
-            return getRandomizerSeed(spec.spec)
-        default:
-            return spec.randomizer.seed
-    }
-}
-
-function generateRandomSeed(): string {
-    return Math.random().toString(36).substring(2, 10)
-}
-
-function generateGameOptions(): GameOption[] {
-    const options: GameOption[] = []
-    const usedModeIndices = new Set<number>()
-
-    // Generate 3 games with different VP modes
-    for (let i = 0; i < 3; i++) {
-        let seed: string
-        let modeIndex: number
-
-        // Keep generating seeds until we get a unique VP mode
-        do {
-            seed = generateRandomSeed()
-            const h = hashString(seed + 'vpmode')
-            modeIndex = ((h % vpModes.length) + vpModes.length) % vpModes.length
-        } while (usedModeIndices.has(modeIndex))
-
-        usedModeIndices.add(modeIndex)
-
-        const spec: GameSpec = {
-            kind: 'full',
-            randomizer: {
-                seed: seed,
-                expansions: ['base', 'expansion']
-            }
+function updateProgressSidebar(): void {
+    $('.progressCircle').each(function() {
+        const stage = parseInt($(this).attr('data-stage') || '0')
+        $(this).removeClass('completed current')
+        if (stage < currentStage) {
+            $(this).addClass('completed')
+        } else if (stage === currentStage) {
+            $(this).addClass('current')
         }
-
-        options.push({
-            spec: spec,
-            vpModeName: vpModes[modeIndex].name,
-            bestScore: null
-        })
-    }
-
-    return options
-}
-
-// Simple hash function matching the one in logic.ts
-function hashString(s: string): number {
-    let hash = 0
-    for (let i = 0; i < s.length; i++) {
-        hash = ((hash << 5) - hash) + s.charCodeAt(i)
-    }
-    return hash
+    })
 }
 
 export function showLandingPage(): void {
-    // Generate new game options if not already generated
-    if (currentGameOptions.length === 0) {
-        currentGameOptions = generateGameOptions()
-        generateAddButtonOptions()
-    }
-
-    // Set up add card/event buttons
-    setupAddButtons()
-
-    // Update button labels and scores
-    for (let i = 0; i < 3; i++) {
-        const option = currentGameOptions[i]
-
-        $(`#game${i}`).text(option.vpModeName)
-        $(`#game${i}`).off('click').on('click', () => startGameFromOption(i))
-
-        // Update score display
-        if (option.bestScore !== null) {
-            $(`#score${i}`).text(`Score: ${option.bestScore}`).show()
-        } else {
-            $(`#score${i}`).hide()
-        }
-    }
-
-    // Set up back button
-    $('#backButton').off('click').on('click', () => goBackToLanding())
-
-    // Show landing page, hide game
-    $('#landingPage').show()
-    $('#gameContainer').hide()
+    // Initialize first stage
+    currentStage = 1
+    collectedCards = []
+    collectedEvents = []
+    generateStageOptions()
+    showStageScreen()
 }
 
-function startGameFromOption(index: number): void {
-    const option = currentGameOptions[index]
-    currentGameIndex = index
+function showStageScreen(): void {
+    // Update stage title
+    $('#stageTitle').text(`Stage ${currentStage}`)
 
-    // Hide landing page, show game
-    $('#landingPage').hide()
+    // Update progress sidebar
+    updateProgressSidebar()
+
+    // Set up add buttons
+    setupAddButtons()
+
+    // Set up play kingdom button
+    $('#playKingdom').text(`Play: ${currentVPModeName}`)
+    $('#playKingdom').off('click').on('click', startCurrentKingdom)
+
+    // Set up back button
+    $('#backButton').off('click').on('click', goBackToStage)
+
+    // Show stage screen, hide game
+    $('#stageScreen').show()
+    $('#gameContainer').hide()
+    $('#victoryScreen').hide()
+}
+
+function startCurrentKingdom(): void {
+    if (!currentKingdom) return
+
+    // Hide stage screen, show game
+    $('#stageScreen').hide()
     $('#gameContainer').show()
 
-    // Remove focus from button to allow keyboard events to work
+    // Remove focus from button
     if (document.activeElement instanceof HTMLElement) {
         document.activeElement.blur()
     }
 
     // Start the game with collected cards/events
-    const state = initialState(option.spec, collectedCards, collectedEvents)
+    const state = initialState(currentKingdom, collectedCards, collectedEvents)
     startGame(state)
 }
 
-function goBackToLanding(): void {
-    // Update score displays
-    for (let i = 0; i < currentGameOptions.length; i++) {
-        const option = currentGameOptions[i]
-        if (option.bestScore !== null) {
-            $(`#score${i}`).text(`Score: ${option.bestScore}`).show()
-        } else {
-            $(`#score${i}`).hide()
-        }
+function goBackToStage(): void {
+    showStageScreen()
+}
+
+function advanceToNextStage(): void {
+    currentStage++
+    if (currentStage > TOTAL_STAGES) {
+        showFinalVictory()
+    } else {
+        generateStageOptions()
+        showStageScreen()
     }
+}
 
-    // Update add buttons
-    setupAddButtons()
-
-    // Show landing page with same options (don't regenerate)
-    $('#landingPage').show()
+function showFinalVictory(): void {
+    $('#stageScreen').hide()
     $('#gameContainer').hide()
+    $('#victoryScreen').show()
+
+    $('#restartGame').off('click').on('click', () => {
+        showLandingPage()
+    })
+}
+
+// Called when player wins a kingdom
+function onKingdomVictory(): void {
+    advanceToNextStage()
 }

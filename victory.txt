@@ -1,0 +1,11 @@
+Province available: costs $8 to buy, @ to play, +3 vp. Target: 30vp.
+Duchy available: costs $4 to buy, @ to play, +2 vp. Target: 30vp.
+Estate available: costs $1 to buy, @ to play, +1 vp. Target: 20vp.
+Thoroughfare. Every time you play a card, +1 vp. Target: 80vp.
+Monument. Every time you buy a card costing $3 or more, +1 vp. Target: 30vp.
+Capitalization: Event that lets you pay $1 for +1 vp. Target: 60vp.
+Philanthropy: Event that lets you pay $10, then lose all your $ for that many vp. Target: 50
+Duke and Duchy available (as in the normal game). Target: 50vp.
+Flower Market available (as in the normal game). Target: 40vp.
+
+
