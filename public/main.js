@@ -1951,6 +1951,8 @@ var collectedCards = [];
 var collectedEvents = [];
 var currentPotions = [];
 var deckDialogOpen = false;
+var leftPath = null;
+var rightPath = null;
 // Get cards only from base and expansion
 function getAvailableCards() {
     var _a;
@@ -2024,8 +2026,163 @@ function generateStageOptions() {
     };
     currentVPModeName = vpModes[modeIndex].name;
 }
+function generatePathOptions() {
+    // Generate all 4 rewards: 2 cards, 1 event, 1 potion
+    var cardPool = getAvailableCards().filter(function (c) {
+        return !vpCardNames.has(c.name) &&
+            c.name !== 'Copper' && c.name !== 'Silver' && c.name !== 'Gold' &&
+            !collectedCards.some(function (cc) { return cc.name === c.name; });
+    });
+    var eventPool = getAvailableEvents().filter(function (e) {
+        return !vpEventNames.has(e.name) && e.name !== 'Refresh' &&
+            !collectedEvents.some(function (ce) { return ce.name === e.name; });
+    });
+    var potionPool = allPotions.filter(function (p) {
+        return !currentPotions.some(function (cp) { return cp.name === p.name; });
+    });
+    var shuffledCards = shuffleArray(__spreadArray([], __read(cardPool), false));
+    var shuffledEvents = shuffleArray(__spreadArray([], __read(eventPool), false));
+    var shuffledPotions = shuffleArray(__spreadArray([], __read(potionPool), false));
+    // Create 4 rewards
+    var allRewards = [
+        { kind: 'card', options: shuffledCards.slice(0, 3) },
+        { kind: 'card', options: shuffledCards.slice(3, 6) },
+        { kind: 'event', options: shuffledEvents.slice(0, 3) },
+        { kind: 'potion', options: shuffledPotions.slice(0, 3) },
+    ];
+    // Shuffle and split 2-2
+    var shuffledRewards = shuffleArray(__spreadArray([], __read(allRewards), false));
+    var leftRewards = shuffledRewards.slice(0, 2);
+    var rightRewards = shuffledRewards.slice(2, 4);
+    // Generate kingdom and boon for left path
+    var leftSeed = generateRandomSeed();
+    var leftH = hashString(leftSeed + 'vpmode');
+    var leftModeIndex = ((leftH % vpModes.length) + vpModes.length) % vpModes.length;
+    var shuffledBoonsLeft = shuffleArray(__spreadArray([], __read(ALL_BOONS), false));
+    // Generate kingdom and boon for right path
+    var rightSeed = generateRandomSeed();
+    var rightH = hashString(rightSeed + 'vpmode');
+    var rightModeIndex = ((rightH % vpModes.length) + vpModes.length) % vpModes.length;
+    var shuffledBoonsRight = shuffleArray(__spreadArray([], __read(ALL_BOONS), false));
+    leftPath = {
+        rewards: leftRewards,
+        vpModeName: vpModes[leftModeIndex].name,
+        boon: currentStage === TOTAL_STAGES ? null : shuffledBoonsLeft[0],
+        kingdom: {
+            kind: 'full',
+            randomizer: { seed: leftSeed, expansions: ['base'] }
+        }
+    };
+    rightPath = {
+        rewards: rightRewards,
+        vpModeName: vpModes[rightModeIndex].name,
+        boon: currentStage === TOTAL_STAGES ? null : shuffledBoonsRight[0],
+        kingdom: {
+            kind: 'full',
+            randomizer: { seed: rightSeed, expansions: ['base'] }
+        }
+    };
+}
+function showPathSelectionScreen() {
+    var e_23, _a, e_24, _b;
+    if (!leftPath || !rightPath)
+        return;
+    // Update progress sidebar
+    updateProgressSidebarPath();
+    // Update title
+    $('#pathTitle').text("Stage ".concat(currentStage, " - Choose Your Path"));
+    // Populate left path
+    $('#leftRewards').empty();
+    try {
+        for (var _c = __values(leftPath.rewards), _d = _c.next(); !_d.done; _d = _c.next()) {
+            var reward = _d.value;
+            var rewardText = reward.kind === 'card' ? 'Add Card' :
+                reward.kind === 'event' ? 'Add Event' : 'Add Potion';
+            $('#leftRewards').append("<div class=\"pathReward\">".concat(rewardText, "</div>"));
+        }
+    }
+    catch (e_23_1) { e_23 = { error: e_23_1 }; }
+    finally {
+        try {
+            if (_d && !_d.done && (_a = _c.return)) _a.call(_c);
+        }
+        finally { if (e_23) throw e_23.error; }
+    }
+    var leftPlayText = "Play: ".concat(leftPath.vpModeName);
+    if (leftPath.boon) {
+        leftPlayText += " + ".concat(leftPath.boon.name);
+    }
+    $('#leftPlay').text(leftPlayText);
+    // Populate right path
+    $('#rightRewards').empty();
+    try {
+        for (var _e = __values(rightPath.rewards), _f = _e.next(); !_f.done; _f = _e.next()) {
+            var reward = _f.value;
+            var rewardText = reward.kind === 'card' ? 'Add Card' :
+                reward.kind === 'event' ? 'Add Event' : 'Add Potion';
+            $('#rightRewards').append("<div class=\"pathReward\">".concat(rewardText, "</div>"));
+        }
+    }
+    catch (e_24_1) { e_24 = { error: e_24_1 }; }
+    finally {
+        try {
+            if (_f && !_f.done && (_b = _e.return)) _b.call(_e);
+        }
+        finally { if (e_24) throw e_24.error; }
+    }
+    var rightPlayText = "Play: ".concat(rightPath.vpModeName);
+    if (rightPath.boon) {
+        rightPlayText += " + ".concat(rightPath.boon.name);
+    }
+    $('#rightPlay').text(rightPlayText);
+    // Set up click handlers
+    $('#goLeft').off('click').on('click', function () { return selectPath('left'); });
+    $('#goRight').off('click').on('click', function () { return selectPath('right'); });
+    // Show path selection screen
+    $('#stageScreen').hide();
+    $('#pathSelectionScreen').show();
+    $('#gameContainer').hide();
+    $('#victoryScreen').hide();
+}
+function updateProgressSidebarPath() {
+    $('#progressLinePath .progressCircle').each(function () {
+        var stage = parseInt($(this).attr('data-stage') || '0');
+        $(this).removeClass('completed current');
+        $(this).find('.progressScore').remove();
+        if (stage < currentStage) {
+            $(this).addClass('completed');
+            var score = stageScores[stage - 1];
+            var par = stagePars[stage - 1];
+            if (score !== null && par !== null) {
+                $(this).append("<span class=\"progressScore\">".concat(score, "/").concat(par, "</span>"));
+            }
+        }
+        else if (stage === currentStage) {
+            $(this).addClass('current');
+        }
+    });
+}
+function selectPath(direction) {
+    var selectedPath = direction === 'left' ? leftPath : rightPath;
+    if (!selectedPath)
+        return;
+    // Set up the stage with the selected path's options
+    currentKingdom = selectedPath.kingdom;
+    currentVPModeName = selectedPath.vpModeName;
+    currentBoon = selectedPath.boon;
+    // Convert path rewards to add button states
+    stageAddButtonStates = selectedPath.rewards.map(function (reward) { return ({
+        kind: reward.kind,
+        options: reward.options,
+        used: false,
+        selectedCard: null
+    }); });
+    // Hide path selection, show stage screen
+    $('#pathSelectionScreen').hide();
+    showStageScreen();
+}
 function showCardPicker(buttonIndex) {
-    var e_23, _a;
+    var e_25, _a;
     var state = stageAddButtonStates[buttonIndex];
     if (state.used)
         return;
@@ -2048,12 +2205,12 @@ function showCardPicker(buttonIndex) {
             _loop_4(card);
         }
     }
-    catch (e_23_1) { e_23 = { error: e_23_1 }; }
+    catch (e_25_1) { e_25 = { error: e_25_1 }; }
     finally {
         try {
             if (_c && !_c.done && (_a = _b.return)) _a.call(_b);
         }
-        finally { if (e_23) throw e_23.error; }
+        finally { if (e_25) throw e_25.error; }
     }
     $('#cardPickerCancel').off('click').on('click', hideCardPicker);
     $('#cardPickerDialog').attr('active', 'true');
@@ -2078,78 +2235,47 @@ function selectCard(buttonIndex, card) {
     hideCardPicker();
 }
 function updateAddButtonDisplay(buttonIndex) {
-    var state = stageAddButtonStates[buttonIndex];
-    var buttonId;
-    if (buttonIndex < 2) {
-        buttonId = "#addCard".concat(buttonIndex);
-    }
-    else if (buttonIndex === 2) {
-        buttonId = '#addEvent0';
-    }
-    else {
-        buttonId = '#addPotion0';
-    }
-    if (state.used && state.selectedCard) {
-        $(buttonId).text(state.selectedCard.name);
-        $(buttonId).attr('disabled', 'true');
-        $(buttonId).removeAttr('choosable');
-    }
+    // Simply regenerate all buttons to update the display
+    setupAddButtons();
 }
 function setupAddButtons() {
-    var _a, _b, _c;
+    var _a;
+    // Clear and regenerate reward buttons
+    var container = $('#rewardButtons');
+    container.empty();
+    var buttonLabels = {
+        'card': 'Add Card',
+        'event': 'Add Event',
+        'potion': 'Add Potion'
+    };
     var _loop_5 = function (i) {
-        var buttonId = "#addCard".concat(i);
-        if (stageAddButtonStates[i].used) {
-            $(buttonId).text(((_a = stageAddButtonStates[i].selectedCard) === null || _a === void 0 ? void 0 : _a.name) || 'Add Card');
-            $(buttonId).attr('disabled', 'true');
-            $(buttonId).removeAttr('choosable');
+        var state = stageAddButtonStates[i];
+        var row = $('<div class="gameRow"></div>');
+        var button = $('<span class="option" choosable></span>');
+        if (state.used) {
+            button.text(((_a = state.selectedCard) === null || _a === void 0 ? void 0 : _a.name) || buttonLabels[state.kind]);
+            button.attr('disabled', 'true');
+            button.removeAttr('choosable');
         }
         else {
-            $(buttonId).text('Add Card');
-            $(buttonId).removeAttr('disabled');
-            $(buttonId).attr('choosable', 'true');
+            button.text(buttonLabels[state.kind]);
         }
-        $(buttonId).off('click').on('click', function () {
-            if (!stageAddButtonStates[i].used)
-                showCardPicker(i);
+        var buttonIndex = i;
+        button.on('click', function () {
+            if (!stageAddButtonStates[buttonIndex].used)
+                showCardPicker(buttonIndex);
         });
+        row.append(button);
+        container.append(row);
     };
-    for (var i = 0; i < 2; i++) {
+    for (var i = 0; i < stageAddButtonStates.length; i++) {
         _loop_5(i);
     }
-    var eventButtonId = '#addEvent0';
-    if (stageAddButtonStates[2].used) {
-        $(eventButtonId).text(((_b = stageAddButtonStates[2].selectedCard) === null || _b === void 0 ? void 0 : _b.name) || 'Add Event');
-        $(eventButtonId).attr('disabled', 'true');
-        $(eventButtonId).removeAttr('choosable');
-    }
-    else {
-        $(eventButtonId).text('Add Event');
-        $(eventButtonId).removeAttr('disabled');
-        $(eventButtonId).attr('choosable', 'true');
-    }
-    $(eventButtonId).off('click').on('click', function () {
-        if (!stageAddButtonStates[2].used)
-            showCardPicker(2);
-    });
-    var potionButtonId = '#addPotion0';
-    if (stageAddButtonStates[3].used) {
-        $(potionButtonId).text(((_c = stageAddButtonStates[3].selectedCard) === null || _c === void 0 ? void 0 : _c.name) || 'Add Potion');
-        $(potionButtonId).attr('disabled', 'true');
-        $(potionButtonId).removeAttr('choosable');
-    }
-    else {
-        $(potionButtonId).text('Add Potion');
-        $(potionButtonId).removeAttr('disabled');
-        $(potionButtonId).attr('choosable', 'true');
-    }
-    $(potionButtonId).off('click').on('click', function () {
-        if (!stageAddButtonStates[3].used)
-            showCardPicker(3);
-    });
     // Debug button - adds all available cards and events to the deck
-    $('#debugButton').off('click').on('click', function () {
-        var e_24, _a, e_25, _b;
+    var debugRow = $('<div class="gameRow"></div>');
+    var debugButton = $('<span class="option" id="debugButton" choosable>Debug</span>');
+    debugButton.on('click', function () {
+        var e_26, _a, e_27, _b;
         var allCards = getAvailableCards().filter(function (c) {
             return !vpCardNames.has(c.name) &&
                 c.name !== 'Copper' && c.name !== 'Silver' && c.name !== 'Gold';
@@ -2168,12 +2294,12 @@ function setupAddButtons() {
                 _loop_6(card);
             }
         }
-        catch (e_24_1) { e_24 = { error: e_24_1 }; }
+        catch (e_26_1) { e_26 = { error: e_26_1 }; }
         finally {
             try {
                 if (allCards_1_1 && !allCards_1_1.done && (_a = allCards_1.return)) _a.call(allCards_1);
             }
-            finally { if (e_24) throw e_24.error; }
+            finally { if (e_26) throw e_26.error; }
         }
         var _loop_7 = function (event_1) {
             if (!collectedEvents.some(function (ce) { return ce.name === event_1.name; })) {
@@ -2186,20 +2312,22 @@ function setupAddButtons() {
                 _loop_7(event_1);
             }
         }
-        catch (e_25_1) { e_25 = { error: e_25_1 }; }
+        catch (e_27_1) { e_27 = { error: e_27_1 }; }
         finally {
             try {
                 if (allEvents_1_1 && !allEvents_1_1.done && (_b = allEvents_1.return)) _b.call(allEvents_1);
             }
-            finally { if (e_25) throw e_25.error; }
+            finally { if (e_27) throw e_27.error; }
         }
-        $('#debugButton').text('Added All');
-        $('#debugButton').attr('disabled', 'true');
-        $('#debugButton').removeAttr('choosable');
+        $(this).text('Added All');
+        $(this).attr('disabled', 'true');
+        $(this).removeAttr('choosable');
     });
+    debugRow.append(debugButton);
+    container.append(debugRow);
 }
 function updateProgressSidebar() {
-    $('.progressCircle').each(function () {
+    $('#progressLine .progressCircle').each(function () {
         var stage = parseInt($(this).attr('data-stage') || '0');
         $(this).removeClass('completed current');
         // Remove old score display
@@ -2225,7 +2353,7 @@ function updateProgressSidebar() {
     });
 }
 function showDeckDialog() {
-    var e_26, _a, e_27, _b;
+    var e_28, _a, e_29, _b;
     $('#deckContents').empty();
     if (collectedCards.length === 0 && collectedEvents.length === 0) {
         $('#deckContents').append('<div>No cards collected yet.</div>');
@@ -2237,12 +2365,12 @@ function showDeckDialog() {
                 $('#deckContents').append(renderSpecNoRelated(card));
             }
         }
-        catch (e_26_1) { e_26 = { error: e_26_1 }; }
+        catch (e_28_1) { e_28 = { error: e_28_1 }; }
         finally {
             try {
                 if (collectedCards_1_1 && !collectedCards_1_1.done && (_a = collectedCards_1.return)) _a.call(collectedCards_1);
             }
-            finally { if (e_26) throw e_26.error; }
+            finally { if (e_28) throw e_28.error; }
         }
         try {
             for (var collectedEvents_1 = __values(collectedEvents), collectedEvents_1_1 = collectedEvents_1.next(); !collectedEvents_1_1.done; collectedEvents_1_1 = collectedEvents_1.next()) {
@@ -2250,12 +2378,12 @@ function showDeckDialog() {
                 $('#deckContents').append(renderSpecNoRelated(event_2));
             }
         }
-        catch (e_27_1) { e_27 = { error: e_27_1 }; }
+        catch (e_29_1) { e_29 = { error: e_29_1 }; }
         finally {
             try {
                 if (collectedEvents_1_1 && !collectedEvents_1_1.done && (_b = collectedEvents_1.return)) _b.call(collectedEvents_1);
             }
-            finally { if (e_27) throw e_27.error; }
+            finally { if (e_29) throw e_29.error; }
         }
     }
     $('#deckClose').off('click').on('click', hideDeckDialog);
@@ -2320,16 +2448,18 @@ function showStageScreen() {
     $('#playKingdom').off('click').on('click', startCurrentKingdom);
     // Set up back button
     $('#backButton').off('click').on('click', goBackToStage);
-    // Show stage screen, hide game
+    // Show stage screen, hide others
     $('#stageScreen').show();
+    $('#pathSelectionScreen').hide();
     $('#gameContainer').hide();
     $('#victoryScreen').hide();
 }
 function startCurrentKingdom() {
     if (!currentKingdom)
         return;
-    // Hide stage screen, show game
+    // Hide other screens, show game
     $('#stageScreen').hide();
+    $('#pathSelectionScreen').hide();
     $('#gameContainer').show();
     // Remove focus from button
     if (document.activeElement instanceof HTMLElement) {
@@ -2353,12 +2483,14 @@ function advanceToNextStage() {
         showFinalVictory();
     }
     else {
-        generateStageOptions();
-        showStageScreen();
+        // For stages 2+, show path selection
+        generatePathOptions();
+        showPathSelectionScreen();
     }
 }
 function showFinalVictory() {
     $('#stageScreen').hide();
+    $('#pathSelectionScreen').hide();
     $('#gameContainer').hide();
     $('#victoryScreen').show();
     $('#restartGame').off('click').on('click', function () {

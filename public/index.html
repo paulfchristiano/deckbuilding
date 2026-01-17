@@ -31,6 +31,7 @@
             align-items: center;
             gap: 0;
             position: relative;
+            height: fit-content;
         }
         #progressLine::before {
             content: '';
@@ -175,6 +176,86 @@
             font-size: 1.5em;
             padding: 15px 30px;
         }
+        /* Path Selection Screen */
+        #pathSelectionScreen {
+            display: flex;
+            min-height: 80vh;
+        }
+        #progressSidebarPath {
+            width: 60px;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+        }
+        #progressLinePath {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0;
+            position: relative;
+            height: fit-content;
+        }
+        #progressLinePath::before {
+            content: '';
+            position: absolute;
+            top: 22px;
+            bottom: 22px;
+            width: 2px;
+            background: #ccc;
+            z-index: 0;
+        }
+        #pathContent {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+        }
+        #pathTitle {
+            margin-bottom: 20px;
+        }
+        #pathColumns {
+            display: flex;
+            gap: 40px;
+            justify-content: center;
+            width: 100%;
+        }
+        .pathColumn {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 15px;
+            padding: 20px;
+            border: 2px solid #ccc;
+            border-radius: 10px;
+            min-width: 250px;
+        }
+        .pathColumn:hover {
+            border-color: #44a;
+        }
+        .pathChoice {
+            cursor: pointer;
+            font-size: 1.3em;
+            padding: 10px 25px;
+        }
+        .pathRewards {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            align-items: center;
+        }
+        .pathReward {
+            padding: 5px 10px;
+            background: #f5f5f5;
+            border-radius: 5px;
+            font-size: 0.9em;
+        }
+        .pathPlay {
+            margin-top: 10px;
+            font-size: 0.85em;
+            color: #666;
+            text-align: center;
+        }
     </style>
 </head>
 
@@ -195,28 +276,44 @@
     </div>
     <div id="stageContent">
         <h2 id="stageTitle">Stage 1</h2>
-        <div class="stageSection">
-            <div class="gameRow">
-                <span class="option" id="addCard0" choosable>Add Card</span>
-            </div>
-            <div class="gameRow">
-                <span class="option" id="addCard1" choosable>Add Card</span>
-            </div>
-            <div class="gameRow">
-                <span class="option" id="addEvent0" choosable>Add Event</span>
-            </div>
-            <div class="gameRow">
-                <span class="option" id="addPotion0" choosable>Add Potion</span>
-            </div>
-            <div class="gameRow">
-                <span class="option" id="debugButton" choosable>Debug</span>
-            </div>
+        <div class="stageSection" id="rewardButtons">
+            <!-- Reward buttons are dynamically generated, including Debug -->
         </div>
         <div class="stageSection" style="margin-top: 20px;">
             <div class="gameRow">
                 <span class="option" id="playKingdom" choosable>Play Kingdom</span>
             </div>
             <div id="kingdomInfo"></div>
+        </div>
+    </div>
+</div>
+
+<div id="pathSelectionScreen" style="display: none;">
+    <div id="progressSidebarPath">
+        <div id="progressLinePath">
+            <div class="progressCircle" data-stage="1"></div>
+            <div class="progressCircle" data-stage="2"></div>
+            <div class="progressCircle" data-stage="3"></div>
+            <div class="progressCircle" data-stage="4"></div>
+            <div class="progressCircle" data-stage="5"></div>
+            <div class="progressCircle" data-stage="6"></div>
+            <div class="progressCircle" data-stage="7"></div>
+            <div class="progressCircle" data-stage="8"></div>
+        </div>
+    </div>
+    <div id="pathContent">
+        <h2 id="pathTitle">Choose Your Path</h2>
+        <div id="pathColumns">
+            <div class="pathColumn" id="leftPath">
+                <span class="option pathChoice" id="goLeft" choosable>Go Left</span>
+                <div class="pathRewards" id="leftRewards"></div>
+                <div class="pathPlay" id="leftPlay"></div>
+            </div>
+            <div class="pathColumn" id="rightPath">
+                <span class="option pathChoice" id="goRight" choosable>Go Right</span>
+                <div class="pathRewards" id="rightRewards"></div>
+                <div class="pathPlay" id="rightPlay"></div>
+            </div>
         </div>
     </div>
 </div>

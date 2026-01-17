@@ -1939,6 +1939,22 @@ let collectedEvents: CardSpec[] = []
 let currentPotions: CardSpec[] = []
 let deckDialogOpen: boolean = false
 
+// Path selection state
+interface PathReward {
+    kind: 'card' | 'event' | 'potion'
+    options: CardSpec[]  // 3 options to choose from
+}
+
+interface PathOption {
+    rewards: PathReward[]
+    vpModeName: string
+    boon: Boon | null
+    kingdom: GameSpec
+}
+
+let leftPath: PathOption | null = null
+let rightPath: PathOption | null = null
+
 // Get cards only from base and expansion
 function getAvailableCards(): CardSpec[] {
     return sets['base']?.cards || []
@@ -2019,6 +2035,158 @@ function generateStageOptions(): void {
     currentVPModeName = vpModes[modeIndex].name
 }
 
+function generatePathOptions(): void {
+    // Generate all 4 rewards: 2 cards, 1 event, 1 potion
+    const cardPool = getAvailableCards().filter(c =>
+        !vpCardNames.has(c.name) &&
+        c.name !== 'Copper' && c.name !== 'Silver' && c.name !== 'Gold' &&
+        !collectedCards.some(cc => cc.name === c.name)
+    )
+    const eventPool = getAvailableEvents().filter(e =>
+        !vpEventNames.has(e.name) && e.name !== 'Refresh' &&
+        !collectedEvents.some(ce => ce.name === e.name)
+    )
+    const potionPool = allPotions.filter(p =>
+        !currentPotions.some(cp => cp.name === p.name)
+    )
+
+    const shuffledCards = shuffleArray([...cardPool])
+    const shuffledEvents = shuffleArray([...eventPool])
+    const shuffledPotions = shuffleArray([...potionPool])
+
+    // Create 4 rewards
+    const allRewards: PathReward[] = [
+        { kind: 'card', options: shuffledCards.slice(0, 3) },
+        { kind: 'card', options: shuffledCards.slice(3, 6) },
+        { kind: 'event', options: shuffledEvents.slice(0, 3) },
+        { kind: 'potion', options: shuffledPotions.slice(0, 3) },
+    ]
+
+    // Shuffle and split 2-2
+    const shuffledRewards = shuffleArray([...allRewards])
+    const leftRewards = shuffledRewards.slice(0, 2)
+    const rightRewards = shuffledRewards.slice(2, 4)
+
+    // Generate kingdom and boon for left path
+    const leftSeed = generateRandomSeed()
+    const leftH = hashString(leftSeed + 'vpmode')
+    const leftModeIndex = ((leftH % vpModes.length) + vpModes.length) % vpModes.length
+    const shuffledBoonsLeft = shuffleArray([...ALL_BOONS])
+
+    // Generate kingdom and boon for right path
+    const rightSeed = generateRandomSeed()
+    const rightH = hashString(rightSeed + 'vpmode')
+    const rightModeIndex = ((rightH % vpModes.length) + vpModes.length) % vpModes.length
+    const shuffledBoonsRight = shuffleArray([...ALL_BOONS])
+
+    leftPath = {
+        rewards: leftRewards,
+        vpModeName: vpModes[leftModeIndex].name,
+        boon: currentStage === TOTAL_STAGES ? null : shuffledBoonsLeft[0],
+        kingdom: {
+            kind: 'full',
+            randomizer: { seed: leftSeed, expansions: ['base'] }
+        }
+    }
+
+    rightPath = {
+        rewards: rightRewards,
+        vpModeName: vpModes[rightModeIndex].name,
+        boon: currentStage === TOTAL_STAGES ? null : shuffledBoonsRight[0],
+        kingdom: {
+            kind: 'full',
+            randomizer: { seed: rightSeed, expansions: ['base'] }
+        }
+    }
+}
+
+function showPathSelectionScreen(): void {
+    if (!leftPath || !rightPath) return
+
+    // Update progress sidebar
+    updateProgressSidebarPath()
+
+    // Update title
+    $('#pathTitle').text(`Stage ${currentStage} - Choose Your Path`)
+
+    // Populate left path
+    $('#leftRewards').empty()
+    for (const reward of leftPath.rewards) {
+        const rewardText = reward.kind === 'card' ? 'Add Card' :
+                          reward.kind === 'event' ? 'Add Event' : 'Add Potion'
+        $('#leftRewards').append(`<div class="pathReward">${rewardText}</div>`)
+    }
+    let leftPlayText = `Play: ${leftPath.vpModeName}`
+    if (leftPath.boon) {
+        leftPlayText += ` + ${leftPath.boon.name}`
+    }
+    $('#leftPlay').text(leftPlayText)
+
+    // Populate right path
+    $('#rightRewards').empty()
+    for (const reward of rightPath.rewards) {
+        const rewardText = reward.kind === 'card' ? 'Add Card' :
+                          reward.kind === 'event' ? 'Add Event' : 'Add Potion'
+        $('#rightRewards').append(`<div class="pathReward">${rewardText}</div>`)
+    }
+    let rightPlayText = `Play: ${rightPath.vpModeName}`
+    if (rightPath.boon) {
+        rightPlayText += ` + ${rightPath.boon.name}`
+    }
+    $('#rightPlay').text(rightPlayText)
+
+    // Set up click handlers
+    $('#goLeft').off('click').on('click', () => selectPath('left'))
+    $('#goRight').off('click').on('click', () => selectPath('right'))
+
+    // Show path selection screen
+    $('#stageScreen').hide()
+    $('#pathSelectionScreen').show()
+    $('#gameContainer').hide()
+    $('#victoryScreen').hide()
+}
+
+function updateProgressSidebarPath(): void {
+    $('#progressLinePath .progressCircle').each(function() {
+        const stage = parseInt($(this).attr('data-stage') || '0')
+        $(this).removeClass('completed current')
+        $(this).find('.progressScore').remove()
+
+        if (stage < currentStage) {
+            $(this).addClass('completed')
+            const score = stageScores[stage - 1]
+            const par = stagePars[stage - 1]
+            if (score !== null && par !== null) {
+                $(this).append(`<span class="progressScore">${score}/${par}</span>`)
+            }
+        } else if (stage === currentStage) {
+            $(this).addClass('current')
+        }
+    })
+}
+
+function selectPath(direction: 'left' | 'right'): void {
+    const selectedPath = direction === 'left' ? leftPath : rightPath
+    if (!selectedPath) return
+
+    // Set up the stage with the selected path's options
+    currentKingdom = selectedPath.kingdom
+    currentVPModeName = selectedPath.vpModeName
+    currentBoon = selectedPath.boon
+
+    // Convert path rewards to add button states
+    stageAddButtonStates = selectedPath.rewards.map(reward => ({
+        kind: reward.kind,
+        options: reward.options,
+        used: false,
+        selectedCard: null
+    }))
+
+    // Hide path selection, show stage screen
+    $('#pathSelectionScreen').hide()
+    showStageScreen()
+}
+
 function showCardPicker(buttonIndex: number): void {
     const state = stageAddButtonStates[buttonIndex]
     if (state.used) return
@@ -2064,70 +2232,47 @@ function selectCard(buttonIndex: number, card: CardSpec): void {
 }
 
 function updateAddButtonDisplay(buttonIndex: number): void {
-    const state = stageAddButtonStates[buttonIndex]
-    let buttonId: string
-    if (buttonIndex < 2) {
-        buttonId = `#addCard${buttonIndex}`
-    } else if (buttonIndex === 2) {
-        buttonId = '#addEvent0'
-    } else {
-        buttonId = '#addPotion0'
-    }
-
-    if (state.used && state.selectedCard) {
-        $(buttonId).text(state.selectedCard.name)
-        $(buttonId).attr('disabled', 'true')
-        $(buttonId).removeAttr('choosable')
-    }
+    // Simply regenerate all buttons to update the display
+    setupAddButtons()
 }
 
 function setupAddButtons(): void {
-    for (let i = 0; i < 2; i++) {
-        const buttonId = `#addCard${i}`
-        if (stageAddButtonStates[i].used) {
-            $(buttonId).text(stageAddButtonStates[i].selectedCard?.name || 'Add Card')
-            $(buttonId).attr('disabled', 'true')
-            $(buttonId).removeAttr('choosable')
+    // Clear and regenerate reward buttons
+    const container = $('#rewardButtons')
+    container.empty()
+
+    const buttonLabels: Record<string, string> = {
+        'card': 'Add Card',
+        'event': 'Add Event',
+        'potion': 'Add Potion'
+    }
+
+    for (let i = 0; i < stageAddButtonStates.length; i++) {
+        const state = stageAddButtonStates[i]
+        const row = $('<div class="gameRow"></div>')
+        const button = $('<span class="option" choosable></span>')
+
+        if (state.used) {
+            button.text(state.selectedCard?.name || buttonLabels[state.kind])
+            button.attr('disabled', 'true')
+            button.removeAttr('choosable')
         } else {
-            $(buttonId).text('Add Card')
-            $(buttonId).removeAttr('disabled')
-            $(buttonId).attr('choosable', 'true')
+            button.text(buttonLabels[state.kind])
         }
-        $(buttonId).off('click').on('click', () => {
-            if (!stageAddButtonStates[i].used) showCardPicker(i)
+
+        const buttonIndex = i
+        button.on('click', () => {
+            if (!stageAddButtonStates[buttonIndex].used) showCardPicker(buttonIndex)
         })
-    }
 
-    const eventButtonId = '#addEvent0'
-    if (stageAddButtonStates[2].used) {
-        $(eventButtonId).text(stageAddButtonStates[2].selectedCard?.name || 'Add Event')
-        $(eventButtonId).attr('disabled', 'true')
-        $(eventButtonId).removeAttr('choosable')
-    } else {
-        $(eventButtonId).text('Add Event')
-        $(eventButtonId).removeAttr('disabled')
-        $(eventButtonId).attr('choosable', 'true')
+        row.append(button)
+        container.append(row)
     }
-    $(eventButtonId).off('click').on('click', () => {
-        if (!stageAddButtonStates[2].used) showCardPicker(2)
-    })
-
-    const potionButtonId = '#addPotion0'
-    if (stageAddButtonStates[3].used) {
-        $(potionButtonId).text(stageAddButtonStates[3].selectedCard?.name || 'Add Potion')
-        $(potionButtonId).attr('disabled', 'true')
-        $(potionButtonId).removeAttr('choosable')
-    } else {
-        $(potionButtonId).text('Add Potion')
-        $(potionButtonId).removeAttr('disabled')
-        $(potionButtonId).attr('choosable', 'true')
-    }
-    $(potionButtonId).off('click').on('click', () => {
-        if (!stageAddButtonStates[3].used) showCardPicker(3)
-    })
 
     // Debug button - adds all available cards and events to the deck
-    $('#debugButton').off('click').on('click', () => {
+    const debugRow = $('<div class="gameRow"></div>')
+    const debugButton = $('<span class="option" id="debugButton" choosable>Debug</span>')
+    debugButton.on('click', function() {
         const allCards = getAvailableCards().filter(c =>
             !vpCardNames.has(c.name) &&
             c.name !== 'Copper' && c.name !== 'Silver' && c.name !== 'Gold'
@@ -2145,14 +2290,16 @@ function setupAddButtons(): void {
                 collectedEvents.push(event)
             }
         }
-        $('#debugButton').text('Added All')
-        $('#debugButton').attr('disabled', 'true')
-        $('#debugButton').removeAttr('choosable')
+        $(this).text('Added All')
+        $(this).attr('disabled', 'true')
+        $(this).removeAttr('choosable')
     })
+    debugRow.append(debugButton)
+    container.append(debugRow)
 }
 
 function updateProgressSidebar(): void {
-    $('.progressCircle').each(function() {
+    $('#progressLine .progressCircle').each(function() {
         const stage = parseInt($(this).attr('data-stage') || '0')
         $(this).removeClass('completed current')
 
@@ -2264,8 +2411,9 @@ function showStageScreen(): void {
     // Set up back button
     $('#backButton').off('click').on('click', goBackToStage)
 
-    // Show stage screen, hide game
+    // Show stage screen, hide others
     $('#stageScreen').show()
+    $('#pathSelectionScreen').hide()
     $('#gameContainer').hide()
     $('#victoryScreen').hide()
 }
@@ -2273,8 +2421,9 @@ function showStageScreen(): void {
 function startCurrentKingdom(): void {
     if (!currentKingdom) return
 
-    // Hide stage screen, show game
+    // Hide other screens, show game
     $('#stageScreen').hide()
+    $('#pathSelectionScreen').hide()
     $('#gameContainer').show()
 
     // Remove focus from button
@@ -2302,13 +2451,15 @@ function advanceToNextStage(): void {
     if (currentStage > TOTAL_STAGES) {
         showFinalVictory()
     } else {
-        generateStageOptions()
-        showStageScreen()
+        // For stages 2+, show path selection
+        generatePathOptions()
+        showPathSelectionScreen()
     }
 }
 
 function showFinalVictory(): void {
     $('#stageScreen').hide()
+    $('#pathSelectionScreen').hide()
     $('#gameContainer').hide()
     $('#victoryScreen').show()
 
