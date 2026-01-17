@@ -2,10 +2,14 @@ Province available: costs $8 to buy, @ to play, +3 vp. Target: 30vp.
 Duchy available: costs $4 to buy, @ to play, +2 vp. Target: 30vp.
 Estate available: costs $1 to buy, @ to play, +1 vp. Target: 20vp.
 Thoroughfare. Every time you play a card, +1 vp. Target: 80vp.
-Monument. Every time you buy a card costing $3 or more, +1 vp. Target: 30vp.
-Capitalization: Event that lets you pay $1 for +1 vp. Target: 60vp.
-Philanthropy: Event that lets you pay $10, then lose all your $ for that many vp. Target: 50
+Monument. Every time you buy a card costing $3 or more, +1 vp. Target: 20vp.
+Capitalize: Event that lets you pay $1 for +1 vp. Target: 60vp.
+Philanthropy: Event that lets you pay $10, then lose all your $ for that many vp. Target: 40
 Duke and Duchy available (as in the normal game). Target: 50vp.
-Flower Market available (as in the normal game). Target: 40vp.
-
-
+Flower Market available. Target: 40vp.
+Farmland available. Target: 40vp
+Vibrant city. Target: 40 vp.
+Palace. Target: 40 vp.
+Territory. Target: 40vp.
+Frontier. Costs $4 to buy, 0 to play. Starts with 2 charge tokens. Each time you play it, gain 1 vp per charge token, and then put a charge token on it if it has less than 6. Target: 60vp.
+Gardens: costs $4 to buy, nothing to play (improvement from status quo), +1 vp per 8 cards in your deck. Target: 40 vp.

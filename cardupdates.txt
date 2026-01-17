@@ -1,0 +1,147 @@
+Cards
+Artificer: reduce cost to $3.
+Banquet: increase cost to $4.
+Bridge: include
+Bustling village: should just be +1 action per card in play.
+Carpenter: remove
+Celebration: cost down to $6.
+Churn: cost up to $4.
+Coffers: remove
+Colony: remove (vp)
+Composting: remove (boon)
+Conclave: remove
+Construction: cost down to $4
+Contraband: make it +$5 money, +5 buys.
+Coppersmith: add +1 buy.
+Crown: cost down to $3
+Develop: include
+Duke: remove (vp)
+Echo: remove
+Exotic market: include
+Factory: include
+Fairy gold: include
+Farmland: remove (vp)
+Feast: include
+Ferry: include
+Flower market: remove (vp)
+Formation: cost down to $3
+Fortune: include
+Fountain: cost down to $4
+Frontier: remove (vp)
+Gardens: remove (vp)
+Ghost town: include
+Gold mine: include
+Governor: replace “province” with “gold.”
+Grand market: include
+Great feast: add “other than great feast.” Reduce cost to $8.
+Great smithy: include.
+Haggler: cost down to $3.
+Harrow: include.
+Harvest: remove @ cost.
+Hatchery: cost up to $4.
+Herbs: include
+Highway: cost down to $5
+Hireling: also create a villager
+Homesteading: remove
+Imitation: include
+Industry: include
+Inn: cost down to $4
+Innovation: cost down to $3
+Investment: include
+King’s Court: include
+Lab: cost $3 for +3 actions.
+Lackeys: increase to +4 actions
+Livery: +$3
+Logistics: include
+Looter: Discard any number of cards from your hand for +1 action. Trash any number of cards from your hand, create a villager in play for each one.
+Market: include
+Market square: create 2 fairs instead.
+Mastermind: include
+Metalworker: include
+Palace: remove (vp)
+Platinum: include
+Plow: include
+Procession: cost down to $3
+Public works: remove (boon)
+Queen’s Court: include
+Rats -> Magpie: cost $4, +$2, create a copy of this in your discard.
+Recruitment: include
+Researcher: cost to $4, remove the @ cost to play
+Ritual: include
+Royal seal: include
+Sacrifice: remove
+Scepter: include
+Sculpt: include
+Secret chamber: remove @ cost.
+Shelter: remove
+Shipping lane: cost down to $3
+Silver mine: include
+Smithy: remove
+Spices: include
+Stables: include
+Statue: remove (vp)
+Tapestry: include
+Tavern: include
+Territory: remove (vp)
+Throne room: cost down to $3
+Till: cost up to $5
+Transmogrify: give it +1 action
+Traveler: cost down to $6
+Turnpike: remove (vp)
+Unearth: include
+University: +4 actions, +2 buys, create a villager in play.
+Vibrant city: remove (vp)
+Village: include
+Werewolf: make it +3 actions, or +$3 and +1 buy when moon is full.
+Workshop: include
+Events
+Accelerate: include
+Alliance: remove
+Bulk order: remove @ cost.
+Burden: remove (curse)
+Commerce: include
+Decay: remove (curse)
+Duplicate: include
+Escalate: remove (boon)
+Expedite: include
+Festival: include
+Finance: include
+Flourish: remove (boon)
+Focus: include
+Greed: remove
+Haggle: include
+Hall of echoes: include
+Hall of mirrors: include
+Inflation: remove (boon)
+Inspire: remove
+Lost arts: include
+Mire: remove (curse)
+Onslaught: remove cost increases. just $4@ to play your hand.
+Parallelize: include
+Pathfinding: remove
+Philanthropy: remove (vp)
+Polish: include
+Populate: remove (boon)
+Prioritize: remove (boon)
+Private works: remove (boon)
+Reach: include
+Recover: include
+Recycle: remove (boon)
+Redouble: include
+Reflect: include
+Regroup: include
+Remake: remove
+Replicate: include
+Reprise: include
+Resume: include
+Reuse: remove (boon)
+Reverberate: include
+Ride: include
+Splay: include
+Squeeze: remove (curse)
+Summon: include
+Swap: include
+Synergy: include
+Toil: include
+Traveling fair: remove (boon)
+Twin: include

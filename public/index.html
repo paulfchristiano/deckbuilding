@@ -35,8 +35,8 @@
         #progressLine::before {
             content: '';
             position: absolute;
-            top: 10px;
-            bottom: 10px;
+            top: 22px;
+            bottom: 22px;
             width: 2px;
             background: #ccc;
             z-index: 0;
@@ -49,6 +49,16 @@
             border: 2px solid #ccc;
             margin: 10px 0;
             z-index: 1;
+            position: relative;
+        }
+        .progressScore {
+            position: absolute;
+            left: 30px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 0.8em;
+            color: #666;
+            white-space: nowrap;
         }
         .progressCircle.completed {
             background: #4a4;
@@ -97,16 +107,49 @@
             display: none;
         }
         #cardPickerDialog {
-            width: 25em;
+            width: auto;
+            max-width: 90vw;
         }
         #cardPickerOptions {
             display: flex;
-            flex-direction: column;
+            flex-direction: row;
+            flex-wrap: wrap;
             gap: 10px;
             margin-top: 10px;
         }
-        #cardPickerOptions .option {
+        #cardPickerOptions .spec {
             cursor: pointer;
+        }
+        #cardPickerOptions .spec:hover {
+            border-color: #44a;
+        }
+        #deckIcon {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            font-size: 1.5em;
+            cursor: pointer;
+            padding: 5px 10px;
+            background: white;
+            border: 2px solid #ccc;
+            border-radius: 5px;
+            z-index: 10;
+        }
+        #deckIcon:hover {
+            border-color: #44a;
+        }
+        #deckDialog {
+            width: auto;
+            max-width: 90vw;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        #deckContents {
+            display: flex;
+            flex-direction: row;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 10px;
         }
         #victoryScreen {
             display: flex;
@@ -162,11 +205,21 @@
     </div>
 </div>
 
+<div id="deckIcon">Deck</div>
+
 <div id="cardPickerDialog" class="dialogBox">
     <div id="cardPickerTitle">Choose a card:</div>
     <div id="cardPickerOptions"></div>
     <div style="margin-top: 10px;">
         <span class="option" id="cardPickerCancel" choosable>Cancel</span>
+    </div>
+</div>
+
+<div id="deckDialog" class="dialogBox">
+    <div><strong>Your Deck</strong></div>
+    <div id="deckContents"></div>
+    <div style="margin-top: 10px;">
+        <span class="option" id="deckClose" choosable>Close</span>
     </div>
 </div>
 

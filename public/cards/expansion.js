@@ -72,7 +72,7 @@ var __values = (this && this.__values) || function(o) {
     };
     throw new TypeError(s ? "Object is not iterable." : "Symbol.iterator is not defined.");
 };
-import { choice, asChoice, trash, addCosts, leq, gainPoints, gainActions, gainCoins, gainBuys, free, create, doAll, multichoice, moveMany, addToken, removeToken, payToDo, tick, eq, move, noop, charge, discharge, payCost, aOrNum, allowNull, villager, fair, supplyForCard, actionsEffect, buysEffect, pointsEffect, coinsEffect, recycleEffect, reflectTrigger, createInPlayEffect, targetedEffect, chargeEffect, startsWithCharge, energy, coin, useRefresh, reducedCost, applyToTarget, countNameTokens, nameHasToken, incrementCost, costPer, createEffect, repeat, copper, silver, gold, estate, duchy, province, trashOnLeavePlay, trashThis, payAction, fragileEcho, num, playReplacer, countDistinctNames, sourceHasName, renderCostOrZero } from '../logic.js';
+import { choice, asChoice, trash, addCosts, leq, gainPoints, gainActions, gainCoins, gainBuys, free, create, doAll, multichoice, moveMany, addToken, removeToken, payToDo, tick, eq, move, noop, charge, discharge, payCost, aOrNum, allowNull, villager, fair, supplyForCard, actionsEffect, buysEffect, coinsEffect, recycleEffect, reflectTrigger, createInPlayEffect, targetedEffect, chargeEffect, startsWithCharge, energy, coin, useRefresh, reducedCost, applyToTarget, countNameTokens, nameHasToken, incrementCost, costPer, createEffect, repeat, copper, silver, gold, estate, duchy, province, trashOnLeavePlay, trashThis, payAction, fragileEcho, num, playReplacer, countDistinctNames, sourceHasName, renderCostOrZero } from '../logic.js';
 // ------------------- Expansion ---------------
 export var cards = [];
 export var events = [];
@@ -717,33 +717,6 @@ var logistics = {
         }]
 };
 cards.push(logistics);
-function territoryTransform(state) {
-    return __awaiter(this, void 0, void 0, function () {
-        return __generator(this, function (_a) {
-            return [2 /*return*/, create(territory, 'hand')(state)];
-        });
-    });
-}
-/*
-{
-    text: [`Put this in your hand.`],
-    transform: (s, c) => move(c, 'hand')
-}
-*/
-var territoryName = 'Territory';
-var territory = {
-    name: territoryName,
-    buyCost: coin(10),
-    fixedCost: energy(1),
-    effects: [pointsEffect(2)],
-    staticReplacers: [{
-            kind: 'move',
-            text: "When you play a ".concat(territoryName, " from your hand, leave it there."),
-            handles: function (p) { return p.card.name == territoryName && p.toZone == 'resolving' && p.fromZone == 'hand'; },
-            replace: function (p) { return (__assign(__assign({}, p), { skip: true })); }
-        }]
-};
-cards.push(territory);
 var reprise = {
     name: 'Reprise',
     fixedCost: energy(1),
@@ -1690,19 +1663,6 @@ var scepter = {
         }]
 };
 cards.push(scepter);
-var farmlandName = 'Farmland';
-var farmland = {
-    name: farmlandName,
-    fixedCost: energy(3),
-    buyCost: coin(8),
-    staticTriggers: [{
-            kind: 'play',
-            text: "Whenever you play a ".concat(farmlandName, " the normal way, +7 vp."),
-            handles: function (e) { return e.source == 'act' && e.card.name == farmlandName; },
-            transform: function (e, s, c) { return gainPoints(7, c); }
-        }],
-};
-cards.push(farmland);
 var hallOfEchoes = {
     name: 'Hall of Echoes',
     fixedCost: __assign(__assign({}, free), { energy: 1, coin: 3 }),

@@ -703,32 +703,6 @@ const logistics:CardSpec = {
 }
 cards.push(logistics)
 
-async function territoryTransform(state:State): Promise<State> {
-    return create(territory, 'hand')(state)
-}
-/*
-{
-    text: [`Put this in your hand.`],
-    transform: (s, c) => move(c, 'hand')
-}
-*/
-
-const territoryName = 'Territory'
-
-const territory:CardSpec = {
-    name: territoryName,
-    buyCost: coin(10),
-    fixedCost: energy(1),
-    effects: [pointsEffect(2)],
-    staticReplacers: [{
-        kind: 'move',
-        text: `When you play a ${territoryName} from your hand, leave it there.`,
-        handles: p => p.card.name == territoryName && p.toZone == 'resolving' && p.fromZone == 'hand',
-        replace: p => ({...p, skip: true})
-    }]
-}
-cards.push(territory)
-
 const reprise:CardSpec = {
     name: 'Reprise',
     fixedCost: energy(1),
@@ -1650,20 +1624,6 @@ const scepter:CardSpec = {
     }]
 }
 cards.push(scepter)
-
-const farmlandName = 'Farmland'
-const farmland:CardSpec = {
-    name: farmlandName,
-    fixedCost: energy(3),
-    buyCost: coin(8),
-    staticTriggers: [{
-        kind: 'play',
-        text: `Whenever you play a ${farmlandName} the normal way, +7 vp.`,
-        handles: e => e.source == 'act' && e.card.name == farmlandName,
-        transform: (e, s, c) => gainPoints(7, c) 
-    }],
-}
-cards.push(farmland)
 
 const hallOfEchoes:CardSpec = {
     name: 'Hall of Echoes',

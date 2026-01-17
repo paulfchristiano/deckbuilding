@@ -363,6 +363,27 @@ function renderSpec(spec:CardSpec): string {
     return [me].concat(related).join('')
 }
 
+// Render spec without related cards inline, but with tooltip
+function renderSpecNoRelated(spec:CardSpec): string {
+    const buyText = isZero(spec.buyCost) ? '' : `(${renderCost(spec.buyCost as Cost)})&nbsp;`
+    const costText = isZero(spec.fixedCost) ? '' : `&nbsp;(${renderCost(spec.fixedCost as Cost)})`
+    const header = `<div>${buyText}<strong>${spec.name}</strong>${costText}</div>`
+
+    // Build tooltip text for related cards
+    const relatedCards = spec.relatedCards || []
+    let tooltipAttr = ''
+    if (relatedCards.length > 0) {
+        const tooltipText = relatedCards.map(r => {
+            const rCost = isZero(r.fixedCost) ? '' : ` (${renderCost(r.fixedCost as Cost)})`
+            const rText = (r.effects || []).map(e => e.text?.join(' ') || '').join(' ')
+            return `${r.name}${rCost}: ${rText}`
+        }).join('\n\n')
+        tooltipAttr = ` title="${tooltipText.replace(/"/g, '&quot;')}"`
+    }
+
+    return `<div class='spec'${tooltipAttr}>${header}${cardText(spec)}</div>`
+}
+
 
 interface CardRenderOptions {
     option?: number;
@@ -805,9 +826,10 @@ class webUI {
     //(would be nice to clean this up so you use undo to go back)
     async victory(state:State): Promise<void> {
         const ui:webUI = this;
+        const score = state.energy
         // Advance to next stage on victory
         const doneAction = () => {
-            onKingdomVictory()
+            onKingdomVictory(score)
         }
 
         const submitOrUndo: () => Promise<void> = () =>
@@ -1719,6 +1741,7 @@ const TOTAL_STAGES = 9
 let currentStage: number = 1
 let currentKingdom: GameSpec | null = null
 let currentVPModeName: string = ''
+let stageScores: (number | null)[] = Array(TOTAL_STAGES).fill(null)
 
 // Deck building state
 interface AddButtonState {
@@ -1731,6 +1754,20 @@ interface AddButtonState {
 let stageAddButtonStates: AddButtonState[] = []
 let collectedCards: CardSpec[] = []
 let collectedEvents: CardSpec[] = []
+let deckDialogOpen: boolean = false
+
+// Get cards only from base and expansion
+function getAvailableCards(): CardSpec[] {
+    const baseCards = sets['base']?.cards || []
+    const expansionCards = sets['expansion']?.cards || []
+    return [...baseCards, ...expansionCards]
+}
+
+function getAvailableEvents(): CardSpec[] {
+    const baseEvents = sets['base']?.events || []
+    const expansionEvents = sets['expansion']?.events || []
+    return [...baseEvents, ...expansionEvents]
+}
 
 function shuffleArray<T>(array: T[]): T[] {
     for (let i = array.length - 1; i > 0; i--) {
@@ -1754,13 +1791,13 @@ function hashString(s: string): number {
 }
 
 function generateStageOptions(): void {
-    // Generate add button options for this stage
-    const cardPool = allCards().filter(c =>
+    // Generate add button options for this stage (only from base and expansion)
+    const cardPool = getAvailableCards().filter(c =>
         !vpCardNames.has(c.name) &&
         c.name !== 'Copper' && c.name !== 'Silver' && c.name !== 'Gold' &&
         !collectedCards.some(cc => cc.name === c.name)
     )
-    const eventPool = allEvents().filter(e =>
+    const eventPool = getAvailableEvents().filter(e =>
         !vpEventNames.has(e.name) && e.name !== 'Refresh' &&
         !collectedEvents.some(ce => ce.name === e.name)
     )
@@ -1798,7 +1835,8 @@ function showCardPicker(buttonIndex: number): void {
 
     $('#cardPickerOptions').empty()
     for (const card of state.options) {
-        const optionEl = $(`<span class="option" choosable>${card.name}</span>`)
+        const specHtml = renderSpecNoRelated(card)
+        const optionEl = $(specHtml)
         optionEl.on('click', () => selectCard(buttonIndex, card))
         $('#cardPickerOptions').append(optionEl)
     }
@@ -1873,12 +1911,63 @@ function updateProgressSidebar(): void {
     $('.progressCircle').each(function() {
         const stage = parseInt($(this).attr('data-stage') || '0')
         $(this).removeClass('completed current')
+
+        // Remove old score display
+        $(this).find('.progressScore').remove()
+
         if (stage < currentStage) {
             $(this).addClass('completed')
+            // Show score if available
+            const score = stageScores[stage - 1]
+            if (score !== null) {
+                $(this).append(`<span class="progressScore">${score}</span>`)
+            }
         } else if (stage === currentStage) {
             $(this).addClass('current')
         }
     })
+}
+
+function showDeckDialog(): void {
+    $('#deckContents').empty()
+
+    if (collectedCards.length === 0 && collectedEvents.length === 0) {
+        $('#deckContents').append('<div>No cards collected yet.</div>')
+    } else {
+        for (const card of collectedCards) {
+            $('#deckContents').append(renderSpecNoRelated(card))
+        }
+        for (const event of collectedEvents) {
+            $('#deckContents').append(renderSpecNoRelated(event))
+        }
+    }
+
+    $('#deckClose').off('click').on('click', hideDeckDialog)
+    $('#deckDialog').attr('active', 'true')
+    deckDialogOpen = true
+}
+
+function hideDeckDialog(): void {
+    $('#deckDialog').attr('active', 'false')
+    deckDialogOpen = false
+}
+
+function toggleDeckDialog(): void {
+    if (deckDialogOpen) {
+        hideDeckDialog()
+    } else {
+        showDeckDialog()
+    }
+}
+
+let deckIconSetup = false
+function setupDeckIcon(): void {
+    if (deckIconSetup) return
+    deckIconSetup = true
+    const deckIcon = document.getElementById('deckIcon')
+    if (deckIcon) {
+        deckIcon.addEventListener('click', toggleDeckDialog)
+    }
 }
 
 export function showLandingPage(): void {
@@ -1886,7 +1975,9 @@ export function showLandingPage(): void {
     currentStage = 1
     collectedCards = []
     collectedEvents = []
+    stageScores = Array(TOTAL_STAGES).fill(null)
     generateStageOptions()
+    setupDeckIcon()
     showStageScreen()
 }
 
@@ -1955,6 +2046,8 @@ function showFinalVictory(): void {
 }
 
 // Called when player wins a kingdom
-function onKingdomVictory(): void {
+function onKingdomVictory(score: number): void {
+    // Save the score for this stage
+    stageScores[currentStage - 1] = score
     advanceToNextStage()
 }

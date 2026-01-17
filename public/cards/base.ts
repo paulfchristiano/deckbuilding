@@ -380,7 +380,7 @@ const travelingFair:CardSpec = {name:'Traveling Fair',
 events.push(travelingFair)
 
 const philanthropy:CardSpec = {name: 'Philanthropy',
-    fixedCost: {...free, coin:10, energy:1},
+    fixedCost: coin(10),
     effects: [{
         text: ['Pay all $.', '+1 vp per $ paid.'],
         transform: (s, c) => async function(state) {
@@ -413,6 +413,7 @@ buyable(orchard, 2, {onBuy: [pointsEffect(1)]})
 */
 const flowerMarket:CardSpec = {
     name: 'Flower Market',
+    buyCost: coin(2),
     effects: [buyEffect(), pointsEffect(1)]
 }
 cards.push(supplyForCard(flowerMarket, coin(2), {onBuy: [pointsEffect(1)]}))
@@ -470,15 +471,14 @@ function chargeUpTo(max:number): Effect {
 }
 
 const frontier:CardSpec = {name: 'Frontier',
-    fixedCost: energy(1),
-    buyCost: coin(7),
+    buyCost: coin(4),
     effects: [{
         text: ['+1 vp per charge token on this.'],
         transform: (state, card) => gainPoints(state.find(card).charge, card)
     }, chargeUpTo(6)]
 }
 cards.push(supplyForCard(
-    frontier, coin(7), 
+    frontier, coin(4),
     {replacers: [startsWithCharge(frontier.name, 2)]}
 ))
 
@@ -944,7 +944,6 @@ const kingsCourt:CardSpec = {name: "King's Court",
 cards.push(supplyForCard(kingsCourt, coin(9)))
 
 const gardens:CardSpec = {name: "Gardens",
-    fixedCost: energy(1),
     effects: [{
         text: ['+1 vp per 8 cards in your hand, discard, resolving, and play.'],
         transform: (state, card) => gainPoints(
@@ -955,6 +954,35 @@ const gardens:CardSpec = {name: "Gardens",
     }]
 }
 cards.push(supplyForCard(gardens, coin(4)))
+
+const territoryName = 'Territory'
+const territory:CardSpec = {
+    name: territoryName,
+    buyCost: coin(10),
+    fixedCost: energy(1),
+    effects: [pointsEffect(2)],
+    staticReplacers: [{
+        kind: 'move',
+        text: `When you play a ${territoryName} from your hand, leave it there.`,
+        handles: p => p.card.name == territoryName && p.toZone == 'resolving' && p.fromZone == 'hand',
+        replace: p => ({...p, skip: true})
+    }]
+}
+cards.push(territory)
+
+const farmlandName = 'Farmland'
+const farmland:CardSpec = {
+    name: farmlandName,
+    fixedCost: energy(3),
+    buyCost: coin(8),
+    staticTriggers: [{
+        kind: 'play',
+        text: `Whenever you play a ${farmlandName} the normal way, +7 vp.`,
+        handles: e => e.source == 'act' && e.card.name == farmlandName,
+        transform: (e, s, c) => gainPoints(7, c)
+    }],
+}
+cards.push(farmland)
 
 /*
 const decay:CardSpec = {name: 'Decay',
@@ -1535,6 +1563,7 @@ cards.push(supplyForCard(homesteading, coin(3)))
 
 const duke:CardSpec = {
     name: 'Duke',
+    buyCost: coin(4),
     effects: [],
     triggers: [{
         text: `Whenever you play ${a(duchy.name)}, +1 vp.`,
@@ -2115,10 +2144,16 @@ export const vpModes: VPMode[] = [
     { name: 'Duchy', target: 30, cards: [duchy], events: [] },
     { name: 'Estate', target: 20, cards: [estate], events: [] },
     { name: 'Thoroughfare', target: 80, cards: [], events: [thoroughfare] },
-    { name: 'Monument', target: 30, cards: [], events: [monument] },
+    { name: 'Monument', target: 20, cards: [], events: [monument] },
     { name: 'Capitalization', target: 60, cards: [], events: [capitalization] },
-    { name: 'Philanthropy', target: 50, cards: [], events: [philanthropy] },
+    { name: 'Philanthropy', target: 40, cards: [], events: [philanthropy] },
     { name: 'Duke', target: 50, cards: [duchy, duke], events: [] },
     { name: 'Flower Market', target: 40, cards: [flowerMarket], events: [] },
+    { name: 'Farmland', target: 40, cards: [farmland], events: [] },
+    { name: 'Vibrant City', target: 40, cards: [vibrantCity], events: [] },
+    { name: 'Palace', target: 40, cards: [palace], events: [] },
+    { name: 'Territory', target: 40, cards: [territory], events: [] },
+    { name: 'Frontier', target: 60, cards: [frontier], events: [] },
+    { name: 'Gardens', target: 40, cards: [gardens], events: [] },
 ]
 

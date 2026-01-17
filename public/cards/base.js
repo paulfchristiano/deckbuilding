@@ -412,7 +412,7 @@ var travelingFair = { name: 'Traveling Fair',
 };
 events.push(travelingFair);
 var philanthropy = { name: 'Philanthropy',
-    fixedCost: __assign(__assign({}, free), { coin: 10, energy: 1 }),
+    fixedCost: coin(10),
     effects: [{
             text: ['Pay all $.', '+1 vp per $ paid.'],
             transform: function (s, c) { return function (state) {
@@ -455,6 +455,7 @@ buyable(orchard, 2, {onBuy: [pointsEffect(1)]})
 */
 var flowerMarket = {
     name: 'Flower Market',
+    buyCost: coin(2),
     effects: [buyEffect(), pointsEffect(1)]
 };
 cards.push(supplyForCard(flowerMarket, coin(2), { onBuy: [pointsEffect(1)] }));
@@ -503,14 +504,13 @@ function chargeUpTo(max) {
     };
 }
 var frontier = { name: 'Frontier',
-    fixedCost: energy(1),
-    buyCost: coin(7),
+    buyCost: coin(4),
     effects: [{
             text: ['+1 vp per charge token on this.'],
             transform: function (state, card) { return gainPoints(state.find(card).charge, card); }
         }, chargeUpTo(6)]
 };
-cards.push(supplyForCard(frontier, coin(7), { replacers: [startsWithCharge(frontier.name, 2)] }));
+cards.push(supplyForCard(frontier, coin(4), { replacers: [startsWithCharge(frontier.name, 2)] }));
 var investment = { name: 'Investment',
     fixedCost: energy(0),
     effects: [{
@@ -1010,7 +1010,6 @@ var kingsCourt = { name: "King's Court",
 };
 cards.push(supplyForCard(kingsCourt, coin(9)));
 var gardens = { name: "Gardens",
-    fixedCost: energy(1),
     effects: [{
             text: ['+1 vp per 8 cards in your hand, discard, resolving, and play.'],
             transform: function (state, card) { return gainPoints(Math.floor((state.hand.length + state.discard.length
@@ -1018,6 +1017,33 @@ var gardens = { name: "Gardens",
         }]
 };
 cards.push(supplyForCard(gardens, coin(4)));
+var territoryName = 'Territory';
+var territory = {
+    name: territoryName,
+    buyCost: coin(10),
+    fixedCost: energy(1),
+    effects: [pointsEffect(2)],
+    staticReplacers: [{
+            kind: 'move',
+            text: "When you play a ".concat(territoryName, " from your hand, leave it there."),
+            handles: function (p) { return p.card.name == territoryName && p.toZone == 'resolving' && p.fromZone == 'hand'; },
+            replace: function (p) { return (__assign(__assign({}, p), { skip: true })); }
+        }]
+};
+cards.push(territory);
+var farmlandName = 'Farmland';
+var farmland = {
+    name: farmlandName,
+    fixedCost: energy(3),
+    buyCost: coin(8),
+    staticTriggers: [{
+            kind: 'play',
+            text: "Whenever you play a ".concat(farmlandName, " the normal way, +7 vp."),
+            handles: function (e) { return e.source == 'act' && e.card.name == farmlandName; },
+            transform: function (e, s, c) { return gainPoints(7, c); }
+        }],
+};
+cards.push(farmland);
 /*
 const decay:CardSpec = {name: 'Decay',
     fixedCost: coin(1),
@@ -1540,6 +1566,7 @@ var homesteading = {
 cards.push(supplyForCard(homesteading, coin(3)));
 var duke = {
     name: 'Duke',
+    buyCost: coin(4),
     effects: [],
     triggers: [{
             text: "Whenever you play ".concat(a(duchy.name), ", +1 vp."),
@@ -2164,10 +2191,16 @@ export var vpModes = [
     { name: 'Duchy', target: 30, cards: [duchy], events: [] },
     { name: 'Estate', target: 20, cards: [estate], events: [] },
     { name: 'Thoroughfare', target: 80, cards: [], events: [thoroughfare] },
-    { name: 'Monument', target: 30, cards: [], events: [monument] },
+    { name: 'Monument', target: 20, cards: [], events: [monument] },
     { name: 'Capitalization', target: 60, cards: [], events: [capitalization] },
-    { name: 'Philanthropy', target: 50, cards: [], events: [philanthropy] },
+    { name: 'Philanthropy', target: 40, cards: [], events: [philanthropy] },
     { name: 'Duke', target: 50, cards: [duchy, duke], events: [] },
     { name: 'Flower Market', target: 40, cards: [flowerMarket], events: [] },
+    { name: 'Farmland', target: 40, cards: [farmland], events: [] },
+    { name: 'Vibrant City', target: 40, cards: [vibrantCity], events: [] },
+    { name: 'Palace', target: 40, cards: [palace], events: [] },
+    { name: 'Territory', target: 40, cards: [territory], events: [] },
+    { name: 'Frontier', target: 60, cards: [frontier], events: [] },
+    { name: 'Gardens', target: 40, cards: [gardens], events: [] },
 ];
 //# sourceMappingURL=base.js.map

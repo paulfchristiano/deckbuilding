@@ -10,3 +10,4 @@ tsconfig.tsbuildinfo
 *.swp
 logs.txt
 *.log
+.claude

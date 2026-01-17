@@ -94,7 +94,7 @@ import { sets } from './logic.js';
 import { SetState, Undo, InvalidHistory } from './logic.js';
 import { playGame, initialState } from './logic.js';
 import { coerceReplayVersion, parseReplay, MalformedReplay } from './logic.js';
-import { allCards, allEvents, randomPlaceholder } from './logic.js';
+import { randomPlaceholder } from './logic.js';
 import { MalformedSpec, specToURL, specFromURL } from './logic.js';
 import { vpModes, vpCardNames, vpEventNames } from './logic.js';
 // register cards
@@ -486,6 +486,24 @@ function renderSpec(spec) {
     var me = "<div class='spec'>".concat(header).concat(cardText(spec), "</div>");
     var related = (spec.relatedCards || []).map(renderSpec);
     return [me].concat(related).join('');
+}
+// Render spec without related cards inline, but with tooltip
+function renderSpecNoRelated(spec) {
+    var buyText = isZero(spec.buyCost) ? '' : "(".concat(renderCost(spec.buyCost), ")&nbsp;");
+    var costText = isZero(spec.fixedCost) ? '' : "&nbsp;(".concat(renderCost(spec.fixedCost), ")");
+    var header = "<div>".concat(buyText, "<strong>").concat(spec.name, "</strong>").concat(costText, "</div>");
+    // Build tooltip text for related cards
+    var relatedCards = spec.relatedCards || [];
+    var tooltipAttr = '';
+    if (relatedCards.length > 0) {
+        var tooltipText = relatedCards.map(function (r) {
+            var rCost = isZero(r.fixedCost) ? '' : " (".concat(renderCost(r.fixedCost), ")");
+            var rText = (r.effects || []).map(function (e) { var _a; return ((_a = e.text) === null || _a === void 0 ? void 0 : _a.join(' ')) || ''; }).join(' ');
+            return "".concat(r.name).concat(rCost, ": ").concat(rText);
+        }).join('\n\n');
+        tooltipAttr = " title=\"".concat(tooltipText.replace(/"/g, '&quot;'), "\"");
+    }
+    return "<div class='spec'".concat(tooltipAttr, ">").concat(header).concat(cardText(spec), "</div>");
 }
 function getIfDef(m, x) {
     return (m == undefined) ? undefined : m.get(x);
@@ -902,11 +920,12 @@ var webUI = /** @class */ (function () {
     //(would be nice to clean this up so you use undo to go back)
     webUI.prototype.victory = function (state) {
         return __awaiter(this, void 0, void 0, function () {
-            var ui, doneAction, submitOrUndo;
+            var ui, score, doneAction, submitOrUndo;
             return __generator(this, function (_a) {
                 ui = this;
+                score = state.energy;
                 doneAction = function () {
-                    onKingdomVictory();
+                    onKingdomVictory(score);
                 };
                 submitOrUndo = function () {
                     return new Promise(function (resolve, reject) {
@@ -1744,9 +1763,24 @@ var TOTAL_STAGES = 9;
 var currentStage = 1;
 var currentKingdom = null;
 var currentVPModeName = '';
+var stageScores = Array(TOTAL_STAGES).fill(null);
 var stageAddButtonStates = [];
 var collectedCards = [];
 var collectedEvents = [];
+var deckDialogOpen = false;
+// Get cards only from base and expansion
+function getAvailableCards() {
+    var _a, _b;
+    var baseCards = ((_a = sets['base']) === null || _a === void 0 ? void 0 : _a.cards) || [];
+    var expansionCards = ((_b = sets['expansion']) === null || _b === void 0 ? void 0 : _b.cards) || [];
+    return __spreadArray(__spreadArray([], __read(baseCards), false), __read(expansionCards), false);
+}
+function getAvailableEvents() {
+    var _a, _b;
+    var baseEvents = ((_a = sets['base']) === null || _a === void 0 ? void 0 : _a.events) || [];
+    var expansionEvents = ((_b = sets['expansion']) === null || _b === void 0 ? void 0 : _b.events) || [];
+    return __spreadArray(__spreadArray([], __read(baseEvents), false), __read(expansionEvents), false);
+}
 function shuffleArray(array) {
     var _a;
     for (var i = array.length - 1; i > 0; i--) {
@@ -1767,13 +1801,13 @@ function hashString(s) {
     return hash;
 }
 function generateStageOptions() {
-    // Generate add button options for this stage
-    var cardPool = allCards().filter(function (c) {
+    // Generate add button options for this stage (only from base and expansion)
+    var cardPool = getAvailableCards().filter(function (c) {
         return !vpCardNames.has(c.name) &&
             c.name !== 'Copper' && c.name !== 'Silver' && c.name !== 'Gold' &&
             !collectedCards.some(function (cc) { return cc.name === c.name; });
     });
-    var eventPool = allEvents().filter(function (e) {
+    var eventPool = getAvailableEvents().filter(function (e) {
         return !vpEventNames.has(e.name) && e.name !== 'Refresh' &&
             !collectedEvents.some(function (ce) { return ce.name === e.name; });
     });
@@ -1806,7 +1840,8 @@ function showCardPicker(buttonIndex) {
     $('#cardPickerTitle').text(title);
     $('#cardPickerOptions').empty();
     var _loop_4 = function (card) {
-        var optionEl = $("<span class=\"option\" choosable>".concat(card.name, "</span>"));
+        var specHtml = renderSpecNoRelated(card);
+        var optionEl = $(specHtml);
         optionEl.on('click', function () { return selectCard(buttonIndex, card); });
         $('#cardPickerOptions').append(optionEl);
     };
@@ -1893,20 +1928,89 @@ function updateProgressSidebar() {
     $('.progressCircle').each(function () {
         var stage = parseInt($(this).attr('data-stage') || '0');
         $(this).removeClass('completed current');
+        // Remove old score display
+        $(this).find('.progressScore').remove();
         if (stage < currentStage) {
             $(this).addClass('completed');
+            // Show score if available
+            var score = stageScores[stage - 1];
+            if (score !== null) {
+                $(this).append("<span class=\"progressScore\">".concat(score, "</span>"));
+            }
         }
         else if (stage === currentStage) {
             $(this).addClass('current');
         }
     });
 }
+function showDeckDialog() {
+    var e_22, _a, e_23, _b;
+    $('#deckContents').empty();
+    if (collectedCards.length === 0 && collectedEvents.length === 0) {
+        $('#deckContents').append('<div>No cards collected yet.</div>');
+    }
+    else {
+        try {
+            for (var collectedCards_1 = __values(collectedCards), collectedCards_1_1 = collectedCards_1.next(); !collectedCards_1_1.done; collectedCards_1_1 = collectedCards_1.next()) {
+                var card = collectedCards_1_1.value;
+                $('#deckContents').append(renderSpecNoRelated(card));
+            }
+        }
+        catch (e_22_1) { e_22 = { error: e_22_1 }; }
+        finally {
+            try {
+                if (collectedCards_1_1 && !collectedCards_1_1.done && (_a = collectedCards_1.return)) _a.call(collectedCards_1);
+            }
+            finally { if (e_22) throw e_22.error; }
+        }
+        try {
+            for (var collectedEvents_1 = __values(collectedEvents), collectedEvents_1_1 = collectedEvents_1.next(); !collectedEvents_1_1.done; collectedEvents_1_1 = collectedEvents_1.next()) {
+                var event_1 = collectedEvents_1_1.value;
+                $('#deckContents').append(renderSpecNoRelated(event_1));
+            }
+        }
+        catch (e_23_1) { e_23 = { error: e_23_1 }; }
+        finally {
+            try {
+                if (collectedEvents_1_1 && !collectedEvents_1_1.done && (_b = collectedEvents_1.return)) _b.call(collectedEvents_1);
+            }
+            finally { if (e_23) throw e_23.error; }
+        }
+    }
+    $('#deckClose').off('click').on('click', hideDeckDialog);
+    $('#deckDialog').attr('active', 'true');
+    deckDialogOpen = true;
+}
+function hideDeckDialog() {
+    $('#deckDialog').attr('active', 'false');
+    deckDialogOpen = false;
+}
+function toggleDeckDialog() {
+    if (deckDialogOpen) {
+        hideDeckDialog();
+    }
+    else {
+        showDeckDialog();
+    }
+}
+var deckIconSetup = false;
+function setupDeckIcon() {
+    if (deckIconSetup)
+        return;
+    deckIconSetup = true;
+    var deckIcon = document.getElementById('deckIcon');
+    if (deckIcon) {
+        deckIcon.addEventListener('click', toggleDeckDialog);
+    }
+}
 export function showLandingPage() {
     // Initialize first stage
     currentStage = 1;
     collectedCards = [];
     collectedEvents = [];
+    stageScores = Array(TOTAL_STAGES).fill(null);
     generateStageOptions();
+    setupDeckIcon();
     showStageScreen();
 }
 function showStageScreen() {
@@ -1962,7 +2066,9 @@ function showFinalVictory() {
     });
 }
 // Called when player wins a kingdom
-function onKingdomVictory() {
+function onKingdomVictory(score) {
+    // Save the score for this stage
+    stageScores[currentStage - 1] = score;
     advanceToNextStage();
 }
 //# sourceMappingURL=main.js.map
