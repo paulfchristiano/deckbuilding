@@ -17,3 +17,4 @@ for (const mode of base.vpModes) {
 export const throneRoom = base.throneRoom;
 export const duplicate = base.duplicate;
 export const startingPotions = base.startingPotions;
+export const allPotions = base.allPotions;

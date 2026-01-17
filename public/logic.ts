@@ -143,10 +143,11 @@ export interface Ability {
     effects: Effect[];
 }
 
-export type Source = Card | 'act'
+export type Source = Card | Rule | 'act'
 
 export function sourceHasName(s:Source, name:string): boolean {
-    return s != 'act' && s.name == name
+    if (s == 'act') return false
+    return s.name == name
 }
 
 interface CardUpdate {
@@ -2732,15 +2733,44 @@ export const reflectRule: Rule = {
         kind: 'afterPlay',
         handles: (e, state, card) => {
             const played: Card = state.find(e.card)
-            return played.count('reflect') > 0 && !sourceHasName(e.source, card.name)
+            // Don't trigger if the play was already from this rule (prevent infinite loops)
+            return played.count('reflect') > 0 && !sourceHasName(e.source, 'Reflect')
         },
         transform: (e, s, card) => doAll([
             removeToken(e.card, 'reflect'),
-            e.card.play(card),
+            // Use reflectRule as the source so we can detect rule-triggered plays
+            e.card.play(reflectRule),
         ]),
     }]
 }
 registerRule(reflectRule)
+
+// Ferry rule: cards with ferry tokens cost $1 less per token (but not zero)
+export const ferryRule: Rule = {
+    name: 'Ferry',
+    replacers: [{
+        text: `Cards cost $1 less to buy per ferry token on them, but not less than $1.`,
+        kind: 'cost',
+        handles: (p, state) => p.actionKind == 'buy' && state.find(p.card).count('ferry') > 0,
+        replace: (p, state) => ({...p, cost: reducedCost(p.cost, coin(state.find(p.card).count('ferry')), true)})
+    }]
+}
+registerRule(ferryRule)
+
+// Twin rule: after playing a card with a twin token, play it again
+export const twinRule: Rule = {
+    name: 'Twin',
+    triggers: [{
+        text: `After playing a card with a twin token other than with this effect, play it again.`,
+        kind: 'afterPlay',
+        handles: (e, state, card) => {
+            const played: Card = state.find(e.card)
+            return played.count('twin') > 0 && !sourceHasName(e.source, 'Twin')
+        },
+        transform: (e, s, card) => e.card.play(twinRule),
+    }]
+}
+registerRule(twinRule)
 
 export const copper:CardSpec = {name: 'Copper',
     buyCost: coin(0),
@@ -2866,6 +2896,21 @@ export const fair:CardSpec = {
             ...x, zone:'hand', effects:x.effects.concat(() => trash(card))
         })
     }, trashOnLeavePlay()]
+}
+
+export const bounty:CardSpec = {
+    name: 'Bounty',
+    simpleText: 'The next time you buy a card, buy it again.',
+    triggers: [{
+        text: `Whenever you buy a card, discard this to buy the card again.`,
+        kind: 'buy',
+        handles: (e, state, card) => state.find(card).place == 'play',
+        transform: (e, state, card) => async function(state) {
+            state = await move(card, 'discard')(state)
+            return e.card.buy(card)(state)
+        }
+    }],
+    replacers: [trashOnLeavePlay()]
 }
 
 

@@ -164,7 +164,9 @@ export function registerRule(rule) {
 }
 export var free = { coin: 0, energy: 0, actions: 0, buys: 0, effects: [], tests: [] };
 export function sourceHasName(s, name) {
-    return s != 'act' && s.name == name;
+    if (s == 'act')
+        return false;
+    return s.name == name;
 }
 var Card = /** @class */ (function () {
     function Card(spec, id, ticks, tokens, place, 
@@ -3252,15 +3254,42 @@ export var reflectRule = {
             kind: 'afterPlay',
             handles: function (e, state, card) {
                 var played = state.find(e.card);
-                return played.count('reflect') > 0 && !sourceHasName(e.source, card.name);
+                // Don't trigger if the play was already from this rule (prevent infinite loops)
+                return played.count('reflect') > 0 && !sourceHasName(e.source, 'Reflect');
             },
             transform: function (e, s, card) { return doAll([
                 removeToken(e.card, 'reflect'),
-                e.card.play(card),
+                // Use reflectRule as the source so we can detect rule-triggered plays
+                e.card.play(reflectRule),
             ]); },
         }]
 };
 registerRule(reflectRule);
+// Ferry rule: cards with ferry tokens cost $1 less per token (but not zero)
+export var ferryRule = {
+    name: 'Ferry',
+    replacers: [{
+            text: "Cards cost $1 less to buy per ferry token on them, but not less than $1.",
+            kind: 'cost',
+            handles: function (p, state) { return p.actionKind == 'buy' && state.find(p.card).count('ferry') > 0; },
+            replace: function (p, state) { return (__assign(__assign({}, p), { cost: reducedCost(p.cost, coin(state.find(p.card).count('ferry')), true) })); }
+        }]
+};
+registerRule(ferryRule);
+// Twin rule: after playing a card with a twin token, play it again
+export var twinRule = {
+    name: 'Twin',
+    triggers: [{
+            text: "After playing a card with a twin token other than with this effect, play it again.",
+            kind: 'afterPlay',
+            handles: function (e, state, card) {
+                var played = state.find(e.card);
+                return played.count('twin') > 0 && !sourceHasName(e.source, 'Twin');
+            },
+            transform: function (e, s, card) { return e.card.play(twinRule); },
+        }]
+};
+registerRule(twinRule);
 export var copper = { name: 'Copper',
     buyCost: coin(0),
     effects: [coinsEffect(1)]
@@ -3370,6 +3399,28 @@ export var fair = {
                 && state.find(card).place == 'play'; },
             replace: function (x, state, card) { return (__assign(__assign({}, x), { zone: 'hand', effects: x.effects.concat(function () { return trash(card); }) })); }
         }, trashOnLeavePlay()]
+};
+export var bounty = {
+    name: 'Bounty',
+    simpleText: 'The next time you buy a card, buy it again.',
+    triggers: [{
+            text: "Whenever you buy a card, discard this to buy the card again.",
+            kind: 'buy',
+            handles: function (e, state, card) { return state.find(card).place == 'play'; },
+            transform: function (e, state, card) { return function (state) {
+                return __awaiter(this, void 0, void 0, function () {
+                    return __generator(this, function (_a) {
+                        switch (_a.label) {
+                            case 0: return [4 /*yield*/, move(card, 'discard')(state)];
+                            case 1:
+                                state = _a.sent();
+                                return [2 /*return*/, e.card.buy(card)(state)];
+                        }
+                    });
+                });
+            }; }
+        }],
+    replacers: [trashOnLeavePlay()]
 };
 //
 // ----- MIXINS -----

@@ -21,7 +21,7 @@ import { MalformedSpec, specToURL, specFromURL } from './logic.js'
 import { vpModes, selectVPMode, vpCardNames, vpEventNames } from './logic.js'
 
 // register cards
-import {throneRoom, duplicate, startingPotions} from './cards/index.js'
+import {throneRoom, duplicate, startingPotions, allPotions} from './cards/index.js'
 
 // --------------------- Hotkeys
 
@@ -626,7 +626,6 @@ function renderState(
     $('#playsize').html('' + state.play.length)
     $('#handsize').html('' + state.hand.length)
     $('#discardsize').html('' + state.discard.length)
-    $('#potionssize').html('' + state.potions.length)
 }
 
 function bindLogTypeButtons(state:State, ui:webUI) {
@@ -1803,7 +1802,7 @@ let stageScores: (number | null)[] = Array(TOTAL_STAGES).fill(null)
 
 // Deck building state
 interface AddButtonState {
-    kind: 'card' | 'event'
+    kind: 'card' | 'event' | 'potion'
     options: CardSpec[]
     used: boolean
     selectedCard: CardSpec | null
@@ -1856,14 +1855,20 @@ function generateStageOptions(): void {
         !vpEventNames.has(e.name) && e.name !== 'Refresh' &&
         !collectedEvents.some(ce => ce.name === e.name)
     )
+    // Filter potions to exclude ones already collected
+    const potionPool = allPotions.filter(p =>
+        !currentPotions.some(cp => cp.name === p.name)
+    )
 
     const shuffledCards = shuffleArray([...cardPool])
     const shuffledEvents = shuffleArray([...eventPool])
+    const shuffledPotions = shuffleArray([...potionPool])
 
     stageAddButtonStates = [
         { kind: 'card', options: shuffledCards.slice(0, 3), used: false, selectedCard: null },
         { kind: 'card', options: shuffledCards.slice(3, 6), used: false, selectedCard: null },
         { kind: 'event', options: shuffledEvents.slice(0, 3), used: false, selectedCard: null },
+        { kind: 'potion', options: shuffledPotions.slice(0, 3), used: false, selectedCard: null },
     ]
 
     // Generate kingdom for this stage
@@ -1885,8 +1890,12 @@ function showCardPicker(buttonIndex: number): void {
     const state = stageAddButtonStates[buttonIndex]
     if (state.used) return
 
-    const title = state.kind === 'card' ? 'Choose a card:' : 'Choose an event:'
-    $('#cardPickerTitle').text(title)
+    const titles: Record<string, string> = {
+        'card': 'Choose a card:',
+        'event': 'Choose an event:',
+        'potion': 'Choose a potion:'
+    }
+    $('#cardPickerTitle').text(titles[state.kind])
 
     $('#cardPickerOptions').empty()
     for (const card of state.options) {
@@ -1911,8 +1920,10 @@ function selectCard(buttonIndex: number, card: CardSpec): void {
 
     if (state.kind === 'card') {
         collectedCards.push(card)
-    } else {
+    } else if (state.kind === 'event') {
         collectedEvents.push(card)
+    } else if (state.kind === 'potion') {
+        currentPotions.push(card)
     }
 
     updateAddButtonDisplay(buttonIndex)
@@ -1921,7 +1932,14 @@ function selectCard(buttonIndex: number, card: CardSpec): void {
 
 function updateAddButtonDisplay(buttonIndex: number): void {
     const state = stageAddButtonStates[buttonIndex]
-    const buttonId = buttonIndex < 2 ? `#addCard${buttonIndex}` : '#addEvent0'
+    let buttonId: string
+    if (buttonIndex < 2) {
+        buttonId = `#addCard${buttonIndex}`
+    } else if (buttonIndex === 2) {
+        buttonId = '#addEvent0'
+    } else {
+        buttonId = '#addPotion0'
+    }
 
     if (state.used && state.selectedCard) {
         $(buttonId).text(state.selectedCard.name)
@@ -1959,6 +1977,20 @@ function setupAddButtons(): void {
     }
     $(eventButtonId).off('click').on('click', () => {
         if (!stageAddButtonStates[2].used) showCardPicker(2)
+    })
+
+    const potionButtonId = '#addPotion0'
+    if (stageAddButtonStates[3].used) {
+        $(potionButtonId).text(stageAddButtonStates[3].selectedCard?.name || 'Add Potion')
+        $(potionButtonId).attr('disabled', 'true')
+        $(potionButtonId).removeAttr('choosable')
+    } else {
+        $(potionButtonId).text('Add Potion')
+        $(potionButtonId).removeAttr('disabled')
+        $(potionButtonId).attr('choosable', 'true')
+    }
+    $(potionButtonId).off('click').on('click', () => {
+        if (!stageAddButtonStates[3].used) showCardPicker(3)
     })
 }
 
@@ -2030,7 +2062,7 @@ export function showLandingPage(): void {
     currentStage = 1
     collectedCards = []
     collectedEvents = []
-    currentPotions = startingPotions.slice()
+    currentPotions = []
     stageScores = Array(TOTAL_STAGES).fill(null)
     generateStageOptions()
     setupDeckIcon()

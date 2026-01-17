@@ -72,7 +72,7 @@ var __values = (this && this.__values) || function(o) {
     };
     throw new TypeError(s ? "Object is not iterable." : "Symbol.iterator is not defined.");
 };
-import { choice, asChoice, trash, addCosts, subtractCost, multiplyCosts, eq, leq, noop, gainPoints, gainActions, gainCoins, gainBuys, free, create, move, doAll, multichoice, renderCost, moveMany, payToDo, payCost, addToken, removeToken, charge, discharge, asNumberedChoices, allowNull, setResource, tick, a, num, aOrNum, createAndTrack, villager, fair, supplyForCard, actionsEffect, buyEffect, buysEffect, pointsEffect, createEffect, refreshEffect, recycleEffect, createInPlayEffect, chargeEffect, targetedEffect, workshopEffect, coinsEffect, energy, coin, repeat, costPer, incrementCost, costReduceNext, countNameTokens, nameHasToken, startsWithCharge, useRefresh, costReduce, reducedCost, applyToTarget, playTwice, payAction, sortHand, discardFromPlay, trashThis, copper, gold, silver, estate, duchy, province, dedupBy, countDistinctNames, playReplacer, trashOnLeavePlay, sourceHasName, cannotUse, renderCostOrZero, echoRule, priorityRule, reflectRule } from '../logic.js';
+import { choice, asChoice, trash, addCosts, subtractCost, multiplyCosts, eq, leq, noop, gainPoints, gainActions, gainCoins, gainBuys, free, create, move, doAll, multichoice, renderCost, moveMany, payToDo, payCost, addToken, removeToken, charge, discharge, asNumberedChoices, allowNull, setResource, tick, a, num, aOrNum, createAndTrack, villager, fair, bounty, supplyForCard, actionsEffect, buyEffect, buysEffect, pointsEffect, createEffect, refreshEffect, recycleEffect, createInPlayEffect, chargeEffect, targetedEffect, workshopEffect, coinsEffect, energy, coin, repeat, costPer, incrementCost, costReduceNext, countNameTokens, nameHasToken, startsWithCharge, useRefresh, costReduce, applyToTarget, playTwice, payAction, sortHand, discardFromPlay, trashThis, copper, gold, silver, estate, duchy, province, dedupBy, countDistinctNames, playReplacer, trashOnLeavePlay, sourceHasName, cannotUse, renderCostOrZero, echoRule, priorityRule, reflectRule, ferryRule, twinRule } from '../logic.js';
 export var cards = [];
 export var events = [];
 /*
@@ -501,8 +501,8 @@ registerEvent(coffers)
 */
 var vibrantCity = { name: 'Vibrant City',
     effects: [pointsEffect(2), actionsEffect(1)],
+    buyCost: coin(5),
 };
-// cards.push(supplyForCard(vibrantCity, coin(5))) // removed (vp)
 function chargeUpTo(max) {
     return {
         text: ["Put a charge token on this if it has less than ".concat(max, ".")],
@@ -699,13 +699,7 @@ var twin = { name: 'Twin',
     fixedCost: __assign(__assign({}, free), { energy: 1, coin: 3 }),
     simpleText: "Put a twin token on a card in your hand. Whenever you play it other than with this effect, play it again.",
     effects: [targetedEffect(function (target) { return addToken(target, 'twin'); }, 'Put a twin token on a card in your hand.', function (state) { return state.hand; })],
-    staticTriggers: [{
-            text: "After playing a card with a twin token other than with this, play it again.",
-            kind: 'afterPlay',
-            handles: function (e, state, card) { return (e.card.count('twin') > 0 && !sourceHasName(e.source, card.name)); },
-            transform: function (e, state, card) { return e.card.play(card); },
-        }],
-};
+    rules: [twinRule], };
 events.push(twin);
 function literalOptions(xs, keys) {
     return xs.map(function (x, i) { return ({
@@ -872,19 +866,24 @@ var synergy = { name: 'Synergy',
         }]
 };
 events.push(synergy);
-var shelter = { name: 'Shelter',
-    buyCost: coin(3),
-    effects: [actionsEffect(1), targetedEffect(function (target) { return addToken(target, 'shelter'); }, 'Put a shelter token on a card.', function (state) { return state.play; })],
-    staticReplacers: [{
+var shelterName = 'Shelter';
+var shelter = { name: shelterName,
+    buyCost: coin(5),
+    simpleText: "Whenever you would move a card from play to your hand, instead leave it in play. Put this in play when you create it.",
+    replacers: [{
             kind: 'move',
-            text: "Whenever you would move a card with a shelter token from play,\n               instead remove a shelter token from it.",
-            handles: function (x, state) { return x.fromZone == 'play'
-                && x.skip == false
-                && state.find(x.card).count('shelter') > 0; },
-            replace: function (x) { return (__assign(__assign({}, x), { skip: true, toZone: 'play', effects: x.effects.concat([removeToken(x.card, 'shelter')]) })); }
+            text: 'Whenever you would move a card from play to your hand (including this one) instead leave it in place.',
+            handles: function (x, state) { return x.fromZone == 'play' && x.toZone == 'hand'; },
+            replace: function (x) { return (__assign(__assign({}, x), { skip: true, toZone: 'play' })); }
+        }],
+    staticReplacers: [{
+            kind: 'create',
+            text: "Whenever you would create a ".concat(shelterName, " in your discard,\n               instead create it in play."),
+            handles: function (p) { return p.spec.name == shelterName && p.zone == 'discard'; },
+            replace: function (p) { return (__assign(__assign({}, p), { zone: 'play' })); }
         }]
 };
-// cards.push(shelter) // removed
+cards.push(shelter);
 var market = {
     name: 'Market',
     effects: [actionsEffect(1), coinsEffect(1), buyEffect()],
@@ -2217,12 +2216,7 @@ var ferry = {
     buyCost: coin(3),
     fixedCost: energy(1),
     effects: [buysEffect(1), coinsEffect(1), targetedEffect(function (target) { return addToken(target, 'ferry'); }, 'Put a ferry token on a supply.', function (state) { return state.supply; })],
-    staticReplacers: [{
-            text: "Cards cost $1 less to buy per ferry token on them, but not zero.",
-            kind: 'cost',
-            handles: function (p) { return p.actionKind == 'buy'; },
-            replace: function (p) { return (__assign(__assign({}, p), { cost: reducedCost(p.cost, coin(p.card.count('ferry')), true) })); }
-        }]
+    rules: [ferryRule],
 };
 cards.push(ferry);
 var develop = {
@@ -2959,6 +2953,12 @@ export var vpModes = [
     { name: 'Gardens', target: 40, cards: [gardens], events: [] },
 ];
 // ========== POTIONS ==========
+export var potionOfActions = {
+    name: 'Potion of Actions',
+    isPotion: true,
+    simpleText: '+10 actions.',
+    effects: [actionsEffect(10)]
+};
 export var potionOfWealth = {
     name: 'Potion of Wealth',
     isPotion: true,
@@ -2982,6 +2982,130 @@ export var potionOfWealth = {
             }; }
         }]
 };
+export var potionOfCopper = {
+    name: 'Potion of Copper',
+    isPotion: true,
+    simpleText: 'Create 5 coppers in your hand.',
+    effects: [{
+            text: ['Create 5 Coppers in your hand.'],
+            transform: function () { return repeat(create(copper, 'hand'), 5); }
+        }]
+};
+export var potionOfMining = {
+    name: 'Potion of Mining',
+    isPotion: true,
+    simpleText: 'Trash coppers for silvers, silvers for golds.',
+    relatedCards: [copper, silver, gold],
+    effects: [{
+            text: ['Trash any number of Coppers in your hand, and create that many Silvers in your discard.',
+                'Trash any number of Silvers in your hand, and create that many Golds in your discard.'],
+            transform: function () { return function (state) {
+                return __awaiter(this, void 0, void 0, function () {
+                    var coppers, coppersToTrash, coppersToTrash_1, coppersToTrash_1_1, c, e_4_1, silvers, silversToTrash, silversToTrash_1, silversToTrash_1_1, c, e_5_1;
+                    var _a, e_4, _b, _c, e_5, _d;
+                    return __generator(this, function (_e) {
+                        switch (_e.label) {
+                            case 0:
+                                coppers = state.hand.filter(function (c) { return c.name == 'Copper'; });
+                                return [4 /*yield*/, multichoice(state, 'Choose Coppers to trash for Silvers.', coppers.map(asChoice), coppers.length)];
+                            case 1:
+                                _a = __read.apply(void 0, [_e.sent(), 2]), state = _a[0], coppersToTrash = _a[1];
+                                _e.label = 2;
+                            case 2:
+                                _e.trys.push([2, 7, 8, 9]);
+                                coppersToTrash_1 = __values(coppersToTrash), coppersToTrash_1_1 = coppersToTrash_1.next();
+                                _e.label = 3;
+                            case 3:
+                                if (!!coppersToTrash_1_1.done) return [3 /*break*/, 6];
+                                c = coppersToTrash_1_1.value;
+                                return [4 /*yield*/, trash(c)(state)];
+                            case 4:
+                                state = _e.sent();
+                                _e.label = 5;
+                            case 5:
+                                coppersToTrash_1_1 = coppersToTrash_1.next();
+                                return [3 /*break*/, 3];
+                            case 6: return [3 /*break*/, 9];
+                            case 7:
+                                e_4_1 = _e.sent();
+                                e_4 = { error: e_4_1 };
+                                return [3 /*break*/, 9];
+                            case 8:
+                                try {
+                                    if (coppersToTrash_1_1 && !coppersToTrash_1_1.done && (_b = coppersToTrash_1.return)) _b.call(coppersToTrash_1);
+                                }
+                                finally { if (e_4) throw e_4.error; }
+                                return [7 /*endfinally*/];
+                            case 9: return [4 /*yield*/, repeat(create(silver), coppersToTrash.length)(state)
+                                // Trash silvers for golds
+                            ];
+                            case 10:
+                                state = _e.sent();
+                                silvers = state.hand.filter(function (c) { return c.name == 'Silver'; });
+                                return [4 /*yield*/, multichoice(state, 'Choose Silvers to trash for Golds.', silvers.map(asChoice), silvers.length)];
+                            case 11:
+                                _c = __read.apply(void 0, [_e.sent(), 2]), state = _c[0], silversToTrash = _c[1];
+                                _e.label = 12;
+                            case 12:
+                                _e.trys.push([12, 17, 18, 19]);
+                                silversToTrash_1 = __values(silversToTrash), silversToTrash_1_1 = silversToTrash_1.next();
+                                _e.label = 13;
+                            case 13:
+                                if (!!silversToTrash_1_1.done) return [3 /*break*/, 16];
+                                c = silversToTrash_1_1.value;
+                                return [4 /*yield*/, trash(c)(state)];
+                            case 14:
+                                state = _e.sent();
+                                _e.label = 15;
+                            case 15:
+                                silversToTrash_1_1 = silversToTrash_1.next();
+                                return [3 /*break*/, 13];
+                            case 16: return [3 /*break*/, 19];
+                            case 17:
+                                e_5_1 = _e.sent();
+                                e_5 = { error: e_5_1 };
+                                return [3 /*break*/, 19];
+                            case 18:
+                                try {
+                                    if (silversToTrash_1_1 && !silversToTrash_1_1.done && (_d = silversToTrash_1.return)) _d.call(silversToTrash_1);
+                                }
+                                finally { if (e_5) throw e_5.error; }
+                                return [7 /*endfinally*/];
+                            case 19: return [4 /*yield*/, repeat(create(gold), silversToTrash.length)(state)];
+                            case 20:
+                                state = _e.sent();
+                                return [2 /*return*/, state];
+                        }
+                    });
+                });
+            }; }
+        }]
+};
+export var potionOfCelebration = {
+    name: 'Potion of Celebration',
+    isPotion: true,
+    simpleText: 'Create a Celebration with an echo token in play.',
+    relatedCards: [celebration],
+    rules: [echoRule],
+    effects: [{
+            text: ['Create a Celebration with an echo token in play.'],
+            transform: function () { return create(celebration, 'play', function (c) { return addToken(c, 'echo'); }); }
+        }]
+};
+export var potionOfBounty = {
+    name: 'Potion of Bounty',
+    isPotion: true,
+    simpleText: 'Create two Bounties in play.',
+    relatedCards: [bounty],
+    effects: [createInPlayEffect(bounty, 2)]
+};
+export var potionOfFerry = {
+    name: 'Potion of Ferry',
+    isPotion: true,
+    simpleText: 'Put a ferry token on a supply. It costs $2 less.',
+    rules: [ferryRule],
+    effects: [targetedEffect(function (target) { return addToken(target, 'ferry', 2); }, 'Put two ferry tokens on a supply.', function (state) { return state.supply; })]
+};
 export var potionOfRecovery = {
     name: 'Potion of Recovery',
     isPotion: true,
@@ -2991,14 +3115,15 @@ export var potionOfRecovery = {
             transform: function (state) { return doAll([moveMany(state.discard, 'hand'), sortHand]); }
         }]
 };
-export var potionOfCopper = {
-    name: 'Potion of Copper',
+export var potionOfShelter = {
+    name: 'Potion of Shelter',
     isPotion: true,
-    simpleText: 'Create 5 coppers in your hand.',
-    effects: [{
-            text: ['Create 5 Coppers in your hand.'],
-            transform: function () { return repeat(create(copper, 'hand'), 5); }
-        }]
+    simpleText: 'Create 3 Fairs and a Shelter in play.',
+    relatedCards: [fair, shelter],
+    effects: [
+        createInPlayEffect(fair, 3),
+        createInPlayEffect(shelter),
+    ]
 };
 export var potionOfVitality = {
     name: 'Potion of Vitality',
@@ -3013,10 +3138,169 @@ export var potionOfVitality = {
         createInPlayEffect(villager),
     ]
 };
-export var startingPotions = [
+// Gain card potions
+export var potionOfWorkshop = {
+    name: 'Potion of Workshop',
+    isPotion: true,
+    simpleText: 'Create a Workshop in your hand.',
+    relatedCards: [workshop],
+    effects: [{
+            text: ['Create a Workshop in your hand.'],
+            transform: function () { return create(workshop, 'hand'); }
+        }]
+};
+export var potionOfTavern = {
+    name: 'Potion of Tavern',
+    isPotion: true,
+    simpleText: 'Create a Tavern in your hand.',
+    relatedCards: [tavern],
+    effects: [{
+            text: ['Create a Tavern in your hand.'],
+            transform: function () { return create(tavern, 'hand'); }
+        }]
+};
+export var potionOfThroneRoom = {
+    name: 'Potion of Throne Room',
+    isPotion: true,
+    simpleText: 'Create a Throne Room in your hand.',
+    relatedCards: [throneRoom],
+    effects: [{
+            text: ['Create a Throne Room in your hand.'],
+            transform: function () { return create(throneRoom, 'hand'); }
+        }]
+};
+export var potionOfInnovation = {
+    name: 'Potion of Innovation',
+    isPotion: true,
+    simpleText: 'Create an Innovation in your hand.',
+    relatedCards: [innovation],
+    effects: [{
+            text: ['Create an Innovation in your hand.'],
+            transform: function () { return create(innovation, 'hand'); }
+        }]
+};
+export var potionOfTransmogrify = {
+    name: 'Potion of Transmogrify',
+    isPotion: true,
+    simpleText: 'Create a Transmogrify in your hand.',
+    relatedCards: [transmogrify],
+    effects: [{
+            text: ['Create a Transmogrify in your hand.'],
+            transform: function () { return create(transmogrify, 'hand'); }
+        }]
+};
+// Event effect potions
+export var potionOfMirrors = {
+    name: 'Potion of Mirrors',
+    isPotion: true,
+    simpleText: 'Put a reflect token on each card in your hand.',
+    rules: [reflectRule],
+    effects: [{
+            text: ['Put a reflect token on each card in your hand.'],
+            transform: function (state, card) {
+                return doAll(state.hand.map(function (c) { return addToken(c, 'reflect'); }));
+            }
+        }]
+};
+export var potionOfEchoes = {
+    name: 'Potion of Echoes',
+    isPotion: true,
+    simpleText: 'For each card in your hand without an echo token, create a copy with an echo token.',
+    rules: [echoRule],
+    effects: [{
+            text: ["For each card in your hand without an echo token,\n                create a copy in your hand with an echo token."],
+            transform: function (state) { return doAll(state.hand.filter(function (c) { return c.count('echo') == 0; }).map(function (c) { return create(c.spec, 'hand', function (x) { return addToken(x, 'echo'); }); })); }
+        }]
+};
+export var potionOfOnslaught = {
+    name: 'Potion of Onslaught',
+    isPotion: true,
+    simpleText: 'Play any number of cards in your hand.',
+    effects: [{
+            text: ["Repeat any number of times: play a card in your hand\n            that was also there at the start of this effect\n            and that you haven't played yet."],
+            transform: function (state, card) { return function (state) {
+                return __awaiter(this, void 0, void 0, function () {
+                    var cards, options, _loop_4, state_4;
+                    return __generator(this, function (_a) {
+                        switch (_a.label) {
+                            case 0:
+                                cards = state.hand;
+                                options = asNumberedChoices(cards);
+                                _loop_4 = function () {
+                                    var picked, id_4;
+                                    var _b;
+                                    return __generator(this, function (_c) {
+                                        switch (_c.label) {
+                                            case 0:
+                                                picked = void 0;
+                                                return [4 /*yield*/, choice(state, 'Pick a card to play next.', allowNull(options.filter(function (c) { return state.find(c.value).place == 'hand'; })))];
+                                            case 1:
+                                                _b = __read.apply(void 0, [_c.sent(), 2]), state = _b[0], picked = _b[1];
+                                                if (!(picked == null)) return [3 /*break*/, 2];
+                                                return [2 /*return*/, { value: state }];
+                                            case 2: return [4 /*yield*/, picked.play(card)(state)];
+                                            case 3:
+                                                state = _c.sent();
+                                                id_4 = picked.id;
+                                                options = options.filter(function (c) { return c.value.id != id_4; });
+                                                _c.label = 4;
+                                            case 4: return [2 /*return*/];
+                                        }
+                                    });
+                                };
+                                _a.label = 1;
+                            case 1:
+                                if (!true) return [3 /*break*/, 3];
+                                return [5 /*yield**/, _loop_4()];
+                            case 2:
+                                state_4 = _a.sent();
+                                if (typeof state_4 === "object")
+                                    return [2 /*return*/, state_4.value];
+                                return [3 /*break*/, 1];
+                            case 3: return [2 /*return*/];
+                        }
+                    });
+                });
+            }; }
+        }]
+};
+export var potionOfPriority = {
+    name: 'Potion of Priority',
+    isPotion: true,
+    simpleText: 'Put five priority tokens on a supply. The next 5 times you create a card from it, play it immediately.',
+    rules: [priorityRule],
+    effects: [targetedEffect(function (card) { return addToken(card, 'priority', 5); }, 'Put five priority tokens on a card in the supply.', function (state) { return state.supply; })]
+};
+export var potionOfTwin = {
+    name: 'Potion of Twin',
+    isPotion: true,
+    simpleText: 'Put a twin token on a card in your hand. Whenever you play it, play it again.',
+    rules: [twinRule],
+    effects: [targetedEffect(function (target) { return addToken(target, 'twin'); }, 'Put a twin token on a card in your hand.', function (state) { return state.hand; })]
+};
+// All potions list for random selection
+export var allPotions = [
+    potionOfActions,
     potionOfWealth,
-    potionOfRecovery,
     potionOfCopper,
+    potionOfMining,
+    potionOfCelebration,
+    potionOfBounty,
+    potionOfFerry,
+    potionOfRecovery,
+    potionOfShelter,
     potionOfVitality,
+    potionOfWorkshop,
+    potionOfTavern,
+    potionOfThroneRoom,
+    potionOfInnovation,
+    potionOfTransmogrify,
+    potionOfMirrors,
+    potionOfEchoes,
+    potionOfOnslaught,
+    potionOfPriority,
+    potionOfTwin,
 ];
+// Keep startingPotions for backwards compatibility but it won't be used
+export var startingPotions = [];
 //# sourceMappingURL=base.js.map

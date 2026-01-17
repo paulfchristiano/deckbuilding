@@ -16,7 +16,7 @@ import {
   setResource, Transform,
   tick, a, num, aOrNum,
   createAndTrack,
-  villager, fair,
+  villager, fair, bounty,
   supplyForCard,
   actionsEffect, buyEffect, buysEffect, pointsEffect, createEffect,
   refreshEffect, recycleEffect, createInPlayEffect, chargeEffect,
@@ -34,7 +34,7 @@ import {
   playReplacer, trashOnLeavePlay, stayInPlay,
   sourceHasName, Source,
   VPMode, cannotUse, renderCostOrZero,
-  echoRule, priorityRule, reflectRule
+  echoRule, priorityRule, reflectRule, ferryRule, twinRule
 } from '../logic.js'
 
 export const cards:CardSpec[] = [];
@@ -470,8 +470,8 @@ registerEvent(coffers)
 
 const vibrantCity:CardSpec = {name: 'Vibrant City',
     effects: [pointsEffect(2), actionsEffect(1)],
+    buyCost: coin(5),
 }
-// cards.push(supplyForCard(vibrantCity, coin(5))) // removed (vp)
 
 function chargeUpTo(max:number): Effect {
     return {
@@ -657,12 +657,7 @@ const twin:CardSpec = {name: 'Twin',
         target => addToken(target, 'twin'),
         'Put a twin token on a card in your hand.',
         state => state.hand)],
-    staticTriggers: [{
-        text: `After playing a card with a twin token other than with this, play it again.`,
-        kind: 'afterPlay',
-        handles: (e, state, card) => (e.card.count('twin') > 0 && !sourceHasName(e.source, card.name)),
-        transform: (e, state, card) => e.card.play(card),
-    }],
+    rules: [twinRule],
 }
 events.push(twin)
 
@@ -2144,12 +2139,7 @@ const ferry:CardSpec = {
         'Put a ferry token on a supply.',
         state => state.supply,
     )],
-    staticReplacers: [{
-        text: `Cards cost $1 less to buy per ferry token on them, but not zero.`,
-        kind: 'cost',
-        handles: p => p.actionKind == 'buy',
-        replace: p => ({...p, cost: reducedCost(p.cost, coin(p.card.count('ferry')), true)})
-    }]
+    rules: [ferryRule],
 }
 cards.push(ferry)
 
@@ -2914,6 +2904,13 @@ export const vpModes: VPMode[] = [
 
 // ========== POTIONS ==========
 
+export const potionOfActions:CardSpec = {
+    name: 'Potion of Actions',
+    isPotion: true,
+    simpleText: '+10 actions.',
+    effects: [actionsEffect(10)]
+}
+
 export const potionOfWealth:CardSpec = {
     name: 'Potion of Wealth',
     isPotion: true,
@@ -2928,6 +2925,80 @@ export const potionOfWealth:CardSpec = {
     }]
 }
 
+export const potionOfCopper:CardSpec = {
+    name: 'Potion of Copper',
+    isPotion: true,
+    simpleText: 'Create 5 coppers in your hand.',
+    effects: [{
+        text: ['Create 5 Coppers in your hand.'],
+        transform: () => repeat(create(copper, 'hand'), 5)
+    }]
+}
+
+export const potionOfMining:CardSpec = {
+    name: 'Potion of Mining',
+    isPotion: true,
+    simpleText: 'Trash coppers for silvers, silvers for golds.',
+    relatedCards: [copper, silver, gold],
+    effects: [{
+        text: ['Trash any number of Coppers in your hand, and create that many Silvers in your discard.',
+               'Trash any number of Silvers in your hand, and create that many Golds in your discard.'],
+        transform: () => async function(state) {
+            // Trash coppers for silvers
+            const coppers = state.hand.filter(c => c.name == 'Copper')
+            let coppersToTrash:Card[]; [state, coppersToTrash] = await multichoice(state,
+                'Choose Coppers to trash for Silvers.',
+                coppers.map(asChoice), coppers.length)
+            for (const c of coppersToTrash) {
+                state = await trash(c)(state)
+            }
+            state = await repeat(create(silver), coppersToTrash.length)(state)
+            // Trash silvers for golds
+            const silvers = state.hand.filter(c => c.name == 'Silver')
+            let silversToTrash:Card[]; [state, silversToTrash] = await multichoice(state,
+                'Choose Silvers to trash for Golds.',
+                silvers.map(asChoice), silvers.length)
+            for (const c of silversToTrash) {
+                state = await trash(c)(state)
+            }
+            state = await repeat(create(gold), silversToTrash.length)(state)
+            return state
+        }
+    }]
+}
+
+export const potionOfCelebration:CardSpec = {
+    name: 'Potion of Celebration',
+    isPotion: true,
+    simpleText: 'Create a Celebration with an echo token in play.',
+    relatedCards: [celebration],
+    rules: [echoRule],
+    effects: [{
+        text: ['Create a Celebration with an echo token in play.'],
+        transform: () => create(celebration, 'play', c => addToken(c, 'echo'))
+    }]
+}
+
+export const potionOfBounty:CardSpec = {
+    name: 'Potion of Bounty',
+    isPotion: true,
+    simpleText: 'The next time you buy a card, buy it two more times for free.',
+    relatedCards: [bounty],
+    effects: [createInPlayEffect(bounty, 2)]
+}
+
+export const potionOfFerry:CardSpec = {
+    name: 'Potion of Ferry',
+    isPotion: true,
+    simpleText: 'Put a ferry token on a supply. It costs $2 less.',
+    rules: [ferryRule],
+    effects: [targetedEffect(
+        target => addToken(target, 'ferry', 2),
+        'Put two ferry tokens on a supply.',
+        state => state.supply,
+    )]
+}
+
 export const potionOfRecovery:CardSpec = {
     name: 'Potion of Recovery',
     isPotion: true,
@@ -2938,14 +3009,15 @@ export const potionOfRecovery:CardSpec = {
     }]
 }
 
-export const potionOfCopper:CardSpec = {
-    name: 'Potion of Copper',
+export const potionOfShelter:CardSpec = {
+    name: 'Potion of Shelter',
     isPotion: true,
-    simpleText: 'Create 5 coppers in your hand.',
-    effects: [{
-        text: ['Create 5 Coppers in your hand.'],
-        transform: () => repeat(create(copper, 'hand'), 5)
-    }]
+    simpleText: 'Create 3 Fairs and a Shelter in play.',
+    relatedCards: [fair, shelter],
+    effects: [
+        createInPlayEffect(shelter),
+        createInPlayEffect(fair, 3),
+    ]
 }
 
 export const potionOfVitality:CardSpec = {
@@ -2962,10 +3034,167 @@ export const potionOfVitality:CardSpec = {
     ]
 }
 
-export const startingPotions:CardSpec[] = [
+// Gain card potions
+export const potionOfWorkshop:CardSpec = {
+    name: 'Potion of Workshop',
+    isPotion: true,
+    simpleText: 'Create a Workshop in your hand.',
+    relatedCards: [workshop],
+    effects: [{
+        text: ['Create a Workshop in your hand.'],
+        transform: () => create(workshop, 'hand')
+    }]
+}
+
+export const potionOfTavern:CardSpec = {
+    name: 'Potion of Tavern',
+    isPotion: true,
+    simpleText: 'Create a Tavern in your hand.',
+    relatedCards: [tavern],
+    effects: [{
+        text: ['Create a Tavern in your hand.'],
+        transform: () => create(tavern, 'hand')
+    }]
+}
+
+export const potionOfThroneRoom:CardSpec = {
+    name: 'Potion of Throne Room',
+    isPotion: true,
+    simpleText: 'Create a Throne Room in your hand.',
+    relatedCards: [throneRoom],
+    effects: [{
+        text: ['Create a Throne Room in your hand.'],
+        transform: () => create(throneRoom, 'hand')
+    }]
+}
+
+export const potionOfInnovation:CardSpec = {
+    name: 'Potion of Innovation',
+    isPotion: true,
+    simpleText: 'Create an Innovation in your hand.',
+    relatedCards: [innovation],
+    effects: [{
+        text: ['Create an Innovation in your hand.'],
+        transform: () => create(innovation, 'hand')
+    }]
+}
+
+export const potionOfTransmogrify:CardSpec = {
+    name: 'Potion of Transmogrify',
+    isPotion: true,
+    simpleText: 'Create a Transmogrify in your hand.',
+    relatedCards: [transmogrify],
+    effects: [{
+        text: ['Create a Transmogrify in your hand.'],
+        transform: () => create(transmogrify, 'hand')
+    }]
+}
+
+// Event effect potions
+export const potionOfMirrors:CardSpec = {
+    name: 'Potion of Mirrors',
+    isPotion: true,
+    simpleText: 'Put a reflect token on each card in your hand.',
+    rules: [reflectRule],
+    effects: [{
+        text: ['Put a reflect token on each card in your hand.'],
+        transform: (state:State, card:Card) =>
+            doAll(state.hand.map(c => addToken(c, 'reflect')))
+    }]
+}
+
+export const potionOfEchoes:CardSpec = {
+    name: 'Potion of Echoes',
+    isPotion: true,
+    simpleText: 'For each card in your hand without an echo token, create a copy with an echo token.',
+    rules: [echoRule],
+    effects: [{
+        text: [`For each card in your hand without an echo token,
+                create a copy in your hand with an echo token.`],
+        transform: state => doAll(
+            state.hand.filter(c => c.count('echo') == 0).map(
+                c => create(c.spec, 'hand', x => addToken(x, 'echo'))
+            )
+        )
+    }]
+}
+
+export const potionOfOnslaught:CardSpec = {
+    name: 'Potion of Onslaught',
+    isPotion: true,
+    simpleText: 'Play any number of cards in your hand.',
+    effects: [{
+        text: [`Repeat any number of times: play a card in your hand
+            that was also there at the start of this effect
+            and that you haven't played yet.`],
+        transform: (state, card) => async function(state) {
+            const cards:Card[] = state.hand;
+            let options:Option<Card>[] = asNumberedChoices(cards)
+            while (true) {
+                let picked:Card|null; [state, picked] = await choice(state,
+                    'Pick a card to play next.',
+                    allowNull(options.filter(
+                        c => state.find(c.value).place == 'hand'
+                    )))
+                if (picked == null) {
+                    return state
+                } else {
+                    state = await picked.play(card)(state)
+                    const id = picked.id
+                    options = options.filter(c => c.value.id != id )
+                }
+            }
+        }
+    }]
+}
+
+export const potionOfPriority:CardSpec = {
+    name: 'Potion of Priority',
+    isPotion: true,
+    simpleText: 'Put five priority tokens on a supply. The next 5 times you create a card from it, play it immediately.',
+    rules: [priorityRule],
+    effects: [targetedEffect(
+        card => addToken(card, 'priority', 5),
+        'Put five priority tokens on a card in the supply.',
+        state => state.supply,
+    )]
+}
+
+export const potionOfTwin:CardSpec = {
+    name: 'Potion of Twin',
+    isPotion: true,
+    simpleText: 'Put a twin token on a card in your hand. Whenever you play it, play it again.',
+    rules: [twinRule],
+    effects: [targetedEffect(
+        target => addToken(target, 'twin'),
+        'Put a twin token on a card in your hand.',
+        state => state.hand)]
+}
+
+// All potions list for random selection
+export const allPotions:CardSpec[] = [
+    potionOfActions,
     potionOfWealth,
-    potionOfRecovery,
     potionOfCopper,
+    potionOfMining,
+    potionOfCelebration,
+    potionOfBounty,
+    potionOfFerry,
+    potionOfRecovery,
+    potionOfShelter,
     potionOfVitality,
+    potionOfWorkshop,
+    potionOfTavern,
+    potionOfThroneRoom,
+    potionOfInnovation,
+    potionOfTransmogrify,
+    potionOfMirrors,
+    potionOfEchoes,
+    potionOfOnslaught,
+    potionOfPriority,
+    potionOfTwin,
 ]
+
+// Keep startingPotions for backwards compatibility but it won't be used
+export const startingPotions:CardSpec[] = []
 

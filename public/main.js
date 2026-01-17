@@ -98,7 +98,7 @@ import { randomPlaceholder } from './logic.js';
 import { MalformedSpec, specToURL, specFromURL } from './logic.js';
 import { vpModes, vpCardNames, vpEventNames } from './logic.js';
 // register cards
-import { throneRoom, duplicate, startingPotions } from './cards/index.js';
+import { throneRoom, duplicate, allPotions } from './cards/index.js';
 var keyListeners = new Map();
 var symbolHotkeys = ['!', '%', '^', '&', '*', '(', ')', '-', '+', '=', '{', '}', '[', ']']; // '@', '#', '$' are confusing
 var lowerHotkeys = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm',
@@ -737,7 +737,6 @@ function renderState(state, settings) {
     $('#playsize').html('' + state.play.length);
     $('#handsize').html('' + state.hand.length);
     $('#discardsize').html('' + state.discard.length);
-    $('#potionssize').html('' + state.potions.length);
 }
 function bindLogTypeButtons(state, ui) {
     var e = $("input[name='logType']");
@@ -1877,12 +1876,18 @@ function generateStageOptions() {
         return !vpEventNames.has(e.name) && e.name !== 'Refresh' &&
             !collectedEvents.some(function (ce) { return ce.name === e.name; });
     });
+    // Filter potions to exclude ones already collected
+    var potionPool = allPotions.filter(function (p) {
+        return !currentPotions.some(function (cp) { return cp.name === p.name; });
+    });
     var shuffledCards = shuffleArray(__spreadArray([], __read(cardPool), false));
     var shuffledEvents = shuffleArray(__spreadArray([], __read(eventPool), false));
+    var shuffledPotions = shuffleArray(__spreadArray([], __read(potionPool), false));
     stageAddButtonStates = [
         { kind: 'card', options: shuffledCards.slice(0, 3), used: false, selectedCard: null },
         { kind: 'card', options: shuffledCards.slice(3, 6), used: false, selectedCard: null },
         { kind: 'event', options: shuffledEvents.slice(0, 3), used: false, selectedCard: null },
+        { kind: 'potion', options: shuffledPotions.slice(0, 3), used: false, selectedCard: null },
     ];
     // Generate kingdom for this stage
     var seed = generateRandomSeed();
@@ -1902,8 +1907,12 @@ function showCardPicker(buttonIndex) {
     var state = stageAddButtonStates[buttonIndex];
     if (state.used)
         return;
-    var title = state.kind === 'card' ? 'Choose a card:' : 'Choose an event:';
-    $('#cardPickerTitle').text(title);
+    var titles = {
+        'card': 'Choose a card:',
+        'event': 'Choose an event:',
+        'potion': 'Choose a potion:'
+    };
+    $('#cardPickerTitle').text(titles[state.kind]);
     $('#cardPickerOptions').empty();
     var _loop_4 = function (card) {
         var specHtml = renderSpecNoRelated(card);
@@ -1937,15 +1946,27 @@ function selectCard(buttonIndex, card) {
     if (state.kind === 'card') {
         collectedCards.push(card);
     }
-    else {
+    else if (state.kind === 'event') {
         collectedEvents.push(card);
+    }
+    else if (state.kind === 'potion') {
+        currentPotions.push(card);
     }
     updateAddButtonDisplay(buttonIndex);
     hideCardPicker();
 }
 function updateAddButtonDisplay(buttonIndex) {
     var state = stageAddButtonStates[buttonIndex];
-    var buttonId = buttonIndex < 2 ? "#addCard".concat(buttonIndex) : '#addEvent0';
+    var buttonId;
+    if (buttonIndex < 2) {
+        buttonId = "#addCard".concat(buttonIndex);
+    }
+    else if (buttonIndex === 2) {
+        buttonId = '#addEvent0';
+    }
+    else {
+        buttonId = '#addPotion0';
+    }
     if (state.used && state.selectedCard) {
         $(buttonId).text(state.selectedCard.name);
         $(buttonId).attr('disabled', 'true');
@@ -1953,7 +1974,7 @@ function updateAddButtonDisplay(buttonIndex) {
     }
 }
 function setupAddButtons() {
-    var _a, _b;
+    var _a, _b, _c;
     var _loop_5 = function (i) {
         var buttonId = "#addCard".concat(i);
         if (stageAddButtonStates[i].used) {
@@ -1988,6 +2009,21 @@ function setupAddButtons() {
     $(eventButtonId).off('click').on('click', function () {
         if (!stageAddButtonStates[2].used)
             showCardPicker(2);
+    });
+    var potionButtonId = '#addPotion0';
+    if (stageAddButtonStates[3].used) {
+        $(potionButtonId).text(((_c = stageAddButtonStates[3].selectedCard) === null || _c === void 0 ? void 0 : _c.name) || 'Add Potion');
+        $(potionButtonId).attr('disabled', 'true');
+        $(potionButtonId).removeAttr('choosable');
+    }
+    else {
+        $(potionButtonId).text('Add Potion');
+        $(potionButtonId).removeAttr('disabled');
+        $(potionButtonId).attr('choosable', 'true');
+    }
+    $(potionButtonId).off('click').on('click', function () {
+        if (!stageAddButtonStates[3].used)
+            showCardPicker(3);
     });
 }
 function updateProgressSidebar() {
@@ -2074,7 +2110,7 @@ export function showLandingPage() {
     currentStage = 1;
     collectedCards = [];
     collectedEvents = [];
-    currentPotions = startingPotions.slice();
+    currentPotions = [];
     stageScores = Array(TOTAL_STAGES).fill(null);
     generateStageOptions();
     setupDeckIcon();
