@@ -77,6 +77,7 @@ export interface CardSpec {
     replacers?: TypedReplacer[];
     staticReplacers?: TypedReplacer[];
     ability?: Effect[];
+    simpleText?: string; // Short description for card selector/deck view
 }
 
 export interface Cost {
@@ -1987,8 +1988,8 @@ type SetSpec = {
     'events': CardSpec[],
 }
 
-export type ExpansionName = 'base' | 'expansion' | 'absurd' | 'test'
-const expansionNames:ExpansionName[] = ['base', 'expansion', 'absurd', 'test']
+export type ExpansionName = 'base'
+const expansionNames:ExpansionName[] = ['base']
 type SetName = 'core' | ExpansionName
 
 function emptySet(): SetSpec {
@@ -1998,9 +1999,6 @@ function emptySet(): SetSpec {
 export const sets = {
     'core': emptySet(),
     'base': emptySet(),
-    'expansion': emptySet(),
-    'absurd': emptySet(),
-    'test': emptySet(),
 }
 
 // ----- VP MODES -----

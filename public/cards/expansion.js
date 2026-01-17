@@ -72,7 +72,7 @@ var __values = (this && this.__values) || function(o) {
     };
     throw new TypeError(s ? "Object is not iterable." : "Symbol.iterator is not defined.");
 };
-import { choice, asChoice, trash, addCosts, leq, gainPoints, gainActions, gainCoins, gainBuys, free, create, doAll, multichoice, moveMany, addToken, removeToken, payToDo, tick, eq, move, noop, charge, discharge, payCost, aOrNum, allowNull, villager, fair, supplyForCard, actionsEffect, buysEffect, coinsEffect, recycleEffect, reflectTrigger, createInPlayEffect, targetedEffect, chargeEffect, startsWithCharge, energy, coin, useRefresh, reducedCost, applyToTarget, countNameTokens, nameHasToken, incrementCost, costPer, createEffect, repeat, copper, silver, gold, estate, duchy, province, trashOnLeavePlay, trashThis, payAction, fragileEcho, num, playReplacer, countDistinctNames, sourceHasName, renderCostOrZero } from '../logic.js';
+import { choice, asChoice, trash, addCosts, leq, gainPoints, gainActions, gainCoins, gainBuys, free, create, doAll, multichoice, moveMany, addToken, removeToken, payToDo, tick, eq, move, noop, charge, discharge, payCost, aOrNum, allowNull, villager, fair, supplyForCard, actionsEffect, buysEffect, coinsEffect, recycleEffect, reflectTrigger, createInPlayEffect, targetedEffect, chargeEffect, startsWithCharge, energy, coin, useRefresh, reducedCost, applyToTarget, countNameTokens, nameHasToken, incrementCost, costPer, createEffect, repeat, copper, silver, gold, estate, duchy, province, trashOnLeavePlay, trashThis, payAction, fragileEcho, num, playReplacer, sourceHasName, renderCostOrZero } from '../logic.js';
 // ------------------- Expansion ---------------
 export var cards = [];
 export var events = [];
@@ -295,7 +295,7 @@ function buyCheaper(card, s, source) {
 }
 var bulkOrder = {
     name: 'Bulk Order',
-    fixedCost: __assign(__assign({}, free), { energy: 1, coin: 3 }),
+    fixedCost: coin(3),
     effects: [targetedEffect(function (card) { return addToken(card, 'bulk', 5); }, 'Put five bulk tokens on a card in the supply.', function (state) { return state.supply; })],
     staticTriggers: [{
             text: "After buying a card with a bulk token on it other than with this,\n        remove a bulk token from it to buy it again.",
@@ -534,15 +534,15 @@ function magpieEffect() {
         transform: function (s, c) { return create(c.spec); }
     };
 }
-var rats = {
-    name: 'Rats',
-    buyCost: coin(3),
-    effects: [coinsEffect(2), targetedEffect(function (c) { return trash(c); }, 'Trash a card in your hand.', function (s) { return s.hand; }), magpieEffect()]
+var magpie = {
+    name: 'Magpie',
+    buyCost: coin(4),
+    effects: [coinsEffect(2), magpieEffect()]
 };
-cards.push(rats);
+cards.push(magpie);
 var crown = {
     name: 'Crown',
-    buyCost: coin(4),
+    buyCost: coin(3),
     effects: [targetedEffect(function (target) { return addToken(target, 'crown'); }, 'Put a crown token on a card in your hand.', function (s) { return s.hand; })],
     staticTriggers: [reflectTrigger('crown')],
 };
@@ -821,7 +821,7 @@ var marketSquare = {
     relatedCards: [fair],
     effects: [actionsEffect(1), buysEffect(1)],
 };
-cards.push(supplyForCard(marketSquare, coin(2), { afterBuy: [createInPlayEffect(fair, 1)] }));
+cards.push(supplyForCard(marketSquare, coin(2), { afterBuy: [createInPlayEffect(fair, 2)] }));
 /*
 const brigade:CardSpec = {name: 'Brigade',
     effects: [],
@@ -894,8 +894,8 @@ var governor = {
     effects: [actionsEffect(2), buysEffect(1), createInPlayEffect(villager)],
     staticTriggers: [{
             kind: 'buy',
-            handles: function (e) { return (e.card.name == province.name); },
-            text: "Whenever you buy a ".concat(province.name, ", put all ").concat(governorName, "s in your discard into your hand."),
+            handles: function (e) { return (e.card.name == gold.name); },
+            text: "Whenever you buy a ".concat(gold.name, ", put all ").concat(governorName, "s in your discard into your hand."),
             transform: function (e, s) { return moveMany(s.discard.filter(function (card) { return card.name == governorName; }), 'hand'); }
         }]
 };
@@ -1012,11 +1012,12 @@ cards.push(tapestry);
 function workshopTransform(n, source) {
     return applyToTarget(function (target) { return target.buy(source); }, "Buy a card in the supply costing up to $".concat(n, "."), function (state) { return state.supply.filter(function (x) { return leq(x.cost('buy', state), coin(n)); }); });
 }
+var greatFeastName = 'Great Feast';
 var greatFeast = {
-    name: 'Great Feast',
-    buyCost: coin(9),
+    name: greatFeastName,
+    buyCost: coin(8),
     effects: [{
-            text: ["Do this three times: buy a card in the supply costing up to $8"],
+            text: ["Do this three times: buy a card in the supply costing up to $8 other than ".concat(greatFeastName)],
             transform: function (state, card) { return function (state) {
                 return __awaiter(this, void 0, void 0, function () {
                     var i;
@@ -1027,7 +1028,7 @@ var greatFeast = {
                                 _a.label = 1;
                             case 1:
                                 if (!(i < 3)) return [3 /*break*/, 4];
-                                return [4 /*yield*/, workshopTransform(8, card)(state)];
+                                return [4 /*yield*/, applyToTarget(function (target) { return target.buy(card); }, "Buy a card in the supply costing up to $8 other than ".concat(greatFeastName, "."), function (s) { return s.supply.filter(function (x) { return leq(x.cost('buy', s), coin(8)) && x.name != greatFeastName; }); })(state)];
                             case 2:
                                 state = _a.sent();
                                 state = tick(card)(state);
@@ -1068,7 +1069,8 @@ var universityName = 'University';
 var university = {
     name: universityName,
     buyCost: coin(12),
-    effects: [actionsEffect(4), buysEffect(2)],
+    relatedCards: [villager],
+    effects: [actionsEffect(4), buysEffect(2), createInPlayEffect(villager)],
     staticReplacers: [{
             text: "".concat(universityName, " costs $1 less per action you have, but not less than $1."),
             kind: 'cost',
@@ -1109,7 +1111,7 @@ var livery = {
     buyCost: coin(4),
     fixedCost: energy(1),
     relatedCards: [horse],
-    effects: [coinsEffect(2)],
+    effects: [coinsEffect(3)],
     triggers: [{
             kind: 'afterBuy',
             text: "After buying a card costing $3 or more, create ".concat(aOrNum(2, horse.name), " in your discard."),
@@ -1147,16 +1149,15 @@ cards.push(supplyForCard(stables, coin(2), { onBuy: [{
 var bustlingVillage = {
     name: 'Bustling Village',
     buyCost: coin(3),
-    relatedCards: [villager],
     effects: [{
-            text: ["+1 action for each differently-named card in play."],
+            text: ["+1 action for each card in play."],
             transform: function (state, card) { return function (state) {
                 return __awaiter(this, void 0, void 0, function () {
                     var n;
                     return __generator(this, function (_a) {
                         switch (_a.label) {
                             case 0:
-                                n = countDistinctNames(state.play);
+                                n = state.play.length;
                                 return [4 /*yield*/, gainActions(n, card)(state)];
                             case 1:
                                 state = _a.sent();
@@ -1165,7 +1166,7 @@ var bustlingVillage = {
                     });
                 });
             }; }
-        }, createInPlayEffect(villager)]
+        }]
 };
 cards.push(bustlingVillage);
 /*
@@ -1286,7 +1287,7 @@ var embargo = {
 var contraband = {
     name: 'Contraband',
     buyCost: coin(4),
-    effects: [coinsEffect(4), buysEffect(4), createInPlayEffect(embargo)],
+    effects: [coinsEffect(5), buysEffect(5), createInPlayEffect(embargo)],
     relatedCards: [embargo],
 };
 cards.push(contraband);
@@ -1412,9 +1413,9 @@ var werewolf = {
             text: ["If there is no ".concat(moon.name, " in play, create one.")],
             transform: function (s) { return (s.play.some(function (c) { return c.name == moon.name; })) ? noop : create(moon, 'play'); },
         }, {
-            text: ["If a ".concat(moon.name, " in play has an odd number of charge tokens, trash a card, +$3 and +1 buy."), "Otherwise, +3 actions."],
+            text: ["If a ".concat(moon.name, " in play has an odd number of charge tokens (moon is full), +$3 and +1 buy."), "Otherwise, +3 actions."],
             transform: function (s, c) { return (s.play.some(function (c) { return c.name == moon.name && c.charge % 2 == 1; })) ?
-                doAll([applyToTarget(function (card) { return trash(card); }, "Trash a card in your hand.", function (state) { return state.hand; }), gainCoins(3, c), gainBuys(1, c)]) :
+                doAll([gainCoins(3, c), gainBuys(1, c)]) :
                 gainActions(3, c); }
         }]
 };
@@ -1468,7 +1469,7 @@ var churn = {
             }; }
         }]
 };
-cards.push(supplyForCard(churn, coin(3), {
+cards.push(supplyForCard(churn, coin(4), {
     replacers: [startsWithCharge(churn.name, 2)]
 }));
 var accelerate = {
@@ -1606,7 +1607,7 @@ var inn = {
     relatedCards: [villager, horse],
     effects: [createInPlayEffect(villager, 2)]
 };
-cards.push(supplyForCard(inn, coin(5), { afterBuy: [createEffect(horse, 'discard', 3)] }));
+cards.push(supplyForCard(inn, coin(4), { afterBuy: [createEffect(horse, 'discard', 3)] }));
 /*
 const exploit:CardSpec = {
     name: 'Exploit',

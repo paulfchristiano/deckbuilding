@@ -2401,16 +2401,13 @@ function usableExpansions(spec) {
         default: return spec.randomizer.expansions;
     }
 }
-var expansionNames = ['base', 'expansion', 'absurd', 'test'];
+var expansionNames = ['base'];
 function emptySet() {
     return { 'cards': [], 'events': [] };
 }
 export var sets = {
     'core': emptySet(),
     'base': emptySet(),
-    'expansion': emptySet(),
-    'absurd': emptySet(),
-    'test': emptySet(),
 };
 // ----- VP MODES -----
 // List of VP-generating cards to exclude from random selection

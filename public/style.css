@@ -251,9 +251,23 @@ input {
 
 
 @media (hover: hover) {
-    .card:hover .tooltip {
+    /* In-game cards: show simple tooltip normally, full tooltip with shift */
+    .card:hover .tooltip-simple {
         visibility: visible;
         transition-delay: 0.5s;
+    }
+    .shift-held .card:hover .tooltip-simple {
+        visibility: hidden;
+    }
+    .shift-held .card:hover .tooltip-full {
+        visibility: visible;
+        transition-delay: 0s;
+    }
+
+    /* Card selector and deck view: only show tooltip with shift */
+    .shift-held .spec:hover .tooltip {
+        visibility: visible;
+        transition-delay: 0s;
     }
 }
 .hotkey {

@@ -122,6 +122,14 @@ window.addEventListener('keydown', function (e) {
     if (e.key == ' ') { //It's easy and annoying to accidentally hit space
         e.preventDefault();
     }
+    if (e.key == 'Shift') {
+        document.body.classList.add('shift-held');
+    }
+});
+window.addEventListener('keyup', function (e) {
+    if (e.key == 'Shift') {
+        document.body.classList.remove('shift-held');
+    }
 });
 function renderHotkey(hotkey) {
     if (hotkey == ' ')
@@ -378,7 +386,7 @@ function renderShadow(shadow, state, tokenRenderer) {
             break;
         default: assertNever(shadow.spec);
     }
-    return ["<div class='card' ".concat(ticktext, " ").concat(shadowtext, ">"), "<div class='cardbody'>".concat(card).concat(tokenhtml, "</div>"), "<div class='cardcost'>".concat(costhtml, "</div>"), "<span class='tooltip'>".concat(tooltip, "</span>"), "</div>"].join('');
+    return ["<div class='card' ".concat(ticktext, " ").concat(shadowtext, ">"), "<div class='cardbody'>".concat(card).concat(tokenhtml, "</div>"), "<div class='cardcost'>".concat(costhtml, "</div>"), "<span class='tooltip tooltip-simple'>".concat(tooltip, "</span>"), "</div>"].join('');
 }
 function renderEffects(spec) {
     var e_8, _a;
@@ -435,7 +443,7 @@ function renderCard(card, state, zone, options, tokenRenderer, count) {
             : '';
         var hotkeytext = (options.hotkey !== undefined) ? renderHotkey(options.hotkey) : '';
         var ticktext = "tick=".concat(card.ticks[card.ticks.length - 1]);
-        var result = "<div id='card".concat(card.id, "' class='card' ").concat(ticktext, " ").concat(choosetext, "> ").concat(picktext, " ").concat(counttext, "\n                    <div class='cardbody'>").concat(hotkeytext, " ").concat(card).concat(tokenhtml, "</div>\n                    <div class='cardcost'>").concat(costhtml, "</div>\n                    <span class='tooltip'>").concat(renderTooltip(card, state, tokenRenderer), "</span>\n                </div>");
+        var result = "<div id='card".concat(card.id, "' class='card' ").concat(ticktext, " ").concat(choosetext, "> ").concat(picktext, " ").concat(counttext, "\n                    <div class='cardbody'>").concat(hotkeytext, " ").concat(card).concat(tokenhtml, "</div>\n                    <div class='cardcost'>").concat(costhtml, "</div>\n                    <span class='tooltip tooltip-simple'>").concat(renderTooltipSimple(card, state, tokenRenderer), "</span>\n                    <span class='tooltip tooltip-full'>").concat(renderTooltipFull(card, state, tokenRenderer), "</span>\n                </div>");
         return result;
     }
 }
@@ -464,7 +472,21 @@ function cardText(spec) {
     return [buyableHtml, costHtml, effectHtml, abilitiesHtml,
         triggerHtml, replacerHtml, staticTriggerHtml, staticReplacerHtml].join('');
 }
-function renderTooltip(card, state, tokenRenderer) {
+// Simple tooltip: uses simpleText if available, no related cards
+function renderTooltipSimple(card, state, tokenRenderer) {
+    var buyStr = !isZero(card.spec.buyCost) ?
+        "(".concat(renderCost(card.spec.buyCost), ")") : '---';
+    var costStr = !isZero(card.spec.fixedCost) ?
+        "(".concat(renderCost(card.spec.fixedCost), ")") : '---';
+    var header = "<div>---".concat(buyStr, " ").concat(card.name, " ").concat(costStr, "---</div>");
+    var tokensHtml = tokenRenderer.renderTooltip(card.tokens);
+    var bodyText = card.spec.simpleText
+        ? "<div>".concat(card.spec.simpleText, "</div>")
+        : cardText(card.spec);
+    return header + bodyText + tokensHtml;
+}
+// Full tooltip: full card text plus related cards
+function renderTooltipFull(card, state, tokenRenderer) {
     var buyStr = !isZero(card.spec.buyCost) ?
         "(".concat(renderCost(card.spec.buyCost), ")") : '---';
     var costStr = !isZero(card.spec.fixedCost) ?
@@ -474,10 +496,14 @@ function renderTooltip(card, state, tokenRenderer) {
     var baseFilling = header + cardText(card.spec) + tokensHtml;
     function renderRelated(spec) {
         var card = new Card(spec, -1);
-        return renderTooltip(card, state, tokenRenderer);
+        return renderTooltipFull(card, state, tokenRenderer);
     }
     var relatedFilling = card.relatedCards().map(renderRelated).join('');
     return "".concat(baseFilling).concat(relatedFilling);
+}
+// Legacy function for compatibility
+function renderTooltip(card, state, tokenRenderer) {
+    return renderTooltipFull(card, state, tokenRenderer);
 }
 function renderSpec(spec) {
     var buyText = isZero(spec.buyCost) ? '' : "(".concat(renderCost(spec.buyCost), ")&nbsp;");
@@ -487,23 +513,31 @@ function renderSpec(spec) {
     var related = (spec.relatedCards || []).map(renderSpec);
     return [me].concat(related).join('');
 }
+// Build full HTML tooltip for a card spec (matching in-game tooltip style)
+function buildSpecTooltip(spec) {
+    var buyStr = !isZero(spec.buyCost) ?
+        "(".concat(renderCost(spec.buyCost), ")") : '---';
+    var costStr = !isZero(spec.fixedCost) ?
+        "(".concat(renderCost(spec.fixedCost), ")") : '---';
+    var header = "<div>---".concat(buyStr, " ").concat(spec.name, " ").concat(costStr, "---</div>");
+    var baseFilling = header + cardText(spec);
+    // Related cards
+    var relatedCards = spec.relatedCards || [];
+    var relatedFilling = relatedCards.map(function (r) { return buildSpecTooltip(r); }).join('');
+    return "".concat(baseFilling).concat(relatedFilling);
+}
 // Render spec without related cards inline, but with tooltip
 function renderSpecNoRelated(spec) {
     var buyText = isZero(spec.buyCost) ? '' : "(".concat(renderCost(spec.buyCost), ")&nbsp;");
     var costText = isZero(spec.fixedCost) ? '' : "&nbsp;(".concat(renderCost(spec.fixedCost), ")");
     var header = "<div>".concat(buyText, "<strong>").concat(spec.name, "</strong>").concat(costText, "</div>");
-    // Build tooltip text for related cards
-    var relatedCards = spec.relatedCards || [];
-    var tooltipAttr = '';
-    if (relatedCards.length > 0) {
-        var tooltipText = relatedCards.map(function (r) {
-            var rCost = isZero(r.fixedCost) ? '' : " (".concat(renderCost(r.fixedCost), ")");
-            var rText = (r.effects || []).map(function (e) { var _a; return ((_a = e.text) === null || _a === void 0 ? void 0 : _a.join(' ')) || ''; }).join(' ');
-            return "".concat(r.name).concat(rCost, ": ").concat(rText);
-        }).join('\n\n');
-        tooltipAttr = " title=\"".concat(tooltipText.replace(/"/g, '&quot;'), "\"");
-    }
-    return "<div class='spec'".concat(tooltipAttr, ">").concat(header).concat(cardText(spec), "</div>");
+    // Use simpleText if available, otherwise full card text
+    var displayText = spec.simpleText
+        ? "<div>".concat(spec.simpleText, "</div>")
+        : cardText(spec);
+    // Build HTML tooltip matching in-game style
+    var tooltipHtml = buildSpecTooltip(spec);
+    return "<div class='spec'>".concat(header).concat(displayText, "<span class='tooltip'>").concat(tooltipHtml, "</span></div>");
 }
 function getIfDef(m, x) {
     return (m == undefined) ? undefined : m.get(x);
@@ -1770,16 +1804,12 @@ var collectedEvents = [];
 var deckDialogOpen = false;
 // Get cards only from base and expansion
 function getAvailableCards() {
-    var _a, _b;
-    var baseCards = ((_a = sets['base']) === null || _a === void 0 ? void 0 : _a.cards) || [];
-    var expansionCards = ((_b = sets['expansion']) === null || _b === void 0 ? void 0 : _b.cards) || [];
-    return __spreadArray(__spreadArray([], __read(baseCards), false), __read(expansionCards), false);
+    var _a;
+    return ((_a = sets['base']) === null || _a === void 0 ? void 0 : _a.cards) || [];
 }
 function getAvailableEvents() {
-    var _a, _b;
-    var baseEvents = ((_a = sets['base']) === null || _a === void 0 ? void 0 : _a.events) || [];
-    var expansionEvents = ((_b = sets['expansion']) === null || _b === void 0 ? void 0 : _b.events) || [];
-    return __spreadArray(__spreadArray([], __read(baseEvents), false), __read(expansionEvents), false);
+    var _a;
+    return ((_a = sets['base']) === null || _a === void 0 ? void 0 : _a.events) || [];
 }
 function shuffleArray(array) {
     var _a;
@@ -1826,7 +1856,7 @@ function generateStageOptions() {
         kind: 'full',
         randomizer: {
             seed: seed,
-            expansions: ['base', 'expansion']
+            expansions: ['base']
         }
     };
     currentVPModeName = vpModes[modeIndex].name;

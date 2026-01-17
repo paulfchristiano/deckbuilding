@@ -50,6 +50,15 @@ window.addEventListener('keydown', (e: KeyboardEvent) => {
     if (e.key == ' ') { //It's easy and annoying to accidentally hit space
         e.preventDefault()
     }
+    if (e.key == 'Shift') {
+        document.body.classList.add('shift-held')
+    }
+});
+
+window.addEventListener('keyup', (e: KeyboardEvent) => {
+    if (e.key == 'Shift') {
+        document.body.classList.remove('shift-held')
+    }
 });
 
 function renderHotkey(hotkey: Key) {
@@ -241,7 +250,7 @@ function renderShadow(shadow:Shadow, state:State, tokenRenderer:TokenRenderer):s
     return [`<div class='card' ${ticktext} ${shadowtext}>`,
              `<div class='cardbody'>${card}${tokenhtml}</div>`,
              `<div class='cardcost'>${costhtml}</div>`,
-             `<span class='tooltip'>${tooltip}</span>`,
+             `<span class='tooltip tooltip-simple'>${tooltip}</span>`,
              `</div>`].join('')
 }
 
@@ -289,7 +298,8 @@ function renderCard(
         const result = `<div id='card${card.id}' class='card' ${ticktext} ${choosetext}> ${picktext} ${counttext}
                     <div class='cardbody'>${hotkeytext} ${card}${tokenhtml}</div>
                     <div class='cardcost'>${costhtml}</div>
-                    <span class='tooltip'>${renderTooltip(card, state, tokenRenderer)}</span>
+                    <span class='tooltip tooltip-simple'>${renderTooltipSimple(card, state, tokenRenderer)}</span>
+                    <span class='tooltip tooltip-full'>${renderTooltipFull(card, state, tokenRenderer)}</span>
                 </div>`
         return result
     }
@@ -336,7 +346,22 @@ function cardText(spec:CardSpec): string {
 
 }
 
-function renderTooltip(card:Card, state:State, tokenRenderer:TokenRenderer): string {
+// Simple tooltip: uses simpleText if available, no related cards
+function renderTooltipSimple(card:Card, state:State, tokenRenderer:TokenRenderer): string {
+    const buyStr = !isZero(card.spec.buyCost) ?
+        `(${renderCost(card.spec.buyCost as Cost)})` : '---'
+    const costStr = !isZero(card.spec.fixedCost) ?
+        `(${renderCost(card.spec.fixedCost as Cost)})` : '---'
+    const header = `<div>---${buyStr} ${card.name} ${costStr}---</div>`
+    const tokensHtml:string = tokenRenderer.renderTooltip(card.tokens)
+    const bodyText = card.spec.simpleText
+        ? `<div>${card.spec.simpleText}</div>`
+        : cardText(card.spec)
+    return header + bodyText + tokensHtml
+}
+
+// Full tooltip: full card text plus related cards
+function renderTooltipFull(card:Card, state:State, tokenRenderer:TokenRenderer): string {
     const buyStr = !isZero(card.spec.buyCost) ?
         `(${renderCost(card.spec.buyCost as Cost)})` : '---'
     const costStr = !isZero(card.spec.fixedCost) ?
@@ -347,11 +372,16 @@ function renderTooltip(card:Card, state:State, tokenRenderer:TokenRenderer): str
 
     function renderRelated(spec:CardSpec) {
         const card:Card = new Card(spec, -1)
-        return renderTooltip(card, state, tokenRenderer)
+        return renderTooltipFull(card, state, tokenRenderer)
     }
     const relatedFilling:string = card.relatedCards().map(renderRelated).join('')
 
     return `${baseFilling}${relatedFilling}`
+}
+
+// Legacy function for compatibility
+function renderTooltip(card:Card, state:State, tokenRenderer:TokenRenderer): string {
+    return renderTooltipFull(card, state, tokenRenderer)
 }
 
 function renderSpec(spec:CardSpec): string {
@@ -363,25 +393,37 @@ function renderSpec(spec:CardSpec): string {
     return [me].concat(related).join('')
 }
 
+// Build full HTML tooltip for a card spec (matching in-game tooltip style)
+function buildSpecTooltip(spec: CardSpec): string {
+    const buyStr = !isZero(spec.buyCost) ?
+        `(${renderCost(spec.buyCost as Cost)})` : '---'
+    const costStr = !isZero(spec.fixedCost) ?
+        `(${renderCost(spec.fixedCost as Cost)})` : '---'
+    const header = `<div>---${buyStr} ${spec.name} ${costStr}---</div>`
+    const baseFilling = header + cardText(spec)
+
+    // Related cards
+    const relatedCards = spec.relatedCards || []
+    const relatedFilling = relatedCards.map(r => buildSpecTooltip(r)).join('')
+
+    return `${baseFilling}${relatedFilling}`
+}
+
 // Render spec without related cards inline, but with tooltip
 function renderSpecNoRelated(spec:CardSpec): string {
     const buyText = isZero(spec.buyCost) ? '' : `(${renderCost(spec.buyCost as Cost)})&nbsp;`
     const costText = isZero(spec.fixedCost) ? '' : `&nbsp;(${renderCost(spec.fixedCost as Cost)})`
     const header = `<div>${buyText}<strong>${spec.name}</strong>${costText}</div>`
 
-    // Build tooltip text for related cards
-    const relatedCards = spec.relatedCards || []
-    let tooltipAttr = ''
-    if (relatedCards.length > 0) {
-        const tooltipText = relatedCards.map(r => {
-            const rCost = isZero(r.fixedCost) ? '' : ` (${renderCost(r.fixedCost as Cost)})`
-            const rText = (r.effects || []).map(e => e.text?.join(' ') || '').join(' ')
-            return `${r.name}${rCost}: ${rText}`
-        }).join('\n\n')
-        tooltipAttr = ` title="${tooltipText.replace(/"/g, '&quot;')}"`
-    }
+    // Use simpleText if available, otherwise full card text
+    const displayText = spec.simpleText
+        ? `<div>${spec.simpleText}</div>`
+        : cardText(spec)
 
-    return `<div class='spec'${tooltipAttr}>${header}${cardText(spec)}</div>`
+    // Build HTML tooltip matching in-game style
+    const tooltipHtml = buildSpecTooltip(spec)
+
+    return `<div class='spec'>${header}${displayText}<span class='tooltip'>${tooltipHtml}</span></div>`
 }
 
 
@@ -1758,15 +1800,11 @@ let deckDialogOpen: boolean = false
 
 // Get cards only from base and expansion
 function getAvailableCards(): CardSpec[] {
-    const baseCards = sets['base']?.cards || []
-    const expansionCards = sets['expansion']?.cards || []
-    return [...baseCards, ...expansionCards]
+    return sets['base']?.cards || []
 }
 
 function getAvailableEvents(): CardSpec[] {
-    const baseEvents = sets['base']?.events || []
-    const expansionEvents = sets['expansion']?.events || []
-    return [...baseEvents, ...expansionEvents]
+    return sets['base']?.events || []
 }
 
 function shuffleArray<T>(array: T[]): T[] {
@@ -1820,7 +1858,7 @@ function generateStageOptions(): void {
         kind: 'full',
         randomizer: {
             seed: seed,
-            expansions: ['base', 'expansion']
+            expansions: ['base']
         }
     }
     currentVPModeName = vpModes[modeIndex].name
