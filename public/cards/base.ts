@@ -280,8 +280,8 @@ const flourish:CardSpec = {name: flourishName,
     fixedCost: free,
     simpleText: `Once you have 1/16 of the vp requirement, you can use this to Refresh for free. You can repeat once you reach 1/8, 1/4, and 1/2 of the requirement.`,
     restrictions: [{
-        text: 'You can only use this if your score times the charge tokens on this is at least the vp goal.',
-        test: (card, state) => state.points * state.find(card).charge >= state.vp_goal
+        text: 'You cannot use this if your score times the number of charge tokens on this is less than the vp goal.',
+        test: (card, state) => state.points * state.find(card).charge < state.vp_goal
     }],
     effects: [
         useRefresh(),
@@ -294,7 +294,12 @@ const flourish:CardSpec = {name: flourishName,
             }
         }
     ],
-    staticReplacers: [startsWithCharge(flourishName, 16)]
+    staticTriggers: [{
+        kind: 'gameStart',
+        text: 'At the start of the game, put 16 charge tokens on this.',
+        handles: () => true,
+        transform: (e, state, card) => charge(card, 16)
+    }]
 }
 events.push(flourish)
 
@@ -404,11 +409,11 @@ function costPerN(increment:Partial<Cost>, n:number): VariableCost {
 
 const travelingFair:CardSpec = {name:'Traveling Fair',
     fixedCost: coin(1),
-    variableCosts: [costPerN(coin(1), 5)],
-    effects: [incrementCost(), buyEffect(), createInPlayEffect(fair)],
+    simpleText: '+1 buy. Create a Fair in play.',
+    effects: [buyEffect(), createInPlayEffect(fair)],
     relatedCards: [fair],
 }
-// events.push(travelingFair) // removed (boon)
+// events.push(travelingFair) // boon only
 
 const philanthropy:CardSpec = {name: 'Philanthropy',
     fixedCost: coin(10),
@@ -553,12 +558,11 @@ const populate:CardSpec = {name: 'Populate',
 */
 const populate:CardSpec = {name: 'Populate',
     fixedCost: {...free, coin:8, energy:2},
+    simpleText: 'Buy every card in the supply costing up to $8.',
     effects: [{
-        text: ['Buy up to 5 cards in the supply each costing up to $8.'],
+        text: ['Buy every card in the supply costing up to $8.'],
         transform: (s, card) => async function(state) {
-            let targets; [state, targets] = await multichoice(state,
-                'Choose up to 5 cards to buy',
-                state.supply.filter(target => leq(target.cost('buy', state), coin(8))).map(asChoice), 5)
+            const targets = state.supply.filter(target => leq(target.cost('buy', state), coin(8)))
             for (const target of targets) {
                 state = await target.buy(card)(state)
             }
@@ -566,7 +570,7 @@ const populate:CardSpec = {name: 'Populate',
         }
     }]
 }
-// events.push(populate) // removed (boon)
+// events.push(populate) // boon only
 
 export const duplicate:CardSpec = {name: 'Duplicate',
     simpleText: `For each card in the supply, the next time you buy that card buy it again for free.`,
@@ -2882,6 +2886,108 @@ const capitalization:CardSpec = {
     name: 'Capitalization',
     fixedCost: coin(1),
     effects: [pointsEffect(1)]
+}
+
+// ========== BOON EVENTS ==========
+
+const insight:CardSpec = {
+    name: 'Insight',
+    fixedCost: energy(1),
+    simpleText: '+1 action, +1 buy, +$1. Create a Villager and a Fair in play.',
+    relatedCards: [villager, fair],
+    effects: [
+        actionsEffect(1),
+        buysEffect(1),
+        coinsEffect(1),
+        createInPlayEffect(villager),
+        createInPlayEffect(fair),
+    ]
+}
+// events.push(insight) // boon only
+
+const windfall:CardSpec = {
+    name: 'Windfall',
+    fixedCost: free,
+    simpleText: 'At the start of the game, +$15 and +5 buys.',
+    restrictions: [cannotUse],
+    staticTriggers: [{
+        kind: 'gameStart',
+        text: 'At the start of the game, +$15 and +5 buys.',
+        handles: () => true,
+        transform: (e, state, card) => doAll([gainCoins(15, card), gainBuys(5, card)])
+    }]
+}
+// events.push(windfall) // boon only
+
+const duplicateStart:CardSpec = {
+    name: 'Duplicate Start',
+    fixedCost: free,
+    simpleText: 'At the start of the game, put a duplicate token on each card in the supply.',
+    restrictions: [cannotUse],
+    staticTriggers: [{
+        kind: 'gameStart',
+        text: 'At the start of the game, put a duplicate token on each card in the supply.',
+        handles: () => true,
+        transform: (e, state, card) => async function(state) {
+            for (const supply of state.supply) {
+                state = await addToken(supply, 'duplicate')(state)
+            }
+            return state
+        }
+    }]
+}
+
+const priorityStart:CardSpec = {
+    name: 'Priority Start',
+    fixedCost: free,
+    simpleText: 'At the start of the game, put a priority token on each card in the supply.',
+    restrictions: [cannotUse],
+    staticTriggers: [{
+        kind: 'gameStart',
+        text: 'At the start of the game, put a priority token on each card in the supply.',
+        handles: () => true,
+        transform: (e, state, card) => async function(state) {
+            for (const supply of state.supply) {
+                state = await addToken(supply, 'priority')(state)
+            }
+            return state
+        }
+    }]
+}
+
+const vaultStart:CardSpec = {
+    name: 'Vault Start',
+    fixedCost: free,
+    simpleText: 'At the start of the game, +10 actions and +2 buys.',
+    restrictions: [cannotUse],
+    staticTriggers: [{
+        kind: 'gameStart',
+        text: 'At the start of the game, +10 actions and +2 buys.',
+        handles: () => true,
+        transform: (e, state, card) => doAll([gainActions(10, card), gainBuys(2, card)])
+    }]
+}
+
+// Export boon-related cards/events for use in main.ts
+export const boonCards = {
+    publicWorks,
+}
+
+export const boonEvents = {
+    escalate,
+    reuse,
+    flourish,
+    recycle,
+    vault,
+    travelingFair,
+    populate,
+    insight,
+    windfall,
+    duplicate,
+    prioritize,
+    duplicateStart,
+    priorityStart,
+    vaultStart,
 }
 
 // ========== VP MODES ==========

@@ -1876,7 +1876,7 @@ export function incrementCost() {
         transform: function (s, c) { return addToken(c, 'cost'); }
     };
 }
-function incrementMap(m, k, n) {
+export function incrementMap(m, k, n) {
     m.set(k, (m.get(k) || 0) + n);
 }
 export function startsWithCharge(name, n) {

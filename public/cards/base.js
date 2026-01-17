@@ -300,8 +300,8 @@ var flourish = { name: flourishName,
     fixedCost: free,
     simpleText: "Once you have 1/16 of the vp requirement, you can use this to Refresh for free. You can repeat once you reach 1/8, 1/4, and 1/2 of the requirement.",
     restrictions: [{
-            text: 'You can only use this if your score times the charge tokens on this is at least the vp goal.',
-            test: function (card, state) { return state.points * state.find(card).charge >= state.vp_goal; }
+            text: 'You cannot use this if your score times the number of charge tokens on this is less than the vp goal.',
+            test: function (card, state) { return state.points * state.find(card).charge < state.vp_goal; }
         }],
     effects: [
         useRefresh(),
@@ -314,7 +314,13 @@ var flourish = { name: flourishName,
             }
         }
     ],
-    staticReplacers: [startsWithCharge(flourishName, 16)] };
+    staticTriggers: [{
+            kind: 'gameStart',
+            text: 'At the start of the game, put 16 charge tokens on this.',
+            handles: function () { return true; },
+            transform: function (e, state, card) { return charge(card, 16); }
+        }]
+};
 events.push(flourish);
 /*
 const perpetualMotion:CardSpec = {name:'Perpetual Motion',
@@ -433,11 +439,11 @@ function costPerN(increment, n) {
 }
 var travelingFair = { name: 'Traveling Fair',
     fixedCost: coin(1),
-    variableCosts: [costPerN(coin(1), 5)],
-    effects: [incrementCost(), buyEffect(), createInPlayEffect(fair)],
+    simpleText: '+1 buy. Create a Fair in play.',
+    effects: [buyEffect(), createInPlayEffect(fair)],
     relatedCards: [fair],
 };
-// events.push(travelingFair) // removed (boon)
+// events.push(travelingFair) // boon only
 var philanthropy = { name: 'Philanthropy',
     fixedCost: coin(10),
     effects: [{
@@ -575,51 +581,51 @@ const populate:CardSpec = {name: 'Populate',
 */
 var populate = { name: 'Populate',
     fixedCost: __assign(__assign({}, free), { coin: 8, energy: 2 }),
+    simpleText: 'Buy every card in the supply costing up to $8.',
     effects: [{
-            text: ['Buy up to 5 cards in the supply each costing up to $8.'],
+            text: ['Buy every card in the supply costing up to $8.'],
             transform: function (s, card) { return function (state) {
                 return __awaiter(this, void 0, void 0, function () {
                     var targets, targets_1, targets_1_1, target, e_1_1;
-                    var _a, e_1, _b;
-                    return __generator(this, function (_c) {
-                        switch (_c.label) {
-                            case 0: return [4 /*yield*/, multichoice(state, 'Choose up to 5 cards to buy', state.supply.filter(function (target) { return leq(target.cost('buy', state), coin(8)); }).map(asChoice), 5)];
+                    var e_1, _a;
+                    return __generator(this, function (_b) {
+                        switch (_b.label) {
+                            case 0:
+                                targets = state.supply.filter(function (target) { return leq(target.cost('buy', state), coin(8)); });
+                                _b.label = 1;
                             case 1:
-                                _a = __read.apply(void 0, [_c.sent(), 2]), state = _a[0], targets = _a[1];
-                                _c.label = 2;
-                            case 2:
-                                _c.trys.push([2, 7, 8, 9]);
+                                _b.trys.push([1, 6, 7, 8]);
                                 targets_1 = __values(targets), targets_1_1 = targets_1.next();
-                                _c.label = 3;
-                            case 3:
-                                if (!!targets_1_1.done) return [3 /*break*/, 6];
+                                _b.label = 2;
+                            case 2:
+                                if (!!targets_1_1.done) return [3 /*break*/, 5];
                                 target = targets_1_1.value;
                                 return [4 /*yield*/, target.buy(card)(state)];
+                            case 3:
+                                state = _b.sent();
+                                _b.label = 4;
                             case 4:
-                                state = _c.sent();
-                                _c.label = 5;
-                            case 5:
                                 targets_1_1 = targets_1.next();
-                                return [3 /*break*/, 3];
-                            case 6: return [3 /*break*/, 9];
-                            case 7:
-                                e_1_1 = _c.sent();
+                                return [3 /*break*/, 2];
+                            case 5: return [3 /*break*/, 8];
+                            case 6:
+                                e_1_1 = _b.sent();
                                 e_1 = { error: e_1_1 };
-                                return [3 /*break*/, 9];
-                            case 8:
+                                return [3 /*break*/, 8];
+                            case 7:
                                 try {
-                                    if (targets_1_1 && !targets_1_1.done && (_b = targets_1.return)) _b.call(targets_1);
+                                    if (targets_1_1 && !targets_1_1.done && (_a = targets_1.return)) _a.call(targets_1);
                                 }
                                 finally { if (e_1) throw e_1.error; }
                                 return [7 /*endfinally*/];
-                            case 9: return [2 /*return*/, state];
+                            case 8: return [2 /*return*/, state];
                         }
                     });
                 });
             }; }
         }]
 };
-// events.push(populate) // removed (boon)
+// events.push(populate) // boon only
 export var duplicate = { name: 'Duplicate',
     simpleText: "For each card in the supply, the next time you buy that card buy it again for free.",
     fixedCost: __assign(__assign({}, free), { coin: 4, energy: 1 }),
@@ -1419,6 +1425,7 @@ var looter = { name: 'Looter',
 cards.push(supplyForCard(looter, coin(4)));
 var palace = { name: 'Palace',
     fixedCost: energy(1),
+    buyCost: coin(5),
     effects: [actionsEffect(2), pointsEffect(2), coinsEffect(2)]
 };
 // cards.push(supplyForCard(palace, coin(5))) // removed (vp)
@@ -2893,7 +2900,7 @@ cards.push(contraband);
 var bulkOrder = {
     name: 'Bulk Order',
     fixedCost: coin(3),
-    simpleText: "The next 5 times you buy a card from a supply, buy it again for free.",
+    simpleText: "Choose a card in the supply. The next 5 times you buy that card, buy it again for free.",
     effects: [targetedEffect(function (card) { return addToken(card, 'duplicate', 5); }, 'Put five duplicate tokens on a card in the supply.', function (state) { return state.supply; })],
     rules: [duplicateRule],
 };
@@ -2930,6 +2937,160 @@ var capitalization = {
     name: 'Capitalization',
     fixedCost: coin(1),
     effects: [pointsEffect(1)]
+};
+// ========== BOON EVENTS ==========
+var insight = {
+    name: 'Insight',
+    fixedCost: energy(1),
+    simpleText: '+1 action, +1 buy, +$1. Create a Villager and a Fair in play.',
+    relatedCards: [villager, fair],
+    effects: [
+        actionsEffect(1),
+        buysEffect(1),
+        coinsEffect(1),
+        createInPlayEffect(villager),
+        createInPlayEffect(fair),
+    ]
+};
+// events.push(insight) // boon only
+var windfall = {
+    name: 'Windfall',
+    fixedCost: free,
+    simpleText: 'At the start of the game, +$15 and +5 buys.',
+    restrictions: [cannotUse],
+    staticTriggers: [{
+            kind: 'gameStart',
+            text: 'At the start of the game, +$15 and +5 buys.',
+            handles: function () { return true; },
+            transform: function (e, state, card) { return doAll([gainCoins(15, card), gainBuys(5, card)]); }
+        }]
+};
+// events.push(windfall) // boon only
+var duplicateStart = {
+    name: 'Duplicate Start',
+    fixedCost: free,
+    simpleText: 'At the start of the game, put a duplicate token on each card in the supply.',
+    restrictions: [cannotUse],
+    staticTriggers: [{
+            kind: 'gameStart',
+            text: 'At the start of the game, put a duplicate token on each card in the supply.',
+            handles: function () { return true; },
+            transform: function (e, state, card) { return function (state) {
+                return __awaiter(this, void 0, void 0, function () {
+                    var _a, _b, supply, e_4_1;
+                    var e_4, _c;
+                    return __generator(this, function (_d) {
+                        switch (_d.label) {
+                            case 0:
+                                _d.trys.push([0, 5, 6, 7]);
+                                _a = __values(state.supply), _b = _a.next();
+                                _d.label = 1;
+                            case 1:
+                                if (!!_b.done) return [3 /*break*/, 4];
+                                supply = _b.value;
+                                return [4 /*yield*/, addToken(supply, 'duplicate')(state)];
+                            case 2:
+                                state = _d.sent();
+                                _d.label = 3;
+                            case 3:
+                                _b = _a.next();
+                                return [3 /*break*/, 1];
+                            case 4: return [3 /*break*/, 7];
+                            case 5:
+                                e_4_1 = _d.sent();
+                                e_4 = { error: e_4_1 };
+                                return [3 /*break*/, 7];
+                            case 6:
+                                try {
+                                    if (_b && !_b.done && (_c = _a.return)) _c.call(_a);
+                                }
+                                finally { if (e_4) throw e_4.error; }
+                                return [7 /*endfinally*/];
+                            case 7: return [2 /*return*/, state];
+                        }
+                    });
+                });
+            }; }
+        }]
+};
+var priorityStart = {
+    name: 'Priority Start',
+    fixedCost: free,
+    simpleText: 'At the start of the game, put a priority token on each card in the supply.',
+    restrictions: [cannotUse],
+    staticTriggers: [{
+            kind: 'gameStart',
+            text: 'At the start of the game, put a priority token on each card in the supply.',
+            handles: function () { return true; },
+            transform: function (e, state, card) { return function (state) {
+                return __awaiter(this, void 0, void 0, function () {
+                    var _a, _b, supply, e_5_1;
+                    var e_5, _c;
+                    return __generator(this, function (_d) {
+                        switch (_d.label) {
+                            case 0:
+                                _d.trys.push([0, 5, 6, 7]);
+                                _a = __values(state.supply), _b = _a.next();
+                                _d.label = 1;
+                            case 1:
+                                if (!!_b.done) return [3 /*break*/, 4];
+                                supply = _b.value;
+                                return [4 /*yield*/, addToken(supply, 'priority')(state)];
+                            case 2:
+                                state = _d.sent();
+                                _d.label = 3;
+                            case 3:
+                                _b = _a.next();
+                                return [3 /*break*/, 1];
+                            case 4: return [3 /*break*/, 7];
+                            case 5:
+                                e_5_1 = _d.sent();
+                                e_5 = { error: e_5_1 };
+                                return [3 /*break*/, 7];
+                            case 6:
+                                try {
+                                    if (_b && !_b.done && (_c = _a.return)) _c.call(_a);
+                                }
+                                finally { if (e_5) throw e_5.error; }
+                                return [7 /*endfinally*/];
+                            case 7: return [2 /*return*/, state];
+                        }
+                    });
+                });
+            }; }
+        }]
+};
+var vaultStart = {
+    name: 'Vault Start',
+    fixedCost: free,
+    simpleText: 'At the start of the game, +10 actions and +2 buys.',
+    restrictions: [cannotUse],
+    staticTriggers: [{
+            kind: 'gameStart',
+            text: 'At the start of the game, +10 actions and +2 buys.',
+            handles: function () { return true; },
+            transform: function (e, state, card) { return doAll([gainActions(10, card), gainBuys(2, card)]); }
+        }]
+};
+// Export boon-related cards/events for use in main.ts
+export var boonCards = {
+    publicWorks: publicWorks,
+};
+export var boonEvents = {
+    escalate: escalate,
+    reuse: reuse,
+    flourish: flourish,
+    recycle: recycle,
+    vault: vault,
+    travelingFair: travelingFair,
+    populate: populate,
+    insight: insight,
+    windfall: windfall,
+    duplicate: duplicate,
+    prioritize: prioritize,
+    duplicateStart: duplicateStart,
+    priorityStart: priorityStart,
+    vaultStart: vaultStart,
 };
 // ========== VP MODES ==========
 export var vpModes = [
@@ -2998,8 +3159,8 @@ export var potionOfMining = {
                 'Trash any number of Silvers in your hand, and create that many Golds in your discard.'],
             transform: function () { return function (state) {
                 return __awaiter(this, void 0, void 0, function () {
-                    var coppers, coppersToTrash, coppersToTrash_1, coppersToTrash_1_1, c, e_4_1, silvers, silversToTrash, silversToTrash_1, silversToTrash_1_1, c, e_5_1;
-                    var _a, e_4, _b, _c, e_5, _d;
+                    var coppers, coppersToTrash, coppersToTrash_1, coppersToTrash_1_1, c, e_6_1, silvers, silversToTrash, silversToTrash_1, silversToTrash_1_1, c, e_7_1;
+                    var _a, e_6, _b, _c, e_7, _d;
                     return __generator(this, function (_e) {
                         switch (_e.label) {
                             case 0:
@@ -3024,14 +3185,14 @@ export var potionOfMining = {
                                 return [3 /*break*/, 3];
                             case 6: return [3 /*break*/, 9];
                             case 7:
-                                e_4_1 = _e.sent();
-                                e_4 = { error: e_4_1 };
+                                e_6_1 = _e.sent();
+                                e_6 = { error: e_6_1 };
                                 return [3 /*break*/, 9];
                             case 8:
                                 try {
                                     if (coppersToTrash_1_1 && !coppersToTrash_1_1.done && (_b = coppersToTrash_1.return)) _b.call(coppersToTrash_1);
                                 }
-                                finally { if (e_4) throw e_4.error; }
+                                finally { if (e_6) throw e_6.error; }
                                 return [7 /*endfinally*/];
                             case 9: return [4 /*yield*/, repeat(create(silver), coppersToTrash.length)(state)
                                 // Trash silvers for golds
@@ -3059,14 +3220,14 @@ export var potionOfMining = {
                                 return [3 /*break*/, 13];
                             case 16: return [3 /*break*/, 19];
                             case 17:
-                                e_5_1 = _e.sent();
-                                e_5 = { error: e_5_1 };
+                                e_7_1 = _e.sent();
+                                e_7 = { error: e_7_1 };
                                 return [3 /*break*/, 19];
                             case 18:
                                 try {
                                     if (silversToTrash_1_1 && !silversToTrash_1_1.done && (_d = silversToTrash_1.return)) _d.call(silversToTrash_1);
                                 }
-                                finally { if (e_5) throw e_5.error; }
+                                finally { if (e_7) throw e_7.error; }
                                 return [7 /*endfinally*/];
                             case 19: return [4 /*yield*/, repeat(create(gold), silversToTrash.length)(state)];
                             case 20:

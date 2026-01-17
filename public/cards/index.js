@@ -36,4 +36,6 @@ export var throneRoom = base.throneRoom;
 export var duplicate = base.duplicate;
 export var startingPotions = base.startingPotions;
 export var allPotions = base.allPotions;
+export var boonCards = base.boonCards;
+export var boonEvents = base.boonEvents;
 //# sourceMappingURL=index.js.map

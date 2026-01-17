@@ -18,3 +18,5 @@ export const throneRoom = base.throneRoom;
 export const duplicate = base.duplicate;
 export const startingPotions = base.startingPotions;
 export const allPotions = base.allPotions;
+export const boonCards = base.boonCards;
+export const boonEvents = base.boonEvents;

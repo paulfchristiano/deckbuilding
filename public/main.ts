@@ -22,7 +22,8 @@ import { vpModes, selectVPMode, vpCardNames, vpEventNames } from './logic.js'
 import { supplyComp, eventComp } from './logic.js'
 
 // register cards
-import {throneRoom, duplicate, startingPotions, allPotions} from './cards/index.js'
+import {throneRoom, duplicate, startingPotions, allPotions, boonCards, boonEvents} from './cards/index.js'
+import { duplicateRule, priorityRule } from './logic.js'
 
 // --------------------- Hotkeys
 
@@ -605,7 +606,7 @@ function renderState(
     }
     $('#resolvingHeader').html('Resolving:')
     // Display energy as X/Y where Y is par, red if over par
-    const par = STAGE_PARS[currentStage - 1] || 0
+    const par = getCurrentPar()
     const energyDisplay = `${state.energy}/${par}`
     if (state.energy > par) {
         $('#energy').html(`<span style="color: red">${energyDisplay}</span>`)
@@ -1802,13 +1803,127 @@ export function loadPicker(picked_sets: ExpansionName[]): void {
 // ----------------------------------- Landing Page
 
 // Stage-based game state
-const TOTAL_STAGES = 9
-const STAGE_PARS = [40, 35, 30, 37, 24, 21, 18, 0, 0] // Par for each stage (0-indexed)
+const TOTAL_STAGES = 8
+const BASE_PARS = [40, 35, 30, 37, 24, 21, 18, 0] // Base par for each stage (0-indexed)
 let currentStage: number = 1
 let currentKingdom: GameSpec | null = null
 let currentVPModeName: string = ''
+let currentBoon: Boon | null = null
 let stageScores: (number | null)[] = Array(TOTAL_STAGES).fill(null)
+let stagePars: (number | null)[] = Array(TOTAL_STAGES).fill(null) // Actual par for each completed stage
 let currentBuffer: number = 16
+
+// Boon system
+interface Boon {
+    name: string
+    description: string
+    parReduction: number
+    cards: CardSpec[]
+    events: CardSpec[]
+}
+
+const ALL_BOONS: Boon[] = [
+    {
+        name: 'Windfall',
+        description: 'Gain $15 and 5 buys at the start of the game',
+        parReduction: 10,
+        cards: [],
+        events: [boonEvents.windfall],
+    },
+    {
+        name: 'Escalate',
+        description: 'Add Escalate as an event',
+        parReduction: 12,
+        cards: [],
+        events: [boonEvents.escalate],
+    },
+    {
+        name: 'Public Works',
+        description: 'Add Public Works as a card',
+        parReduction: 5,
+        cards: [boonCards.publicWorks],
+        events: [],
+    },
+    {
+        name: 'Reuse',
+        description: 'Add Reuse as an event',
+        parReduction: 7,
+        cards: [],
+        events: [boonEvents.reuse],
+    },
+    {
+        name: 'Flourish',
+        description: 'Add Flourish as an event',
+        parReduction: 7,
+        cards: [],
+        events: [boonEvents.flourish],
+    },
+    {
+        name: 'Recycle',
+        description: 'Add Recycle as an event',
+        parReduction: 5,
+        cards: [],
+        events: [boonEvents.recycle],
+    },
+    {
+        name: 'Vault',
+        description: 'Add Vault as an event, start with 10 actions and 2 buys',
+        parReduction: 4,
+        cards: [],
+        events: [boonEvents.vault, boonEvents.vaultStart],
+    },
+    {
+        name: 'Duplicate',
+        description: 'Start with a duplicate token on everything',
+        parReduction: 5,
+        cards: [],
+        events: [boonEvents.duplicateStart],
+    },
+    {
+        name: 'Accelerate',
+        description: 'Start with a priority token on everything',
+        parReduction: 5,
+        cards: [],
+        events: [boonEvents.priorityStart],
+    },
+    {
+        name: 'Prioritize',
+        description: 'Add Prioritize as an event',
+        parReduction: 5,
+        cards: [],
+        events: [boonEvents.prioritize],
+    },
+    {
+        name: 'Traveling Fair',
+        description: 'Add Traveling Fair as an event (no scaling cost)',
+        parReduction: 6,
+        cards: [],
+        events: [boonEvents.travelingFair],
+    },
+    {
+        name: 'Populate',
+        description: 'Add Populate as an event (buys all cards)',
+        parReduction: 3,
+        cards: [],
+        events: [boonEvents.populate],
+    },
+    {
+        name: 'Insight',
+        description: 'Add Insight as an event',
+        parReduction: 3,
+        cards: [],
+        events: [boonEvents.insight],
+    },
+]
+
+function getCurrentPar(): number {
+    const basePar = BASE_PARS[currentStage - 1] || 0
+    // No boon on final stage (stage 8)
+    if (currentStage === TOTAL_STAGES || !currentBoon) {
+        return basePar
+    }
+    return Math.max(0, basePar - currentBoon.parReduction)
+}
 
 // Deck building state
 interface AddButtonState {
@@ -1880,6 +1995,14 @@ function generateStageOptions(): void {
         { kind: 'event', options: shuffledEvents.slice(0, 3), used: false, selectedCard: null },
         { kind: 'potion', options: shuffledPotions.slice(0, 3), used: false, selectedCard: null },
     ]
+
+    // Select random boon (no boon on final stage)
+    if (currentStage === TOTAL_STAGES) {
+        currentBoon = null
+    } else {
+        const shuffledBoons = shuffleArray([...ALL_BOONS])
+        currentBoon = shuffledBoons[0]
+    }
 
     // Generate kingdom for this stage
     const seed = generateRandomSeed()
@@ -2040,8 +2163,8 @@ function updateProgressSidebar(): void {
             $(this).addClass('completed')
             // Show score as X/Y where Y is par, red if over par
             const score = stageScores[stage - 1]
-            if (score !== null) {
-                const par = STAGE_PARS[stage - 1] || 0
+            const par = stagePars[stage - 1]
+            if (score !== null && par !== null) {
                 const scoreDisplay = `${score}/${par}`
                 if (score > par) {
                     $(this).append(`<span class="progressScore" style="color: red">${scoreDisplay}</span>`)
@@ -2108,7 +2231,9 @@ export function showLandingPage(): void {
     collectedEvents = []
     currentPotions = []
     stageScores = Array(TOTAL_STAGES).fill(null)
+    stagePars = Array(TOTAL_STAGES).fill(null)
     currentBuffer = 16
+    currentBoon = null
     generateStageOptions()
     setupDeckIcon()
     updateBufferDisplay()
@@ -2128,8 +2253,12 @@ function showStageScreen(): void {
     // Set up add buttons
     setupAddButtons()
 
-    // Set up play kingdom button
-    $('#playKingdom').text(`Play: ${currentVPModeName}`)
+    // Set up play kingdom button with VP mode and boon
+    let playButtonText = `Play: ${currentVPModeName}`
+    if (currentBoon) {
+        playButtonText += ` + ${currentBoon.name}`
+    }
+    $('#playKingdom').html(playButtonText)
     $('#playKingdom').off('click').on('click', startCurrentKingdom)
 
     // Set up back button
@@ -2153,9 +2282,13 @@ function startCurrentKingdom(): void {
         document.activeElement.blur()
     }
 
-    // Start the game with collected cards/events and potions (sorted by cost)
-    const sortedCards = [...collectedCards].sort(supplyComp)
-    const sortedEvents = [...collectedEvents].sort(eventComp)
+    // Combine boon cards/events with collected cards/events
+    // Boon cards/events come first (after VP mode), then player's collected cards
+    const boonCardsList = currentBoon?.cards || []
+    const boonEventsList = currentBoon?.events || []
+    const sortedCards = [...boonCardsList, ...[...collectedCards].sort(supplyComp)]
+    const sortedEvents = [...boonEventsList, ...[...collectedEvents].sort(eventComp)]
+
     const state = initialState(currentKingdom, sortedCards, sortedEvents, currentPotions)
     startGame(state)
 }
@@ -2186,11 +2319,12 @@ function showFinalVictory(): void {
 
 // Called when player wins a kingdom
 function onKingdomVictory(score: number, remainingPotions: CardSpec[]): void {
-    // Save the score for this stage
+    // Save the score and par for this stage
+    const par = getCurrentPar()
     stageScores[currentStage - 1] = score
+    stagePars[currentStage - 1] = par
 
     // Calculate buffer loss: lose buffer equal to (energy - par) if over par
-    const par = STAGE_PARS[currentStage - 1] || 0
     if (score > par) {
         currentBuffer -= (score - par)
     }

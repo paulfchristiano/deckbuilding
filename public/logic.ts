@@ -1478,7 +1478,7 @@ export function incrementCost(): Effect {
     }
 }
 
-function incrementMap<K>(m:Map<K, number>, k:K, n:number): void {
+export function incrementMap<K>(m:Map<K, number>, k:K, n:number): void {
     m.set(k, (m.get(k) || 0) + n)
 }
 
