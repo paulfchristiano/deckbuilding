@@ -21,7 +21,7 @@ import { MalformedSpec, specToURL, specFromURL } from './logic.js'
 import { vpModes, selectVPMode, vpCardNames, vpEventNames } from './logic.js'
 
 // register cards
-import {throneRoom, duplicate} from './cards/index.js'
+import {throneRoom, duplicate, startingPotions} from './cards/index.js'
 
 // --------------------- Hotkeys
 
@@ -461,7 +461,7 @@ interface RendererState {
     viewingKingdom: boolean,
     viewingMacros: boolean,
     logType:LogType,
-    compress: {play: boolean, supply: boolean, events: boolean, hand: boolean, discard: boolean}
+    compress: {play: boolean, supply: boolean, events: boolean, hand: boolean, discard: boolean, potions: boolean}
 }
 
 const globalRendererState:RendererState = {
@@ -477,12 +477,13 @@ const globalRendererState:RendererState = {
         supply: false,
         events: false,
         hand: JSON.parse(localStorage.getItem('compresshand')!) === true,
-        discard: JSON.parse(localStorage.getItem('compressdiscard')!) === true
+        discard: JSON.parse(localStorage.getItem('compressdiscard')!) === true,
+        potions: false
     }
 }
 
-type ZoneName = 'play' | 'supply' | 'events' | 'hand' | 'discard'
-const zoneNames:ZoneName[] = ['play', 'supply', 'events', 'hand', 'discard']
+type ZoneName = 'play' | 'supply' | 'events' | 'hand' | 'discard' | 'potions'
+const zoneNames:ZoneName[] = ['play', 'supply', 'events', 'hand', 'discard', 'potions']
 
 function resetGlobalRenderer() {
     globalRendererState.hotkeyMapper = new HotkeyMapper()
@@ -613,6 +614,7 @@ function renderState(
     $('#playsize').html('' + state.play.length)
     $('#handsize').html('' + state.hand.length)
     $('#discardsize').html('' + state.discard.length)
+    $('#potionssize').html('' + state.potions.length)
 }
 
 function bindLogTypeButtons(state:State, ui:webUI) {
@@ -869,9 +871,11 @@ class webUI {
     async victory(state:State): Promise<void> {
         const ui:webUI = this;
         const score = state.energy
+        // Get remaining potions from the state
+        const remainingPotions = state.potions.map(card => card.spec)
         // Advance to next stage on victory
         const doneAction = () => {
-            onKingdomVictory(score)
+            onKingdomVictory(score, remainingPotions)
         }
 
         const submitOrUndo: () => Promise<void> = () =>
@@ -1796,6 +1800,7 @@ interface AddButtonState {
 let stageAddButtonStates: AddButtonState[] = []
 let collectedCards: CardSpec[] = []
 let collectedEvents: CardSpec[] = []
+let currentPotions: CardSpec[] = []
 let deckDialogOpen: boolean = false
 
 // Get cards only from base and expansion
@@ -2013,6 +2018,7 @@ export function showLandingPage(): void {
     currentStage = 1
     collectedCards = []
     collectedEvents = []
+    currentPotions = startingPotions.slice()
     stageScores = Array(TOTAL_STAGES).fill(null)
     generateStageOptions()
     setupDeckIcon()
@@ -2054,8 +2060,8 @@ function startCurrentKingdom(): void {
         document.activeElement.blur()
     }
 
-    // Start the game with collected cards/events
-    const state = initialState(currentKingdom, collectedCards, collectedEvents)
+    // Start the game with collected cards/events and potions
+    const state = initialState(currentKingdom, collectedCards, collectedEvents, currentPotions)
     startGame(state)
 }
 
@@ -2084,8 +2090,10 @@ function showFinalVictory(): void {
 }
 
 // Called when player wins a kingdom
-function onKingdomVictory(score: number): void {
+function onKingdomVictory(score: number, remainingPotions: CardSpec[]): void {
     // Save the score for this stage
     stageScores[currentStage - 1] = score
+    // Carry forward remaining potions to next stage
+    currentPotions = remainingPotions
     advanceToNextStage()
 }

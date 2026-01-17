@@ -72,7 +72,7 @@ var __values = (this && this.__values) || function(o) {
     };
     throw new TypeError(s ? "Object is not iterable." : "Symbol.iterator is not defined.");
 };
-import { choice, asChoice, trash, addCosts, subtractCost, multiplyCosts, eq, leq, noop, gainPoints, gainActions, gainCoins, gainBuys, free, create, move, doAll, multichoice, renderCost, moveMany, payToDo, payCost, addToken, removeToken, charge, discharge, asNumberedChoices, allowNull, setResource, tick, a, num, aOrNum, createAndTrack, villager, fair, supplyForCard, actionsEffect, buyEffect, buysEffect, pointsEffect, createEffect, refreshEffect, recycleEffect, createInPlayEffect, chargeEffect, targetedEffect, workshopEffect, coinsEffect, reflectTrigger, energy, coin, repeat, costPer, incrementCost, costReduceNext, countNameTokens, nameHasToken, startsWithCharge, useRefresh, costReduce, reducedCost, applyToTarget, playTwice, payAction, discardFromPlay, trashThis, fragileEcho, copper, gold, silver, estate, duchy, province, dedupBy, countDistinctNames, playReplacer, trashOnLeavePlay, sourceHasName, cannotUse, renderCostOrZero } from '../logic.js';
+import { choice, asChoice, trash, addCosts, subtractCost, multiplyCosts, eq, leq, noop, gainPoints, gainActions, gainCoins, gainBuys, free, create, move, doAll, multichoice, renderCost, moveMany, payToDo, payCost, addToken, removeToken, charge, discharge, asNumberedChoices, allowNull, setResource, tick, a, num, aOrNum, createAndTrack, villager, fair, supplyForCard, actionsEffect, buyEffect, buysEffect, pointsEffect, createEffect, refreshEffect, recycleEffect, createInPlayEffect, chargeEffect, targetedEffect, workshopEffect, coinsEffect, reflectTrigger, energy, coin, repeat, costPer, incrementCost, costReduceNext, countNameTokens, nameHasToken, startsWithCharge, useRefresh, costReduce, reducedCost, applyToTarget, playTwice, payAction, sortHand, discardFromPlay, trashThis, fragileEcho, copper, gold, silver, estate, duchy, province, dedupBy, countDistinctNames, playReplacer, trashOnLeavePlay, sourceHasName, cannotUse, renderCostOrZero } from '../logic.js';
 export var cards = [];
 export var events = [];
 /*
@@ -2957,5 +2957,66 @@ export var vpModes = [
     { name: 'Territory', target: 40, cards: [territory], events: [] },
     { name: 'Frontier', target: 60, cards: [frontier], events: [] },
     { name: 'Gardens', target: 40, cards: [gardens], events: [] },
+];
+// ========== POTIONS ==========
+export var potionOfWealth = {
+    name: 'Potion of Wealth',
+    isPotion: true,
+    simpleText: 'Double your money and buys.',
+    effects: [{
+            text: ['Double your $ and buys.'],
+            transform: function (state, card) { return function (state) {
+                return __awaiter(this, void 0, void 0, function () {
+                    return __generator(this, function (_a) {
+                        switch (_a.label) {
+                            case 0: return [4 /*yield*/, gainCoins(state.coin, card)(state)];
+                            case 1:
+                                state = _a.sent();
+                                return [4 /*yield*/, gainBuys(state.buys, card)(state)];
+                            case 2:
+                                state = _a.sent();
+                                return [2 /*return*/, state];
+                        }
+                    });
+                });
+            }; }
+        }]
+};
+export var potionOfRecovery = {
+    name: 'Potion of Recovery',
+    isPotion: true,
+    simpleText: 'Put your discard into your hand.',
+    effects: [{
+            text: ['Put your discard into your hand.'],
+            transform: function (state) { return doAll([moveMany(state.discard, 'hand'), sortHand]); }
+        }]
+};
+export var potionOfCopper = {
+    name: 'Potion of Copper',
+    isPotion: true,
+    simpleText: 'Create 5 coppers in your hand.',
+    effects: [{
+            text: ['Create 5 Coppers in your hand.'],
+            transform: function () { return repeat(create(copper, 'hand'), 5); }
+        }]
+};
+export var potionOfVitality = {
+    name: 'Potion of Vitality',
+    isPotion: true,
+    simpleText: '+$1, +1 action, +1 buy, create a Fair and a Villager in play.',
+    relatedCards: [fair, villager],
+    effects: [
+        coinsEffect(1),
+        actionsEffect(1),
+        buysEffect(1),
+        createInPlayEffect(fair),
+        createInPlayEffect(villager),
+    ]
+};
+export var startingPotions = [
+    potionOfWealth,
+    potionOfRecovery,
+    potionOfCopper,
+    potionOfVitality,
 ];
 //# sourceMappingURL=base.js.map

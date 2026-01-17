@@ -233,6 +233,7 @@ var Card = /** @class */ (function () {
                 return result;
             case 'buy': return addCosts(this.spec.buyCost || free, { buys: 1 });
             case 'activate': return free;
+            case 'potion': return free;
             default: return assertNever(kind);
         }
     };
@@ -286,11 +287,12 @@ var Card = /** @class */ (function () {
                             _a = kind;
                             switch (_a) {
                                 case 'play': return [3 /*break*/, 1];
-                                case 'buy': return [3 /*break*/, 3];
-                                case 'use': return [3 /*break*/, 4];
-                                case 'activate': return [3 /*break*/, 5];
+                                case 'potion': return [3 /*break*/, 3];
+                                case 'buy': return [3 /*break*/, 5];
+                                case 'use': return [3 /*break*/, 6];
+                                case 'activate': return [3 /*break*/, 7];
                             }
-                            return [3 /*break*/, 6];
+                            return [3 /*break*/, 8];
                         case 1:
                             trackingSpec = { kind: 'none', card: card };
                             gameEvent = { kind: 'play', card: card, source: source };
@@ -300,24 +302,34 @@ var Card = /** @class */ (function () {
                         case 2:
                             state = _c.sent();
                             state = state.unindent();
-                            return [3 /*break*/, 7];
+                            return [3 /*break*/, 9];
                         case 3:
+                            trackingSpec = { kind: 'none', card: card };
+                            gameEvent = { kind: 'play', card: card, source: source };
+                            state = state.log("Drinking ".concat(card.name));
+                            state = state.indent();
+                            return [4 /*yield*/, move(card, 'resolving')(state)];
+                        case 4:
+                            state = _c.sent();
+                            state = state.unindent();
+                            return [3 /*break*/, 9];
+                        case 5:
                             trackingSpec = { kind: 'buying', card: card };
                             gameEvent = { kind: 'buy', card: card, source: source };
                             state = state.log("Buying ".concat(card.name));
-                            return [3 /*break*/, 7];
-                        case 4:
+                            return [3 /*break*/, 9];
+                        case 6:
                             trackingSpec = { kind: 'effect', card: card };
                             gameEvent = { kind: 'use', card: card, source: source };
                             state = state.log("Using ".concat(card.name));
-                            return [3 /*break*/, 7];
-                        case 5:
+                            return [3 /*break*/, 9];
+                        case 7:
                             trackingSpec = { kind: 'ability', card: card };
                             gameEvent = { kind: 'activate', card: card, source: source };
                             state = state.log("Activating ".concat(card.name));
-                            return [3 /*break*/, 7];
-                        case 6: return [2 /*return*/, assertNever(kind)];
-                        case 7: return [4 /*yield*/, withTracking(function (state) {
+                            return [3 /*break*/, 9];
+                        case 8: return [2 /*return*/, assertNever(kind)];
+                        case 9: return [4 /*yield*/, withTracking(function (state) {
                                 return __awaiter(this, void 0, void 0, function () {
                                     var _a, _b, _c, effect, e_3_1, _d, _e, effect, e_4_1;
                                     var e_3, _f, e_4, _g;
@@ -330,6 +342,7 @@ var Card = /** @class */ (function () {
                                                 switch (_a) {
                                                     case 'use': return [3 /*break*/, 2];
                                                     case 'play': return [3 /*break*/, 2];
+                                                    case 'potion': return [3 /*break*/, 2];
                                                     case 'activate': return [3 /*break*/, 10];
                                                     case 'buy': return [3 /*break*/, 18];
                                                 }
@@ -397,36 +410,28 @@ var Card = /** @class */ (function () {
                                     });
                                 });
                             }, trackingSpec)(state)];
-                        case 8:
+                        case 10:
                             state = _c.sent();
                             card = state.find(card);
                             _b = kind;
                             switch (_b) {
-                                case 'play': return [3 /*break*/, 9];
-                                case 'use': return [3 /*break*/, 13];
-                                case 'buy': return [3 /*break*/, 15];
-                                case 'activate': return [3 /*break*/, 17];
+                                case 'play': return [3 /*break*/, 11];
+                                case 'potion': return [3 /*break*/, 15];
+                                case 'use': return [3 /*break*/, 19];
+                                case 'buy': return [3 /*break*/, 21];
+                                case 'activate': return [3 /*break*/, 23];
                             }
-                            return [3 /*break*/, 18];
-                        case 9:
-                            if (!(card.place == 'resolving')) return [3 /*break*/, 11];
+                            return [3 /*break*/, 24];
+                        case 11:
+                            if (!(card.place == 'resolving')) return [3 /*break*/, 13];
                             state = state.indent();
                             return [4 /*yield*/, move(card, card.afterPlayDestination())(state)];
-                        case 10:
-                            state = _c.sent();
-                            state = state.unindent();
-                            _c.label = 11;
-                        case 11: return [4 /*yield*/, trigger({
-                                kind: 'afterPlay',
-                                card: card,
-                                source: source,
-                                before: before,
-                            })(state)];
                         case 12:
                             state = _c.sent();
-                            return [2 /*return*/, state];
+                            state = state.unindent();
+                            _c.label = 13;
                         case 13: return [4 /*yield*/, trigger({
-                                kind: 'afterUse',
+                                kind: 'afterPlay',
                                 card: card,
                                 source: source,
                                 before: before,
@@ -434,17 +439,43 @@ var Card = /** @class */ (function () {
                         case 14:
                             state = _c.sent();
                             return [2 /*return*/, state];
-                        case 15: return [4 /*yield*/, trigger({
+                        case 15:
+                            if (!(card.place == 'resolving')) return [3 /*break*/, 17];
+                            state = state.indent();
+                            return [4 /*yield*/, move(card, 'void')(state)];
+                        case 16:
+                            state = _c.sent();
+                            state = state.unindent();
+                            _c.label = 17;
+                        case 17: return [4 /*yield*/, trigger({
+                                kind: 'afterPlay',
+                                card: card,
+                                source: source,
+                                before: before,
+                            })(state)];
+                        case 18:
+                            state = _c.sent();
+                            return [2 /*return*/, state];
+                        case 19: return [4 /*yield*/, trigger({
+                                kind: 'afterUse',
+                                card: card,
+                                source: source,
+                                before: before,
+                            })(state)];
+                        case 20:
+                            state = _c.sent();
+                            return [2 /*return*/, state];
+                        case 21: return [4 /*yield*/, trigger({
                                 kind: 'afterBuy',
                                 card: card,
                                 source: source,
                                 before: before
                             })(state)];
-                        case 16:
+                        case 22:
                             state = _c.sent();
                             return [2 /*return*/, state];
-                        case 17: return [2 /*return*/, state];
-                        case 18: return [2 /*return*/, assertNever(kind)];
+                        case 23: return [2 /*return*/, state];
+                        case 24: return [2 /*return*/, assertNever(kind)];
                     }
                 });
             });
@@ -563,6 +594,7 @@ var State = /** @class */ (function () {
         this.play = zones.get('play') || [];
         this.void = zones.get('void') || [];
         this.events = zones.get('events') || [];
+        this.potions = zones.get('potions') || [];
         this.vp_goal = goalForSpec(spec);
     }
     State.prototype.update = function (stateUpdate) {
@@ -2274,6 +2306,7 @@ function logAct(state, act, card) {
         case 'use':
             //state = state.log(card.name, 'buys')
             return state.log("Used ".concat(card.name), 'acts');
+        case 'potion': return state.log("Drank ".concat(card.name), 'acts');
         case 'activate': return state;
         default: assertNever(act);
     }
@@ -2313,7 +2346,8 @@ function actChoice(state) {
     var supply = state.supply.filter(available('buy')).map(asActChoice('buy'));
     var events = state.events.filter(available('use')).map(asActChoice('use'));
     var play = state.play.filter(available('activate')).map(asActChoice('activate'));
-    return choice(state, "Buy a card (costs 1 buy),\n        play a card from your hand (costs 1 action),\n        or use an event.", hand.concat(supply).concat(events).concat(play), ['actChoice']);
+    var potions = state.potions.filter(available('potion')).map(asActChoice('potion'));
+    return choice(state, "Buy a card (costs 1 buy),\n        play a card from your hand (costs 1 action),\n        use an event, or drink a potion.", hand.concat(supply).concat(events).concat(play).concat(potions), ['actChoice']);
     /*
     return choice(state, `Use an event or card in play,
         pay a buy to buy a card from the supply,
@@ -2792,9 +2826,10 @@ function getRandomizerSeed(spec) {
             return spec.randomizer.seed;
     }
 }
-export function initialState(spec, extraCards, extraEvents) {
+export function initialState(spec, extraCards, extraEvents, potions) {
     if (extraCards === void 0) { extraCards = []; }
     if (extraEvents === void 0) { extraEvents = []; }
+    if (potions === void 0) { potions = []; }
     var startingHand = [copper, copper, copper];
     var kingdom = makeKingdom(spec);
     var variableSupplies = kingdom.cards.slice();
@@ -2819,6 +2854,7 @@ export function initialState(spec, extraCards, extraEvents) {
     state = createRawMulti(state, supply, 'supply');
     state = createRawMulti(state, events, 'events');
     state = createRawMulti(state, startingHand, 'discard');
+    state = createRawMulti(state, potions, 'potions');
     return state;
 }
 export function playGame(state_1) {
@@ -3087,6 +3123,11 @@ export var refresh = { name: 'Refresh',
     effects: [refreshEffect(5)],
 };
 sets.core.events.push(refresh);
+export var cheat = { name: 'Cheat',
+    fixedCost: free,
+    effects: [pointsEffect(10)],
+};
+sets.core.events.push(cheat);
 export var copper = { name: 'Copper',
     buyCost: coin(0),
     effects: [coinsEffect(1)]
@@ -3226,6 +3267,7 @@ function costReduceDescriptor(kind, reduction, nonzero) {
         case 'buy': return "Cards cost ".concat(d, " less to buy").concat(s, ".");
         case 'use': return "Events cost ".concat(d, " less to use").concat(s, ".");
         case 'activate': return "Abilities cost ".concat(d, " less to use").concat(s, ".");
+        case 'potion': return "Potions cost ".concat(d, " less to use").concat(s, ".");
         default: return assertNever(kind);
     }
 }

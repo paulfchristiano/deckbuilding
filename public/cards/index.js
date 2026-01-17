@@ -34,4 +34,5 @@ finally {
 }
 export var throneRoom = base.throneRoom;
 export var duplicate = base.duplicate;
+export var startingPotions = base.startingPotions;
 //# sourceMappingURL=index.js.map

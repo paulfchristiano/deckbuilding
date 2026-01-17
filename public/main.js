@@ -98,7 +98,7 @@ import { randomPlaceholder } from './logic.js';
 import { MalformedSpec, specToURL, specFromURL } from './logic.js';
 import { vpModes, vpCardNames, vpEventNames } from './logic.js';
 // register cards
-import { throneRoom, duplicate } from './cards/index.js';
+import { throneRoom, duplicate, startingPotions } from './cards/index.js';
 var keyListeners = new Map();
 var symbolHotkeys = ['!', '%', '^', '&', '*', '(', ')', '-', '+', '=', '{', '}', '[', ']']; // '@', '#', '$' are confusing
 var lowerHotkeys = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm',
@@ -555,10 +555,11 @@ var globalRendererState = {
         supply: false,
         events: false,
         hand: JSON.parse(localStorage.getItem('compresshand')) === true,
-        discard: JSON.parse(localStorage.getItem('compressdiscard')) === true
+        discard: JSON.parse(localStorage.getItem('compressdiscard')) === true,
+        potions: false
     }
 };
-var zoneNames = ['play', 'supply', 'events', 'hand', 'discard'];
+var zoneNames = ['play', 'supply', 'events', 'hand', 'discard', 'potions'];
 function resetGlobalRenderer() {
     globalRendererState.hotkeyMapper = new HotkeyMapper();
     globalRendererState.tokenRenderer = new TokenRenderer();
@@ -704,6 +705,7 @@ function renderState(state, settings) {
     $('#playsize').html('' + state.play.length);
     $('#handsize').html('' + state.hand.length);
     $('#discardsize').html('' + state.discard.length);
+    $('#potionssize').html('' + state.potions.length);
 }
 function bindLogTypeButtons(state, ui) {
     var e = $("input[name='logType']");
@@ -954,12 +956,13 @@ var webUI = /** @class */ (function () {
     //(would be nice to clean this up so you use undo to go back)
     webUI.prototype.victory = function (state) {
         return __awaiter(this, void 0, void 0, function () {
-            var ui, score, doneAction, submitOrUndo;
+            var ui, score, remainingPotions, doneAction, submitOrUndo;
             return __generator(this, function (_a) {
                 ui = this;
                 score = state.energy;
+                remainingPotions = state.potions.map(function (card) { return card.spec; });
                 doneAction = function () {
-                    onKingdomVictory(score);
+                    onKingdomVictory(score, remainingPotions);
                 };
                 submitOrUndo = function () {
                     return new Promise(function (resolve, reject) {
@@ -1801,6 +1804,7 @@ var stageScores = Array(TOTAL_STAGES).fill(null);
 var stageAddButtonStates = [];
 var collectedCards = [];
 var collectedEvents = [];
+var currentPotions = [];
 var deckDialogOpen = false;
 // Get cards only from base and expansion
 function getAvailableCards() {
@@ -2038,6 +2042,7 @@ export function showLandingPage() {
     currentStage = 1;
     collectedCards = [];
     collectedEvents = [];
+    currentPotions = startingPotions.slice();
     stageScores = Array(TOTAL_STAGES).fill(null);
     generateStageOptions();
     setupDeckIcon();
@@ -2070,8 +2075,8 @@ function startCurrentKingdom() {
     if (document.activeElement instanceof HTMLElement) {
         document.activeElement.blur();
     }
-    // Start the game with collected cards/events
-    var state = initialState(currentKingdom, collectedCards, collectedEvents);
+    // Start the game with collected cards/events and potions
+    var state = initialState(currentKingdom, collectedCards, collectedEvents, currentPotions);
     startGame(state);
 }
 function goBackToStage() {
@@ -2096,9 +2101,11 @@ function showFinalVictory() {
     });
 }
 // Called when player wins a kingdom
-function onKingdomVictory(score) {
+function onKingdomVictory(score, remainingPotions) {
     // Save the score for this stage
     stageScores[currentStage - 1] = score;
+    // Carry forward remaining potions to next stage
+    currentPotions = remainingPotions;
     advanceToNextStage();
 }
 //# sourceMappingURL=main.js.map

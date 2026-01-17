@@ -2936,3 +2936,60 @@ export const vpModes: VPMode[] = [
     { name: 'Gardens', target: 40, cards: [gardens], events: [] },
 ]
 
+// ========== POTIONS ==========
+
+export const potionOfWealth:CardSpec = {
+    name: 'Potion of Wealth',
+    isPotion: true,
+    simpleText: 'Double your money and buys.',
+    effects: [{
+        text: ['Double your $ and buys.'],
+        transform: (state, card) => async function(state) {
+            state = await gainCoins(state.coin, card)(state)
+            state = await gainBuys(state.buys, card)(state)
+            return state
+        }
+    }]
+}
+
+export const potionOfRecovery:CardSpec = {
+    name: 'Potion of Recovery',
+    isPotion: true,
+    simpleText: 'Put your discard into your hand.',
+    effects: [{
+        text: ['Put your discard into your hand.'],
+        transform: (state) => doAll([moveMany(state.discard, 'hand'), sortHand])
+    }]
+}
+
+export const potionOfCopper:CardSpec = {
+    name: 'Potion of Copper',
+    isPotion: true,
+    simpleText: 'Create 5 coppers in your hand.',
+    effects: [{
+        text: ['Create 5 Coppers in your hand.'],
+        transform: () => repeat(create(copper, 'hand'), 5)
+    }]
+}
+
+export const potionOfVitality:CardSpec = {
+    name: 'Potion of Vitality',
+    isPotion: true,
+    simpleText: '+$1, +1 action, +1 buy, create a Fair and a Villager in play.',
+    relatedCards: [fair, villager],
+    effects: [
+        coinsEffect(1),
+        actionsEffect(1),
+        buysEffect(1),
+        createInPlayEffect(fair),
+        createInPlayEffect(villager),
+    ]
+}
+
+export const startingPotions:CardSpec[] = [
+    potionOfWealth,
+    potionOfRecovery,
+    potionOfCopper,
+    potionOfVitality,
+]
+

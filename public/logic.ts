@@ -78,6 +78,7 @@ export interface CardSpec {
     staticReplacers?: TypedReplacer[];
     ability?: Effect[];
     simpleText?: string; // Short description for card selector/deck view
+    isPotion?: boolean; // If true, trash after playing
 }
 
 export interface Cost {
@@ -90,7 +91,7 @@ export interface Cost {
 }
 export const free:Cost = {coin:0, energy:0, actions:0, buys:0, effects: [], tests: []}
 
-export type ActionKind = 'play' | 'use' | 'buy' | 'activate'
+export type ActionKind = 'play' | 'use' | 'buy' | 'activate' | 'potion'
 
 interface Restriction {
     text?: string;
@@ -206,6 +207,7 @@ export class Card {
                 return result
             case 'buy': return addCosts(this.spec.buyCost || free, {buys:1})
             case 'activate': return free
+            case 'potion': return free
             default: return assertNever(kind)
         }
     }
@@ -259,6 +261,14 @@ export class Card {
                     state = await move(card, 'resolving')(state)
                     state = state.unindent()
                     break
+                case 'potion':
+                    trackingSpec = {kind:'none', card:card}
+                    gameEvent = {kind:'play', card:card, source:source}
+                    state = state.log(`Drinking ${card.name}`)
+                    state = state.indent()
+                    state = await move(card, 'resolving')(state)
+                    state = state.unindent()
+                    break
                 case 'buy':
                     trackingSpec = {kind:'buying', card:card}
                     gameEvent = {kind:'buy', card:card, source:source}
@@ -281,6 +291,7 @@ export class Card {
                 switch (kind) {
                     case 'use':
                     case 'play':
+                    case 'potion':
                         for (const effect of card.effects()) {
                             card = state.find(card)
                             state = await effect.transform(state, card)(state)
@@ -304,6 +315,20 @@ export class Card {
                     if (card.place == 'resolving') {
                     	state = state.indent()
                         state = await move(card, card.afterPlayDestination())(state);
+                    	state = state.unindent()
+                    }
+                    state = await trigger({
+                        kind:'afterPlay',
+                        card:card,
+                        source:source,
+                        before:before,
+                    })(state)
+                    return state
+                case 'potion':
+                    // Potions are always trashed after use
+                    if (card.place == 'resolving') {
+                    	state = state.indent()
+                        state = await move(card, 'void')(state);
                     	state = state.unindent()
                     }
                     state = await trigger({
@@ -379,7 +404,7 @@ export class Card {
 
 export type Transform = ((state:State) => Promise<State>) | ((state:State) => State)
 
-type ZoneName = 'supply' | 'hand' | 'discard' | 'play' | 'events' | 'void'
+type ZoneName = 'supply' | 'hand' | 'discard' | 'play' | 'events' | 'void' | 'potions'
 export type PlaceName = ZoneName | 'resolving'
 
 type Zone = Card[]
@@ -496,6 +521,7 @@ export class State {
     public readonly play:Zone;
     public readonly void:Zone;
     public readonly events:Zone;
+    public readonly potions:Zone;
     constructor(
         public readonly spec: GameSpec = {kind:'pick', cards:[], events:[]},
         public readonly ui: UI = noUI,
@@ -523,6 +549,7 @@ export class State {
         this.play = zones.get('play') || []
         this.void = zones.get('void') || []
         this.events = zones.get('events') || []
+        this.potions = zones.get('potions') || []
 
         this.vp_goal = goalForSpec(spec)
     }
@@ -1859,6 +1886,7 @@ function logAct(state:State, act:ActionKind, card:Card): State {
         case 'use':
             //state = state.log(card.name, 'buys')
             return state.log(`Used ${card.name}`, 'acts')
+        case 'potion': return state.log(`Drank ${card.name}`, 'acts')
         case 'activate': return state
         default: assertNever(act)
     }
@@ -1894,10 +1922,11 @@ function actChoice(state:State): Promise<[State, [Card, ActionKind]|null]> {
     const supply = state.supply.filter(available('buy')).map(asActChoice('buy'))
     const events = state.events.filter(available('use')).map(asActChoice('use'))
     const play = state.play.filter(available('activate')).map(asActChoice('activate'))
+    const potions = state.potions.filter(available('potion')).map(asActChoice('potion'))
     return choice(state, `Buy a card (costs 1 buy),
         play a card from your hand (costs 1 action),
-        or use an event.`,
-        hand.concat(supply).concat(events).concat(play), ['actChoice'])
+        use an event, or drink a potion.`,
+        hand.concat(supply).concat(events).concat(play).concat(potions), ['actChoice'])
     /*
     return choice(state, `Use an event or card in play,
         pay a buy to buy a card from the supply,
@@ -2327,7 +2356,8 @@ function getRandomizerSeed(spec: GameSpec): string | null {
 export function initialState(
     spec:GameSpec,
     extraCards: CardSpec[] = [],
-    extraEvents: CardSpec[] = []
+    extraEvents: CardSpec[] = [],
+    potions: CardSpec[] = []
 ): State {
     const startingHand:CardSpec[] = [copper, copper, copper]
 
@@ -2358,6 +2388,7 @@ export function initialState(
     state = createRawMulti(state, supply, 'supply')
     state = createRawMulti(state, events, 'events')
     state = createRawMulti(state, startingHand, 'discard')
+    state = createRawMulti(state, potions, 'potions')
     return state
 }
 
@@ -2601,6 +2632,12 @@ export const refresh:CardSpec = {name: 'Refresh',
 }
 sets.core.events.push(refresh)
 
+export const cheat:CardSpec = {name: 'Cheat',
+    fixedCost: free,
+    effects: [pointsEffect(10)],
+}
+sets.core.events.push(cheat)
+
 export const copper:CardSpec = {name: 'Copper',
     buyCost: coin(0),
     effects: [coinsEffect(1)]
@@ -2749,6 +2786,7 @@ function costReduceDescriptor(kind:ActionKind, reduction:Partial<Cost>, nonzero:
         case 'buy': return `Cards cost ${d} less to buy${s}.`
         case 'use': return `Events cost ${d} less to use${s}.`
         case 'activate': return `Abilities cost ${d} less to use${s}.`
+        case 'potion': return `Potions cost ${d} less to use${s}.`
         default: return assertNever(kind)
     }
 }
