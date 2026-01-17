@@ -3290,6 +3290,20 @@ export var twinRule = {
         }]
 };
 registerRule(twinRule);
+// Duplicate rule: after buying a card with a duplicate token, buy it again
+export var duplicateRule = {
+    name: 'Duplicate',
+    triggers: [{
+            text: "After buying a card with a duplicate token on it other than with this effect, remove a duplicate token from it to buy it again.",
+            kind: 'afterBuy',
+            handles: function (e, state, card) {
+                var target = state.find(e.card);
+                return target.count('duplicate') > 0 && !sourceHasName(e.source, 'Duplicate');
+            },
+            transform: function (e, state, card) { return payToDo(removeToken(e.card, 'duplicate'), e.card.buy(duplicateRule)); },
+        }]
+};
+registerRule(duplicateRule);
 export var copper = { name: 'Copper',
     buyCost: coin(0),
     effects: [coinsEffect(1)]

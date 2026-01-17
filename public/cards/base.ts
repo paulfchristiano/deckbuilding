@@ -34,7 +34,7 @@ import {
   playReplacer, trashOnLeavePlay, stayInPlay,
   sourceHasName, Source,
   VPMode, cannotUse, renderCostOrZero,
-  echoRule, priorityRule, reflectRule, ferryRule, twinRule
+  echoRule, priorityRule, reflectRule, ferryRule, twinRule, duplicateRule
 } from '../logic.js'
 
 export const cards:CardSpec[] = [];
@@ -261,8 +261,8 @@ registerEvent(restock)
 */
 
 const escalate:CardSpec = {name: 'Escalate',
-    fixedCost: energy(1),
-    simpleText: `Use Refresh. This costs more to play each time you use it ($0, $1, $3, $6, $10...).`,
+    fixedCost: free,
+    simpleText: `Use Refresh. This costs more to use each time ($0, $1, $3, $6, $10...).`,
     variableCosts: [costPer(coin(1))],
     effects: [
         chargeEffect(),
@@ -273,7 +273,30 @@ const escalate:CardSpec = {name: 'Escalate',
         useRefresh()
     ]
 }
-// events.push(escalate) // removed (boon)
+events.push(escalate)
+
+const flourishName = 'Flourish'
+const flourish:CardSpec = {name: flourishName,
+    fixedCost: free,
+    simpleText: `Once you have 1/16 of the vp requirement, you can use this to Refresh for free. You can repeat once you reach 1/8, 1/4, and 1/2 of the requirement.`,
+    restrictions: [{
+        text: 'You can only use this if your score times the charge tokens on this is at least the vp goal.',
+        test: (card, state) => state.points * state.find(card).charge >= state.vp_goal
+    }],
+    effects: [
+        useRefresh(),
+        {
+            text: ['Remove half of the charge tokens from this (rounded down).'],
+            transform: (s:State, c:Card) => {
+                const currentCharge = s.find(c).charge
+                const toRemove = Math.floor(currentCharge / 2)
+                return discharge(c, toRemove)
+            }
+        }
+    ],
+    staticReplacers: [startsWithCharge(flourishName, 16)]
+}
+events.push(flourish)
 
 /*
 const perpetualMotion:CardSpec = {name:'Perpetual Motion',
@@ -552,18 +575,7 @@ export const duplicate:CardSpec = {name: 'Duplicate',
         text: [`Put a duplicate token on each card in the supply.`],
         transform: (state, card) => doAll(state.supply.map(c => addToken(c, 'duplicate')))
     }],
-    staticTriggers: [{
-        text: `After buying a card with a duplicate token on it other than with this,
-        remove a duplicate token from it to buy it again.`,
-        kind:'afterBuy',
-        handles: (e, state, card) => {
-            if (sourceHasName(e.source, card.name)) return false
-            const target:Card = state.find(e.card);
-            return target.count('duplicate') > 0
-        },
-        transform: (e, state, card) =>
-            payToDo(removeToken(e.card, 'duplicate'), e.card.buy(card))
-    }]
+    rules: [duplicateRule],
 }
 events.push(duplicate)
 
@@ -1364,6 +1376,7 @@ cards.push(supplyForCard(looter, coin(4)))
 
 const  palace:CardSpec = {name: 'Palace',
     fixedCost: energy(1),
+    buyCost: coin(5),
     effects: [actionsEffect(2), pointsEffect(2), coinsEffect(2)]
 }
 // cards.push(supplyForCard(palace, coin(5))) // removed (vp)
@@ -2135,7 +2148,7 @@ const ferry:CardSpec = {
     buyCost: coin(3),
     fixedCost: energy(1),
     effects: [buysEffect(1), coinsEffect(1), targetedEffect(
-        target => addToken(target, 'ferry'),
+        target => addToken(target, 'ferry', 2),
         'Put a ferry token on a supply.',
         state => state.supply,
     )],
@@ -2824,24 +2837,13 @@ cards.push(contraband)
 const bulkOrder:CardSpec = {
     name: 'Bulk Order',
     fixedCost: coin(3),
+    simpleText: `Choose a card in the supply. The next 5 times you buy that card, buy it again for free.`,
     effects: [targetedEffect(
-        card => addToken(card, 'bulk', 5),
-        'Put five bulk tokens on a card in the supply.',
+        card => addToken(card, 'duplicate', 5),
+        'Put five duplicate tokens on a card in the supply.',
         state => state.supply,
     )],
-
-    staticTriggers: [{
-        text: `After buying a card with a bulk token on it other than with this,
-        remove a bulk token from it to buy it again.`,
-        kind:'afterBuy',
-        handles: (e, state, card) => {
-            if (sourceHasName(e.source, card.name)) return false
-            const target:Card = state.find(e.card);
-            return target.count('bulk') > 0
-        },
-        transform: (e, state, card) =>
-            payToDo(removeToken(e.card, 'bulk'), e.card.buy(card))
-    }]
+    rules: [duplicateRule],
 }
 events.push(bulkOrder)
 

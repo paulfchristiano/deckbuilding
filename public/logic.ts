@@ -2772,6 +2772,21 @@ export const twinRule: Rule = {
 }
 registerRule(twinRule)
 
+// Duplicate rule: after buying a card with a duplicate token, buy it again
+export const duplicateRule: Rule = {
+    name: 'Duplicate',
+    triggers: [{
+        text: `After buying a card with a duplicate token on it other than with this effect, remove a duplicate token from it to buy it again.`,
+        kind: 'afterBuy',
+        handles: (e, state, card) => {
+            const target: Card = state.find(e.card)
+            return target.count('duplicate') > 0 && !sourceHasName(e.source, 'Duplicate')
+        },
+        transform: (e, state, card) => payToDo(removeToken(e.card, 'duplicate'), e.card.buy(duplicateRule)),
+    }]
+}
+registerRule(duplicateRule)
+
 export const copper:CardSpec = {name: 'Copper',
     buyCost: coin(0),
     effects: [coinsEffect(1)]

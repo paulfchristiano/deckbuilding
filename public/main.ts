@@ -19,6 +19,7 @@ import { allCards, allEvents, randomPlaceholder } from './logic.js'
 import { VERSION, DEFAULT_VP_GOAL } from './logic.js'
 import { MalformedSpec, specToURL, specFromURL } from './logic.js'
 import { vpModes, selectVPMode, vpCardNames, vpEventNames } from './logic.js'
+import { supplyComp, eventComp } from './logic.js'
 
 // register cards
 import {throneRoom, duplicate, startingPotions, allPotions} from './cards/index.js'
@@ -2001,6 +2002,30 @@ function setupAddButtons(): void {
     $(potionButtonId).off('click').on('click', () => {
         if (!stageAddButtonStates[3].used) showCardPicker(3)
     })
+
+    // Debug button - adds all available cards and events to the deck
+    $('#debugButton').off('click').on('click', () => {
+        const allCards = getAvailableCards().filter(c =>
+            !vpCardNames.has(c.name) &&
+            c.name !== 'Copper' && c.name !== 'Silver' && c.name !== 'Gold'
+        )
+        const allEvents = getAvailableEvents().filter(e =>
+            !vpEventNames.has(e.name) && e.name !== 'Refresh'
+        )
+        for (const card of allCards) {
+            if (!collectedCards.some(cc => cc.name === card.name)) {
+                collectedCards.push(card)
+            }
+        }
+        for (const event of allEvents) {
+            if (!collectedEvents.some(ce => ce.name === event.name)) {
+                collectedEvents.push(event)
+            }
+        }
+        $('#debugButton').text('Added All')
+        $('#debugButton').attr('disabled', 'true')
+        $('#debugButton').removeAttr('choosable')
+    })
 }
 
 function updateProgressSidebar(): void {
@@ -2128,8 +2153,10 @@ function startCurrentKingdom(): void {
         document.activeElement.blur()
     }
 
-    // Start the game with collected cards/events and potions
-    const state = initialState(currentKingdom, collectedCards, collectedEvents, currentPotions)
+    // Start the game with collected cards/events and potions (sorted by cost)
+    const sortedCards = [...collectedCards].sort(supplyComp)
+    const sortedEvents = [...collectedEvents].sort(eventComp)
+    const state = initialState(currentKingdom, sortedCards, sortedEvents, currentPotions)
     startGame(state)
 }
 

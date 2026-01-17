@@ -72,7 +72,7 @@ var __values = (this && this.__values) || function(o) {
     };
     throw new TypeError(s ? "Object is not iterable." : "Symbol.iterator is not defined.");
 };
-import { choice, asChoice, trash, addCosts, subtractCost, multiplyCosts, eq, leq, noop, gainPoints, gainActions, gainCoins, gainBuys, free, create, move, doAll, multichoice, renderCost, moveMany, payToDo, payCost, addToken, removeToken, charge, discharge, asNumberedChoices, allowNull, setResource, tick, a, num, aOrNum, createAndTrack, villager, fair, bounty, supplyForCard, actionsEffect, buyEffect, buysEffect, pointsEffect, createEffect, refreshEffect, recycleEffect, createInPlayEffect, chargeEffect, targetedEffect, workshopEffect, coinsEffect, energy, coin, repeat, costPer, incrementCost, costReduceNext, countNameTokens, nameHasToken, startsWithCharge, useRefresh, costReduce, applyToTarget, playTwice, payAction, sortHand, discardFromPlay, trashThis, copper, gold, silver, estate, duchy, province, dedupBy, countDistinctNames, playReplacer, trashOnLeavePlay, sourceHasName, cannotUse, renderCostOrZero, echoRule, priorityRule, reflectRule, ferryRule, twinRule } from '../logic.js';
+import { choice, asChoice, trash, addCosts, subtractCost, multiplyCosts, eq, leq, noop, gainPoints, gainActions, gainCoins, gainBuys, free, create, move, doAll, multichoice, renderCost, moveMany, payToDo, payCost, addToken, removeToken, charge, discharge, asNumberedChoices, allowNull, setResource, tick, a, num, aOrNum, createAndTrack, villager, fair, bounty, supplyForCard, actionsEffect, buyEffect, buysEffect, pointsEffect, createEffect, refreshEffect, recycleEffect, createInPlayEffect, chargeEffect, targetedEffect, workshopEffect, coinsEffect, energy, coin, repeat, costPer, incrementCost, costReduceNext, countNameTokens, nameHasToken, startsWithCharge, useRefresh, costReduce, applyToTarget, playTwice, payAction, sortHand, discardFromPlay, trashThis, copper, gold, silver, estate, duchy, province, dedupBy, countDistinctNames, playReplacer, trashOnLeavePlay, sourceHasName, cannotUse, renderCostOrZero, echoRule, priorityRule, reflectRule, ferryRule, twinRule, duplicateRule } from '../logic.js';
 export var cards = [];
 export var events = [];
 /*
@@ -282,8 +282,8 @@ const restock:CardSpec = {name: 'Restock',
 registerEvent(restock)
 */
 var escalate = { name: 'Escalate',
-    fixedCost: energy(1),
-    simpleText: "Use Refresh. This costs more to play each time you use it ($0, $1, $3, $6, $10...).",
+    fixedCost: free,
+    simpleText: "Use Refresh. This costs more to use each time ($0, $1, $3, $6, $10...).",
     variableCosts: [costPer(coin(1))],
     effects: [
         chargeEffect(),
@@ -294,7 +294,28 @@ var escalate = { name: 'Escalate',
         useRefresh()
     ]
 };
-// events.push(escalate) // removed (boon)
+events.push(escalate);
+var flourishName = 'Flourish';
+var flourish = { name: flourishName,
+    fixedCost: free,
+    simpleText: "Once you have 1/16 of the vp requirement, you can use this to Refresh for free. You can repeat once you reach 1/8, 1/4, and 1/2 of the requirement.",
+    restrictions: [{
+            text: 'You can only use this if your score times the charge tokens on this is at least the vp goal.',
+            test: function (card, state) { return state.points * state.find(card).charge >= state.vp_goal; }
+        }],
+    effects: [
+        useRefresh(),
+        {
+            text: ['Remove half of the charge tokens from this (rounded down).'],
+            transform: function (s, c) {
+                var currentCharge = s.find(c).charge;
+                var toRemove = Math.floor(currentCharge / 2);
+                return discharge(c, toRemove);
+            }
+        }
+    ],
+    staticReplacers: [startsWithCharge(flourishName, 16)] };
+events.push(flourish);
 /*
 const perpetualMotion:CardSpec = {name:'Perpetual Motion',
     restrictions: [{
@@ -606,20 +627,7 @@ export var duplicate = { name: 'Duplicate',
             text: ["Put a duplicate token on each card in the supply."],
             transform: function (state, card) { return doAll(state.supply.map(function (c) { return addToken(c, 'duplicate'); })); }
         }],
-    staticTriggers: [{
-            text: "After buying a card with a duplicate token on it other than with this,\n        remove a duplicate token from it to buy it again.",
-            kind: 'afterBuy',
-            handles: function (e, state, card) {
-                if (sourceHasName(e.source, card.name))
-                    return false;
-                var target = state.find(e.card);
-                return target.count('duplicate') > 0;
-            },
-            transform: function (e, state, card) {
-                return payToDo(removeToken(e.card, 'duplicate'), e.card.buy(card));
-            }
-        }]
-};
+    rules: [duplicateRule], };
 events.push(duplicate);
 var royalSeal = { name: 'Royal Seal',
     effects: [coinsEffect(2), createInPlayEffect(fair, 2)],
@@ -2215,7 +2223,7 @@ var ferry = {
     name: 'Ferry',
     buyCost: coin(3),
     fixedCost: energy(1),
-    effects: [buysEffect(1), coinsEffect(1), targetedEffect(function (target) { return addToken(target, 'ferry'); }, 'Put a ferry token on a supply.', function (state) { return state.supply; })],
+    effects: [buysEffect(1), coinsEffect(1), targetedEffect(function (target) { return addToken(target, 'ferry', 2); }, 'Put a ferry token on a supply.', function (state) { return state.supply; })],
     rules: [ferryRule],
 };
 cards.push(ferry);
@@ -2885,20 +2893,9 @@ cards.push(contraband);
 var bulkOrder = {
     name: 'Bulk Order',
     fixedCost: coin(3),
-    effects: [targetedEffect(function (card) { return addToken(card, 'bulk', 5); }, 'Put five bulk tokens on a card in the supply.', function (state) { return state.supply; })],
-    staticTriggers: [{
-            text: "After buying a card with a bulk token on it other than with this,\n        remove a bulk token from it to buy it again.",
-            kind: 'afterBuy',
-            handles: function (e, state, card) {
-                if (sourceHasName(e.source, card.name))
-                    return false;
-                var target = state.find(e.card);
-                return target.count('bulk') > 0;
-            },
-            transform: function (e, state, card) {
-                return payToDo(removeToken(e.card, 'bulk'), e.card.buy(card));
-            }
-        }]
+    simpleText: "The next 5 times you buy a card from a supply, buy it again for free.",
+    effects: [targetedEffect(function (card) { return addToken(card, 'duplicate', 5); }, 'Put five duplicate tokens on a card in the supply.', function (state) { return state.supply; })],
+    rules: [duplicateRule],
 };
 events.push(bulkOrder);
 // ========== VP MODE EVENTS ==========

@@ -97,6 +97,7 @@ import { coerceReplayVersion, parseReplay, MalformedReplay } from './logic.js';
 import { randomPlaceholder } from './logic.js';
 import { MalformedSpec, specToURL, specFromURL } from './logic.js';
 import { vpModes, vpCardNames, vpEventNames } from './logic.js';
+import { supplyComp, eventComp } from './logic.js';
 // register cards
 import { throneRoom, duplicate, allPotions } from './cards/index.js';
 var keyListeners = new Map();
@@ -2035,6 +2036,56 @@ function setupAddButtons() {
         if (!stageAddButtonStates[3].used)
             showCardPicker(3);
     });
+    // Debug button - adds all available cards and events to the deck
+    $('#debugButton').off('click').on('click', function () {
+        var e_24, _a, e_25, _b;
+        var allCards = getAvailableCards().filter(function (c) {
+            return !vpCardNames.has(c.name) &&
+                c.name !== 'Copper' && c.name !== 'Silver' && c.name !== 'Gold';
+        });
+        var allEvents = getAvailableEvents().filter(function (e) {
+            return !vpEventNames.has(e.name) && e.name !== 'Refresh';
+        });
+        var _loop_6 = function (card) {
+            if (!collectedCards.some(function (cc) { return cc.name === card.name; })) {
+                collectedCards.push(card);
+            }
+        };
+        try {
+            for (var allCards_1 = __values(allCards), allCards_1_1 = allCards_1.next(); !allCards_1_1.done; allCards_1_1 = allCards_1.next()) {
+                var card = allCards_1_1.value;
+                _loop_6(card);
+            }
+        }
+        catch (e_24_1) { e_24 = { error: e_24_1 }; }
+        finally {
+            try {
+                if (allCards_1_1 && !allCards_1_1.done && (_a = allCards_1.return)) _a.call(allCards_1);
+            }
+            finally { if (e_24) throw e_24.error; }
+        }
+        var _loop_7 = function (event_1) {
+            if (!collectedEvents.some(function (ce) { return ce.name === event_1.name; })) {
+                collectedEvents.push(event_1);
+            }
+        };
+        try {
+            for (var allEvents_1 = __values(allEvents), allEvents_1_1 = allEvents_1.next(); !allEvents_1_1.done; allEvents_1_1 = allEvents_1.next()) {
+                var event_1 = allEvents_1_1.value;
+                _loop_7(event_1);
+            }
+        }
+        catch (e_25_1) { e_25 = { error: e_25_1 }; }
+        finally {
+            try {
+                if (allEvents_1_1 && !allEvents_1_1.done && (_b = allEvents_1.return)) _b.call(allEvents_1);
+            }
+            finally { if (e_25) throw e_25.error; }
+        }
+        $('#debugButton').text('Added All');
+        $('#debugButton').attr('disabled', 'true');
+        $('#debugButton').removeAttr('choosable');
+    });
 }
 function updateProgressSidebar() {
     $('.progressCircle').each(function () {
@@ -2063,7 +2114,7 @@ function updateProgressSidebar() {
     });
 }
 function showDeckDialog() {
-    var e_24, _a, e_25, _b;
+    var e_26, _a, e_27, _b;
     $('#deckContents').empty();
     if (collectedCards.length === 0 && collectedEvents.length === 0) {
         $('#deckContents').append('<div>No cards collected yet.</div>');
@@ -2075,25 +2126,25 @@ function showDeckDialog() {
                 $('#deckContents').append(renderSpecNoRelated(card));
             }
         }
-        catch (e_24_1) { e_24 = { error: e_24_1 }; }
+        catch (e_26_1) { e_26 = { error: e_26_1 }; }
         finally {
             try {
                 if (collectedCards_1_1 && !collectedCards_1_1.done && (_a = collectedCards_1.return)) _a.call(collectedCards_1);
             }
-            finally { if (e_24) throw e_24.error; }
+            finally { if (e_26) throw e_26.error; }
         }
         try {
             for (var collectedEvents_1 = __values(collectedEvents), collectedEvents_1_1 = collectedEvents_1.next(); !collectedEvents_1_1.done; collectedEvents_1_1 = collectedEvents_1.next()) {
-                var event_1 = collectedEvents_1_1.value;
-                $('#deckContents').append(renderSpecNoRelated(event_1));
+                var event_2 = collectedEvents_1_1.value;
+                $('#deckContents').append(renderSpecNoRelated(event_2));
             }
         }
-        catch (e_25_1) { e_25 = { error: e_25_1 }; }
+        catch (e_27_1) { e_27 = { error: e_27_1 }; }
         finally {
             try {
                 if (collectedEvents_1_1 && !collectedEvents_1_1.done && (_b = collectedEvents_1.return)) _b.call(collectedEvents_1);
             }
-            finally { if (e_25) throw e_25.error; }
+            finally { if (e_27) throw e_27.error; }
         }
     }
     $('#deckClose').off('click').on('click', hideDeckDialog);
@@ -2167,8 +2218,10 @@ function startCurrentKingdom() {
     if (document.activeElement instanceof HTMLElement) {
         document.activeElement.blur();
     }
-    // Start the game with collected cards/events and potions
-    var state = initialState(currentKingdom, collectedCards, collectedEvents, currentPotions);
+    // Start the game with collected cards/events and potions (sorted by cost)
+    var sortedCards = __spreadArray([], __read(collectedCards), false).sort(supplyComp);
+    var sortedEvents = __spreadArray([], __read(collectedEvents), false).sort(eventComp);
+    var state = initialState(currentKingdom, sortedCards, sortedEvents, currentPotions);
     startGame(state);
 }
 function goBackToStage() {
