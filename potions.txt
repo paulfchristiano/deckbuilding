@@ -1,0 +1,23 @@
+
++10 actions.
+Double your $ and buys.
+Create 5 coppers in your hand.
+Mining potion. Trash any number of coppers in your hand, and create that many silvers in your discard. Trash any number of silvers in your hand, and create that many golds in your discard.
+Create a celebration with an echo token in play.
+The next time you buy a card, buy it 2 more times.
+Put a ferry token on a card in the supply. It costs $2 less.
+Return all cards in your discard to your hand.
+Create 3 fairs and a shelter in play.
++$1, +1 action, +1 buy, create a villager in play, create a fair in play.
+Gain an X in your hand. This is a bunch of different potions, one for each value of X from:
+- Workshop
+- Tavern
+- Throne Room
+- Innovation
+- Transmogrify
+Immediately do the same effects as event X, for X = …
+- Hall of Mirrors
+- Hall of Echoes
+- Onslaught
+- Prioritize
+- Twin

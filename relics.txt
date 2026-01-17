@@ -1,0 +1,13 @@
+Bag of coins: Start with an extra copper.
+Bag of preparation: +2 actions each time you refresh.
+Courier: +1 buy each time you refresh.
+Looking glass: Have 2 random cards and 1 random event in all future encounters.
+Empty bottle: Each time you acquire a card, start the next course with a copy with an echo token in your hand.
+Broken lever: vp targets are 25% lower.
+Ancient quill: For each 3@ you beat par, gain 1@ buffer.
+Inkwell: Par is 1@ higher on each course.
+Elegant quill: Gain 3@ buffer.
+Question card: Future rewards have 1 more option.
+Cursed quill: Par is 6@ lower on each course. Gain 3@ buffer at the start of each course.
+Singing bowl: you can skip any reward for +1@ buffer.
+Counterfeit artifact: You can sacrifice this relic to take two options from a reward.
