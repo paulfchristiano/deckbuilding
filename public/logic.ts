@@ -496,7 +496,7 @@ export class State {
     public readonly void:Zone;
     public readonly events:Zone;
     constructor(
-        public readonly spec: GameSpec = {kind:'full', randomizer: {expansions: [], seed: ''}},
+        public readonly spec: GameSpec = {kind:'pick', cards:[], events:[]},
         public readonly ui: UI = noUI,
         public readonly resources:Resources =
             {coin:0, energy:0, points:0, actions:0, buys:0},
@@ -2003,6 +2003,48 @@ export const sets = {
     'test': emptySet(),
 }
 
+// ----- VP MODES -----
+
+// List of VP-generating cards to exclude from random selection
+export const vpCardNames: Set<string> = new Set([
+    'Estate', 'Duchy', 'Province',
+    'Flower Market', 'Vibrant City', 'Frontier', 'Colony', 'Gardens', 'Palace', 'Duke', 'Turnpike',
+    'Territory', 'Statue', 'Farmland',
+    'Inverted Palace',
+])
+
+export const vpEventNames: Set<string> = new Set([
+    'Philanthropy',
+])
+
+// VP mode type
+export interface VPMode {
+    name: string
+    target: number
+    cards: CardSpec[]
+    events: CardSpec[]
+}
+
+// Registry for VP modes (populated by cards/index.ts)
+export const vpModes: VPMode[] = []
+
+// Select a random VP mode based on seed
+export function selectVPMode(seed: string): VPMode {
+    const h = hash(seed + 'vpmode')
+    const index = ((h % vpModes.length) + vpModes.length) % vpModes.length
+    return vpModes[index]
+}
+
+// Get the VP target for a mode
+export function getVPTarget(mode: VPMode): number {
+    return mode.target
+}
+
+// Get the cards and events for a mode
+export function getVPModeCards(mode: VPMode): { cards: CardSpec[], events: CardSpec[] } {
+    return { cards: mode.cards, events: mode.events }
+}
+
 export function makeKingdom(spec:GameSpec): Kingdom {
     switch (spec.kind) {
         case 'test':
@@ -2015,11 +2057,10 @@ export function makeKingdom(spec:GameSpec): Kingdom {
         case 'goal':
             return makeKingdom(spec.spec)
         default:
-            const kingdom = cardsAndEvents(spec)
-            const expansions = usableExpansions(spec)
+            // No random cards/events - only VP mode cards/events (added in initialState)
             return {
-                cards: pickRandoms(kingdom.cards, cardsFrom('cards', expansions), 'cards' + spec.randomizer.seed),
-                events: pickRandoms(kingdom.events, cardsFrom('events', expansions), 'events' + spec.randomizer.seed),
+                cards: [],
+                events: [],
             }
     }
 }
@@ -2239,9 +2280,25 @@ function pickRandoms(slots:SlotSpec[], source:CardSpec[], seed:string): CardSpec
     ))
 }
 
+// Get the VP mode for a spec (if it has a randomizer)
+export function getVPModeForSpec(spec:GameSpec): VPMode | null {
+    switch (spec.kind) {
+        case 'goal': return getVPModeForSpec(spec.spec)
+        case 'full':
+        case 'pickR':
+        case 'require':
+            return selectVPMode(spec.randomizer.seed)
+        default: return null
+    }
+}
+
 function goalForSpec(spec:GameSpec): number {
     switch (spec.kind) {
         case 'goal': return spec.vp
+        case 'full':
+        case 'pickR':
+        case 'require':
+            return selectVPMode(spec.randomizer.seed).target
         default: return DEFAULT_VP_GOAL
     }
 }
@@ -2249,15 +2306,32 @@ function goalForSpec(spec:GameSpec): number {
 export function normalizeURL(url:string): string{
 	const spec:GameSpec = specFromURL(url)
     const kingdom:Kingdom = makeKingdom(spec)
+    const vpGoal = goalForSpec(spec)
     let normalizedSpec:GameSpec = {
-        kind:'goal', vp:goalForSpec(spec),
+        kind:'goal', vp:vpGoal,
         spec: {kind:'pick', cards:kingdom.cards, events:kingdom.events}
     }
     return specToURL(normalizedSpec)
 }
 
-export function initialState(spec:GameSpec): State {
-    const startingHand:CardSpec[] = [copper, copper, copper, estate, estate]
+function getRandomizerSeed(spec: GameSpec): string | null {
+    switch (spec.kind) {
+        case 'test':
+        case 'pick':
+            return null
+        case 'goal':
+            return getRandomizerSeed(spec.spec)
+        default:
+            return spec.randomizer.seed
+    }
+}
+
+export function initialState(
+    spec:GameSpec,
+    extraCards: CardSpec[] = [],
+    extraEvents: CardSpec[] = []
+): State {
+    const startingHand:CardSpec[] = [copper, copper, copper]
 
     const kingdom:Kingdom = makeKingdom(spec)
 
@@ -2266,8 +2340,21 @@ export function initialState(spec:GameSpec): State {
     variableSupplies.sort(supplyComp)
     variableEvents.sort(eventComp)
 
-    const supply = sets.core.cards.concat(variableSupplies)
-    const events = sets.core.events.concat(variableEvents)
+    // Get VP mode cards/events for proper ordering (after core, before variable)
+    const seed = getRandomizerSeed(spec)
+    let vpCards: CardSpec[] = []
+    let vpEvents: CardSpec[] = []
+    if (seed !== null) {
+        const vpMode = selectVPMode(seed)
+        const vpModeCards = getVPModeCards(vpMode)
+        vpCards = vpModeCards.cards
+        vpEvents = vpModeCards.events
+    }
+
+    // Order: core cards, VP mode cards, extra cards, then variable supplies
+    const supply = sets.core.cards.concat(vpCards).concat(extraCards).concat(variableSupplies)
+    // Order: core events (refresh), VP mode events, extra events, then variable events
+    const events = sets.core.events.concat(vpEvents).concat(extraEvents).concat(variableEvents)
 
     let state = new State(spec)
     state = createRawMulti(state, supply, 'supply')
@@ -2534,26 +2621,29 @@ export const gold:CardSpec = {name: 'Gold',
 }
 sets.core.cards.push(gold)
 
+// VP cards - kept for victory modes but not in core supply
 export const estate:CardSpec = {name: 'Estate',
     buyCost: coin(1),
     fixedCost: energy(1),
     effects: [pointsEffect(1)]
 }
-sets.core.cards.push(estate)
 
 export const duchy:CardSpec = {name: 'Duchy',
     buyCost: coin(4),
     fixedCost: energy(1),
     effects: [pointsEffect(2)]
 }
-sets.core.cards.push(duchy)
 
 export const province:CardSpec = {name: 'Province',
     buyCost: coin(8),
     fixedCost: energy(1),
     effects: [pointsEffect(3)]
 }
-sets.core.cards.push(province)
+
+// Rock - replaces Estate in starting deck (not buyable)
+export const rock:CardSpec = {name: 'Rock',
+    buyCost: coin(2),
+}
 
 //
 //
@@ -2787,6 +2877,12 @@ export const randomPlaceholder:CardSpec = {name: RANDOM}
 
 function cardsFrom(kind:'cards'|'events', expansions:ExpansionName[]) {
     return expansions.map(c => sets[c][kind]).flat(1)
+}
+
+// Get cards/events for randomization, excluding VP-generating ones
+function randomizableCardsFrom(kind:'cards'|'events', expansions:ExpansionName[]) {
+    const exclusions = kind === 'cards' ? vpCardNames : vpEventNames
+    return cardsFrom(kind, expansions).filter(c => !exclusions.has(c.name))
 }
 
 export function allCards(): CardSpec[] {

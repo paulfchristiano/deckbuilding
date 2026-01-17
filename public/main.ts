@@ -18,10 +18,10 @@ import { Replay, coerceReplayVersion, parseReplay, MalformedReplay } from './log
 import { allCards, allEvents, randomPlaceholder } from './logic.js'
 import { VERSION, DEFAULT_VP_GOAL } from './logic.js'
 import { MalformedSpec, specToURL, specFromURL } from './logic.js'
+import { vpModes, selectVPMode, vpCardNames, vpEventNames } from './logic.js'
 
 // register cards
 import {throneRoom, duplicate} from './cards/index.js'
-import { count } from 'console'
 
 // --------------------- Hotkeys
 
@@ -531,7 +531,7 @@ function renderState(
     $('#actions').html(state.actions.toString())
     $('#buys').html(state.buys.toString())
     $('#coin').html(state.coin.toString())
-    $('#points').html(state.points.toString())
+    $('#points').html(`${state.points}/${state.vp_goal}`)
 
     $('#resolving').empty()
     $('#resolving').html(state.resolving.map(
@@ -805,35 +805,26 @@ class webUI {
     //(would be nice to clean this up so you use undo to go back)
     async victory(state:State): Promise<void> {
         const ui:webUI = this;
-        if (isCampaign) {
-            const score = state.energy
-            const url = specToURL(state.spec)
-            const query = [
-                credentialParams(),
-                `url=${encodeURIComponent(url)}`,
-                `score=${score}`,
-                `history=${state.serializeHistory()}`
-            ].join('&')
-            $.post(`campaignSubmit?${query}`).then(
-                () => heartbeat(state.spec)
-            )
+        const score = state.energy
+
+        // Save score and return to landing page
+        const doneAction = () => {
+            saveScore(state, score)
+            goBackToLanding()
         }
+
         const submitOrUndo: () => Promise<void> = () =>
             new Promise(function (resolve, reject) {
                 ui.undoing = true;
                 heartbeat(state.spec)
-                const submitDialog = () => {
-                    keyListeners.clear()
-                    renderScoreSubmission(state, () => submitOrUndo().then(resolve, reject))
-                }
                 function newReject(reason:any) {
                     if (reason instanceof Undo) ui.undoing = true
                     ui.clearChoice()
                     reject(reason)
                 }
-                const options:Option<() => void>[] = (!submittable(state.spec)) ? [] : [{
-                        render: {kind:'string', string:'Submit'},
-                        value: submitDialog,
+                const options:Option<() => void>[] = [{
+                        render: {kind:'string', string:'Done'},
+                        value: doneAction,
                         hotkeyHint: {kind:'key', val:'!'}
                     }]
                 ui.choiceState = {
@@ -842,7 +833,7 @@ class webUI {
                     options:options,
                     info:["victory"],
                     chosen:[],
-                    resolve:submitDialog,
+                    resolve:doneAction,
                     reject:newReject,
                 }
                 ui.render()
@@ -906,7 +897,7 @@ function renderChoice(
         hotkeyMap: hotkeyMap,
         optionsMap:optionsMap,
         pickMap:pickMap,
-        updateURL:(!globalRendererState.userURL || state.hasHistory())
+        updateURL: false // Disabled for static version: (!globalRendererState.userURL || state.hasHistory())
     })
 
     if (ui != null) {
@@ -940,6 +931,7 @@ function renderStringOption(option:StringOption, hotkey?:Key, pick?:number) {
 
 function renderSpecials(state:State): string {
     return [
+        renderBack(),
         renderUndo(state.undoable()),
         renderRedo(state.redo.length > 0),
         renderHotkeyToggle(),
@@ -949,6 +941,10 @@ function renderSpecials(state:State): string {
         renderRestart(),
         renderDeepLink()
     ].join('')
+}
+
+function renderBack(): string {
+    return `<span class='option' option='back' choosable chosen='false'>Back</span>`
 }
 
 function renderRestart(): string {
@@ -993,6 +989,11 @@ function bindSpecials(
     if (ui !== null) bindMacroToggle(ui)
     bindViewKingdom(state)
     bindDeepLink(state)
+    bindBack()
+}
+
+function bindBack(): void {
+    $(`[option='back']`).on('click', () => goBackToLanding())
 }
 
 function bindViewKingdom(state:State): void {
@@ -1176,15 +1177,9 @@ function showLinkDialog(url:string) {
         `<span class="option" choosable id="cancel">${renderHotkey('Esc')}Cancel</span>` +
         `</div>`
     )
-    const id:string = randomString()
-    //TOOD: include base URL
-    $('#link').val(`${baseURL()}/g/${id}`)
+    // Use full URL instead of shortened link (no server)
+    $('#link').val(`${baseURL()}?${url}`)
     $('#link').select()
-    $.get(`link?id=${id}&url=${encodeURIComponent(url)}`).done(function(x:string) {
-        if (x != 'ok') {
-            alert(x)
-        }
-    })
     function exit() {
         $('#link').blur()
         $('#scoreSubmitter').attr('active', 'false')
@@ -1272,7 +1267,7 @@ const tutorialStages:tutorialStage[] = [
     },
     {
         text: [`You spent @ to play the estate, and gained 1 vp.
-        The goal of the game is to get to ${DEFAULT_VP_GOAL}vp
+        The goal of the game is to get to the target vp
         using as little @ as possible.`,
         `If you play an Estate using a Throne Room, you won't pay @. You only
         pay a card's cost when you play or buy it the 'normal' way.
@@ -1381,7 +1376,7 @@ function bindHelp(state:State, ui:webUI) {
         attach(() => ui.render())
         const helpLines:string[] = [
             `Rules:`,
-            `The goal of the game is to get to ${DEFAULT_VP_GOAL} points (vp) using as little energy (@) as possible.`,
+            `The goal of the game is to get to the target vp (shown in the display) using as little energy (@) as possible.`,
             `You can buy a card by spending a buy and paying its buy cost.`,
             `When you buy a card, create a copy of it. Cards you create go in your discard by default.`,
             `You can play a card by spending an action and paying its cost.`,
@@ -1441,42 +1436,9 @@ function credentialParams(): string {
     return `username=${localStorage.campaignUsername}&hashedPassword=${localStorage.hashedPassword}`
 }
 
-//TODO: should factor credentials differently
+// Campaign submission disabled for static version
 function renderCampaignSubmission(state:State, done:() => void) {
-    const score = state.energy
-    const url = specToURL(state.spec)
-    $('#campaignSubmitter').attr('active', 'true')
-    function exit() {
-        $('#campaignSubmitter').attr('active', 'false')
-    }
-    async function submit() {
-        const query = [
-            credentialParams(),
-            `url=${encodeURIComponent(url)}`,
-            `score=${score}`,
-            `history=${state.serializeHistory()}`
-        ].join('&')
-        return $.post(`campaignSubmit?${query}`)
-    }
-    //TODO: handle bad submissions here
-    submit().then(data => {
-        $('#newbest').text(score)
-        $('#priorbest').text(data.priorBest)
-        $('#awards').text(data.newAwards)
-        $('#nextAward').text(data.nextAward)
-        heartbeat(state.spec)
-    })
-    $('#campaignSubmitter').focus()
-    $('#campaignSubmitter').keydown((e:any) => {
-        if (e.keyCode == 13) {
-            exit()
-            e.preventDefault()
-        } else if (e.keyCode == 27) {
-            exit()
-            e.preventDefault()
-        }
-    })
-    $('#campaignSubmitter').on('click', exit)
+    done()
 }
 
 function renderScoreSubmission(state:State, done:() => void) {
@@ -1500,24 +1462,8 @@ function renderScoreSubmission(state:State, done:() => void) {
         done()
     }
     function submit() {
-        const username:string = $('#username').val() as string
-        if (username.length > 0) {
-            rememberUsername(username)
-            const query = [
-                `url=${encodeURIComponent(url)}`,
-                `score=${score}`,
-                `username=${encodeURIComponent(username)}`,
-                `history=${state.serializeHistory()}`
-            ].join('&')
-            $.post(`submit?${query}`).done(function(resp:string) {
-                if (resp == 'OK') {
-                    heartbeat(state.spec)
-                } else {
-                    alert(resp)
-                }
-            })
-            exit()
-        }
+        // Score submission disabled for static version
+        exit()
     }
     $('#username').keydown((e:any) => {
         if (e.keyCode == 13) {
@@ -1542,51 +1488,14 @@ function scoreboardURL(spec:GameSpec) {
 
 //TODO: change the sidebar based on whether you are in a campaign
 function campaignHeartbeat(spec:GameSpec, interval?:any): void {
-    const queryStr = `campaignHeartbeat?${credentialParams()}&url=${encodeURIComponent(specToURL(spec))}&version=${VERSION}`
-    $('#homeLink').attr('href', 'campaign.html')
-    $('#homeLink').text('back to campaign')
-    $.get(queryStr).done(function(x) {
-        if (x == 'version mismatch') {
-            clearInterval(interval)
-            alert("The server has updated to a new version, please refresh. You will get an error and your game will restart if the history is no longer valid.")
-            return
-        }
-        if (x == 'user not found') {
-            clearInterval(interval)
-            alert("Your username+password were not recognized")
-            return
-        }
-        let [personalBest, nextStar, starsWon, totalStars] = x
-        const starStr = (totalStars > 1)
-            ? `<div>Stars won: ${starsWon}/${totalStars}</div>`
-            : ``
-        const personalBestStr = personalBest !== null
-            ? `<div>Your best: @${personalBest}</div>`
-            : ``
-        const nextStarStr = nextStar !== null
-            ? `<div>Next star: @${nextStar}</div>`
-            : ``
-        $('#best').html(starStr + nextStarStr + personalBestStr)
-    })
+    // Campaign disabled for static version
 }
 
 //TODO: still need to refactor global state
 let isCampaign:boolean = false;
 
 function heartbeat(spec:GameSpec, interval?:any): void {
-    if (isCampaign) {
-        campaignHeartbeat(spec, interval)
-    } else if (submittable(spec)) {
-        $.get(`topScore?url=${encodeURIComponent(specToURL(spec))}&version=${VERSION}`).done(function(x:string) {
-            if (x == 'version mismatch') {
-                clearInterval(interval)
-                alert("The server has updated to a new version, please refresh. You will get an error and your game will restart if the history is no longer valid.")
-            }
-            const n:number = parseInt(x, 10)
-            if (!isNaN(n)) renderBest(n, spec)
-            else renderScoreboardLink(spec)
-        })
-    }
+    // Server features disabled for static version
 }
 
 function renderBest(best:number, spec:GameSpec): void {
@@ -1804,4 +1713,281 @@ export function loadPicker(picked_sets: ExpansionName[]): void {
         ).concat(state.events.map(
             (card, i) => makeOption(card, i, 'event')
         )))
+}
+
+// ----------------------------------- Landing Page
+
+interface GameOption {
+    spec: GameSpec
+    vpModeName: string
+    bestScore: number | null
+}
+
+let currentGameOptions: GameOption[] = []
+let currentGameIndex: number = -1
+
+// Deck building state
+interface AddButtonState {
+    kind: 'card' | 'event'
+    options: CardSpec[]
+    used: boolean
+    selectedCard: CardSpec | null
+}
+
+let addButtonStates: AddButtonState[] = []
+let collectedCards: CardSpec[] = []
+let collectedEvents: CardSpec[] = []
+
+function generateAddButtonOptions(): void {
+    const cardPool = allCards().filter(c =>
+        !vpCardNames.has(c.name) &&
+        c.name !== 'Copper' && c.name !== 'Silver' && c.name !== 'Gold'
+    )
+    const eventPool = allEvents().filter(e =>
+        !vpEventNames.has(e.name) && e.name !== 'Refresh'
+    )
+
+    // Shuffle and pick random cards/events
+    const shuffledCards = shuffleArray([...cardPool])
+    const shuffledEvents = shuffleArray([...eventPool])
+
+    addButtonStates = [
+        { kind: 'card', options: shuffledCards.slice(0, 3), used: false, selectedCard: null },
+        { kind: 'card', options: shuffledCards.slice(3, 6), used: false, selectedCard: null },
+        { kind: 'event', options: shuffledEvents.slice(0, 3), used: false, selectedCard: null },
+    ]
+
+    collectedCards = []
+    collectedEvents = []
+}
+
+function shuffleArray<T>(array: T[]): T[] {
+    for (let i = array.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]]
+    }
+    return array
+}
+
+function showCardPicker(buttonIndex: number): void {
+    const state = addButtonStates[buttonIndex]
+    if (state.used) return
+
+    const title = state.kind === 'card' ? 'Choose a card:' : 'Choose an event:'
+    $('#cardPickerTitle').text(title)
+
+    $('#cardPickerOptions').empty()
+    for (const card of state.options) {
+        const optionEl = $(`<span class="option" choosable>${card.name}</span>`)
+        optionEl.on('click', () => selectCard(buttonIndex, card))
+        $('#cardPickerOptions').append(optionEl)
+    }
+
+    $('#cardPickerCancel').off('click').on('click', hideCardPicker)
+    $('#cardPickerDialog').attr('active', 'true')
+}
+
+function hideCardPicker(): void {
+    $('#cardPickerDialog').attr('active', 'false')
+}
+
+function selectCard(buttonIndex: number, card: CardSpec): void {
+    const state = addButtonStates[buttonIndex]
+    state.used = true
+    state.selectedCard = card
+
+    if (state.kind === 'card') {
+        collectedCards.push(card)
+    } else {
+        collectedEvents.push(card)
+    }
+
+    // Update button appearance
+    updateAddButtonDisplay(buttonIndex)
+    hideCardPicker()
+}
+
+function updateAddButtonDisplay(buttonIndex: number): void {
+    const state = addButtonStates[buttonIndex]
+    const buttonId = buttonIndex < 2 ? `#addCard${buttonIndex}` : '#addEvent0'
+
+    if (state.used && state.selectedCard) {
+        $(buttonId).text(state.selectedCard.name)
+        $(buttonId).attr('disabled', 'true')
+        $(buttonId).removeAttr('choosable')
+    }
+}
+
+function setupAddButtons(): void {
+    for (let i = 0; i < 2; i++) {
+        const buttonId = `#addCard${i}`
+        if (addButtonStates[i].used) {
+            $(buttonId).text(addButtonStates[i].selectedCard?.name || 'Add Card')
+            $(buttonId).attr('disabled', 'true')
+            $(buttonId).removeAttr('choosable')
+        } else {
+            $(buttonId).text('Add Card')
+            $(buttonId).removeAttr('disabled')
+            $(buttonId).attr('choosable', 'true')
+        }
+        $(buttonId).off('click').on('click', () => {
+            if (!addButtonStates[i].used) showCardPicker(i)
+        })
+    }
+
+    const eventButtonId = '#addEvent0'
+    if (addButtonStates[2].used) {
+        $(eventButtonId).text(addButtonStates[2].selectedCard?.name || 'Add Event')
+        $(eventButtonId).attr('disabled', 'true')
+        $(eventButtonId).removeAttr('choosable')
+    } else {
+        $(eventButtonId).text('Add Event')
+        $(eventButtonId).removeAttr('disabled')
+        $(eventButtonId).attr('choosable', 'true')
+    }
+    $(eventButtonId).off('click').on('click', () => {
+        if (!addButtonStates[2].used) showCardPicker(2)
+    })
+}
+
+// Score management - stores in memory per-kingdom
+function saveScore(state: State, score: number): void {
+    if (currentGameIndex < 0 || currentGameIndex >= currentGameOptions.length) return
+
+    const option = currentGameOptions[currentGameIndex]
+    // Lower score is better (less energy used)
+    if (option.bestScore === null || score < option.bestScore) {
+        option.bestScore = score
+    }
+}
+
+function getRandomizerSeed(spec: GameSpec): string | null {
+    switch (spec.kind) {
+        case 'test':
+        case 'pick':
+            return null
+        case 'goal':
+            return getRandomizerSeed(spec.spec)
+        default:
+            return spec.randomizer.seed
+    }
+}
+
+function generateRandomSeed(): string {
+    return Math.random().toString(36).substring(2, 10)
+}
+
+function generateGameOptions(): GameOption[] {
+    const options: GameOption[] = []
+    const usedModeIndices = new Set<number>()
+
+    // Generate 3 games with different VP modes
+    for (let i = 0; i < 3; i++) {
+        let seed: string
+        let modeIndex: number
+
+        // Keep generating seeds until we get a unique VP mode
+        do {
+            seed = generateRandomSeed()
+            const h = hashString(seed + 'vpmode')
+            modeIndex = ((h % vpModes.length) + vpModes.length) % vpModes.length
+        } while (usedModeIndices.has(modeIndex))
+
+        usedModeIndices.add(modeIndex)
+
+        const spec: GameSpec = {
+            kind: 'full',
+            randomizer: {
+                seed: seed,
+                expansions: ['base', 'expansion']
+            }
+        }
+
+        options.push({
+            spec: spec,
+            vpModeName: vpModes[modeIndex].name,
+            bestScore: null
+        })
+    }
+
+    return options
+}
+
+// Simple hash function matching the one in logic.ts
+function hashString(s: string): number {
+    let hash = 0
+    for (let i = 0; i < s.length; i++) {
+        hash = ((hash << 5) - hash) + s.charCodeAt(i)
+    }
+    return hash
+}
+
+export function showLandingPage(): void {
+    // Generate new game options if not already generated
+    if (currentGameOptions.length === 0) {
+        currentGameOptions = generateGameOptions()
+        generateAddButtonOptions()
+    }
+
+    // Set up add card/event buttons
+    setupAddButtons()
+
+    // Update button labels and scores
+    for (let i = 0; i < 3; i++) {
+        const option = currentGameOptions[i]
+
+        $(`#game${i}`).text(option.vpModeName)
+        $(`#game${i}`).off('click').on('click', () => startGameFromOption(i))
+
+        // Update score display
+        if (option.bestScore !== null) {
+            $(`#score${i}`).text(`Score: ${option.bestScore}`).show()
+        } else {
+            $(`#score${i}`).hide()
+        }
+    }
+
+    // Set up back button
+    $('#backButton').off('click').on('click', () => goBackToLanding())
+
+    // Show landing page, hide game
+    $('#landingPage').show()
+    $('#gameContainer').hide()
+}
+
+function startGameFromOption(index: number): void {
+    const option = currentGameOptions[index]
+    currentGameIndex = index
+
+    // Hide landing page, show game
+    $('#landingPage').hide()
+    $('#gameContainer').show()
+
+    // Remove focus from button to allow keyboard events to work
+    if (document.activeElement instanceof HTMLElement) {
+        document.activeElement.blur()
+    }
+
+    // Start the game with collected cards/events
+    const state = initialState(option.spec, collectedCards, collectedEvents)
+    startGame(state)
+}
+
+function goBackToLanding(): void {
+    // Update score displays
+    for (let i = 0; i < currentGameOptions.length; i++) {
+        const option = currentGameOptions[i]
+        if (option.bestScore !== null) {
+            $(`#score${i}`).text(`Score: ${option.bestScore}`).show()
+        } else {
+            $(`#score${i}`).hide()
+        }
+    }
+
+    // Update add buttons
+    setupAddButtons()
+
+    // Show landing page with same options (don't regenerate)
+    $('#landingPage').show()
+    $('#gameContainer').hide()
 }

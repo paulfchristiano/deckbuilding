@@ -29,7 +29,7 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
     function verb(n) { return function (v) { return step([n, v]); }; }
     function step(op) {
         if (f) throw new TypeError("Generator is already executing.");
-        while (_) try {
+        while (g && (g = 0, op[0] && (_ = 0)), _) try {
             if (f = 1, y && (t = op[0] & 2 ? y["return"] : op[0] ? y["throw"] || ((t = y["return"]) && t.call(y), 0) : y.next) && !(t = t.call(y, op[1])).done) return t;
             if (y = 0, t) op = [op[0] & 2, t.value];
             switch (op[0]) {
@@ -77,9 +77,14 @@ var __read = (this && this.__read) || function (o, n) {
     }
     return ar;
 };
-var __spread = (this && this.__spread) || function () {
-    for (var ar = [], i = 0; i < arguments.length; i++) ar = ar.concat(__read(arguments[i]));
-    return ar;
+var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
+    if (pack || arguments.length === 2) for (var i = 0, l = from.length, ar; i < l; i++) {
+        if (ar || !(i in from)) {
+            if (!ar) ar = Array.prototype.slice.call(from, 0, i);
+            ar[i] = from[i];
+        }
+    }
+    return to.concat(ar || Array.prototype.slice.call(from));
 };
 import { Shadow, State, Card } from './logic.js';
 import { renderCost, renderEnergy } from './logic.js';
@@ -89,9 +94,9 @@ import { sets } from './logic.js';
 import { SetState, Undo, InvalidHistory } from './logic.js';
 import { playGame, initialState } from './logic.js';
 import { coerceReplayVersion, parseReplay, MalformedReplay } from './logic.js';
-import { randomPlaceholder } from './logic.js';
-import { VERSION, DEFAULT_VP_GOAL } from './logic.js';
+import { allCards, allEvents, randomPlaceholder } from './logic.js';
 import { MalformedSpec, specToURL, specFromURL } from './logic.js';
+import { vpModes, vpCardNames, vpEventNames } from './logic.js';
 // register cards
 import { throneRoom, duplicate } from './cards/index.js';
 var keyListeners = new Map();
@@ -121,7 +126,7 @@ window.addEventListener('keydown', function (e) {
 function renderHotkey(hotkey) {
     if (hotkey == ' ')
         hotkey = '&#x23B5;';
-    return "<div class=\"hotkey\">" + hotkey + "</div> ";
+    return "<div class=\"hotkey\">".concat(hotkey, "</div> ");
 }
 function interpretHint(hint) {
     if (hint == undefined)
@@ -258,7 +263,7 @@ var HotkeyMapper = /** @class */ (function () {
 }());
 // ------------------ Rendering State
 function assertNever(x) {
-    throw new Error("Unexpected: " + x);
+    throw new Error("Unexpected: ".concat(x));
 }
 var TokenRenderer = /** @class */ (function () {
     function TokenRenderer() {
@@ -298,15 +303,15 @@ var TokenRenderer = /** @class */ (function () {
             var token = this.tokenTypes[i];
             var n = tokens.get(token) || 0;
             if (n > 0) {
-                tokenHtmls.push("<span id='token' style='color:" + this.tokenColor(token) + "'>" + f(n) + "</span>");
+                tokenHtmls.push("<span id='token' style='color:".concat(this.tokenColor(token), "'>").concat(f(n), "</span>"));
             }
         }
-        return (tokenHtmls.length > 0) ? "(" + tokenHtmls.join('') + ")" : '';
+        return (tokenHtmls.length > 0) ? "(".concat(tokenHtmls.join(''), ")") : '';
     };
     TokenRenderer.prototype.renderTooltip = function (tokens) {
         var e_6, _a, e_7, _b;
         function f(n, s) {
-            return (n == 1) ? s : s + " (" + n + ")";
+            return (n == 1) ? s : "".concat(s, " (").concat(n, ")");
         }
         var tokenHtmls = [];
         try {
@@ -337,22 +342,22 @@ var TokenRenderer = /** @class */ (function () {
             }
             finally { if (e_7) throw e_7.error; }
         }
-        return (tokenHtmls.length > 0) ? "Tokens: " + tokenHtmls.join(', ') : '';
+        return (tokenHtmls.length > 0) ? "Tokens: ".concat(tokenHtmls.join(', ')) : '';
     };
     return TokenRenderer;
 }());
 function describeCost(cost) {
-    var coinCost = (cost.coin > 0) ? ["lose $" + cost.coin] : [];
-    var energyCost = (cost.energy > 0) ? ["gain " + renderEnergy(cost.energy)] : [];
+    var coinCost = (cost.coin > 0) ? ["lose $".concat(cost.coin)] : [];
+    var energyCost = (cost.energy > 0) ? ["gain ".concat(renderEnergy(cost.energy))] : [];
     var costs = coinCost.concat(energyCost);
     var costStr = (costs.length > 0) ? costs.join(' and ') : 'do nothing';
-    return "Cost: " + costStr + ".";
+    return "Cost: ".concat(costStr, ".");
 }
 function renderShadow(shadow, state, tokenRenderer) {
     var card = shadow.spec.card;
     var tokenhtml = tokenRenderer.render(card.tokens);
     var costhtml = '&nbsp';
-    var ticktext = "tick=" + shadow.tick;
+    var ticktext = "tick=".concat(shadow.tick);
     var shadowtext = "shadow='true'";
     var tooltip;
     switch (shadow.spec.kind) {
@@ -369,15 +374,11 @@ function renderShadow(shadow, state, tokenRenderer) {
             tooltip = describeCost(shadow.spec.cost);
             break;
         case 'buying':
-            tooltip = "Buying " + shadow.spec.card.name;
+            tooltip = "Buying ".concat(shadow.spec.card.name);
             break;
         default: assertNever(shadow.spec);
     }
-    return ["<div class='card' " + ticktext + " " + shadowtext + ">",
-        "<div class='cardbody'>" + card + tokenhtml + "</div>",
-        "<div class='cardcost'>" + costhtml + "</div>",
-        "<span class='tooltip'>" + tooltip + "</span>",
-        "</div>"].join('');
+    return ["<div class='card' ".concat(ticktext, " ").concat(shadowtext, ">"), "<div class='cardbody'>".concat(card).concat(tokenhtml, "</div>"), "<div class='cardcost'>".concat(costhtml, "</div>"), "<span class='tooltip'>".concat(tooltip, "</span>"), "</div>"].join('');
 }
 function renderEffects(spec) {
     var e_8, _a;
@@ -395,7 +396,7 @@ function renderEffects(spec) {
         }
         finally { if (e_8) throw e_8.error; }
     }
-    return parts.map(function (x) { return "<div>" + x + "</div>"; }).join('');
+    return parts.map(function (x) { return "<div>".concat(x, "</div>"); }).join('');
 }
 function renderAbility(spec) {
     var e_9, _a;
@@ -403,7 +404,7 @@ function renderAbility(spec) {
     try {
         for (var _b = __values(spec.ability || []), _c = _b.next(); !_c.done; _c = _b.next()) {
             var effect = _c.value;
-            parts = parts.concat(effect.text.map(function (x) { return "<div>(ability) " + x + "</div>"; }));
+            parts = parts.concat(effect.text.map(function (x) { return "<div>(ability) ".concat(x, "</div>"); }));
         }
     }
     catch (e_9_1) { e_9 = { error: e_9_1 }; }
@@ -426,27 +427,27 @@ function renderCard(card, state, zone, options, tokenRenderer, count) {
         var costhtml = (zone == 'supply') ?
             renderCost(card.cost('buy', state)) || '&nbsp' :
             renderCost(card.cost(costType, state)) || '&nbsp';
-        var picktext = (options.pick !== undefined) ? "<div class='pickorder'>" + (options.pick + 1) + "</div>" : '';
-        var counttext = (count != 1) ? "<div class='cardcount'>" + count + "</div>" : '';
+        var picktext = (options.pick !== undefined) ? "<div class='pickorder'>".concat(options.pick + 1, "</div>") : '';
+        var counttext = (count != 1) ? "<div class='cardcount'>".concat(count, "</div>") : '';
         var chosenText = (options.pick !== undefined) ? 'true' : 'false';
         var choosetext = (options.option !== undefined)
-            ? "choosable chosen='" + chosenText + "' option=" + options.option
+            ? "choosable chosen='".concat(chosenText, "' option=").concat(options.option)
             : '';
         var hotkeytext = (options.hotkey !== undefined) ? renderHotkey(options.hotkey) : '';
-        var ticktext = "tick=" + card.ticks[card.ticks.length - 1];
-        var result = "<div id='card" + card.id + "' class='card' " + ticktext + " " + choosetext + "> " + picktext + " " + counttext + "\n                    <div class='cardbody'>" + hotkeytext + " " + card + tokenhtml + "</div>\n                    <div class='cardcost'>" + costhtml + "</div>\n                    <span class='tooltip'>" + renderTooltip(card, state, tokenRenderer) + "</span>\n                </div>";
+        var ticktext = "tick=".concat(card.ticks[card.ticks.length - 1]);
+        var result = "<div id='card".concat(card.id, "' class='card' ").concat(ticktext, " ").concat(choosetext, "> ").concat(picktext, " ").concat(counttext, "\n                    <div class='cardbody'>").concat(hotkeytext, " ").concat(card).concat(tokenhtml, "</div>\n                    <div class='cardcost'>").concat(costhtml, "</div>\n                    <span class='tooltip'>").concat(renderTooltip(card, state, tokenRenderer), "</span>\n                </div>");
         return result;
     }
 }
 function renderTrigger(x, staticTrigger) {
     var desc = (staticTrigger) ? '(static)' : '(effect)';
-    return "<div>" + desc + " " + x.text + "</div>";
+    return "<div>".concat(desc, " ").concat(x.text, "</div>");
 }
 function renderVariableCosts(cs) {
-    return cs.map(function (c) { return "<div>(cost) +" + c.text + "</div>"; }).join('');
+    return cs.map(function (c) { return "<div>(cost) +".concat(c.text, "</div>"); }).join('');
 }
 function renderBuyable(bs) {
-    return bs.map(function (b) { return (b.text == undefined) ? '' : "<div>(req) " + b.text + "</div>"; }).join('');
+    return bs.map(function (b) { return (b.text == undefined) ? '' : "<div>(req) ".concat(b.text, "</div>"); }).join('');
 }
 function isZero(c) {
     return (c === undefined || renderCost(c) == '');
@@ -465,10 +466,10 @@ function cardText(spec) {
 }
 function renderTooltip(card, state, tokenRenderer) {
     var buyStr = !isZero(card.spec.buyCost) ?
-        "(" + renderCost(card.spec.buyCost) + ")" : '---';
+        "(".concat(renderCost(card.spec.buyCost), ")") : '---';
     var costStr = !isZero(card.spec.fixedCost) ?
-        "(" + renderCost(card.spec.fixedCost) + ")" : '---';
-    var header = "<div>---" + buyStr + " " + card.name + " " + costStr + "---</div>";
+        "(".concat(renderCost(card.spec.fixedCost), ")") : '---';
+    var header = "<div>---".concat(buyStr, " ").concat(card.name, " ").concat(costStr, "---</div>");
     var tokensHtml = tokenRenderer.renderTooltip(card.tokens);
     var baseFilling = header + cardText(card.spec) + tokensHtml;
     function renderRelated(spec) {
@@ -476,13 +477,13 @@ function renderTooltip(card, state, tokenRenderer) {
         return renderTooltip(card, state, tokenRenderer);
     }
     var relatedFilling = card.relatedCards().map(renderRelated).join('');
-    return "" + baseFilling + relatedFilling;
+    return "".concat(baseFilling).concat(relatedFilling);
 }
 function renderSpec(spec) {
-    var buyText = isZero(spec.buyCost) ? '' : "(" + renderCost(spec.buyCost) + ")&nbsp;";
-    var costText = isZero(spec.fixedCost) ? '' : "&nbsp;(" + renderCost(spec.fixedCost) + ")";
-    var header = "<div>" + buyText + "<strong>" + spec.name + "</strong>" + costText + "</div>";
-    var me = "<div class='spec'>" + header + cardText(spec) + "</div>";
+    var buyText = isZero(spec.buyCost) ? '' : "(".concat(renderCost(spec.buyCost), ")&nbsp;");
+    var costText = isZero(spec.fixedCost) ? '' : "&nbsp;(".concat(renderCost(spec.fixedCost), ")");
+    var header = "<div>".concat(buyText, "<strong>").concat(spec.name, "</strong>").concat(costText, "</div>");
+    var me = "<div class='spec'>".concat(header).concat(cardText(spec), "</div>");
     var related = (spec.relatedCards || []).map(renderSpec);
     return [me].concat(related).join('');
 }
@@ -513,18 +514,18 @@ function resetGlobalRenderer() {
 function linkForState(state, campaign) {
     if (campaign === void 0) { campaign = false; }
     var cs = campaign ? 'campaign&' : '';
-    return "play?" + cs + specToURL(state.spec) + "#" + state.serializeHistory(false);
+    return "play?".concat(cs).concat(specToURL(state.spec), "#").concat(state.serializeHistory(false));
 }
 //Two maps should have the same sketch if the keys and values serialize the same
 //0 is treated the same as no entry
 function sketchMap(x) {
-    var kvs = __spread(x.entries()).filter(function (kv) { return kv[1] > 0; }).map(function (kv) { return "" + kv[0] + kv[1]; });
+    var kvs = __spreadArray([], __read(x.entries()), false).filter(function (kv) { return kv[1] > 0; }).map(function (kv) { return "".concat(kv[0]).concat(kv[1]); });
     kvs.sort();
     return kvs.join(',');
 }
 // two cards are rendered together in compress mode iff they have the same sketch
 function sketchCard(card, settings) {
-    return "" + card.name + sketchMap(card.tokens) + "\n            " + getIfDef(settings.pickMap, card.id) + "\n            " + getIfDef(settings.optionsMap, card.id);
+    return "".concat(card.name).concat(sketchMap(card.tokens), "\n            ").concat(getIfDef(settings.pickMap, card.id), "\n            ").concat(getIfDef(settings.optionsMap, card.id));
 }
 // Returns a list of distinct sketches appearing amongst cards, in order
 // For each includes the first, last, and # of cards with that sketch
@@ -558,7 +559,7 @@ function sketchCards(cards, settings) {
 function renderZone(state, zone, settings) {
     var e_11, _a;
     if (settings === void 0) { settings = {}; }
-    var e = $("#" + zone);
+    var e = $("#".concat(zone));
     var optionsFns = [];
     var optionsIds = [];
     function render(card, count, forceHotkey) {
@@ -593,7 +594,7 @@ function renderZone(state, zone, settings) {
     try {
         for (var _b = __values(optionsFns.entries()), _c = _b.next(); !_c.done; _c = _b.next()) {
             var _d = __read(_c.value, 2), i = _d[0], fn = _d[1];
-            bindClickEvent(e.find("#card" + optionsIds[i]), fn);
+            bindClickEvent(e.find("#card".concat(optionsIds[i])), fn);
         }
     }
     catch (e_11_1) { e_11 = { error: e_11_1 }; }
@@ -622,16 +623,16 @@ function renderState(state, settings) {
     $('#actions').html(state.actions.toString());
     $('#buys').html(state.buys.toString());
     $('#coin').html(state.coin.toString());
-    $('#points').html(state.points.toString());
+    $('#points').html("".concat(state.points, "/").concat(state.vp_goal));
     $('#resolving').empty();
     $('#resolving').html(state.resolving.map(function (c) { return renderCard(c, state, 'resolving', {}, globalRendererState.tokenRenderer); }).join(''));
     var _loop_1 = function (zone) {
         renderZone(state, zone, settings);
-        var e = $("[zone='" + zone + "'] .zonename");
+        var e = $("[zone='".concat(zone, "'] .zonename"));
         e.unbind('click');
         e.click(function () {
             globalRendererState.compress[zone] = !globalRendererState.compress[zone];
-            localStorage.setItem("compress" + zone, JSON.stringify(globalRendererState.compress[zone]));
+            localStorage.setItem("compress".concat(zone), JSON.stringify(globalRendererState.compress[zone]));
             renderZone(state, zone, settings);
         });
     };
@@ -666,7 +667,7 @@ function setVisibleLog(state, logType, ui) {
     try {
         for (var logTypes_1 = __values(logTypes), logTypes_1_1 = logTypes_1.next(); !logTypes_1_1.done; logTypes_1_1 = logTypes_1.next()) {
             var logType_1 = logTypes_1_1.value;
-            var e = $(".logOption[option=" + logType_1 + "]");
+            var e = $(".logOption[option=".concat(logType_1, "]"));
             var choosable = e.attr('option') != globalRendererState.logType;
             e.attr('choosable', choosable ? 'true' : null);
         }
@@ -681,7 +682,7 @@ function setVisibleLog(state, logType, ui) {
     displayLogLines(state.logs[logType], ui);
 }
 function renderLogLine(msg, i) {
-    return "<div><span class=\"logLine\" pos=" + i + ">" + msg + "</span></div>";
+    return "<div><span class=\"logLine\" pos=".concat(i, ">").concat(msg, "</span></div>");
 }
 function displayLogLines(logs, ui) {
     var e_14, _a;
@@ -693,7 +694,7 @@ function displayLogLines(logs, ui) {
     var _loop_2 = function (i, e) {
         var state = e[1];
         if (state !== null) {
-            $(".logLine[pos=" + i + "]").click(function () {
+            $(".logLine[pos=".concat(i, "]")).click(function () {
                 if (ui.choiceState !== null) {
                     ui.choiceState.reject(new SetState(state));
                 }
@@ -723,10 +724,10 @@ function macroMismatch(card, macroCard) {
         var e_15, _a;
         try {
             for (var _b = __values(from.tokens.entries()), _c = _b.next(); !_c.done; _c = _b.next()) {
-                var _d = __read(_c.value, 2), token = _d[0], count_1 = _d[1];
+                var _d = __read(_c.value, 2), token = _d[0], count = _d[1];
                 // We count a disagreement only on the side with more tokens
                 // (since it might not appear in the tokens dict on the other side)
-                if ((to.tokens.get(token) || 0) < count_1) {
+                if ((to.tokens.get(token) || 0) < count) {
                     result += 1;
                 }
             }
@@ -901,46 +902,36 @@ var webUI = /** @class */ (function () {
     //(would be nice to clean this up so you use undo to go back)
     webUI.prototype.victory = function (state) {
         return __awaiter(this, void 0, void 0, function () {
-            var ui, score, url, query, submitOrUndo;
+            var ui, score, doneAction, submitOrUndo;
             return __generator(this, function (_a) {
                 ui = this;
-                if (isCampaign) {
-                    score = state.energy;
-                    url = specToURL(state.spec);
-                    query = [
-                        credentialParams(),
-                        "url=" + encodeURIComponent(url),
-                        "score=" + score,
-                        "history=" + state.serializeHistory()
-                    ].join('&');
-                    $.post("campaignSubmit?" + query).then(function () { return heartbeat(state.spec); });
-                }
+                score = state.energy;
+                doneAction = function () {
+                    saveScore(state, score);
+                    goBackToLanding();
+                };
                 submitOrUndo = function () {
                     return new Promise(function (resolve, reject) {
                         ui.undoing = true;
                         heartbeat(state.spec);
-                        var submitDialog = function () {
-                            keyListeners.clear();
-                            renderScoreSubmission(state, function () { return submitOrUndo().then(resolve, reject); });
-                        };
                         function newReject(reason) {
                             if (reason instanceof Undo)
                                 ui.undoing = true;
                             ui.clearChoice();
                             reject(reason);
                         }
-                        var options = (!submittable(state.spec)) ? [] : [{
-                                render: { kind: 'string', string: 'Submit' },
-                                value: submitDialog,
+                        var options = [{
+                                render: { kind: 'string', string: 'Done' },
+                                value: doneAction,
                                 hotkeyHint: { kind: 'key', val: '!' }
                             }];
                         ui.choiceState = {
                             state: state,
-                            choicePrompt: "You won using " + state.energy + " energy!",
+                            choicePrompt: "You won using ".concat(state.energy, " energy!"),
                             options: options,
                             info: ["victory"],
                             chosen: [],
-                            resolve: submitDialog,
+                            resolve: doneAction,
                             reject: newReject,
                         };
                         ui.render();
@@ -953,7 +944,7 @@ var webUI = /** @class */ (function () {
     return webUI;
 }());
 function renderCheckbox(div, additionalHtml, checked, cb) {
-    div.html("<input type=\"checkbox\" " + (checked ? 'checked' : '') + "> " + additionalHtml);
+    div.html("<input type=\"checkbox\" ".concat(checked ? 'checked' : '', "> ").concat(additionalHtml));
     div.off('click');
     div.click(function (e) { return cb(e.target.checked); });
 }
@@ -1000,7 +991,7 @@ function renderChoice(ui, state, choicePrompt, options, picks) {
         hotkeyMap: hotkeyMap,
         optionsMap: optionsMap,
         pickMap: pickMap,
-        updateURL: (!globalRendererState.userURL || state.hasHistory())
+        updateURL: false // Disabled for static version: (!globalRendererState.userURL || state.hasHistory())
     });
     if (ui != null) {
         setVisibleLog(state, globalRendererState.logType, ui);
@@ -1030,13 +1021,14 @@ function renderStringOption(option, hotkey, pick) {
     var hotkeyText = (hotkey !== undefined) ? renderHotkey(hotkey) : '';
     if (hotkey !== undefined)
         keyListeners.set(hotkey, function () { return option.value(false); });
-    var picktext = (pick !== undefined) ? "<div class='pickorder'>" + pick + "</div>" : '';
-    var e = $("<span class='option' choosable chosen='false'>" + picktext + hotkeyText + option.render + "</span>");
+    var picktext = (pick !== undefined) ? "<div class='pickorder'>".concat(pick, "</div>") : '';
+    var e = $("<span class='option' choosable chosen='false'>".concat(picktext).concat(hotkeyText).concat(option.render, "</span>"));
     bindClickEvent(e, option.value);
     return e;
 }
 function renderSpecials(state) {
     return [
+        renderBack(),
         renderUndo(state.undoable()),
         renderRedo(state.redo.length > 0),
         renderHotkeyToggle(),
@@ -1046,6 +1038,9 @@ function renderSpecials(state) {
         renderRestart(),
         renderDeepLink()
     ].join('');
+}
+function renderBack() {
+    return "<span class='option' option='back' choosable chosen='false'>Back</span>";
 }
 function renderRestart() {
     return "<span id='restart' class='option', option='restart' choosable chosen='false'>Restart</span>";
@@ -1057,21 +1052,21 @@ function renderMacroToggle() {
     return "<span id='macroToggle' class='option', option='macroToggle' choosable chosen='false'>Macros</span>";
 }
 function renderHotkeyToggle() {
-    return "<span class='option', option='hotkeyToggle' choosable chosen='false'>" + renderHotkey('/') + " Hotkeys</span>";
+    return "<span class='option', option='hotkeyToggle' choosable chosen='false'>".concat(renderHotkey('/'), " Hotkeys</span>");
 }
 function renderHelp() {
-    return "<span id='help' class='option', option='help' choosable chosen='false'>" + renderHotkey('?') + " Help</span>";
+    return "<span id='help' class='option', option='help' choosable chosen='false'>".concat(renderHotkey('?'), " Help</span>");
 }
 function renderDeepLink() {
     return "<span id='deeplink' class='option', option='link' choosable chosen='false'>Link</span>";
 }
 function renderUndo(undoable) {
     var hotkeyText = renderHotkey('z');
-    return "<span class='option', option='undo' " + (undoable ? 'choosable' : '') + " chosen='false'>" + hotkeyText + "Undo</span>";
+    return "<span class='option', option='undo' ".concat(undoable ? 'choosable' : '', " chosen='false'>").concat(hotkeyText, "Undo</span>");
 }
 function renderRedo(redoable) {
     var hotkeyText = renderHotkey('Z');
-    return "<span class='option', option='redo' " + (redoable ? 'choosable' : '') + " chosen='false'>" + hotkeyText + "Redo</span>";
+    return "<span class='option', option='redo' ".concat(redoable ? 'choosable' : '', " chosen='false'>").concat(hotkeyText, "Redo</span>");
 }
 function bindSpecials(state, ui) {
     bindHotkeyToggle(ui);
@@ -1083,6 +1078,10 @@ function bindSpecials(state, ui) {
         bindMacroToggle(ui);
     bindViewKingdom(state);
     bindDeepLink(state);
+    bindBack();
+}
+function bindBack() {
+    $("[option='back']").on('click', function () { return goBackToLanding(); });
 }
 function bindViewKingdom(state) {
     function onClick() {
@@ -1093,7 +1092,7 @@ function bindViewKingdom(state) {
         }
         else {
             var contents = state.events.concat(state.supply).map(function (card) { return renderSpec(card.spec); }).join('');
-            e.html("<div id='kingdomView'>" + contents + "</div>");
+            e.html("<div id='kingdomView'>".concat(contents, "</div>"));
             globalRendererState.viewingKingdom = true;
         }
     }
@@ -1122,7 +1121,7 @@ function bindMacroToggle(ui) {
 }
 function makeMacroButtons(ui, e) {
     var contents = [renderRecordMacroButton(ui)].concat(ui.macros.map(renderPlayMacroButton)).join('');
-    e.html("<div id='macros'>" + contents + "</div>");
+    e.html("<div id='macros'>".concat(contents, "</div>"));
     bindRecordMacroButton(ui);
     bindPlayMacroButtons(ui);
 }
@@ -1130,16 +1129,16 @@ function renderRecordMacroButton(ui) {
     var buttonText = (ui.recordingMacro === null)
         ? 'Start recording'
         : 'Stop recording';
-    return "<span id='recordMacro' class='option'\n             option='recordMacro' choosable chosen='false'>\n                 " + buttonText + "\n             </span>";
+    return "<span id='recordMacro' class='option'\n             option='recordMacro' choosable chosen='false'>\n                 ".concat(buttonText, "\n             </span>");
 }
 function renderPlayMacroButton(macro, index) {
-    var optionText = "macro" + index;
+    var optionText = "macro".concat(index);
     var firstStep = macro[0];
     var firstStepText = (firstStep.kind == 'card')
         ? firstStep.card.name
         : firstStep.string;
-    var buttonText = firstStepText + " (" + macro.length + ")";
-    return "<span id='playMacro' class='option'\n             option='" + optionText + "' choosable chosen='false'>\n                 " + buttonText + "\n             </span>";
+    var buttonText = "".concat(firstStepText, " (").concat(macro.length, ")");
+    return "<span id='playMacro' class='option'\n             option='".concat(optionText, "' choosable chosen='false'>\n                 ").concat(buttonText, "\n             </span>");
 }
 function bindRecordMacroButton(ui) {
     function onClick() {
@@ -1172,7 +1171,7 @@ function bindPlayMacroButtons(ui) {
         }
     }
     var _loop_3 = function (i, macro) {
-        var e = $("[option='macro" + i + "'");
+        var e = $("[option='macro".concat(i, "'"));
         e.off('click');
         e.on('click', function (e) { return onClick(i, e.shiftKey); });
     };
@@ -1195,7 +1194,7 @@ function unbindPlayMacroButtons(ui) {
     try {
         for (var _b = __values(ui.macros.entries()), _c = _b.next(); !_c.done; _c = _b.next()) {
             var _d = __read(_c.value, 2), i = _d[0], macro = _d[1];
-            var e = $("[option='macro" + i + "'");
+            var e = $("[option='macro".concat(i, "'"));
             e.off('click');
         }
     }
@@ -1260,18 +1259,12 @@ function showLinkDialog(url) {
     $('#scoreSubmitter').html("<label for=\"link\">Link:</label>" +
         "<textarea id=\"link\"></textarea>" +
         "<div>" +
-        ("<span class=\"option\" choosable id=\"copyLink\">" + renderHotkey('⏎') + "Copy</span>") +
-        ("<span class=\"option\" choosable id=\"cancel\">" + renderHotkey('Esc') + "Cancel</span>") +
+        "<span class=\"option\" choosable id=\"copyLink\">".concat(renderHotkey('⏎'), "Copy</span>") +
+        "<span class=\"option\" choosable id=\"cancel\">".concat(renderHotkey('Esc'), "Cancel</span>") +
         "</div>");
-    var id = randomString();
-    //TOOD: include base URL
-    $('#link').val(baseURL() + "/g/" + id);
+    // Use full URL instead of shortened link (no server)
+    $('#link').val("".concat(baseURL(), "?").concat(url));
     $('#link').select();
-    $.get("link?id=" + id + "&url=" + encodeURIComponent(url)).done(function (x) {
-        if (x != 'ok') {
-            alert(x);
-        }
-    });
     function exit() {
         $('#link').blur();
         $('#scoreSubmitter').attr('active', 'false');
@@ -1302,16 +1295,11 @@ function clearChoice() {
 }
 var tutorialStages = [
     {
-        text: ["Welcome to the tutorial.\n        It will walk you through the first few actions of a simple game.\n        Press enter or click 'Next' to advance.",
-            "When you use an event or play a card, you first pay its cost\n        then follow its instructions.",
-            "You can read what a card does by hovering over it,\n        or view all cards by clicking the 'Kingdom' button\n        at the top of the screen. After pressing 'Next',\n        read what Refresh does, then click on it to use it."],
+        text: ["Welcome to the tutorial.\n        It will walk you through the first few actions of a simple game.\n        Press enter or click 'Next' to advance.", "When you use an event or play a card, you first pay its cost\n        then follow its instructions.", "You can read what a card does by hovering over it,\n        or view all cards by clicking the 'Kingdom' button\n        at the top of the screen. After pressing 'Next',\n        read what Refresh does, then click on it to use it."],
         nextAction: 0,
     },
     {
-        text: ["When you used Refresh you spent @@@@,\n        because that's the cost of Refresh.\n         You can see how much @ you've spent in the resources row,\n         directly above the events.\n         The goal of the game is to spend as little as possible.",
-            "After paying Refresh's cost, you put your discard pile into your hand.\n         These are the cards available to play.",
-            "Then you gained 5 actions, which you can use to play cards from your hand,\n         and 1 buy, which you can use to buy a card from the supply.\n         Your actions and buys are visible above the events.",
-            "You have $0, so you can't buy much.\n         But you can use an action to play a Copper from your hand."],
+        text: ["When you used Refresh you spent @@@@,\n        because that's the cost of Refresh.\n         You can see how much @ you've spent in the resources row,\n         directly above the events.\n         The goal of the game is to spend as little as possible.", "After paying Refresh's cost, you put your discard pile into your hand.\n         These are the cards available to play.", "Then you gained 5 actions, which you can use to play cards from your hand,\n         and 1 buy, which you can use to buy a card from the supply.\n         Your actions and buys are visible above the events.", "You have $0, so you can't buy much.\n         But you can use an action to play a Copper from your hand."],
         nextAction: 0,
     },
     {
@@ -1326,16 +1314,11 @@ var tutorialStages = [
         nextAction: 3
     },
     {
-        text: ["When you buy a card, you lose a buy and the $ you spent on it.\n        Then you create a copy of that card in your discard.\n        Next time you Refresh you will be able to play your new Silver.",
-            "Note that using an event like Refresh or Duplicate doesn't require a buy.",
-            "For now, click on an Estate to play it."],
+        text: ["When you buy a card, you lose a buy and the $ you spent on it.\n        Then you create a copy of that card in your discard.\n        Next time you Refresh you will be able to play your new Silver.", "Note that using an event like Refresh or Duplicate doesn't require a buy.", "For now, click on an Estate to play it."],
         nextAction: 0
     },
     {
-        text: ["You spent @ to play the estate, and gained 1 vp.\n        The goal of the game is to get to " + DEFAULT_VP_GOAL + "vp\n        using as little @ as possible.",
-            "If you play an Estate using a Throne Room, you won't pay @. You only\n        pay a card's cost when you play or buy it the 'normal' way.\n        You also wouldn't pay an action, except that Throne Room tells you to.",
-            "This is a very small kingdom for the purposes of learning.\n        The fastest win with these cards is 38@. Good luck!",
-            "You can press '?' or click 'Help' to view the help at any time."],
+        text: ["You spent @ to play the estate, and gained 1 vp.\n        The goal of the game is to get to the target vp\n        using as little @ as possible.", "If you play an Estate using a Throne Room, you won't pay @. You only\n        pay a card's cost when you play or buy it the 'normal' way.\n        You also wouldn't pay an action, except that Throne Room tells you to.", "This is a very small kingdom for the purposes of learning.\n        The fastest win with these cards is 38@. Good luck!", "You can press '?' or click 'Help' to view the help at any time."],
     },
 ];
 var tutorialUI = /** @class */ (function () {
@@ -1387,7 +1370,7 @@ var tutorialUI = /** @class */ (function () {
 }());
 function renderTutorialMessage(text) {
     $('#tutorialDialog').html("<div id='tutorialText'></div>" +
-        ("<span class=\"option\" choosable id=\"tutorialNext\">\n             " + renderHotkey('⏎') + " Next\n         </span>"));
+        "<span class=\"option\" choosable id=\"tutorialNext\">\n             ".concat(renderHotkey('⏎'), " Next\n         </span>"));
     var step = 0;
     $('#tutorialDialog').attr('active', 'true');
     function next() {
@@ -1432,7 +1415,7 @@ function bindHelp(state, ui) {
         attach(function () { return ui.render(); });
         var helpLines = [
             "Rules:",
-            "The goal of the game is to get to " + DEFAULT_VP_GOAL + " points (vp) using as little energy (@) as possible.",
+            "The goal of the game is to get to the target vp (shown in the display) using as little energy (@) as possible.",
             "You can buy a card by spending a buy and paying its buy cost.",
             "When you buy a card, create a copy of it. Cards you create go in your discard by default.",
             "You can play a card by spending an action and paying its cost.",
@@ -1455,8 +1438,8 @@ function bindHelp(state, ui) {
             "Click the 'Link' button to copy a shortlink to the current state.",
             "Click on a zone's name to compress identical cards in that zone.",
             "Go <a href='index.html'>here</a> to see all the ways to play the game.",
-            "Check out the scoreboard <a href=" + scoreboardURL(state.spec) + ">here</a>.",
-            "Copy <a href='play?" + specToURL(state.spec) + "'>this link</a> to replay this game any time.",
+            "Check out the scoreboard <a href=".concat(scoreboardURL(state.spec), ">here</a>."),
+            "Copy <a href='play?".concat(specToURL(state.spec), "'>this link</a> to replay this game any time."),
             "Use the URL in the address bar to link to the current state of this game.",
             "(Or click the 'Link' button to get a shortlink.)",
             "Click the 'Macros' button to record and replay sequences of actions.",
@@ -1464,7 +1447,7 @@ function bindHelp(state, ui) {
         ];
         $('#choicePrompt').html('');
         $('#resolvingHeader').html('');
-        $('#resolving').html(helpLines.map(function (x) { return "<div class='helpLine'>" + x + "</div class='helpline'>"; }).join(''));
+        $('#resolving').html(helpLines.map(function (x) { return "<div class='helpLine'>".concat(x, "</div class='helpline'>"); }).join(''));
     }
     attach(pick);
 }
@@ -1483,50 +1466,11 @@ function getUsername() {
     return localStorage.username;
 }
 function credentialParams() {
-    return "username=" + localStorage.campaignUsername + "&hashedPassword=" + localStorage.hashedPassword;
+    return "username=".concat(localStorage.campaignUsername, "&hashedPassword=").concat(localStorage.hashedPassword);
 }
-//TODO: should factor credentials differently
+// Campaign submission disabled for static version
 function renderCampaignSubmission(state, done) {
-    var score = state.energy;
-    var url = specToURL(state.spec);
-    $('#campaignSubmitter').attr('active', 'true');
-    function exit() {
-        $('#campaignSubmitter').attr('active', 'false');
-    }
-    function submit() {
-        return __awaiter(this, void 0, void 0, function () {
-            var query;
-            return __generator(this, function (_a) {
-                query = [
-                    credentialParams(),
-                    "url=" + encodeURIComponent(url),
-                    "score=" + score,
-                    "history=" + state.serializeHistory()
-                ].join('&');
-                return [2 /*return*/, $.post("campaignSubmit?" + query)];
-            });
-        });
-    }
-    //TODO: handle bad submissions here
-    submit().then(function (data) {
-        $('#newbest').text(score);
-        $('#priorbest').text(data.priorBest);
-        $('#awards').text(data.newAwards);
-        $('#nextAward').text(data.nextAward);
-        heartbeat(state.spec);
-    });
-    $('#campaignSubmitter').focus();
-    $('#campaignSubmitter').keydown(function (e) {
-        if (e.keyCode == 13) {
-            exit();
-            e.preventDefault();
-        }
-        else if (e.keyCode == 27) {
-            exit();
-            e.preventDefault();
-        }
-    });
-    $('#campaignSubmitter').on('click', exit);
+    done();
 }
 function renderScoreSubmission(state, done) {
     var score = state.energy;
@@ -1536,8 +1480,8 @@ function renderScoreSubmission(state, done) {
     $('#scoreSubmitter').html("<label for=\"username\">Name:</label>" +
         "<textarea id=\"username\"></textarea>" +
         "<div>" +
-        ("<span class=\"option\" choosable id=\"submitScore\">" + renderHotkey('⏎') + "Submit</span>") +
-        ("<span class=\"option\" choosable id=\"cancelSubmit\">" + renderHotkey('Esc') + "Cancel</span>") +
+        "<span class=\"option\" choosable id=\"submitScore\">".concat(renderHotkey('⏎'), "Submit</span>") +
+        "<span class=\"option\" choosable id=\"cancelSubmit\">".concat(renderHotkey('Esc'), "Cancel</span>") +
         "</div>");
     var username = getUsername();
     if (username != null)
@@ -1548,25 +1492,8 @@ function renderScoreSubmission(state, done) {
         done();
     }
     function submit() {
-        var username = $('#username').val();
-        if (username.length > 0) {
-            rememberUsername(username);
-            var query = [
-                "url=" + encodeURIComponent(url),
-                "score=" + score,
-                "username=" + encodeURIComponent(username),
-                "history=" + state.serializeHistory()
-            ].join('&');
-            $.post("submit?" + query).done(function (resp) {
-                if (resp == 'OK') {
-                    heartbeat(state.spec);
-                }
-                else {
-                    alert(resp);
-                }
-            });
-            exit();
-        }
+        // Score submission disabled for static version
+        exit();
     }
     $('#username').keydown(function (e) {
         if (e.keyCode == 13) {
@@ -1589,62 +1516,22 @@ function renderScoreSubmission(state, done) {
     $('#cancelSubmit').on('click', exit);
 }
 function scoreboardURL(spec) {
-    return "scoreboard?" + specToURL(spec);
+    return "scoreboard?".concat(specToURL(spec));
 }
 //TODO: change the sidebar based on whether you are in a campaign
 function campaignHeartbeat(spec, interval) {
-    var queryStr = "campaignHeartbeat?" + credentialParams() + "&url=" + encodeURIComponent(specToURL(spec)) + "&version=" + VERSION;
-    $('#homeLink').attr('href', 'campaign.html');
-    $('#homeLink').text('back to campaign');
-    $.get(queryStr).done(function (x) {
-        if (x == 'version mismatch') {
-            clearInterval(interval);
-            alert("The server has updated to a new version, please refresh. You will get an error and your game will restart if the history is no longer valid.");
-            return;
-        }
-        if (x == 'user not found') {
-            clearInterval(interval);
-            alert("Your username+password were not recognized");
-            return;
-        }
-        var _a = __read(x, 4), personalBest = _a[0], nextStar = _a[1], starsWon = _a[2], totalStars = _a[3];
-        var starStr = (totalStars > 1)
-            ? "<div>Stars won: " + starsWon + "/" + totalStars + "</div>"
-            : "";
-        var personalBestStr = personalBest !== null
-            ? "<div>Your best: @" + personalBest + "</div>"
-            : "";
-        var nextStarStr = nextStar !== null
-            ? "<div>Next star: @" + nextStar + "</div>"
-            : "";
-        $('#best').html(starStr + nextStarStr + personalBestStr);
-    });
+    // Campaign disabled for static version
 }
 //TODO: still need to refactor global state
 var isCampaign = false;
 function heartbeat(spec, interval) {
-    if (isCampaign) {
-        campaignHeartbeat(spec, interval);
-    }
-    else if (submittable(spec)) {
-        $.get("topScore?url=" + encodeURIComponent(specToURL(spec)) + "&version=" + VERSION).done(function (x) {
-            if (x == 'version mismatch') {
-                clearInterval(interval);
-                alert("The server has updated to a new version, please refresh. You will get an error and your game will restart if the history is no longer valid.");
-            }
-            var n = parseInt(x, 10);
-            if (!isNaN(n))
-                renderBest(n, spec);
-            else
-                renderScoreboardLink(spec);
-        });
-    }
+    // Server features disabled for static version
 }
 function renderBest(best, spec) {
-    $('#best').html("Fastest win on this kingdom: " + best + " (<a target='_blank' href=\"" + scoreboardURL(spec) + "\">scoreboard</a>)");
+    $('#best').html("Fastest win on this kingdom: ".concat(best, " (<a target='_blank' href=\"").concat(scoreboardURL(spec), "\">scoreboard</a>)"));
 }
 function renderScoreboardLink(spec) {
-    $('#best').html("No wins yet for this kingdom (<a target='_blank' href=\"" + scoreboardURL(spec) + "\">scoreboard</a>)");
+    $('#best').html("No wins yet for this kingdom (<a target='_blank' href=\"".concat(scoreboardURL(spec), "\">scoreboard</a>)"));
 }
 // Creating the game spec and starting the game ------------------------------
 function getHistory() {
@@ -1693,7 +1580,7 @@ export function load(fixedURL) {
             state = State.fromReplay(history, spec);
         }
         catch (e) {
-            alert("Error loading history: " + e);
+            alert("Error loading history: ".concat(e));
             state = initialState(spec);
         }
     }
@@ -1740,7 +1627,7 @@ function restart(state) {
 // ----------------------------------- Kingdom picker
 //
 function kingdomURL(kindParam, cards, events) {
-    return "play?" + kindParam + "cards=" + cards.map(function (card) { return card.name; }).join(',') + "&events=" + events.map(function (card) { return card.name; });
+    return "play?".concat(kindParam, "cards=").concat(cards.map(function (card) { return card.name; }).join(','), "&events=").concat(events.map(function (card) { return card.name; }));
 }
 function countIn(s, f) {
     var e_20, _a;
@@ -1767,8 +1654,8 @@ export function loadPicker(picked_sets) {
     var cards = [];
     var events = [];
     picked_sets.forEach(function (picked_set) {
-        cards.push.apply(cards, __spread(sets[picked_set]['cards'].slice()));
-        events.push.apply(events, __spread(sets[picked_set]['events'].slice()));
+        cards.push.apply(cards, __spreadArray([], __read(sets[picked_set]['cards'].slice()), false));
+        events.push.apply(events, __spreadArray([], __read(sets[picked_set]['events'].slice()), false));
     });
     $('#expansionPicker').empty();
     Object.keys(sets).forEach(function (set_option_str) {
@@ -1809,7 +1696,7 @@ export function loadPicker(picked_sets) {
     function trivial() { }
     function elem(i, kind) {
         var id = (kind == 'card') ? 'supply' : 'events';
-        return $("#" + id + " [option='" + i + "']");
+        return $("#".concat(id, " [option='").concat(i, "']"));
     }
     function prefix(s) {
         var parts = s.split('/');
@@ -1852,5 +1739,254 @@ export function loadPicker(picked_sets) {
         };
     }
     renderChoice(null, state, 'Choose which events and cards to use.', state.supply.map(function (card, i) { return makeOption(card, i, 'card'); }).concat(state.events.map(function (card, i) { return makeOption(card, i, 'event'); })));
+}
+var currentGameOptions = [];
+var currentGameIndex = -1;
+var addButtonStates = [];
+var collectedCards = [];
+var collectedEvents = [];
+function generateAddButtonOptions() {
+    var cardPool = allCards().filter(function (c) {
+        return !vpCardNames.has(c.name) &&
+            c.name !== 'Copper' && c.name !== 'Silver' && c.name !== 'Gold';
+    });
+    var eventPool = allEvents().filter(function (e) {
+        return !vpEventNames.has(e.name) && e.name !== 'Refresh';
+    });
+    // Shuffle and pick random cards/events
+    var shuffledCards = shuffleArray(__spreadArray([], __read(cardPool), false));
+    var shuffledEvents = shuffleArray(__spreadArray([], __read(eventPool), false));
+    addButtonStates = [
+        { kind: 'card', options: shuffledCards.slice(0, 3), used: false, selectedCard: null },
+        { kind: 'card', options: shuffledCards.slice(3, 6), used: false, selectedCard: null },
+        { kind: 'event', options: shuffledEvents.slice(0, 3), used: false, selectedCard: null },
+    ];
+    collectedCards = [];
+    collectedEvents = [];
+}
+function shuffleArray(array) {
+    var _a;
+    for (var i = array.length - 1; i > 0; i--) {
+        var j = Math.floor(Math.random() * (i + 1));
+        _a = __read([array[j], array[i]], 2), array[i] = _a[0], array[j] = _a[1];
+    }
+    return array;
+}
+function showCardPicker(buttonIndex) {
+    var e_21, _a;
+    var state = addButtonStates[buttonIndex];
+    if (state.used)
+        return;
+    var title = state.kind === 'card' ? 'Choose a card:' : 'Choose an event:';
+    $('#cardPickerTitle').text(title);
+    $('#cardPickerOptions').empty();
+    var _loop_4 = function (card) {
+        var optionEl = $("<span class=\"option\" choosable>".concat(card.name, "</span>"));
+        optionEl.on('click', function () { return selectCard(buttonIndex, card); });
+        $('#cardPickerOptions').append(optionEl);
+    };
+    try {
+        for (var _b = __values(state.options), _c = _b.next(); !_c.done; _c = _b.next()) {
+            var card = _c.value;
+            _loop_4(card);
+        }
+    }
+    catch (e_21_1) { e_21 = { error: e_21_1 }; }
+    finally {
+        try {
+            if (_c && !_c.done && (_a = _b.return)) _a.call(_b);
+        }
+        finally { if (e_21) throw e_21.error; }
+    }
+    $('#cardPickerCancel').off('click').on('click', hideCardPicker);
+    $('#cardPickerDialog').attr('active', 'true');
+}
+function hideCardPicker() {
+    $('#cardPickerDialog').attr('active', 'false');
+}
+function selectCard(buttonIndex, card) {
+    var state = addButtonStates[buttonIndex];
+    state.used = true;
+    state.selectedCard = card;
+    if (state.kind === 'card') {
+        collectedCards.push(card);
+    }
+    else {
+        collectedEvents.push(card);
+    }
+    // Update button appearance
+    updateAddButtonDisplay(buttonIndex);
+    hideCardPicker();
+}
+function updateAddButtonDisplay(buttonIndex) {
+    var state = addButtonStates[buttonIndex];
+    var buttonId = buttonIndex < 2 ? "#addCard".concat(buttonIndex) : '#addEvent0';
+    if (state.used && state.selectedCard) {
+        $(buttonId).text(state.selectedCard.name);
+        $(buttonId).attr('disabled', 'true');
+        $(buttonId).removeAttr('choosable');
+    }
+}
+function setupAddButtons() {
+    var _a, _b;
+    var _loop_5 = function (i) {
+        var buttonId = "#addCard".concat(i);
+        if (addButtonStates[i].used) {
+            $(buttonId).text(((_a = addButtonStates[i].selectedCard) === null || _a === void 0 ? void 0 : _a.name) || 'Add Card');
+            $(buttonId).attr('disabled', 'true');
+            $(buttonId).removeAttr('choosable');
+        }
+        else {
+            $(buttonId).text('Add Card');
+            $(buttonId).removeAttr('disabled');
+            $(buttonId).attr('choosable', 'true');
+        }
+        $(buttonId).off('click').on('click', function () {
+            if (!addButtonStates[i].used)
+                showCardPicker(i);
+        });
+    };
+    for (var i = 0; i < 2; i++) {
+        _loop_5(i);
+    }
+    var eventButtonId = '#addEvent0';
+    if (addButtonStates[2].used) {
+        $(eventButtonId).text(((_b = addButtonStates[2].selectedCard) === null || _b === void 0 ? void 0 : _b.name) || 'Add Event');
+        $(eventButtonId).attr('disabled', 'true');
+        $(eventButtonId).removeAttr('choosable');
+    }
+    else {
+        $(eventButtonId).text('Add Event');
+        $(eventButtonId).removeAttr('disabled');
+        $(eventButtonId).attr('choosable', 'true');
+    }
+    $(eventButtonId).off('click').on('click', function () {
+        if (!addButtonStates[2].used)
+            showCardPicker(2);
+    });
+}
+// Score management - stores in memory per-kingdom
+function saveScore(state, score) {
+    if (currentGameIndex < 0 || currentGameIndex >= currentGameOptions.length)
+        return;
+    var option = currentGameOptions[currentGameIndex];
+    // Lower score is better (less energy used)
+    if (option.bestScore === null || score < option.bestScore) {
+        option.bestScore = score;
+    }
+}
+function getRandomizerSeed(spec) {
+    switch (spec.kind) {
+        case 'test':
+        case 'pick':
+            return null;
+        case 'goal':
+            return getRandomizerSeed(spec.spec);
+        default:
+            return spec.randomizer.seed;
+    }
+}
+function generateRandomSeed() {
+    return Math.random().toString(36).substring(2, 10);
+}
+function generateGameOptions() {
+    var options = [];
+    var usedModeIndices = new Set();
+    // Generate 3 games with different VP modes
+    for (var i = 0; i < 3; i++) {
+        var seed = void 0;
+        var modeIndex 
+        // Keep generating seeds until we get a unique VP mode
+        = void 0;
+        // Keep generating seeds until we get a unique VP mode
+        do {
+            seed = generateRandomSeed();
+            var h = hashString(seed + 'vpmode');
+            modeIndex = ((h % vpModes.length) + vpModes.length) % vpModes.length;
+        } while (usedModeIndices.has(modeIndex));
+        usedModeIndices.add(modeIndex);
+        var spec = {
+            kind: 'full',
+            randomizer: {
+                seed: seed,
+                expansions: ['base', 'expansion']
+            }
+        };
+        options.push({
+            spec: spec,
+            vpModeName: vpModes[modeIndex].name,
+            bestScore: null
+        });
+    }
+    return options;
+}
+// Simple hash function matching the one in logic.ts
+function hashString(s) {
+    var hash = 0;
+    for (var i = 0; i < s.length; i++) {
+        hash = ((hash << 5) - hash) + s.charCodeAt(i);
+    }
+    return hash;
+}
+export function showLandingPage() {
+    // Generate new game options if not already generated
+    if (currentGameOptions.length === 0) {
+        currentGameOptions = generateGameOptions();
+        generateAddButtonOptions();
+    }
+    // Set up add card/event buttons
+    setupAddButtons();
+    var _loop_6 = function (i) {
+        var option = currentGameOptions[i];
+        $("#game".concat(i)).text(option.vpModeName);
+        $("#game".concat(i)).off('click').on('click', function () { return startGameFromOption(i); });
+        // Update score display
+        if (option.bestScore !== null) {
+            $("#score".concat(i)).text("Score: ".concat(option.bestScore)).show();
+        }
+        else {
+            $("#score".concat(i)).hide();
+        }
+    };
+    // Update button labels and scores
+    for (var i = 0; i < 3; i++) {
+        _loop_6(i);
+    }
+    // Set up back button
+    $('#backButton').off('click').on('click', function () { return goBackToLanding(); });
+    // Show landing page, hide game
+    $('#landingPage').show();
+    $('#gameContainer').hide();
+}
+function startGameFromOption(index) {
+    var option = currentGameOptions[index];
+    currentGameIndex = index;
+    // Hide landing page, show game
+    $('#landingPage').hide();
+    $('#gameContainer').show();
+    // Remove focus from button to allow keyboard events to work
+    if (document.activeElement instanceof HTMLElement) {
+        document.activeElement.blur();
+    }
+    // Start the game with collected cards/events
+    var state = initialState(option.spec, collectedCards, collectedEvents);
+    startGame(state);
+}
+function goBackToLanding() {
+    // Update score displays
+    for (var i = 0; i < currentGameOptions.length; i++) {
+        var option = currentGameOptions[i];
+        if (option.bestScore !== null) {
+            $("#score".concat(i)).text("Score: ".concat(option.bestScore)).show();
+        }
+        else {
+            $("#score".concat(i)).hide();
+        }
+    }
+    // Update add buttons
+    setupAddButtons();
+    // Show landing page with same options (don't regenerate)
+    $('#landingPage').show();
+    $('#gameContainer').hide();
 }
 //# sourceMappingURL=main.js.map

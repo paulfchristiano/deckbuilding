@@ -1,4 +1,3 @@
-import { text } from 'express';
 import {
   CardSpec, Card, choice, asChoice, trash,
   Cost, addCosts, subtractCost, multiplyCosts,
@@ -31,10 +30,11 @@ import {
   useRefresh, costReduce, applyToTarget,
   playTwice, payAction, sortHand, discardFromPlay,
   trashThis, fragileEcho,
-  copper, gold, estate, duchy,
+  copper, gold, estate, duchy, province,
   dedupBy, countDistinctNames,
   playReplacer, trashOnLeavePlay, stayInPlay,
-  sourceHasName, Source, cannotUse
+  sourceHasName, Source,
+  VPMode, cannotUse
 } from '../logic.js'
 
 export const cards:CardSpec[] = [];
@@ -2070,4 +2070,55 @@ const fortune:CardSpec = {
 }
 cards.push(supplyForCard(fortune, coin(12)))
 //cards.push(supplyForCard(fortune, coin(12), {afterBuy: [{text: ['trash it from the supply.'], transform: (s, c) => trash(c)}]}))
+
+// ========== VP MODE EVENTS ==========
+
+const thoroughfare:CardSpec = {
+    name: 'Thoroughfare',
+    fixedCost: coin(0),
+    effects: [],
+    restrictions: [cannotUse],
+    staticTriggers: [{
+        kind: 'play',
+        text: `Whenever you play a card, +1 vp.`,
+        handles: () => true,
+        transform: (e, state, card) => gainPoints(1, card)
+    }]
+}
+
+const monument:CardSpec = {
+    name: 'Monument',
+    fixedCost: coin(0),
+    effects: [],
+    restrictions: [cannotUse],
+    staticTriggers: [{
+        kind: 'buy',
+        text: `Whenever you buy a card costing $3 or more, +1 vp.`,
+        handles: (e, state) => {
+            const cost = e.card.cost('buy', state)
+            return cost.coin >= 3
+        },
+        transform: (e, state, card) => gainPoints(1, card)
+    }]
+}
+
+const capitalization:CardSpec = {
+    name: 'Capitalization',
+    fixedCost: coin(1),
+    effects: [pointsEffect(1)]
+}
+
+// ========== VP MODES ==========
+
+export const vpModes: VPMode[] = [
+    { name: 'Province', target: 30, cards: [province], events: [] },
+    { name: 'Duchy', target: 30, cards: [duchy], events: [] },
+    { name: 'Estate', target: 20, cards: [estate], events: [] },
+    { name: 'Thoroughfare', target: 80, cards: [], events: [thoroughfare] },
+    { name: 'Monument', target: 30, cards: [], events: [monument] },
+    { name: 'Capitalization', target: 60, cards: [], events: [capitalization] },
+    { name: 'Philanthropy', target: 50, cards: [], events: [philanthropy] },
+    { name: 'Duke', target: 50, cards: [duchy, duke], events: [] },
+    { name: 'Flower Market', target: 40, cards: [flowerMarket], events: [] },
+]
 

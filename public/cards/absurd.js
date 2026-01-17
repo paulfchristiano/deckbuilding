@@ -24,7 +24,7 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
     function verb(n) { return function (v) { return step([n, v]); }; }
     function step(op) {
         if (f) throw new TypeError("Generator is already executing.");
-        while (_) try {
+        while (g && (g = 0, op[0] && (_ = 0)), _) try {
             if (f = 1, y && (t = op[0] & 2 ? y["return"] : op[0] ? y["throw"] || ((t = y["return"]) && t.call(y), 0) : y.next) && !(t = t.call(y, op[1])).done) return t;
             if (y = 0, t) op = [op[0] & 2, t.value];
             switch (op[0]) {
@@ -129,7 +129,8 @@ var misplace = {
 events.push(misplace);
 var echoName = 'Weird Echo';
 var weirdEcho = { name: echoName,
-    buyCost: coin(7), effects: [targetedEffect(function (target, card) { return function (state) {
+    buyCost: coin(7),
+    effects: [targetedEffect(function (target, card) { return function (state) {
             return __awaiter(this, void 0, void 0, function () {
                 var copy;
                 var _a;
@@ -150,7 +151,9 @@ var weirdEcho = { name: echoName,
                     }
                 });
             });
-        }; }, "Create a fresh copy of a card you have in play,\n         then put an echo token on the copy and play it.", function (state) { return dedupBy(state.play, function (c) { return c.spec; }); })], staticReplacers: [fragileEcho('echo')], staticTriggers: [{
+        }; }, "Create a fresh copy of a card you have in play,\n         then put an echo token on the copy and play it.", function (state) { return dedupBy(state.play, function (c) { return c.spec; }); })],
+    staticReplacers: [fragileEcho('echo')],
+    staticTriggers: [{
             text: "After playing a card, put it into play unless its name contains the word \"Echo\".",
             kind: 'afterPlay',
             handles: function (e) { return !e.card.name.includes("Echo"); },
@@ -194,7 +197,7 @@ var ySpec = { name: 'Y' };
 function xHatchery(x) {
     if (x === void 0) { x = xSpec; }
     return {
-        name: "Hatchery(" + x.name + ")",
+        name: "Hatchery(".concat(x.name, ")"),
         buyCost: coin(3),
         effects: [actionsEffect(1), createEffect(x)],
         relatedCards: (x.name == xSpec.name) ? [] : [x]
@@ -205,8 +208,7 @@ var metaHatchery = {
     buyCost: coin(3),
     relatedCards: [xHatchery()],
     effects: [actionsEffect(1), {
-            text: ["Choose a card X in your hand.",
-                "Create an X Hatchery in your discard."],
+            text: ["Choose a card X in your hand.", "Create an X Hatchery in your discard."],
             transform: function () { return function (state) {
                 return __awaiter(this, void 0, void 0, function () {
                     var target;
@@ -255,7 +257,7 @@ function mergeSpecs(x, y) {
     if (x === void 0) { x = xSpec; }
     if (y === void 0) { y = ySpec; }
     return {
-        name: x.name + " + " + y.name,
+        name: "".concat(x.name, " + ").concat(y.name),
         buyCost: addIfdef(x.buyCost, y.buyCost),
         fixedCost: addIfdef(x.fixedCost, y.fixedCost),
         variableCosts: concatIfdef(x.variableCosts, y.variableCosts),
@@ -306,8 +308,7 @@ var merge = {
     name: 'Merge',
     fixedCost: energy(1),
     effects: [{
-            text: ["Trash two cards in the supply each costing at least $1.",
-                "If you do, create an X+Y in the supply that combines all of their costs, effects, and so on."],
+            text: ["Trash two cards in the supply each costing at least $1.", "If you do, create an X+Y in the supply that combines all of their costs, effects, and so on."],
             transform: function () { return function (state) {
                 return __awaiter(this, void 0, void 0, function () {
                     var targets;
@@ -486,7 +487,7 @@ var reconfigure = {
                                 if (!(currentType == numTypes)) return [3 /*break*/, 11];
                                 n = tokenCount;
                                 return [3 /*break*/, 13];
-                            case 11: return [4 /*yield*/, choice(state, "How many " + token + " tokens do you want to add? (" + tokenCount + " remaining)", chooseNatural(tokenCount + 1))];
+                            case 11: return [4 /*yield*/, choice(state, "How many ".concat(token, " tokens do you want to add? (").concat(tokenCount, " remaining)"), chooseNatural(tokenCount + 1))];
                             case 12:
                                 _f = __read.apply(void 0, [_g.sent(), 2]), state = _f[0], n = _f[1];
                                 _g.label = 13;
@@ -589,7 +590,7 @@ var redistribute = {
                                 return [7 /*endfinally*/];
                             case 11:
                                 n = void 0;
-                                return [4 /*yield*/, choice(state, "How many " + token + " tokens do you want to put on " + targets[0].name + "?", chooseNatural(total + 1))];
+                                return [4 /*yield*/, choice(state, "How many ".concat(token, " tokens do you want to put on ").concat(targets[0].name, "?"), chooseNatural(total + 1))];
                             case 12:
                                 _g = __read.apply(void 0, [_h.sent(), 2]), state = _g[0], n = _g[1];
                                 if (!(n != null)) return [3 /*break*/, 15];

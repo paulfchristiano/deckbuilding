@@ -24,9 +24,6 @@
   },
   "files": [
     "public/main.ts",
-    "public/campaign.ts",
-    "index.ts",
-    "public/logic.ts",
-    "postgres.d.ts"
+    "public/logic.ts"
   ]
 }
