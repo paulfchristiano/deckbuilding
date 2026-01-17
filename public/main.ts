@@ -4,7 +4,7 @@
 // TODO: starting to see performance hiccups in big games
 // TODO: probably don't want the public move method to allow moves into or out of resolving.
 
-import { Cost, Shadow, State, Card, CardSpec, PlaceName } from './logic.js'
+import { Cost, Shadow, State, Card, CardSpec, PlaceName, Rule } from './logic.js'
 import { GameSpec, SlotSpec } from './logic.js'
 import { Trigger, Replacer, Ability, VariableCost, Token } from './logic.js'
 import { ID } from './logic.js'
@@ -324,6 +324,17 @@ function isZero(c:Cost|undefined) {
     return (c===undefined || renderCost(c) == '')
 }
 
+function renderRuleText(rule: Rule): string {
+    const parts: string[] = []
+    for (const trigger of (rule.triggers || [])) {
+        parts.push(`<div>(rule) ${trigger.text}</div>`)
+    }
+    for (const replacer of (rule.replacers || [])) {
+        parts.push(`<div>(rule) ${replacer.text}</div>`)
+    }
+    return parts.join('')
+}
+
 function cardText(spec:CardSpec): string {
     const effectHtml:string = renderEffects(spec)
     const buyableHtml:string = (spec.restrictions != undefined) ? renderBuyable(spec.restrictions) : ''
@@ -341,8 +352,9 @@ function cardText(spec:CardSpec): string {
     const staticReplacerHtml:string = (spec.staticReplacers || []).map(
         x => renderTrigger(x, true)
     ).join('')
+    const rulesHtml:string = (spec.rules || []).map(renderRuleText).join('')
     return [buyableHtml, costHtml, effectHtml, abilitiesHtml,
-            triggerHtml, replacerHtml, staticTriggerHtml, staticReplacerHtml].join('')
+            triggerHtml, replacerHtml, staticTriggerHtml, staticReplacerHtml, rulesHtml].join('')
 
 }
 

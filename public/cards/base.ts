@@ -22,19 +22,19 @@ import {
   refreshEffect, recycleEffect, createInPlayEffect, chargeEffect,
   targetedEffect, workshopEffect,
   coinsEffect,
-  reflectTrigger,
   energy, coin, repeat,
   costPer, incrementCost, costReduceNext,
   countNameTokens, nameHasToken,
   startsWithCharge,
   useRefresh, costReduce, reducedCost, applyToTarget,
   playTwice, payAction, sortHand, discardFromPlay,
-  trashThis, fragileEcho,
+  trashThis,
   copper, gold, silver, estate, duchy, province,
   dedupBy, countDistinctNames,
   playReplacer, trashOnLeavePlay, stayInPlay,
   sourceHasName, Source,
-  VPMode, cannotUse, renderCostOrZero
+  VPMode, cannotUse, renderCostOrZero,
+  echoRule, priorityRule, reflectRule
 } from '../logic.js'
 
 export const cards:CardSpec[] = [];
@@ -244,11 +244,11 @@ cards.push(supplyForCard(construction, coin(4)))
 const hallOfMirrors:CardSpec = {name: 'Hall of Mirrors',
     fixedCost: {...free, energy:1, coin:5},
     effects: [{
-        text: ['Put a mirror token on each card in your hand.'],
+        text: ['Put a reflect token on each card in your hand.'],
         transform: (state:State, card:Card) =>
-            doAll(state.hand.map(c => addToken(c, 'mirror')))
+            doAll(state.hand.map(c => addToken(c, 'reflect')))
     }],
-    staticTriggers: [reflectTrigger('mirror')],
+    rules: [reflectRule],
 }
 events.push(hallOfMirrors)
 
@@ -808,27 +808,25 @@ const synergy:CardSpec = {name: 'Synergy',
 }
 events.push(synergy)
 
-const shelter:CardSpec = {name: 'Shelter',
-    buyCost: coin(3),
-    effects: [actionsEffect(1), targetedEffect(
-        target => addToken(target, 'shelter'),
-        'Put a shelter token on a card.',
-        state => state.play
-    )],
-    staticReplacers: [{
+const shelterName = 'Shelter'
+const shelter:CardSpec = {name: shelterName,
+    buyCost: coin(5),
+    simpleText: `Whenever you would move a card from play to your hand, instead leave it in play. Put this in play when you create it.`,
+    replacers: [{
         kind: 'move',
-        text: `Whenever you would move a card with a shelter token from play,
-               instead remove a shelter token from it.`,
-        handles: (x, state) => x.fromZone == 'play'
-            && x.skip == false
-            && state.find(x.card).count('shelter') > 0,
-        replace: x => ({...x,
-            skip:true, toZone:'play',
-            effects:x.effects.concat([removeToken(x.card, 'shelter')])
-        })
+        text: 'Whenever you would move a card from play to your hand (including this one) instead leave it in place.',
+        handles: (x, state) => x.fromZone == 'play' && x.toZone == 'hand',
+        replace: x => ({...x, skip:true, toZone:'play'})
+    }],
+    staticReplacers: [{
+        kind: 'create',
+        text: `Whenever you would create a ${shelterName} in your discard,
+               instead create it in play.`,
+        handles: p => p.spec.name == shelterName && p.zone == 'discard',
+        replace: p => ({...p, zone:'play'})
     }]
 }
-// cards.push(shelter) // removed
+cards.push(shelter)
 
 const market:CardSpec = {
     name: 'Market',
@@ -1079,7 +1077,7 @@ const reflect:CardSpec = {name: 'Reflect',
     	'Put a reflect token on a card in your hand',
     	state => state.hand
 	)],
-    staticTriggers: [reflectTrigger('reflect')],
+    rules: [reflectRule],
 }
 events.push(reflect)
 
@@ -1980,7 +1978,7 @@ const reverberate:CardSpec = {
             state.play.filter(c => c.count('echo') == 0).map(reverbEffect)
         )
     }],
-    staticReplacers: [fragileEcho('echo')]
+    rules: [echoRule],
 }
 events.push(reverberate)
 
@@ -2042,18 +2040,7 @@ const prioritize:CardSpec = {
         'Put five priority tokens on a card in the supply.',
         state => state.supply,
     )],
-    staticReplacers: [playReplacer(
-        `Whenever you would create a card in your discard
-        whose supply has a priority token,
-        instead remove a priority token and set the card aside.
-        Then play it if it is still set aside.`,
-        (p, s, c) => nameHasToken(p.spec, 'priority', s),
-        (p, s, c) => applyToTarget(
-            t => removeToken(t, 'priority', 1, true),
-            'Remove a priority token.',
-            state => state.supply.filter(t => t.name == p.spec.name)
-        )
-    )]
+    rules: [priorityRule],
 }
 // events.push(prioritize) // removed (boon)
 
@@ -2586,7 +2573,7 @@ const summon:CardSpec = {
         `Choose up to three cards in the supply costing up to $6. Create a copy of each in your hand with an echo token.`,
         s => s.supply.filter(c => leq(c.cost('buy', s), coin(6))), 3
     )],
-    staticReplacers: [fragileEcho('echo')]
+    rules: [echoRule],
 }
 events.push(summon)
 
@@ -2599,30 +2586,19 @@ const reprise:CardSpec = {
             c => doAll([move(c, 'hand'), addToken(c, 'echo')])
         ))
     }],
-    staticReplacers: [fragileEcho('echo')]
+    rules: [echoRule],
 }
 events.push(reprise)
 
 const accelerate:CardSpec = {
     name: 'Accelerate',
-    simpleText: `Put an accelerate token on each card in the supply. Whenever you create a card with an accelerate token on it, remove the token to play the card immediately.`,
+    simpleText: `Put a priority token on each card in the supply. Whenever you create a card with a priority token on it, remove the token to play the card immediately.`,
     fixedCost: {...free, energy:1, coin:4},
     effects: [{
-        text: [`Put an accelerate token on each card in the supply.`],
-        transform: (state, card) => doAll(state.supply.map(c => addToken(c, 'accelerate')))
+        text: [`Put a priority token on each card in the supply.`],
+        transform: (state, card) => doAll(state.supply.map(c => addToken(c, 'priority')))
     }],
-    staticReplacers: [playReplacer(
-        `Whenever you would create a card in your discard
-        whose supply has an accelerate token,
-        instead remove an accelerate token and set the card aside.
-        Then play it it is set aside.`,
-        (p, s, c) => nameHasToken(p.spec, 'accelerate', s),
-        (p, s, c) => applyToTarget(
-            t => removeToken(t, 'accelerate', 1, true),
-            'Remove an accelerate token.',
-            state => state.supply.filter(t => t.name == p.spec.name)
-        )
-    )]
+    rules: [priorityRule],
 }
 events.push(accelerate)
 
@@ -2653,7 +2629,7 @@ const hallOfEchoes:CardSpec = {
             )
         )
     }],
-    staticReplacers: [fragileEcho()],
+    rules: [echoRule],
 }
 events.push(hallOfEchoes)
 
@@ -2675,14 +2651,14 @@ cards.push(magpie)
 
 const crown:CardSpec = {
     name: 'Crown',
-    simpleText: `Put a crown token on a card in your hand. The next time you play it, play it again.`,
+    simpleText: `Put a reflect token on a card in your hand. The next time you play it, play it again.`,
     buyCost: coin(3),
     effects: [targetedEffect(
-        target => addToken(target, 'crown'),
-        'Put a crown token on a card in your hand.',
+        target => addToken(target, 'reflect'),
+        'Put a reflect token on a card in your hand.',
         s => s.hand
     )],
-    staticTriggers: [reflectTrigger('crown')],
+    rules: [reflectRule],
 }
 cards.push(crown)
 

@@ -72,7 +72,7 @@ var __values = (this && this.__values) || function(o) {
     };
     throw new TypeError(s ? "Object is not iterable." : "Symbol.iterator is not defined.");
 };
-import { choice, asChoice, trash, addCosts, subtractCost, multiplyCosts, eq, leq, noop, gainPoints, gainActions, gainCoins, gainBuys, free, create, move, doAll, multichoice, renderCost, moveMany, payToDo, payCost, addToken, removeToken, charge, discharge, asNumberedChoices, allowNull, setResource, tick, a, num, aOrNum, createAndTrack, villager, fair, supplyForCard, actionsEffect, buyEffect, buysEffect, pointsEffect, createEffect, refreshEffect, recycleEffect, createInPlayEffect, chargeEffect, targetedEffect, workshopEffect, coinsEffect, reflectTrigger, energy, coin, repeat, costPer, incrementCost, costReduceNext, countNameTokens, nameHasToken, startsWithCharge, useRefresh, costReduce, reducedCost, applyToTarget, playTwice, payAction, sortHand, discardFromPlay, trashThis, fragileEcho, copper, gold, silver, estate, duchy, province, dedupBy, countDistinctNames, playReplacer, trashOnLeavePlay, sourceHasName, cannotUse, renderCostOrZero } from '../logic.js';
+import { choice, asChoice, trash, addCosts, subtractCost, multiplyCosts, eq, leq, noop, gainPoints, gainActions, gainCoins, gainBuys, free, create, move, doAll, multichoice, renderCost, moveMany, payToDo, payCost, addToken, removeToken, charge, discharge, asNumberedChoices, allowNull, setResource, tick, a, num, aOrNum, createAndTrack, villager, fair, supplyForCard, actionsEffect, buyEffect, buysEffect, pointsEffect, createEffect, refreshEffect, recycleEffect, createInPlayEffect, chargeEffect, targetedEffect, workshopEffect, coinsEffect, energy, coin, repeat, costPer, incrementCost, costReduceNext, countNameTokens, nameHasToken, startsWithCharge, useRefresh, costReduce, reducedCost, applyToTarget, playTwice, payAction, sortHand, discardFromPlay, trashThis, copper, gold, silver, estate, duchy, province, dedupBy, countDistinctNames, playReplacer, trashOnLeavePlay, sourceHasName, cannotUse, renderCostOrZero, echoRule, priorityRule, reflectRule } from '../logic.js';
 export var cards = [];
 export var events = [];
 /*
@@ -267,12 +267,12 @@ cards.push(supplyForCard(construction, coin(4)));
 var hallOfMirrors = { name: 'Hall of Mirrors',
     fixedCost: __assign(__assign({}, free), { energy: 1, coin: 5 }),
     effects: [{
-            text: ['Put a mirror token on each card in your hand.'],
+            text: ['Put a reflect token on each card in your hand.'],
             transform: function (state, card) {
-                return doAll(state.hand.map(function (c) { return addToken(c, 'mirror'); }));
+                return doAll(state.hand.map(function (c) { return addToken(c, 'reflect'); }));
             }
         }],
-    staticTriggers: [reflectTrigger('mirror')], };
+    rules: [reflectRule], };
 events.push(hallOfMirrors);
 /*
 const restock:CardSpec = {name: 'Restock',
@@ -1130,7 +1130,7 @@ var reflect = { name: 'Reflect',
     fixedCost: coin(1),
     variableCosts: [costPer({ coin: 1 })],
     effects: [incrementCost(), targetedEffect(function (target, card) { return addToken(target, 'reflect'); }, 'Put a reflect token on a card in your hand', function (state) { return state.hand; })],
-    staticTriggers: [reflectTrigger('reflect')], };
+    rules: [reflectRule], };
 events.push(reflect);
 var replicate = { name: 'Replicate',
     fixedCost: energy(1),
@@ -2058,7 +2058,7 @@ var reverberate = {
             text: ["For each card in play without an echo token,\n            create a copy in play with an echo token."],
             transform: function (state) { return doAll(state.play.filter(function (c) { return c.count('echo') == 0; }).map(reverbEffect)); }
         }],
-    staticReplacers: [fragileEcho('echo')]
+    rules: [echoRule],
 };
 events.push(reverberate);
 /*
@@ -2110,7 +2110,7 @@ var prioritize = {
     name: 'Prioritize',
     fixedCost: __assign(__assign({}, free), { energy: 1, coin: 3 }),
     effects: [targetedEffect(function (card) { return addToken(card, 'priority', 5); }, 'Put five priority tokens on a card in the supply.', function (state) { return state.supply; })],
-    staticReplacers: [playReplacer("Whenever you would create a card in your discard\n        whose supply has a priority token,\n        instead remove a priority token and set the card aside.\n        Then play it if it is still set aside.", function (p, s, c) { return nameHasToken(p.spec, 'priority', s); }, function (p, s, c) { return applyToTarget(function (t) { return removeToken(t, 'priority', 1, true); }, 'Remove a priority token.', function (state) { return state.supply.filter(function (t) { return t.name == p.spec.name; }); }); })]
+    rules: [priorityRule],
 };
 // events.push(prioritize) // removed (boon)
 var composting = {
@@ -2630,7 +2630,7 @@ var summon = {
     effects: [multitargetedEffect(function (targets, card) { return doAll(targets.map(function (target) {
             return create(target.spec, 'hand', function (c) { return addToken(c, 'echo'); });
         })); }, "Choose up to three cards in the supply costing up to $6. Create a copy of each in your hand with an echo token.", function (s) { return s.supply.filter(function (c) { return leq(c.cost('buy', s), coin(6)); }); }, 3)],
-    staticReplacers: [fragileEcho('echo')]
+    rules: [echoRule],
 };
 events.push(summon);
 var reprise = {
@@ -2640,18 +2640,18 @@ var reprise = {
             text: ["Put each card in your discard into your hand with an echo token on it."],
             transform: function (state) { return doAll(state.discard.map(function (c) { return doAll([move(c, 'hand'), addToken(c, 'echo')]); })); }
         }],
-    staticReplacers: [fragileEcho('echo')]
+    rules: [echoRule],
 };
 events.push(reprise);
 var accelerate = {
     name: 'Accelerate',
-    simpleText: "Put an accelerate token on each card in the supply. Whenever you create a card with an accelerate token on it, remove the token to play the card immediately.",
+    simpleText: "Put a priority token on each card in the supply. Whenever you create a card with a priority token on it, remove the token to play the card immediately.",
     fixedCost: __assign(__assign({}, free), { energy: 1, coin: 4 }),
     effects: [{
-            text: ["Put an accelerate token on each card in the supply."],
-            transform: function (state, card) { return doAll(state.supply.map(function (c) { return addToken(c, 'accelerate'); })); }
+            text: ["Put a priority token on each card in the supply."],
+            transform: function (state, card) { return doAll(state.supply.map(function (c) { return addToken(c, 'priority'); })); }
         }],
-    staticReplacers: [playReplacer("Whenever you would create a card in your discard\n        whose supply has an accelerate token,\n        instead remove an accelerate token and set the card aside.\n        Then play it it is set aside.", function (p, s, c) { return nameHasToken(p.spec, 'accelerate', s); }, function (p, s, c) { return applyToTarget(function (t) { return removeToken(t, 'accelerate', 1, true); }, 'Remove an accelerate token.', function (state) { return state.supply.filter(function (t) { return t.name == p.spec.name; }); }); })]
+    rules: [priorityRule],
 };
 events.push(accelerate);
 var swap = {
@@ -2667,7 +2667,7 @@ var hallOfEchoes = {
             text: ["For each card in your hand without an echo token,\n                create a copy in your hand with an echo token."],
             transform: function (state) { return doAll(state.hand.filter(function (c) { return c.count('echo') == 0; }).map(function (c) { return create(c.spec, 'hand', function (x) { return addToken(x, 'echo'); }); })); }
         }],
-    staticReplacers: [fragileEcho()],
+    rules: [echoRule],
 };
 events.push(hallOfEchoes);
 // More cards from expansion.ts
@@ -2685,10 +2685,10 @@ var magpie = {
 cards.push(magpie);
 var crown = {
     name: 'Crown',
-    simpleText: "Put a crown token on a card in your hand. The next time you play it, play it again.",
+    simpleText: "Put a reflect token on a card in your hand. The next time you play it, play it again.",
     buyCost: coin(3),
-    effects: [targetedEffect(function (target) { return addToken(target, 'crown'); }, 'Put a crown token on a card in your hand.', function (s) { return s.hand; })],
-    staticTriggers: [reflectTrigger('crown')],
+    effects: [targetedEffect(function (target) { return addToken(target, 'reflect'); }, 'Put a reflect token on a card in your hand.', function (s) { return s.hand; })],
+    rules: [reflectRule],
 };
 cards.push(crown);
 var churnName = 'Churn';

@@ -79,6 +79,21 @@ export interface CardSpec {
     ability?: Effect[];
     simpleText?: string; // Short description for card selector/deck view
     isPotion?: boolean; // If true, trash after playing
+    rules?: Rule[]; // Rules this card references (for tooltip display)
+}
+
+// Rules are global triggers/replacers that apply to all games
+export interface Rule {
+    name: string;
+    triggers?: TypedTrigger[];
+    replacers?: TypedReplacer[];
+}
+
+// Registry of all rules
+export const rules: Rule[] = []
+
+export function registerRule(rule: Rule): void {
+    rules.push(rule)
 }
 
 export interface Cost {
@@ -929,6 +944,29 @@ export type TypedTrigger = Trigger<BuyEvent> | Trigger<AfterBuyEvent> | Trigger<
 function trigger<T extends GameEvent>(e:T): Transform {
     return async function(state:State): Promise<State> {
         const initialState = state;
+
+        // First, process rule triggers (they fire before all other triggers)
+        for (const rule of rules) {
+            if (rule.triggers) {
+                // Create a dummy card to represent the rule for tracking/logging
+                const ruleCard = new Card({name: `(rule) ${rule.name}`}, -1)
+                for (const rawTrigger of rule.triggers) {
+                    if (rawTrigger.kind == e.kind) {
+                        const trigger:Trigger<T> = ((rawTrigger as unknown) as Trigger<T>)
+                        if (trigger.handles(e, initialState, ruleCard)
+                            && trigger.handles(e, state, ruleCard)) {
+                            state = state.log(`Triggering ${rule.name} rule`)
+                            state = await withTracking(
+                                trigger.transform(e, state, ruleCard),
+                                {kind:'trigger', trigger:trigger, card:ruleCard}
+                            )(state)
+                        }
+                    }
+                }
+            }
+        }
+
+        // Then process normal triggers
         const triggers:[Card, TypedTrigger][] = [];
         for (const card of state.events.concat(state.supply))
             for (const trigger of card.staticTriggers())
@@ -974,6 +1012,7 @@ type TypedReplacer = Replacer<ResourceParams> | Replacer<CostParams> |
     Replacer<VictoryParams>
 
 function replace<T extends Params>(x: T, state: State): T {
+    // First, process normal replacers
     const replacers:[Card, TypedReplacer][] = []
     for (const card of state.events.concat(state.supply))
         for (const replacer of card.staticReplacers())
@@ -989,6 +1028,23 @@ function replace<T extends Params>(x: T, state: State): T {
             }
         }
     }
+
+    // Then, process rule replacers (they replace after all other replacers)
+    for (const rule of rules) {
+        if (rule.replacers) {
+            // Create a dummy card to represent the rule
+            const ruleCard = new Card({name: `(rule) ${rule.name}`}, -1)
+            for (const rawReplacer of rule.replacers) {
+                if (rawReplacer.kind == x.kind) {
+                    const replacer = ((rawReplacer as unknown) as Replacer<T>)
+                    if (replacer.handles(x, state, ruleCard)) {
+                        x = replacer.replace(x, state, ruleCard)
+                    }
+                }
+            }
+        }
+    }
+
     return x
 }
 
@@ -2637,6 +2693,54 @@ export const cheat:CardSpec = {name: 'Cheat',
     effects: [pointsEffect(10)],
 }
 sets.core.events.push(cheat)
+
+// ========== GLOBAL RULES ==========
+
+// Echo rule: cards with echo tokens are trashed when moving to hand or discard
+export const echoRule: Rule = {
+    name: 'Echo',
+    replacers: [{
+        text: `Whenever a card with an echo token would move to your hand or discard, trash it instead.`,
+        kind: 'move',
+        handles: (p, state) => state.find(p.card).count('echo') > 0
+            && (p.toZone == 'hand' || p.toZone == 'discard'),
+        replace: p => ({...p, toZone: 'void'})
+    }]
+}
+registerRule(echoRule)
+
+// Priority rule: cards created from supplies with priority tokens are played immediately
+export const priorityRule: Rule = {
+    name: 'Priority',
+    replacers: [playReplacer(
+        `Whenever you would create a card in your discard whose supply has a priority token, instead remove a priority token and set the card aside. Then play it if it is still set aside.`,
+        (p, s, c) => nameHasToken(p.spec, 'priority', s),
+        (p, s, c) => applyToTarget(
+            t => removeToken(t, 'priority', 1, true),
+            'Remove a priority token.',
+            state => state.supply.filter(t => t.name == p.spec.name)
+        )
+    )]
+}
+registerRule(priorityRule)
+
+// Reflect rule: after playing a card with a reflect token, play it again
+export const reflectRule: Rule = {
+    name: 'Reflect',
+    triggers: [{
+        text: `After playing a card with a reflect token on it, remove the reflect token and play it again.`,
+        kind: 'afterPlay',
+        handles: (e, state, card) => {
+            const played: Card = state.find(e.card)
+            return played.count('reflect') > 0 && !sourceHasName(e.source, card.name)
+        },
+        transform: (e, s, card) => doAll([
+            removeToken(e.card, 'reflect'),
+            e.card.play(card),
+        ]),
+    }]
+}
+registerRule(reflectRule)
 
 export const copper:CardSpec = {name: 'Copper',
     buyCost: coin(0),
