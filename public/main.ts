@@ -603,7 +603,14 @@ function renderState(
         window.history.replaceState(null, "", linkForState(state, isCampaign))
     }
     $('#resolvingHeader').html('Resolving:')
-    $('#energy').html(state.energy.toString())
+    // Display energy as X/Y where Y is par, red if over par
+    const par = STAGE_PARS[currentStage - 1] || 0
+    const energyDisplay = `${state.energy}/${par}`
+    if (state.energy > par) {
+        $('#energy').html(`<span style="color: red">${energyDisplay}</span>`)
+    } else {
+        $('#energy').html(energyDisplay)
+    }
     $('#actions').html(state.actions.toString())
     $('#buys').html(state.buys.toString())
     $('#coin').html(state.coin.toString())
@@ -1795,10 +1802,12 @@ export function loadPicker(picked_sets: ExpansionName[]): void {
 
 // Stage-based game state
 const TOTAL_STAGES = 9
+const STAGE_PARS = [40, 35, 30, 37, 24, 21, 18, 0, 0] // Par for each stage (0-indexed)
 let currentStage: number = 1
 let currentKingdom: GameSpec | null = null
 let currentVPModeName: string = ''
 let stageScores: (number | null)[] = Array(TOTAL_STAGES).fill(null)
+let currentBuffer: number = 16
 
 // Deck building state
 interface AddButtonState {
@@ -2004,10 +2013,16 @@ function updateProgressSidebar(): void {
 
         if (stage < currentStage) {
             $(this).addClass('completed')
-            // Show score if available
+            // Show score as X/Y where Y is par, red if over par
             const score = stageScores[stage - 1]
             if (score !== null) {
-                $(this).append(`<span class="progressScore">${score}</span>`)
+                const par = STAGE_PARS[stage - 1] || 0
+                const scoreDisplay = `${score}/${par}`
+                if (score > par) {
+                    $(this).append(`<span class="progressScore" style="color: red">${scoreDisplay}</span>`)
+                } else {
+                    $(this).append(`<span class="progressScore">${scoreDisplay}</span>`)
+                }
             }
         } else if (stage === currentStage) {
             $(this).addClass('current')
@@ -2057,6 +2072,10 @@ function setupDeckIcon(): void {
     }
 }
 
+function updateBufferDisplay(): void {
+    $('#bufferDisplay').text(`Buffer: ${currentBuffer}`)
+}
+
 export function showLandingPage(): void {
     // Initialize first stage
     currentStage = 1
@@ -2064,14 +2083,19 @@ export function showLandingPage(): void {
     collectedEvents = []
     currentPotions = []
     stageScores = Array(TOTAL_STAGES).fill(null)
+    currentBuffer = 16
     generateStageOptions()
     setupDeckIcon()
+    updateBufferDisplay()
     showStageScreen()
 }
 
 function showStageScreen(): void {
     // Update stage title
     $('#stageTitle').text(`Stage ${currentStage}`)
+
+    // Update buffer display
+    updateBufferDisplay()
 
     // Update progress sidebar
     updateProgressSidebar()
@@ -2137,6 +2161,14 @@ function showFinalVictory(): void {
 function onKingdomVictory(score: number, remainingPotions: CardSpec[]): void {
     // Save the score for this stage
     stageScores[currentStage - 1] = score
+
+    // Calculate buffer loss: lose buffer equal to (energy - par) if over par
+    const par = STAGE_PARS[currentStage - 1] || 0
+    if (score > par) {
+        currentBuffer -= (score - par)
+    }
+    updateBufferDisplay()
+
     // Carry forward remaining potions to next stage
     currentPotions = remainingPotions
     advanceToNextStage()

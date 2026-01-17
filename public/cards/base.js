@@ -3095,7 +3095,7 @@ export var potionOfCelebration = {
 export var potionOfBounty = {
     name: 'Potion of Bounty',
     isPotion: true,
-    simpleText: 'Create two Bounties in play.',
+    simpleText: 'The next time you buy a card, buy it two more times for free.',
     relatedCards: [bounty],
     effects: [createInPlayEffect(bounty, 2)]
 };
@@ -3121,8 +3121,8 @@ export var potionOfShelter = {
     simpleText: 'Create 3 Fairs and a Shelter in play.',
     relatedCards: [fair, shelter],
     effects: [
-        createInPlayEffect(fair, 3),
         createInPlayEffect(shelter),
+        createInPlayEffect(fair, 3),
     ]
 };
 export var potionOfVitality = {

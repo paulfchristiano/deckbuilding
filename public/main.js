@@ -704,7 +704,15 @@ function renderState(state, settings) {
         window.history.replaceState(null, "", linkForState(state, isCampaign));
     }
     $('#resolvingHeader').html('Resolving:');
-    $('#energy').html(state.energy.toString());
+    // Display energy as X/Y where Y is par, red if over par
+    var par = STAGE_PARS[currentStage - 1] || 0;
+    var energyDisplay = "".concat(state.energy, "/").concat(par);
+    if (state.energy > par) {
+        $('#energy').html("<span style=\"color: red\">".concat(energyDisplay, "</span>"));
+    }
+    else {
+        $('#energy').html(energyDisplay);
+    }
     $('#actions').html(state.actions.toString());
     $('#buys').html(state.buys.toString());
     $('#coin').html(state.coin.toString());
@@ -1828,10 +1836,12 @@ export function loadPicker(picked_sets) {
 // ----------------------------------- Landing Page
 // Stage-based game state
 var TOTAL_STAGES = 9;
+var STAGE_PARS = [40, 35, 30, 37, 24, 21, 18, 0, 0]; // Par for each stage (0-indexed)
 var currentStage = 1;
 var currentKingdom = null;
 var currentVPModeName = '';
 var stageScores = Array(TOTAL_STAGES).fill(null);
+var currentBuffer = 16;
 var stageAddButtonStates = [];
 var collectedCards = [];
 var collectedEvents = [];
@@ -2034,10 +2044,17 @@ function updateProgressSidebar() {
         $(this).find('.progressScore').remove();
         if (stage < currentStage) {
             $(this).addClass('completed');
-            // Show score if available
+            // Show score as X/Y where Y is par, red if over par
             var score = stageScores[stage - 1];
             if (score !== null) {
-                $(this).append("<span class=\"progressScore\">".concat(score, "</span>"));
+                var par = STAGE_PARS[stage - 1] || 0;
+                var scoreDisplay = "".concat(score, "/").concat(par);
+                if (score > par) {
+                    $(this).append("<span class=\"progressScore\" style=\"color: red\">".concat(scoreDisplay, "</span>"));
+                }
+                else {
+                    $(this).append("<span class=\"progressScore\">".concat(scoreDisplay, "</span>"));
+                }
             }
         }
         else if (stage === currentStage) {
@@ -2105,6 +2122,9 @@ function setupDeckIcon() {
         deckIcon.addEventListener('click', toggleDeckDialog);
     }
 }
+function updateBufferDisplay() {
+    $('#bufferDisplay').text("Buffer: ".concat(currentBuffer));
+}
 export function showLandingPage() {
     // Initialize first stage
     currentStage = 1;
@@ -2112,13 +2132,17 @@ export function showLandingPage() {
     collectedEvents = [];
     currentPotions = [];
     stageScores = Array(TOTAL_STAGES).fill(null);
+    currentBuffer = 16;
     generateStageOptions();
     setupDeckIcon();
+    updateBufferDisplay();
     showStageScreen();
 }
 function showStageScreen() {
     // Update stage title
     $('#stageTitle').text("Stage ".concat(currentStage));
+    // Update buffer display
+    updateBufferDisplay();
     // Update progress sidebar
     updateProgressSidebar();
     // Set up add buttons
@@ -2172,6 +2196,12 @@ function showFinalVictory() {
 function onKingdomVictory(score, remainingPotions) {
     // Save the score for this stage
     stageScores[currentStage - 1] = score;
+    // Calculate buffer loss: lose buffer equal to (energy - par) if over par
+    var par = STAGE_PARS[currentStage - 1] || 0;
+    if (score > par) {
+        currentBuffer -= (score - par);
+    }
+    updateBufferDisplay();
     // Carry forward remaining potions to next stage
     currentPotions = remainingPotions;
     advanceToNextStage();
