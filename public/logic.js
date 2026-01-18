@@ -1073,10 +1073,10 @@ function trigger(e) {
                         rawTrigger = _b.value;
                         if (!(rawTrigger.kind == e.kind)) return [3 /*break*/, 6];
                         trigger_1 = rawTrigger;
-                        if (!(trigger_1.handles(e, initialState, ruleCard)
-                            && trigger_1.handles(e, state, ruleCard))) return [3 /*break*/, 6];
+                        if (!(trigger_1.handles(e, initialState, rule)
+                            && trigger_1.handles(e, state, rule))) return [3 /*break*/, 6];
                         state = state.log("Triggering ".concat(rule.name, " rule"));
-                        return [4 /*yield*/, withTracking(trigger_1.transform(e, state, ruleCard), { kind: 'trigger', trigger: trigger_1, card: ruleCard })(state)];
+                        return [4 /*yield*/, withTracking(trigger_1.transform(e, state, rule), { kind: 'trigger', trigger: trigger_1, card: ruleCard })(state)];
                     case 5:
                         state = _u.sent();
                         _u.label = 6;
@@ -1274,15 +1274,13 @@ function replace(x, state) {
         for (var rules_2 = __values(rules), rules_2_1 = rules_2.next(); !rules_2_1.done; rules_2_1 = rules_2.next()) {
             var rule = rules_2_1.value;
             if (rule.replacers) {
-                // Create a dummy card to represent the rule
-                var ruleCard = new Card({ name: "(rule) ".concat(rule.name) }, -1);
                 try {
                     for (var _s = (e_29 = void 0, __values(rule.replacers)), _t = _s.next(); !_t.done; _t = _s.next()) {
                         var rawReplacer = _t.value;
                         if (rawReplacer.kind == x.kind) {
                             var replacer = rawReplacer;
-                            if (replacer.handles(x, state, ruleCard)) {
-                                x = replacer.replace(x, state, ruleCard);
+                            if (replacer.handles(x, state, rule)) {
+                                x = replacer.replace(x, state, rule);
                             }
                         }
                     }
@@ -3382,9 +3380,9 @@ export function playReplacer(text, condition, cost) {
     return {
         kind: 'create',
         text: text,
-        handles: function (p, s, c) { return p.zone == 'discard' && condition(p, s, c); },
-        replace: function (p, s, c) { return (__assign(__assign({}, p), { zone: 'void', effects: p.effects.concat([
-                function () { return cost(p, s, c); },
+        handles: function (p, s, source) { return p.zone == 'discard' && condition(p, s, source); },
+        replace: function (p, s, source) { return (__assign(__assign({}, p), { zone: 'void', effects: p.effects.concat([
+                function () { return cost(p, s, source); },
                 function (t) { return function (state) {
                     return __awaiter(this, void 0, void 0, function () {
                         return __generator(this, function (_a) {
@@ -3392,7 +3390,7 @@ export function playReplacer(text, condition, cost) {
                                 case 0:
                                     t = state.find(t);
                                     if (!(t.place == 'void')) return [3 /*break*/, 2];
-                                    return [4 /*yield*/, t.play(c)(state)];
+                                    return [4 /*yield*/, t.play(source)(state)];
                                 case 1:
                                     state = _a.sent();
                                     _a.label = 2;

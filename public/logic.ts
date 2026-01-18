@@ -85,8 +85,8 @@ export interface CardSpec {
 // Rules are global triggers/replacers that apply to all games
 export interface Rule {
     name: string;
-    triggers?: TypedTrigger[];
-    replacers?: TypedReplacer[];
+    triggers?: TypedRuleTrigger[];
+    replacers?: TypedRuleReplacer[];
 }
 
 // Registry of all rules
@@ -123,18 +123,18 @@ export interface Effect {
     transform: (s:State, c:Card) => Transform;
 }
 
-export interface Trigger <T extends GameEvent = any> {
+export interface Trigger <T extends GameEvent = any, S = Card> {
     text: string;
     kind: T['kind'];
-    handles: (e:T, s:State, c:Card) => boolean;
-    transform: (e:T, s:State, c:Card) => Transform;
+    handles: (e:T, s:State, source:S) => boolean;
+    transform: (e:T, s:State, source:S) => Transform;
 }
 
-export interface Replacer <T extends Params = any> {
+export interface Replacer <T extends Params = any, S = Card> {
     text: string;
     kind: T['kind'];
-    handles: (p:T, s:State, c:Card) => boolean;
-    replace: (p:T, s:State, c:Card) => T;
+    handles: (p:T, s:State, source:S) => boolean;
+    replace: (p:T, s:State, source:S) => T;
 }
 
 export interface Ability {
@@ -932,12 +932,19 @@ export type GameEvent = BuyEvent | AfterBuyEvent | PlayEvent | AfterPlayEvent |
     CostEvent | ResourceEvent |
     GainChargeEvent | RemoveTokensEvent | AddTokenEvent |
     GameStartEvent
-export type TypedTrigger = Trigger<BuyEvent> | Trigger<AfterBuyEvent> | Trigger<PlayEvent> | Trigger<AfterPlayEvent> |
-    Trigger<UseEvent> | Trigger<AfterUseEvent> | Trigger<ActivateEvent> |
-    Trigger<CreateEvent> | Trigger<MoveEvent> | Trigger<DiscardEvent> |
-    Trigger<CostEvent> | Trigger<ResourceEvent> |
-    Trigger<GainChargeEvent> | Trigger<RemoveTokensEvent> | Trigger<AddTokenEvent> |
-    Trigger<GameStartEvent>
+export type TypedTrigger = Trigger<BuyEvent, Card> | Trigger<AfterBuyEvent, Card> | Trigger<PlayEvent, Card> | Trigger<AfterPlayEvent, Card> |
+    Trigger<UseEvent, Card> | Trigger<AfterUseEvent, Card> | Trigger<ActivateEvent, Card> |
+    Trigger<CreateEvent, Card> | Trigger<MoveEvent, Card> | Trigger<DiscardEvent, Card> |
+    Trigger<CostEvent, Card> | Trigger<ResourceEvent, Card> |
+    Trigger<GainChargeEvent, Card> | Trigger<RemoveTokensEvent, Card> | Trigger<AddTokenEvent, Card> |
+    Trigger<GameStartEvent, Card>
+
+export type TypedRuleTrigger = Trigger<BuyEvent, Rule> | Trigger<AfterBuyEvent, Rule> | Trigger<PlayEvent, Rule> | Trigger<AfterPlayEvent, Rule> |
+    Trigger<UseEvent, Rule> | Trigger<AfterUseEvent, Rule> | Trigger<ActivateEvent, Rule> |
+    Trigger<CreateEvent, Rule> | Trigger<MoveEvent, Rule> | Trigger<DiscardEvent, Rule> |
+    Trigger<CostEvent, Rule> | Trigger<ResourceEvent, Rule> |
+    Trigger<GainChargeEvent, Rule> | Trigger<RemoveTokensEvent, Rule> | Trigger<AddTokenEvent, Rule> |
+    Trigger<GameStartEvent, Rule>
 
 //e is an event that just happened
 //each card in play and aura can have a followup
@@ -949,17 +956,17 @@ function trigger<T extends GameEvent>(e:T): Transform {
         // First, process rule triggers (they fire before all other triggers)
         for (const rule of rules) {
             if (rule.triggers) {
-                // Create a dummy card to represent the rule for tracking/logging
+                // Create a dummy card for tracking/display purposes only
                 const ruleCard = new Card({name: `(rule) ${rule.name}`}, -1)
                 for (const rawTrigger of rule.triggers) {
                     if (rawTrigger.kind == e.kind) {
-                        const trigger:Trigger<T> = ((rawTrigger as unknown) as Trigger<T>)
-                        if (trigger.handles(e, initialState, ruleCard)
-                            && trigger.handles(e, state, ruleCard)) {
+                        const trigger:Trigger<T, Rule> = ((rawTrigger as unknown) as Trigger<T, Rule>)
+                        if (trigger.handles(e, initialState, rule)
+                            && trigger.handles(e, state, rule)) {
                             state = state.log(`Triggering ${rule.name} rule`)
                             state = await withTracking(
-                                trigger.transform(e, state, ruleCard),
-                                {kind:'trigger', trigger:trigger, card:ruleCard}
+                                trigger.transform(e, state, rule),
+                                {kind:'trigger', trigger:trigger as Trigger<any, any>, card:ruleCard}
                             )(state)
                         }
                     }
@@ -1008,9 +1015,12 @@ export interface CreateParams {
 }
 
 type Params = ResourceParams | CostParams | MoveParams | CreateParams | CostIncreaseParams | VictoryParams
-type TypedReplacer = Replacer<ResourceParams> | Replacer<CostParams> |
-    Replacer<MoveParams> | Replacer<CreateParams> | Replacer<CostIncreaseParams> |
-    Replacer<VictoryParams>
+type TypedReplacer = Replacer<ResourceParams, Card> | Replacer<CostParams, Card> |
+    Replacer<MoveParams, Card> | Replacer<CreateParams, Card> | Replacer<CostIncreaseParams, Card> |
+    Replacer<VictoryParams, Card>
+type TypedRuleReplacer = Replacer<ResourceParams, Rule> | Replacer<CostParams, Rule> |
+    Replacer<MoveParams, Rule> | Replacer<CreateParams, Rule> | Replacer<CostIncreaseParams, Rule> |
+    Replacer<VictoryParams, Rule>
 
 function replace<T extends Params>(x: T, state: State): T {
     // First, process normal replacers
@@ -1033,13 +1043,11 @@ function replace<T extends Params>(x: T, state: State): T {
     // Then, process rule replacers (they replace after all other replacers)
     for (const rule of rules) {
         if (rule.replacers) {
-            // Create a dummy card to represent the rule
-            const ruleCard = new Card({name: `(rule) ${rule.name}`}, -1)
             for (const rawReplacer of rule.replacers) {
                 if (rawReplacer.kind == x.kind) {
-                    const replacer = ((rawReplacer as unknown) as Replacer<T>)
-                    if (replacer.handles(x, state, ruleCard)) {
-                        x = replacer.replace(x, state, ruleCard)
+                    const replacer = ((rawReplacer as unknown) as Replacer<T, Rule>)
+                    if (replacer.handles(x, state, rule)) {
+                        x = replacer.replace(x, state, rule)
                     }
                 }
             }
@@ -1074,7 +1082,7 @@ interface ShadowBuySpec {
 interface ShadowTriggerSpec {
     kind:'trigger';
     card:Card;
-    trigger:Trigger;
+    trigger:Trigger<any, any>;
 }
 interface NoShadowSpec {
     kind:'none',
@@ -2876,21 +2884,21 @@ export const villager:CardSpec = {
     }, trashOnLeavePlay()]
 }
 
-export function playReplacer(
+export function playReplacer<S>(
     text:string,
-    condition: (p: CreateParams, s:State, c:Card) => boolean,
-    cost: (p:CreateParams, s:State, c:Card) => Transform
-): Replacer<CreateParams> {
+    condition: (p: CreateParams, s:State, source:S) => boolean,
+    cost: (p:CreateParams, s:State, source:S) => Transform
+): Replacer<CreateParams, S> {
     return {
         kind: 'create',
         text: text,
-        handles: (p, s, c) => p.zone == 'discard' && condition(p, s, c),
-        replace: (p, s, c) => ({...p, zone: 'void', effects: p.effects.concat([
-            () => cost(p, s, c),
+        handles: (p, s, source) => p.zone == 'discard' && condition(p, s, source),
+        replace: (p, s, source) => ({...p, zone: 'void', effects: p.effects.concat([
+            () => cost(p, s, source),
             t => async function(state) {
                 t = state.find(t)
                 if (t.place == 'void') {
-                    state = await t.play(c)(state)
+                    state = await t.play(source as Source)(state)
                 }
                 return state
             }

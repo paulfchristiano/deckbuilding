@@ -1012,6 +1012,7 @@ const kingsCourt:CardSpec = {name: "King's Court",
 cards.push(supplyForCard(kingsCourt, coin(9)))
 
 const gardens:CardSpec = {name: "Gardens",
+    buyCost: coin(4),
     effects: [{
         text: ['+1 vp per 8 cards in your hand, discard, resolving, and play.'],
         transform: (state, card) => gainPoints(
@@ -2851,8 +2852,7 @@ const universityName = 'University'
 const university:CardSpec = {
     name: universityName,
     buyCost: coin(12),
-    relatedCards: [villager],
-    effects: [actionsEffect(4), buysEffect(2), createInPlayEffect(villager)],
+    effects: [actionsEffect(4), buysEffect(2)],
     staticReplacers: [{
         text: `${universityName} costs $1 less per action you have, but not less than $1.`,
         kind: 'cost',

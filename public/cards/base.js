@@ -1078,6 +1078,7 @@ var kingsCourt = { name: "King's Court",
 };
 cards.push(supplyForCard(kingsCourt, coin(9)));
 var gardens = { name: "Gardens",
+    buyCost: coin(4),
     effects: [{
             text: ['+1 vp per 8 cards in your hand, discard, resolving, and play.'],
             transform: function (state, card) { return gainPoints(Math.floor((state.hand.length + state.discard.length
@@ -2885,9 +2886,9 @@ cards.push(supplyForCard(marketSquare, coin(2), { afterBuy: [createInPlayEffect(
 var greatFeastName = 'Great Feast';
 var greatFeast = {
     name: greatFeastName,
-    buyCost: coin(8),
+    buyCost: coin(10),
     effects: [{
-            text: ["Do this three times: buy a card in the supply costing up to $8 other than ".concat(greatFeastName)],
+            text: ["Do this three times: buy a card in the supply costing up to $8."],
             transform: function (state, card) { return function (state) {
                 return __awaiter(this, void 0, void 0, function () {
                     var i;
@@ -2898,7 +2899,7 @@ var greatFeast = {
                                 _a.label = 1;
                             case 1:
                                 if (!(i < 3)) return [3 /*break*/, 4];
-                                return [4 /*yield*/, applyToTarget(function (target) { return target.buy(card); }, "Buy a card in the supply costing up to $8 other than ".concat(greatFeastName, "."), function (s) { return s.supply.filter(function (x) { return leq(x.cost('buy', s), coin(8)) && x.name != greatFeastName; }); })(state)];
+                                return [4 /*yield*/, applyToTarget(function (target) { return target.buy(card); }, "Buy a card in the supply costing up to $8", function (s) { return s.supply.filter(function (x) { return leq(x.cost('buy', s), coin(8)); }); })(state)];
                             case 2:
                                 state = _a.sent();
                                 state = tick(card)(state);
@@ -3205,7 +3206,7 @@ export var vpModes = [
     { name: 'Vibrant City', target: 40, cards: [vibrantCity], events: [] },
     { name: 'Palace', target: 40, cards: [palace], events: [] },
     { name: 'Territory', target: 40, cards: [territory], events: [] },
-    { name: 'Frontier', target: 60, cards: [frontier], events: [] },
+    { name: 'Frontier', target: 70, cards: [frontier], events: [] },
     { name: 'Gardens', target: 40, cards: [gardens], events: [] },
 ];
 // ========== POTIONS ==========

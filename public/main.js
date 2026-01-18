@@ -1837,7 +1837,7 @@ export function loadPicker(picked_sets) {
 // ----------------------------------- Landing Page
 // Stage-based game state
 var TOTAL_STAGES = 8;
-var BASE_PARS = [40, 35, 30, 37, 24, 21, 18, 0]; // Base par for each stage (0-indexed)
+var BASE_PARS = [32, 28, 25, 22, 20, 18, 16, 0]; // Base par for each stage (0-indexed)
 var currentStage = 1;
 var currentKingdom = null;
 var currentVPModeName = '';
