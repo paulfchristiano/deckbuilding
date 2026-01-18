@@ -1933,16 +1933,36 @@ function getCurrentPar(): number {
             par += 1 // Par is 1@ higher
         } else if (relic.spec.name === 'Cursed Quill') {
             par -= 6 // Par is 6@ lower
+        } else if (relic.spec.name === 'Cursed Inkwell') {
+            par -= 1 // Par is 1@ lower
         }
     }
 
     return Math.max(0, par)
 }
 
+// Encounter system
+interface EncounterOption {
+    name: string
+    description: string
+    effect: () => void  // Modifies meta-game state
+    disabled?: () => boolean  // Optional check if this option is available
+    displaySpec?: CardSpec  // If set, show this card spec instead of name, with name as subtitle
+    finishesEncounter?: boolean  // If true, selecting this option marks the encounter as done (for multiUse encounters)
+}
+
+interface Encounter {
+    name: string
+    description: string
+    options: EncounterOption[]
+    multiUse?: boolean  // If true, selecting an option doesn't mark encounter as done
+}
+
 // Deck building state
 interface AddButtonState {
-    kind: 'card' | 'event' | 'potion' | 'relic'
+    kind: 'card' | 'event' | 'potion' | 'relic' | 'encounter'
     options: CardSpec[]
+    encounter?: Encounter  // Only used when kind === 'encounter'
     used: boolean
     selectedCard: CardSpec | null
 }
@@ -1957,8 +1977,9 @@ let deckDialogOpen: boolean = false
 
 // Path selection state
 interface PathReward {
-    kind: 'card' | 'event' | 'potion' | 'relic'
-    options: CardSpec[]  // 3 options to choose from
+    kind: 'card' | 'event' | 'potion' | 'relic' | 'encounter'
+    options: CardSpec[]  // 3 options to choose from (not used for encounter)
+    encounter?: Encounter  // Only used when kind === 'encounter'
 }
 
 interface PathOption {
@@ -2019,6 +2040,365 @@ function registerEmptyBottleBuy(spec: CardSpec): void {
     }
 }
 
+// Create a "Bottled X" relic spec dynamically
+function createBottledRelic(cardSpec: CardSpec): CardSpec {
+    return {
+        name: `Bottled ${cardSpec.name}`,
+        isRelic: true,
+        simpleText: [`Start each course with ${cardSpec.name} in hand (with echo).`],
+        // Effect is handled in initialState similar to Empty Bottle
+    }
+}
+
+// Mirror relic - when gaining a relic, gain another copy
+const mirrorRelic: CardSpec = {
+    name: 'Mirror',
+    isRelic: true,
+    simpleText: ['Next time you gain a relic, gain another copy.'],
+    // Effect handled when relics are acquired
+}
+
+// --- Encounter definitions ---
+
+// Helper to show card picker dialog for encounters
+let encounterCardPickerCallback: ((card: CardSpec) => void) | null = null
+let encounterCardPickerOptions: CardSpec[] = []
+
+function showEncounterCardPicker(title: string, options: CardSpec[], callback: (card: CardSpec) => void): void {
+    encounterCardPickerCallback = callback
+    encounterCardPickerOptions = options
+    $('#cardPickerTitle').text(title)
+    $('#cardPickerOptions').empty()
+    for (const card of options) {
+        const specHtml = renderSpecNoRelated(card)
+        const optionEl = $(specHtml)
+        optionEl.on('click', () => {
+            if (encounterCardPickerCallback) {
+                const cb = encounterCardPickerCallback
+                encounterCardPickerCallback = null
+                hideCardPicker()
+                cb(card)
+            }
+        })
+        $('#cardPickerOptions').append(optionEl)
+    }
+    $('#cardPickerCancel').off('click').on('click', () => {
+        encounterCardPickerCallback = null
+        hideCardPicker()
+    })
+    $('#cardPickerDialog').attr('active', 'true')
+}
+
+// Find a bottle encounter
+function createFindABottleEncounter(): Encounter {
+    return {
+        name: 'Find a Bottle',
+        description: 'Choose how to use this magical bottle.',
+        options: [
+            {
+                name: 'Bottle a Card',
+                description: 'Lose a card from your deck. Gain a relic that starts each course with a copy of it (with echo).',
+                effect: () => {
+                    if (collectedCards.length === 0) {
+                        alert('You have no cards to bottle!')
+                        return
+                    }
+                    showEncounterCardPicker('Choose a card to bottle:', [...collectedCards], (card) => {
+                        // Remove the card from collected cards
+                        collectedCards = collectedCards.filter(c => c.name !== card.name)
+                        // Add the bottled relic
+                        const bottledRelic = createBottledRelic(card)
+                        currentRelics.push({
+                            spec: bottledRelic,
+                            tokens: new Map(),
+                            boughtCards: [card]  // Store the card spec for initialState
+                        })
+                        setupAddButtons()
+                        updateBufferDisplay()
+                    })
+                },
+                disabled: () => collectedCards.length === 0
+            },
+            {
+                name: 'Gain Empty Bottle',
+                description: 'Each time you add a card to your deck, start the course with a copy (with echo).',
+                effect: () => {
+                    const emptyBottle = allRelics.find(r => r.name === 'Empty Bottle')
+                    if (emptyBottle && !currentRelics.some(r => r.spec.name === 'Empty Bottle')) {
+                        currentRelics.push({ spec: emptyBottle, tokens: new Map() })
+                    }
+                },
+                disabled: () => currentRelics.some(r => r.spec.name === 'Empty Bottle')
+            }
+        ]
+    }
+}
+
+// Mirror maker encounter
+function createMirrorMakerEncounter(): Encounter {
+    return {
+        name: 'Mirror Maker',
+        description: 'The mirror maker offers magical duplication.',
+        options: [
+            {
+                name: 'Gain Mirror Brew',
+                description: 'A potion that copies another potion you have.',
+                effect: () => {
+                    const mirrorBrew = allPotions.find(p => p.name === 'Mirror Brew')
+                    if (mirrorBrew) {
+                        currentPotions.push(mirrorBrew)
+                    }
+                }
+            },
+            {
+                name: 'Duplicate Relic',
+                description: 'Choose a relic you own and gain a copy.',
+                effect: () => {
+                    if (currentRelics.length === 0) {
+                        alert('You have no relics to duplicate!')
+                        return
+                    }
+                    const relicSpecs = currentRelics.map(r => r.spec)
+                    showEncounterCardPicker('Choose a relic to duplicate:', relicSpecs, (relic) => {
+                        currentRelics.push({ spec: relic, tokens: new Map() })
+                        handleRelicAcquisition(relic)
+                        setupAddButtons()
+                        updateBufferDisplay()
+                    })
+                },
+                disabled: () => currentRelics.length === 0
+            },
+            {
+                name: 'Gain Mirror',
+                description: 'Next time you gain a relic, gain another copy.',
+                effect: () => {
+                    currentRelics.push({ spec: mirrorRelic, tokens: new Map() })
+                },
+                disabled: () => currentRelics.some(r => r.spec.name === 'Mirror')
+            }
+        ]
+    }
+}
+
+// Variety pack encounter
+function createVarietyPackEncounter(): Encounter {
+    const optionCount = getRewardOptionCount()
+    const cardPool = getAvailableCards().filter(c =>
+        !vpCardNames.has(c.name) &&
+        c.name !== 'Copper' && c.name !== 'Silver' && c.name !== 'Gold' &&
+        !collectedCards.some(cc => cc.name === c.name)
+    )
+    const eventPool = getAvailableEvents().filter(e =>
+        !vpEventNames.has(e.name) && e.name !== 'Refresh' &&
+        !collectedEvents.some(ce => ce.name === e.name)
+    )
+    const potionPool = allPotions.filter(p => !currentPotions.some(cp => cp.name === p.name))
+    const relicPool = allRelics.filter(r => !currentRelics.some(cr => cr.spec.name === r.name))
+
+    const shuffledCards = shuffleArray([...cardPool])
+    const shuffledEvents = shuffleArray([...eventPool])
+    const shuffledPotions = shuffleArray([...potionPool])
+    const shuffledRelics = shuffleArray([...relicPool])
+
+    return {
+        name: 'Variety Pack',
+        description: 'Choose one reward from the assortment.',
+        options: [
+            {
+                name: 'Take Card',
+                description: '',
+                displaySpec: shuffledCards[0],
+                effect: () => {
+                    if (shuffledCards[0]) {
+                        collectedCards.push(shuffledCards[0])
+                        registerEmptyBottleBuy(shuffledCards[0])
+                    }
+                },
+                disabled: () => shuffledCards.length === 0
+            },
+            {
+                name: 'Take Event',
+                description: '',
+                displaySpec: shuffledEvents[0],
+                effect: () => {
+                    if (shuffledEvents[0]) {
+                        collectedEvents.push(shuffledEvents[0])
+                    }
+                },
+                disabled: () => shuffledEvents.length === 0
+            },
+            {
+                name: 'Take Potion',
+                description: '',
+                displaySpec: shuffledPotions[0],
+                effect: () => {
+                    if (shuffledPotions[0]) {
+                        currentPotions.push(shuffledPotions[0])
+                    }
+                },
+                disabled: () => shuffledPotions.length === 0
+            },
+            {
+                name: 'Take Relic',
+                description: '',
+                displaySpec: shuffledRelics[0],
+                effect: () => {
+                    if (shuffledRelics[0]) {
+                        currentRelics.push({ spec: shuffledRelics[0], tokens: new Map() })
+                        handleRelicAcquisition(shuffledRelics[0])
+                    }
+                },
+                disabled: () => shuffledRelics.length === 0
+            }
+        ]
+    }
+}
+
+// Trading post encounter
+function createTradingPostEncounter(): Encounter {
+    // Pre-select one of each type for trading
+    const cardPool = getAvailableCards().filter(c =>
+        !vpCardNames.has(c.name) && c.name !== 'Copper' && c.name !== 'Silver' && c.name !== 'Gold' &&
+        !collectedCards.some(cc => cc.name === c.name)
+    )
+    const eventPool = getAvailableEvents().filter(e =>
+        !vpEventNames.has(e.name) && e.name !== 'Refresh' &&
+        !collectedEvents.some(ce => ce.name === e.name)
+    )
+    const potionPool = allPotions.filter(p => !currentPotions.some(cp => cp.name === p.name))
+    const relicPool = allRelics.filter(r => !currentRelics.some(cr => cr.spec.name === r.name))
+
+    const offerCard = shuffleArray([...cardPool])[0]
+    const offerEvent = shuffleArray([...eventPool])[0]
+    const offerPotion = shuffleArray([...potionPool])[0]
+    const offerRelic = shuffleArray([...relicPool])[0]
+
+    return {
+        name: 'Trading Post',
+        description: 'Trade items of the same type. You can make multiple trades.',
+        multiUse: true,
+        options: [
+            {
+                name: `Trade Card for ${offerCard?.name || 'nothing'}`,
+                description: 'Give up one of your cards to receive this one.',
+                effect: () => {
+                    if (!offerCard || collectedCards.length === 0) return
+                    showEncounterCardPicker('Choose a card to trade away:', [...collectedCards], (card) => {
+                        collectedCards = collectedCards.filter(c => c.name !== card.name)
+                        collectedCards.push(offerCard)
+                        registerEmptyBottleBuy(offerCard)
+                        setupAddButtons()
+                    })
+                },
+                disabled: () => !offerCard || collectedCards.length === 0
+            },
+            {
+                name: `Trade Event for ${offerEvent?.name || 'nothing'}`,
+                description: 'Give up one of your events to receive this one.',
+                effect: () => {
+                    if (!offerEvent || collectedEvents.length === 0) return
+                    showEncounterCardPicker('Choose an event to trade away:', [...collectedEvents], (event) => {
+                        collectedEvents = collectedEvents.filter(e => e.name !== event.name)
+                        collectedEvents.push(offerEvent)
+                        setupAddButtons()
+                    })
+                },
+                disabled: () => !offerEvent || collectedEvents.length === 0
+            },
+            {
+                name: `Trade Potion for ${offerPotion?.name || 'nothing'}`,
+                description: 'Give up one of your potions to receive this one.',
+                effect: () => {
+                    if (!offerPotion || currentPotions.length === 0) return
+                    showEncounterCardPicker('Choose a potion to trade away:', [...currentPotions], (potion) => {
+                        currentPotions = currentPotions.filter(p => p.name !== potion.name)
+                        currentPotions.push(offerPotion)
+                        setupAddButtons()
+                    })
+                },
+                disabled: () => !offerPotion || currentPotions.length === 0
+            },
+            {
+                name: `Trade Relic for ${offerRelic?.name || 'nothing'}`,
+                description: 'Give up one of your relics to receive this one.',
+                effect: () => {
+                    if (!offerRelic || currentRelics.length === 0) return
+                    const relicSpecs = currentRelics.map(r => r.spec)
+                    showEncounterCardPicker('Choose a relic to trade away:', relicSpecs, (relic) => {
+                        currentRelics = currentRelics.filter(r => r.spec.name !== relic.name)
+                        currentRelics.push({ spec: offerRelic, tokens: new Map() })
+                        handleRelicAcquisition(offerRelic)
+                        setupAddButtons()
+                    })
+                },
+                disabled: () => !offerRelic || currentRelics.length === 0
+            },
+            {
+                name: 'Finish Trading',
+                description: 'Done making trades.',
+                effect: () => {},
+                finishesEncounter: true
+            }
+        ]
+    }
+}
+
+// The scribe encounter
+function createTheScribeEncounter(): Encounter {
+    return {
+        name: 'The Scribe',
+        description: 'The scribe offers tools for your journey.',
+        options: [
+            {
+                name: 'Take the Inkwell',
+                description: 'Par is 1@ higher on each course.',
+                effect: () => {
+                    const inkwell = allRelics.find(r => r.name === 'Inkwell')
+                    if (inkwell) {
+                        currentRelics.push({ spec: inkwell, tokens: new Map() })
+                    }
+                },
+                disabled: () => currentRelics.some(r => r.spec.name === 'Inkwell')
+            },
+            {
+                name: 'Use the Quill',
+                description: '+3@ buffer.',
+                effect: () => {
+                    currentBuffer += 3
+                    updateBufferDisplay()
+                }
+            },
+            {
+                name: 'Use the Cursed Quill',
+                description: '+6@ buffer. Gain Cursed Inkwell (par is 1@ lower on each course).',
+                effect: () => {
+                    currentBuffer += 6
+                    updateBufferDisplay()
+                    const cursedInkwell = allRelics.find(r => r.name === 'Cursed Inkwell')
+                    if (cursedInkwell) {
+                        currentRelics.push({ spec: cursedInkwell, tokens: new Map() })
+                    }
+                },
+                disabled: () => currentRelics.some(r => r.spec.name === 'Cursed Inkwell')
+            }
+        ]
+    }
+}
+
+// All available encounters (functions to create fresh instances)
+const allEncounterFactories: (() => Encounter)[] = [
+    createFindABottleEncounter,
+    createMirrorMakerEncounter,
+    createVarietyPackEncounter,
+    createTradingPostEncounter,
+    createTheScribeEncounter,
+]
+
+function getRandomEncounter(): Encounter {
+    const factory = allEncounterFactories[Math.floor(Math.random() * allEncounterFactories.length)]
+    return factory()
+}
+
 function generateStageOptions(): void {
     // Generate add button options for this stage (only from base and expansion)
     const optionCount = getRewardOptionCount()
@@ -2051,6 +2431,7 @@ function generateStageOptions(): void {
         { kind: 'event', options: shuffledEvents.slice(0, optionCount), used: false, selectedCard: null },
         { kind: 'potion', options: shuffledPotions.slice(0, optionCount), used: false, selectedCard: null },
         { kind: 'relic', options: shuffledRelics.slice(0, optionCount), used: false, selectedCard: null },
+        { kind: 'encounter', options: [], encounter: getRandomEncounter(), used: false, selectedCard: null },
     ]
 
     // Select random boon (no boon on final stage)
@@ -2268,6 +2649,76 @@ function hideCardPicker(): void {
     $('#cardPickerDialog').attr('active', 'false')
 }
 
+function showEncounterPicker(buttonIndex: number): void {
+    const state = stageAddButtonStates[buttonIndex]
+    if (state.used || state.kind !== 'encounter' || !state.encounter) return
+
+    const encounter = state.encounter
+    $('#encounterTitle').text(encounter.name)
+    $('#encounterDescription').text(encounter.description)
+
+    $('#encounterOptions').empty()
+    for (const option of encounter.options) {
+        const optionDiv = $('<div class="encounterOption"></div>')
+        const isDisabled = option.disabled ? option.disabled() : false
+
+        const handleOptionClick = () => {
+            // Mark as used unless it's a multiUse encounter (unless this option finishes it)
+            if (!encounter.multiUse || option.finishesEncounter) {
+                state.used = true
+            }
+            hideEncounterPicker()
+            option.effect()
+            setupAddButtons()
+        }
+
+        if (option.displaySpec) {
+            // Show the card spec with name as subtitle
+            const specHtml = renderSpecNoRelated(option.displaySpec)
+            const specEl = $(specHtml)
+            if (isDisabled) {
+                specEl.css('opacity', '0.5')
+                specEl.css('cursor', 'default')
+            } else {
+                specEl.css('cursor', 'pointer')
+                specEl.on('click', handleOptionClick)
+            }
+            optionDiv.append(specEl)
+
+            const subtitleSpan = $('<div class="encounterOptionSubtitle"></div>')
+            subtitleSpan.text(option.name)
+            optionDiv.append(subtitleSpan)
+        } else {
+            // Standard name + description display
+            const nameSpan = $('<span class="option encounterOptionName" choosable></span>')
+            nameSpan.text(option.name)
+            if (isDisabled) {
+                nameSpan.attr('disabled', 'true')
+                nameSpan.removeAttr('choosable')
+            }
+
+            const descSpan = $('<div class="encounterOptionDesc"></div>')
+            descSpan.text(option.description)
+
+            optionDiv.append(nameSpan)
+            optionDiv.append(descSpan)
+
+            if (!isDisabled) {
+                nameSpan.on('click', handleOptionClick)
+            }
+        }
+
+        $('#encounterOptions').append(optionDiv)
+    }
+
+    $('#encounterCancel').off('click').on('click', hideEncounterPicker)
+    $('#encounterDialog').attr('active', 'true')
+}
+
+function hideEncounterPicker(): void {
+    $('#encounterDialog').attr('active', 'false')
+}
+
 function selectCard(buttonIndex: number, card: CardSpec): void {
     const state = stageAddButtonStates[buttonIndex]
     state.used = true
@@ -2282,10 +2733,21 @@ function selectCard(buttonIndex: number, card: CardSpec): void {
     } else if (state.kind === 'potion') {
         currentPotions.push(card)
     } else if (state.kind === 'relic') {
+        // Check for Mirror relic effect before adding
+        const mirrorIndex = currentRelics.findIndex(r => r.spec.name === 'Mirror')
+        const hasMirror = mirrorIndex !== -1
+
         // Add relic with empty token state
         currentRelics.push({ spec: card, tokens: new Map() })
         // Handle one-time relic effects
         handleRelicAcquisition(card)
+
+        // If player has Mirror relic, consume it and add another copy
+        if (hasMirror && card.name !== 'Mirror') {
+            currentRelics.splice(mirrorIndex, 1)  // Remove Mirror relic
+            currentRelics.push({ spec: card, tokens: new Map() })  // Add duplicate
+            handleRelicAcquisition(card)  // Handle effects for duplicate too
+        }
     }
 
     updateAddButtonDisplay(buttonIndex)
@@ -2314,7 +2776,8 @@ function setupAddButtons(): void {
         'card': 'Add Card',
         'event': 'Add Event',
         'potion': 'Add Potion',
-        'relic': 'Add Relic'
+        'relic': 'Add Relic',
+        'encounter': 'Encounter'
     }
 
     for (let i = 0; i < stageAddButtonStates.length; i++) {
@@ -2323,16 +2786,30 @@ function setupAddButtons(): void {
         const button = $('<span class="option" choosable></span>')
 
         if (state.used) {
-            button.text(state.selectedCard?.name || buttonLabels[state.kind])
+            if (state.kind === 'encounter' && state.encounter) {
+                button.text(state.encounter.name + ' (done)')
+            } else {
+                button.text(state.selectedCard?.name || buttonLabels[state.kind])
+            }
             button.attr('disabled', 'true')
             button.removeAttr('choosable')
         } else {
-            button.text(buttonLabels[state.kind])
+            if (state.kind === 'encounter' && state.encounter) {
+                button.text('Encounter: ' + state.encounter.name)
+            } else {
+                button.text(buttonLabels[state.kind])
+            }
         }
 
         const buttonIndex = i
         button.on('click', () => {
-            if (!stageAddButtonStates[buttonIndex].used) showCardPicker(buttonIndex)
+            if (!stageAddButtonStates[buttonIndex].used) {
+                if (stageAddButtonStates[buttonIndex].kind === 'encounter') {
+                    showEncounterPicker(buttonIndex)
+                } else {
+                    showCardPicker(buttonIndex)
+                }
+            }
         })
 
         row.append(button)

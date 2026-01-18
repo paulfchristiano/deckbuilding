@@ -3389,6 +3389,30 @@ export const potionOfTwin:CardSpec = {
         state => state.hand)]
 }
 
+export const mirrorBrew:CardSpec = {
+    name: 'Mirror Brew',
+    isPotion: true,
+    simpleText: ['Copy another potion you have.'],
+    effects: [{
+        text: ['Choose another potion you have. Create a copy of it.'],
+        transform: (state, card) => async function(state) {
+            const otherPotions = state.potions.filter(p => p.id !== card.id)
+            if (otherPotions.length === 0) {
+                return state
+            }
+            const options: Option<Card>[] = asNumberedChoices(otherPotions)
+            let picked: Card | null;
+            [state, picked] = await choice(state,
+                'Choose a potion to copy.',
+                allowNull(options))
+            if (picked !== null) {
+                state = await create(picked.spec, 'potions')(state)
+            }
+            return state
+        }
+    }]
+}
+
 // All potions list for random selection
 export const allPotions:CardSpec[] = [
     potionOfActions,
@@ -3411,6 +3435,7 @@ export const allPotions:CardSpec[] = [
     potionOfOnslaught,
     potionOfPriority,
     potionOfTwin,
+    mirrorBrew,
 ]
 
 // Keep startingPotions for backwards compatibility but it won't be used

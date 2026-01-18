@@ -1957,6 +1957,9 @@ function getCurrentPar() {
             else if (relic.spec.name === 'Cursed Quill') {
                 par -= 6; // Par is 6@ lower
             }
+            else if (relic.spec.name === 'Cursed Inkwell') {
+                par -= 1; // Par is 1@ lower
+            }
         }
     }
     catch (e_23_1) { e_23 = { error: e_23_1 }; }
@@ -2032,6 +2035,367 @@ function registerEmptyBottleBuy(spec) {
         emptyBottleBoughtCards.push(spec);
     }
 }
+// Create a "Bottled X" relic spec dynamically
+function createBottledRelic(cardSpec) {
+    return {
+        name: "Bottled ".concat(cardSpec.name),
+        isRelic: true,
+        simpleText: ["Start each course with ".concat(cardSpec.name, " in hand (with echo).")],
+        // Effect is handled in initialState similar to Empty Bottle
+    };
+}
+// Mirror relic - when gaining a relic, gain another copy
+var mirrorRelic = {
+    name: 'Mirror',
+    isRelic: true,
+    simpleText: ['Next time you gain a relic, gain another copy.'],
+    // Effect handled when relics are acquired
+};
+// --- Encounter definitions ---
+// Helper to show card picker dialog for encounters
+var encounterCardPickerCallback = null;
+var encounterCardPickerOptions = [];
+function showEncounterCardPicker(title, options, callback) {
+    var e_25, _a;
+    encounterCardPickerCallback = callback;
+    encounterCardPickerOptions = options;
+    $('#cardPickerTitle').text(title);
+    $('#cardPickerOptions').empty();
+    var _loop_4 = function (card) {
+        var specHtml = renderSpecNoRelated(card);
+        var optionEl = $(specHtml);
+        optionEl.on('click', function () {
+            if (encounterCardPickerCallback) {
+                var cb = encounterCardPickerCallback;
+                encounterCardPickerCallback = null;
+                hideCardPicker();
+                cb(card);
+            }
+        });
+        $('#cardPickerOptions').append(optionEl);
+    };
+    try {
+        for (var options_4 = __values(options), options_4_1 = options_4.next(); !options_4_1.done; options_4_1 = options_4.next()) {
+            var card = options_4_1.value;
+            _loop_4(card);
+        }
+    }
+    catch (e_25_1) { e_25 = { error: e_25_1 }; }
+    finally {
+        try {
+            if (options_4_1 && !options_4_1.done && (_a = options_4.return)) _a.call(options_4);
+        }
+        finally { if (e_25) throw e_25.error; }
+    }
+    $('#cardPickerCancel').off('click').on('click', function () {
+        encounterCardPickerCallback = null;
+        hideCardPicker();
+    });
+    $('#cardPickerDialog').attr('active', 'true');
+}
+// Find a bottle encounter
+function createFindABottleEncounter() {
+    return {
+        name: 'Find a Bottle',
+        description: 'Choose how to use this magical bottle.',
+        options: [
+            {
+                name: 'Bottle a Card',
+                description: 'Lose a card from your deck. Gain a relic that starts each course with a copy of it (with echo).',
+                effect: function () {
+                    if (collectedCards.length === 0) {
+                        alert('You have no cards to bottle!');
+                        return;
+                    }
+                    showEncounterCardPicker('Choose a card to bottle:', __spreadArray([], __read(collectedCards), false), function (card) {
+                        // Remove the card from collected cards
+                        collectedCards = collectedCards.filter(function (c) { return c.name !== card.name; });
+                        // Add the bottled relic
+                        var bottledRelic = createBottledRelic(card);
+                        currentRelics.push({
+                            spec: bottledRelic,
+                            tokens: new Map(),
+                            boughtCards: [card] // Store the card spec for initialState
+                        });
+                        setupAddButtons();
+                        updateBufferDisplay();
+                    });
+                },
+                disabled: function () { return collectedCards.length === 0; }
+            },
+            {
+                name: 'Gain Empty Bottle',
+                description: 'Each time you add a card to your deck, start the course with a copy (with echo).',
+                effect: function () {
+                    var emptyBottle = allRelics.find(function (r) { return r.name === 'Empty Bottle'; });
+                    if (emptyBottle && !currentRelics.some(function (r) { return r.spec.name === 'Empty Bottle'; })) {
+                        currentRelics.push({ spec: emptyBottle, tokens: new Map() });
+                    }
+                },
+                disabled: function () { return currentRelics.some(function (r) { return r.spec.name === 'Empty Bottle'; }); }
+            }
+        ]
+    };
+}
+// Mirror maker encounter
+function createMirrorMakerEncounter() {
+    return {
+        name: 'Mirror Maker',
+        description: 'The mirror maker offers magical duplication.',
+        options: [
+            {
+                name: 'Gain Mirror Brew',
+                description: 'A potion that copies another potion you have.',
+                effect: function () {
+                    var mirrorBrew = allPotions.find(function (p) { return p.name === 'Mirror Brew'; });
+                    if (mirrorBrew) {
+                        currentPotions.push(mirrorBrew);
+                    }
+                }
+            },
+            {
+                name: 'Duplicate Relic',
+                description: 'Choose a relic you own and gain a copy.',
+                effect: function () {
+                    if (currentRelics.length === 0) {
+                        alert('You have no relics to duplicate!');
+                        return;
+                    }
+                    var relicSpecs = currentRelics.map(function (r) { return r.spec; });
+                    showEncounterCardPicker('Choose a relic to duplicate:', relicSpecs, function (relic) {
+                        currentRelics.push({ spec: relic, tokens: new Map() });
+                        handleRelicAcquisition(relic);
+                        setupAddButtons();
+                        updateBufferDisplay();
+                    });
+                },
+                disabled: function () { return currentRelics.length === 0; }
+            },
+            {
+                name: 'Gain Mirror',
+                description: 'Next time you gain a relic, gain another copy.',
+                effect: function () {
+                    currentRelics.push({ spec: mirrorRelic, tokens: new Map() });
+                },
+                disabled: function () { return currentRelics.some(function (r) { return r.spec.name === 'Mirror'; }); }
+            }
+        ]
+    };
+}
+// Variety pack encounter
+function createVarietyPackEncounter() {
+    var optionCount = getRewardOptionCount();
+    var cardPool = getAvailableCards().filter(function (c) {
+        return !vpCardNames.has(c.name) &&
+            c.name !== 'Copper' && c.name !== 'Silver' && c.name !== 'Gold' &&
+            !collectedCards.some(function (cc) { return cc.name === c.name; });
+    });
+    var eventPool = getAvailableEvents().filter(function (e) {
+        return !vpEventNames.has(e.name) && e.name !== 'Refresh' &&
+            !collectedEvents.some(function (ce) { return ce.name === e.name; });
+    });
+    var potionPool = allPotions.filter(function (p) { return !currentPotions.some(function (cp) { return cp.name === p.name; }); });
+    var relicPool = allRelics.filter(function (r) { return !currentRelics.some(function (cr) { return cr.spec.name === r.name; }); });
+    var shuffledCards = shuffleArray(__spreadArray([], __read(cardPool), false));
+    var shuffledEvents = shuffleArray(__spreadArray([], __read(eventPool), false));
+    var shuffledPotions = shuffleArray(__spreadArray([], __read(potionPool), false));
+    var shuffledRelics = shuffleArray(__spreadArray([], __read(relicPool), false));
+    return {
+        name: 'Variety Pack',
+        description: 'Choose one reward from the assortment.',
+        options: [
+            {
+                name: 'Take Card',
+                description: '',
+                displaySpec: shuffledCards[0],
+                effect: function () {
+                    if (shuffledCards[0]) {
+                        collectedCards.push(shuffledCards[0]);
+                        registerEmptyBottleBuy(shuffledCards[0]);
+                    }
+                },
+                disabled: function () { return shuffledCards.length === 0; }
+            },
+            {
+                name: 'Take Event',
+                description: '',
+                displaySpec: shuffledEvents[0],
+                effect: function () {
+                    if (shuffledEvents[0]) {
+                        collectedEvents.push(shuffledEvents[0]);
+                    }
+                },
+                disabled: function () { return shuffledEvents.length === 0; }
+            },
+            {
+                name: 'Take Potion',
+                description: '',
+                displaySpec: shuffledPotions[0],
+                effect: function () {
+                    if (shuffledPotions[0]) {
+                        currentPotions.push(shuffledPotions[0]);
+                    }
+                },
+                disabled: function () { return shuffledPotions.length === 0; }
+            },
+            {
+                name: 'Take Relic',
+                description: '',
+                displaySpec: shuffledRelics[0],
+                effect: function () {
+                    if (shuffledRelics[0]) {
+                        currentRelics.push({ spec: shuffledRelics[0], tokens: new Map() });
+                        handleRelicAcquisition(shuffledRelics[0]);
+                    }
+                },
+                disabled: function () { return shuffledRelics.length === 0; }
+            }
+        ]
+    };
+}
+// Trading post encounter
+function createTradingPostEncounter() {
+    // Pre-select one of each type for trading
+    var cardPool = getAvailableCards().filter(function (c) {
+        return !vpCardNames.has(c.name) && c.name !== 'Copper' && c.name !== 'Silver' && c.name !== 'Gold' &&
+            !collectedCards.some(function (cc) { return cc.name === c.name; });
+    });
+    var eventPool = getAvailableEvents().filter(function (e) {
+        return !vpEventNames.has(e.name) && e.name !== 'Refresh' &&
+            !collectedEvents.some(function (ce) { return ce.name === e.name; });
+    });
+    var potionPool = allPotions.filter(function (p) { return !currentPotions.some(function (cp) { return cp.name === p.name; }); });
+    var relicPool = allRelics.filter(function (r) { return !currentRelics.some(function (cr) { return cr.spec.name === r.name; }); });
+    var offerCard = shuffleArray(__spreadArray([], __read(cardPool), false))[0];
+    var offerEvent = shuffleArray(__spreadArray([], __read(eventPool), false))[0];
+    var offerPotion = shuffleArray(__spreadArray([], __read(potionPool), false))[0];
+    var offerRelic = shuffleArray(__spreadArray([], __read(relicPool), false))[0];
+    return {
+        name: 'Trading Post',
+        description: 'Trade items of the same type. You can make multiple trades.',
+        multiUse: true,
+        options: [
+            {
+                name: "Trade Card for ".concat((offerCard === null || offerCard === void 0 ? void 0 : offerCard.name) || 'nothing'),
+                description: 'Give up one of your cards to receive this one.',
+                effect: function () {
+                    if (!offerCard || collectedCards.length === 0)
+                        return;
+                    showEncounterCardPicker('Choose a card to trade away:', __spreadArray([], __read(collectedCards), false), function (card) {
+                        collectedCards = collectedCards.filter(function (c) { return c.name !== card.name; });
+                        collectedCards.push(offerCard);
+                        registerEmptyBottleBuy(offerCard);
+                        setupAddButtons();
+                    });
+                },
+                disabled: function () { return !offerCard || collectedCards.length === 0; }
+            },
+            {
+                name: "Trade Event for ".concat((offerEvent === null || offerEvent === void 0 ? void 0 : offerEvent.name) || 'nothing'),
+                description: 'Give up one of your events to receive this one.',
+                effect: function () {
+                    if (!offerEvent || collectedEvents.length === 0)
+                        return;
+                    showEncounterCardPicker('Choose an event to trade away:', __spreadArray([], __read(collectedEvents), false), function (event) {
+                        collectedEvents = collectedEvents.filter(function (e) { return e.name !== event.name; });
+                        collectedEvents.push(offerEvent);
+                        setupAddButtons();
+                    });
+                },
+                disabled: function () { return !offerEvent || collectedEvents.length === 0; }
+            },
+            {
+                name: "Trade Potion for ".concat((offerPotion === null || offerPotion === void 0 ? void 0 : offerPotion.name) || 'nothing'),
+                description: 'Give up one of your potions to receive this one.',
+                effect: function () {
+                    if (!offerPotion || currentPotions.length === 0)
+                        return;
+                    showEncounterCardPicker('Choose a potion to trade away:', __spreadArray([], __read(currentPotions), false), function (potion) {
+                        currentPotions = currentPotions.filter(function (p) { return p.name !== potion.name; });
+                        currentPotions.push(offerPotion);
+                        setupAddButtons();
+                    });
+                },
+                disabled: function () { return !offerPotion || currentPotions.length === 0; }
+            },
+            {
+                name: "Trade Relic for ".concat((offerRelic === null || offerRelic === void 0 ? void 0 : offerRelic.name) || 'nothing'),
+                description: 'Give up one of your relics to receive this one.',
+                effect: function () {
+                    if (!offerRelic || currentRelics.length === 0)
+                        return;
+                    var relicSpecs = currentRelics.map(function (r) { return r.spec; });
+                    showEncounterCardPicker('Choose a relic to trade away:', relicSpecs, function (relic) {
+                        currentRelics = currentRelics.filter(function (r) { return r.spec.name !== relic.name; });
+                        currentRelics.push({ spec: offerRelic, tokens: new Map() });
+                        handleRelicAcquisition(offerRelic);
+                        setupAddButtons();
+                    });
+                },
+                disabled: function () { return !offerRelic || currentRelics.length === 0; }
+            },
+            {
+                name: 'Finish Trading',
+                description: 'Done making trades.',
+                effect: function () { },
+                finishesEncounter: true
+            }
+        ]
+    };
+}
+// The scribe encounter
+function createTheScribeEncounter() {
+    return {
+        name: 'The Scribe',
+        description: 'The scribe offers tools for your journey.',
+        options: [
+            {
+                name: 'Take the Inkwell',
+                description: 'Par is 1@ higher on each course.',
+                effect: function () {
+                    var inkwell = allRelics.find(function (r) { return r.name === 'Inkwell'; });
+                    if (inkwell) {
+                        currentRelics.push({ spec: inkwell, tokens: new Map() });
+                    }
+                },
+                disabled: function () { return currentRelics.some(function (r) { return r.spec.name === 'Inkwell'; }); }
+            },
+            {
+                name: 'Use the Quill',
+                description: '+3@ buffer.',
+                effect: function () {
+                    currentBuffer += 3;
+                    updateBufferDisplay();
+                }
+            },
+            {
+                name: 'Use the Cursed Quill',
+                description: '+6@ buffer. Gain Cursed Inkwell (par is 1@ lower on each course).',
+                effect: function () {
+                    currentBuffer += 6;
+                    updateBufferDisplay();
+                    var cursedInkwell = allRelics.find(function (r) { return r.name === 'Cursed Inkwell'; });
+                    if (cursedInkwell) {
+                        currentRelics.push({ spec: cursedInkwell, tokens: new Map() });
+                    }
+                },
+                disabled: function () { return currentRelics.some(function (r) { return r.spec.name === 'Cursed Inkwell'; }); }
+            }
+        ]
+    };
+}
+// All available encounters (functions to create fresh instances)
+var allEncounterFactories = [
+    createFindABottleEncounter,
+    createMirrorMakerEncounter,
+    createVarietyPackEncounter,
+    createTradingPostEncounter,
+    createTheScribeEncounter,
+];
+function getRandomEncounter() {
+    var factory = allEncounterFactories[Math.floor(Math.random() * allEncounterFactories.length)];
+    return factory();
+}
 function generateStageOptions() {
     // Generate add button options for this stage (only from base and expansion)
     var optionCount = getRewardOptionCount();
@@ -2062,6 +2426,7 @@ function generateStageOptions() {
         { kind: 'event', options: shuffledEvents.slice(0, optionCount), used: false, selectedCard: null },
         { kind: 'potion', options: shuffledPotions.slice(0, optionCount), used: false, selectedCard: null },
         { kind: 'relic', options: shuffledRelics.slice(0, optionCount), used: false, selectedCard: null },
+        { kind: 'encounter', options: [], encounter: getRandomEncounter(), used: false, selectedCard: null },
     ];
     // Select random boon (no boon on final stage)
     if (currentStage === TOTAL_STAGES) {
@@ -2143,7 +2508,7 @@ function generatePathOptions() {
     };
 }
 function showPathSelectionScreen() {
-    var e_25, _a, e_26, _b;
+    var e_26, _a, e_27, _b;
     if (!leftPath || !rightPath)
         return;
     // Update progress sidebar
@@ -2160,12 +2525,12 @@ function showPathSelectionScreen() {
             $('#leftRewards').append("<div class=\"pathReward\">".concat(rewardText, "</div>"));
         }
     }
-    catch (e_25_1) { e_25 = { error: e_25_1 }; }
+    catch (e_26_1) { e_26 = { error: e_26_1 }; }
     finally {
         try {
             if (_d && !_d.done && (_a = _c.return)) _a.call(_c);
         }
-        finally { if (e_25) throw e_25.error; }
+        finally { if (e_26) throw e_26.error; }
     }
     var basePar = BASE_PARS[currentStage - 1] || 0;
     var leftPar = leftPath.boon ? Math.max(0, basePar - leftPath.boon.parReduction) : basePar;
@@ -2185,12 +2550,12 @@ function showPathSelectionScreen() {
             $('#rightRewards').append("<div class=\"pathReward\">".concat(rewardText, "</div>"));
         }
     }
-    catch (e_26_1) { e_26 = { error: e_26_1 }; }
+    catch (e_27_1) { e_27 = { error: e_27_1 }; }
     finally {
         try {
             if (_f && !_f.done && (_b = _e.return)) _b.call(_e);
         }
-        finally { if (e_26) throw e_26.error; }
+        finally { if (e_27) throw e_27.error; }
     }
     var rightPar = rightPath.boon ? Math.max(0, basePar - rightPath.boon.parReduction) : basePar;
     var rightPlayText = "Play: ".concat(rightPath.vpModeName);
@@ -2253,7 +2618,7 @@ function selectPath(direction) {
     showStageScreen();
 }
 function showCardPicker(buttonIndex) {
-    var e_27, _a;
+    var e_28, _a;
     var state = stageAddButtonStates[buttonIndex];
     if (state.used)
         return;
@@ -2265,7 +2630,7 @@ function showCardPicker(buttonIndex) {
     };
     $('#cardPickerTitle').text(titles[state.kind]);
     $('#cardPickerOptions').empty();
-    var _loop_4 = function (card) {
+    var _loop_5 = function (card) {
         var specHtml = renderSpecNoRelated(card);
         var optionEl = $(specHtml);
         optionEl.on('click', function () { return selectCard(buttonIndex, card); });
@@ -2274,21 +2639,96 @@ function showCardPicker(buttonIndex) {
     try {
         for (var _b = __values(state.options), _c = _b.next(); !_c.done; _c = _b.next()) {
             var card = _c.value;
-            _loop_4(card);
+            _loop_5(card);
         }
     }
-    catch (e_27_1) { e_27 = { error: e_27_1 }; }
+    catch (e_28_1) { e_28 = { error: e_28_1 }; }
     finally {
         try {
             if (_c && !_c.done && (_a = _b.return)) _a.call(_b);
         }
-        finally { if (e_27) throw e_27.error; }
+        finally { if (e_28) throw e_28.error; }
     }
     $('#cardPickerCancel').off('click').on('click', hideCardPicker);
     $('#cardPickerDialog').attr('active', 'true');
 }
 function hideCardPicker() {
     $('#cardPickerDialog').attr('active', 'false');
+}
+function showEncounterPicker(buttonIndex) {
+    var e_29, _a;
+    var state = stageAddButtonStates[buttonIndex];
+    if (state.used || state.kind !== 'encounter' || !state.encounter)
+        return;
+    var encounter = state.encounter;
+    $('#encounterTitle').text(encounter.name);
+    $('#encounterDescription').text(encounter.description);
+    $('#encounterOptions').empty();
+    var _loop_6 = function (option) {
+        var optionDiv = $('<div class="encounterOption"></div>');
+        var isDisabled = option.disabled ? option.disabled() : false;
+        var handleOptionClick = function () {
+            // Mark as used unless it's a multiUse encounter (unless this option finishes it)
+            if (!encounter.multiUse || option.finishesEncounter) {
+                state.used = true;
+            }
+            hideEncounterPicker();
+            option.effect();
+            setupAddButtons();
+        };
+        if (option.displaySpec) {
+            // Show the card spec with name as subtitle
+            var specHtml = renderSpecNoRelated(option.displaySpec);
+            var specEl = $(specHtml);
+            if (isDisabled) {
+                specEl.css('opacity', '0.5');
+                specEl.css('cursor', 'default');
+            }
+            else {
+                specEl.css('cursor', 'pointer');
+                specEl.on('click', handleOptionClick);
+            }
+            optionDiv.append(specEl);
+            var subtitleSpan = $('<div class="encounterOptionSubtitle"></div>');
+            subtitleSpan.text(option.name);
+            optionDiv.append(subtitleSpan);
+        }
+        else {
+            // Standard name + description display
+            var nameSpan = $('<span class="option encounterOptionName" choosable></span>');
+            nameSpan.text(option.name);
+            if (isDisabled) {
+                nameSpan.attr('disabled', 'true');
+                nameSpan.removeAttr('choosable');
+            }
+            var descSpan = $('<div class="encounterOptionDesc"></div>');
+            descSpan.text(option.description);
+            optionDiv.append(nameSpan);
+            optionDiv.append(descSpan);
+            if (!isDisabled) {
+                nameSpan.on('click', handleOptionClick);
+            }
+        }
+        $('#encounterOptions').append(optionDiv);
+    };
+    try {
+        for (var _b = __values(encounter.options), _c = _b.next(); !_c.done; _c = _b.next()) {
+            var option = _c.value;
+            _loop_6(option);
+        }
+    }
+    catch (e_29_1) { e_29 = { error: e_29_1 }; }
+    finally {
+        try {
+            if (_c && !_c.done && (_a = _b.return)) _a.call(_b);
+        }
+        finally { if (e_29) throw e_29.error; }
+    }
+    $('#encounterCancel').off('click').on('click', hideEncounterPicker);
+    $('#encounterDialog').attr('active', 'true');
+}
+function hideEncounterPicker() {
+    $('#encounterDialog').attr('active', 'false');
 }
 function selectCard(buttonIndex, card) {
     var state = stageAddButtonStates[buttonIndex];
@@ -2306,10 +2746,19 @@ function selectCard(buttonIndex, card) {
         currentPotions.push(card);
     }
     else if (state.kind === 'relic') {
+        // Check for Mirror relic effect before adding
+        var mirrorIndex = currentRelics.findIndex(function (r) { return r.spec.name === 'Mirror'; });
+        var hasMirror = mirrorIndex !== -1;
         // Add relic with empty token state
         currentRelics.push({ spec: card, tokens: new Map() });
         // Handle one-time relic effects
         handleRelicAcquisition(card);
+        // If player has Mirror relic, consume it and add another copy
+        if (hasMirror && card.name !== 'Mirror') {
+            currentRelics.splice(mirrorIndex, 1); // Remove Mirror relic
+            currentRelics.push({ spec: card, tokens: new Map() }); // Add duplicate
+            handleRelicAcquisition(card); // Handle effects for duplicate too
+        }
     }
     updateAddButtonDisplay(buttonIndex);
     hideCardPicker();
@@ -2334,36 +2783,53 @@ function setupAddButtons() {
         'card': 'Add Card',
         'event': 'Add Event',
         'potion': 'Add Potion',
-        'relic': 'Add Relic'
+        'relic': 'Add Relic',
+        'encounter': 'Encounter'
     };
-    var _loop_5 = function (i) {
+    var _loop_7 = function (i) {
         var state = stageAddButtonStates[i];
         var row = $('<div class="gameRow"></div>');
         var button = $('<span class="option" choosable></span>');
         if (state.used) {
-            button.text(((_a = state.selectedCard) === null || _a === void 0 ? void 0 : _a.name) || buttonLabels[state.kind]);
+            if (state.kind === 'encounter' && state.encounter) {
+                button.text(state.encounter.name + ' (done)');
+            }
+            else {
+                button.text(((_a = state.selectedCard) === null || _a === void 0 ? void 0 : _a.name) || buttonLabels[state.kind]);
+            }
             button.attr('disabled', 'true');
             button.removeAttr('choosable');
         }
         else {
-            button.text(buttonLabels[state.kind]);
+            if (state.kind === 'encounter' && state.encounter) {
+                button.text('Encounter: ' + state.encounter.name);
+            }
+            else {
+                button.text(buttonLabels[state.kind]);
+            }
         }
         var buttonIndex = i;
         button.on('click', function () {
-            if (!stageAddButtonStates[buttonIndex].used)
-                showCardPicker(buttonIndex);
+            if (!stageAddButtonStates[buttonIndex].used) {
+                if (stageAddButtonStates[buttonIndex].kind === 'encounter') {
+                    showEncounterPicker(buttonIndex);
+                }
+                else {
+                    showCardPicker(buttonIndex);
+                }
+            }
         });
         row.append(button);
         container.append(row);
     };
     for (var i = 0; i < stageAddButtonStates.length; i++) {
-        _loop_5(i);
+        _loop_7(i);
     }
     // Debug button - adds all available cards and events to the deck
     var debugRow = $('<div class="gameRow"></div>');
     var debugButton = $('<span class="option" id="debugButton" choosable>Debug</span>');
     debugButton.on('click', function () {
-        var e_28, _a, e_29, _b;
+        var e_30, _a, e_31, _b;
         var allCards = getAvailableCards().filter(function (c) {
             return !vpCardNames.has(c.name) &&
                 c.name !== 'Copper' && c.name !== 'Silver' && c.name !== 'Gold';
@@ -2371,7 +2837,7 @@ function setupAddButtons() {
         var allEvents = getAvailableEvents().filter(function (e) {
             return !vpEventNames.has(e.name) && e.name !== 'Refresh';
         });
-        var _loop_6 = function (card) {
+        var _loop_8 = function (card) {
             if (!collectedCards.some(function (cc) { return cc.name === card.name; })) {
                 collectedCards.push(card);
             }
@@ -2379,17 +2845,17 @@ function setupAddButtons() {
         try {
             for (var allCards_1 = __values(allCards), allCards_1_1 = allCards_1.next(); !allCards_1_1.done; allCards_1_1 = allCards_1.next()) {
                 var card = allCards_1_1.value;
-                _loop_6(card);
+                _loop_8(card);
             }
         }
-        catch (e_28_1) { e_28 = { error: e_28_1 }; }
+        catch (e_30_1) { e_30 = { error: e_30_1 }; }
         finally {
             try {
                 if (allCards_1_1 && !allCards_1_1.done && (_a = allCards_1.return)) _a.call(allCards_1);
             }
-            finally { if (e_28) throw e_28.error; }
+            finally { if (e_30) throw e_30.error; }
         }
-        var _loop_7 = function (event_1) {
+        var _loop_9 = function (event_1) {
             if (!collectedEvents.some(function (ce) { return ce.name === event_1.name; })) {
                 collectedEvents.push(event_1);
             }
@@ -2397,15 +2863,15 @@ function setupAddButtons() {
         try {
             for (var allEvents_1 = __values(allEvents), allEvents_1_1 = allEvents_1.next(); !allEvents_1_1.done; allEvents_1_1 = allEvents_1.next()) {
                 var event_1 = allEvents_1_1.value;
-                _loop_7(event_1);
+                _loop_9(event_1);
             }
         }
-        catch (e_29_1) { e_29 = { error: e_29_1 }; }
+        catch (e_31_1) { e_31 = { error: e_31_1 }; }
         finally {
             try {
                 if (allEvents_1_1 && !allEvents_1_1.done && (_b = allEvents_1.return)) _b.call(allEvents_1);
             }
-            finally { if (e_29) throw e_29.error; }
+            finally { if (e_31) throw e_31.error; }
         }
         $(this).text('Added All');
         $(this).attr('disabled', 'true');
@@ -2441,7 +2907,7 @@ function updateProgressSidebar() {
     });
 }
 function showDeckDialog() {
-    var e_30, _a, e_31, _b, e_32, _c, e_33, _d;
+    var e_32, _a, e_33, _b, e_34, _c, e_35, _d;
     $('#deckContents').empty();
     var hasCards = collectedCards.length > 0;
     var hasEvents = collectedEvents.length > 0;
@@ -2459,12 +2925,12 @@ function showDeckDialog() {
                     $('#deckContents').append(renderSpecNoRelated(relic.spec));
                 }
             }
-            catch (e_30_1) { e_30 = { error: e_30_1 }; }
+            catch (e_32_1) { e_32 = { error: e_32_1 }; }
             finally {
                 try {
                     if (currentRelics_3_1 && !currentRelics_3_1.done && (_a = currentRelics_3.return)) _a.call(currentRelics_3);
                 }
-                finally { if (e_30) throw e_30.error; }
+                finally { if (e_32) throw e_32.error; }
             }
         }
         if (hasPotions) {
@@ -2475,12 +2941,12 @@ function showDeckDialog() {
                     $('#deckContents').append(renderSpecNoRelated(potion));
                 }
             }
-            catch (e_31_1) { e_31 = { error: e_31_1 }; }
+            catch (e_33_1) { e_33 = { error: e_33_1 }; }
             finally {
                 try {
                     if (currentPotions_1_1 && !currentPotions_1_1.done && (_b = currentPotions_1.return)) _b.call(currentPotions_1);
                 }
-                finally { if (e_31) throw e_31.error; }
+                finally { if (e_33) throw e_33.error; }
             }
         }
         if (hasCards) {
@@ -2491,12 +2957,12 @@ function showDeckDialog() {
                     $('#deckContents').append(renderSpecNoRelated(card));
                 }
             }
-            catch (e_32_1) { e_32 = { error: e_32_1 }; }
+            catch (e_34_1) { e_34 = { error: e_34_1 }; }
             finally {
                 try {
                     if (collectedCards_1_1 && !collectedCards_1_1.done && (_c = collectedCards_1.return)) _c.call(collectedCards_1);
                 }
-                finally { if (e_32) throw e_32.error; }
+                finally { if (e_34) throw e_34.error; }
             }
         }
         if (hasEvents) {
@@ -2507,12 +2973,12 @@ function showDeckDialog() {
                     $('#deckContents').append(renderSpecNoRelated(event_2));
                 }
             }
-            catch (e_33_1) { e_33 = { error: e_33_1 }; }
+            catch (e_35_1) { e_35 = { error: e_35_1 }; }
             finally {
                 try {
                     if (collectedEvents_1_1 && !collectedEvents_1_1.done && (_d = collectedEvents_1.return)) _d.call(collectedEvents_1);
                 }
-                finally { if (e_33) throw e_33.error; }
+                finally { if (e_35) throw e_35.error; }
             }
         }
     }
@@ -2595,7 +3061,7 @@ function showStageScreen() {
     $('#gameOverScreen').hide();
 }
 function startCurrentKingdom() {
-    var e_34, _a, e_35, _b, e_36, _c;
+    var e_36, _a, e_37, _b, e_38, _c;
     if (!currentKingdom)
         return;
     try {
@@ -2607,12 +3073,12 @@ function startCurrentKingdom() {
             }
         }
     }
-    catch (e_34_1) { e_34 = { error: e_34_1 }; }
+    catch (e_36_1) { e_36 = { error: e_36_1 }; }
     finally {
         try {
             if (currentRelics_4_1 && !currentRelics_4_1.done && (_a = currentRelics_4.return)) _a.call(currentRelics_4);
         }
-        finally { if (e_34) throw e_34.error; }
+        finally { if (e_36) throw e_36.error; }
     }
     updateBufferDisplay();
     // Hide other screens, show game
@@ -2653,12 +3119,12 @@ function startCurrentKingdom() {
             }
         }
     }
-    catch (e_35_1) { e_35 = { error: e_35_1 }; }
+    catch (e_37_1) { e_37 = { error: e_37_1 }; }
     finally {
         try {
             if (currentRelics_5_1 && !currentRelics_5_1.done && (_b = currentRelics_5.return)) _b.call(currentRelics_5);
         }
-        finally { if (e_35) throw e_35.error; }
+        finally { if (e_37) throw e_37.error; }
     }
     var sortedCards = __spreadArray(__spreadArray(__spreadArray([], __read(boonCardsList), false), __read(lookingGlassCards), false), __read(__spreadArray([], __read(collectedCards), false).sort(supplyComp)), false);
     var sortedEvents = __spreadArray(__spreadArray(__spreadArray([], __read(boonEventsList), false), __read(lookingGlassEvents), false), __read(__spreadArray([], __read(collectedEvents), false).sort(eventComp)), false);
@@ -2671,12 +3137,12 @@ function startCurrentKingdom() {
             }
         }
     }
-    catch (e_36_1) { e_36 = { error: e_36_1 }; }
+    catch (e_38_1) { e_38 = { error: e_38_1 }; }
     finally {
         try {
             if (currentRelics_6_1 && !currentRelics_6_1.done && (_c = currentRelics_6.return)) _c.call(currentRelics_6);
         }
-        finally { if (e_36) throw e_36.error; }
+        finally { if (e_38) throw e_38.error; }
     }
     var state = initialState(currentKingdom, sortedCards, sortedEvents, currentPotions, currentRelics);
     startGame(state);
@@ -2717,7 +3183,7 @@ function showGameOver() {
 }
 // Called when player wins a kingdom
 function onKingdomVictory(score, remainingPotions, relicStates) {
-    var e_37, _a;
+    var e_39, _a;
     // Save the score and par for this stage
     var par = getCurrentPar();
     stageScores[currentStage - 1] = score;
@@ -2737,12 +3203,12 @@ function onKingdomVictory(score, remainingPotions, relicStates) {
             }
         }
     }
-    catch (e_37_1) { e_37 = { error: e_37_1 }; }
+    catch (e_39_1) { e_39 = { error: e_39_1 }; }
     finally {
         try {
             if (relicStates_1_1 && !relicStates_1_1.done && (_a = relicStates_1.return)) _a.call(relicStates_1);
         }
-        finally { if (e_37) throw e_37.error; }
+        finally { if (e_39) throw e_39.error; }
     }
     updateBufferDisplay();
     // Check for game over

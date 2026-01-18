@@ -2488,6 +2488,16 @@ export function initialState(
         }
     }
 
+    // Bottled card relics: create echo copies of the bottled card in hand
+    for (const relic of relics) {
+        if (relic.spec.name.startsWith('Bottled ') && relic.boughtCards) {
+            for (const cardSpec of relic.boughtCards) {
+                const echoTokens = new Map<Token, number>([['echo', 1]])
+                let card; [state, card] = createRaw(state, cardSpec, 'hand', echoTokens)
+            }
+        }
+    }
+
     return state
 }
 

@@ -125,6 +125,44 @@
         #cardPickerOptions .spec:hover {
             border-color: #44a;
         }
+        #encounterDialog {
+            width: auto;
+            max-width: 90vw;
+            min-width: 300px;
+        }
+        #encounterOptions {
+            display: flex;
+            flex-direction: row;
+            flex-wrap: wrap;
+            gap: 15px;
+            justify-content: center;
+        }
+        .encounterOption {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 5px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .encounterOption:hover {
+            background: #f5f5f5;
+        }
+        .encounterOptionName {
+            font-size: 1.1em;
+        }
+        .encounterOptionDesc {
+            font-size: 0.9em;
+            color: #666;
+            text-align: center;
+        }
+        .encounterOptionSubtitle {
+            font-size: 0.9em;
+            color: #666;
+            text-align: center;
+            margin-top: 5px;
+        }
         #deckIcon {
             position: fixed;
             top: 10px;
@@ -343,6 +381,15 @@
     <div id="cardPickerOptions"></div>
     <div style="margin-top: 10px;">
         <span class="option" id="cardPickerCancel" choosable>Cancel</span>
+    </div>
+</div>
+
+<div id="encounterDialog" class="dialogBox">
+    <h3 id="encounterTitle">Encounter</h3>
+    <div id="encounterDescription" style="margin-bottom: 15px; color: #666;"></div>
+    <div id="encounterOptions"></div>
+    <div style="margin-top: 15px;">
+        <span class="option" id="encounterCancel" choosable>Cancel</span>
     </div>
 </div>
 

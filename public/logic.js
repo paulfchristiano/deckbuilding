@@ -2925,7 +2925,7 @@ function getRandomizerSeed(spec) {
     }
 }
 export function initialState(spec, extraCards, extraEvents, potions, relics) {
-    var e_45, _a, _b, e_46, _c, e_47, _d, _e;
+    var e_45, _a, _b, e_46, _c, e_47, _d, _e, e_48, _f, e_49, _g, _h;
     if (extraCards === void 0) { extraCards = []; }
     if (extraEvents === void 0) { extraEvents = []; }
     if (potions === void 0) { potions = []; }
@@ -2984,8 +2984,8 @@ export function initialState(spec, extraCards, extraEvents, potions, relics) {
             var relic = relics_2_1.value;
             if (relic.spec.name === 'Empty Bottle' && relic.boughtCards) {
                 try {
-                    for (var _f = (e_47 = void 0, __values(relic.boughtCards)), _g = _f.next(); !_g.done; _g = _f.next()) {
-                        var cardSpec = _g.value;
+                    for (var _j = (e_47 = void 0, __values(relic.boughtCards)), _k = _j.next(); !_k.done; _k = _j.next()) {
+                        var cardSpec = _k.value;
                         var echoTokens = new Map([['echo', 1]]);
                         var card = void 0;
                         _e = __read(createRaw(state, cardSpec, 'hand', echoTokens), 2), state = _e[0], card = _e[1];
@@ -2994,7 +2994,7 @@ export function initialState(spec, extraCards, extraEvents, potions, relics) {
                 catch (e_47_1) { e_47 = { error: e_47_1 }; }
                 finally {
                     try {
-                        if (_g && !_g.done && (_d = _f.return)) _d.call(_f);
+                        if (_k && !_k.done && (_d = _j.return)) _d.call(_j);
                     }
                     finally { if (e_47) throw e_47.error; }
                 }
@@ -3007,6 +3007,36 @@ export function initialState(spec, extraCards, extraEvents, potions, relics) {
             if (relics_2_1 && !relics_2_1.done && (_c = relics_2.return)) _c.call(relics_2);
         }
         finally { if (e_46) throw e_46.error; }
+    }
+    try {
+        // Bottled card relics: create echo copies of the bottled card in hand
+        for (var relics_3 = __values(relics), relics_3_1 = relics_3.next(); !relics_3_1.done; relics_3_1 = relics_3.next()) {
+            var relic = relics_3_1.value;
+            if (relic.spec.name.startsWith('Bottled ') && relic.boughtCards) {
+                try {
+                    for (var _l = (e_49 = void 0, __values(relic.boughtCards)), _m = _l.next(); !_m.done; _m = _l.next()) {
+                        var cardSpec = _m.value;
+                        var echoTokens = new Map([['echo', 1]]);
+                        var card = void 0;
+                        _h = __read(createRaw(state, cardSpec, 'hand', echoTokens), 2), state = _h[0], card = _h[1];
+                    }
+                }
+                catch (e_49_1) { e_49 = { error: e_49_1 }; }
+                finally {
+                    try {
+                        if (_m && !_m.done && (_g = _l.return)) _g.call(_l);
+                    }
+                    finally { if (e_49) throw e_49.error; }
+                }
+            }
+        }
+    }
+    catch (e_48_1) { e_48 = { error: e_48_1 }; }
+    finally {
+        try {
+            if (relics_3_1 && !relics_3_1.done && (_f = relics_3.return)) _f.call(relics_3);
+        }
+        finally { if (e_48) throw e_48.error; }
     }
     return state;
 }
@@ -3083,7 +3113,7 @@ function reversed(it) {
 }
 // ------------------------- Browsing
 function undoOrSet(to, from) {
-    var e_48, _a;
+    var e_50, _a;
     var newHistory = to.origin().future;
     var oldHistory = from.origin().future;
     var newRedo = from.redo.slice();
@@ -3100,12 +3130,12 @@ function undoOrSet(to, from) {
                 }
             }
         }
-        catch (e_48_1) { e_48 = { error: e_48_1 }; }
+        catch (e_50_1) { e_50 = { error: e_50_1 }; }
         finally {
             try {
                 if (_c && !_c.done && (_a = _b.return)) _a.call(_b);
             }
-            finally { if (e_48) throw e_48.error; }
+            finally { if (e_50) throw e_50.error; }
         }
     }
     return predecessor ? to.update({ redo: newRedo, ui: from.ui }) : to;

@@ -306,7 +306,7 @@ var escalate = { name: 'Escalate',
         useRefresh()
     ]
 };
-events.push(escalate);
+//events.push(escalate)
 var flourishName = 'Flourish';
 var flourish = { name: flourishName,
     fixedCost: free,
@@ -336,7 +336,7 @@ var flourish = { name: flourishName,
             transform: function (e, state, card) { return charge(card, 16); }
         }]
 };
-events.push(flourish);
+//events.push(flourish)
 /*
 const perpetualMotion:CardSpec = {name:'Perpetual Motion',
     restrictions: [{
@@ -3359,11 +3359,11 @@ export var potionOfFerry = {
     name: 'Potion of Ferry',
     isPotion: true,
     simpleText: [
-        'Put a ferry token on a supply.',
-        'It costs $2 less.'
+        'Put two ferry token on a supply. It costs $2 less.',
+        '+1 buy.'
     ],
     rules: [ferryRule],
-    effects: [targetedEffect(function (target) { return addToken(target, 'ferry', 2); }, 'Put two ferry tokens on a supply.', function (state) { return state.supply; })]
+    effects: [targetedEffect(function (target) { return addToken(target, 'ferry', 2); }, 'Put two ferry tokens on a supply.', function (state) { return state.supply; }), buyEffect()]
 };
 export var potionOfRecovery = {
     name: 'Potion of Recovery',
@@ -3546,6 +3546,39 @@ export var potionOfTwin = {
     rules: [twinRule],
     effects: [targetedEffect(function (target) { return addToken(target, 'twin'); }, 'Put a twin token on a card in your hand.', function (state) { return state.hand; })]
 };
+export var mirrorBrew = {
+    name: 'Mirror Brew',
+    isPotion: true,
+    simpleText: ['Copy another potion you have.'],
+    effects: [{
+            text: ['Choose another potion you have. Create a copy of it.'],
+            transform: function (state, card) { return function (state) {
+                return __awaiter(this, void 0, void 0, function () {
+                    var otherPotions, options, picked;
+                    var _a;
+                    return __generator(this, function (_b) {
+                        switch (_b.label) {
+                            case 0:
+                                otherPotions = state.potions.filter(function (p) { return p.id !== card.id; });
+                                if (otherPotions.length === 0) {
+                                    return [2 /*return*/, state];
+                                }
+                                options = asNumberedChoices(otherPotions);
+                                return [4 /*yield*/, choice(state, 'Choose a potion to copy.', allowNull(options))];
+                            case 1:
+                                _a = __read.apply(void 0, [_b.sent(), 2]), state = _a[0], picked = _a[1];
+                                if (!(picked !== null)) return [3 /*break*/, 3];
+                                return [4 /*yield*/, create(picked.spec, 'potions')(state)];
+                            case 2:
+                                state = _b.sent();
+                                _b.label = 3;
+                            case 3: return [2 /*return*/, state];
+                        }
+                    });
+                });
+            }; }
+        }]
+};
 // All potions list for random selection
 export var allPotions = [
     potionOfActions,
@@ -3568,6 +3601,7 @@ export var allPotions = [
     potionOfOnslaught,
     potionOfPriority,
     potionOfTwin,
+    mirrorBrew,
 ];
 // Keep startingPotions for backwards compatibility but it won't be used
 export var startingPotions = [];
