@@ -13,7 +13,7 @@ import { emptyState } from './logic.js'
 import { LogType, logTypes } from './logic.js'
 import { Option, OptionRender, HotkeyHint, sets, ExpansionName } from './logic.js'
 import { UI, SetState, Undo, Victory, InvalidHistory, ReplayEnded } from './logic.js'
-import { playGame, initialState, verifyScore} from './logic.js'
+import { playGame, initialState, verifyScore, RelicState, getRelicStates } from './logic.js'
 import { Replay, coerceReplayVersion, parseReplay, MalformedReplay } from './logic.js'
 import { allCards, allEvents, randomPlaceholder } from './logic.js'
 import { VERSION, DEFAULT_VP_GOAL } from './logic.js'
@@ -22,7 +22,7 @@ import { vpModes, selectVPMode, vpCardNames, vpEventNames } from './logic.js'
 import { supplyComp, eventComp } from './logic.js'
 
 // register cards
-import {throneRoom, duplicate, startingPotions, allPotions, boonCards, boonEvents} from './cards/index.js'
+import {throneRoom, duplicate, startingPotions, allPotions, boonCards, boonEvents, allRelics} from './cards/index.js'
 import { duplicateRule, priorityRule } from './logic.js'
 
 // --------------------- Hotkeys
@@ -475,7 +475,7 @@ interface RendererState {
     viewingKingdom: boolean,
     viewingMacros: boolean,
     logType:LogType,
-    compress: {play: boolean, supply: boolean, events: boolean, hand: boolean, discard: boolean, potions: boolean}
+    compress: {play: boolean, supply: boolean, events: boolean, hand: boolean, discard: boolean, potions: boolean, relics: boolean}
 }
 
 const globalRendererState:RendererState = {
@@ -492,12 +492,13 @@ const globalRendererState:RendererState = {
         events: false,
         hand: JSON.parse(localStorage.getItem('compresshand')!) === true,
         discard: JSON.parse(localStorage.getItem('compressdiscard')!) === true,
-        potions: false
+        potions: false,
+        relics: false
     }
 }
 
-type ZoneName = 'play' | 'supply' | 'events' | 'hand' | 'discard' | 'potions'
-const zoneNames:ZoneName[] = ['play', 'supply', 'events', 'hand', 'discard', 'potions']
+type ZoneName = 'play' | 'supply' | 'events' | 'hand' | 'discard' | 'potions' | 'relics'
+const zoneNames:ZoneName[] = ['play', 'supply', 'events', 'hand', 'discard', 'potions', 'relics']
 
 function resetGlobalRenderer() {
     globalRendererState.hotkeyMapper = new HotkeyMapper()
@@ -893,9 +894,11 @@ class webUI {
         const score = state.energy
         // Get remaining potions from the state
         const remainingPotions = state.potions.map(card => card.spec)
+        // Get relic states (with preserved tokens)
+        const relicStates = getRelicStates(state)
         // Advance to next stage on victory
         const doneAction = () => {
-            onKingdomVictory(score, remainingPotions)
+            onKingdomVictory(score, remainingPotions, relicStates)
         }
 
         const submitOrUndo: () => Promise<void> = () =>
@@ -1917,17 +1920,28 @@ const ALL_BOONS: Boon[] = [
 ]
 
 function getCurrentPar(): number {
-    const basePar = BASE_PARS[currentStage - 1] || 0
-    // No boon on final stage (stage 8)
-    if (currentStage === TOTAL_STAGES || !currentBoon) {
-        return basePar
+    let par = BASE_PARS[currentStage - 1] || 0
+
+    // Apply boon reduction (no boon on final stage)
+    if (currentStage !== TOTAL_STAGES && currentBoon) {
+        par -= currentBoon.parReduction
     }
-    return Math.max(0, basePar - currentBoon.parReduction)
+
+    // Apply relic effects
+    for (const relic of currentRelics) {
+        if (relic.spec.name === 'Inkwell') {
+            par += 1 // Par is 1@ higher
+        } else if (relic.spec.name === 'Cursed Quill') {
+            par -= 6 // Par is 6@ lower
+        }
+    }
+
+    return Math.max(0, par)
 }
 
 // Deck building state
 interface AddButtonState {
-    kind: 'card' | 'event' | 'potion'
+    kind: 'card' | 'event' | 'potion' | 'relic'
     options: CardSpec[]
     used: boolean
     selectedCard: CardSpec | null
@@ -1937,11 +1951,13 @@ let stageAddButtonStates: AddButtonState[] = []
 let collectedCards: CardSpec[] = []
 let collectedEvents: CardSpec[] = []
 let currentPotions: CardSpec[] = []
+let currentRelics: RelicState[] = []
+let emptyBottleBoughtCards: CardSpec[] = []  // Track cards bought for Empty Bottle
 let deckDialogOpen: boolean = false
 
 // Path selection state
 interface PathReward {
-    kind: 'card' | 'event' | 'potion'
+    kind: 'card' | 'event' | 'potion' | 'relic'
     options: CardSpec[]  // 3 options to choose from
 }
 
@@ -1985,8 +2001,27 @@ function hashString(s: string): number {
     return hash
 }
 
+function getRewardOptionCount(): number {
+    let count = 3 // Base count
+    for (const relic of currentRelics) {
+        if (relic.spec.name === 'Question Card') {
+            count += 1
+        }
+    }
+    return count
+}
+
+// For Empty Bottle relic: register a card added to deck
+function registerEmptyBottleBuy(spec: CardSpec): void {
+    // Only track if player has Empty Bottle
+    if (currentRelics.some(r => r.spec.name === 'Empty Bottle')) {
+        emptyBottleBoughtCards.push(spec)
+    }
+}
+
 function generateStageOptions(): void {
     // Generate add button options for this stage (only from base and expansion)
+    const optionCount = getRewardOptionCount()
     const cardPool = getAvailableCards().filter(c =>
         !vpCardNames.has(c.name) &&
         c.name !== 'Copper' && c.name !== 'Silver' && c.name !== 'Gold' &&
@@ -2000,16 +2035,22 @@ function generateStageOptions(): void {
     const potionPool = allPotions.filter(p =>
         !currentPotions.some(cp => cp.name === p.name)
     )
+    // Filter relics to exclude ones already acquired
+    const relicPool = allRelics.filter(r =>
+        !currentRelics.some(cr => cr.spec.name === r.name)
+    )
 
     const shuffledCards = shuffleArray([...cardPool])
     const shuffledEvents = shuffleArray([...eventPool])
     const shuffledPotions = shuffleArray([...potionPool])
+    const shuffledRelics = shuffleArray([...relicPool])
 
     stageAddButtonStates = [
-        { kind: 'card', options: shuffledCards.slice(0, 3), used: false, selectedCard: null },
-        { kind: 'card', options: shuffledCards.slice(3, 6), used: false, selectedCard: null },
-        { kind: 'event', options: shuffledEvents.slice(0, 3), used: false, selectedCard: null },
-        { kind: 'potion', options: shuffledPotions.slice(0, 3), used: false, selectedCard: null },
+        { kind: 'card', options: shuffledCards.slice(0, optionCount), used: false, selectedCard: null },
+        { kind: 'card', options: shuffledCards.slice(optionCount, optionCount * 2), used: false, selectedCard: null },
+        { kind: 'event', options: shuffledEvents.slice(0, optionCount), used: false, selectedCard: null },
+        { kind: 'potion', options: shuffledPotions.slice(0, optionCount), used: false, selectedCard: null },
+        { kind: 'relic', options: shuffledRelics.slice(0, optionCount), used: false, selectedCard: null },
     ]
 
     // Select random boon (no boon on final stage)
@@ -2037,6 +2078,7 @@ function generateStageOptions(): void {
 
 function generatePathOptions(): void {
     // Generate all 4 rewards: 2 cards, 1 event, 1 potion
+    const optionCount = getRewardOptionCount()
     const cardPool = getAvailableCards().filter(c =>
         !vpCardNames.has(c.name) &&
         c.name !== 'Copper' && c.name !== 'Silver' && c.name !== 'Gold' &&
@@ -2056,10 +2098,10 @@ function generatePathOptions(): void {
 
     // Create 4 rewards
     const allRewards: PathReward[] = [
-        { kind: 'card', options: shuffledCards.slice(0, 3) },
-        { kind: 'card', options: shuffledCards.slice(3, 6) },
-        { kind: 'event', options: shuffledEvents.slice(0, 3) },
-        { kind: 'potion', options: shuffledPotions.slice(0, 3) },
+        { kind: 'card', options: shuffledCards.slice(0, optionCount) },
+        { kind: 'card', options: shuffledCards.slice(optionCount, optionCount * 2) },
+        { kind: 'event', options: shuffledEvents.slice(0, optionCount) },
+        { kind: 'potion', options: shuffledPotions.slice(0, optionCount) },
     ]
 
     // Shuffle and split 2-2
@@ -2205,7 +2247,8 @@ function showCardPicker(buttonIndex: number): void {
     const titles: Record<string, string> = {
         'card': 'Choose a card:',
         'event': 'Choose an event:',
-        'potion': 'Choose a potion:'
+        'potion': 'Choose a potion:',
+        'relic': 'Choose a relic:'
     }
     $('#cardPickerTitle').text(titles[state.kind])
 
@@ -2232,14 +2275,29 @@ function selectCard(buttonIndex: number, card: CardSpec): void {
 
     if (state.kind === 'card') {
         collectedCards.push(card)
+        // Track for Empty Bottle relic
+        registerEmptyBottleBuy(card)
     } else if (state.kind === 'event') {
         collectedEvents.push(card)
     } else if (state.kind === 'potion') {
         currentPotions.push(card)
+    } else if (state.kind === 'relic') {
+        // Add relic with empty token state
+        currentRelics.push({ spec: card, tokens: new Map() })
+        // Handle one-time relic effects
+        handleRelicAcquisition(card)
     }
 
     updateAddButtonDisplay(buttonIndex)
     hideCardPicker()
+}
+
+function handleRelicAcquisition(relic: CardSpec): void {
+    // Handle one-time effects when a relic is acquired
+    if (relic.name === 'Elegant Quill') {
+        currentBuffer += 3
+        updateBufferDisplay()
+    }
 }
 
 function updateAddButtonDisplay(buttonIndex: number): void {
@@ -2255,7 +2313,8 @@ function setupAddButtons(): void {
     const buttonLabels: Record<string, string> = {
         'card': 'Add Card',
         'event': 'Add Event',
-        'potion': 'Add Potion'
+        'potion': 'Add Potion',
+        'relic': 'Add Relic'
     }
 
     for (let i = 0; i < stageAddButtonStates.length; i++) {
@@ -2393,6 +2452,7 @@ export function showLandingPage(): void {
     collectedCards = []
     collectedEvents = []
     currentPotions = []
+    currentRelics = []
     stageScores = Array(TOTAL_STAGES).fill(null)
     stagePars = Array(TOTAL_STAGES).fill(null)
     currentBuffer = 16
@@ -2440,6 +2500,14 @@ function showStageScreen(): void {
 function startCurrentKingdom(): void {
     if (!currentKingdom) return
 
+    // Apply start-of-course relic effects
+    for (const relic of currentRelics) {
+        if (relic.spec.name === 'Cursed Quill') {
+            currentBuffer += 3
+        }
+    }
+    updateBufferDisplay()
+
     // Hide other screens, show game
     $('#stageScreen').hide()
     $('#pathSelectionScreen').hide()
@@ -2454,10 +2522,42 @@ function startCurrentKingdom(): void {
     // Boon cards/events come first (after VP mode), then player's collected cards
     const boonCardsList = currentBoon?.cards || []
     const boonEventsList = currentBoon?.events || []
-    const sortedCards = [...boonCardsList, ...[...collectedCards].sort(supplyComp)]
-    const sortedEvents = [...boonEventsList, ...[...collectedEvents].sort(eventComp)]
 
-    const state = initialState(currentKingdom, sortedCards, sortedEvents, currentPotions)
+    // Looking Glass effect: add 2 random cards and 1 random event
+    let lookingGlassCards: CardSpec[] = []
+    let lookingGlassEvents: CardSpec[] = []
+    for (const relic of currentRelics) {
+        if (relic.spec.name === 'Looking Glass') {
+            // Get random cards not already collected
+            const cardPool = getAvailableCards().filter(c =>
+                !vpCardNames.has(c.name) &&
+                c.name !== 'Copper' && c.name !== 'Silver' && c.name !== 'Gold' &&
+                !collectedCards.some(cc => cc.name === c.name) &&
+                !boonCardsList.some(bc => bc.name === c.name)
+            )
+            const eventPool = getAvailableEvents().filter(e =>
+                !vpEventNames.has(e.name) && e.name !== 'Refresh' &&
+                !collectedEvents.some(ce => ce.name === e.name) &&
+                !boonEventsList.some(be => be.name === e.name)
+            )
+            const shuffledCards = shuffleArray([...cardPool])
+            const shuffledEvents = shuffleArray([...eventPool])
+            lookingGlassCards = shuffledCards.slice(0, 2)
+            lookingGlassEvents = shuffledEvents.slice(0, 1)
+        }
+    }
+
+    const sortedCards = [...boonCardsList, ...lookingGlassCards, ...[...collectedCards].sort(supplyComp)]
+    const sortedEvents = [...boonEventsList, ...lookingGlassEvents, ...[...collectedEvents].sort(eventComp)]
+
+    // Set up Empty Bottle's boughtCards from cards added this stage
+    for (const relic of currentRelics) {
+        if (relic.spec.name === 'Empty Bottle') {
+            relic.boughtCards = [...emptyBottleBoughtCards]
+        }
+    }
+
+    const state = initialState(currentKingdom, sortedCards, sortedEvents, currentPotions, currentRelics)
     startGame(state)
 }
 
@@ -2501,7 +2601,7 @@ function showGameOver(): void {
 }
 
 // Called when player wins a kingdom
-function onKingdomVictory(score: number, remainingPotions: CardSpec[]): void {
+function onKingdomVictory(score: number, remainingPotions: CardSpec[], relicStates: RelicState[]): void {
     // Save the score and par for this stage
     const par = getCurrentPar()
     stageScores[currentStage - 1] = score
@@ -2511,6 +2611,16 @@ function onKingdomVictory(score: number, remainingPotions: CardSpec[]): void {
     if (score > par) {
         currentBuffer -= (score - par)
     }
+
+    // Apply Ancient Quill effect: for each 3@ you beat par, gain 1@ buffer
+    for (const relic of relicStates) {
+        if (relic.spec.name === 'Ancient Quill' && score < par) {
+            const energyUnderPar = par - score
+            const bufferGain = Math.floor(energyUnderPar / 3)
+            currentBuffer += bufferGain
+        }
+    }
+
     updateBufferDisplay()
 
     // Check for game over
@@ -2519,7 +2629,11 @@ function onKingdomVictory(score: number, remainingPotions: CardSpec[]): void {
         return
     }
 
-    // Carry forward remaining potions to next stage
+    // Reset Empty Bottle tracking for next stage
+    emptyBottleBoughtCards = []
+
+    // Carry forward remaining potions and relics to next stage
     currentPotions = remainingPotions
+    currentRelics = relicStates
     advanceToNextStage()
 }

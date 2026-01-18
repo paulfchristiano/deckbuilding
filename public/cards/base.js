@@ -2919,8 +2919,7 @@ var universityName = 'University';
 var university = {
     name: universityName,
     buyCost: coin(12),
-    relatedCards: [villager],
-    effects: [actionsEffect(4), buysEffect(2), createInPlayEffect(villager)],
+    effects: [actionsEffect(4), buysEffect(2)],
     staticReplacers: [{
             text: "".concat(universityName, " costs $1 less per action you have, but not less than $1."),
             kind: 'cost',

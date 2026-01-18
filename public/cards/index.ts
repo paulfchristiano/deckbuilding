@@ -1,5 +1,6 @@
 // register cards
 import * as base from './base.js'
+import * as relicsModule from './relics.js'
 import { sets, CardSpec, ExpansionName, vpModes } from '../logic.js'
 
 function registerAll(cards:CardSpec[], events:CardSpec[], expansion:ExpansionName): void {
@@ -20,3 +21,4 @@ export const startingPotions = base.startingPotions;
 export const allPotions = base.allPotions;
 export const boonCards = base.boonCards;
 export const boonEvents = base.boonEvents;
+export const allRelics = relicsModule.allRelics;

@@ -12,6 +12,7 @@ var __values = (this && this.__values) || function(o) {
 var e_1, _a;
 // register cards
 import * as base from './base.js';
+import * as relicsModule from './relics.js';
 import { sets, vpModes } from '../logic.js';
 function registerAll(cards, events, expansion) {
     sets[expansion].cards = cards;
@@ -38,4 +39,5 @@ export var startingPotions = base.startingPotions;
 export var allPotions = base.allPotions;
 export var boonCards = base.boonCards;
 export var boonEvents = base.boonEvents;
+export var allRelics = relicsModule.allRelics;
 //# sourceMappingURL=index.js.map

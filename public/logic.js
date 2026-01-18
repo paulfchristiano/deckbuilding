@@ -602,6 +602,7 @@ var State = /** @class */ (function () {
         this.void = zones.get('void') || [];
         this.events = zones.get('events') || [];
         this.potions = zones.get('potions') || [];
+        this.relics = zones.get('relics') || [];
         this.vp_goal = goalForSpec(spec);
     }
     State.prototype.update = function (stateUpdate) {
@@ -1111,7 +1112,7 @@ function trigger(e) {
                     case 14:
                         triggers = [];
                         try {
-                            for (_c = __values(state.events.concat(state.supply)), _d = _c.next(); !_d.done; _d = _c.next()) {
+                            for (_c = __values(state.events.concat(state.supply).concat(state.relics)), _d = _c.next(); !_d.done; _d = _c.next()) {
                                 card = _d.value;
                                 try {
                                     for (_e = (e_20 = void 0, __values(card.staticTriggers())), _f = _e.next(); !_f.done; _f = _e.next()) {
@@ -1202,7 +1203,7 @@ function replace(x, state) {
     // First, process normal replacers
     var replacers = [];
     try {
-        for (var _h = __values(state.events.concat(state.supply)), _j = _h.next(); !_j.done; _j = _h.next()) {
+        for (var _h = __values(state.events.concat(state.supply).concat(state.relics)), _j = _h.next(); !_j.done; _j = _h.next()) {
             var card = _j.value;
             try {
                 for (var _k = (e_24 = void 0, __values(card.staticReplacers())), _l = _k.next(); !_l.done; _l = _k.next()) {
@@ -2923,12 +2924,22 @@ function getRandomizerSeed(spec) {
             return spec.randomizer.seed;
     }
 }
-export function initialState(spec, extraCards, extraEvents, potions) {
+export function initialState(spec, extraCards, extraEvents, potions, relics) {
+    var e_45, _a, _b, e_46, _c, e_47, _d, _e;
     if (extraCards === void 0) { extraCards = []; }
     if (extraEvents === void 0) { extraEvents = []; }
     if (potions === void 0) { potions = []; }
+    if (relics === void 0) { relics = []; }
     var startingHand = [copper, copper, copper];
-    var kingdom = makeKingdom(spec);
+    // Check for Broken Lever relic (VP targets 25% lower)
+    var hasBrokenLever = relics.some(function (r) { return r.spec.name === 'Broken Lever'; });
+    var effectiveSpec = spec;
+    if (hasBrokenLever) {
+        var baseGoal = goalForSpec(spec);
+        var reducedGoal = Math.floor(baseGoal * 0.75);
+        effectiveSpec = { kind: 'goal', vp: reducedGoal, spec: spec };
+    }
+    var kingdom = makeKingdom(effectiveSpec);
     var variableSupplies = kingdom.cards.slice();
     var variableEvents = kingdom.events.slice();
     variableSupplies.sort(supplyComp);
@@ -2947,12 +2958,63 @@ export function initialState(spec, extraCards, extraEvents, potions) {
     var supply = sets.core.cards.concat(vpCards).concat(extraCards).concat(variableSupplies);
     // Order: core events (refresh), VP mode events, extra events, then variable events
     var events = sets.core.events.concat(vpEvents).concat(extraEvents).concat(variableEvents);
-    var state = new State(spec);
+    var state = new State(effectiveSpec);
     state = createRawMulti(state, supply, 'supply');
     state = createRawMulti(state, events, 'events');
     state = createRawMulti(state, startingHand, 'discard');
     state = createRawMulti(state, potions, 'potions');
+    try {
+        // Create relics with their preserved token state
+        for (var relics_1 = __values(relics), relics_1_1 = relics_1.next(); !relics_1_1.done; relics_1_1 = relics_1.next()) {
+            var relic = relics_1_1.value;
+            var card = void 0;
+            _b = __read(createRaw(state, relic.spec, 'relics', relic.tokens), 2), state = _b[0], card = _b[1];
+        }
+    }
+    catch (e_45_1) { e_45 = { error: e_45_1 }; }
+    finally {
+        try {
+            if (relics_1_1 && !relics_1_1.done && (_a = relics_1.return)) _a.call(relics_1);
+        }
+        finally { if (e_45) throw e_45.error; }
+    }
+    try {
+        // Empty Bottle effect: create echo copies of bought cards in hand
+        for (var relics_2 = __values(relics), relics_2_1 = relics_2.next(); !relics_2_1.done; relics_2_1 = relics_2.next()) {
+            var relic = relics_2_1.value;
+            if (relic.spec.name === 'Empty Bottle' && relic.boughtCards) {
+                try {
+                    for (var _f = (e_47 = void 0, __values(relic.boughtCards)), _g = _f.next(); !_g.done; _g = _f.next()) {
+                        var cardSpec = _g.value;
+                        var echoTokens = new Map([['echo', 1]]);
+                        var card = void 0;
+                        _e = __read(createRaw(state, cardSpec, 'hand', echoTokens), 2), state = _e[0], card = _e[1];
+                    }
+                }
+                catch (e_47_1) { e_47 = { error: e_47_1 }; }
+                finally {
+                    try {
+                        if (_g && !_g.done && (_d = _f.return)) _d.call(_f);
+                    }
+                    finally { if (e_47) throw e_47.error; }
+                }
+            }
+        }
+    }
+    catch (e_46_1) { e_46 = { error: e_46_1 }; }
+    finally {
+        try {
+            if (relics_2_1 && !relics_2_1.done && (_c = relics_2.return)) _c.call(relics_2);
+        }
+        finally { if (e_46) throw e_46.error; }
+    }
     return state;
+}
+export function getRelicStates(state) {
+    return state.relics.map(function (card) { return ({
+        spec: card.spec,
+        tokens: new Map(card.tokens)
+    }); });
 }
 export function playGame(state_1) {
     return __awaiter(this, arguments, void 0, function (state, resume) {
@@ -3021,7 +3083,7 @@ function reversed(it) {
 }
 // ------------------------- Browsing
 function undoOrSet(to, from) {
-    var e_45, _a;
+    var e_48, _a;
     var newHistory = to.origin().future;
     var oldHistory = from.origin().future;
     var newRedo = from.redo.slice();
@@ -3038,12 +3100,12 @@ function undoOrSet(to, from) {
                 }
             }
         }
-        catch (e_45_1) { e_45 = { error: e_45_1 }; }
+        catch (e_48_1) { e_48 = { error: e_48_1 }; }
         finally {
             try {
                 if (_c && !_c.done && (_a = _b.return)) _a.call(_b);
             }
-            finally { if (e_45) throw e_45.error; }
+            finally { if (e_48) throw e_48.error; }
         }
     }
     return predecessor ? to.update({ redo: newRedo, ui: from.ui }) : to;

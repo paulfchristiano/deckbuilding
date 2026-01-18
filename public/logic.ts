@@ -79,6 +79,7 @@ export interface CardSpec {
     ability?: Effect[];
     simpleText?: string[]; // Short description for card selector/deck view (one line per array element)
     isPotion?: boolean; // If true, trash after playing
+    isRelic?: boolean; // If true, this is a relic that persists across stages
     rules?: Rule[]; // Rules this card references (for tooltip display)
 }
 
@@ -420,7 +421,7 @@ export class Card {
 
 export type Transform = ((state:State) => Promise<State>) | ((state:State) => State)
 
-type ZoneName = 'supply' | 'hand' | 'discard' | 'play' | 'events' | 'void' | 'potions'
+type ZoneName = 'supply' | 'hand' | 'discard' | 'play' | 'events' | 'void' | 'potions' | 'relics'
 export type PlaceName = ZoneName | 'resolving'
 
 type Zone = Card[]
@@ -538,6 +539,7 @@ export class State {
     public readonly void:Zone;
     public readonly events:Zone;
     public readonly potions:Zone;
+    public readonly relics:Zone;
     constructor(
         public readonly spec: GameSpec = {kind:'pick', cards:[], events:[]},
         public readonly ui: UI = noUI,
@@ -566,6 +568,7 @@ export class State {
         this.void = zones.get('void') || []
         this.events = zones.get('events') || []
         this.potions = zones.get('potions') || []
+        this.relics = zones.get('relics') || []
 
         this.vp_goal = goalForSpec(spec)
     }
@@ -976,7 +979,7 @@ function trigger<T extends GameEvent>(e:T): Transform {
 
         // Then process normal triggers
         const triggers:[Card, TypedTrigger][] = [];
-        for (const card of state.events.concat(state.supply))
+        for (const card of state.events.concat(state.supply).concat(state.relics))
             for (const trigger of card.staticTriggers())
                 triggers.push([card, trigger])
         for (const card of state.play)
@@ -1025,7 +1028,7 @@ type TypedRuleReplacer = Replacer<ResourceParams, Rule> | Replacer<CostParams, R
 function replace<T extends Params>(x: T, state: State): T {
     // First, process normal replacers
     const replacers:[Card, TypedReplacer][] = []
-    for (const card of state.events.concat(state.supply))
+    for (const card of state.events.concat(state.supply).concat(state.relics))
         for (const replacer of card.staticReplacers())
             replacers.push([card, replacer])
     for (const card of state.play)
@@ -2418,15 +2421,31 @@ function getRandomizerSeed(spec: GameSpec): string | null {
     }
 }
 
+export interface RelicState {
+    spec: CardSpec;
+    tokens: Map<Token, number>;
+    boughtCards?: CardSpec[];  // For Empty Bottle: cards bought during last game
+}
+
 export function initialState(
     spec:GameSpec,
     extraCards: CardSpec[] = [],
     extraEvents: CardSpec[] = [],
-    potions: CardSpec[] = []
+    potions: CardSpec[] = [],
+    relics: RelicState[] = []
 ): State {
     const startingHand:CardSpec[] = [copper, copper, copper]
 
-    const kingdom:Kingdom = makeKingdom(spec)
+    // Check for Broken Lever relic (VP targets 25% lower)
+    const hasBrokenLever = relics.some(r => r.spec.name === 'Broken Lever')
+    let effectiveSpec = spec
+    if (hasBrokenLever) {
+        const baseGoal = goalForSpec(spec)
+        const reducedGoal = Math.floor(baseGoal * 0.75)
+        effectiveSpec = { kind: 'goal', vp: reducedGoal, spec: spec }
+    }
+
+    const kingdom:Kingdom = makeKingdom(effectiveSpec)
 
     const variableSupplies = kingdom.cards.slice()
     const variableEvents = kingdom.events.slice()
@@ -2449,12 +2468,34 @@ export function initialState(
     // Order: core events (refresh), VP mode events, extra events, then variable events
     const events = sets.core.events.concat(vpEvents).concat(extraEvents).concat(variableEvents)
 
-    let state = new State(spec)
+    let state = new State(effectiveSpec)
     state = createRawMulti(state, supply, 'supply')
     state = createRawMulti(state, events, 'events')
     state = createRawMulti(state, startingHand, 'discard')
     state = createRawMulti(state, potions, 'potions')
+    // Create relics with their preserved token state
+    for (const relic of relics) {
+        let card; [state, card] = createRaw(state, relic.spec, 'relics', relic.tokens)
+    }
+
+    // Empty Bottle effect: create echo copies of bought cards in hand
+    for (const relic of relics) {
+        if (relic.spec.name === 'Empty Bottle' && relic.boughtCards) {
+            for (const cardSpec of relic.boughtCards) {
+                const echoTokens = new Map<Token, number>([['echo', 1]])
+                let card; [state, card] = createRaw(state, cardSpec, 'hand', echoTokens)
+            }
+        }
+    }
+
     return state
+}
+
+export function getRelicStates(state: State): RelicState[] {
+    return state.relics.map(card => ({
+        spec: card.spec,
+        tokens: new Map(card.tokens)
+    }))
 }
 
 export async function playGame(state:State, resume:boolean=false): Promise<void> {

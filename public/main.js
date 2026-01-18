@@ -92,14 +92,14 @@ import { emptyState } from './logic.js';
 import { logTypes } from './logic.js';
 import { sets } from './logic.js';
 import { SetState, Undo, InvalidHistory } from './logic.js';
-import { playGame, initialState } from './logic.js';
+import { playGame, initialState, getRelicStates } from './logic.js';
 import { coerceReplayVersion, parseReplay, MalformedReplay } from './logic.js';
 import { randomPlaceholder } from './logic.js';
 import { MalformedSpec, specToURL, specFromURL } from './logic.js';
 import { vpModes, vpCardNames, vpEventNames } from './logic.js';
 import { supplyComp, eventComp } from './logic.js';
 // register cards
-import { throneRoom, duplicate, allPotions, boonCards, boonEvents } from './cards/index.js';
+import { throneRoom, duplicate, allPotions, boonCards, boonEvents, allRelics } from './cards/index.js';
 var keyListeners = new Map();
 var symbolHotkeys = ['!', '%', '^', '&', '*', '(', ')', '-', '+', '=', '{', '}', '[', ']']; // '@', '#', '$' are confusing
 var lowerHotkeys = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm',
@@ -589,10 +589,11 @@ var globalRendererState = {
         events: false,
         hand: JSON.parse(localStorage.getItem('compresshand')) === true,
         discard: JSON.parse(localStorage.getItem('compressdiscard')) === true,
-        potions: false
+        potions: false,
+        relics: false
     }
 };
-var zoneNames = ['play', 'supply', 'events', 'hand', 'discard', 'potions'];
+var zoneNames = ['play', 'supply', 'events', 'hand', 'discard', 'potions', 'relics'];
 function resetGlobalRenderer() {
     globalRendererState.hotkeyMapper = new HotkeyMapper();
     globalRendererState.tokenRenderer = new TokenRenderer();
@@ -996,13 +997,14 @@ var webUI = /** @class */ (function () {
     //(would be nice to clean this up so you use undo to go back)
     webUI.prototype.victory = function (state) {
         return __awaiter(this, void 0, void 0, function () {
-            var ui, score, remainingPotions, doneAction, submitOrUndo;
+            var ui, score, remainingPotions, relicStates, doneAction, submitOrUndo;
             return __generator(this, function (_a) {
                 ui = this;
                 score = state.energy;
                 remainingPotions = state.potions.map(function (card) { return card.spec; });
+                relicStates = getRelicStates(state);
                 doneAction = function () {
-                    onKingdomVictory(score, remainingPotions);
+                    onKingdomVictory(score, remainingPotions, relicStates);
                 };
                 submitOrUndo = function () {
                     return new Promise(function (resolve, reject) {
@@ -1939,17 +1941,39 @@ var ALL_BOONS = [
     },
 ];
 function getCurrentPar() {
-    var basePar = BASE_PARS[currentStage - 1] || 0;
-    // No boon on final stage (stage 8)
-    if (currentStage === TOTAL_STAGES || !currentBoon) {
-        return basePar;
+    var e_23, _a;
+    var par = BASE_PARS[currentStage - 1] || 0;
+    // Apply boon reduction (no boon on final stage)
+    if (currentStage !== TOTAL_STAGES && currentBoon) {
+        par -= currentBoon.parReduction;
     }
-    return Math.max(0, basePar - currentBoon.parReduction);
+    try {
+        // Apply relic effects
+        for (var currentRelics_1 = __values(currentRelics), currentRelics_1_1 = currentRelics_1.next(); !currentRelics_1_1.done; currentRelics_1_1 = currentRelics_1.next()) {
+            var relic = currentRelics_1_1.value;
+            if (relic.spec.name === 'Inkwell') {
+                par += 1; // Par is 1@ higher
+            }
+            else if (relic.spec.name === 'Cursed Quill') {
+                par -= 6; // Par is 6@ lower
+            }
+        }
+    }
+    catch (e_23_1) { e_23 = { error: e_23_1 }; }
+    finally {
+        try {
+            if (currentRelics_1_1 && !currentRelics_1_1.done && (_a = currentRelics_1.return)) _a.call(currentRelics_1);
+        }
+        finally { if (e_23) throw e_23.error; }
+    }
+    return Math.max(0, par);
 }
 var stageAddButtonStates = [];
 var collectedCards = [];
 var collectedEvents = [];
 var currentPotions = [];
+var currentRelics = [];
+var emptyBottleBoughtCards = []; // Track cards bought for Empty Bottle
 var deckDialogOpen = false;
 var leftPath = null;
 var rightPath = null;
@@ -1981,8 +2005,36 @@ function hashString(s) {
     }
     return hash;
 }
+function getRewardOptionCount() {
+    var e_24, _a;
+    var count = 3; // Base count
+    try {
+        for (var currentRelics_2 = __values(currentRelics), currentRelics_2_1 = currentRelics_2.next(); !currentRelics_2_1.done; currentRelics_2_1 = currentRelics_2.next()) {
+            var relic = currentRelics_2_1.value;
+            if (relic.spec.name === 'Question Card') {
+                count += 1;
+            }
+        }
+    }
+    catch (e_24_1) { e_24 = { error: e_24_1 }; }
+    finally {
+        try {
+            if (currentRelics_2_1 && !currentRelics_2_1.done && (_a = currentRelics_2.return)) _a.call(currentRelics_2);
+        }
+        finally { if (e_24) throw e_24.error; }
+    }
+    return count;
+}
+// For Empty Bottle relic: register a card added to deck
+function registerEmptyBottleBuy(spec) {
+    // Only track if player has Empty Bottle
+    if (currentRelics.some(function (r) { return r.spec.name === 'Empty Bottle'; })) {
+        emptyBottleBoughtCards.push(spec);
+    }
+}
 function generateStageOptions() {
     // Generate add button options for this stage (only from base and expansion)
+    var optionCount = getRewardOptionCount();
     var cardPool = getAvailableCards().filter(function (c) {
         return !vpCardNames.has(c.name) &&
             c.name !== 'Copper' && c.name !== 'Silver' && c.name !== 'Gold' &&
@@ -1996,14 +2048,20 @@ function generateStageOptions() {
     var potionPool = allPotions.filter(function (p) {
         return !currentPotions.some(function (cp) { return cp.name === p.name; });
     });
+    // Filter relics to exclude ones already acquired
+    var relicPool = allRelics.filter(function (r) {
+        return !currentRelics.some(function (cr) { return cr.spec.name === r.name; });
+    });
     var shuffledCards = shuffleArray(__spreadArray([], __read(cardPool), false));
     var shuffledEvents = shuffleArray(__spreadArray([], __read(eventPool), false));
     var shuffledPotions = shuffleArray(__spreadArray([], __read(potionPool), false));
+    var shuffledRelics = shuffleArray(__spreadArray([], __read(relicPool), false));
     stageAddButtonStates = [
-        { kind: 'card', options: shuffledCards.slice(0, 3), used: false, selectedCard: null },
-        { kind: 'card', options: shuffledCards.slice(3, 6), used: false, selectedCard: null },
-        { kind: 'event', options: shuffledEvents.slice(0, 3), used: false, selectedCard: null },
-        { kind: 'potion', options: shuffledPotions.slice(0, 3), used: false, selectedCard: null },
+        { kind: 'card', options: shuffledCards.slice(0, optionCount), used: false, selectedCard: null },
+        { kind: 'card', options: shuffledCards.slice(optionCount, optionCount * 2), used: false, selectedCard: null },
+        { kind: 'event', options: shuffledEvents.slice(0, optionCount), used: false, selectedCard: null },
+        { kind: 'potion', options: shuffledPotions.slice(0, optionCount), used: false, selectedCard: null },
+        { kind: 'relic', options: shuffledRelics.slice(0, optionCount), used: false, selectedCard: null },
     ];
     // Select random boon (no boon on final stage)
     if (currentStage === TOTAL_STAGES) {
@@ -2028,6 +2086,7 @@ function generateStageOptions() {
 }
 function generatePathOptions() {
     // Generate all 4 rewards: 2 cards, 1 event, 1 potion
+    var optionCount = getRewardOptionCount();
     var cardPool = getAvailableCards().filter(function (c) {
         return !vpCardNames.has(c.name) &&
             c.name !== 'Copper' && c.name !== 'Silver' && c.name !== 'Gold' &&
@@ -2045,10 +2104,10 @@ function generatePathOptions() {
     var shuffledPotions = shuffleArray(__spreadArray([], __read(potionPool), false));
     // Create 4 rewards
     var allRewards = [
-        { kind: 'card', options: shuffledCards.slice(0, 3) },
-        { kind: 'card', options: shuffledCards.slice(3, 6) },
-        { kind: 'event', options: shuffledEvents.slice(0, 3) },
-        { kind: 'potion', options: shuffledPotions.slice(0, 3) },
+        { kind: 'card', options: shuffledCards.slice(0, optionCount) },
+        { kind: 'card', options: shuffledCards.slice(optionCount, optionCount * 2) },
+        { kind: 'event', options: shuffledEvents.slice(0, optionCount) },
+        { kind: 'potion', options: shuffledPotions.slice(0, optionCount) },
     ];
     // Shuffle and split 2-2
     var shuffledRewards = shuffleArray(__spreadArray([], __read(allRewards), false));
@@ -2084,7 +2143,7 @@ function generatePathOptions() {
     };
 }
 function showPathSelectionScreen() {
-    var e_23, _a, e_24, _b;
+    var e_25, _a, e_26, _b;
     if (!leftPath || !rightPath)
         return;
     // Update progress sidebar
@@ -2101,12 +2160,12 @@ function showPathSelectionScreen() {
             $('#leftRewards').append("<div class=\"pathReward\">".concat(rewardText, "</div>"));
         }
     }
-    catch (e_23_1) { e_23 = { error: e_23_1 }; }
+    catch (e_25_1) { e_25 = { error: e_25_1 }; }
     finally {
         try {
             if (_d && !_d.done && (_a = _c.return)) _a.call(_c);
         }
-        finally { if (e_23) throw e_23.error; }
+        finally { if (e_25) throw e_25.error; }
     }
     var basePar = BASE_PARS[currentStage - 1] || 0;
     var leftPar = leftPath.boon ? Math.max(0, basePar - leftPath.boon.parReduction) : basePar;
@@ -2126,12 +2185,12 @@ function showPathSelectionScreen() {
             $('#rightRewards').append("<div class=\"pathReward\">".concat(rewardText, "</div>"));
         }
     }
-    catch (e_24_1) { e_24 = { error: e_24_1 }; }
+    catch (e_26_1) { e_26 = { error: e_26_1 }; }
     finally {
         try {
             if (_f && !_f.done && (_b = _e.return)) _b.call(_e);
         }
-        finally { if (e_24) throw e_24.error; }
+        finally { if (e_26) throw e_26.error; }
     }
     var rightPar = rightPath.boon ? Math.max(0, basePar - rightPath.boon.parReduction) : basePar;
     var rightPlayText = "Play: ".concat(rightPath.vpModeName);
@@ -2194,14 +2253,15 @@ function selectPath(direction) {
     showStageScreen();
 }
 function showCardPicker(buttonIndex) {
-    var e_25, _a;
+    var e_27, _a;
     var state = stageAddButtonStates[buttonIndex];
     if (state.used)
         return;
     var titles = {
         'card': 'Choose a card:',
         'event': 'Choose an event:',
-        'potion': 'Choose a potion:'
+        'potion': 'Choose a potion:',
+        'relic': 'Choose a relic:'
     };
     $('#cardPickerTitle').text(titles[state.kind]);
     $('#cardPickerOptions').empty();
@@ -2217,12 +2277,12 @@ function showCardPicker(buttonIndex) {
             _loop_4(card);
         }
     }
-    catch (e_25_1) { e_25 = { error: e_25_1 }; }
+    catch (e_27_1) { e_27 = { error: e_27_1 }; }
     finally {
         try {
             if (_c && !_c.done && (_a = _b.return)) _a.call(_b);
         }
-        finally { if (e_25) throw e_25.error; }
+        finally { if (e_27) throw e_27.error; }
     }
     $('#cardPickerCancel').off('click').on('click', hideCardPicker);
     $('#cardPickerDialog').attr('active', 'true');
@@ -2236,6 +2296,8 @@ function selectCard(buttonIndex, card) {
     state.selectedCard = card;
     if (state.kind === 'card') {
         collectedCards.push(card);
+        // Track for Empty Bottle relic
+        registerEmptyBottleBuy(card);
     }
     else if (state.kind === 'event') {
         collectedEvents.push(card);
@@ -2243,8 +2305,21 @@ function selectCard(buttonIndex, card) {
     else if (state.kind === 'potion') {
         currentPotions.push(card);
     }
+    else if (state.kind === 'relic') {
+        // Add relic with empty token state
+        currentRelics.push({ spec: card, tokens: new Map() });
+        // Handle one-time relic effects
+        handleRelicAcquisition(card);
+    }
     updateAddButtonDisplay(buttonIndex);
     hideCardPicker();
+}
+function handleRelicAcquisition(relic) {
+    // Handle one-time effects when a relic is acquired
+    if (relic.name === 'Elegant Quill') {
+        currentBuffer += 3;
+        updateBufferDisplay();
+    }
 }
 function updateAddButtonDisplay(buttonIndex) {
     // Simply regenerate all buttons to update the display
@@ -2258,7 +2333,8 @@ function setupAddButtons() {
     var buttonLabels = {
         'card': 'Add Card',
         'event': 'Add Event',
-        'potion': 'Add Potion'
+        'potion': 'Add Potion',
+        'relic': 'Add Relic'
     };
     var _loop_5 = function (i) {
         var state = stageAddButtonStates[i];
@@ -2287,7 +2363,7 @@ function setupAddButtons() {
     var debugRow = $('<div class="gameRow"></div>');
     var debugButton = $('<span class="option" id="debugButton" choosable>Debug</span>');
     debugButton.on('click', function () {
-        var e_26, _a, e_27, _b;
+        var e_28, _a, e_29, _b;
         var allCards = getAvailableCards().filter(function (c) {
             return !vpCardNames.has(c.name) &&
                 c.name !== 'Copper' && c.name !== 'Silver' && c.name !== 'Gold';
@@ -2306,12 +2382,12 @@ function setupAddButtons() {
                 _loop_6(card);
             }
         }
-        catch (e_26_1) { e_26 = { error: e_26_1 }; }
+        catch (e_28_1) { e_28 = { error: e_28_1 }; }
         finally {
             try {
                 if (allCards_1_1 && !allCards_1_1.done && (_a = allCards_1.return)) _a.call(allCards_1);
             }
-            finally { if (e_26) throw e_26.error; }
+            finally { if (e_28) throw e_28.error; }
         }
         var _loop_7 = function (event_1) {
             if (!collectedEvents.some(function (ce) { return ce.name === event_1.name; })) {
@@ -2324,12 +2400,12 @@ function setupAddButtons() {
                 _loop_7(event_1);
             }
         }
-        catch (e_27_1) { e_27 = { error: e_27_1 }; }
+        catch (e_29_1) { e_29 = { error: e_29_1 }; }
         finally {
             try {
                 if (allEvents_1_1 && !allEvents_1_1.done && (_b = allEvents_1.return)) _b.call(allEvents_1);
             }
-            finally { if (e_27) throw e_27.error; }
+            finally { if (e_29) throw e_29.error; }
         }
         $(this).text('Added All');
         $(this).attr('disabled', 'true');
@@ -2365,7 +2441,7 @@ function updateProgressSidebar() {
     });
 }
 function showDeckDialog() {
-    var e_28, _a, e_29, _b;
+    var e_30, _a, e_31, _b;
     $('#deckContents').empty();
     if (collectedCards.length === 0 && collectedEvents.length === 0) {
         $('#deckContents').append('<div>No cards collected yet.</div>');
@@ -2377,12 +2453,12 @@ function showDeckDialog() {
                 $('#deckContents').append(renderSpecNoRelated(card));
             }
         }
-        catch (e_28_1) { e_28 = { error: e_28_1 }; }
+        catch (e_30_1) { e_30 = { error: e_30_1 }; }
         finally {
             try {
                 if (collectedCards_1_1 && !collectedCards_1_1.done && (_a = collectedCards_1.return)) _a.call(collectedCards_1);
             }
-            finally { if (e_28) throw e_28.error; }
+            finally { if (e_30) throw e_30.error; }
         }
         try {
             for (var collectedEvents_1 = __values(collectedEvents), collectedEvents_1_1 = collectedEvents_1.next(); !collectedEvents_1_1.done; collectedEvents_1_1 = collectedEvents_1.next()) {
@@ -2390,12 +2466,12 @@ function showDeckDialog() {
                 $('#deckContents').append(renderSpecNoRelated(event_2));
             }
         }
-        catch (e_29_1) { e_29 = { error: e_29_1 }; }
+        catch (e_31_1) { e_31 = { error: e_31_1 }; }
         finally {
             try {
                 if (collectedEvents_1_1 && !collectedEvents_1_1.done && (_b = collectedEvents_1.return)) _b.call(collectedEvents_1);
             }
-            finally { if (e_29) throw e_29.error; }
+            finally { if (e_31) throw e_31.error; }
         }
     }
     $('#deckClose').off('click').on('click', hideDeckDialog);
@@ -2439,6 +2515,7 @@ export function showLandingPage() {
     collectedCards = [];
     collectedEvents = [];
     currentPotions = [];
+    currentRelics = [];
     stageScores = Array(TOTAL_STAGES).fill(null);
     stagePars = Array(TOTAL_STAGES).fill(null);
     currentBuffer = 16;
@@ -2476,8 +2553,26 @@ function showStageScreen() {
     $('#gameOverScreen').hide();
 }
 function startCurrentKingdom() {
+    var e_32, _a, e_33, _b, e_34, _c;
     if (!currentKingdom)
         return;
+    try {
+        // Apply start-of-course relic effects
+        for (var currentRelics_3 = __values(currentRelics), currentRelics_3_1 = currentRelics_3.next(); !currentRelics_3_1.done; currentRelics_3_1 = currentRelics_3.next()) {
+            var relic = currentRelics_3_1.value;
+            if (relic.spec.name === 'Cursed Quill') {
+                currentBuffer += 3;
+            }
+        }
+    }
+    catch (e_32_1) { e_32 = { error: e_32_1 }; }
+    finally {
+        try {
+            if (currentRelics_3_1 && !currentRelics_3_1.done && (_a = currentRelics_3.return)) _a.call(currentRelics_3);
+        }
+        finally { if (e_32) throw e_32.error; }
+    }
+    updateBufferDisplay();
     // Hide other screens, show game
     $('#stageScreen').hide();
     $('#pathSelectionScreen').hide();
@@ -2490,9 +2585,58 @@ function startCurrentKingdom() {
     // Boon cards/events come first (after VP mode), then player's collected cards
     var boonCardsList = (currentBoon === null || currentBoon === void 0 ? void 0 : currentBoon.cards) || [];
     var boonEventsList = (currentBoon === null || currentBoon === void 0 ? void 0 : currentBoon.events) || [];
-    var sortedCards = __spreadArray(__spreadArray([], __read(boonCardsList), false), __read(__spreadArray([], __read(collectedCards), false).sort(supplyComp)), false);
-    var sortedEvents = __spreadArray(__spreadArray([], __read(boonEventsList), false), __read(__spreadArray([], __read(collectedEvents), false).sort(eventComp)), false);
-    var state = initialState(currentKingdom, sortedCards, sortedEvents, currentPotions);
+    // Looking Glass effect: add 2 random cards and 1 random event
+    var lookingGlassCards = [];
+    var lookingGlassEvents = [];
+    try {
+        for (var currentRelics_4 = __values(currentRelics), currentRelics_4_1 = currentRelics_4.next(); !currentRelics_4_1.done; currentRelics_4_1 = currentRelics_4.next()) {
+            var relic = currentRelics_4_1.value;
+            if (relic.spec.name === 'Looking Glass') {
+                // Get random cards not already collected
+                var cardPool = getAvailableCards().filter(function (c) {
+                    return !vpCardNames.has(c.name) &&
+                        c.name !== 'Copper' && c.name !== 'Silver' && c.name !== 'Gold' &&
+                        !collectedCards.some(function (cc) { return cc.name === c.name; }) &&
+                        !boonCardsList.some(function (bc) { return bc.name === c.name; });
+                });
+                var eventPool = getAvailableEvents().filter(function (e) {
+                    return !vpEventNames.has(e.name) && e.name !== 'Refresh' &&
+                        !collectedEvents.some(function (ce) { return ce.name === e.name; }) &&
+                        !boonEventsList.some(function (be) { return be.name === e.name; });
+                });
+                var shuffledCards = shuffleArray(__spreadArray([], __read(cardPool), false));
+                var shuffledEvents = shuffleArray(__spreadArray([], __read(eventPool), false));
+                lookingGlassCards = shuffledCards.slice(0, 2);
+                lookingGlassEvents = shuffledEvents.slice(0, 1);
+            }
+        }
+    }
+    catch (e_33_1) { e_33 = { error: e_33_1 }; }
+    finally {
+        try {
+            if (currentRelics_4_1 && !currentRelics_4_1.done && (_b = currentRelics_4.return)) _b.call(currentRelics_4);
+        }
+        finally { if (e_33) throw e_33.error; }
+    }
+    var sortedCards = __spreadArray(__spreadArray(__spreadArray([], __read(boonCardsList), false), __read(lookingGlassCards), false), __read(__spreadArray([], __read(collectedCards), false).sort(supplyComp)), false);
+    var sortedEvents = __spreadArray(__spreadArray(__spreadArray([], __read(boonEventsList), false), __read(lookingGlassEvents), false), __read(__spreadArray([], __read(collectedEvents), false).sort(eventComp)), false);
+    try {
+        // Set up Empty Bottle's boughtCards from cards added this stage
+        for (var currentRelics_5 = __values(currentRelics), currentRelics_5_1 = currentRelics_5.next(); !currentRelics_5_1.done; currentRelics_5_1 = currentRelics_5.next()) {
+            var relic = currentRelics_5_1.value;
+            if (relic.spec.name === 'Empty Bottle') {
+                relic.boughtCards = __spreadArray([], __read(emptyBottleBoughtCards), false);
+            }
+        }
+    }
+    catch (e_34_1) { e_34 = { error: e_34_1 }; }
+    finally {
+        try {
+            if (currentRelics_5_1 && !currentRelics_5_1.done && (_c = currentRelics_5.return)) _c.call(currentRelics_5);
+        }
+        finally { if (e_34) throw e_34.error; }
+    }
+    var state = initialState(currentKingdom, sortedCards, sortedEvents, currentPotions, currentRelics);
     startGame(state);
 }
 function goBackToStage() {
@@ -2530,7 +2674,8 @@ function showGameOver() {
     });
 }
 // Called when player wins a kingdom
-function onKingdomVictory(score, remainingPotions) {
+function onKingdomVictory(score, remainingPotions, relicStates) {
+    var e_35, _a;
     // Save the score and par for this stage
     var par = getCurrentPar();
     stageScores[currentStage - 1] = score;
@@ -2539,14 +2684,35 @@ function onKingdomVictory(score, remainingPotions) {
     if (score > par) {
         currentBuffer -= (score - par);
     }
+    try {
+        // Apply Ancient Quill effect: for each 3@ you beat par, gain 1@ buffer
+        for (var relicStates_1 = __values(relicStates), relicStates_1_1 = relicStates_1.next(); !relicStates_1_1.done; relicStates_1_1 = relicStates_1.next()) {
+            var relic = relicStates_1_1.value;
+            if (relic.spec.name === 'Ancient Quill' && score < par) {
+                var energyUnderPar = par - score;
+                var bufferGain = Math.floor(energyUnderPar / 3);
+                currentBuffer += bufferGain;
+            }
+        }
+    }
+    catch (e_35_1) { e_35 = { error: e_35_1 }; }
+    finally {
+        try {
+            if (relicStates_1_1 && !relicStates_1_1.done && (_a = relicStates_1.return)) _a.call(relicStates_1);
+        }
+        finally { if (e_35) throw e_35.error; }
+    }
     updateBufferDisplay();
     // Check for game over
     if (currentBuffer < 0) {
         showGameOver();
         return;
     }
-    // Carry forward remaining potions to next stage
+    // Reset Empty Bottle tracking for next stage
+    emptyBottleBoughtCards = [];
+    // Carry forward remaining potions and relics to next stage
     currentPotions = remainingPotions;
+    currentRelics = relicStates;
     advanceToNextStage();
 }
 //# sourceMappingURL=main.js.map
