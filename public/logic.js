@@ -2893,7 +2893,7 @@ export function getVPModeForSpec(spec) {
         default: return null;
     }
 }
-function goalForSpec(spec) {
+export function goalForSpec(spec) {
     switch (spec.kind) {
         case 'goal': return spec.vp;
         case 'full':
@@ -2931,15 +2931,9 @@ export function initialState(spec, extraCards, extraEvents, potions, relics) {
     if (potions === void 0) { potions = []; }
     if (relics === void 0) { relics = []; }
     var startingHand = [copper, copper, copper];
-    // Check for Broken Lever relic (VP targets 25% lower)
-    var hasBrokenLever = relics.some(function (r) { return r.spec.name === 'Broken Lever'; });
-    var effectiveSpec = spec;
-    if (hasBrokenLever) {
-        var baseGoal = goalForSpec(spec);
-        var reducedGoal = Math.floor(baseGoal * 0.75);
-        effectiveSpec = { kind: 'goal', vp: reducedGoal, spec: spec };
-    }
-    var kingdom = makeKingdom(effectiveSpec);
+    // VP goal modification is now handled by meta replacers in main.ts
+    // which wraps the spec with a goal spec before calling initialState
+    var kingdom = makeKingdom(spec);
     var variableSupplies = kingdom.cards.slice();
     var variableEvents = kingdom.events.slice();
     variableSupplies.sort(supplyComp);
@@ -2958,7 +2952,7 @@ export function initialState(spec, extraCards, extraEvents, potions, relics) {
     var supply = sets.core.cards.concat(vpCards).concat(extraCards).concat(variableSupplies);
     // Order: core events (refresh), VP mode events, extra events, then variable events
     var events = sets.core.events.concat(vpEvents).concat(extraEvents).concat(variableEvents);
-    var state = new State(effectiveSpec);
+    var state = new State(spec);
     state = createRawMulti(state, supply, 'supply');
     state = createRawMulti(state, events, 'events');
     state = createRawMulti(state, startingHand, 'discard');

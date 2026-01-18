@@ -4,7 +4,8 @@
 // TODO: starting to see performance hiccups in big games
 // TODO: probably don't want the public move method to allow moves into or out of resolving.
 
-import { Cost, Shadow, State, Card, CardSpec, PlaceName, Rule } from './logic.js'
+import { Cost, Shadow, State, Card, CardSpec, PlaceName, Rule, MetaReplacer, MetaTrigger } from './logic.js'
+import { GameSetupParams, RewardParams, GameEndEvent, CourseStartEvent, AcquisitionEvent, MetaTriggerResult } from './logic.js'
 import { GameSpec, SlotSpec } from './logic.js'
 import { Trigger, Replacer, Ability, VariableCost, Token } from './logic.js'
 import { ID } from './logic.js'
@@ -13,7 +14,7 @@ import { emptyState } from './logic.js'
 import { LogType, logTypes } from './logic.js'
 import { Option, OptionRender, HotkeyHint, sets, ExpansionName } from './logic.js'
 import { UI, SetState, Undo, Victory, InvalidHistory, ReplayEnded } from './logic.js'
-import { playGame, initialState, verifyScore, RelicState, getRelicStates } from './logic.js'
+import { playGame, initialState, verifyScore, RelicState, getRelicStates, goalForSpec } from './logic.js'
 import { Replay, coerceReplayVersion, parseReplay, MalformedReplay } from './logic.js'
 import { allCards, allEvents, randomPlaceholder } from './logic.js'
 import { VERSION, DEFAULT_VP_GOAL } from './logic.js'
@@ -1919,6 +1920,371 @@ const ALL_BOONS: Boon[] = [
     },
 ]
 
+// ----------------------------------- Meta-game State
+
+// Deck building state interface (moved here for MetaState)
+interface AddButtonState {
+    kind: 'card' | 'event' | 'potion' | 'relic' | 'encounter'
+    options: CardSpec[]
+    encounter?: Encounter  // Only used when kind === 'encounter'
+    used: boolean
+    selectedCard: CardSpec | null
+}
+
+// Path selection state interfaces
+interface PathReward {
+    kind: 'card' | 'event' | 'potion' | 'relic' | 'encounter'
+    options: CardSpec[]  // 3 options to choose from (not used for encounter)
+    encounter?: Encounter  // Only used when kind === 'encounter'
+}
+
+interface PathOption {
+    rewards: PathReward[]
+    vpModeName: string
+    boon: Boon | null
+    kingdom: GameSpec
+}
+
+// MetaState - immutable state for the meta-game with history tracking
+interface MetaStateData {
+    stage: number
+    kingdom: GameSpec | null
+    vpModeName: string
+    boon: Boon | null
+    stageScores: (number | null)[]
+    stagePars: (number | null)[]
+    buffer: number
+    addButtonStates: AddButtonState[]
+    collectedCards: CardSpec[]
+    collectedEvents: CardSpec[]
+    potions: CardSpec[]
+    relics: RelicState[]
+    emptyBottleBoughtCards: CardSpec[]
+    leftPath: PathOption | null
+    rightPath: PathOption | null
+}
+
+class MetaState implements MetaStateData {
+    readonly stage: number
+    readonly kingdom: GameSpec | null
+    readonly vpModeName: string
+    readonly boon: Boon | null
+    readonly stageScores: (number | null)[]
+    readonly stagePars: (number | null)[]
+    readonly buffer: number
+    readonly addButtonStates: AddButtonState[]
+    readonly collectedCards: CardSpec[]
+    readonly collectedEvents: CardSpec[]
+    readonly potions: CardSpec[]
+    readonly relics: RelicState[]
+    readonly emptyBottleBoughtCards: CardSpec[]
+    readonly leftPath: PathOption | null
+    readonly rightPath: PathOption | null
+
+    // History tracking
+    readonly checkpoint: MetaState | null
+    readonly redoStack: MetaState[]
+
+    constructor(
+        data: Partial<MetaStateData> = {},
+        checkpoint: MetaState | null = null,
+        redoStack: MetaState[] = []
+    ) {
+        this.stage = data.stage ?? 1
+        this.kingdom = data.kingdom ?? null
+        this.vpModeName = data.vpModeName ?? ''
+        this.boon = data.boon ?? null
+        this.stageScores = data.stageScores ?? Array(TOTAL_STAGES).fill(null)
+        this.stagePars = data.stagePars ?? Array(TOTAL_STAGES).fill(null)
+        this.buffer = data.buffer ?? 16
+        this.addButtonStates = data.addButtonStates ?? []
+        this.collectedCards = data.collectedCards ?? []
+        this.collectedEvents = data.collectedEvents ?? []
+        this.potions = data.potions ?? []
+        this.relics = data.relics ?? []
+        this.emptyBottleBoughtCards = data.emptyBottleBoughtCards ?? []
+        this.leftPath = data.leftPath ?? null
+        this.rightPath = data.rightPath ?? null
+        this.checkpoint = checkpoint
+        this.redoStack = redoStack
+    }
+
+    // Create a new state with updates, recording this state as checkpoint
+    update(updates: Partial<MetaStateData>): MetaState {
+        return new MetaState(
+            {
+                stage: updates.stage ?? this.stage,
+                kingdom: updates.kingdom ?? this.kingdom,
+                vpModeName: updates.vpModeName ?? this.vpModeName,
+                boon: updates.boon ?? this.boon,
+                stageScores: updates.stageScores ?? this.stageScores,
+                stagePars: updates.stagePars ?? this.stagePars,
+                buffer: updates.buffer ?? this.buffer,
+                addButtonStates: updates.addButtonStates ?? this.addButtonStates,
+                collectedCards: updates.collectedCards ?? this.collectedCards,
+                collectedEvents: updates.collectedEvents ?? this.collectedEvents,
+                potions: updates.potions ?? this.potions,
+                relics: updates.relics ?? this.relics,
+                emptyBottleBoughtCards: updates.emptyBottleBoughtCards ?? this.emptyBottleBoughtCards,
+                leftPath: updates.leftPath ?? this.leftPath,
+                rightPath: updates.rightPath ?? this.rightPath,
+            },
+            this,  // This state becomes the checkpoint
+            []     // Clear redo stack on new action
+        )
+    }
+
+    // Update without creating a checkpoint (for internal updates that shouldn't be undone separately)
+    updateSilent(updates: Partial<MetaStateData>): MetaState {
+        return new MetaState(
+            {
+                stage: updates.stage ?? this.stage,
+                kingdom: updates.kingdom ?? this.kingdom,
+                vpModeName: updates.vpModeName ?? this.vpModeName,
+                boon: updates.boon ?? this.boon,
+                stageScores: updates.stageScores ?? this.stageScores,
+                stagePars: updates.stagePars ?? this.stagePars,
+                buffer: updates.buffer ?? this.buffer,
+                addButtonStates: updates.addButtonStates ?? this.addButtonStates,
+                collectedCards: updates.collectedCards ?? this.collectedCards,
+                collectedEvents: updates.collectedEvents ?? this.collectedEvents,
+                potions: updates.potions ?? this.potions,
+                relics: updates.relics ?? this.relics,
+                emptyBottleBoughtCards: updates.emptyBottleBoughtCards ?? this.emptyBottleBoughtCards,
+                leftPath: updates.leftPath ?? this.leftPath,
+                rightPath: updates.rightPath ?? this.rightPath,
+            },
+            this.checkpoint,
+            this.redoStack
+        )
+    }
+
+    // Undo to previous checkpoint
+    undo(): MetaState | null {
+        if (this.checkpoint === null) return null
+        // Add current state to redo stack of the checkpoint
+        return new MetaState(
+            {
+                stage: this.checkpoint.stage,
+                kingdom: this.checkpoint.kingdom,
+                vpModeName: this.checkpoint.vpModeName,
+                boon: this.checkpoint.boon,
+                stageScores: this.checkpoint.stageScores,
+                stagePars: this.checkpoint.stagePars,
+                buffer: this.checkpoint.buffer,
+                addButtonStates: this.checkpoint.addButtonStates,
+                collectedCards: this.checkpoint.collectedCards,
+                collectedEvents: this.checkpoint.collectedEvents,
+                potions: this.checkpoint.potions,
+                relics: this.checkpoint.relics,
+                emptyBottleBoughtCards: this.checkpoint.emptyBottleBoughtCards,
+                leftPath: this.checkpoint.leftPath,
+                rightPath: this.checkpoint.rightPath,
+            },
+            this.checkpoint.checkpoint,
+            [this, ...this.checkpoint.redoStack]
+        )
+    }
+
+    // Redo a previously undone action
+    redo(): MetaState | null {
+        if (this.redoStack.length === 0) return null
+        const [nextState, ...remainingRedo] = this.redoStack
+        return new MetaState(
+            {
+                stage: nextState.stage,
+                kingdom: nextState.kingdom,
+                vpModeName: nextState.vpModeName,
+                boon: nextState.boon,
+                stageScores: nextState.stageScores,
+                stagePars: nextState.stagePars,
+                buffer: nextState.buffer,
+                addButtonStates: nextState.addButtonStates,
+                collectedCards: nextState.collectedCards,
+                collectedEvents: nextState.collectedEvents,
+                potions: nextState.potions,
+                relics: nextState.relics,
+                emptyBottleBoughtCards: nextState.emptyBottleBoughtCards,
+                leftPath: nextState.leftPath,
+                rightPath: nextState.rightPath,
+            },
+            this,
+            remainingRedo
+        )
+    }
+
+    canUndo(): boolean {
+        return this.checkpoint !== null
+    }
+
+    canRedo(): boolean {
+        return this.redoStack.length > 0
+    }
+}
+
+// MetaTransform - a function that transforms meta-game state
+type MetaTransform = (state: MetaState) => MetaState
+
+// Global meta-game state
+let metaState: MetaState = new MetaState()
+
+// Helper to update meta state and refresh UI
+function setMetaState(newState: MetaState): void {
+    metaState = newState
+    syncMetaStateToLegacyVars()
+    refreshMetaUI()
+}
+
+// Sync MetaState to legacy global variables (temporary during refactoring)
+function syncMetaStateToLegacyVars(): void {
+    currentStage = metaState.stage
+    currentKingdom = metaState.kingdom
+    currentVPModeName = metaState.vpModeName
+    currentBoon = metaState.boon
+    stageScores = [...metaState.stageScores]
+    stagePars = [...metaState.stagePars]
+    currentBuffer = metaState.buffer
+    stageAddButtonStates = metaState.addButtonStates
+    collectedCards = metaState.collectedCards
+    collectedEvents = metaState.collectedEvents
+    currentPotions = metaState.potions
+    currentRelics = metaState.relics
+    emptyBottleBoughtCards = metaState.emptyBottleBoughtCards
+    leftPath = metaState.leftPath
+    rightPath = metaState.rightPath
+}
+
+// Sync legacy global variables to MetaState (for when old code modifies globals)
+function syncLegacyVarsToMetaState(): void {
+    metaState = new MetaState({
+        stage: currentStage,
+        kingdom: currentKingdom,
+        vpModeName: currentVPModeName,
+        boon: currentBoon,
+        stageScores: [...stageScores],
+        stagePars: [...stagePars],
+        buffer: currentBuffer,
+        addButtonStates: stageAddButtonStates,
+        collectedCards: collectedCards,
+        collectedEvents: collectedEvents,
+        potions: currentPotions,
+        relics: currentRelics,
+        emptyBottleBoughtCards: emptyBottleBoughtCards,
+        leftPath: leftPath,
+        rightPath: rightPath,
+    }, metaState.checkpoint, metaState.redoStack)
+}
+
+// Refresh meta-game UI after state changes
+function refreshMetaUI(): void {
+    updateBufferDisplay()
+    updateProgressSidebar()
+    setupAddButtons()
+    updateMetaUndoButtons()
+}
+
+// Undo meta-game action
+function metaUndo(): void {
+    const undone = metaState.undo()
+    if (undone) {
+        setMetaState(undone)
+    }
+}
+
+// Redo meta-game action
+function metaRedo(): void {
+    const redone = metaState.redo()
+    if (redone) {
+        setMetaState(redone)
+    }
+}
+
+// Update meta undo/redo button states
+function updateMetaUndoButtons(): void {
+    const canUndo = metaState.canUndo()
+    const canRedo = metaState.canRedo()
+
+    // Stage screen buttons
+    if (canUndo) {
+        $('#metaUndo').removeAttr('disabled')
+    } else {
+        $('#metaUndo').attr('disabled', 'disabled')
+    }
+    if (canRedo) {
+        $('#metaRedo').removeAttr('disabled')
+    } else {
+        $('#metaRedo').attr('disabled', 'disabled')
+    }
+
+    // Path screen buttons
+    if (canUndo) {
+        $('#metaUndoPath').removeAttr('disabled')
+    } else {
+        $('#metaUndoPath').attr('disabled', 'disabled')
+    }
+    if (canRedo) {
+        $('#metaRedoPath').removeAttr('disabled')
+    } else {
+        $('#metaRedoPath').attr('disabled', 'disabled')
+    }
+}
+
+// Apply meta replacers from all relics for a given kind
+type MetaReplacerParamMap = {
+    'gameSetup': GameSetupParams
+    'reward': RewardParams
+}
+
+function applyMetaReplacers<K extends keyof MetaReplacerParamMap>(
+    kind: K,
+    params: MetaReplacerParamMap[K],
+    relics: RelicState[] = currentRelics
+): MetaReplacerParamMap[K] {
+    for (const relic of relics) {
+        if (relic.spec.metaReplacers) {
+            for (const replacer of relic.spec.metaReplacers) {
+                if (replacer.kind === kind) {
+                    // Type assertion needed due to TypeScript limitations with discriminated unions
+                    params = (replacer.replace as unknown as (p: MetaReplacerParamMap[K]) => MetaReplacerParamMap[K])(params)
+                }
+            }
+        }
+    }
+    return params
+}
+
+// Apply meta triggers from all relics for a given kind
+type MetaTriggerEventMap = {
+    'gameEnd': GameEndEvent
+    'courseStart': CourseStartEvent
+    'acquisition': AcquisitionEvent
+}
+
+function applyMetaTriggers<K extends keyof MetaTriggerEventMap>(
+    kind: K,
+    event: MetaTriggerEventMap[K],
+    relics: RelicState[] = currentRelics
+): MetaTriggerResult {
+    let result: MetaTriggerResult = {}
+    for (const relic of relics) {
+        if (relic.spec.metaTriggers) {
+            for (const trigger of relic.spec.metaTriggers) {
+                if (trigger.kind === kind) {
+                    const handles = (trigger.handles as (e: MetaTriggerEventMap[K]) => boolean)(event)
+                    if (handles) {
+                        const triggerResult = (trigger.effect as (e: MetaTriggerEventMap[K]) => MetaTriggerResult)(event)
+                        // Accumulate buffer changes
+                        if (triggerResult.bufferChange) {
+                            result.bufferChange = (result.bufferChange || 0) + triggerResult.bufferChange
+                        }
+                    }
+                }
+            }
+        }
+    }
+    return result
+}
+
 function getCurrentPar(): number {
     let par = BASE_PARS[currentStage - 1] || 0
 
@@ -1927,16 +2293,14 @@ function getCurrentPar(): number {
         par -= currentBoon.parReduction
     }
 
-    // Apply relic effects
-    for (const relic of currentRelics) {
-        if (relic.spec.name === 'Inkwell') {
-            par += 1 // Par is 1@ higher
-        } else if (relic.spec.name === 'Cursed Quill') {
-            par -= 6 // Par is 6@ lower
-        } else if (relic.spec.name === 'Cursed Inkwell') {
-            par -= 1 // Par is 1@ lower
-        }
-    }
+    // Apply relic meta replacers for game setup (which includes par)
+    const gameSetupParams = applyMetaReplacers('gameSetup', {
+        par: par,
+        vpGoal: 0,  // Not used here
+        cardSpecs: [],
+        eventSpecs: []
+    })
+    par = gameSetupParams.par
 
     return Math.max(0, par)
 }
@@ -1958,15 +2322,7 @@ interface Encounter {
     multiUse?: boolean  // If true, selecting an option doesn't mark encounter as done
 }
 
-// Deck building state
-interface AddButtonState {
-    kind: 'card' | 'event' | 'potion' | 'relic' | 'encounter'
-    options: CardSpec[]
-    encounter?: Encounter  // Only used when kind === 'encounter'
-    used: boolean
-    selectedCard: CardSpec | null
-}
-
+// Deck building state variables (interfaces defined in MetaState section)
 let stageAddButtonStates: AddButtonState[] = []
 let collectedCards: CardSpec[] = []
 let collectedEvents: CardSpec[] = []
@@ -1975,20 +2331,7 @@ let currentRelics: RelicState[] = []
 let emptyBottleBoughtCards: CardSpec[] = []  // Track cards bought for Empty Bottle
 let deckDialogOpen: boolean = false
 
-// Path selection state
-interface PathReward {
-    kind: 'card' | 'event' | 'potion' | 'relic' | 'encounter'
-    options: CardSpec[]  // 3 options to choose from (not used for encounter)
-    encounter?: Encounter  // Only used when kind === 'encounter'
-}
-
-interface PathOption {
-    rewards: PathReward[]
-    vpModeName: string
-    boon: Boon | null
-    kingdom: GameSpec
-}
-
+// Path selection state variables (interfaces defined in MetaState section)
 let leftPath: PathOption | null = null
 let rightPath: PathOption | null = null
 
@@ -2023,13 +2366,8 @@ function hashString(s: string): number {
 }
 
 function getRewardOptionCount(): number {
-    let count = 3 // Base count
-    for (const relic of currentRelics) {
-        if (relic.spec.name === 'Question Card') {
-            count += 1
-        }
-    }
-    return count
+    const params = applyMetaReplacers('reward', { optionCount: 3 })
+    return params.optionCount
 }
 
 // For Empty Bottle relic: register a card added to deck
@@ -2065,7 +2403,21 @@ let encounterCardPickerCallback: ((card: CardSpec) => void) | null = null
 let encounterCardPickerOptions: CardSpec[] = []
 
 function showEncounterCardPicker(title: string, options: CardSpec[], callback: (card: CardSpec) => void): void {
-    encounterCardPickerCallback = callback
+    // Wrap callback to create MetaState checkpoint after it runs
+    const wrappedCallback = (card: CardSpec) => {
+        callback(card)
+        // Create checkpoint in MetaState for undo
+        setMetaState(metaState.update({
+            addButtonStates: [...stageAddButtonStates],
+            collectedCards: [...collectedCards],
+            collectedEvents: [...collectedEvents],
+            potions: [...currentPotions],
+            relics: [...currentRelics],
+            emptyBottleBoughtCards: [...emptyBottleBoughtCards],
+            buffer: currentBuffer,
+        }))
+    }
+    encounterCardPickerCallback = wrappedCallback
     encounterCardPickerOptions = options
     $('#cardPickerTitle').text(title)
     $('#cardPickerOptions').empty()
@@ -2455,6 +2807,14 @@ function generateStageOptions(): void {
         }
     }
     currentVPModeName = vpModes[modeIndex].name
+
+    // Sync to MetaState (without creating checkpoint - stage options shouldn't be undone)
+    metaState = metaState.updateSilent({
+        kingdom: currentKingdom,
+        vpModeName: currentVPModeName,
+        boon: currentBoon,
+        addButtonStates: [...stageAddButtonStates],
+    })
 }
 
 function generatePathOptions(): void {
@@ -2521,6 +2881,12 @@ function generatePathOptions(): void {
             randomizer: { seed: rightSeed, expansions: ['base'] }
         }
     }
+
+    // Sync to MetaState (without creating checkpoint - path options shouldn't be undone)
+    metaState = metaState.updateSilent({
+        leftPath: leftPath,
+        rightPath: rightPath,
+    })
 }
 
 function showPathSelectionScreen(): void {
@@ -2567,6 +2933,11 @@ function showPathSelectionScreen(): void {
     $('#goLeft').off('click').on('click', () => selectPath('left'))
     $('#goRight').off('click').on('click', () => selectPath('right'))
 
+    // Set up meta undo/redo buttons for path screen
+    updateMetaUndoButtons()
+    $('#metaUndoPath').off('click').on('click', metaUndo)
+    $('#metaRedoPath').off('click').on('click', metaRedo)
+
     // Show path selection screen
     $('#stageScreen').hide()
     $('#pathSelectionScreen').show()
@@ -2612,8 +2983,19 @@ function selectPath(direction: 'left' | 'right'): void {
     stageAddButtonStates = selectedPath.rewards.map(reward => ({
         kind: reward.kind,
         options: reward.options,
+        encounter: reward.encounter,
         used: false,
         selectedCard: null
+    }))
+
+    // Create checkpoint in MetaState for undo (selecting a path is an undoable action)
+    setMetaState(metaState.update({
+        kingdom: currentKingdom,
+        vpModeName: currentVPModeName,
+        boon: currentBoon,
+        addButtonStates: [...stageAddButtonStates],
+        leftPath: leftPath,
+        rightPath: rightPath,
     }))
 
     // Hide path selection, show stage screen
@@ -2669,6 +3051,18 @@ function showEncounterPicker(buttonIndex: number): void {
             }
             hideEncounterPicker()
             option.effect()
+
+            // Create checkpoint in MetaState for undo after encounter effect
+            setMetaState(metaState.update({
+                addButtonStates: [...stageAddButtonStates],
+                collectedCards: [...collectedCards],
+                collectedEvents: [...collectedEvents],
+                potions: [...currentPotions],
+                relics: [...currentRelics],
+                emptyBottleBoughtCards: [...emptyBottleBoughtCards],
+                buffer: currentBuffer,
+            }))
+
             setupAddButtons()
         }
 
@@ -2750,14 +3144,27 @@ function selectCard(buttonIndex: number, card: CardSpec): void {
         }
     }
 
+    // Create checkpoint in MetaState for undo
+    setMetaState(metaState.update({
+        addButtonStates: [...stageAddButtonStates],
+        collectedCards: [...collectedCards],
+        collectedEvents: [...collectedEvents],
+        potions: [...currentPotions],
+        relics: [...currentRelics],
+        emptyBottleBoughtCards: [...emptyBottleBoughtCards],
+        buffer: currentBuffer,
+    }))
+
     updateAddButtonDisplay(buttonIndex)
     hideCardPicker()
 }
 
 function handleRelicAcquisition(relic: CardSpec): void {
-    // Handle one-time effects when a relic is acquired
-    if (relic.name === 'Elegant Quill') {
-        currentBuffer += 3
+    // Apply acquisition meta triggers from the newly acquired relic
+    const tempRelicState: RelicState = { spec: relic, tokens: new Map() }
+    const result = applyMetaTriggers('acquisition', { relic: relic }, [tempRelicState])
+    if (result.bufferChange) {
+        currentBuffer += result.bufferChange
         updateBufferDisplay()
     }
 }
@@ -2957,6 +3364,27 @@ export function showLandingPage(): void {
     stagePars = Array(TOTAL_STAGES).fill(null)
     currentBuffer = 16
     currentBoon = null
+    emptyBottleBoughtCards = []
+
+    // Initialize MetaState with fresh state (no history)
+    metaState = new MetaState({
+        stage: currentStage,
+        kingdom: null,
+        vpModeName: '',
+        boon: null,
+        stageScores: [...stageScores],
+        stagePars: [...stagePars],
+        buffer: currentBuffer,
+        addButtonStates: [],
+        collectedCards: [],
+        collectedEvents: [],
+        potions: [],
+        relics: [],
+        emptyBottleBoughtCards: [],
+        leftPath: null,
+        rightPath: null,
+    })
+
     generateStageOptions()
     setupDeckIcon()
     updateBufferDisplay()
@@ -2986,6 +3414,11 @@ function showStageScreen(): void {
     $('#playKingdom').html(playButtonText)
     $('#playKingdom').off('click').on('click', startCurrentKingdom)
 
+    // Set up meta undo/redo buttons
+    updateMetaUndoButtons()
+    $('#metaUndo').off('click').on('click', metaUndo)
+    $('#metaRedo').off('click').on('click', metaRedo)
+
     // Set up back button
     $('#backButton').off('click').on('click', goBackToStage)
 
@@ -3000,11 +3433,10 @@ function showStageScreen(): void {
 function startCurrentKingdom(): void {
     if (!currentKingdom) return
 
-    // Apply start-of-course relic effects
-    for (const relic of currentRelics) {
-        if (relic.spec.name === 'Cursed Quill') {
-            currentBuffer += 3
-        }
+    // Apply start-of-course relic effects via meta triggers
+    const courseStartResult = applyMetaTriggers('courseStart', { stage: currentStage })
+    if (courseStartResult.bufferChange) {
+        currentBuffer += courseStartResult.bufferChange
     }
     updateBufferDisplay()
 
@@ -3023,32 +3455,32 @@ function startCurrentKingdom(): void {
     const boonCardsList = currentBoon?.cards || []
     const boonEventsList = currentBoon?.events || []
 
-    // Looking Glass effect: add 2 random cards and 1 random event
-    let lookingGlassCards: CardSpec[] = []
-    let lookingGlassEvents: CardSpec[] = []
-    for (const relic of currentRelics) {
-        if (relic.spec.name === 'Looking Glass') {
-            // Get random cards not already collected
-            const cardPool = getAvailableCards().filter(c =>
-                !vpCardNames.has(c.name) &&
-                c.name !== 'Copper' && c.name !== 'Silver' && c.name !== 'Gold' &&
-                !collectedCards.some(cc => cc.name === c.name) &&
-                !boonCardsList.some(bc => bc.name === c.name)
-            )
-            const eventPool = getAvailableEvents().filter(e =>
-                !vpEventNames.has(e.name) && e.name !== 'Refresh' &&
-                !collectedEvents.some(ce => ce.name === e.name) &&
-                !boonEventsList.some(be => be.name === e.name)
-            )
-            const shuffledCards = shuffleArray([...cardPool])
-            const shuffledEvents = shuffleArray([...eventPool])
-            lookingGlassCards = shuffledCards.slice(0, 2)
-            lookingGlassEvents = shuffledEvents.slice(0, 1)
-        }
+    // Looking Glass effect: add random cards/events
+    // NOTE: This requires special handling because it needs access to available card pools
+    // for random selection. Cannot be fully parameterized via meta replacers.
+    let extraCards: CardSpec[] = []
+    let extraEvents: CardSpec[] = []
+    const hasLookingGlass = currentRelics.some(r => r.spec.name === 'Looking Glass')
+    if (hasLookingGlass) {
+        const cardPool = getAvailableCards().filter(c =>
+            !vpCardNames.has(c.name) &&
+            c.name !== 'Copper' && c.name !== 'Silver' && c.name !== 'Gold' &&
+            !collectedCards.some(cc => cc.name === c.name) &&
+            !boonCardsList.some(bc => bc.name === c.name)
+        )
+        const eventPool = getAvailableEvents().filter(e =>
+            !vpEventNames.has(e.name) && e.name !== 'Refresh' &&
+            !collectedEvents.some(ce => ce.name === e.name) &&
+            !boonEventsList.some(be => be.name === e.name)
+        )
+        const shuffledCards = shuffleArray([...cardPool])
+        const shuffledEvents = shuffleArray([...eventPool])
+        extraCards = shuffledCards.slice(0, 2)
+        extraEvents = shuffledEvents.slice(0, 1)
     }
 
-    const sortedCards = [...boonCardsList, ...lookingGlassCards, ...[...collectedCards].sort(supplyComp)]
-    const sortedEvents = [...boonEventsList, ...lookingGlassEvents, ...[...collectedEvents].sort(eventComp)]
+    const sortedCards = [...boonCardsList, ...extraCards, ...[...collectedCards].sort(supplyComp)]
+    const sortedEvents = [...boonEventsList, ...extraEvents, ...[...collectedEvents].sort(eventComp)]
 
     // Set up Empty Bottle's boughtCards from cards added this stage
     for (const relic of currentRelics) {
@@ -3057,7 +3489,22 @@ function startCurrentKingdom(): void {
         }
     }
 
-    const state = initialState(currentKingdom, sortedCards, sortedEvents, currentPotions, currentRelics)
+    // Apply gameSetup replacers to modify VP goal
+    const baseVpGoal = goalForSpec(currentKingdom)
+    const gameSetupParams = applyMetaReplacers('gameSetup', {
+        par: 0,  // Par handled separately in getCurrentPar
+        vpGoal: baseVpGoal,
+        cardSpecs: sortedCards,
+        eventSpecs: sortedEvents
+    })
+
+    // Wrap the spec with a goal spec if VP goal was modified
+    let effectiveSpec: GameSpec = currentKingdom
+    if (gameSetupParams.vpGoal !== baseVpGoal) {
+        effectiveSpec = { kind: 'goal', vp: gameSetupParams.vpGoal, spec: currentKingdom }
+    }
+
+    const state = initialState(effectiveSpec, sortedCards, sortedEvents, currentPotions, currentRelics)
     startGame(state)
 }
 
@@ -3112,13 +3559,10 @@ function onKingdomVictory(score: number, remainingPotions: CardSpec[], relicStat
         currentBuffer -= (score - par)
     }
 
-    // Apply Ancient Quill effect: for each 3@ you beat par, gain 1@ buffer
-    for (const relic of relicStates) {
-        if (relic.spec.name === 'Ancient Quill' && score < par) {
-            const energyUnderPar = par - score
-            const bufferGain = Math.floor(energyUnderPar / 3)
-            currentBuffer += bufferGain
-        }
+    // Apply game end relic effects via meta triggers
+    const gameEndResult = applyMetaTriggers('gameEnd', { score: score, par: par }, relicStates)
+    if (gameEndResult.bufferChange) {
+        currentBuffer += gameEndResult.bufferChange
     }
 
     updateBufferDisplay()
@@ -3135,5 +3579,17 @@ function onKingdomVictory(score: number, remainingPotions: CardSpec[], relicStat
     // Carry forward remaining potions and relics to next stage
     currentPotions = remainingPotions
     currentRelics = relicStates
+
+    // Create checkpoint in MetaState (completing a stage is a significant state change)
+    setMetaState(metaState.update({
+        stage: currentStage,
+        stageScores: [...stageScores],
+        stagePars: [...stagePars],
+        buffer: currentBuffer,
+        potions: [...currentPotions],
+        relics: [...currentRelics],
+        emptyBottleBoughtCards: [],
+    }))
+
     advanceToNextStage()
 }

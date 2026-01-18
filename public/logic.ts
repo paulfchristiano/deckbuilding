@@ -62,6 +62,51 @@ function repeatSymbol(s:string, n:number): string {
     return parts.join('')
 }
 
+// ----------------------------- Meta-game replacers and triggers for relics
+
+// Game setup params - can be modified by replacers
+export interface GameSetupParams {
+    par: number
+    vpGoal: number
+    cardSpecs: CardSpec[]
+    eventSpecs: CardSpec[]
+}
+
+// Reward generation params
+export interface RewardParams {
+    optionCount: number
+}
+
+// Meta replacer types
+export type MetaReplacer =
+    | { kind: 'gameSetup', replace: (params: GameSetupParams) => GameSetupParams }
+    | { kind: 'reward', replace: (params: RewardParams) => RewardParams }
+
+// Meta trigger event types
+export interface GameEndEvent {
+    score: number
+    par: number
+}
+
+export interface CourseStartEvent {
+    stage: number
+}
+
+export interface AcquisitionEvent {
+    relic: CardSpec
+}
+
+// Meta trigger result - specifies what happens
+export interface MetaTriggerResult {
+    bufferChange?: number
+}
+
+// Meta trigger types
+export type MetaTrigger =
+    | { kind: 'gameEnd', handles: (e: GameEndEvent) => boolean, effect: (e: GameEndEvent) => MetaTriggerResult }
+    | { kind: 'courseStart', handles: (e: CourseStartEvent) => boolean, effect: (e: CourseStartEvent) => MetaTriggerResult }
+    | { kind: 'acquisition', handles: (e: AcquisitionEvent) => boolean, effect: (e: AcquisitionEvent) => MetaTriggerResult }
+
 // ----------------------------- Cards
 
 export interface CardSpec {
@@ -81,6 +126,8 @@ export interface CardSpec {
     isPotion?: boolean; // If true, trash after playing
     isRelic?: boolean; // If true, this is a relic that persists across stages
     rules?: Rule[]; // Rules this card references (for tooltip display)
+    metaReplacers?: MetaReplacer[]; // Meta-game replacers for relics
+    metaTriggers?: MetaTrigger[]; // Meta-game triggers for relics
 }
 
 // Rules are global triggers/replacers that apply to all games
@@ -2387,7 +2434,7 @@ export function getVPModeForSpec(spec:GameSpec): VPMode | null {
     }
 }
 
-function goalForSpec(spec:GameSpec): number {
+export function goalForSpec(spec:GameSpec): number {
     switch (spec.kind) {
         case 'goal': return spec.vp
         case 'full':
@@ -2436,16 +2483,10 @@ export function initialState(
 ): State {
     const startingHand:CardSpec[] = [copper, copper, copper]
 
-    // Check for Broken Lever relic (VP targets 25% lower)
-    const hasBrokenLever = relics.some(r => r.spec.name === 'Broken Lever')
-    let effectiveSpec = spec
-    if (hasBrokenLever) {
-        const baseGoal = goalForSpec(spec)
-        const reducedGoal = Math.floor(baseGoal * 0.75)
-        effectiveSpec = { kind: 'goal', vp: reducedGoal, spec: spec }
-    }
+    // VP goal modification is now handled by meta replacers in main.ts
+    // which wraps the spec with a goal spec before calling initialState
 
-    const kingdom:Kingdom = makeKingdom(effectiveSpec)
+    const kingdom:Kingdom = makeKingdom(spec)
 
     const variableSupplies = kingdom.cards.slice()
     const variableEvents = kingdom.events.slice()
@@ -2468,7 +2509,7 @@ export function initialState(
     // Order: core events (refresh), VP mode events, extra events, then variable events
     const events = sets.core.events.concat(vpEvents).concat(extraEvents).concat(variableEvents)
 
-    let state = new State(effectiveSpec)
+    let state = new State(spec)
     state = createRawMulti(state, supply, 'supply')
     state = createRawMulti(state, events, 'events')
     state = createRawMulti(state, startingHand, 'discard')
