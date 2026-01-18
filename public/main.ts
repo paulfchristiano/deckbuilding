@@ -2398,14 +2398,37 @@ function updateProgressSidebar(): void {
 function showDeckDialog(): void {
     $('#deckContents').empty()
 
-    if (collectedCards.length === 0 && collectedEvents.length === 0) {
+    const hasCards = collectedCards.length > 0
+    const hasEvents = collectedEvents.length > 0
+    const hasPotions = currentPotions.length > 0
+    const hasRelics = currentRelics.length > 0
+
+    if (!hasCards && !hasEvents && !hasPotions && !hasRelics) {
         $('#deckContents').append('<div>No cards collected yet.</div>')
     } else {
-        for (const card of collectedCards) {
-            $('#deckContents').append(renderSpecNoRelated(card))
+        if (hasRelics) {
+            $('#deckContents').append('<div style="width: 100%; font-weight: bold; margin-top: 10px;">Relics:</div>')
+            for (const relic of currentRelics) {
+                $('#deckContents').append(renderSpecNoRelated(relic.spec))
+            }
         }
-        for (const event of collectedEvents) {
-            $('#deckContents').append(renderSpecNoRelated(event))
+        if (hasPotions) {
+            $('#deckContents').append('<div style="width: 100%; font-weight: bold; margin-top: 10px;">Potions:</div>')
+            for (const potion of currentPotions) {
+                $('#deckContents').append(renderSpecNoRelated(potion))
+            }
+        }
+        if (hasCards) {
+            $('#deckContents').append('<div style="width: 100%; font-weight: bold; margin-top: 10px;">Cards:</div>')
+            for (const card of collectedCards) {
+                $('#deckContents').append(renderSpecNoRelated(card))
+            }
+        }
+        if (hasEvents) {
+            $('#deckContents').append('<div style="width: 100%; font-weight: bold; margin-top: 10px;">Events:</div>')
+            for (const event of collectedEvents) {
+                $('#deckContents').append(renderSpecNoRelated(event))
+            }
         }
     }
 

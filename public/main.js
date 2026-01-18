@@ -2441,37 +2441,79 @@ function updateProgressSidebar() {
     });
 }
 function showDeckDialog() {
-    var e_30, _a, e_31, _b;
+    var e_30, _a, e_31, _b, e_32, _c, e_33, _d;
     $('#deckContents').empty();
-    if (collectedCards.length === 0 && collectedEvents.length === 0) {
+    var hasCards = collectedCards.length > 0;
+    var hasEvents = collectedEvents.length > 0;
+    var hasPotions = currentPotions.length > 0;
+    var hasRelics = currentRelics.length > 0;
+    if (!hasCards && !hasEvents && !hasPotions && !hasRelics) {
         $('#deckContents').append('<div>No cards collected yet.</div>');
     }
     else {
-        try {
-            for (var collectedCards_1 = __values(collectedCards), collectedCards_1_1 = collectedCards_1.next(); !collectedCards_1_1.done; collectedCards_1_1 = collectedCards_1.next()) {
-                var card = collectedCards_1_1.value;
-                $('#deckContents').append(renderSpecNoRelated(card));
-            }
-        }
-        catch (e_30_1) { e_30 = { error: e_30_1 }; }
-        finally {
+        if (hasRelics) {
+            $('#deckContents').append('<div style="width: 100%; font-weight: bold; margin-top: 10px;">Relics:</div>');
             try {
-                if (collectedCards_1_1 && !collectedCards_1_1.done && (_a = collectedCards_1.return)) _a.call(collectedCards_1);
+                for (var currentRelics_3 = __values(currentRelics), currentRelics_3_1 = currentRelics_3.next(); !currentRelics_3_1.done; currentRelics_3_1 = currentRelics_3.next()) {
+                    var relic = currentRelics_3_1.value;
+                    $('#deckContents').append(renderSpecNoRelated(relic.spec));
+                }
             }
-            finally { if (e_30) throw e_30.error; }
-        }
-        try {
-            for (var collectedEvents_1 = __values(collectedEvents), collectedEvents_1_1 = collectedEvents_1.next(); !collectedEvents_1_1.done; collectedEvents_1_1 = collectedEvents_1.next()) {
-                var event_2 = collectedEvents_1_1.value;
-                $('#deckContents').append(renderSpecNoRelated(event_2));
+            catch (e_30_1) { e_30 = { error: e_30_1 }; }
+            finally {
+                try {
+                    if (currentRelics_3_1 && !currentRelics_3_1.done && (_a = currentRelics_3.return)) _a.call(currentRelics_3);
+                }
+                finally { if (e_30) throw e_30.error; }
             }
         }
-        catch (e_31_1) { e_31 = { error: e_31_1 }; }
-        finally {
+        if (hasPotions) {
+            $('#deckContents').append('<div style="width: 100%; font-weight: bold; margin-top: 10px;">Potions:</div>');
             try {
-                if (collectedEvents_1_1 && !collectedEvents_1_1.done && (_b = collectedEvents_1.return)) _b.call(collectedEvents_1);
+                for (var currentPotions_1 = __values(currentPotions), currentPotions_1_1 = currentPotions_1.next(); !currentPotions_1_1.done; currentPotions_1_1 = currentPotions_1.next()) {
+                    var potion = currentPotions_1_1.value;
+                    $('#deckContents').append(renderSpecNoRelated(potion));
+                }
             }
-            finally { if (e_31) throw e_31.error; }
+            catch (e_31_1) { e_31 = { error: e_31_1 }; }
+            finally {
+                try {
+                    if (currentPotions_1_1 && !currentPotions_1_1.done && (_b = currentPotions_1.return)) _b.call(currentPotions_1);
+                }
+                finally { if (e_31) throw e_31.error; }
+            }
+        }
+        if (hasCards) {
+            $('#deckContents').append('<div style="width: 100%; font-weight: bold; margin-top: 10px;">Cards:</div>');
+            try {
+                for (var collectedCards_1 = __values(collectedCards), collectedCards_1_1 = collectedCards_1.next(); !collectedCards_1_1.done; collectedCards_1_1 = collectedCards_1.next()) {
+                    var card = collectedCards_1_1.value;
+                    $('#deckContents').append(renderSpecNoRelated(card));
+                }
+            }
+            catch (e_32_1) { e_32 = { error: e_32_1 }; }
+            finally {
+                try {
+                    if (collectedCards_1_1 && !collectedCards_1_1.done && (_c = collectedCards_1.return)) _c.call(collectedCards_1);
+                }
+                finally { if (e_32) throw e_32.error; }
+            }
+        }
+        if (hasEvents) {
+            $('#deckContents').append('<div style="width: 100%; font-weight: bold; margin-top: 10px;">Events:</div>');
+            try {
+                for (var collectedEvents_1 = __values(collectedEvents), collectedEvents_1_1 = collectedEvents_1.next(); !collectedEvents_1_1.done; collectedEvents_1_1 = collectedEvents_1.next()) {
+                    var event_2 = collectedEvents_1_1.value;
+                    $('#deckContents').append(renderSpecNoRelated(event_2));
+                }
+            }
+            catch (e_33_1) { e_33 = { error: e_33_1 }; }
+            finally {
+                try {
+                    if (collectedEvents_1_1 && !collectedEvents_1_1.done && (_d = collectedEvents_1.return)) _d.call(collectedEvents_1);
+                }
+                finally { if (e_33) throw e_33.error; }
+            }
         }
     }
     $('#deckClose').off('click').on('click', hideDeckDialog);
@@ -2553,24 +2595,24 @@ function showStageScreen() {
     $('#gameOverScreen').hide();
 }
 function startCurrentKingdom() {
-    var e_32, _a, e_33, _b, e_34, _c;
+    var e_34, _a, e_35, _b, e_36, _c;
     if (!currentKingdom)
         return;
     try {
         // Apply start-of-course relic effects
-        for (var currentRelics_3 = __values(currentRelics), currentRelics_3_1 = currentRelics_3.next(); !currentRelics_3_1.done; currentRelics_3_1 = currentRelics_3.next()) {
-            var relic = currentRelics_3_1.value;
+        for (var currentRelics_4 = __values(currentRelics), currentRelics_4_1 = currentRelics_4.next(); !currentRelics_4_1.done; currentRelics_4_1 = currentRelics_4.next()) {
+            var relic = currentRelics_4_1.value;
             if (relic.spec.name === 'Cursed Quill') {
                 currentBuffer += 3;
             }
         }
     }
-    catch (e_32_1) { e_32 = { error: e_32_1 }; }
+    catch (e_34_1) { e_34 = { error: e_34_1 }; }
     finally {
         try {
-            if (currentRelics_3_1 && !currentRelics_3_1.done && (_a = currentRelics_3.return)) _a.call(currentRelics_3);
+            if (currentRelics_4_1 && !currentRelics_4_1.done && (_a = currentRelics_4.return)) _a.call(currentRelics_4);
         }
-        finally { if (e_32) throw e_32.error; }
+        finally { if (e_34) throw e_34.error; }
     }
     updateBufferDisplay();
     // Hide other screens, show game
@@ -2589,8 +2631,8 @@ function startCurrentKingdom() {
     var lookingGlassCards = [];
     var lookingGlassEvents = [];
     try {
-        for (var currentRelics_4 = __values(currentRelics), currentRelics_4_1 = currentRelics_4.next(); !currentRelics_4_1.done; currentRelics_4_1 = currentRelics_4.next()) {
-            var relic = currentRelics_4_1.value;
+        for (var currentRelics_5 = __values(currentRelics), currentRelics_5_1 = currentRelics_5.next(); !currentRelics_5_1.done; currentRelics_5_1 = currentRelics_5.next()) {
+            var relic = currentRelics_5_1.value;
             if (relic.spec.name === 'Looking Glass') {
                 // Get random cards not already collected
                 var cardPool = getAvailableCards().filter(function (c) {
@@ -2611,30 +2653,30 @@ function startCurrentKingdom() {
             }
         }
     }
-    catch (e_33_1) { e_33 = { error: e_33_1 }; }
+    catch (e_35_1) { e_35 = { error: e_35_1 }; }
     finally {
         try {
-            if (currentRelics_4_1 && !currentRelics_4_1.done && (_b = currentRelics_4.return)) _b.call(currentRelics_4);
+            if (currentRelics_5_1 && !currentRelics_5_1.done && (_b = currentRelics_5.return)) _b.call(currentRelics_5);
         }
-        finally { if (e_33) throw e_33.error; }
+        finally { if (e_35) throw e_35.error; }
     }
     var sortedCards = __spreadArray(__spreadArray(__spreadArray([], __read(boonCardsList), false), __read(lookingGlassCards), false), __read(__spreadArray([], __read(collectedCards), false).sort(supplyComp)), false);
     var sortedEvents = __spreadArray(__spreadArray(__spreadArray([], __read(boonEventsList), false), __read(lookingGlassEvents), false), __read(__spreadArray([], __read(collectedEvents), false).sort(eventComp)), false);
     try {
         // Set up Empty Bottle's boughtCards from cards added this stage
-        for (var currentRelics_5 = __values(currentRelics), currentRelics_5_1 = currentRelics_5.next(); !currentRelics_5_1.done; currentRelics_5_1 = currentRelics_5.next()) {
-            var relic = currentRelics_5_1.value;
+        for (var currentRelics_6 = __values(currentRelics), currentRelics_6_1 = currentRelics_6.next(); !currentRelics_6_1.done; currentRelics_6_1 = currentRelics_6.next()) {
+            var relic = currentRelics_6_1.value;
             if (relic.spec.name === 'Empty Bottle') {
                 relic.boughtCards = __spreadArray([], __read(emptyBottleBoughtCards), false);
             }
         }
     }
-    catch (e_34_1) { e_34 = { error: e_34_1 }; }
+    catch (e_36_1) { e_36 = { error: e_36_1 }; }
     finally {
         try {
-            if (currentRelics_5_1 && !currentRelics_5_1.done && (_c = currentRelics_5.return)) _c.call(currentRelics_5);
+            if (currentRelics_6_1 && !currentRelics_6_1.done && (_c = currentRelics_6.return)) _c.call(currentRelics_6);
         }
-        finally { if (e_34) throw e_34.error; }
+        finally { if (e_36) throw e_36.error; }
     }
     var state = initialState(currentKingdom, sortedCards, sortedEvents, currentPotions, currentRelics);
     startGame(state);
@@ -2675,7 +2717,7 @@ function showGameOver() {
 }
 // Called when player wins a kingdom
 function onKingdomVictory(score, remainingPotions, relicStates) {
-    var e_35, _a;
+    var e_37, _a;
     // Save the score and par for this stage
     var par = getCurrentPar();
     stageScores[currentStage - 1] = score;
@@ -2695,12 +2737,12 @@ function onKingdomVictory(score, remainingPotions, relicStates) {
             }
         }
     }
-    catch (e_35_1) { e_35 = { error: e_35_1 }; }
+    catch (e_37_1) { e_37 = { error: e_37_1 }; }
     finally {
         try {
             if (relicStates_1_1 && !relicStates_1_1.done && (_a = relicStates_1.return)) _a.call(relicStates_1);
         }
-        finally { if (e_35) throw e_35.error; }
+        finally { if (e_37) throw e_37.error; }
     }
     updateBufferDisplay();
     // Check for game over

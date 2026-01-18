@@ -285,7 +285,7 @@ const escalate:CardSpec = {name: 'Escalate',
         useRefresh()
     ]
 }
-events.push(escalate)
+//events.push(escalate)
 
 const flourishName = 'Flourish'
 const flourish:CardSpec = {name: flourishName,
@@ -316,7 +316,7 @@ const flourish:CardSpec = {name: flourishName,
         transform: (e, state, card) => charge(card, 16)
     }]
 }
-events.push(flourish)
+//events.push(flourish)
 
 /*
 const perpetualMotion:CardSpec = {name:'Perpetual Motion',
@@ -3197,15 +3197,15 @@ export const potionOfFerry:CardSpec = {
     name: 'Potion of Ferry',
     isPotion: true,
     simpleText: [
-        'Put a ferry token on a supply.',
-        'It costs $2 less.'
+        'Put two ferry token on a supply. It costs $2 less.',
+        '+1 buy.'
     ],
     rules: [ferryRule],
     effects: [targetedEffect(
         target => addToken(target, 'ferry', 2),
         'Put two ferry tokens on a supply.',
         state => state.supply,
-    )]
+    ), buyEffect()]
 }
 
 export const potionOfRecovery:CardSpec = {
