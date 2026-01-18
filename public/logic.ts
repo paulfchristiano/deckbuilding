@@ -77,7 +77,7 @@ export interface CardSpec {
     replacers?: TypedReplacer[];
     staticReplacers?: TypedReplacer[];
     ability?: Effect[];
-    simpleText?: string; // Short description for card selector/deck view
+    simpleText?: string[]; // Short description for card selector/deck view (one line per array element)
     isPotion?: boolean; // If true, trash after playing
     rules?: Rule[]; // Rules this card references (for tooltip display)
 }
@@ -2915,7 +2915,7 @@ export const fair:CardSpec = {
 
 export const bounty:CardSpec = {
     name: 'Bounty',
-    simpleText: 'The next time you buy a card, buy it again.',
+    simpleText: ['The next time you buy a card, buy it again.'],
     triggers: [{
         text: `Whenever you buy a card, discard this to buy the card again.`,
         kind: 'buy',

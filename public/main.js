@@ -514,7 +514,7 @@ function renderTooltipSimple(card, state, tokenRenderer) {
     var header = "<div>---".concat(buyStr, " ").concat(card.name, " ").concat(costStr, "---</div>");
     var tokensHtml = tokenRenderer.renderTooltip(card.tokens);
     var bodyText = card.spec.simpleText
-        ? "<div>".concat(card.spec.simpleText, "</div>")
+        ? card.spec.simpleText.map(function (line) { return "<div>".concat(line, "</div>"); }).join('')
         : cardText(card.spec);
     return header + bodyText + tokensHtml;
 }
@@ -566,7 +566,7 @@ function renderSpecNoRelated(spec) {
     var header = "<div>".concat(buyText, "<strong>").concat(spec.name, "</strong>").concat(costText, "</div>");
     // Use simpleText if available, otherwise full card text
     var displayText = spec.simpleText
-        ? "<div>".concat(spec.simpleText, "</div>")
+        ? spec.simpleText.map(function (line) { return "<div>".concat(line, "</div>"); }).join('')
         : cardText(spec);
     // Build HTML tooltip matching in-game style
     var tooltipHtml = buildSpecTooltip(spec);
@@ -2108,10 +2108,13 @@ function showPathSelectionScreen() {
         }
         finally { if (e_23) throw e_23.error; }
     }
+    var basePar = BASE_PARS[currentStage - 1] || 0;
+    var leftPar = leftPath.boon ? Math.max(0, basePar - leftPath.boon.parReduction) : basePar;
     var leftPlayText = "Play: ".concat(leftPath.vpModeName);
     if (leftPath.boon) {
         leftPlayText += " + ".concat(leftPath.boon.name);
     }
+    leftPlayText += " (par ".concat(leftPar, ")");
     $('#leftPlay').text(leftPlayText);
     // Populate right path
     $('#rightRewards').empty();
@@ -2130,10 +2133,12 @@ function showPathSelectionScreen() {
         }
         finally { if (e_24) throw e_24.error; }
     }
+    var rightPar = rightPath.boon ? Math.max(0, basePar - rightPath.boon.parReduction) : basePar;
     var rightPlayText = "Play: ".concat(rightPath.vpModeName);
     if (rightPath.boon) {
         rightPlayText += " + ".concat(rightPath.boon.name);
     }
+    rightPlayText += " (par ".concat(rightPar, ")");
     $('#rightPlay').text(rightPlayText);
     // Set up click handlers
     $('#goLeft').off('click').on('click', function () { return selectPath('left'); });
@@ -2143,6 +2148,7 @@ function showPathSelectionScreen() {
     $('#pathSelectionScreen').show();
     $('#gameContainer').hide();
     $('#victoryScreen').hide();
+    $('#gameOverScreen').hide();
 }
 function updateProgressSidebarPath() {
     $('#progressLinePath .progressCircle').each(function () {
@@ -2154,7 +2160,13 @@ function updateProgressSidebarPath() {
             var score = stageScores[stage - 1];
             var par = stagePars[stage - 1];
             if (score !== null && par !== null) {
-                $(this).append("<span class=\"progressScore\">".concat(score, "/").concat(par, "</span>"));
+                var scoreDisplay = "".concat(score, "/").concat(par);
+                if (score > par) {
+                    $(this).append("<span class=\"progressScore\" style=\"color: red\">".concat(scoreDisplay, "</span>"));
+                }
+                else {
+                    $(this).append("<span class=\"progressScore\">".concat(scoreDisplay, "</span>"));
+                }
             }
         }
         else if (stage === currentStage) {
@@ -2414,6 +2426,12 @@ function setupDeckIcon() {
 }
 function updateBufferDisplay() {
     $('#bufferDisplay').text("Buffer: ".concat(currentBuffer));
+    if (currentBuffer < 0) {
+        $('#bufferDisplay').css('color', 'red');
+    }
+    else {
+        $('#bufferDisplay').css('color', '');
+    }
 }
 export function showLandingPage() {
     // Initialize first stage
@@ -2440,10 +2458,12 @@ function showStageScreen() {
     // Set up add buttons
     setupAddButtons();
     // Set up play kingdom button with VP mode and boon
+    var par = getCurrentPar();
     var playButtonText = "Play: ".concat(currentVPModeName);
     if (currentBoon) {
         playButtonText += " + ".concat(currentBoon.name);
     }
+    playButtonText += " (par ".concat(par, ")");
     $('#playKingdom').html(playButtonText);
     $('#playKingdom').off('click').on('click', startCurrentKingdom);
     // Set up back button
@@ -2453,6 +2473,7 @@ function showStageScreen() {
     $('#pathSelectionScreen').hide();
     $('#gameContainer').hide();
     $('#victoryScreen').hide();
+    $('#gameOverScreen').hide();
 }
 function startCurrentKingdom() {
     if (!currentKingdom)
@@ -2492,8 +2513,19 @@ function showFinalVictory() {
     $('#stageScreen').hide();
     $('#pathSelectionScreen').hide();
     $('#gameContainer').hide();
+    $('#gameOverScreen').hide();
     $('#victoryScreen').show();
     $('#restartGame').off('click').on('click', function () {
+        showLandingPage();
+    });
+}
+function showGameOver() {
+    $('#stageScreen').hide();
+    $('#pathSelectionScreen').hide();
+    $('#gameContainer').hide();
+    $('#victoryScreen').hide();
+    $('#gameOverScreen').show();
+    $('#gameOverRestart').off('click').on('click', function () {
         showLandingPage();
     });
 }
@@ -2508,6 +2540,11 @@ function onKingdomVictory(score, remainingPotions) {
         currentBuffer -= (score - par);
     }
     updateBufferDisplay();
+    // Check for game over
+    if (currentBuffer < 0) {
+        showGameOver();
+        return;
+    }
     // Carry forward remaining potions to next stage
     currentPotions = remainingPotions;
     advanceToNextStage();

@@ -369,7 +369,7 @@ function renderTooltipSimple(card:Card, state:State, tokenRenderer:TokenRenderer
     const header = `<div>---${buyStr} ${card.name} ${costStr}---</div>`
     const tokensHtml:string = tokenRenderer.renderTooltip(card.tokens)
     const bodyText = card.spec.simpleText
-        ? `<div>${card.spec.simpleText}</div>`
+        ? card.spec.simpleText.map(line => `<div>${line}</div>`).join('')
         : cardText(card.spec)
     return header + bodyText + tokensHtml
 }
@@ -431,7 +431,7 @@ function renderSpecNoRelated(spec:CardSpec): string {
 
     // Use simpleText if available, otherwise full card text
     const displayText = spec.simpleText
-        ? `<div>${spec.simpleText}</div>`
+        ? spec.simpleText.map(line => `<div>${line}</div>`).join('')
         : cardText(spec)
 
     // Build HTML tooltip matching in-game style
@@ -1804,7 +1804,7 @@ export function loadPicker(picked_sets: ExpansionName[]): void {
 
 // Stage-based game state
 const TOTAL_STAGES = 8
-const BASE_PARS = [40, 35, 30, 37, 24, 21, 18, 0] // Base par for each stage (0-indexed)
+const BASE_PARS = [32, 28, 25, 22, 20, 18, 16, 0] // Base par for each stage (0-indexed)
 let currentStage: number = 1
 let currentKingdom: GameSpec | null = null
 let currentVPModeName: string = ''
@@ -2116,10 +2116,13 @@ function showPathSelectionScreen(): void {
                           reward.kind === 'event' ? 'Add Event' : 'Add Potion'
         $('#leftRewards').append(`<div class="pathReward">${rewardText}</div>`)
     }
+    const basePar = BASE_PARS[currentStage - 1] || 0
+    const leftPar = leftPath.boon ? Math.max(0, basePar - leftPath.boon.parReduction) : basePar
     let leftPlayText = `Play: ${leftPath.vpModeName}`
     if (leftPath.boon) {
         leftPlayText += ` + ${leftPath.boon.name}`
     }
+    leftPlayText += ` (par ${leftPar})`
     $('#leftPlay').text(leftPlayText)
 
     // Populate right path
@@ -2129,10 +2132,12 @@ function showPathSelectionScreen(): void {
                           reward.kind === 'event' ? 'Add Event' : 'Add Potion'
         $('#rightRewards').append(`<div class="pathReward">${rewardText}</div>`)
     }
+    const rightPar = rightPath.boon ? Math.max(0, basePar - rightPath.boon.parReduction) : basePar
     let rightPlayText = `Play: ${rightPath.vpModeName}`
     if (rightPath.boon) {
         rightPlayText += ` + ${rightPath.boon.name}`
     }
+    rightPlayText += ` (par ${rightPar})`
     $('#rightPlay').text(rightPlayText)
 
     // Set up click handlers
@@ -2144,6 +2149,7 @@ function showPathSelectionScreen(): void {
     $('#pathSelectionScreen').show()
     $('#gameContainer').hide()
     $('#victoryScreen').hide()
+    $('#gameOverScreen').hide()
 }
 
 function updateProgressSidebarPath(): void {
@@ -2157,7 +2163,12 @@ function updateProgressSidebarPath(): void {
             const score = stageScores[stage - 1]
             const par = stagePars[stage - 1]
             if (score !== null && par !== null) {
-                $(this).append(`<span class="progressScore">${score}/${par}</span>`)
+                const scoreDisplay = `${score}/${par}`
+                if (score > par) {
+                    $(this).append(`<span class="progressScore" style="color: red">${scoreDisplay}</span>`)
+                } else {
+                    $(this).append(`<span class="progressScore">${scoreDisplay}</span>`)
+                }
             }
         } else if (stage === currentStage) {
             $(this).addClass('current')
@@ -2369,6 +2380,11 @@ function setupDeckIcon(): void {
 
 function updateBufferDisplay(): void {
     $('#bufferDisplay').text(`Buffer: ${currentBuffer}`)
+    if (currentBuffer < 0) {
+        $('#bufferDisplay').css('color', 'red')
+    } else {
+        $('#bufferDisplay').css('color', '')
+    }
 }
 
 export function showLandingPage(): void {
@@ -2401,10 +2417,12 @@ function showStageScreen(): void {
     setupAddButtons()
 
     // Set up play kingdom button with VP mode and boon
+    const par = getCurrentPar()
     let playButtonText = `Play: ${currentVPModeName}`
     if (currentBoon) {
         playButtonText += ` + ${currentBoon.name}`
     }
+    playButtonText += ` (par ${par})`
     $('#playKingdom').html(playButtonText)
     $('#playKingdom').off('click').on('click', startCurrentKingdom)
 
@@ -2416,6 +2434,7 @@ function showStageScreen(): void {
     $('#pathSelectionScreen').hide()
     $('#gameContainer').hide()
     $('#victoryScreen').hide()
+    $('#gameOverScreen').hide()
 }
 
 function startCurrentKingdom(): void {
@@ -2461,9 +2480,22 @@ function showFinalVictory(): void {
     $('#stageScreen').hide()
     $('#pathSelectionScreen').hide()
     $('#gameContainer').hide()
+    $('#gameOverScreen').hide()
     $('#victoryScreen').show()
 
     $('#restartGame').off('click').on('click', () => {
+        showLandingPage()
+    })
+}
+
+function showGameOver(): void {
+    $('#stageScreen').hide()
+    $('#pathSelectionScreen').hide()
+    $('#gameContainer').hide()
+    $('#victoryScreen').hide()
+    $('#gameOverScreen').show()
+
+    $('#gameOverRestart').off('click').on('click', () => {
         showLandingPage()
     })
 }
@@ -2480,6 +2512,12 @@ function onKingdomVictory(score: number, remainingPotions: CardSpec[]): void {
         currentBuffer -= (score - par)
     }
     updateBufferDisplay()
+
+    // Check for game over
+    if (currentBuffer < 0) {
+        showGameOver()
+        return
+    }
 
     // Carry forward remaining potions to next stage
     currentPotions = remainingPotions

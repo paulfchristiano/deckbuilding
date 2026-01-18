@@ -95,7 +95,10 @@ const hound:CardSpec = {name: 'Hound',
 buyableFree(hound, 2)
 */
 var transmogrify = { name: 'Transmogrify',
-    simpleText: "Trash a card in your hand. Create a card in your hand costing up to $2 more than it.",
+    simpleText: [
+        "Trash a card in your hand.",
+        "Create a card in your hand costing up to $2 more than it."
+    ],
     effects: [actionsEffect(1), {
             text: ["Trash a card in your hand.\n                If you do, choose a card in the supply costing up to $2 more than it.\n                Create a copy of that card in your hand."],
             transform: function () { return function (state) {
@@ -203,7 +206,7 @@ function throneroomEffect() {
     };
 }
 export var throneRoom = { name: 'Throne Room',
-    simpleText: "Pay an action to play a card in your hand twice without paying any @ costs.",
+    simpleText: ["Pay an action to play a card in your hand twice without paying any @ costs."],
     buyCost: coin(3),
     fixedCost: energy(1),
     effects: [throneroomEffect()] };
@@ -227,7 +230,10 @@ var unearth = { name: Unearth,
 };
 cards.push(supplyForCard(unearth, coin(4)));
 var celebration = { name: 'Celebration',
-    simpleText: "Cards cost @ less to play. When you create this, put it directly into play.",
+    simpleText: [
+        "Cards cost @ less to play.",
+        "When you create this, put it directly into play."
+    ],
     fixedCost: energy(1),
     replacers: [costReduce('play', { energy: 1 })] };
 cards.push(supplyForCard(celebration, coin(6), { replacers: [{
@@ -238,7 +244,10 @@ cards.push(supplyForCard(celebration, coin(6), { replacers: [{
         }] }));
 var plowName = 'Plow';
 var plow = { name: plowName,
-    simpleText: "Put your discard into your hand. ".concat(plowName, " goes to play instead of your discard when bought or created."),
+    simpleText: [
+        "Put your discard into your hand.",
+        "".concat(plowName, " goes to play instead of your discard when bought or created.")
+    ],
     fixedCost: energy(1),
     effects: [recycleEffect(), toPlay()],
     staticReplacers: [{
@@ -283,7 +292,10 @@ registerEvent(restock)
 */
 var escalate = { name: 'Escalate',
     fixedCost: free,
-    simpleText: "Use Refresh. This costs more to use each time ($0, $1, $3, $6, $10...).",
+    simpleText: [
+        "Use Refresh.",
+        "This costs more to use each time ($0, $1, $3, $6, $10...)."
+    ],
     variableCosts: [costPer(coin(1))],
     effects: [
         chargeEffect(),
@@ -298,7 +310,10 @@ events.push(escalate);
 var flourishName = 'Flourish';
 var flourish = { name: flourishName,
     fixedCost: free,
-    simpleText: "Once you have 1/16 of the vp requirement, you can use this to Refresh for free. You can repeat once you reach 1/8, 1/4, and 1/2 of the requirement.",
+    simpleText: [
+        "Once you have 1/16 of the vp requirement, you can use this to Refresh for free.",
+        "You can repeat once you reach 1/8, 1/4, and 1/2 of the requirement."
+    ],
     restrictions: [{
             text: 'You cannot use this if your score times the number of charge tokens on this is less than the vp goal.',
             test: function (card, state) { return state.points * state.find(card).charge < state.vp_goal; }
@@ -350,7 +365,7 @@ registerEvent(scrapeBy)
 var volley = {
     name: 'Volley',
     fixedCost: energy(1),
-    simpleText: "Play then trash any number of cards in your hand.",
+    simpleText: ["Play then trash any number of cards in your hand."],
     effects: [{
             text: ["Repeat any number of times:\n        play then trash a card in your hand that was also there\n        at the start of this effect and that you haven't played yet."],
             transform: function (state, card) { return function (state) {
@@ -405,7 +420,10 @@ var volley = {
 events.push(volley);
 var parallelize = { name: 'Parallelize',
     fixedCost: __assign(__assign({}, free), { coin: 1, energy: 1 }),
-    simpleText: "Put a parallelize token on each card in your hand. Cards cost @ less to play for each parallelize token on them.",
+    simpleText: [
+        "Put a parallelize token on each card in your hand.",
+        "Cards cost @ less to play for each parallelize token on them."
+    ],
     effects: [{
             text: ["Put a parallelize token on each card in your hand."],
             transform: function (state) { return doAll(state.hand.map(function (c) { return addToken(c, 'parallelize'); })); }
@@ -439,7 +457,10 @@ function costPerN(increment, n) {
 }
 var travelingFair = { name: 'Traveling Fair',
     fixedCost: coin(1),
-    simpleText: '+1 buy. Create a Fair in play.',
+    simpleText: [
+        '+1 buy.',
+        'Create a Fair in play.'
+    ],
     effects: [buyEffect(), createInPlayEffect(fair)],
     relatedCards: [fair],
 };
@@ -537,7 +558,10 @@ function chargeUpTo(max) {
     };
 }
 var frontierCard = { name: 'Frontier',
-    simpleText: "+2 vp. This increases by 1vp each time you play it, up to +6vp.",
+    simpleText: [
+        "+2 vp.",
+        "This increases by 1vp each time you play it, up to +6vp."
+    ],
     buyCost: coin(4),
     effects: [{
             text: ['+1 vp per charge token on this.'],
@@ -546,7 +570,10 @@ var frontierCard = { name: 'Frontier',
 };
 var frontier = supplyForCard(frontierCard, coin(4), { replacers: [startsWithCharge(frontierCard.name, 2)] });
 var investment = { name: 'Investment',
-    simpleText: "+$2. This increases by $1 each time you play it, up to +$6.",
+    simpleText: [
+        "+$2.",
+        "This increases by $1 each time you play it, up to +$6."
+    ],
     fixedCost: energy(0),
     effects: [{
             text: ['+$1 per charge token on this.'],
@@ -581,7 +608,7 @@ const populate:CardSpec = {name: 'Populate',
 */
 var populate = { name: 'Populate',
     fixedCost: __assign(__assign({}, free), { coin: 8, energy: 2 }),
-    simpleText: 'Buy every card in the supply costing up to $8.',
+    simpleText: ['Buy every card in the supply costing up to $8.'],
     effects: [{
             text: ['Buy every card in the supply costing up to $8.'],
             transform: function (s, card) { return function (state) {
@@ -627,7 +654,7 @@ var populate = { name: 'Populate',
 };
 // events.push(populate) // boon only
 export var duplicate = { name: 'Duplicate',
-    simpleText: "For each card in the supply, the next time you buy that card buy it again for free.",
+    simpleText: ["For each card in the supply, the next time you buy that card buy it again for free."],
     fixedCost: __assign(__assign({}, free), { coin: 4, energy: 1 }),
     effects: [{
             text: ["Put a duplicate token on each card in the supply."],
@@ -647,7 +674,10 @@ var workshop = { name: workshopName,
 };
 cards.push(supplyForCard(workshop, coin(3)));
 var shippingLane = { name: 'Shipping Lane',
-    simpleText: "+$2. The next time you buy a card, buy it again for free.",
+    simpleText: [
+        "+$2.",
+        "The next time you buy a card, buy it again for free."
+    ],
     fixedCost: energy(1),
     effects: [coinsEffect(2)],
     triggers: [{
@@ -711,7 +741,10 @@ var recycle = { name: 'Recycle',
 // events.push(recycle) // removed (boon)
 var twin = { name: 'Twin',
     fixedCost: __assign(__assign({}, free), { energy: 1, coin: 3 }),
-    simpleText: "Put a twin token on a card in your hand. Whenever you play it other than with this effect, play it again.",
+    simpleText: [
+        "Put a twin token on a card in your hand.",
+        "Whenever you play it other than with this effect, play it again."
+    ],
     effects: [targetedEffect(function (target) { return addToken(target, 'twin'); }, 'Put a twin token on a card in your hand.', function (state) { return state.hand; })],
     rules: [twinRule], };
 events.push(twin);
@@ -723,7 +756,10 @@ function literalOptions(xs, keys) {
     }); });
 }
 var researcher = { name: 'Researcher',
-    simpleText: "+3 actions. This increases by +1 action each time you play it.",
+    simpleText: [
+        "+3 actions.",
+        "This increases by +1 action each time you play it."
+    ],
     effects: [{
             text: ["+1 action for each charge token on this."],
             transform: function (state, card) { return function (state) {
@@ -810,7 +846,7 @@ function robust(card) {
     };
 }
 var expedite = {
-    simpleText: "The next time you create a card, play it immediately.",
+    simpleText: ["The next time you create a card, play it immediately."],
     name: 'Expedite',
     fixedCost: energy(1),
     effects: [chargeEffect()],
@@ -825,7 +861,10 @@ function removeAllSupplyTokens(token) {
 }
 var synergy = { name: 'Synergy',
     fixedCost: __assign(__assign({}, free), { coin: 3, energy: 1 }),
-    simpleText: "Put synergy tokens on two cards in the supply. Whenever you buy the more expensive one (or eithe if they are tied), you can buy the other one for free.",
+    simpleText: [
+        "Put synergy tokens on two cards in the supply.",
+        "Whenever you buy the more expensive one (or either if they are tied), you can buy the other one for free."
+    ],
     effects: [removeAllSupplyTokens('synergy'), {
             text: ['Put synergy tokens on two cards in the supply.'],
             transform: function () { return function (state) {
@@ -883,7 +922,10 @@ events.push(synergy);
 var shelterName = 'Shelter';
 var shelter = { name: shelterName,
     buyCost: coin(5),
-    simpleText: "Whenever you would move a card from play to your hand, instead leave it in play. Put this in play when you create it.",
+    simpleText: [
+        "Whenever you would move a card from play to your hand, instead leave it in play.",
+        "Put this in play when you create it."
+    ],
     replacers: [{
             kind: 'move',
             text: 'Whenever you would move a card from play to your hand (including this one) instead leave it in place.',
@@ -922,7 +964,7 @@ var spices = { name: 'Spices',
 cards.push(supplyForCard(spices, coin(5), { onBuy: [coinsEffect(4)] }));
 var onslaught = { name: 'Onslaught',
     fixedCost: __assign(__assign({}, free), { coin: 4, energy: 1 }),
-    simpleText: "Play any number of cards in your hand.",
+    simpleText: ["Play any number of cards in your hand."],
     effects: [{
             text: ["Repeat any number of times: play a card in your hand\n            that was also there at the start of this effect\n            and that you haven't played yet."],
             transform: function (state, card) { return function (state) {
@@ -1045,7 +1087,10 @@ var gardens = { name: "Gardens",
 // cards.push(supplyForCard(gardens, coin(4))) // removed (vp)
 var territoryName = 'Territory';
 var territory = {
-    simpleText: "+2 vp. Leave this in your hand when you play it.",
+    simpleText: [
+        "+2 vp.",
+        "Leave this in your hand when you play it."
+    ],
     name: territoryName,
     buyCost: coin(10),
     fixedCost: energy(1),
@@ -1060,7 +1105,7 @@ var territory = {
 cards.push(territory);
 var farmlandName = 'Farmland';
 var farmland = {
-    simpleText: "+7 vp if you played this the normal way from your hand.",
+    simpleText: ["+7 vp if you played this the normal way from your hand."],
     name: farmlandName,
     fixedCost: energy(3),
     buyCost: coin(8),
@@ -1139,7 +1184,11 @@ var decay = {
 };
 // events.push(decay) // removed (curse)
 var reflect = { name: 'Reflect',
-    simpleText: "Put a reflect token on a card in your hand. The next time you play that card, play it twice. This costs $1 more each time you use it.",
+    simpleText: [
+        "Put a reflect token on a card in your hand.",
+        "The next time you play that card, play it twice.",
+        "This costs $1 more each time you use it."
+    ],
     fixedCost: coin(1),
     variableCosts: [costPer({ coin: 1 })],
     effects: [incrementCost(), targetedEffect(function (target, card) { return addToken(target, 'reflect'); }, 'Put a reflect token on a card in your hand', function (state) { return state.hand; })],
@@ -1148,7 +1197,7 @@ events.push(reflect);
 var replicate = { name: 'Replicate',
     fixedCost: energy(1),
     effects: [chargeEffect()],
-    simpleText: "The next time you buy a card, buy it again.",
+    simpleText: ["The next time you buy a card, buy it again."],
     staticTriggers: [{
             text: "After buying a card other than with this,\n            remove a charge token from this to to buy the card again.",
             kind: 'afterBuy',
@@ -1326,7 +1375,11 @@ var tactic = {
         }]
 };
 var mastermind = {
-    simpleText: "Create a ".concat(tactic.name, " in play. Whenever it would move to your hand it gains a charge token instead. Once it has a charge token, you can trash it and pay an action to play a card in your hand three times."),
+    simpleText: [
+        "Create a ".concat(tactic.name, " in play."),
+        "Whenever it would move to your hand it gains a charge token instead.",
+        "Once it has a charge token, you can trash it and pay an action to play a card in your hand three times."
+    ],
     name: 'Mastermind',
     fixedCost: energy(1),
     relatedCards: [tactic],
@@ -1431,7 +1484,7 @@ var palace = { name: 'Palace',
 // cards.push(supplyForCard(palace, coin(5))) // removed (vp)
 var Innovation = 'Innovation';
 var innovation = { name: Innovation,
-    simpleText: "The next time you create a card in your discard, play it immediately.",
+    simpleText: ["The next time you create a card in your discard, play it immediately."],
     effects: [actionsEffect(1)],
     replacers: [playReplacer("Whenever you would create a card in your discard,\n        instead discard this to set the card aside.\n        Then play it if it is still set aside.", function (p, s, c) { return s.find(c).place == 'play'; }, function (p, s, c) { return discardFromPlay(c); })]
 };
@@ -1462,7 +1515,10 @@ var formation = { name: 'Formation',
 cards.push(supplyForCard(formation, coin(3)));
 var Traveler = 'Traveler';
 var traveler = {
-    simpleText: "Pay an action to play a card in your hand once for each charge token on this. It starts with 1 charge token and gains 1 each time you play it, up to 3.",
+    simpleText: [
+        "Pay an action to play a card in your hand once for each charge token on this.",
+        "It starts with 1 charge token and gains 1 each time you play it, up to 3."
+    ],
     name: 'Traveler',
     fixedCost: energy(1),
     effects: [{
@@ -1545,7 +1601,10 @@ const ball:CardSpec = {
 registerEvent(ball)
 */
 var lostArts = {
-    simpleText: "Choose a card in the supply and put 8 art tokens on it. Whenever you play a card with art tokens on its supply, remove art tokens instead of paying @.",
+    simpleText: [
+        "Choose a card in the supply and put 8 art tokens on it.",
+        "Whenever you play a card with art tokens on its supply, remove art tokens instead of paying @."
+    ],
     fixedCost: __assign(__assign({}, free), { energy: 1, coin: 3 }),
     name: 'Lost Arts',
     effects: [targetedEffect(function (card) { return function (state) {
@@ -1950,7 +2009,10 @@ buyable(haggler, 6)
 var reuse = {
     name: 'Reuse',
     fixedCost: energy(2),
-    simpleText: "Play any number of cards in your discard that don't have a reuse token on them. Put a reuse token on each card played this way.",
+    simpleText: [
+        "Play any number of cards in your discard that don't have a reuse token on them.",
+        "Put a reuse token on each card played this way."
+    ],
     effects: [{
             text: ["Repeat any number of times:\n                choose a card in your discard without a reuse token\n                that was also there at the start of this effect.\n                Play it then put a reuse token on it."],
             transform: function (state, card) { return function (state) {
@@ -2120,7 +2182,10 @@ cards.push(supplyForCard(highway, coin(5), { replacers: [{
             replace: function (p) { return (__assign(__assign({}, p), { zone: 'play' })); }
         }] }));
 var prioritize = {
-    simpleText: "Choose a supply. The next 5 times you create a card from that supply, play it immediately.",
+    simpleText: [
+        "Choose a supply.",
+        "The next 5 times you create a card from that supply, play it immediately."
+    ],
     name: 'Prioritize',
     fixedCost: __assign(__assign({}, free), { energy: 1, coin: 3 }),
     effects: [targetedEffect(function (card) { return addToken(card, 'priority', 5); }, 'Put five priority tokens on a card in the supply.', function (state) { return state.supply; })],
@@ -2155,7 +2220,10 @@ var composting = {
 // cards.push(supplyForCard(composting, coin(3))) // removed
 var FairyGold = 'Fairy Gold';
 var fairyGold = {
-    simpleText: "+$3 and +1 buy. This decreases by $1 each time you play it.",
+    simpleText: [
+        "+$3 and +1 buy.",
+        "This decreases by $1 each time you play it."
+    ],
     name: FairyGold,
     effects: [buyEffect(), {
             text: ["+$1 per charge token on this."],
@@ -2202,7 +2270,10 @@ var pathfinding = {
 // events.push(pathfinding) // removed
 var fortuneName = 'Fortune';
 var fortune = {
-    simpleText: "Double your $ and buys. You can only buy Fortune once.",
+    simpleText: [
+        "Double your $ and buys.",
+        "You can only buy Fortune once."
+    ],
     name: fortuneName,
     effects: [{
             text: ["Double your $."],
@@ -2547,7 +2618,7 @@ function buyCheaper(card, s, source) {
 }
 var haggle = {
     name: 'Haggle',
-    simpleText: "The next time you buy a card, immediately buy a cheaper card.",
+    simpleText: ["The next time you buy a card, immediately buy a cheaper card."],
     fixedCost: energy(1),
     effects: [chargeEffect()],
     staticTriggers: [{
@@ -2578,7 +2649,10 @@ var splay = {
             text: ["Put a splay token on each supply."],
             transform: function (s) { return doAll(s.supply.map(function (c) { return addToken(c, 'splay'); })); }
         }],
-    simpleText: "Put a splay token on each supply. Whenever you play a card with a splay token on its supply, remove splay tokens instead of paying @.",
+    simpleText: [
+        "Put a splay token on each supply.",
+        "Whenever you play a card with a splay token on its supply, remove splay tokens instead of paying @."
+    ],
     staticReplacers: [{
             text: "Cards you play cost @ less for each splay token on their supply.\n               Whenever this reduces a card's cost by one or more @,\n               remove that many splay tokens from its supply.",
             kind: 'cost',
@@ -2617,7 +2691,10 @@ function multitargetedEffect(f, text, options, max) {
 }
 var recover = {
     name: 'Recover',
-    simpleText: "Put up to two cards from your discard into your hand. This costs $1 more each time you use it.",
+    simpleText: [
+        "Put up to two cards from your discard into your hand.",
+        "This costs $1 more each time you use it."
+    ],
     fixedCost: coin(1),
     variableCosts: [costPer(coin(1))],
     effects: [multitargetedEffect(function (targets) { return moveMany(targets, 'hand'); }, 'Put up to 2 cards from your discard into your hand.', function (state) { return state.discard; }, 2), incrementCost()]
@@ -2654,7 +2731,10 @@ var reprise = {
 events.push(reprise);
 var accelerate = {
     name: 'Accelerate',
-    simpleText: "Put a priority token on each card in the supply. Whenever you create a card with a priority token on it, remove the token to play the card immediately.",
+    simpleText: [
+        "Put a priority token on each card in the supply.",
+        "Whenever you create a card with a priority token on it, remove the token to play the card immediately."
+    ],
     fixedCost: __assign(__assign({}, free), { energy: 1, coin: 4 }),
     effects: [{
             text: ["Put a priority token on each card in the supply."],
@@ -2694,7 +2774,10 @@ var magpie = {
 cards.push(magpie);
 var crown = {
     name: 'Crown',
-    simpleText: "Put a reflect token on a card in your hand. The next time you play it, play it again.",
+    simpleText: [
+        "Put a reflect token on a card in your hand.",
+        "The next time you play it, play it again."
+    ],
     buyCost: coin(3),
     effects: [targetedEffect(function (target) { return addToken(target, 'reflect'); }, 'Put a reflect token on a card in your hand.', function (s) { return s.hand; })],
     rules: [reflectRule],
@@ -2703,7 +2786,10 @@ cards.push(crown);
 var churnName = 'Churn';
 var churn = {
     name: churnName,
-    simpleText: "Put two non-".concat(churnName, " cards from your discard to your hand. This decreases by 1 each time you play it."),
+    simpleText: [
+        "Put two non-".concat(churnName, " cards from your discard to your hand."),
+        "This decreases by 1 each time you play it."
+    ],
     effects: [actionsEffect(1), {
             text: ["For each charge token on this put a non-".concat(churnName, " card from your discard into your hand.")],
             transform: function (state, card) { return function (state) {
@@ -2860,7 +2946,10 @@ var moon = {
         }]
 };
 var werewolf = {
-    simpleText: "+3 actions. If there is a full moon, instead +$3 and +1 buy. The moon starts off empty and switches between full and empty each time it would move to your hand.",
+    simpleText: [
+        "+3 actions. If there is a full moon, instead +$3 and +1 buy.",
+        "The moon starts off empty and switches between full and empty each time it would move to your hand."
+    ],
     name: 'Werewolf',
     buyCost: coin(3),
     relatedCards: [moon],
@@ -2892,7 +2981,10 @@ var embargo = {
 var contraband = {
     name: 'Contraband',
     buyCost: coin(4),
-    simpleText: "+$5 and +5 buys. Create an Embargo in play that increases the cost of cards and events by $1 until it leaves play.",
+    simpleText: [
+        "+$5 and +5 buys.",
+        "Create an Embargo in play that increases the cost of cards and events by $1 until it leaves play."
+    ],
     effects: [coinsEffect(5), buysEffect(5), createInPlayEffect(embargo)],
     relatedCards: [embargo],
 };
@@ -2900,7 +2992,10 @@ cards.push(contraband);
 var bulkOrder = {
     name: 'Bulk Order',
     fixedCost: coin(3),
-    simpleText: "Choose a card in the supply. The next 5 times you buy that card, buy it again for free.",
+    simpleText: [
+        "Choose a card in the supply.",
+        "The next 5 times you buy that card, buy it again for free."
+    ],
     effects: [targetedEffect(function (card) { return addToken(card, 'duplicate', 5); }, 'Put five duplicate tokens on a card in the supply.', function (state) { return state.supply; })],
     rules: [duplicateRule],
 };
@@ -2942,7 +3037,10 @@ var capitalization = {
 var insight = {
     name: 'Insight',
     fixedCost: energy(1),
-    simpleText: '+1 action, +1 buy, +$1. Create a Villager and a Fair in play.',
+    simpleText: [
+        '+1 action, +1 buy, +$1.',
+        'Create a Villager and a Fair in play.'
+    ],
     relatedCards: [villager, fair],
     effects: [
         actionsEffect(1),
@@ -2956,7 +3054,7 @@ var insight = {
 var windfall = {
     name: 'Windfall',
     fixedCost: free,
-    simpleText: 'At the start of the game, +$15 and +5 buys.',
+    simpleText: ['At the start of the game, +$15 and +5 buys.'],
     restrictions: [cannotUse],
     staticTriggers: [{
             kind: 'gameStart',
@@ -2969,7 +3067,7 @@ var windfall = {
 var duplicateStart = {
     name: 'Duplicate Start',
     fixedCost: free,
-    simpleText: 'At the start of the game, put a duplicate token on each card in the supply.',
+    simpleText: ['At the start of the game, put a duplicate token on each card in the supply.'],
     restrictions: [cannotUse],
     staticTriggers: [{
             kind: 'gameStart',
@@ -3016,7 +3114,7 @@ var duplicateStart = {
 var priorityStart = {
     name: 'Priority Start',
     fixedCost: free,
-    simpleText: 'At the start of the game, put a priority token on each card in the supply.',
+    simpleText: ['At the start of the game, put a priority token on each card in the supply.'],
     restrictions: [cannotUse],
     staticTriggers: [{
             kind: 'gameStart',
@@ -3063,7 +3161,7 @@ var priorityStart = {
 var vaultStart = {
     name: 'Vault Start',
     fixedCost: free,
-    simpleText: 'At the start of the game, +10 actions and +2 buys.',
+    simpleText: ['At the start of the game, +10 actions and +2 buys.'],
     restrictions: [cannotUse],
     staticTriggers: [{
             kind: 'gameStart',
@@ -3114,13 +3212,13 @@ export var vpModes = [
 export var potionOfActions = {
     name: 'Potion of Actions',
     isPotion: true,
-    simpleText: '+10 actions.',
+    simpleText: ['+10 actions.'],
     effects: [actionsEffect(10)]
 };
 export var potionOfWealth = {
     name: 'Potion of Wealth',
     isPotion: true,
-    simpleText: 'Double your money and buys.',
+    simpleText: ['Double your money and buys.'],
     effects: [{
             text: ['Double your $ and buys.'],
             transform: function (state, card) { return function (state) {
@@ -3143,7 +3241,7 @@ export var potionOfWealth = {
 export var potionOfCopper = {
     name: 'Potion of Copper',
     isPotion: true,
-    simpleText: 'Create 5 coppers in your hand.',
+    simpleText: ['Create 5 coppers in your hand.'],
     effects: [{
             text: ['Create 5 Coppers in your hand.'],
             transform: function () { return repeat(create(copper, 'hand'), 5); }
@@ -3152,7 +3250,7 @@ export var potionOfCopper = {
 export var potionOfMining = {
     name: 'Potion of Mining',
     isPotion: true,
-    simpleText: 'Trash coppers for silvers, silvers for golds.',
+    simpleText: ['Trash coppers for silvers, silvers for golds.'],
     relatedCards: [copper, silver, gold],
     effects: [{
             text: ['Trash any number of Coppers in your hand, and create that many Silvers in your discard.',
@@ -3242,7 +3340,7 @@ export var potionOfMining = {
 export var potionOfCelebration = {
     name: 'Potion of Celebration',
     isPotion: true,
-    simpleText: 'Create a Celebration with an echo token in play.',
+    simpleText: ['Create a Celebration with an echo token in play.'],
     relatedCards: [celebration],
     rules: [echoRule],
     effects: [{
@@ -3253,21 +3351,24 @@ export var potionOfCelebration = {
 export var potionOfBounty = {
     name: 'Potion of Bounty',
     isPotion: true,
-    simpleText: 'The next time you buy a card, buy it two more times for free.',
+    simpleText: ['The next time you buy a card, buy it two more times for free.'],
     relatedCards: [bounty],
     effects: [createInPlayEffect(bounty, 2)]
 };
 export var potionOfFerry = {
     name: 'Potion of Ferry',
     isPotion: true,
-    simpleText: 'Put a ferry token on a supply. It costs $2 less.',
+    simpleText: [
+        'Put a ferry token on a supply.',
+        'It costs $2 less.'
+    ],
     rules: [ferryRule],
     effects: [targetedEffect(function (target) { return addToken(target, 'ferry', 2); }, 'Put two ferry tokens on a supply.', function (state) { return state.supply; })]
 };
 export var potionOfRecovery = {
     name: 'Potion of Recovery',
     isPotion: true,
-    simpleText: 'Put your discard into your hand.',
+    simpleText: ['Put your discard into your hand.'],
     effects: [{
             text: ['Put your discard into your hand.'],
             transform: function (state) { return doAll([moveMany(state.discard, 'hand'), sortHand]); }
@@ -3276,7 +3377,7 @@ export var potionOfRecovery = {
 export var potionOfShelter = {
     name: 'Potion of Shelter',
     isPotion: true,
-    simpleText: 'Create 3 Fairs and a Shelter in play.',
+    simpleText: ['Create 3 Fairs and a Shelter in play.'],
     relatedCards: [fair, shelter],
     effects: [
         createInPlayEffect(shelter),
@@ -3286,7 +3387,10 @@ export var potionOfShelter = {
 export var potionOfVitality = {
     name: 'Potion of Vitality',
     isPotion: true,
-    simpleText: '+$1, +1 action, +1 buy, create a Fair and a Villager in play.',
+    simpleText: [
+        '+$1, +1 action, +1 buy.',
+        'Create a Fair and a Villager in play.'
+    ],
     relatedCards: [fair, villager],
     effects: [
         coinsEffect(1),
@@ -3300,7 +3404,7 @@ export var potionOfVitality = {
 export var potionOfWorkshop = {
     name: 'Potion of Workshop',
     isPotion: true,
-    simpleText: 'Create a Workshop in your hand.',
+    simpleText: ['Create a Workshop in your hand.'],
     relatedCards: [workshop],
     effects: [{
             text: ['Create a Workshop in your hand.'],
@@ -3310,7 +3414,7 @@ export var potionOfWorkshop = {
 export var potionOfTavern = {
     name: 'Potion of Tavern',
     isPotion: true,
-    simpleText: 'Create a Tavern in your hand.',
+    simpleText: ['Create a Tavern in your hand.'],
     relatedCards: [tavern],
     effects: [{
             text: ['Create a Tavern in your hand.'],
@@ -3320,7 +3424,7 @@ export var potionOfTavern = {
 export var potionOfThroneRoom = {
     name: 'Potion of Throne Room',
     isPotion: true,
-    simpleText: 'Create a Throne Room in your hand.',
+    simpleText: ['Create a Throne Room in your hand.'],
     relatedCards: [throneRoom],
     effects: [{
             text: ['Create a Throne Room in your hand.'],
@@ -3330,7 +3434,7 @@ export var potionOfThroneRoom = {
 export var potionOfInnovation = {
     name: 'Potion of Innovation',
     isPotion: true,
-    simpleText: 'Create an Innovation in your hand.',
+    simpleText: ['Create an Innovation in your hand.'],
     relatedCards: [innovation],
     effects: [{
             text: ['Create an Innovation in your hand.'],
@@ -3340,7 +3444,7 @@ export var potionOfInnovation = {
 export var potionOfTransmogrify = {
     name: 'Potion of Transmogrify',
     isPotion: true,
-    simpleText: 'Create a Transmogrify in your hand.',
+    simpleText: ['Create a Transmogrify in your hand.'],
     relatedCards: [transmogrify],
     effects: [{
             text: ['Create a Transmogrify in your hand.'],
@@ -3351,7 +3455,7 @@ export var potionOfTransmogrify = {
 export var potionOfMirrors = {
     name: 'Potion of Mirrors',
     isPotion: true,
-    simpleText: 'Put a reflect token on each card in your hand.',
+    simpleText: ['Put a reflect token on each card in your hand.'],
     rules: [reflectRule],
     effects: [{
             text: ['Put a reflect token on each card in your hand.'],
@@ -3363,7 +3467,7 @@ export var potionOfMirrors = {
 export var potionOfEchoes = {
     name: 'Potion of Echoes',
     isPotion: true,
-    simpleText: 'For each card in your hand without an echo token, create a copy with an echo token.',
+    simpleText: ['For each card in your hand without an echo token, create a copy with an echo token.'],
     rules: [echoRule],
     effects: [{
             text: ["For each card in your hand without an echo token,\n                create a copy in your hand with an echo token."],
@@ -3373,7 +3477,7 @@ export var potionOfEchoes = {
 export var potionOfOnslaught = {
     name: 'Potion of Onslaught',
     isPotion: true,
-    simpleText: 'Play any number of cards in your hand.',
+    simpleText: ['Play any number of cards in your hand.'],
     effects: [{
             text: ["Repeat any number of times: play a card in your hand\n            that was also there at the start of this effect\n            and that you haven't played yet."],
             transform: function (state, card) { return function (state) {
@@ -3425,14 +3529,20 @@ export var potionOfOnslaught = {
 export var potionOfPriority = {
     name: 'Potion of Priority',
     isPotion: true,
-    simpleText: 'Put five priority tokens on a supply. The next 5 times you create a card from it, play it immediately.',
+    simpleText: [
+        'Put five priority tokens on a supply.',
+        'The next 5 times you create a card from it, play it immediately.'
+    ],
     rules: [priorityRule],
     effects: [targetedEffect(function (card) { return addToken(card, 'priority', 5); }, 'Put five priority tokens on a card in the supply.', function (state) { return state.supply; })]
 };
 export var potionOfTwin = {
     name: 'Potion of Twin',
     isPotion: true,
-    simpleText: 'Put a twin token on a card in your hand. Whenever you play it, play it again.',
+    simpleText: [
+        'Put a twin token on a card in your hand.',
+        'Whenever you play it, play it again.'
+    ],
     rules: [twinRule],
     effects: [targetedEffect(function (target) { return addToken(target, 'twin'); }, 'Put a twin token on a card in your hand.', function (state) { return state.hand; })]
 };

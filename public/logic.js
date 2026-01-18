@@ -3416,7 +3416,7 @@ export var fair = {
 };
 export var bounty = {
     name: 'Bounty',
-    simpleText: 'The next time you buy a card, buy it again.',
+    simpleText: ['The next time you buy a card, buy it again.'],
     triggers: [{
             text: "Whenever you buy a card, discard this to buy the card again.",
             kind: 'buy',

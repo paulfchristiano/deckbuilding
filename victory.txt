@@ -11,5 +11,5 @@ Farmland available. Target: 40vp
 Vibrant city. Target: 40 vp.
 Palace. Target: 40 vp.
 Territory. Target: 40vp.
-Frontier. Costs $4 to buy, 0 to play. Starts with 2 charge tokens. Each time you play it, gain 1 vp per charge token, and then put a charge token on it if it has less than 6. Target: 60vp.
+*Frontier. Costs $4 to buy, 0 to play. Starts with 2 charge tokens. Each time you play it, gain 1 vp per charge token, and then put a charge token on it if it has less than 6. Target: 70vp.
 Gardens: costs $4 to buy, nothing to play (improvement from status quo), +1 vp per 8 cards in your deck. Target: 40 vp.

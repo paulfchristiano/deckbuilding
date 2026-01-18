@@ -62,7 +62,10 @@ const hound:CardSpec = {name: 'Hound',
 buyableFree(hound, 2)
 */
 const transmogrify:CardSpec = {name: 'Transmogrify',
-    simpleText: `Trash a card in your hand. Create a card in your hand costing up to $2 more than it.`,
+    simpleText: [
+        `Trash a card in your hand.`,
+        `Create a card in your hand costing up to $2 more than it.`
+    ],
     effects: [actionsEffect(1), {
         text: [`Trash a card in your hand.
                 If you do, choose a card in the supply costing up to $2 more than it.
@@ -167,7 +170,7 @@ function throneroomEffect(): Effect {
 }
 
 export const throneRoom:CardSpec = {name: 'Throne Room',
-    simpleText: `Pay an action to play a card in your hand twice without paying any @ costs.`,
+    simpleText: [`Pay an action to play a card in your hand twice without paying any @ costs.`],
     buyCost: coin(3),
     fixedCost: energy(1),
     effects: [throneroomEffect()]
@@ -199,7 +202,10 @@ const unearth:CardSpec = {name: Unearth,
 cards.push(supplyForCard(unearth, coin(4)))
 
 const celebration:CardSpec = {name: 'Celebration',
-    simpleText: `Cards cost @ less to play. When you create this, put it directly into play.`,
+    simpleText: [
+        `Cards cost @ less to play.`,
+        `When you create this, put it directly into play.`
+    ],
     fixedCost: energy(1),
     replacers: [costReduce('play', {energy:1})]
 }
@@ -213,7 +219,10 @@ cards.push(supplyForCard(celebration, coin(6), {replacers: [{
 
 const plowName = 'Plow'
 const plow:CardSpec = {name: plowName,
-    simpleText: `Put your discard into your hand. ${plowName} goes to play instead of your discard when bought or created.`,
+    simpleText: [
+        `Put your discard into your hand.`,
+        `${plowName} goes to play instead of your discard when bought or created.`
+    ],
     fixedCost: energy(1),
     effects: [recycleEffect(), toPlay()],
     staticReplacers: [{
@@ -262,7 +271,10 @@ registerEvent(restock)
 
 const escalate:CardSpec = {name: 'Escalate',
     fixedCost: free,
-    simpleText: `Use Refresh. This costs more to use each time ($0, $1, $3, $6, $10...).`,
+    simpleText: [
+        `Use Refresh.`,
+        `This costs more to use each time ($0, $1, $3, $6, $10...).`
+    ],
     variableCosts: [costPer(coin(1))],
     effects: [
         chargeEffect(),
@@ -278,7 +290,10 @@ events.push(escalate)
 const flourishName = 'Flourish'
 const flourish:CardSpec = {name: flourishName,
     fixedCost: free,
-    simpleText: `Once you have 1/16 of the vp requirement, you can use this to Refresh for free. You can repeat once you reach 1/8, 1/4, and 1/2 of the requirement.`,
+    simpleText: [
+        `Once you have 1/16 of the vp requirement, you can use this to Refresh for free.`,
+        `You can repeat once you reach 1/8, 1/4, and 1/2 of the requirement.`
+    ],
     restrictions: [{
         text: 'You cannot use this if your score times the number of charge tokens on this is less than the vp goal.',
         test: (card, state) => state.points * state.find(card).charge < state.vp_goal
@@ -332,7 +347,7 @@ registerEvent(scrapeBy)
 const volley:CardSpec = {
     name: 'Volley',
     fixedCost: energy(1),
-    simpleText: `Play then trash any number of cards in your hand.`,
+    simpleText: [`Play then trash any number of cards in your hand.`],
     effects: [{
         text: [`Repeat any number of times:
         play then trash a card in your hand that was also there
@@ -361,7 +376,10 @@ events.push(volley)
 
 const parallelize:CardSpec = {name: 'Parallelize',
     fixedCost: {...free, coin:1, energy:1},
-    simpleText: `Put a parallelize token on each card in your hand. Cards cost @ less to play for each parallelize token on them.`,
+    simpleText: [
+        `Put a parallelize token on each card in your hand.`,
+        `Cards cost @ less to play for each parallelize token on them.`
+    ],
     effects: [{
         text: [`Put a parallelize token on each card in your hand.`],
         transform: state => doAll(state.hand.map(c => addToken(c, 'parallelize')))
@@ -409,7 +427,10 @@ function costPerN(increment:Partial<Cost>, n:number): VariableCost {
 
 const travelingFair:CardSpec = {name:'Traveling Fair',
     fixedCost: coin(1),
-    simpleText: '+1 buy. Create a Fair in play.',
+    simpleText: [
+        '+1 buy.',
+        'Create a Fair in play.'
+    ],
     effects: [buyEffect(), createInPlayEffect(fair)],
     relatedCards: [fair],
 }
@@ -509,7 +530,10 @@ function chargeUpTo(max:number): Effect {
 }
 
 const frontierCard:CardSpec = {name: 'Frontier',
-    simpleText: `+2 vp. This increases by 1vp each time you play it, up to +6vp.`,
+    simpleText: [
+        `+2 vp.`,
+        `This increases by 1vp each time you play it, up to +6vp.`
+    ],
     buyCost: coin(4),
     effects: [{
         text: ['+1 vp per charge token on this.'],
@@ -522,7 +546,10 @@ const frontier:CardSpec = supplyForCard(
 )
 
 const investment:CardSpec = {name: 'Investment',
-    simpleText: `+$2. This increases by $1 each time you play it, up to +$6.`,
+    simpleText: [
+        `+$2.`,
+        `This increases by $1 each time you play it, up to +$6.`
+    ],
     fixedCost: energy(0),
     effects: [{
         text: ['+$1 per charge token on this.'],
@@ -558,7 +585,7 @@ const populate:CardSpec = {name: 'Populate',
 */
 const populate:CardSpec = {name: 'Populate',
     fixedCost: {...free, coin:8, energy:2},
-    simpleText: 'Buy every card in the supply costing up to $8.',
+    simpleText: ['Buy every card in the supply costing up to $8.'],
     effects: [{
         text: ['Buy every card in the supply costing up to $8.'],
         transform: (s, card) => async function(state) {
@@ -573,7 +600,7 @@ const populate:CardSpec = {name: 'Populate',
 // events.push(populate) // boon only
 
 export const duplicate:CardSpec = {name: 'Duplicate',
-    simpleText: `For each card in the supply, the next time you buy that card buy it again for free.`,
+    simpleText: [`For each card in the supply, the next time you buy that card buy it again for free.`],
     fixedCost: {...free, coin:4, energy:1},
     effects: [{
         text: [`Put a duplicate token on each card in the supply.`],
@@ -597,7 +624,10 @@ const workshop:CardSpec = {name: workshopName,
 cards.push(supplyForCard(workshop, coin(3)))
 
 const shippingLane:CardSpec = {name: 'Shipping Lane',
-    simpleText: `+$2. The next time you buy a card, buy it again for free.`,
+    simpleText: [
+        `+$2.`,
+        `The next time you buy a card, buy it again for free.`
+    ],
     fixedCost: energy(1),
     effects: [coinsEffect(2)],
     triggers: [{
@@ -668,7 +698,10 @@ const recycle:CardSpec = {name: 'Recycle',
 
 const twin:CardSpec = {name: 'Twin',
     fixedCost: {...free, energy:1, coin:3},
-    simpleText: `Put a twin token on a card in your hand. Whenever you play it other than with this effect, play it again.`,
+    simpleText: [
+        `Put a twin token on a card in your hand.`,
+        `Whenever you play it other than with this effect, play it again.`
+    ],
     effects: [targetedEffect(
         target => addToken(target, 'twin'),
         'Put a twin token on a card in your hand.',
@@ -686,7 +719,10 @@ function literalOptions(xs:string[], keys:Key[]): Option<string>[] {
 }
 
 const researcher:CardSpec = {name: 'Researcher',
-    simpleText: `+3 actions. This increases by +1 action each time you play it.`,
+    simpleText: [
+        `+3 actions.`,
+        `This increases by +1 action each time you play it.`
+    ],
     effects: [{
         text: [`+1 action for each charge token on this.`],
         transform: (state, card) => async function(state) {
@@ -766,7 +802,7 @@ function robust(card:Card):Replacer<MoveParams> {
 }
 
 const expedite: CardSpec = {
-    simpleText: `The next time you create a card, play it immediately.`,
+    simpleText: [`The next time you create a card, play it immediately.`],
     name: 'Expedite',
     fixedCost: energy(1),
     effects: [chargeEffect()],
@@ -790,7 +826,10 @@ function removeAllSupplyTokens(token:Token): Effect {
 
 const synergy:CardSpec = {name: 'Synergy',
     fixedCost: {...free, coin:3, energy:1},
-    simpleText: `Put synergy tokens on two cards in the supply. Whenever you buy the more expensive one (or eithe if they are tied), you can buy the other one for free.`,
+    simpleText: [
+        `Put synergy tokens on two cards in the supply.`,
+        `Whenever you buy the more expensive one (or either if they are tied), you can buy the other one for free.`
+    ],
     effects: [removeAllSupplyTokens('synergy'), {
         text: ['Put synergy tokens on two cards in the supply.'],
         transform: () => async function(state) {
@@ -822,7 +861,10 @@ events.push(synergy)
 const shelterName = 'Shelter'
 const shelter:CardSpec = {name: shelterName,
     buyCost: coin(5),
-    simpleText: `Whenever you would move a card from play to your hand, instead leave it in play. Put this in play when you create it.`,
+    simpleText: [
+        `Whenever you would move a card from play to your hand, instead leave it in play.`,
+        `Put this in play when you create it.`
+    ],
     replacers: [{
         kind: 'move',
         text: 'Whenever you would move a card from play to your hand (including this one) instead leave it in place.',
@@ -871,7 +913,7 @@ cards.push(supplyForCard(spices, coin(5), {onBuy: [coinsEffect(4)]}))
 
 const onslaught:CardSpec = {name: 'Onslaught',
     fixedCost: {...free, coin:4, energy:1},
-    simpleText: `Play any number of cards in your hand.`,
+    simpleText: [`Play any number of cards in your hand.`],
     effects: [{
         text: [`Repeat any number of times: play a card in your hand
             that was also there at the start of this effect
@@ -983,7 +1025,10 @@ const gardens:CardSpec = {name: "Gardens",
 
 const territoryName = 'Territory'
 const territory:CardSpec = {
-    simpleText: `+2 vp. Leave this in your hand when you play it.`,
+    simpleText: [
+        `+2 vp.`,
+        `Leave this in your hand when you play it.`
+    ],
     name: territoryName,
     buyCost: coin(10),
     fixedCost: energy(1),
@@ -999,7 +1044,7 @@ cards.push(territory)
 
 const farmlandName = 'Farmland'
 const farmland:CardSpec = {
-    simpleText: `+7 vp if you played this the normal way from your hand.`,
+    simpleText: [`+7 vp if you played this the normal way from your hand.`],
     name: farmlandName,
     fixedCost: energy(3),
     buyCost: coin(8),
@@ -1080,7 +1125,11 @@ const decay:CardSpec = {
 // events.push(decay) // removed (curse)
 
 const reflect:CardSpec = {name: 'Reflect',
-    simpleText: `Put a reflect token on a card in your hand. The next time you play that card, play it twice. This costs $1 more each time you use it.`,
+    simpleText: [
+        `Put a reflect token on a card in your hand.`,
+        `The next time you play that card, play it twice.`,
+        `This costs $1 more each time you use it.`
+    ],
     fixedCost: coin(1),
     variableCosts: [costPer({coin:1})],
     effects: [incrementCost(), targetedEffect(
@@ -1095,7 +1144,7 @@ events.push(reflect)
 const replicate:CardSpec = {name: 'Replicate',
     fixedCost: energy(1),
     effects: [chargeEffect()],
-    simpleText: `The next time you buy a card, buy it again.`,
+    simpleText: [`The next time you buy a card, buy it again.`],
     staticTriggers: [{
         text: `After buying a card other than with this,
             remove a charge token from this to to buy the card again.`,
@@ -1302,7 +1351,11 @@ const tactic:CardSpec = {
 }
 
 const mastermind:CardSpec = {
-    simpleText: `Create a ${tactic.name} in play. Whenever it would move to your hand it gains a charge token instead. Once it has a charge token, you can trash it and pay an action to play a card in your hand three times.`,
+    simpleText: [
+        `Create a ${tactic.name} in play.`,
+        `Whenever it would move to your hand it gains a charge token instead.`,
+        `Once it has a charge token, you can trash it and pay an action to play a card in your hand three times.`
+    ],
     name: 'Mastermind',
     fixedCost: energy(1),
     relatedCards: [tactic],
@@ -1388,7 +1441,7 @@ const  palace:CardSpec = {name: 'Palace',
 
 const Innovation:string = 'Innovation'
 const innovation:CardSpec = {name: Innovation,
-    simpleText: `The next time you create a card in your discard, play it immediately.`,
+    simpleText: [`The next time you create a card in your discard, play it immediately.`],
     effects: [actionsEffect(1)],
     replacers: [playReplacer(
         `Whenever you would create a card in your discard,
@@ -1426,7 +1479,10 @@ cards.push(supplyForCard(formation, coin(3)))
 
 const Traveler = 'Traveler'
 const traveler:CardSpec = {
-    simpleText: `Pay an action to play a card in your hand once for each charge token on this. It starts with 1 charge token and gains 1 each time you play it, up to 3.`,
+    simpleText: [
+        `Pay an action to play a card in your hand once for each charge token on this.`,
+        `It starts with 1 charge token and gains 1 each time you play it, up to 3.`
+    ],
     name: 'Traveler',
     fixedCost: energy(1),
     effects: [{
@@ -1501,7 +1557,10 @@ const ball:CardSpec = {
 registerEvent(ball)
 */
 const lostArts:CardSpec = {
-    simpleText: `Choose a card in the supply and put 8 art tokens on it. Whenever you play a card with art tokens on its supply, remove art tokens instead of paying @.`,
+    simpleText: [
+        `Choose a card in the supply and put 8 art tokens on it.`,
+        `Whenever you play a card with art tokens on its supply, remove art tokens instead of paying @.`
+    ],
     fixedCost: {...free, energy:1, coin:3},
     name: 'Lost Arts',
     effects: [targetedEffect(
@@ -1882,7 +1941,10 @@ buyable(haggler, 6)
 const reuse:CardSpec = {
     name: 'Reuse',
     fixedCost: energy(2),
-    simpleText: `Play any number of cards in your discard that don't have a reuse token on them. Put a reuse token on each card played this way.`,
+    simpleText: [
+        `Play any number of cards in your discard that don't have a reuse token on them.`,
+        `Put a reuse token on each card played this way.`
+    ],
     effects: [{
         text: [`Repeat any number of times:
                 choose a card in your discard without a reuse token
@@ -2044,7 +2106,10 @@ cards.push(supplyForCard(highway, coin(5), {replacers: [{
 }]}))
 
 const prioritize:CardSpec = {
-    simpleText: `Choose a supply. The next 5 times you create a card from that supply, play it immediately.`,
+    simpleText: [
+        `Choose a supply.`,
+        `The next 5 times you create a card from that supply, play it immediately.`
+    ],
     name: 'Prioritize',
     fixedCost: {...free, energy:1, coin:3},
     effects: [targetedEffect(
@@ -2077,7 +2142,10 @@ const composting:CardSpec = {
 
 const FairyGold = 'Fairy Gold'
 const fairyGold:CardSpec = {
-    simpleText: `+$3 and +1 buy. This decreases by $1 each time you play it.`,
+    simpleText: [
+        `+$3 and +1 buy.`,
+        `This decreases by $1 each time you play it.`
+    ],
     name: FairyGold,
     effects: [buyEffect(), {
         text: [`+$1 per charge token on this.`],
@@ -2120,7 +2188,10 @@ const pathfinding:CardSpec = {
 
 const fortuneName = 'Fortune'
 const fortune:CardSpec = {
-    simpleText: `Double your $ and buys. You can only buy Fortune once.`,
+    simpleText: [
+        `Double your $ and buys.`,
+        `You can only buy Fortune once.`
+    ],
     name: fortuneName,
     effects: [{
         text: [`Double your $.`],
@@ -2456,7 +2527,7 @@ function buyCheaper(card:Card, s:State, source:Source): Transform {
 
 const haggle:CardSpec = {
     name: 'Haggle',
-    simpleText: `The next time you buy a card, immediately buy a cheaper card.`,
+    simpleText: [`The next time you buy a card, immediately buy a cheaper card.`],
     fixedCost: energy(1),
     effects: [chargeEffect()],
     staticTriggers: [{
@@ -2495,7 +2566,10 @@ const splay:CardSpec = {
         text: [`Put a splay token on each supply.`],
         transform: s => doAll(s.supply.map(c => addToken(c, 'splay')))
     }],
-    simpleText: `Put a splay token on each supply. Whenever you play a card with a splay token on its supply, remove splay tokens instead of paying @.`,
+    simpleText: [
+        `Put a splay token on each supply.`,
+        `Whenever you play a card with a splay token on its supply, remove splay tokens instead of paying @.`
+    ],
     staticReplacers: [{
         text: `Cards you play cost @ less for each splay token on their supply.
                Whenever this reduces a card's cost by one or more @,
@@ -2547,7 +2621,10 @@ function multitargetedEffect(
 
 const recover:CardSpec = {
     name: 'Recover',
-    simpleText: `Put up to two cards from your discard into your hand. This costs $1 more each time you use it.`,
+    simpleText: [
+        `Put up to two cards from your discard into your hand.`,
+        `This costs $1 more each time you use it.`
+    ],
     fixedCost: coin(1),
     variableCosts: [costPer(coin(1))],
     effects: [multitargetedEffect(
@@ -2599,7 +2676,10 @@ events.push(reprise)
 
 const accelerate:CardSpec = {
     name: 'Accelerate',
-    simpleText: `Put a priority token on each card in the supply. Whenever you create a card with a priority token on it, remove the token to play the card immediately.`,
+    simpleText: [
+        `Put a priority token on each card in the supply.`,
+        `Whenever you create a card with a priority token on it, remove the token to play the card immediately.`
+    ],
     fixedCost: {...free, energy:1, coin:4},
     effects: [{
         text: [`Put a priority token on each card in the supply.`],
@@ -2658,7 +2738,10 @@ cards.push(magpie)
 
 const crown:CardSpec = {
     name: 'Crown',
-    simpleText: `Put a reflect token on a card in your hand. The next time you play it, play it again.`,
+    simpleText: [
+        `Put a reflect token on a card in your hand.`,
+        `The next time you play it, play it again.`
+    ],
     buyCost: coin(3),
     effects: [targetedEffect(
         target => addToken(target, 'reflect'),
@@ -2672,7 +2755,10 @@ cards.push(crown)
 const churnName = 'Churn'
 const churn:CardSpec = {
     name: churnName,
-    simpleText: `Put two non-${churnName} cards from your discard to your hand. This decreases by 1 each time you play it.`,
+    simpleText: [
+        `Put two non-${churnName} cards from your discard to your hand.`,
+        `This decreases by 1 each time you play it.`
+    ],
     effects: [actionsEffect(1), {
         text: [`For each charge token on this put a non-${churnName} card from your discard into your hand.`],
         transform: (state, card) => async function(state) {
@@ -2741,16 +2827,16 @@ cards.push(supplyForCard(marketSquare, coin(2), {afterBuy: [createInPlayEffect(f
 const greatFeastName = 'Great Feast'
 const greatFeast:CardSpec = {
     name: greatFeastName,
-    buyCost: coin(8),
+    buyCost: coin(10),
     effects: [{
-        text: [`Do this three times: buy a card in the supply costing up to $8 other than ${greatFeastName}`],
+        text: [`Do this three times: buy a card in the supply costing up to $8.`],
         transform: (state, card) => async function(state) {
             for (let i = 0; i < 3; i++) {
                 state = await applyToTarget(
                     target => target.buy(card),
-                    `Buy a card in the supply costing up to $8 other than ${greatFeastName}.`,
+                    `Buy a card in the supply costing up to $8`,
                     s => s.supply.filter(
-                        x => leq(x.cost('buy', s), coin(8)) && x.name != greatFeastName
+                        x => leq(x.cost('buy', s), coin(8))
                     )
                 )(state)
                 state = tick(card)(state)
@@ -2797,7 +2883,10 @@ const moon:CardSpec = {
 }
 
 const werewolf:CardSpec = {
-    simpleText: `+3 actions. If there is a full moon, instead +$3 and +1 buy. The moon starts off empty and switches between full and empty each time it would move to your hand.`,
+    simpleText: [
+        `+3 actions. If there is a full moon, instead +$3 and +1 buy.`,
+        `The moon starts off empty and switches between full and empty each time it would move to your hand.`
+    ],
     name: 'Werewolf',
     buyCost: coin(3),
     relatedCards: [moon],
@@ -2832,7 +2921,10 @@ const embargo:CardSpec = {
 const contraband:CardSpec = {
     name: 'Contraband',
     buyCost: coin(4),
-    simpleText: `+$5 and +5 buys. Create an Embargo in play that increases the cost of cards and events by $1 until it leaves play.`,
+    simpleText: [
+        `+$5 and +5 buys.`,
+        `Create an Embargo in play that increases the cost of cards and events by $1 until it leaves play.`
+    ],
     effects: [coinsEffect(5), buysEffect(5), createInPlayEffect(embargo)],
     relatedCards: [embargo],
 }
@@ -2841,7 +2933,10 @@ cards.push(contraband)
 const bulkOrder:CardSpec = {
     name: 'Bulk Order',
     fixedCost: coin(3),
-    simpleText: `Choose a card in the supply. The next 5 times you buy that card, buy it again for free.`,
+    simpleText: [
+        `Choose a card in the supply.`,
+        `The next 5 times you buy that card, buy it again for free.`
+    ],
     effects: [targetedEffect(
         card => addToken(card, 'duplicate', 5),
         'Put five duplicate tokens on a card in the supply.',
@@ -2893,7 +2988,10 @@ const capitalization:CardSpec = {
 const insight:CardSpec = {
     name: 'Insight',
     fixedCost: energy(1),
-    simpleText: '+1 action, +1 buy, +$1. Create a Villager and a Fair in play.',
+    simpleText: [
+        '+1 action, +1 buy, +$1.',
+        'Create a Villager and a Fair in play.'
+    ],
     relatedCards: [villager, fair],
     effects: [
         actionsEffect(1),
@@ -2908,7 +3006,7 @@ const insight:CardSpec = {
 const windfall:CardSpec = {
     name: 'Windfall',
     fixedCost: free,
-    simpleText: 'At the start of the game, +$15 and +5 buys.',
+    simpleText: ['At the start of the game, +$15 and +5 buys.'],
     restrictions: [cannotUse],
     staticTriggers: [{
         kind: 'gameStart',
@@ -2922,7 +3020,7 @@ const windfall:CardSpec = {
 const duplicateStart:CardSpec = {
     name: 'Duplicate Start',
     fixedCost: free,
-    simpleText: 'At the start of the game, put a duplicate token on each card in the supply.',
+    simpleText: ['At the start of the game, put a duplicate token on each card in the supply.'],
     restrictions: [cannotUse],
     staticTriggers: [{
         kind: 'gameStart',
@@ -2940,7 +3038,7 @@ const duplicateStart:CardSpec = {
 const priorityStart:CardSpec = {
     name: 'Priority Start',
     fixedCost: free,
-    simpleText: 'At the start of the game, put a priority token on each card in the supply.',
+    simpleText: ['At the start of the game, put a priority token on each card in the supply.'],
     restrictions: [cannotUse],
     staticTriggers: [{
         kind: 'gameStart',
@@ -2958,7 +3056,7 @@ const priorityStart:CardSpec = {
 const vaultStart:CardSpec = {
     name: 'Vault Start',
     fixedCost: free,
-    simpleText: 'At the start of the game, +10 actions and +2 buys.',
+    simpleText: ['At the start of the game, +10 actions and +2 buys.'],
     restrictions: [cannotUse],
     staticTriggers: [{
         kind: 'gameStart',
@@ -3006,7 +3104,7 @@ export const vpModes: VPMode[] = [
     { name: 'Vibrant City', target: 40, cards: [vibrantCity], events: [] },
     { name: 'Palace', target: 40, cards: [palace], events: [] },
     { name: 'Territory', target: 40, cards: [territory], events: [] },
-    { name: 'Frontier', target: 60, cards: [frontier], events: [] },
+    { name: 'Frontier', target: 70, cards: [frontier], events: [] },
     { name: 'Gardens', target: 40, cards: [gardens], events: [] },
 ]
 
@@ -3015,14 +3113,14 @@ export const vpModes: VPMode[] = [
 export const potionOfActions:CardSpec = {
     name: 'Potion of Actions',
     isPotion: true,
-    simpleText: '+10 actions.',
+    simpleText: ['+10 actions.'],
     effects: [actionsEffect(10)]
 }
 
 export const potionOfWealth:CardSpec = {
     name: 'Potion of Wealth',
     isPotion: true,
-    simpleText: 'Double your money and buys.',
+    simpleText: ['Double your money and buys.'],
     effects: [{
         text: ['Double your $ and buys.'],
         transform: (state, card) => async function(state) {
@@ -3036,7 +3134,7 @@ export const potionOfWealth:CardSpec = {
 export const potionOfCopper:CardSpec = {
     name: 'Potion of Copper',
     isPotion: true,
-    simpleText: 'Create 5 coppers in your hand.',
+    simpleText: ['Create 5 coppers in your hand.'],
     effects: [{
         text: ['Create 5 Coppers in your hand.'],
         transform: () => repeat(create(copper, 'hand'), 5)
@@ -3046,7 +3144,7 @@ export const potionOfCopper:CardSpec = {
 export const potionOfMining:CardSpec = {
     name: 'Potion of Mining',
     isPotion: true,
-    simpleText: 'Trash coppers for silvers, silvers for golds.',
+    simpleText: ['Trash coppers for silvers, silvers for golds.'],
     relatedCards: [copper, silver, gold],
     effects: [{
         text: ['Trash any number of Coppers in your hand, and create that many Silvers in your discard.',
@@ -3078,7 +3176,7 @@ export const potionOfMining:CardSpec = {
 export const potionOfCelebration:CardSpec = {
     name: 'Potion of Celebration',
     isPotion: true,
-    simpleText: 'Create a Celebration with an echo token in play.',
+    simpleText: ['Create a Celebration with an echo token in play.'],
     relatedCards: [celebration],
     rules: [echoRule],
     effects: [{
@@ -3090,7 +3188,7 @@ export const potionOfCelebration:CardSpec = {
 export const potionOfBounty:CardSpec = {
     name: 'Potion of Bounty',
     isPotion: true,
-    simpleText: 'The next time you buy a card, buy it two more times for free.',
+    simpleText: ['The next time you buy a card, buy it two more times for free.'],
     relatedCards: [bounty],
     effects: [createInPlayEffect(bounty, 2)]
 }
@@ -3098,7 +3196,10 @@ export const potionOfBounty:CardSpec = {
 export const potionOfFerry:CardSpec = {
     name: 'Potion of Ferry',
     isPotion: true,
-    simpleText: 'Put a ferry token on a supply. It costs $2 less.',
+    simpleText: [
+        'Put a ferry token on a supply.',
+        'It costs $2 less.'
+    ],
     rules: [ferryRule],
     effects: [targetedEffect(
         target => addToken(target, 'ferry', 2),
@@ -3110,7 +3211,7 @@ export const potionOfFerry:CardSpec = {
 export const potionOfRecovery:CardSpec = {
     name: 'Potion of Recovery',
     isPotion: true,
-    simpleText: 'Put your discard into your hand.',
+    simpleText: ['Put your discard into your hand.'],
     effects: [{
         text: ['Put your discard into your hand.'],
         transform: (state) => doAll([moveMany(state.discard, 'hand'), sortHand])
@@ -3120,7 +3221,7 @@ export const potionOfRecovery:CardSpec = {
 export const potionOfShelter:CardSpec = {
     name: 'Potion of Shelter',
     isPotion: true,
-    simpleText: 'Create 3 Fairs and a Shelter in play.',
+    simpleText: ['Create 3 Fairs and a Shelter in play.'],
     relatedCards: [fair, shelter],
     effects: [
         createInPlayEffect(shelter),
@@ -3131,7 +3232,10 @@ export const potionOfShelter:CardSpec = {
 export const potionOfVitality:CardSpec = {
     name: 'Potion of Vitality',
     isPotion: true,
-    simpleText: '+$1, +1 action, +1 buy, create a Fair and a Villager in play.',
+    simpleText: [
+        '+$1, +1 action, +1 buy.',
+        'Create a Fair and a Villager in play.'
+    ],
     relatedCards: [fair, villager],
     effects: [
         coinsEffect(1),
@@ -3146,7 +3250,7 @@ export const potionOfVitality:CardSpec = {
 export const potionOfWorkshop:CardSpec = {
     name: 'Potion of Workshop',
     isPotion: true,
-    simpleText: 'Create a Workshop in your hand.',
+    simpleText: ['Create a Workshop in your hand.'],
     relatedCards: [workshop],
     effects: [{
         text: ['Create a Workshop in your hand.'],
@@ -3157,7 +3261,7 @@ export const potionOfWorkshop:CardSpec = {
 export const potionOfTavern:CardSpec = {
     name: 'Potion of Tavern',
     isPotion: true,
-    simpleText: 'Create a Tavern in your hand.',
+    simpleText: ['Create a Tavern in your hand.'],
     relatedCards: [tavern],
     effects: [{
         text: ['Create a Tavern in your hand.'],
@@ -3168,7 +3272,7 @@ export const potionOfTavern:CardSpec = {
 export const potionOfThroneRoom:CardSpec = {
     name: 'Potion of Throne Room',
     isPotion: true,
-    simpleText: 'Create a Throne Room in your hand.',
+    simpleText: ['Create a Throne Room in your hand.'],
     relatedCards: [throneRoom],
     effects: [{
         text: ['Create a Throne Room in your hand.'],
@@ -3179,7 +3283,7 @@ export const potionOfThroneRoom:CardSpec = {
 export const potionOfInnovation:CardSpec = {
     name: 'Potion of Innovation',
     isPotion: true,
-    simpleText: 'Create an Innovation in your hand.',
+    simpleText: ['Create an Innovation in your hand.'],
     relatedCards: [innovation],
     effects: [{
         text: ['Create an Innovation in your hand.'],
@@ -3190,7 +3294,7 @@ export const potionOfInnovation:CardSpec = {
 export const potionOfTransmogrify:CardSpec = {
     name: 'Potion of Transmogrify',
     isPotion: true,
-    simpleText: 'Create a Transmogrify in your hand.',
+    simpleText: ['Create a Transmogrify in your hand.'],
     relatedCards: [transmogrify],
     effects: [{
         text: ['Create a Transmogrify in your hand.'],
@@ -3202,7 +3306,7 @@ export const potionOfTransmogrify:CardSpec = {
 export const potionOfMirrors:CardSpec = {
     name: 'Potion of Mirrors',
     isPotion: true,
-    simpleText: 'Put a reflect token on each card in your hand.',
+    simpleText: ['Put a reflect token on each card in your hand.'],
     rules: [reflectRule],
     effects: [{
         text: ['Put a reflect token on each card in your hand.'],
@@ -3214,7 +3318,7 @@ export const potionOfMirrors:CardSpec = {
 export const potionOfEchoes:CardSpec = {
     name: 'Potion of Echoes',
     isPotion: true,
-    simpleText: 'For each card in your hand without an echo token, create a copy with an echo token.',
+    simpleText: ['For each card in your hand without an echo token, create a copy with an echo token.'],
     rules: [echoRule],
     effects: [{
         text: [`For each card in your hand without an echo token,
@@ -3230,7 +3334,7 @@ export const potionOfEchoes:CardSpec = {
 export const potionOfOnslaught:CardSpec = {
     name: 'Potion of Onslaught',
     isPotion: true,
-    simpleText: 'Play any number of cards in your hand.',
+    simpleText: ['Play any number of cards in your hand.'],
     effects: [{
         text: [`Repeat any number of times: play a card in your hand
             that was also there at the start of this effect
@@ -3259,7 +3363,10 @@ export const potionOfOnslaught:CardSpec = {
 export const potionOfPriority:CardSpec = {
     name: 'Potion of Priority',
     isPotion: true,
-    simpleText: 'Put five priority tokens on a supply. The next 5 times you create a card from it, play it immediately.',
+    simpleText: [
+        'Put five priority tokens on a supply.',
+        'The next 5 times you create a card from it, play it immediately.'
+    ],
     rules: [priorityRule],
     effects: [targetedEffect(
         card => addToken(card, 'priority', 5),
@@ -3271,7 +3378,10 @@ export const potionOfPriority:CardSpec = {
 export const potionOfTwin:CardSpec = {
     name: 'Potion of Twin',
     isPotion: true,
-    simpleText: 'Put a twin token on a card in your hand. Whenever you play it, play it again.',
+    simpleText: [
+        'Put a twin token on a card in your hand.',
+        'Whenever you play it, play it again.'
+    ],
     rules: [twinRule],
     effects: [targetedEffect(
         target => addToken(target, 'twin'),

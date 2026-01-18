@@ -142,7 +142,7 @@
         #bufferDisplay {
             position: fixed;
             top: 10px;
-            right: 85px;
+            right: 110px;
             font-size: 1.5em;
             padding: 5px 10px;
             background: white;
@@ -172,6 +172,22 @@
             gap: 20px;
         }
         #victoryScreen .option {
+            cursor: pointer;
+            font-size: 1.5em;
+            padding: 15px 30px;
+        }
+        #gameOverScreen {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 80vh;
+            gap: 20px;
+        }
+        #gameOverScreen h1 {
+            color: red;
+        }
+        #gameOverScreen .option {
             cursor: pointer;
             font-size: 1.5em;
             padding: 15px 30px;
@@ -252,8 +268,8 @@
         }
         .pathPlay {
             margin-top: 10px;
-            font-size: 0.85em;
-            color: #666;
+            font-size: 1.1em;
+            color: #444;
             text-align: center;
         }
     </style>
@@ -341,6 +357,12 @@
     <h1>Congratulations!</h1>
     <p>You completed all 8 stages!</p>
     <span class="option" id="restartGame" choosable>Play Again</span>
+</div>
+
+<div id="gameOverScreen" style="display: none;">
+    <h1>Game Over</h1>
+    <p>Your buffer went below zero!</p>
+    <span class="option" id="gameOverRestart" choosable>Try Again</span>
 </div>
 
 <div id="gameContainer">
