@@ -1,0 +1,133 @@
+// cardRendering.ts - Card and spec rendering utilities
+// Shared between gameUI and metaUI for consistent card display.
+
+import { CardSpec, Cost, VariableCost, Trigger, Replacer, Rule } from './gameLogic.js'
+import { renderCost } from './gameLogic.js'
+
+// ----------------------------- Helper Functions
+
+function isZero(c: Cost | undefined): boolean {
+    return c === undefined || renderCost(c) === ''
+}
+
+// ----------------------------- Text Rendering
+
+function renderEffects(spec: CardSpec): string {
+    const parts: string[] = []
+    for (const effect of spec.effects || []) {
+        parts.push(...effect.text)
+    }
+    return parts.map(x => `<div>${x}</div>`).join('')
+}
+
+function renderAbility(spec: CardSpec): string {
+    const parts: string[] = []
+    for (const effect of spec.ability || []) {
+        parts.push(...effect.text.map(x => `<div>(ability) ${x}</div>`))
+    }
+    return parts.join('')
+}
+
+function renderTrigger(x: Trigger | Replacer, staticTrigger: boolean): string {
+    const desc = staticTrigger ? '(static)' : '(effect)'
+    return `<div>${desc} ${x.text}</div>`
+}
+
+function renderVariableCosts(cs: VariableCost[]): string {
+    return cs.map(c => `<div>(cost) +${c.text}</div>`).join('')
+}
+
+function renderBuyable(bs: { text?: string }[]): string {
+    return bs.map(
+        b => b.text === undefined ? '' : `<div>(req) ${b.text}</div>`
+    ).join('')
+}
+
+function renderRuleText(rule: Rule): string {
+    const parts: string[] = []
+    for (const trigger of (rule.triggers || [])) {
+        parts.push(`<div>(rule) ${trigger.text}</div>`)
+    }
+    for (const replacer of (rule.replacers || [])) {
+        parts.push(`<div>(rule) ${replacer.text}</div>`)
+    }
+    return parts.join('')
+}
+
+// ----------------------------- Card Text (Full Detail)
+
+export function cardText(spec: CardSpec): string {
+    const effectHtml = renderEffects(spec)
+    const buyableHtml = spec.restrictions ? renderBuyable(spec.restrictions) : ''
+    const costHtml = spec.variableCosts ? renderVariableCosts(spec.variableCosts) : ''
+    const abilitiesHtml = renderAbility(spec)
+    const triggerHtml = (spec.triggers || []).map(x => renderTrigger(x, false)).join('')
+    const replacerHtml = (spec.replacers || []).map(x => renderTrigger(x, false)).join('')
+    const staticTriggerHtml = (spec.staticTriggers || []).map(x => renderTrigger(x, true)).join('')
+    const staticReplacerHtml = (spec.staticReplacers || []).map(x => renderTrigger(x, true)).join('')
+    const rulesHtml = (spec.rules || []).map(renderRuleText).join('')
+
+    return [
+        buyableHtml, costHtml, effectHtml, abilitiesHtml,
+        triggerHtml, replacerHtml, staticTriggerHtml, staticReplacerHtml, rulesHtml
+    ].join('')
+}
+
+// ----------------------------- Spec Rendering
+
+// Build full HTML tooltip for a card spec (matching in-game tooltip style)
+export function buildSpecTooltip(spec: CardSpec): string {
+    const buyStr = !isZero(spec.buyCost) ? `(${renderCost(spec.buyCost as Cost)})` : '---'
+    const costStr = !isZero(spec.fixedCost) ? `(${renderCost(spec.fixedCost as Cost)})` : '---'
+    const header = `<div>---${buyStr} ${spec.name} ${costStr}---</div>`
+    const baseFilling = header + cardText(spec)
+
+    // Related cards
+    const relatedCards = spec.relatedCards || []
+    const relatedFilling = relatedCards.map(r => buildSpecTooltip(r)).join('')
+
+    return `${baseFilling}${relatedFilling}`
+}
+
+// Render a CardSpec with full details including related cards
+export function renderSpec(spec: CardSpec): string {
+    const buyText = isZero(spec.buyCost) ? '' : `(${renderCost(spec.buyCost as Cost)})&nbsp;`
+    const costText = isZero(spec.fixedCost) ? '' : `&nbsp;(${renderCost(spec.fixedCost as Cost)})`
+    const header = `<div>${buyText}<strong>${spec.name}</strong>${costText}</div>`
+    const me = `<div class='spec'>${header}${cardText(spec)}</div>`
+    const related = (spec.relatedCards || []).map(renderSpec)
+    return [me, ...related].join('')
+}
+
+// Render a CardSpec without related cards inline, but with tooltip
+// Uses simpleText if available for compact display
+export function renderSpecNoRelated(spec: CardSpec): string {
+    const buyText = isZero(spec.buyCost) ? '' : `(${renderCost(spec.buyCost as Cost)})&nbsp;`
+    const costText = isZero(spec.fixedCost) ? '' : `&nbsp;(${renderCost(spec.fixedCost as Cost)})`
+    const header = `<div>${buyText}<strong>${spec.name}</strong>${costText}</div>`
+
+    // Use simpleText if available, otherwise full card text
+    const displayText = spec.simpleText
+        ? spec.simpleText.map(line => `<div>${line}</div>`).join('')
+        : cardText(spec)
+
+    // Build HTML tooltip matching in-game style
+    const tooltipHtml = buildSpecTooltip(spec)
+
+    return `<div class='spec'>${header}${displayText}<span class='tooltip'>${tooltipHtml}</span></div>`
+}
+
+// Render a simple card header (name + cost) without text
+export function renderSpecHeader(spec: CardSpec): string {
+    const buyText = isZero(spec.buyCost) ? '' : `(${renderCost(spec.buyCost as Cost)})&nbsp;`
+    const costText = isZero(spec.fixedCost) ? '' : `&nbsp;(${renderCost(spec.fixedCost as Cost)})`
+    return `${buyText}<strong>${spec.name}</strong>${costText}`
+}
+
+// Render just the simple description (for tooltips in other contexts)
+export function renderSpecSimple(spec: CardSpec): string {
+    if (spec.simpleText) {
+        return spec.simpleText.join(' ')
+    }
+    return spec.name
+}

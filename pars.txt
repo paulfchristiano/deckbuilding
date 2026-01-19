@@ -1,8 +1,0 @@
-Stage 1: 40
-Stage 2: 35
-Stage 3: 30
-Stage 4: 37
-Stage 5: 24
-Stage 6: 21
-Stage 7: 18
-Stage 8: 0

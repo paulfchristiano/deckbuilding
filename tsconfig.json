@@ -24,6 +24,16 @@
   },
   "files": [
     "public/main.ts",
-    "public/logic.ts"
+    "public/gameLogic.ts",
+    "public/metaLogic.ts",
+    "public/gameUI.ts",
+    "public/metaUI.ts",
+    "public/cardRendering.ts",
+    "public/data/index.ts",
+    "public/data/encounters.ts",
+    "public/data/relics.ts",
+    "public/data/potions.ts",
+    "public/data/boons.ts",
+    "public/data/victory.ts",
   ]
 }
