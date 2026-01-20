@@ -74,22 +74,27 @@ var __read = (this && this.__read) || function (o, n) {
     }
     return ar;
 };
-import { doAll, boons, free, coin, energy, costPer, chargeEffect, useRefresh, buyEffect, createInPlayEffect, addToken, cannotUse, fair, villager, recycleEffect, targetedEffect, priorityRule, actionsEffect, buysEffect, coinsEffect, gainActions, gainBuys, gainCoins, discharge, charge, costReduceNext, choice, allowNull, multichoice, asNumberedChoices, asChoice, moveMany, leq, num, } from '../gameLogic.js';
+import { doAll, boons, free, coin, energy, costPer, useRefresh, buyEffect, createInPlayEffect, addToken, cannotUse, fair, villager, recycleEffect, targetedEffect, priorityRule, actionsEffect, buysEffect, coinsEffect, gainActions, gainBuys, gainCoins, discharge, charge, costReduceNext, choice, allowNull, multichoice, asNumberedChoices, asChoice, moveMany, leq, num, } from '../gameLogic.js';
 var escalate = { name: 'Escalate',
     fixedCost: free,
     simpleText: [
         "Use Refresh.",
-        "This costs more to use each time ($0, $1, $3, $6, $10...)."
+        "The cost of this event doubles each time you use it."
     ],
     variableCosts: [costPer(coin(1))],
     effects: [
-        chargeEffect(),
         {
-            text: ['Put a cost token on this for each charge token on it.'],
-            transform: function (s, c) { return addToken(c, 'cost', s.find(c).charge); }
+            text: ['Double the number of cost tokens on this.'],
+            transform: function (s, c) { return addToken(c, 'cost', s.find(c).tokens.get('cost')); }
         },
         useRefresh()
-    ]
+    ],
+    staticTriggers: [{
+            text: 'At the start of the game put a charge token on this.',
+            kind: 'gameStart',
+            handles: function () { return true; },
+            transform: function (e, s, c) { return addToken(c, 'cost'); }
+        }]
 };
 boons.push({
     name: 'Escalate',

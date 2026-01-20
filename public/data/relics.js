@@ -208,31 +208,35 @@ export var emptyBottle = {
                     return __generator(this, function (_d) {
                         switch (_d.label) {
                             case 0:
-                                _d.trys.push([0, 5, 6, 7]);
-                                _a = __values(relic.notedCards || []), _b = _a.next();
+                                console.log('unbottling!');
+                                console.log(relic.notedCards);
                                 _d.label = 1;
                             case 1:
-                                if (!!_b.done) return [3 /*break*/, 4];
+                                _d.trys.push([1, 6, 7, 8]);
+                                _a = __values(relic.notedCards || []), _b = _a.next();
+                                _d.label = 2;
+                            case 2:
+                                if (!!_b.done) return [3 /*break*/, 5];
                                 spec = _b.value;
                                 return [4 /*yield*/, create(spec, 'hand', undefined, new Map([['echo', 1]]))(state)];
-                            case 2:
-                                state = _d.sent();
-                                _d.label = 3;
                             case 3:
+                                state = _d.sent();
+                                _d.label = 4;
+                            case 4:
                                 _b = _a.next();
-                                return [3 /*break*/, 1];
-                            case 4: return [3 /*break*/, 7];
-                            case 5:
+                                return [3 /*break*/, 2];
+                            case 5: return [3 /*break*/, 8];
+                            case 6:
                                 e_1_1 = _d.sent();
                                 e_1 = { error: e_1_1 };
-                                return [3 /*break*/, 7];
-                            case 6:
+                                return [3 /*break*/, 8];
+                            case 7:
                                 try {
                                     if (_b && !_b.done && (_c = _a.return)) _c.call(_a);
                                 }
                                 finally { if (e_1) throw e_1.error; }
                                 return [7 /*endfinally*/];
-                            case 7: return [2 /*return*/, state];
+                            case 8: return [2 /*return*/, state];
                         }
                     });
                 });
@@ -258,6 +262,7 @@ export var emptyBottle = {
                 return __awaiter(this, void 0, void 0, function () {
                     var notedCards;
                     return __generator(this, function (_a) {
+                        console.log('bottling!');
                         notedCards = relic.notedCards || [];
                         state.applyToRelic(function (r) { return r.update({ notedCards: __spreadArray(__spreadArray([], __read(notedCards), false), [e.card], false) }); }, relic);
                         return [2 /*return*/];

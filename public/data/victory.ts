@@ -67,7 +67,8 @@ const frontier: CardSpec = {
         `+2 vp.`,
         `This increases by 1vp each time you play it, up to +6vp.`
     ],
-    buyCost: coin(4),
+    fixedCost: energy(1),
+    buyCost: coin(6),
     effects: [{
         text: ['+1 vp per charge token on this.'],
         transform: (state, card) => gainPoints(state.find(card).charge, card)
@@ -207,6 +208,6 @@ vpModes.push(
     { name: 'Vibrant City', target: 40, cards: [vibrantCity], events: [] },
     { name: 'Palace', target: 40, cards: [palace], events: [] },
     { name: 'Territory', target: 40, cards: [territory], events: [] },
-    { name: 'Frontier', target: 70, cards: [frontier], events: [] },
+    { name: 'Frontier', target: 50, cards: [frontier], events: [] },
     { name: 'Gardens', target: 30, cards: [gardens], events: [] },
 )

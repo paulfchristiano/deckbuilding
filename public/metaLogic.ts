@@ -9,6 +9,7 @@ import { CardSpec, Card, type GameSpec, State, vpModes,
     Token,
     cardRewards, eventRewards,
     coinKey, energyEventKey,
+    VictoryData
  } from './gameLogic.js'
 
 // ----------------------------- MetaUI Interface
@@ -32,7 +33,7 @@ export interface MetaUI {
         canCancel?: boolean
     ): Promise<T | null>
 
-    playGame(spec: GameSpec): Promise<{score: number}>
+    playGame(spec: GameSpec): Promise<VictoryData>
 
     pickNextStep(state: MetaState): Promise<ChallengeOrReward>
 
@@ -367,9 +368,7 @@ export class MetaState {
         })
     }
 
-    // Note: when we get a generator we clear the history.
     generator(key: string): Generator {
-        this.clearHistory()
         if (!this.generators.has(key)) {
             const newGen = this.masterGenerator.newGenerator()
             this.generators.set(key, newGen)
@@ -718,7 +717,8 @@ export async function playGame(ui: MetaUI): Promise<void> {
         try {
             if (state.data.playingGame) {
                 const gameSpec = makeSpec(state, state.data.challenge!)
-                const { score } = await state.ui.playGame(gameSpec)
+                const { score, potionsRemaining } = await state.ui.playGame(gameSpec)
+                state.update({ potions: potionsRemaining })
                 await endCourse(score, gameSpec.par, state)
                 state.update({ stage: state.data.stage + 1 })
                 if (state.data.stage >= TOTAL_STAGES) {

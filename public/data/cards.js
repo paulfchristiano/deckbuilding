@@ -86,45 +86,44 @@ var ghostTown = { name: 'Ghost Town',
     staticTriggers: [buyTrigger(actionsEffect(2))]
 };
 cardRewards.push(ghostTown);
-export var transmogrify = { name: 'Transmogrify',
+/*
+export const transmogrify:CardSpec = {name: 'Transmogrify',
     buyCost: coin(3),
     simpleText: [
-        "Trash a card in your hand.",
-        "Create a card in your hand costing up to $2 more than it."
+        `Trash a card in your hand.`,
+        `Create a card in your hand costing up to $2 more than it.`
     ],
     effects: [actionsEffect(1), {
-            text: ["Trash a card in your hand.\n                If you do, choose a card in the supply costing up to $2 more than it.\n                Create a copy of that card in your hand."],
-            transform: function () { return function (state) {
-                return __awaiter(this, void 0, void 0, function () {
-                    var target, cost_1, target2;
-                    var _a, _b;
-                    return __generator(this, function (_c) {
-                        switch (_c.label) {
-                            case 0: return [4 /*yield*/, choice(state, 'Choose a card to transmogrify.', state.hand.map(asChoice))];
-                            case 1:
-                                _a = __read.apply(void 0, [_c.sent(), 2]), state = _a[0], target = _a[1];
-                                if (!(target != null)) return [3 /*break*/, 5];
-                                return [4 /*yield*/, trash(target)(state)];
-                            case 2:
-                                state = _c.sent();
-                                cost_1 = addCosts(target.cost('buy', state), coin(2));
-                                target2 = void 0;
-                                return [4 /*yield*/, choice(state, 'Choose a card to copy.', state.supply.filter(function (c) { return leq(c.cost('buy', state), cost_1); }).map(asChoice))];
-                            case 3:
-                                _b = __read.apply(void 0, [_c.sent(), 2]), state = _b[0], target2 = _b[1];
-                                if (!(target2 != null)) return [3 /*break*/, 5];
-                                return [4 /*yield*/, create(target2.spec, 'hand')(state)];
-                            case 4:
-                                state = _c.sent();
-                                _c.label = 5;
-                            case 5: return [2 /*return*/, state];
-                        }
-                    });
-                });
-            }; }
-        }]
-};
-cardRewards.push(transmogrify);
+        text: [`Trash a card in your hand.
+                If you do, choose a card in the supply costing up to $2 more than it.
+                Create a copy of that card in your hand.`],
+        transform: () => async function(state) {
+            let target:Card|null; [state, target] = await choice(state,
+                'Choose a card to transmogrify.',
+                state.hand.map(asChoice)
+            )
+            if (target != null) {
+                state = await trash(target)(state)
+                const cost:Cost = addCosts(
+                    target.cost('buy', state),
+                    coin(2)
+                )
+                let target2:Card|null; [state, target2] = await choice(
+                    state, 'Choose a card to copy.',
+                    state.supply.filter(
+                        c => leq(c.cost('buy', state), cost)
+                    ).map(asChoice)
+                )
+                if (target2 != null) {
+                    state = await create(target2.spec, 'hand')(state)
+                }
+            }
+            return state
+        }
+    }]
+}
+cardRewards.push(transmogrify)
+*/
 var Till = 'Till';
 var till = { name: Till,
     buyCost: coin(5),
@@ -668,7 +667,7 @@ var fountain = {
     name: 'Fountain',
     fixedCost: energy(0),
     effects: [fountainEffect()],
-    buyCost: coin(4),
+    buyCost: coin(3),
 };
 cardRewards.push(fountain);
 var grandMarket = {
@@ -754,6 +753,7 @@ var banquet = {
 cardRewards.push(banquet);
 var harvest = {
     name: 'Harvest',
+    fixedCost: energy(1),
     effects: [{
             text: ["+1 action for each differently-named card in your hand."],
             transform: function (state, card) { return function (state) {
@@ -789,7 +789,7 @@ var harvest = {
                 });
             }; }
         }],
-    buyCost: coin(4)
+    buyCost: coin(3)
 };
 cardRewards.push(harvest);
 var secretChamber = {
@@ -985,8 +985,8 @@ var ferry = {
     rules: [ferryRule],
 };
 cardRewards.push(ferry);
-var develop = {
-    name: 'Develop',
+export var transmogrify = {
+    name: 'Transmogrify',
     buyCost: coin(3),
     fixedCost: energy(1),
     effects: [{
@@ -1024,7 +1024,7 @@ var develop = {
             }; }
         }]
 };
-cardRewards.push(develop);
+cardRewards.push(transmogrify);
 var logisticsToken = 'logistics';
 var logistics = {
     name: 'Logistics',
@@ -1267,7 +1267,7 @@ cardRewards.push(ritual);
 var scepter = {
     name: 'Scepter',
     fixedCost: energy(2),
-    buyCost: coin(7),
+    buyCost: coin(5),
     effects: [{
             text: ["Pay an action to play a card in your hand three times then trash it."],
             transform: function (state, card) { return payToDo(payAction(card), applyToTarget(function (target) { return doAll([

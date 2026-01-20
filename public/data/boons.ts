@@ -25,17 +25,22 @@ const escalate:CardSpec = {name: 'Escalate',
     fixedCost: free,
     simpleText: [
         `Use Refresh.`,
-        `This costs more to use each time ($0, $1, $3, $6, $10...).`
+        `The cost of this event doubles each time you use it.`
     ],
     variableCosts: [costPer(coin(1))],
     effects: [
-        chargeEffect(),
         {
-            text: ['Put a cost token on this for each charge token on it.'],
-            transform: (s:State, c:Card) => addToken(c, 'cost', s.find(c).charge)
+            text: ['Double the number of cost tokens on this.'],
+            transform: (s:State, c:Card) => addToken(c, 'cost', s.find(c).tokens.get('cost'))
         },
         useRefresh()
-    ]
+    ],
+    staticTriggers: [{
+        text: 'At the start of the game put a charge token on this.',
+        kind: 'gameStart',
+        handles: () => true,
+        transform: (e, s, c) => addToken(c!, 'cost')
+    }]
 }
 boons.push({
         name: 'Escalate',

@@ -98,7 +98,7 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
     }
     return to.concat(ar || Array.prototype.slice.call(from));
 };
-import { Card, vpModes, boons, cardRewards, eventRewards, coinKey, energyEventKey, } from './gameLogic.js';
+import { Card, vpModes, boons, cardRewards, eventRewards, coinKey, energyEventKey } from './gameLogic.js';
 export var encounters = [];
 // ----------------------------- Constants
 export var TOTAL_STAGES = 8;
@@ -270,9 +270,7 @@ var MetaState = /** @class */ (function () {
             collectedEvents: this.data.collectedEvents.filter(function (e) { return e.name !== name; })
         });
     };
-    // Note: when we get a generator we clear the history.
     MetaState.prototype.generator = function (key) {
-        this.clearHistory();
         if (!this.generators.has(key)) {
             var newGen = this.masterGenerator.newGenerator();
             this.generators.set(key, newGen);
@@ -739,9 +737,9 @@ function adoptPath(state, path) {
 // Note that all checkpoints are at a point where you want to back into the main loop in this method.
 export function playGame(ui) {
     return __awaiter(this, void 0, void 0, function () {
-        var state, initialPath, gameSpec, score, paths, path, _a, challengeOrReward, _b, e_8;
-        return __generator(this, function (_c) {
-            switch (_c.label) {
+        var state, initialPath, gameSpec, _a, score, potionsRemaining, paths, path, _b, challengeOrReward, _c, e_8;
+        return __generator(this, function (_d) {
+            switch (_d.label) {
                 case 0:
                     state = new MetaState(ui);
                     initialPath = fillPath(state, {
@@ -750,67 +748,68 @@ export function playGame(ui) {
                     });
                     adoptPath(state, initialPath);
                     state.clearHistory();
-                    _c.label = 1;
+                    _d.label = 1;
                 case 1:
                     if (!true) return [3 /*break*/, 19];
                     console.assert(state.checkpoint == state.data); // Should always be at a checkpoint when starting this loop
-                    _c.label = 2;
+                    _d.label = 2;
                 case 2:
-                    _c.trys.push([2, 17, , 18]);
+                    _d.trys.push([2, 17, , 18]);
                     if (!state.data.playingGame) return [3 /*break*/, 10];
                     gameSpec = makeSpec(state, state.data.challenge);
                     return [4 /*yield*/, state.ui.playGame(gameSpec)];
                 case 3:
-                    score = (_c.sent()).score;
+                    _a = _d.sent(), score = _a.score, potionsRemaining = _a.potionsRemaining;
+                    state.update({ potions: potionsRemaining });
                     return [4 /*yield*/, endCourse(score, gameSpec.par, state)];
                 case 4:
-                    _c.sent();
+                    _d.sent();
                     state.update({ stage: state.data.stage + 1 });
                     if (!(state.data.stage >= TOTAL_STAGES)) return [3 /*break*/, 6];
                     // Game over - player has completed all stages
                     return [4 /*yield*/, state.ui.showMessage(state, 'Congratulations! You have completed all stages!')];
                 case 5:
                     // Game over - player has completed all stages
-                    _c.sent();
+                    _d.sent();
                     return [2 /*return*/];
                 case 6:
                     paths = makePaths(state).map(function (skel) { return fillPath(state, skel); });
                     if (!(paths.length > 1)) return [3 /*break*/, 8];
                     return [4 /*yield*/, state.ui.pickPath(state, paths)];
                 case 7:
-                    _a = _c.sent();
+                    _b = _d.sent();
                     return [3 /*break*/, 9];
                 case 8:
-                    _a = paths[0];
-                    _c.label = 9;
+                    _b = paths[0];
+                    _d.label = 9;
                 case 9:
-                    path = _a;
+                    path = _b;
                     state.update({ challenge: path.challenge, rewards: path.rewards, playingGame: false });
                     state.clearHistory();
                     return [3 /*break*/, 16];
                 case 10: return [4 /*yield*/, state.ui.pickNextStep(state)];
                 case 11:
-                    challengeOrReward = _c.sent();
-                    _b = challengeOrReward.kind;
-                    switch (_b) {
+                    challengeOrReward = _d.sent();
+                    _c = challengeOrReward.kind;
+                    switch (_c) {
                         case ('challenge'): return [3 /*break*/, 12];
                         case ('reward'): return [3 /*break*/, 14];
                     }
                     return [3 /*break*/, 16];
                 case 12: return [4 /*yield*/, trigger({ kind: 'start', stage: state.data.stage }, state)];
                 case 13:
-                    _c.sent();
+                    _d.sent();
                     state.update({ playingGame: true });
                     state.setCheckpoint();
                     return [3 /*break*/, 16];
                 case 14: return [4 /*yield*/, doReward(state, challengeOrReward.index)];
                 case 15:
-                    _c.sent();
+                    _d.sent();
                     state.setCheckpoint();
                     return [3 /*break*/, 16];
                 case 16: return [3 /*break*/, 18];
                 case 17:
-                    e_8 = _c.sent();
+                    e_8 = _d.sent();
                     console.log(e_8);
                     if (e_8 instanceof Undo) {
                         state.undo();

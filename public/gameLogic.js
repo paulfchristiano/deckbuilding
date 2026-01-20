@@ -2339,7 +2339,7 @@ export var cheat = { name: 'Cheat',
     fixedCost: energy(0),
     effects: [pointsEffect(10)],
 };
-//core.events.push(cheat)
+core.events.push(cheat);
 export var copper = { name: 'Copper',
     buyCost: coin(0),
     effects: [coinsEffect(1)]

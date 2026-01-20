@@ -142,6 +142,8 @@ export const emptyBottle: RelicSpec = {
         text: 'At the start of the game, create a copy of each bottled card in your hand with an echo token.',
         handles: () => true,
         transform: () => async function (state: State) {
+            console.log('unbottling!')
+            console.log(relic.notedCards)
             for (const spec of relic.notedCards || []) {
                 state = await create(spec, 'hand', undefined, new Map([['echo', 1]]))(state)
             }
@@ -160,6 +162,7 @@ export const emptyBottle: RelicSpec = {
         handles: () => true,
         text: 'When you add a card to your deck, bottle it for the next course.',
         transform: (e: GainCardEvent, s: MetaState, relic: Relic) => async function (state: MetaState) {
+            console.log('bottling!')
             const notedCards = relic.notedCards || []
             state.applyToRelic((r:Relic) => r.update({notedCards: [...notedCards, e.card]}), relic)
         },

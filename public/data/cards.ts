@@ -54,6 +54,7 @@ const ghostTown:CardSpec = {name: 'Ghost Town',
 }
 cardRewards.push(ghostTown)
 
+/*
 export const transmogrify:CardSpec = {name: 'Transmogrify',
     buyCost: coin(3),
     simpleText: [
@@ -90,6 +91,7 @@ export const transmogrify:CardSpec = {name: 'Transmogrify',
     }]
 }
 cardRewards.push(transmogrify)
+*/
 
 const Till = 'Till'
 const till:CardSpec = {name: Till,
@@ -675,7 +677,7 @@ const fountain:CardSpec = {
     name: 'Fountain',
     fixedCost: energy(0),
     effects: [fountainEffect()],
-    buyCost: coin(4),
+    buyCost: coin(3),
 }
 cardRewards.push(fountain)
 
@@ -766,6 +768,7 @@ cardRewards.push(banquet)
 
 const harvest:CardSpec = {
     name:'Harvest',
+    fixedCost: energy(1),
     effects: [{
         text: [`+1 action for each differently-named card in your hand.`],
         transform: (state, card) => async function(state) {
@@ -781,7 +784,7 @@ const harvest:CardSpec = {
             return state
         }
     } ],
-    buyCost: coin(4)
+    buyCost: coin(3)
 }
 cardRewards.push(harvest)
 
@@ -951,8 +954,8 @@ const ferry:CardSpec = {
 }
 cardRewards.push(ferry)
 
-const develop:CardSpec = {
-    name: 'Develop',
+export const transmogrify:CardSpec = {
+    name: 'Transmogrify',
     buyCost: coin(3),
     fixedCost: energy(1),
     effects: [{
@@ -994,7 +997,7 @@ const develop:CardSpec = {
         }
     }]
 }
-cardRewards.push(develop)
+cardRewards.push(transmogrify)
 
 const logisticsToken:Token = 'logistics'
 const logistics:CardSpec = {
@@ -1201,7 +1204,7 @@ cardRewards.push(ritual)
 const scepter:CardSpec = {
     name: 'Scepter',
     fixedCost: energy(2),
-    buyCost: coin(7),
+    buyCost: coin(5),
     effects: [{
         text: [`Pay an action to play a card in your hand three times then trash it.`],
         transform: (state, card) => payToDo(payAction(card), applyToTarget(
