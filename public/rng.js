@@ -37,9 +37,7 @@ var Generator = /** @class */ (function () {
     };
     Generator.prototype.samples = function (list, k) {
         var _a;
-        if (k > list.length) {
-            throw new Error("k cannot be larger than list length");
-        }
+        console.assert(k <= list.length, "k cannot be larger than list length");
         var arr = list.slice(); // copy
         for (var i = arr.length - 1; i > 0; i--) {
             var j = Math.floor(this.prng() * (i + 1));
@@ -48,6 +46,7 @@ var Generator = /** @class */ (function () {
         return arr.slice(0, k);
     };
     Generator.prototype.sample = function (list) {
+        console.assert(list.length > 0, "Cannot sample from empty list");
         var idx = Math.floor(this.prng() * list.length);
         return list[idx];
     };

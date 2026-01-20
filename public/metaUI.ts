@@ -4,7 +4,7 @@
 
 import { Card, CardSpec, GameSpec, UndoPastBeginning, VictoryData } from './gameLogic.js'
 import {
-    MetaState, Reward, PathOption,
+    MetaState, Reward, Path,
     MetaUI, MetaOption,
     renderChallenge,
     RewardKind,
@@ -12,7 +12,7 @@ import {
     Undo, Redo
 } from './metaLogic.js'
 import { renderSpecNoRelated } from './cardRendering.js'
-import { startGame } from './gameUI.js'
+import { initHotkeys, startGame } from './gameUI.js'
 
 // ----------------------------- State
 
@@ -25,6 +25,9 @@ let activeEncounterIndex: number | null = null
 //let pendingChoiceResolver: ((value: any) => void) | null = null
 
 export class MetaGameUI implements MetaUI {
+    constructor() {
+        initHotkeys() // TODO: understand and fix this
+    }
     async chooseCard<T extends CardSpec | Card>(
         state: MetaState,
         prompt: string,
@@ -73,7 +76,7 @@ export class MetaGameUI implements MetaUI {
         })
     }
 
-    async pickPath(state: MetaState, paths: PathOption[]): Promise<PathOption> {
+    async pickPath(state: MetaState, paths: Path[]): Promise<Path> {
         return new Promise((resolve, reject) => {
             bindUndoEvents(state, reject)
             renderPathSelectionScreen(state, paths, resolve)
@@ -157,7 +160,7 @@ export class MetaGameUI implements MetaUI {
     }
 
     playGame(spec: GameSpec): Promise<VictoryData> {
-        return startGame(spec).catch(e => {
+         return startGame(spec).catch(e => {
             if (e instanceof UndoPastBeginning) {
                 throw new Undo() // We transform an undo past the beginnig in the object level game into an undo in the meta game.
             } else {
@@ -200,11 +203,11 @@ function updateProgressSidebar(state: MetaState): void {
 
         if (stage < state.data.stage) {
             $(this).addClass('completed')
-            const score = state.data.stageScores[stage - 1]
-            const par = state.data.stagePars[stage - 1]
+            const score = state.data.stageScores[stage]
+            const par = state.data.stagePars[stage]
             if (score !== null && par !== null) {
                 const scoreDisplay = `${score}/${par}`
-                const color = score > par ? 'color: red' : ''
+                const color = score > par ? 'color: red' : (score < par ? 'color: green' : '')
                 $(this).append(`<span class="progressScore" style="${color}">${scoreDisplay}</span>`)
             }
         } else if (stage === state.data.stage) {
@@ -241,7 +244,9 @@ function updateUndoRedoButtons(state: MetaState): void {
 // ----------------------------- Stage Screen
 
 function renderStageScreen(state: MetaState, callback: (x: ChallengeOrReward) => void): void {
+    showStageScreenUI()
     $('#stageTitle').text(`Stage ${state.data.stage}`)
+    render(state)
 
     // Render reward buttons
     renderRewardButtons(state, callback)
@@ -286,7 +291,7 @@ function getRewardLabel(kind: RewardKind): string {
         case 'event': return 'Add Event'
         case 'potion': return 'Add Potion'
         case 'relic': return 'Add Relic'
-        case 'encounter': return 'Start Encounter'
+        case 'encounter': return '???'
     }
 }
 
@@ -405,11 +410,12 @@ function hideEncounterPicker(): void {
 
 // ----------------------------- Path Selection Screen
 
-export function renderPathSelectionScreen(state: MetaState, paths: PathOption[], callback: (path:PathOption) => void): void {
+export function renderPathSelectionScreen(state: MetaState, paths: Path[], callback: (path:Path) => void): void {
+    showPathSelectionUI()
     console.assert(paths.length === 2, 'There must be exactly two path options to choose from.')
     const [leftPath, rightPath] = paths
 
-    updateProgressSidebar(state)
+    render(state)
 
     $('#pathTitle').text(`Stage ${state.data.stage} - Choose Your Path`)
 
@@ -426,7 +432,7 @@ export function renderPathSelectionScreen(state: MetaState, paths: PathOption[],
     })
 }
 
-function renderPathColumn(side: 'left' | 'right', path: PathOption, state: MetaState, callback: (path:PathOption) => void): void {
+function renderPathColumn(side: 'left' | 'right', path: Path, state: MetaState, callback: (path:Path) => void): void {
     const rewardsContainer = $(`#${side}Rewards`)
     rewardsContainer.empty()
 
@@ -440,10 +446,13 @@ function renderPathColumn(side: 'left' | 'right', path: PathOption, state: MetaS
 
 // ----------------------------- Deck Dialog
 
-// TODO: figure out what the deck dialog is
-// TODO: have some default rendering that does this, the undo buttons, the side bar.
-// TODO: back button should also get bound to raise undo.
-// TODO: not sure abou meta hotkeys.
+// Undo, hotkeys, etc.?
+function render(state: MetaState): void {
+    $('#deckIcon').off('click').on('click', () => {showDeckDialog(state)})
+    updateBufferDisplay(state)
+    updateProgressSidebar(state)
+}
+
 export function showDeckDialog(state: MetaState): void {
     const container = $('#deckContents')
     container.empty()

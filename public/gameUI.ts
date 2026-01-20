@@ -8,7 +8,7 @@ import { Trigger, Replacer, VariableCost, Token } from './gameLogic.js'
 import { renderCost, renderEnergy } from './gameLogic.js'
 import { LogType, logTypes } from './gameLogic.js'
 import { Option, OptionRender, HotkeyHint } from './gameLogic.js'
-import { UI, Undo } from './gameLogic.js'
+import { UI, Undo, SetState } from './gameLogic.js'
 import { playGame, initialState } from './gameLogic.js'
 
 // ----------------------------- Types
@@ -305,27 +305,6 @@ function resetGlobalRenderer(): void {
 
 // ----------------------------- Callbacks for Meta-game Integration
 
-export interface GameCallbacks {
-    onVictory: (result: VictoryData) => void
-    onBack: () => void
-}
-
-let gameCallbacks: GameCallbacks | null = null
-
-export function setGameCallbacks(callbacks: GameCallbacks): void {
-    gameCallbacks = callbacks
-}
-
-// Current par for display (set by meta-game)
-let currentPar: number = 0
-
-export function setCurrentPar(par: number): void {
-    currentPar = par
-}
-
-function getCurrentPar(): number {
-    return currentPar
-}
 
 // ----------------------------- Card Text Rendering
 
@@ -656,7 +635,7 @@ function renderState(
     $('#resolvingHeader').html('Resolving:')
 
     // Display energy as X/Y where Y is par, red if over par
-    const par = getCurrentPar()
+    const par = state.spec.par
     const energyDisplay = `${state.energy}/${par}`
     if (state.energy > par) {
         $('#energy').html(`<span style="color: red">${energyDisplay}</span>`)
@@ -853,7 +832,7 @@ function renderDeepLink(): string {
 
 function renderUndo(undoable: boolean): string {
     const hotkeyText = renderHotkey('z')
-    return `<span class='option', option='undo' ${undoable ? 'choosable' : ''} chosen='false'>${hotkeyText}Undo</span>`
+    return `<span class='option', option='undo' choosable chosen='false'>${hotkeyText}Undo</span>`
 }
 
 function renderRedo(redoable: boolean): string {
@@ -872,13 +851,17 @@ function bindSpecials(state: State, ui: GameUI): void {
     bindMacroToggle(ui)
     bindViewKingdom(state)
     //bindDeepLink(state)
-    bindBack()
+    bindBack(ui)
 }
 
-function bindBack(): void {
-    $(`[option='back']`).on('click', () => {
-        if (gameCallbacks) gameCallbacks.onBack()
-    })
+function bindBack(ui: GameUI): void {
+    function pick() {
+        if (ui.choiceState != null) {
+            ui.choiceState.reject(new UndoPastBeginning())
+        }
+    }
+    keyListeners.set('Escape', pick)
+    $(`[option='back']`).on('click', pick)
 }
 
 function bindViewKingdom(state: State): void {
@@ -1015,7 +998,7 @@ function bindRedo(state: State, ui: GameUI): void {
 
 function bindUndo(state: State, ui: GameUI): void {
     function pick() {
-        if (ui.choiceState != null && state.undoable()) {
+        if (ui.choiceState != null) {
             ui.choiceState.reject(new Undo(state))
         }
     }
@@ -1079,12 +1062,6 @@ function bindHelp(state: State, ui: GameUI): void {
     }
     keyListeners.set('?', pick)
     $(`[option='help']`).on('click', pick)
-}
-
-// ----------------------------- SetState Exception
-
-class SetState {
-    constructor(public readonly state: State) { }
 }
 
 // ----------------------------- Macro Helpers
@@ -1283,14 +1260,9 @@ export class GameUI implements UI {
         const ui: GameUI = this
         const score = state.energy
         const remainingPotions = state.potions
-
-        const doneAction = () => {
-            if (gameCallbacks) {
-                gameCallbacks.onVictory({score, potionsRemaining: remainingPotions})
-            }
-        }
-
+        
         const submitOrUndo: () => Promise<void> = () =>
+
             new Promise(function (resolve, reject) {
                 ui.undoing = true
                 function newReject(reason: any) {
@@ -1298,9 +1270,9 @@ export class GameUI implements UI {
                     ui.clearChoice()
                     reject(reason)
                 }
-                const options: Option<() => void>[] = [{
+                const options: Option<null>[] = [{
                     render: { kind: 'string', string: 'Done' },
-                    value: doneAction,
+                    value: null,
                     hotkeyHint: { kind: 'key', val: '!' }
                 }]
                 ui.choiceState = {
@@ -1309,7 +1281,10 @@ export class GameUI implements UI {
                     options: options,
                     info: ["victory"],
                     chosen: [],
-                    resolve: doneAction,
+                    resolve: (n, shifted) => {
+                        ui.clearChoice()
+                        resolve()
+                    },
                     reject: newReject,
                 }
                 ui.render()

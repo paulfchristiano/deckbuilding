@@ -6,7 +6,9 @@ import { CardSpec, Card, type GameSpec, State, vpModes,
     Boon, VPMode,
     boons,
     PlaceName,
-    Token, 
+    Token,
+    cardRewards, eventRewards,
+    coinKey, energyEventKey,
  } from './gameLogic.js'
 
 // ----------------------------- MetaUI Interface
@@ -34,7 +36,7 @@ export interface MetaUI {
 
     pickNextStep(state: MetaState): Promise<ChallengeOrReward>
 
-    pickPath(state: MetaState, paths: PathOption[]): Promise<PathOption>
+    pickPath(state: MetaState, paths: Path[]): Promise<Path>
 
     // Choose from generic options (for encounters with non-card choices)
     chooseOption<T>(
@@ -78,7 +80,7 @@ export interface ChallengeSpec {
 // TODO: add a tooltip that shows you the par and target, the cards, etc.
 export function renderChallenge(spec: ChallengeSpec, state: MetaState): string {
     const gameSpec:GameSpec = makeSpec(state, spec)
-    return `Stage ${spec.stage} - ${spec.vpMode.name} + ${spec.boons.map(b => b.name).join(' + ')} (${gameSpec.vp}vp in ${gameSpec.par}@)`
+    return `${spec.vpMode.name} + ${spec.boons.map(b => b.name).join(' + ')} (${gameSpec.vp}vp in ${gameSpec.par}@)`
 }
 
 // Meta replacer types - modify game setup parameters
@@ -198,7 +200,7 @@ export type TypedMetaTrigger = MetaTrigger<CourseEndEvent> | MetaTrigger<CourseS
 
 
 // A path the player can choose (contains rewards + kingdom)
-export interface PathOption {
+export interface Path {
     rewards: Reward[]
     challenge: ChallengeSpec
 }
@@ -305,20 +307,34 @@ export class MetaState {
     public readonly seed: string
     public readonly masterGenerator: Generator
     public generators: Map<string, Generator> = new Map()
+    public data: MetaStateData
 
     constructor(
-        public data: MetaStateData,
         public readonly ui: MetaUI,
         seed: null | string = null,
     ) {
-        this.data = data
-        this.checkpoint = data
         if (seed === null) {
             this.seed = randomString()
         } else {
             this.seed = seed
         }
         this.masterGenerator = new Generator(this.seed)
+        const data = {
+            stage: 0,
+            buffer: INITIAL_BUFFER,
+            stageScores: Array(TOTAL_STAGES).fill(null),
+            stagePars: Array(TOTAL_STAGES).fill(null),
+            challenge: null,
+            rewards: [],
+            collectedCards: [],
+            collectedEvents: [],
+            potions: [],
+            relics: [],
+            nextID: 1,
+            playingGame: false,
+        }
+        this.data = data
+        this.checkpoint = data
     }
 
     private removeFromZone(id:number, zone: 'potions' | 'relics') {
@@ -365,9 +381,11 @@ export class MetaState {
         this.undoStack = []
         this.redoStack = []
         this.checkpoint = this.data
+        console.assert(this.data.challenge != null) // Should not a set checkpoint while selecting paths.
     }
 
     setCheckpoint() {
+        console.assert(this.data.challenge != null) // Should not a set checkpoint while selecting paths.
         this.undoStack.push(this.checkpoint)
         this.checkpoint = this.data
         this.redoStack = []
@@ -502,6 +520,13 @@ export function markRewardResult(state: MetaState, index: number, result: string
 }
 
 export async function endCourse(score: number, par: number, state:MetaState): Promise<void> {
+    // Record the score and par for this stage
+    const newScores = [...state.data.stageScores]
+    const newPars = [...state.data.stagePars]
+    newScores[state.data.stage] = score
+    newPars[state.data.stage] = par
+    state.update({ stageScores: newScores, stagePars: newPars })
+
     await trigger({kind: 'end', score, par}, state)
     if (score > par) await addBuffer(par - score)(state);
 }
@@ -558,13 +583,19 @@ async function trigger<T extends MetaGameEvent>(e:T, state: MetaState): Promise<
 export function makeSpec(state: MetaState, challenge: ChallengeSpec): GameSpec {
     let par = BASE_PARS[state.data.stage]
     const vpTarget = challenge.vpMode.target
-    const cards = challenge.vpMode.cards
-    const events = challenge.vpMode.events
+    const cards = challenge.vpMode.cards.slice()
+    const events = challenge.vpMode.events.slice()
     for (const boon of challenge.boons) {
         par -= boon.parReduction
         cards.push(...boon.cards)
         events.push(...boon.events)
     }
+    // Add collected cards and events, sorted by cost
+    const sortedCollectedCards = [...state.data.collectedCards].sort((a, b) => coinKey(a) - coinKey(b))
+    const sortedCollectedEvents = [...state.data.collectedEvents].sort((a, b) => energyEventKey(a) - energyEventKey(b))
+    cards.push(...sortedCollectedCards)
+    events.push(...sortedCollectedEvents)
+
     const gameSetupParams = applyMetaReplacers('gameSetup', {
         par: par,
         vpGoal: vpTarget,
@@ -587,29 +618,11 @@ export function getRewardOptionCount(state: MetaState): number {
     return params.optionCount
 }
 
-// Create initial meta state for a new game
-export function initialData(): MetaStateData {
-    return {
-        stage: 0,
-        buffer: INITIAL_BUFFER,
-        stageScores: Array(TOTAL_STAGES).fill(null),
-        stagePars: Array(TOTAL_STAGES).fill(null),
-        challenge: null,
-        rewards: [],
-        collectedCards: [],
-        collectedEvents: [],
-        potions: [],
-        relics: [],
-        nextID: 1,
-        playingGame: false,
-    }
-}
-
 // ----------------------- Generate data
 
 function randomChallenge(state: MetaState): ChallengeSpec {
     const stage = state.data.stage
-    const generator = state.generator(`challenges${stage}`).newGenerator()
+    const generator = state.generator(`challenges${stage}`)
     const vpMode = generator.sample(vpModes)
     const boon = generator.sample(boons)
     // For now, no replacement effects
@@ -628,29 +641,21 @@ interface PathSkeleton {
 function makePaths(state: MetaState): PathSkeleton[] {
     const stage = state.data.stage
     const generator = state.generator(`paths${stage}`).newGenerator()
-    if (stage == 0) {
-        const challenge = randomChallenge(state)
-        return [{
-            rewards: ['card', 'card', 'event', 'potion'],
-            challenge: challenge,
-        }]
-    } else {
-        const allOptions: RewardKind[] = ['card', 'card', 'event', 'potion', 'relic', 'encounter']
-        const shuffledOptions = generator.samples(allOptions, 4)
-        const challenge1 = randomChallenge(state)
-        const challenge2 = randomChallenge(state)
-        return [
-            { rewards: shuffledOptions.slice(0, 2), challenge: challenge1 },
-            { rewards: shuffledOptions.slice(2, 4), challenge: challenge2 },
-        ]
-    }
+    const allOptions: RewardKind[] = ['card', 'card', 'event', 'potion', 'relic', 'encounter']
+    const shuffledOptions = generator.samples(allOptions, 4)
+    const challenge1 = randomChallenge(state)
+    const challenge2 = randomChallenge(state)
+    return [
+        { rewards: shuffledOptions.slice(0, 2), challenge: challenge1 },
+        { rewards: shuffledOptions.slice(2, 4), challenge: challenge2 },
+    ]
 }
 
 // TODO: actually create these in gameLogic and then then fill them in the ./data files
-import { cardRewards, potionRewards, relicRewards, eventRewards } from './gameLogic.js'
+import { potionRewards, relicRewards } from './gameLogic.js'
 
 // TODO: avoid repeating (by passing in a list of already-chosen items to avoid, and making the PRG re-sample after hitting one)
-function fillPath(state: MetaState, skeleton: PathSkeleton): PathOption {
+function fillPath(state: MetaState, skeleton: PathSkeleton): Path {
     const rewards: Reward[] = []
     for (const rewardKind of skeleton.rewards) {
         // Generate options for each reward
@@ -681,47 +686,70 @@ function fillPath(state: MetaState, skeleton: PathSkeleton): PathOption {
 
 export type ChallengeOrReward = {kind: 'challenge'} | {kind: 'reward', index: number}
 
-export class Undo extends Error {}
-export class Redo extends Error {}
+export class Undo extends Error {
+    constructor() {
+        super('Undo')
+        Object.setPrototypeOf(this, Undo.prototype)
+    }
+}
+export class Redo extends Error {
+    constructor() {
+        super('Redo')
+        Object.setPrototypeOf(this, Redo.prototype)
+    }
+}
+
+function adoptPath(state:MetaState, path: Path) {
+    state.update({challenge: path.challenge, rewards: path.rewards})
+}
 
 // TODO: implement undo (figure out how it is done right now).
 // Note that all checkpoints are at a point where you want to back into the main loop in this method.
 export async function playGame(ui: MetaUI): Promise<void> {
-    const state: MetaState = new MetaState(
-        initialData(),
-        ui,
-    )
+    const state: MetaState = new MetaState(ui)
+    const initialPath = fillPath(state, {
+        rewards: ['card', 'card', 'event', 'potion'] as RewardKind[],
+        challenge: randomChallenge(state)
+    })
+    adoptPath(state, initialPath)
+    state.clearHistory()
     while (true) {
+        console.assert(state.checkpoint == state.data) // Should always be at a checkpoint when starting this loop
         try {
-            if (state.data.challenge === null) {
+            if (state.data.playingGame) {
+                const gameSpec = makeSpec(state, state.data.challenge!)
+                const { score } = await state.ui.playGame(gameSpec)
+                await endCourse(score, gameSpec.par, state)
+                state.update({ stage: state.data.stage + 1 })
+                if (state.data.stage >= TOTAL_STAGES) {
+                    // Game over - player has completed all stages
+                    await state.ui.showMessage(state, 'Congratulations! You have completed all stages!')
+                    return
+                }
                 const paths = makePaths(state).map(skel => fillPath(state, skel))
-                const path: PathOption = (paths.length > 1) ? await state.ui.pickPath(state, paths) : paths[0]
+                const path: Path = (paths.length > 1) ? await state.ui.pickPath(state, paths) : paths[0]
+                state.update({ challenge: path.challenge, rewards: path.rewards, playingGame: false } )
                 state.clearHistory()
-                state.update({ challenge: path.challenge, rewards: path.rewards } )
-            }
-            const challengeOrReward = await state.ui.pickNextStep(state)
-            switch (challengeOrReward.kind) {
-                case('challenge'):
-                    await trigger({kind: 'start', stage: state.data.stage}, state)
-                    state.update({playingGame: true})
-                    const gameSpec = makeSpec(state, state.data.challenge!)
-                    const { score } = await state.ui.playGame(gameSpec)
-                    await endCourse(score, gameSpec.par, state)
-                    state.update({ stage: state.data.stage + 1, challenge: null, rewards: [], playingGame: false })
-                    if (state.data.stage >= TOTAL_STAGES) {
-                        // Game over - player has completed all stages
-                        await state.ui.showMessage(state, 'Congratulations! You have completed all stages!')
-                        return
-                    }
-                    break;
-                case('reward'):
-                    await doReward(state, challengeOrReward.index)
-                    state.setCheckpoint()
-                    break;
+            } else {
+                const challengeOrReward = await state.ui.pickNextStep(state)
+                switch (challengeOrReward.kind) {
+                    case('challenge'):
+                        await trigger({kind: 'start', stage: state.data.stage}, state)
+                        state.update({ playingGame: true })
+                        state.setCheckpoint()
+                        break;
+                    case('reward'):
+                        await doReward(state, challengeOrReward.index)
+                        state.setCheckpoint()
+                        break;
+                }
             }
         } catch (e) {
+            console.log(e)
             if (e instanceof Undo) {
                 state.undo()
+            } else if (e instanceof Redo) {
+                state.redo()
             } else {
                 throw e
             }

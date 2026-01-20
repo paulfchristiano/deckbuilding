@@ -17,6 +17,7 @@ import {
     // Card specs used by potions
     fair, villager,  move,
     trashOnLeavePlay,
+    potionRewards
 } from '../gameLogic.js'
 
 // Import cards that potions reference from base
@@ -33,6 +34,7 @@ export const potionOfActions: CardSpec = {
     simpleText: ['+10 actions.'],
     effects: [actionsEffect(10)]
 }
+potionRewards.push(potionOfActions)
 
 export const potionOfWealth: CardSpec = {
     name: 'Potion of Wealth',
@@ -47,6 +49,7 @@ export const potionOfWealth: CardSpec = {
         }
     }]
 }
+potionRewards.push(potionOfWealth)
 
 export const potionOfCopper: CardSpec = {
     name: 'Potion of Copper',
@@ -57,6 +60,7 @@ export const potionOfCopper: CardSpec = {
         transform: () => repeat(create(copper, 'hand'), 5)
     }]
 }
+potionRewards.push(potionOfCopper)
 
 export const potionOfMining: CardSpec = {
     name: 'Potion of Mining',
@@ -89,6 +93,7 @@ export const potionOfMining: CardSpec = {
         }
     }]
 }
+potionRewards.push(potionOfMining)
 
 export const potionOfCelebration: CardSpec = {
     name: 'Potion of Celebration',
@@ -101,6 +106,7 @@ export const potionOfCelebration: CardSpec = {
         transform: () => create(celebration, 'play', c => addToken(c, 'echo'))
     }]
 }
+potionRewards.push(potionOfCelebration)
 
 const bounty: CardSpec = {
     name: 'Bounty',
@@ -124,6 +130,7 @@ export const potionOfBounty: CardSpec = {
     relatedCards: [bounty],
     effects: [createInPlayEffect(bounty, 2)]
 }
+potionRewards.push(potionOfBounty)
 
 export const potionOfFerry: CardSpec = {
     name: 'Potion of Ferry',
@@ -139,6 +146,7 @@ export const potionOfFerry: CardSpec = {
         state => state.supply,
     ), buyEffect()]
 }
+potionRewards.push(potionOfFerry)
 
 export const potionOfRecovery: CardSpec = {
     name: 'Potion of Recovery',
@@ -149,6 +157,7 @@ export const potionOfRecovery: CardSpec = {
         transform: (state) => doAll([moveMany(state.discard, 'hand'), sortHand])
     }]
 }
+potionRewards.push(potionOfRecovery)
 
 export const potionOfShelter: CardSpec = {
     name: 'Potion of Shelter',
@@ -160,6 +169,7 @@ export const potionOfShelter: CardSpec = {
         createInPlayEffect(fair, 3),
     ]
 }
+potionRewards.push(potionOfShelter)
 
 export const potionOfVitality: CardSpec = {
     name: 'Potion of Vitality',
@@ -177,6 +187,7 @@ export const potionOfVitality: CardSpec = {
         createInPlayEffect(villager),
     ]
 }
+potionRewards.push(potionOfVitality)
 
 // Gain card potions
 export const potionOfWorkshop: CardSpec = {
@@ -189,6 +200,7 @@ export const potionOfWorkshop: CardSpec = {
         transform: () => create(workshop, 'hand')
     }]
 }
+potionRewards.push(potionOfWorkshop)
 
 export const potionOfTavern: CardSpec = {
     name: 'Potion of Tavern',
@@ -200,17 +212,7 @@ export const potionOfTavern: CardSpec = {
         transform: () => create(tavern, 'hand')
     }]
 }
-
-export const potionOfThroneRoom: CardSpec = {
-    name: 'Potion of Throne Room',
-    isPotion: true,
-    simpleText: ['Create a Throne Room in your hand.'],
-    relatedCards: [throneRoom],
-    effects: [{
-        text: ['Create a Throne Room in your hand.'],
-        transform: () => create(throneRoom, 'hand')
-    }]
-}
+potionRewards.push(potionOfTavern)
 
 export const potionOfInnovation: CardSpec = {
     name: 'Potion of Innovation',
@@ -222,6 +224,7 @@ export const potionOfInnovation: CardSpec = {
         transform: () => create(innovation, 'hand')
     }]
 }
+potionRewards.push(potionOfInnovation)
 
 export const potionOfTransmogrify: CardSpec = {
     name: 'Potion of Transmogrify',
@@ -233,6 +236,7 @@ export const potionOfTransmogrify: CardSpec = {
         transform: () => create(transmogrify, 'hand')
     }]
 }
+potionRewards.push(potionOfTransmogrify)
 
 // Event effect potions
 export const potionOfMirrors: CardSpec = {
@@ -246,6 +250,7 @@ export const potionOfMirrors: CardSpec = {
             doAll(state.hand.map(c => addToken(c, 'reflect')))
     }]
 }
+potionRewards.push(potionOfMirrors)
 
 export const potionOfEchoes: CardSpec = {
     name: 'Potion of Echoes',
@@ -262,6 +267,7 @@ export const potionOfEchoes: CardSpec = {
         )
     }]
 }
+potionRewards.push(potionOfEchoes)
 
 export const potionOfOnslaught: CardSpec = {
     name: 'Potion of Onslaught',
@@ -291,6 +297,7 @@ export const potionOfOnslaught: CardSpec = {
         }
     }]
 }
+potionRewards.push(potionOfOnslaught)
 
 export const potionOfPriority: CardSpec = {
     name: 'Potion of Priority',
@@ -306,6 +313,7 @@ export const potionOfPriority: CardSpec = {
         state => state.supply,
     )]
 }
+potionRewards.push(potionOfPriority)
 
 export const potionOfTwin: CardSpec = {
     name: 'Potion of Twin',
@@ -320,6 +328,7 @@ export const potionOfTwin: CardSpec = {
         'Put a twin token on a card in your hand.',
         state => state.hand)]
 }
+potionRewards.push(potionOfTwin)
 
 export const mirrorBrew: CardSpec = {
     name: 'Mirror Brew',
@@ -344,31 +353,4 @@ export const mirrorBrew: CardSpec = {
         }
     }]
 }
-
-// All potions list for random selection
-export const allPotions: CardSpec[] = [
-    potionOfActions,
-    potionOfWealth,
-    potionOfCopper,
-    potionOfMining,
-    potionOfCelebration,
-    potionOfBounty,
-    potionOfFerry,
-    potionOfRecovery,
-    potionOfShelter,
-    potionOfVitality,
-    potionOfWorkshop,
-    potionOfTavern,
-    potionOfThroneRoom,
-    potionOfInnovation,
-    potionOfTransmogrify,
-    potionOfMirrors,
-    potionOfEchoes,
-    potionOfOnslaught,
-    potionOfPriority,
-    potionOfTwin,
-    mirrorBrew,
-]
-
-// Keep startingPotions for backwards compatibility but it won't be used
-export const startingPotions: CardSpec[] = []
+potionRewards.push(mirrorBrew)

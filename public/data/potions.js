@@ -65,9 +65,9 @@ var __values = (this && this.__values) || function(o) {
 };
 import { gainCoins, gainBuys, create, trash, doAll, multichoice, choice, asChoice, asNumberedChoices, allowNull, repeat, addToken, moveMany, actionsEffect, coinsEffect, buysEffect, buyEffect, createInPlayEffect, targetedEffect, copper, silver, gold, sortHand, echoRule, priorityRule, reflectRule, ferryRule, twinRule, 
 // Card specs used by potions
-fair, villager, move, trashOnLeavePlay, } from '../gameLogic.js';
+fair, villager, move, trashOnLeavePlay, potionRewards } from '../gameLogic.js';
 // Import cards that potions reference from base
-import { celebration, shelter, workshop, tavern, throneRoom, innovation, transmogrify, } from './cards.js';
+import { celebration, shelter, workshop, tavern, innovation, transmogrify, } from './cards.js';
 // ========== POTIONS ==========
 export var potionOfActions = {
     name: 'Potion of Actions',
@@ -75,6 +75,7 @@ export var potionOfActions = {
     simpleText: ['+10 actions.'],
     effects: [actionsEffect(10)]
 };
+potionRewards.push(potionOfActions);
 export var potionOfWealth = {
     name: 'Potion of Wealth',
     isPotion: true,
@@ -98,6 +99,7 @@ export var potionOfWealth = {
             }; }
         }]
 };
+potionRewards.push(potionOfWealth);
 export var potionOfCopper = {
     name: 'Potion of Copper',
     isPotion: true,
@@ -107,6 +109,7 @@ export var potionOfCopper = {
             transform: function () { return repeat(create(copper, 'hand'), 5); }
         }]
 };
+potionRewards.push(potionOfCopper);
 export var potionOfMining = {
     name: 'Potion of Mining',
     isPotion: true,
@@ -197,6 +200,7 @@ export var potionOfMining = {
             }; }
         }]
 };
+potionRewards.push(potionOfMining);
 export var potionOfCelebration = {
     name: 'Potion of Celebration',
     isPotion: true,
@@ -208,6 +212,7 @@ export var potionOfCelebration = {
             transform: function () { return create(celebration, 'play', function (c) { return addToken(c, 'echo'); }); }
         }]
 };
+potionRewards.push(potionOfCelebration);
 var bounty = {
     name: 'Bounty',
     simpleText: ['The next time you buy a card, buy it again.'],
@@ -237,6 +242,7 @@ export var potionOfBounty = {
     relatedCards: [bounty],
     effects: [createInPlayEffect(bounty, 2)]
 };
+potionRewards.push(potionOfBounty);
 export var potionOfFerry = {
     name: 'Potion of Ferry',
     isPotion: true,
@@ -247,6 +253,7 @@ export var potionOfFerry = {
     rules: [ferryRule],
     effects: [targetedEffect(function (target) { return addToken(target, 'ferry', 1); }, 'Put a ferry token on a supply.', function (state) { return state.supply; }), buyEffect()]
 };
+potionRewards.push(potionOfFerry);
 export var potionOfRecovery = {
     name: 'Potion of Recovery',
     isPotion: true,
@@ -256,6 +263,7 @@ export var potionOfRecovery = {
             transform: function (state) { return doAll([moveMany(state.discard, 'hand'), sortHand]); }
         }]
 };
+potionRewards.push(potionOfRecovery);
 export var potionOfShelter = {
     name: 'Potion of Shelter',
     isPotion: true,
@@ -266,6 +274,7 @@ export var potionOfShelter = {
         createInPlayEffect(fair, 3),
     ]
 };
+potionRewards.push(potionOfShelter);
 export var potionOfVitality = {
     name: 'Potion of Vitality',
     isPotion: true,
@@ -282,6 +291,7 @@ export var potionOfVitality = {
         createInPlayEffect(villager),
     ]
 };
+potionRewards.push(potionOfVitality);
 // Gain card potions
 export var potionOfWorkshop = {
     name: 'Potion of Workshop',
@@ -293,6 +303,7 @@ export var potionOfWorkshop = {
             transform: function () { return create(workshop, 'hand'); }
         }]
 };
+potionRewards.push(potionOfWorkshop);
 export var potionOfTavern = {
     name: 'Potion of Tavern',
     isPotion: true,
@@ -303,16 +314,7 @@ export var potionOfTavern = {
             transform: function () { return create(tavern, 'hand'); }
         }]
 };
-export var potionOfThroneRoom = {
-    name: 'Potion of Throne Room',
-    isPotion: true,
-    simpleText: ['Create a Throne Room in your hand.'],
-    relatedCards: [throneRoom],
-    effects: [{
-            text: ['Create a Throne Room in your hand.'],
-            transform: function () { return create(throneRoom, 'hand'); }
-        }]
-};
+potionRewards.push(potionOfTavern);
 export var potionOfInnovation = {
     name: 'Potion of Innovation',
     isPotion: true,
@@ -323,6 +325,7 @@ export var potionOfInnovation = {
             transform: function () { return create(innovation, 'hand'); }
         }]
 };
+potionRewards.push(potionOfInnovation);
 export var potionOfTransmogrify = {
     name: 'Potion of Transmogrify',
     isPotion: true,
@@ -333,6 +336,7 @@ export var potionOfTransmogrify = {
             transform: function () { return create(transmogrify, 'hand'); }
         }]
 };
+potionRewards.push(potionOfTransmogrify);
 // Event effect potions
 export var potionOfMirrors = {
     name: 'Potion of Mirrors',
@@ -346,6 +350,7 @@ export var potionOfMirrors = {
             }
         }]
 };
+potionRewards.push(potionOfMirrors);
 export var potionOfEchoes = {
     name: 'Potion of Echoes',
     isPotion: true,
@@ -356,6 +361,7 @@ export var potionOfEchoes = {
             transform: function (state) { return doAll(state.hand.filter(function (c) { return c.count('echo') == 0; }).map(function (c) { return create(c.spec, 'hand', function (x) { return addToken(x, 'echo'); }); })); }
         }]
 };
+potionRewards.push(potionOfEchoes);
 export var potionOfOnslaught = {
     name: 'Potion of Onslaught',
     isPotion: true,
@@ -408,6 +414,7 @@ export var potionOfOnslaught = {
             }; }
         }]
 };
+potionRewards.push(potionOfOnslaught);
 export var potionOfPriority = {
     name: 'Potion of Priority',
     isPotion: true,
@@ -418,6 +425,7 @@ export var potionOfPriority = {
     rules: [priorityRule],
     effects: [targetedEffect(function (card) { return addToken(card, 'priority', 5); }, 'Put five priority tokens on a card in the supply.', function (state) { return state.supply; })]
 };
+potionRewards.push(potionOfPriority);
 export var potionOfTwin = {
     name: 'Potion of Twin',
     isPotion: true,
@@ -428,6 +436,7 @@ export var potionOfTwin = {
     rules: [twinRule],
     effects: [targetedEffect(function (target) { return addToken(target, 'twin'); }, 'Put a twin token on a card in your hand.', function (state) { return state.hand; })]
 };
+potionRewards.push(potionOfTwin);
 export var mirrorBrew = {
     name: 'Mirror Brew',
     isPotion: true,
@@ -461,30 +470,5 @@ export var mirrorBrew = {
             }; }
         }]
 };
-// All potions list for random selection
-export var allPotions = [
-    potionOfActions,
-    potionOfWealth,
-    potionOfCopper,
-    potionOfMining,
-    potionOfCelebration,
-    potionOfBounty,
-    potionOfFerry,
-    potionOfRecovery,
-    potionOfShelter,
-    potionOfVitality,
-    potionOfWorkshop,
-    potionOfTavern,
-    potionOfThroneRoom,
-    potionOfInnovation,
-    potionOfTransmogrify,
-    potionOfMirrors,
-    potionOfEchoes,
-    potionOfOnslaught,
-    potionOfPriority,
-    potionOfTwin,
-    mirrorBrew,
-];
-// Keep startingPotions for backwards compatibility but it won't be used
-export var startingPotions = [];
+potionRewards.push(mirrorBrew);
 //# sourceMappingURL=potions.js.map

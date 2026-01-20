@@ -23,9 +23,7 @@ export class Generator {
         return new Generator(result);
     }
     samples<T>(list: readonly T[], k: number): T[] {
-        if (k > list.length) {
-            throw new Error("k cannot be larger than list length");
-        }
+        console.assert(k <= list.length, "k cannot be larger than list length");
 
         const arr = list.slice(); // copy
         for (let i = arr.length - 1; i > 0; i--) {
@@ -36,6 +34,7 @@ export class Generator {
         return arr.slice(0, k); 
     }
     sample<T>(list: readonly T[]): T {
+        console.assert(list.length > 0, "Cannot sample from empty list");
         const idx = Math.floor(this.prng() * list.length);
         return list[idx];
     }

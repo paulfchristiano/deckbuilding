@@ -78,6 +78,7 @@ const frontier: CardSpec = {
 export const gardens: CardSpec = {
     name: "Gardens",
     buyCost: coin(4),
+    fixedCost: energy(1),
     effects: [{
         text: ['+1 vp per 8 cards in your hand, discard, resolving, and play.'],
         transform: (state, card) => gainPoints(
@@ -207,5 +208,5 @@ vpModes.push(
     { name: 'Palace', target: 40, cards: [palace], events: [] },
     { name: 'Territory', target: 40, cards: [territory], events: [] },
     { name: 'Frontier', target: 70, cards: [frontier], events: [] },
-    { name: 'Gardens', target: 40, cards: [gardens], events: [] },
+    { name: 'Gardens', target: 30, cards: [gardens], events: [] },
 )

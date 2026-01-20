@@ -72,9 +72,10 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
     }
     return to.concat(ar || Array.prototype.slice.call(from));
 };
-import { addBuffer, gainCard, gainEvent, gainPotion, gainRelic, compose, } from '../metaLogic.js';
+import { encounters, addBuffer, gainCard, gainEvent, gainPotion, gainRelic, compose, } from '../metaLogic.js';
 import { emptyBottle, inkwell } from './relics.js';
 import { create, cardRewards, eventRewards, relicRewards, potionRewards } from '../gameLogic.js';
+import { mirrorBrew } from './potions.js';
 // ----------------------------- Utility Functions
 function shuffleArray(array) {
     var _a;
@@ -168,7 +169,7 @@ function simpleEvent(_a) {
     return { name: name, transform: transform };
 }
 // Find a Bottle encounter
-function createFindABottleEncounter(s, g) {
+function findABottle(s, g) {
     return simpleEvent({
         name: 'Find a Bottle',
         description: 'Choose how to use this magical bottle.',
@@ -207,6 +208,7 @@ function createFindABottleEncounter(s, g) {
         ]
     });
 }
+encounters.push(findABottle);
 // TODO: allow someone to cancel from the choice and then go back to the previous screen.
 var mirrorName = 'Silver Mirror';
 var mirrorRelic = {
@@ -235,7 +237,7 @@ var mirrorRelic = {
         }]
 };
 // Mirror Maker encounter
-function createMirrorMakerEncounter(s, g) {
+function mirrorMaker(s, g) {
     return simpleEvent({
         name: 'Mirror Maker',
         description: 'The mirror maker offers magical duplication.',
@@ -282,8 +284,9 @@ function createMirrorMakerEncounter(s, g) {
         ]
     });
 }
+encounters.push(mirrorMaker);
 // Variety Pack encounter - pre-generates options at creation time
-function createVarietyPackEncounter(s, g) {
+function varietyPack(s, g) {
     var offerCard = g.sample(cardRewards);
     var offerEvent = g.sample(eventRewards);
     var offerPotion = g.sample(potionRewards);
@@ -323,8 +326,9 @@ function createVarietyPackEncounter(s, g) {
         ]
     });
 }
+encounters.push(varietyPack);
 // Trading Post encounter - pre-generates offers at creation time
-function createTradingPostEncounter(state, g) {
+function tradingPost(state, g) {
     var offerCard = g.sample(cardRewards);
     var offerEvent = g.sample(eventRewards);
     var offerPotion = g.sample(potionRewards);
@@ -450,6 +454,7 @@ function createTradingPostEncounter(state, g) {
         ]
     });
 }
+encounters.push(tradingPost);
 var cursedInkwell = {
     name: 'Cursed Inkwell',
     metaReplacers: [{
@@ -459,7 +464,7 @@ var cursedInkwell = {
         }]
 };
 // The Scribe encounter
-function createTheScribeEncounter() {
+function theScribe() {
     return simpleEvent({
         name: 'The Scribe',
         description: 'The scribe offers tools for your journey.',
@@ -485,23 +490,5 @@ function createTheScribeEncounter() {
         ]
     });
 }
-import { mirrorBrew } from './potions.js';
-export var encounterFactories = [
-    createFindABottleEncounter,
-    createMirrorMakerEncounter,
-    createVarietyPackEncounter,
-    createTradingPostEncounter,
-    createTheScribeEncounter,
-];
-// Generate a random encounter for the given state
-export function getRandomEncounter(state) {
-    var factory = encounterFactories[Math.floor(Math.random() * encounterFactories.length)];
-    // Check if factory needs state
-    if (factory.length === 0) {
-        return factory();
-    }
-    else {
-        return factory(state);
-    }
-}
+encounters.push(theScribe);
 //# sourceMappingURL=encounters.js.map

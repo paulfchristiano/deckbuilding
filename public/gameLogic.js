@@ -1825,7 +1825,9 @@ export { Undo };
 var UndoPastBeginning = /** @class */ (function (_super) {
     __extends(UndoPastBeginning, _super);
     function UndoPastBeginning() {
-        return _super !== null && _super.apply(this, arguments) || this;
+        var _this = _super.call(this, 'UndoPastBeginning') || this;
+        Object.setPrototypeOf(_this, UndoPastBeginning.prototype);
+        return _this;
     }
     return UndoPastBeginning;
 }(Error));
@@ -2191,8 +2193,8 @@ export function initialState(spec, ui) {
         finally { if (e_37) throw e_37.error; }
     }
     state = state.update({ nextID: maxID(spec.potions.concat(spec.relics)) + 1 });
-    state = createRawMulti(state, spec.cards, 'supply');
-    state = createRawMulti(state, spec.events, 'events');
+    state = createRawMulti(state, core.cards.concat(spec.cards), 'supply');
+    state = createRawMulti(state, core.events.concat(spec.events), 'events');
     state = createRawMulti(state, [copper, copper, copper], 'discard');
     return state;
 }
@@ -2218,7 +2220,7 @@ export function playGame(spec, ui) {
                     return [4 /*yield*/, state.ui.victory(state)];
                 case 4:
                     _a.sent();
-                    return [2 /*return*/, { score: state.points, potionsRemaining: state.potions }];
+                    return [2 /*return*/, { score: state.energy, potionsRemaining: state.potions }];
                 case 5: return [4 /*yield*/, act(state)];
                 case 6:
                     state = _a.sent();
@@ -2233,6 +2235,10 @@ export function playGame(spec, ui) {
                     else if (error_2 instanceof Victory) {
                         state = error_2.state;
                         victorious = true;
+                    }
+                    else if (error_2 instanceof SetState) {
+                        state = error_2.state;
+                        victorious = false;
                     }
                     else {
                         throw error_2;
@@ -2329,6 +2335,11 @@ export var refresh = { name: 'Refresh',
     effects: [refreshEffect(5)],
 };
 core.events.push(refresh);
+export var cheat = { name: 'Cheat',
+    fixedCost: energy(0),
+    effects: [pointsEffect(10)],
+};
+//core.events.push(cheat)
 export var copper = { name: 'Copper',
     buyCost: coin(0),
     effects: [coinsEffect(1)]
@@ -2386,10 +2397,10 @@ registerRule(reflectRule);
 export var ferryRule = {
     name: 'Ferry',
     replacers: [{
-            text: "Cards cost $2 less to buy per ferry token on them, but not less than $1.",
+            text: "Cards cost $1 less to buy per ferry token on them, but not less than $1.",
             kind: 'cost',
             handles: function (p, state) { return p.actionKind == 'buy' && state.find(p.card).count('ferry') > 0; },
-            replace: function (p, state) { return (__assign(__assign({}, p), { cost: reducedCost(p.cost, coin(2 * state.find(p.card).count('ferry')), true) })); }
+            replace: function (p, state) { return (__assign(__assign({}, p), { cost: reducedCost(p.cost, coin(state.find(p.card).count('ferry')), true) })); }
         }]
 };
 registerRule(ferryRule);

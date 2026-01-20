@@ -1371,7 +1371,7 @@ cardRewards.push(churn);
 var bustlingVillage = {
     name: 'Bustling Village',
     buyCost: coin(3),
-    effects: [{
+    effects: [createInPlayEffect(villager), {
             text: ["+1 action for each card in play."],
             transform: function (state, card) { return function (state) {
                 return __awaiter(this, void 0, void 0, function () {

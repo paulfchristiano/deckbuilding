@@ -84,10 +84,10 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
     }
     return to.concat(ar || Array.prototype.slice.call(from));
 };
-import { Shadow, Card } from './gameLogic.js';
+import { Shadow, Card, UndoPastBeginning } from './gameLogic.js';
 import { renderCost, renderEnergy } from './gameLogic.js';
 import { logTypes } from './gameLogic.js';
-import { Undo } from './gameLogic.js';
+import { Undo, SetState } from './gameLogic.js';
 import { playGame } from './gameLogic.js';
 var zoneNames = ['play', 'supply', 'events', 'hand', 'discard', 'potions', 'relics'];
 // ----------------------------- Hotkeys
@@ -380,18 +380,7 @@ function resetGlobalRenderer() {
     globalRendererState.hotkeyMapper = new HotkeyMapper();
     globalRendererState.tokenRenderer = new TokenRenderer();
 }
-var gameCallbacks = null;
-export function setGameCallbacks(callbacks) {
-    gameCallbacks = callbacks;
-}
-// Current par for display (set by meta-game)
-var currentPar = 0;
-export function setCurrentPar(par) {
-    currentPar = par;
-}
-function getCurrentPar() {
-    return currentPar;
-}
+// ----------------------------- Callbacks for Meta-game Integration
 // ----------------------------- Card Text Rendering
 function describeCost(cost) {
     var coinCost = (cost.coin > 0) ? ["lose $".concat(cost.coin)] : [];
@@ -704,7 +693,7 @@ function renderState(state, settings) {
     }
     $('#resolvingHeader').html('Resolving:');
     // Display energy as X/Y where Y is par, red if over par
-    var par = getCurrentPar();
+    var par = state.spec.par;
     var energyDisplay = "".concat(state.energy, "/").concat(par);
     if (state.energy > par) {
         $('#energy').html("<span style=\"color: red\">".concat(energyDisplay, "</span>"));
@@ -925,7 +914,7 @@ function renderDeepLink() {
 }
 function renderUndo(undoable) {
     var hotkeyText = renderHotkey('z');
-    return "<span class='option', option='undo' ".concat(undoable ? 'choosable' : '', " chosen='false'>").concat(hotkeyText, "Undo</span>");
+    return "<span class='option', option='undo' choosable chosen='false'>".concat(hotkeyText, "Undo</span>");
 }
 function renderRedo(redoable) {
     var hotkeyText = renderHotkey('Z');
@@ -941,13 +930,16 @@ function bindSpecials(state, ui) {
     bindMacroToggle(ui);
     bindViewKingdom(state);
     //bindDeepLink(state)
-    bindBack();
+    bindBack(ui);
 }
-function bindBack() {
-    $("[option='back']").on('click', function () {
-        if (gameCallbacks)
-            gameCallbacks.onBack();
-    });
+function bindBack(ui) {
+    function pick() {
+        if (ui.choiceState != null) {
+            ui.choiceState.reject(new UndoPastBeginning());
+        }
+    }
+    keyListeners.set('Escape', pick);
+    $("[option='back']").on('click', pick);
 }
 function bindViewKingdom(state) {
     function onClick() {
@@ -1081,7 +1073,7 @@ function bindRedo(state, ui) {
 }
 function bindUndo(state, ui) {
     function pick() {
-        if (ui.choiceState != null && state.undoable()) {
+        if (ui.choiceState != null) {
             ui.choiceState.reject(new Undo(state));
         }
     }
@@ -1141,13 +1133,6 @@ function bindHelp(state, ui) {
     keyListeners.set('?', pick);
     $("[option='help']").on('click', pick);
 }
-// ----------------------------- SetState Exception
-var SetState = /** @class */ (function () {
-    function SetState(state) {
-        this.state = state;
-    }
-    return SetState;
-}());
 // ----------------------------- Macro Helpers
 function macroStepFromChoice(x, chosen) {
     switch (x.kind) {
@@ -1324,16 +1309,11 @@ var GameUI = /** @class */ (function () {
     };
     GameUI.prototype.victory = function (state) {
         return __awaiter(this, void 0, void 0, function () {
-            var ui, score, remainingPotions, doneAction, submitOrUndo;
+            var ui, score, remainingPotions, submitOrUndo;
             return __generator(this, function (_a) {
                 ui = this;
                 score = state.energy;
                 remainingPotions = state.potions;
-                doneAction = function () {
-                    if (gameCallbacks) {
-                        gameCallbacks.onVictory({ score: score, potionsRemaining: remainingPotions });
-                    }
-                };
                 submitOrUndo = function () {
                     return new Promise(function (resolve, reject) {
                         ui.undoing = true;
@@ -1345,7 +1325,7 @@ var GameUI = /** @class */ (function () {
                         }
                         var options = [{
                                 render: { kind: 'string', string: 'Done' },
-                                value: doneAction,
+                                value: null,
                                 hotkeyHint: { kind: 'key', val: '!' }
                             }];
                         ui.choiceState = {
@@ -1354,7 +1334,10 @@ var GameUI = /** @class */ (function () {
                             options: options,
                             info: ["victory"],
                             chosen: [],
-                            resolve: doneAction,
+                            resolve: function (n, shifted) {
+                                ui.clearChoice();
+                                resolve();
+                            },
                             reject: newReject,
                         };
                         ui.render();

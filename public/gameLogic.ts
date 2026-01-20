@@ -1,8 +1,6 @@
 // ----------------------------- Cards
 // Note: Meta-game types (MetaReplacer, MetaTrigger) are in metaLogic.ts
 
-import { GameCallbacks } from "./gameUI";
-
 export interface CardSpec {
     name: string;
     fixedCost?: Cost;
@@ -1440,7 +1438,12 @@ export class Undo extends Error {
     }
 }
 
-export class UndoPastBeginning extends Error {}
+export class UndoPastBeginning extends Error {
+    constructor() {
+        super('UndoPastBeginning')
+        Object.setPrototypeOf(this, UndoPastBeginning.prototype)
+    }
+}
 
 export class SetState extends Error {
     constructor(public state:State) {
@@ -1712,10 +1715,9 @@ export function initialState(
     for (const potion of spec.potions) { state = state.addToZone(potion, 'potions') }
     for (const relic of spec.relics) { state = state.addToZone(relic, 'relics') }
     state = state.update({nextID: maxID(spec.potions.concat(spec.relics)) + 1})
-    state = createRawMulti(state, spec.cards, 'supply')
-    state = createRawMulti(state, spec.events, 'events')
+    state = createRawMulti(state, core.cards.concat(spec.cards), 'supply')
+    state = createRawMulti(state, core.events.concat(spec.events), 'events')
     state = createRawMulti(state, [copper, copper, copper], 'discard')
-
     return state
 }
 
@@ -1728,7 +1730,7 @@ export async function playGame(spec: GameSpec, ui: UI): Promise<VictoryData> {
         try {
             if (victorious) {
                 await state.ui.victory(state)
-                return {score: state.points, potionsRemaining: state.potions}
+                return {score: state.energy, potionsRemaining: state.potions}
             } else {
                 state = await act(state)
             }
@@ -1739,6 +1741,9 @@ export async function playGame(spec: GameSpec, ui: UI): Promise<VictoryData> {
             } else if (error instanceof Victory) {
                 state = error.state
                 victorious = true
+            } else if (error instanceof SetState) {
+                state = error.state
+                victorious = false
             } else {
                 throw error
             }
@@ -1799,6 +1804,12 @@ export const refresh:CardSpec = {name: 'Refresh',
     effects: [refreshEffect(5)],
 }
 core.events.push(refresh)
+
+export const cheat:CardSpec = {name: 'Cheat',
+    fixedCost: energy(0),
+    effects: [pointsEffect(10)],
+}
+//core.events.push(cheat)
 
 export const copper:CardSpec = {name: 'Copper',
     buyCost: coin(0),
@@ -1872,10 +1883,10 @@ registerRule(reflectRule)
 export const ferryRule: Rule = {
     name: 'Ferry',
     replacers: [{
-        text: `Cards cost $2 less to buy per ferry token on them, but not less than $1.`,
+        text: `Cards cost $1 less to buy per ferry token on them, but not less than $1.`,
         kind: 'cost',
         handles: (p, state) => p.actionKind == 'buy' && state.find(p.card).count('ferry') > 0,
-        replace: (p, state) => ({...p, cost: reducedCost(p.cost, coin(2 * state.find(p.card).count('ferry')), true)})
+        replace: (p, state) => ({...p, cost: reducedCost(p.cost, coin(state.find(p.card).count('ferry')), true)})
     }]
 }
 registerRule(ferryRule)

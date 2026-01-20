@@ -67,7 +67,7 @@ var __read = (this && this.__read) || function (o, n) {
 import { UndoPastBeginning } from './gameLogic.js';
 import { renderChallenge, Undo, Redo } from './metaLogic.js';
 import { renderSpecNoRelated } from './cardRendering.js';
-import { startGame } from './gameUI.js';
+import { initHotkeys, startGame } from './gameUI.js';
 // ----------------------------- State
 var deckDialogOpen = false;
 var activeEncounterIndex = null;
@@ -76,6 +76,7 @@ var activeEncounterIndex = null;
 //let pendingChoiceResolver: ((value: any) => void) | null = null
 var MetaGameUI = /** @class */ (function () {
     function MetaGameUI() {
+        initHotkeys(); // TODO: understand and fix this
     }
     MetaGameUI.prototype.chooseCard = function (state_1, prompt_1, options_1) {
         return __awaiter(this, arguments, void 0, function (state, prompt, options, canCancel) {
@@ -270,11 +271,11 @@ function updateProgressSidebar(state) {
         $(this).find('.progressScore').remove();
         if (stage < state.data.stage) {
             $(this).addClass('completed');
-            var score = state.data.stageScores[stage - 1];
-            var par = state.data.stagePars[stage - 1];
+            var score = state.data.stageScores[stage];
+            var par = state.data.stagePars[stage];
             if (score !== null && par !== null) {
                 var scoreDisplay = "".concat(score, "/").concat(par);
-                var color = score > par ? 'color: red' : '';
+                var color = score > par ? 'color: red' : (score < par ? 'color: green' : '');
                 $(this).append("<span class=\"progressScore\" style=\"".concat(color, "\">").concat(scoreDisplay, "</span>"));
             }
         }
@@ -308,7 +309,9 @@ function updateUndoRedoButtons(state: MetaState): void {
 */
 // ----------------------------- Stage Screen
 function renderStageScreen(state, callback) {
+    showStageScreenUI();
     $('#stageTitle').text("Stage ".concat(state.data.stage));
+    render(state);
     // Render reward buttons
     renderRewardButtons(state, callback);
     if (state.data.challenge) {
@@ -344,7 +347,7 @@ function getRewardLabel(kind) {
         case 'event': return 'Add Event';
         case 'potion': return 'Add Potion';
         case 'relic': return 'Add Relic';
-        case 'encounter': return 'Start Encounter';
+        case 'encounter': return '???';
     }
 }
 // ----------------------------- Card Picker
@@ -456,9 +459,10 @@ function hideEncounterPicker() {
 }
 // ----------------------------- Path Selection Screen
 export function renderPathSelectionScreen(state, paths, callback) {
+    showPathSelectionUI();
     console.assert(paths.length === 2, 'There must be exactly two path options to choose from.');
     var _a = __read(paths, 2), leftPath = _a[0], rightPath = _a[1];
-    updateProgressSidebar(state);
+    render(state);
     $('#pathTitle').text("Stage ".concat(state.data.stage, " - Choose Your Path"));
     // Populate left path
     renderPathColumn('left', leftPath, state, callback);
@@ -492,10 +496,12 @@ function renderPathColumn(side, path, state, callback) {
     $("#".concat(side, "Play")).text(renderChallenge(path.challenge, state));
 }
 // ----------------------------- Deck Dialog
-// TODO: figure out what the deck dialog is
-// TODO: have some default rendering that does this, the undo buttons, the side bar.
-// TODO: back button should also get bound to raise undo.
-// TODO: not sure abou meta hotkeys.
+// Undo, hotkeys, etc.?
+function render(state) {
+    $('#deckIcon').off('click').on('click', function () { showDeckDialog(state); });
+    updateBufferDisplay(state);
+    updateProgressSidebar(state);
+}
 export function showDeckDialog(state) {
     var e_4, _a, e_5, _b, e_6, _c, e_7, _d;
     var container = $('#deckContents');

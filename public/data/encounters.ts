@@ -17,6 +17,9 @@ import { create, State, CardSpec,
     cardRewards, eventRewards, relicRewards, potionRewards
  } from '../gameLogic.js'
 
+import { Generator } from '../rng.js'
+import { mirrorBrew } from './potions.js';
+
 // ----------------------------- Utility Functions
 
 function shuffleArray<T>(array: T[]): T[] {
@@ -94,7 +97,7 @@ function simpleEvent({name, description, options}: {name: string, description: s
 
 
 // Find a Bottle encounter
-function createFindABottleEncounter(s:MetaState, g:Generator): Encounter {
+function findABottle(s:MetaState, g:Generator): Encounter {
     return simpleEvent({
         name: 'Find a Bottle',
         description: 'Choose how to use this magical bottle.',
@@ -125,6 +128,7 @@ function createFindABottleEncounter(s:MetaState, g:Generator): Encounter {
         ]
     })
 }
+encounters.push(findABottle)
 
 // TODO: allow someone to cancel from the choice and then go back to the previous screen.
 
@@ -147,7 +151,7 @@ const mirrorRelic: RelicSpec = {
 }
 
 // Mirror Maker encounter
-function createMirrorMakerEncounter(s:MetaState, g:Generator): Encounter {
+function mirrorMaker(s:MetaState, g:Generator): Encounter {
     return simpleEvent({
         name: 'Mirror Maker',
         description: 'The mirror maker offers magical duplication.',
@@ -185,9 +189,10 @@ function createMirrorMakerEncounter(s:MetaState, g:Generator): Encounter {
         ]
     })
 }
+encounters.push(mirrorMaker)
 
 // Variety Pack encounter - pre-generates options at creation time
-function createVarietyPackEncounter(s:MetaState, g:Generator): Encounter {
+function varietyPack(s:MetaState, g:Generator): Encounter {
     const offerCard = g.sample(cardRewards)
     const offerEvent = g.sample(eventRewards)
     const offerPotion = g.sample(potionRewards)
@@ -228,9 +233,10 @@ function createVarietyPackEncounter(s:MetaState, g:Generator): Encounter {
         ]
     })
 }
+encounters.push(varietyPack)
 
 // Trading Post encounter - pre-generates offers at creation time
-function createTradingPostEncounter(state: MetaState, g: Generator): Encounter {
+function tradingPost(state: MetaState, g: Generator): Encounter {
     const offerCard = g.sample(cardRewards)
     const offerEvent = g.sample(eventRewards)
     const offerPotion = g.sample(potionRewards)
@@ -321,6 +327,7 @@ function createTradingPostEncounter(state: MetaState, g: Generator): Encounter {
         ]
     })
 }
+encounters.push(tradingPost)
 
 const cursedInkwell: RelicSpec = {
     name: 'Cursed Inkwell',
@@ -332,7 +339,7 @@ const cursedInkwell: RelicSpec = {
 }
 
 // The Scribe encounter
-function createTheScribeEncounter(): Encounter {
+function theScribe(): Encounter {
     return simpleEvent({
         name: 'The Scribe',
         description: 'The scribe offers tools for your journey.',
@@ -358,31 +365,4 @@ function createTheScribeEncounter(): Encounter {
         ]
     })
 }
-
-// ----------------------------- Encounter Generation
-
-import { Generator } from '../rng.js'
-import { mirrorBrew } from './potions.js';
-
-// All encounter factory functions
-// Note: Some encounters need state to pre-generate their options
-type EncounterFactory = (state: MetaState, generator: Generator) => Encounter
-
-export const encounterFactories: EncounterFactory[] = [
-    createFindABottleEncounter,
-    createMirrorMakerEncounter,
-    createVarietyPackEncounter,
-    createTradingPostEncounter,
-    createTheScribeEncounter,
-]
-
-// Generate a random encounter for the given state
-export function getRandomEncounter(state: MetaState): Encounter {
-    const factory = encounterFactories[Math.floor(Math.random() * encounterFactories.length)]
-    // Check if factory needs state
-    if (factory.length === 0) {
-        return (factory as () => Encounter)()
-    } else {
-        return (factory as (state: MetaState) => Encounter)(state)
-    }
-}
+encounters.push(theScribe)

@@ -103,6 +103,7 @@ var frontier = {
 export var gardens = {
     name: "Gardens",
     buyCost: coin(4),
+    fixedCost: energy(1),
     effects: [{
             text: ['+1 vp per 8 cards in your hand, discard, resolving, and play.'],
             transform: function (state, card) { return gainPoints(Math.floor((state.hand.length + state.discard.length
@@ -215,5 +216,5 @@ export var capitalization = {
     effects: [pointsEffect(1)]
 };
 // ========== VP MODES ==========
-vpModes.push({ name: 'Province', target: 30, cards: [province], events: [] }, { name: 'Duchy', target: 30, cards: [duchy], events: [] }, { name: 'Estate', target: 20, cards: [estate], events: [] }, { name: 'Thoroughfare', target: 80, cards: [], events: [thoroughfare] }, { name: 'Monument', target: 20, cards: [], events: [monument] }, { name: 'Capitalization', target: 60, cards: [], events: [capitalization] }, { name: 'Philanthropy', target: 40, cards: [], events: [philanthropy] }, { name: 'Duke', target: 50, cards: [duchy, duke], events: [] }, { name: 'Flower Market', target: 40, cards: [flowerMarket], events: [] }, { name: 'Farmland', target: 40, cards: [farmland], events: [] }, { name: 'Vibrant City', target: 40, cards: [vibrantCity], events: [] }, { name: 'Palace', target: 40, cards: [palace], events: [] }, { name: 'Territory', target: 40, cards: [territory], events: [] }, { name: 'Frontier', target: 70, cards: [frontier], events: [] }, { name: 'Gardens', target: 40, cards: [gardens], events: [] });
+vpModes.push({ name: 'Province', target: 30, cards: [province], events: [] }, { name: 'Duchy', target: 30, cards: [duchy], events: [] }, { name: 'Estate', target: 20, cards: [estate], events: [] }, { name: 'Thoroughfare', target: 80, cards: [], events: [thoroughfare] }, { name: 'Monument', target: 20, cards: [], events: [monument] }, { name: 'Capitalization', target: 60, cards: [], events: [capitalization] }, { name: 'Philanthropy', target: 40, cards: [], events: [philanthropy] }, { name: 'Duke', target: 50, cards: [duchy, duke], events: [] }, { name: 'Flower Market', target: 40, cards: [flowerMarket], events: [] }, { name: 'Farmland', target: 40, cards: [farmland], events: [] }, { name: 'Vibrant City', target: 40, cards: [vibrantCity], events: [] }, { name: 'Palace', target: 40, cards: [palace], events: [] }, { name: 'Territory', target: 40, cards: [territory], events: [] }, { name: 'Frontier', target: 70, cards: [frontier], events: [] }, { name: 'Gardens', target: 30, cards: [gardens], events: [] });
 //# sourceMappingURL=victory.js.map
