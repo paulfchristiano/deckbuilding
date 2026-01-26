@@ -72,7 +72,7 @@ var __values = (this && this.__values) || function(o) {
     };
     throw new TypeError(s ? "Object is not iterable." : "Symbol.iterator is not defined.");
 };
-import { eventRewards, free, coin, energy, doAll, addToken, removeToken, countNameTokens, nameHasToken, create, trash, gainCoins, applyToTarget, createInPlayEffect, targetedEffect, chargeEffect, charge, discharge, payToDo, sourceHasName, costPer, incrementCost, playReplacer, repeat, actionsEffect, buysEffect, recycleEffect, coinsEffect, buyEffect, createEffect, choice, asNumberedChoices, allowNull, multichoice, asChoice, villager, fair, horse, duplicateRule, twinRule, reflectRule, leq, addCosts, priorityRule, echoRule, move, moveMany, fountainEffect, } from '../gameLogic.js';
+import { eventRewards, free, coin, energy, doAll, addToken, removeToken, countNameTokens, nameHasToken, create, trash, gainCoins, applyToTarget, createInPlayEffect, targetedEffect, chargeEffect, charge, discharge, payToDo, sourceHasName, costPer, incrementCost, playReplacer, repeat, actionsEffect, coinsEffect, buyEffect, createEffect, choice, asNumberedChoices, allowNull, multichoice, asChoice, villager, fair, horse, duplicateRule, twinRule, reflectRule, leq, addCosts, priorityRule, echoRule, move, moveMany, fountainEffect, } from '../gameLogic.js';
 var hallOfMirrors = { name: 'Hall of Mirrors',
     fixedCost: __assign(__assign({}, free), { energy: 1, coin: 5 }),
     effects: [{
@@ -271,7 +271,7 @@ var synergy = { name: 'Synergy',
 eventRewards.push(synergy);
 var focus = { name: 'Focus',
     fixedCost: energy(1),
-    effects: [buyEffect(), actionsEffect(1)],
+    effects: [buyEffect(), actionsEffect(2)],
 };
 eventRewards.push(focus);
 var onslaught = { name: 'Onslaught',
@@ -457,30 +457,49 @@ var redouble = {
     effects: [targetedEffect(function (target) { return create(target.spec, 'hand'); }, 'Choose a card in your discard. Create a copy in your hand.', function (state) { return state.discard; })],
 };
 eventRewards.push(redouble);
-var splay = {
-    name: 'Splay',
-    fixedCost: __assign(__assign({}, free), { energy: 1 }),
+/*
+const splay:CardSpec = {
+    name:'Splay',
+    fixedCost: {...free, energy: 1},
     effects: [{
-            text: ["Put a splay token on each supply."],
-            transform: function (s) { return doAll(s.supply.map(function (c) { return addToken(c, 'splay'); })); }
-        }],
+        text: [`Put a splay token on each supply.`],
+        transform: s => doAll(s.supply.map(c => addToken(c, 'splay')))
+    }],
     simpleText: [
-        "Put a splay token on each supply.",
-        "Whenever you play a card with a splay token on its supply, remove splay tokens instead of paying @."
+        `Put a splay token on each supply.`,
+        `Whenever you play a card with a splay token on its supply, remove splay tokens instead of paying @.`
     ],
     staticReplacers: [{
-            text: "Cards you play cost @ less for each splay token on their supply.\n               Whenever this reduces a card's cost by one or more @,\n               remove that many splay tokens from its supply.",
-            kind: 'cost',
-            handles: function (x, state, card) { return (x.actionKind == 'play')
-                && nameHasToken(x.card, 'splay', state); },
-            replace: function (x, state, card) {
-                card = state.find(card);
-                var reduction = Math.min(x.cost.energy, countNameTokens(x.card, 'splay', state));
-                return __assign(__assign({}, x), { cost: __assign(__assign({}, x.cost), { energy: x.cost.energy - reduction, effects: x.cost.effects.concat([repeat(applyToTarget(function (target) { return removeToken(target, 'splay'); }, 'Remove a splay token from a supply.', function (state) { return state.supply.filter(function (c) { return c.name == x.card.name && c.count('splay') > 0; }); }), reduction)]) }) });
-            }
-        }]
-};
-eventRewards.push(splay);
+        text: `Cards you play cost @ less for each splay token on their supply.
+               Whenever this reduces a card's cost by one or more @,
+               remove that many splay tokens from its supply.`,
+        kind: 'cost',
+        handles: (x, state, card) => (x.actionKind == 'play')
+            && nameHasToken(x.card, 'splay', state),
+        replace: (x, state, card) => {
+            card = state.find(card)
+            const reduction = Math.min(
+                x.cost.energy,
+                countNameTokens(x.card, 'splay', state)
+            )
+            return {...x, cost:{...x.cost,
+                energy:x.cost.energy-reduction,
+                effects:x.cost.effects.concat([repeat(
+                    applyToTarget(
+                        target => removeToken(target, 'splay'),
+                        'Remove a splay token from a supply.',
+                        state => state.supply.filter(
+                            c => c.name == x.card.name && c.count('splay') > 0
+                        )
+                    )
+                    , reduction
+                )])
+            }}
+        }
+    }]
+}
+eventRewards.push(splay)
+*/
 function multitargetedEffect(f, text, options, max) {
     if (max === void 0) { max = null; }
     return {
@@ -515,16 +534,18 @@ var recover = {
     effects: [multitargetedEffect(function (targets) { return moveMany(targets, 'hand'); }, 'Put up to 2 cards from your discard into your hand.', function (state) { return state.discard; }, 2), incrementCost()]
 };
 eventRewards.push(recover);
-var regroup = {
+/*
+const regroup:CardSpec = {
     name: 'Regroup',
     fixedCost: energy(2),
     restrictions: [{
-            text: 'You must have at most 5 cards in your discard.',
-            test: function (c, s, k) { return s.discard.length > 5; },
-        }],
+        text: 'You must have at most 5 cards in your discard.',
+        test: (c, s, k) => s.discard.length > 5,
+    }],
     effects: [actionsEffect(2), buysEffect(1), recycleEffect()],
-};
-eventRewards.push(regroup);
+}
+eventRewards.push(regroup)
+*/
 var summon = {
     name: 'Summon',
     fixedCost: __assign(__assign({}, free), { energy: 1, coin: 5 }),
@@ -576,7 +597,7 @@ var hallOfEchoes = {
 eventRewards.push(hallOfEchoes);
 var bulkOrder = {
     name: 'Bulk Order',
-    fixedCost: coin(3),
+    fixedCost: __assign(__assign({}, free), { coin: 3, energy: 1 }),
     simpleText: [
         "Choose a card in the supply.",
         "The next 5 times you buy that card, buy it again for free."

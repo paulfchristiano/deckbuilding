@@ -996,6 +996,8 @@ export type TypedRuleTrigger = Trigger<BuyEvent, Rule> | Trigger<AfterBuyEvent, 
     Trigger<GainChargeEvent, Rule> | Trigger<RemoveTokensEvent, Rule> | Trigger<AddTokenEvent, Rule> |
     Trigger<GameStartEvent, Rule>
 
+console.log('!')
+
 //e is an event that just happened
 //each card in play and aura can have a followup
 //NOTE: this is slow, we should cache triggers (in a dictionary by event type) if it becomes a problem
@@ -1023,15 +1025,16 @@ function trigger<T extends GameEvent>(e:T): Transform {
                 }
             }
         }
-
         // Then process normal triggers
         const triggers:[Card, TypedTrigger][] = [];
-        for (const card of state.events.concat(state.supply).concat(state.relics))
+        for (const card of state.events.concat(state.supply))
             for (const trigger of card.staticTriggers())
                 triggers.push([card, trigger])
-        for (const card of state.play)
+        for (const card of state.play.concat(state.relics)) {
+            console.log(card)
             for (const trigger of card.triggers())
                 triggers.push([card, trigger])
+        }
         for (const [card, rawTrigger] of triggers) {
             if (rawTrigger.kind == e.kind) {
                 const trigger:Trigger<T> = ((rawTrigger as unknown) as Trigger<T>)

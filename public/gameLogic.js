@@ -973,7 +973,7 @@ function trigger(e) {
                     case 14:
                         triggers = [];
                         try {
-                            for (_c = __values(state.events.concat(state.supply).concat(state.relics)), _d = _c.next(); !_d.done; _d = _c.next()) {
+                            for (_c = __values(state.events.concat(state.supply)), _d = _c.next(); !_d.done; _d = _c.next()) {
                                 card = _d.value;
                                 try {
                                     for (_e = (e_17 = void 0, __values(card.staticTriggers())), _f = _e.next(); !_f.done; _f = _e.next()) {
@@ -998,7 +998,7 @@ function trigger(e) {
                             finally { if (e_16) throw e_16.error; }
                         }
                         try {
-                            for (_g = __values(state.play), _h = _g.next(); !_h.done; _h = _g.next()) {
+                            for (_g = __values(state.play.concat(state.relics)), _h = _g.next(); !_h.done; _h = _g.next()) {
                                 card = _h.value;
                                 try {
                                     for (_j = (e_19 = void 0, __values(card.triggers())), _k = _j.next(); !_k.done; _k = _j.next()) {
@@ -2198,6 +2198,39 @@ export function initialState(spec, ui) {
     state = createRawMulti(state, [copper, copper, copper], 'discard');
     return state;
 }
+function reversed(it) {
+    var xs = Array.from(it);
+    xs.reverse();
+    return xs.values();
+}
+function undoOrSet(to, from) {
+    var e_38, _a;
+    var newHistory = to.origin().future;
+    var oldHistory = from.origin().future;
+    var newRedo = from.redo.slice();
+    var predecessor = to.spec == from.spec;
+    if (predecessor) {
+        try {
+            for (var _b = __values(reversed(oldHistory.entries())), _c = _b.next(); !_c.done; _c = _b.next()) {
+                var _d = __read(_c.value, 2), i = _d[0], e = _d[1];
+                if (i >= newHistory.length) {
+                    newRedo.push(e);
+                }
+                else if (newHistory[i] != e) {
+                    predecessor = false;
+                }
+            }
+        }
+        catch (e_38_1) { e_38 = { error: e_38_1 }; }
+        finally {
+            try {
+                if (_c && !_c.done && (_a = _b.return)) _a.call(_b);
+            }
+            finally { if (e_38) throw e_38.error; }
+        }
+    }
+    return predecessor ? to.update({ redo: newRedo, ui: from.ui }) : to;
+}
 export function playGame(spec, ui) {
     return __awaiter(this, void 0, void 0, function () {
         var state, victorious, error_2;
@@ -2237,8 +2270,7 @@ export function playGame(spec, ui) {
                         victorious = true;
                     }
                     else if (error_2 instanceof SetState) {
-                        state = error_2.state;
-                        victorious = false;
+                        state = undoOrSet(error_2.state, state);
                     }
                     else {
                         throw error_2;
@@ -2339,7 +2371,7 @@ export var cheat = { name: 'Cheat',
     fixedCost: energy(0),
     effects: [pointsEffect(10)],
 };
-core.events.push(cheat);
+//core.events.push(cheat)
 export var copper = { name: 'Copper',
     buyCost: coin(0),
     effects: [coinsEffect(1)]
@@ -2368,10 +2400,24 @@ export var echoRule = {
         }]
 };
 registerRule(echoRule);
+export var shelterRule = {
+    name: 'Shelter',
+    replacers: [{
+            text: "Whenever a card with a shelter token would leave play, remove a shelter token instead.",
+            kind: 'move',
+            handles: function (p, state) { return state.find(p.card).count('shelter') > 0
+                && p.fromZone == 'play' && p.toZone != 'play'; },
+            replace: function (p, state) {
+                var card = state.find(p.card);
+                return __assign(__assign({}, p), { skip: true, effects: [removeToken(card, 'shelter')] });
+            }
+        }]
+};
+registerRule(shelterRule);
 // Priority rule: cards created from supplies with priority tokens are played immediately
 export var priorityRule = {
     name: 'Priority',
-    replacers: [playReplacer("Whenever you would create a card in your discard whose supply has a priority token, instead remove a priority token and set the card aside. Then play it if it is still set aside.", function (p, s, c) { return nameHasToken(p.spec, 'priority', s); }, function (p, s, c) { return applyToTarget(function (t) { return removeToken(t, 'priority', 1, true); }, 'Remove a priority token.', function (state) { return state.supply.filter(function (t) { return t.name == p.spec.name; }); }); })]
+    replacers: [playReplacer("Whenever you would create a card in your hand or discard whose supply has a priority token, instead remove a priority token and set the card aside. Then play it if it is still set aside.", function (p, s, c) { return nameHasToken(p.spec, 'priority', s); }, function (p, s, c) { return applyToTarget(function (t) { return removeToken(t, 'priority', 1, true); }, 'Remove a priority token.', function (state) { return state.supply.filter(function (t) { return t.name == p.spec.name; }); }); })]
 };
 registerRule(priorityRule);
 // Reflect rule: after playing a card with a reflect token, play it again
@@ -2393,6 +2439,52 @@ export var reflectRule = {
         }]
 };
 registerRule(reflectRule);
+export var hagglerName = 'Haggler';
+export var hagglerRule = {
+    name: 'Haggle',
+    triggers: [{
+            text: "After buying a card the normal way,\n                buy an additional card for each ".concat(hagglerName, " in play.\n                Each card you buy this way must cost at least $1 less than the previous one."),
+            kind: 'afterBuy',
+            handles: function (p) { return p.source == 'act'; },
+            transform: function (p, state, card) { return function (state) {
+                return __awaiter(this, void 0, void 0, function () {
+                    var lastCard, hagglers, haggler, target;
+                    var _a;
+                    return __generator(this, function (_b) {
+                        switch (_b.label) {
+                            case 0:
+                                lastCard = p.card;
+                                hagglers = state.play.filter(function (c) { return c.name == hagglerName; });
+                                _b.label = 1;
+                            case 1:
+                                if (!true) return [3 /*break*/, 5];
+                                haggler = hagglers.shift();
+                                if (haggler === undefined) {
+                                    return [2 /*return*/, state];
+                                }
+                                state = state.startTicker(haggler);
+                                lastCard = state.find(lastCard);
+                                target = void 0;
+                                return [4 /*yield*/, choice(state, "Choose a cheaper card than ".concat(lastCard.name, " to buy."), state.supply.filter(function (c) { return leq(addCosts(c.cost('buy', state), { coin: 1 }), lastCard.cost('buy', state)); }).map(asChoice))];
+                            case 2:
+                                _a = __read.apply(void 0, [_b.sent(), 2]), state = _a[0], target = _a[1];
+                                if (!(target !== null)) return [3 /*break*/, 4];
+                                lastCard = target;
+                                return [4 /*yield*/, target.buy(card)(state)];
+                            case 3:
+                                state = _b.sent();
+                                _b.label = 4;
+                            case 4:
+                                state = state.endTicker(haggler);
+                                hagglers = hagglers.filter(function (c) { return state.find(c).place == 'play'; });
+                                return [3 /*break*/, 1];
+                            case 5: return [2 /*return*/];
+                        }
+                    });
+                });
+            }; }
+        }]
+};
 // Ferry rule: cards with ferry tokens cost $1 less per token (but not zero)
 export var ferryRule = {
     name: 'Ferry',
@@ -2439,7 +2531,7 @@ function insertInto(x, xs, n) {
     return xs.slice(0, n).concat([x]).concat(xs.slice(n));
 }
 function countDistinct(xs) {
-    var e_38, _a;
+    var e_39, _a;
     var distinct = new Set();
     var result = 0;
     try {
@@ -2451,12 +2543,12 @@ function countDistinct(xs) {
             }
         }
     }
-    catch (e_38_1) { e_38 = { error: e_38_1 }; }
+    catch (e_39_1) { e_39 = { error: e_39_1 }; }
     finally {
         try {
             if (xs_1_1 && !xs_1_1.done && (_a = xs_1.return)) _a.call(xs_1);
         }
-        finally { if (e_38) throw e_38.error; }
+        finally { if (e_39) throw e_39.error; }
     }
     return result;
 }
@@ -2579,7 +2671,7 @@ export function fragileEcho(t) {
     };
 }
 export function dedupBy(xs, f) {
-    var e_39, _a;
+    var e_40, _a;
     var result = [];
     var _loop_1 = function (x) {
         if (result.every(function (r) { return f(r) != f(x); })) {
@@ -2592,12 +2684,12 @@ export function dedupBy(xs, f) {
             _loop_1(x);
         }
     }
-    catch (e_39_1) { e_39 = { error: e_39_1 }; }
+    catch (e_40_1) { e_40 = { error: e_40_1 }; }
     finally {
         try {
             if (xs_2_1 && !xs_2_1.done && (_a = xs_2.return)) _a.call(xs_2);
         }
-        finally { if (e_39) throw e_39.error; }
+        finally { if (e_40) throw e_40.error; }
     }
     return result;
 }
@@ -2664,11 +2756,20 @@ export function startsWithCharge(name, n) {
     };
 }
 // ----------------------- Uncategorized
-export function createInPlayEffect(spec, n) {
+export function createInPlayEffect(spec, n, tokens) {
     if (n === void 0) { n = 1; }
+    if (tokens === void 0) { tokens = null; }
     return {
         text: ["Create ".concat(aOrNum(n, spec.name), " in play.")],
-        transform: function () { return repeat(create(spec, 'play'), n); }
+        transform: function () { return repeat(create(spec, 'play', function (c) { return noop; }, tokens ? tokens : new Map()), n); }
+    };
+}
+export function startInPlay(cardName) {
+    return {
+        kind: 'create',
+        text: "When you would create ".concat(a(cardName), " in your discard, instead create it in play."),
+        handles: function (p) { return p.spec.name == cardName; },
+        replace: function (p) { return (__assign(__assign({}, p), { zone: 'play' })); }
     };
 }
 export var cannotUse = {
@@ -2793,7 +2894,7 @@ export function playReplacer(text, condition, cost) {
     return {
         kind: 'create',
         text: text,
-        handles: function (p, s, source) { return p.zone == 'discard' && condition(p, s, source); },
+        handles: function (p, s, source) { return (p.zone == 'discard' || p.zone == 'hand') && condition(p, s, source); },
         replace: function (p, s, source) { return (__assign(__assign({}, p), { zone: 'void', effects: p.effects.concat([
                 function () { return cost(p, s, source); },
                 function (t) { return function (state) {

@@ -14,7 +14,10 @@ import { Encounter, encounters,
 } from '../metaLogic.js'
 import { elegantQuill, emptyBottle, inkwell } from './relics.js'
 import { create, State, CardSpec,
-    cardRewards, eventRewards, relicRewards, potionRewards
+    cardRewards, eventRewards, relicRewards, potionRewards,
+    leq,
+    coin,
+    free
  } from '../gameLogic.js'
 
 import { Generator } from '../rng.js'
@@ -38,13 +41,14 @@ function bottledCard(spec: CardSpec): RelicSpec {
         name: `Bottled ${spec.name}`,
         triggers: [{
             kind: 'gameStart',
-            text: `Start each course with a copy of ${spec.name} in hand with an echo token on it.`,
+            text: `Start each course with a copy of ${spec.name} in hand.`,
             handles: () => true,
             transform: () => async function (state: State) {
-                state = await create(spec, 'hand', undefined, new Map([['echo', 1]]))(state)
+                state = await create(spec, 'hand')(state)
                 return state
             }
-        }]
+        }],
+        relatedCards: [spec]
     }
 }
 
@@ -66,7 +70,7 @@ function simpleEvent({name, description, options}: {name: string, description: s
     async function transform(state: MetaState): Promise<string | null> {
         const takenOptions = new Array(options.length).fill(false);
         while (true) {
-            const optionsOpen = options.map((opt, index) => (opt.disabled == undefined || !opt.disabled!(state)) && !takenOptions[index]); 
+            const optionsOpen = options.map((opt, index) => (opt.disabled == undefined || !opt.disabled!(state)) && !takenOptions[index]);
             if (optionsOpen.every(open => !open)) {
                 return name; // No more options available
             }
@@ -97,24 +101,24 @@ function simpleEvent({name, description, options}: {name: string, description: s
 
 
 // Find a Bottle encounter
-function findABottle(s:MetaState, g:Generator): Encounter {
+export function findABottle(s:MetaState, g:Generator): Encounter {
     return simpleEvent({
         name: 'Find a Bottle',
         description: 'Choose how to use this magical bottle.',
         options: [
             {
                 name: 'Bottle a Card',
-                description: 'Lose a card from your deck. Gain a relic that starts each course with a copy of it (with echo).',
+                description: 'Lose a card from your deck costing up to $5. Gain a relic that starts each course with a copy of it (with echo).',
                 transform: async function (state: MetaState) {
                     const card = await state.ui.chooseCard(
                         state,
                         'Choose a card to bottle:',
-                        [...state.data.collectedCards],
+                        [...state.data.collectedCards.filter(x => leq(x.buyCost || free, coin(5)))],
                         true
                     )
                     if (!card) return
                     state.removeCard(card.name)
-                    await gainRelic(bottledCard(card))
+                    await gainRelic(bottledCard(card))(state)
                 },
                 disabled: (state: MetaState) => state.data.collectedCards.length === 0,
                 finishesEncounter: true,
@@ -142,7 +146,6 @@ const mirrorRelic: RelicSpec = {
     metaTriggers: [{
         kind: 'relic',
         handles: (e: GainRelicEvent, s: MetaState, relic: Relic) => e.relic.name != mirrorName,
-        text: `Whenever you gain a relic other than ${mirrorName}, gain an additional copy of that relic and destroy this.`,
         transform: (e: GainRelicEvent, s: MetaState, relic: Relic) => async function (state: MetaState) {
             await gainRelic(e.relic.spec)(state)
             state.removeRelic(relic.id)
@@ -236,7 +239,7 @@ function varietyPack(s:MetaState, g:Generator): Encounter {
 encounters.push(varietyPack)
 
 // Trading Post encounter - pre-generates offers at creation time
-function tradingPost(state: MetaState, g: Generator): Encounter {
+export function tradingPost(state: MetaState, g: Generator): Encounter {
     const offerCard = g.sample(cardRewards)
     const offerEvent = g.sample(eventRewards)
     const offerPotion = g.sample(potionRewards)
@@ -331,9 +334,9 @@ encounters.push(tradingPost)
 
 const cursedInkwell: RelicSpec = {
     name: 'Cursed Inkwell',
+    simpleText: ['Par is 1@ lower on each course.'],
     metaReplacers: [{
         kind: 'gameSetup',
-        text: ['Par is 1@ lower on each course.'],
         replace: (p: GameSetupParams) => ({ ...p, par: p.par - 1 })
     }]
 }

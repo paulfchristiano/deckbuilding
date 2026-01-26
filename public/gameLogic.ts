@@ -17,9 +17,6 @@ export interface CardSpec {
     simpleText?: string[]; // Short description for card selector/deck view (one line per array element)
     isPotion?: boolean; // If true, trash after playing
     rules?: Rule[]; // Rules this card references (for tooltip display)
-    // Meta-game fields (types defined in metaLogic.ts, used by relics)
-    metaReplacers?: any[];
-    metaTriggers?: any[];
 }
 
 // Rules are global triggers/replacers that apply to all games
@@ -865,10 +862,10 @@ function trigger<T extends GameEvent>(e:T): Transform {
 
         // Then process normal triggers
         const triggers:[Card, TypedTrigger][] = [];
-        for (const card of state.events.concat(state.supply).concat(state.relics))
+        for (const card of state.events.concat(state.supply))
             for (const trigger of card.staticTriggers())
                 triggers.push([card, trigger])
-        for (const card of state.play)
+        for (const card of state.play.concat(state.relics))
             for (const trigger of card.triggers())
                 triggers.push([card, trigger])
         for (const [card, rawTrigger] of triggers) {
@@ -1721,6 +1718,30 @@ export function initialState(
     return state
 }
 
+function reversed<T>(it:IterableIterator<T>): IterableIterator<T> {
+    const xs = Array.from(it)
+    xs.reverse()
+    return xs.values()
+}
+
+
+function undoOrSet(to:State, from:State): State {
+    const newHistory = to.origin().future
+    const oldHistory = from.origin().future
+    const newRedo = from.redo.slice()
+    let predecessor = to.spec == from.spec
+    if (predecessor) {
+        for (const [i, e] of reversed(oldHistory.entries())) {
+            if (i >= newHistory.length) {
+                newRedo.push(e)
+            } else if (newHistory[i] != e) {
+                predecessor = false;
+            }
+        }
+    }
+    return predecessor ? to.update({redo: newRedo, ui:from.ui}) : to
+}
+
 export async function playGame(spec: GameSpec, ui: UI): Promise<VictoryData> {
     let state:State = initialState(spec, ui)
     state = await trigger({kind:'gameStart'})(state)
@@ -1742,8 +1763,7 @@ export async function playGame(spec: GameSpec, ui: UI): Promise<VictoryData> {
                 state = error.state
                 victorious = true
             } else if (error instanceof SetState) {
-                state = error.state
-                victorious = false
+                state = undoOrSet(error.state, state)
             } else {
                 throw error
             }
@@ -1809,7 +1829,7 @@ export const cheat:CardSpec = {name: 'Cheat',
     fixedCost: energy(0),
     effects: [pointsEffect(10)],
 }
-core.events.push(cheat)
+//core.events.push(cheat)
 
 export const copper:CardSpec = {name: 'Copper',
     buyCost: coin(0),
@@ -1844,11 +1864,30 @@ export const echoRule: Rule = {
 }
 registerRule(echoRule)
 
+export const shelterRule: Rule = {
+    name: 'Shelter',
+    replacers: [{
+        text: `Whenever a card with a shelter token would leave play, remove a shelter token instead.`,
+        kind: 'move',
+        handles: (p, state) => state.find(p.card).count('shelter') > 0
+            && p.fromZone == 'play' && p.toZone != 'play',
+        replace: (p, state) => {
+            const card = state.find(p.card)
+            return {
+                ...p,
+                skip: true,
+                effects: [removeToken(card, 'shelter')]
+            }
+        }
+    }]
+}
+registerRule(shelterRule)
+
 // Priority rule: cards created from supplies with priority tokens are played immediately
 export const priorityRule: Rule = {
     name: 'Priority',
     replacers: [playReplacer(
-        `Whenever you would create a card in your discard whose supply has a priority token, instead remove a priority token and set the card aside. Then play it if it is still set aside.`,
+        `Whenever you would create a card in your hand or discard whose supply has a priority token, instead remove a priority token and set the card aside. Then play it if it is still set aside.`,
         (p, s, c) => nameHasToken(p.spec, 'priority', s),
         (p, s, c) => applyToTarget(
             t => removeToken(t, 'priority', 1, true),
@@ -1878,6 +1917,43 @@ export const reflectRule: Rule = {
     }]
 }
 registerRule(reflectRule)
+
+export const hagglerName = 'Haggler'
+export const hagglerRule: Rule = {
+    name: 'Haggle',
+        triggers: [{
+            text:         `After buying a card the normal way,
+                buy an additional card for each ${hagglerName} in play.
+                Each card you buy this way must cost at least $1 less than the previous one.`,
+            kind: 'afterBuy',
+            handles: p => p.source == 'act',
+            transform: (p, state, card) => async function(state) {
+                let lastCard:Card = p.card
+                let hagglers:Card[] = state.play.filter(c => c.name == hagglerName)
+                while (true) {
+                    const haggler:Card|undefined = hagglers.shift()
+                    if (haggler === undefined) {
+                        return state
+                    }
+                    state = state.startTicker(haggler)
+                    lastCard = state.find(lastCard)
+                    let target:Card|null; [state, target] = await choice(state,
+                        `Choose a cheaper card than ${lastCard.name} to buy.`,
+                         state.supply.filter(c => leq(
+                            addCosts(c.cost('buy', state), {coin:1}),
+                            lastCard.cost('buy', state)
+                        )).map(asChoice)
+                    )
+                    if (target !== null) {
+                        lastCard = target
+                        state = await target.buy(card)(state)
+                    }
+                    state = state.endTicker(haggler)
+                    hagglers = hagglers.filter(c => state.find(c).place=='play')
+                }
+            }
+        }]
+}
 
 // Ferry rule: cards with ferry tokens cost $1 less per token (but not zero)
 export const ferryRule: Rule = {
@@ -2146,10 +2222,19 @@ export function startsWithCharge(name:string, n:number):Replacer<CreateParams> {
 
 // ----------------------- Uncategorized
 
-export function createInPlayEffect(spec:CardSpec, n:number=1) {
+export function createInPlayEffect(spec:CardSpec, n:number=1, tokens: Map<Token, number>|null=null): Effect {
     return {
         text: [`Create ${aOrNum(n, spec.name)} in play.`],
-        transform: () => repeat(create(spec, 'play'), n)
+        transform: () => repeat(create(spec, 'play', (c:Card) => noop, tokens ? tokens : new Map()), n)
+    }
+}
+
+export function startInPlay(cardName: string): Replacer {
+    return {
+        kind: 'create',
+        text: `When you would create ${a(cardName)} in your discard, instead create it in play.`,
+        handles: p => p.spec.name == cardName,
+        replace: p => ({ ...p, zone: 'play' })
     }
 }
 
@@ -2306,7 +2391,7 @@ export function playReplacer<S>(
     return {
         kind: 'create',
         text: text,
-        handles: (p, s, source) => p.zone == 'discard' && condition(p, s, source),
+        handles: (p, s, source) => (p.zone == 'discard' || p.zone == 'hand') && condition(p, s, source),
         replace: (p, s, source) => ({...p, zone: 'void', effects: p.effects.concat([
             () => cost(p, s, source),
             t => async function(state) {

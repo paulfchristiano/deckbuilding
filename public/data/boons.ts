@@ -19,6 +19,8 @@ import { doAll, Boon, boons,
     moveMany,
     leq,
     num,
+    Token,
+    removeToken,
 } from '../gameLogic.js'
 
 const escalate:CardSpec = {name: 'Escalate',
@@ -62,7 +64,7 @@ const travelingFair:CardSpec = {name:'Traveling Fair',
 boons.push(    {
         name: 'Traveling Fair',
         description: 'Add Traveling Fair as an event (no scaling cost)',
-        parReduction: 6,
+        parReduction: 3,
         cards: [],
         events: [travelingFair],
     })
@@ -94,17 +96,60 @@ boons.push({
     events: [vault],
 })
 
+import { refresh } from '../gameLogic.js'
+const logisticsToken:Token = 'logistics'
+const logistics:CardSpec = {
+    name: 'Logistics',
+    buyCost: coin(3),
+    fixedCost: energy(1),
+    effects: [{
+        text: [`Put a ${logisticsToken} token on each supply.`],
+        transform: s => doAll(s.events.map(e => addToken(e, 'logistics')))
+    }],
+    staticReplacers: [{
+        text: `Events cost @ less for each logistics token on them, but ${refresh.name} can't cost 0. Whenever this reduces a cost, remove a logistics token.`,
+        kind: 'cost',
+        handles: p => (p.actionKind == 'use' && p.card.count('logistics') > 0),
+        replace: (p, state) => {
+            const card = state.find(p.card)
+            const maxReduction = (p.card.name == refresh.name) ? p.cost.energy - 1 : p.cost.energy 
+            const reduction = Math.max(Math.min(maxReduction, card.count('logistics')), 0)
+            return {...p, cost:{...p.cost,
+                energy:p.cost.energy-reduction,
+                effects:p.cost.effects.concat([removeToken(card, 'logistics', reduction)])
+            }}
+        }
+    }]
+}
+boons.push({
+    name: 'Logistics',
+    description: 'Add Logistics as a card',
+    parReduction: 4,
+    cards: [logistics],
+    events: [],
+})
+
 const populate:CardSpec = {name: 'Populate',
     fixedCost: {...free, coin:8, energy:2},
     simpleText: ['Buy every card in the supply costing up to $8.'],
     effects: [{
-        text: ['Buy every card in the supply costing up to $8.'],
-        transform: (s, card) => async function(state) {
-            const targets = state.supply.filter(target => leq(target.cost('buy', state), coin(8)))
-            for (const target of targets) {
-                state = await target.buy(card)(state)
+        text: [`Repeat this any number of times: buy a card in the supply costing up to $8 that you haven't bought yet.`],
+        transform: (state, card) => async function(state) {
+            let options:Option<Card>[] = asNumberedChoices(state.supply.filter(c => leq(c.cost('buy', state), coin(8))))
+            while (true) {
+                let picked:Card|null; [state, picked] = await choice(state,
+                    'Pick a card to buy next.',
+                    allowNull(options.filter(
+                        c => state.find(c.value).place == 'supply'
+                    )))
+                if (picked == null) {
+                    return state
+                } else {
+                    state = await picked.buy(card)(state)
+                    const id = picked.id
+                    options = options.filter(c => c.value.id != id )
+                }
             }
-            return state
         }
     }]
 }
@@ -118,13 +163,13 @@ boons.push(   {
 
 
 const recycle:CardSpec = {name: 'Recycle',
-    fixedCost: energy(2),
+    fixedCost: energy(1),
     effects: [recycleEffect()],
 }
 boons.push(    {
         name: 'Recycle',
         description: 'Add Recycle as an event',
-        parReduction: 5,
+        parReduction: 7,
         cards: [],
         events: [recycle],
     })
@@ -161,7 +206,7 @@ const flourish:CardSpec = {name: flourishName,
 boons.push(    {
         name: 'Flourish',
         description: 'Add Flourish as an event',
-        parReduction: 7,
+        parReduction: 9,
         cards: [],
         events: [flourish],
     })
@@ -181,7 +226,7 @@ boons.push({
 
 const reuse:CardSpec = {
     name: 'Reuse',
-    fixedCost: energy(2),
+    fixedCost: energy(1),
     simpleText: [
         `Play any number of cards in your discard that don't have a reuse token on them.`,
         `Put a reuse token on each card played this way.`
@@ -224,13 +269,13 @@ boons.push(    {
 const prioritize:CardSpec = {
     simpleText: [
         `Choose a supply.`,
-        `The next 5 times you create a card from that supply, play it immediately.`
+        `The next 8 times you create a card from that supply, play it immediately.`
     ],
     name: 'Prioritize',
     fixedCost: {...free, energy:1, coin:3},
     effects: [targetedEffect(
-        card => addToken(card, 'priority', 5),
-        'Put five priority tokens on a card in the supply.',
+        card => addToken(card, 'priority', 8),
+        'Put 8 priority tokens on a card in the supply.',
         state => state.supply,
     )],
     rules: [priorityRule],
@@ -241,11 +286,14 @@ boons.push(   {
         parReduction: 5,
         cards: [],
         events: [prioritize],
-    })
+})
 
+import { startInPlay } from '../gameLogic.js'
 
+const compostingName = 'Composting'
 const composting:CardSpec = {
-    name: 'Composting',
+    name: compostingName,
+    buyCost: coin(3),
     effects: [],
     triggers: [{
         kind: 'cost',
@@ -259,7 +307,14 @@ const composting:CardSpec = {
                 state.discard.map(asChoice), n)
             return moveMany(targets, 'hand')(state)
         }
-    }]
+    }],
+    replacers: [{
+        kind: 'move',
+        text: `Whenever Composting would move to your hand, instead leave it in play.`,
+        handles: (p, s, c) => p.toZone == 'hand' && p.card.id == c.id,
+        replace: p => ({ ...p, skip: true})
+    }],
+    staticReplacers: [startInPlay(compostingName)],
 }
 boons.push({
         name: 'Composting',

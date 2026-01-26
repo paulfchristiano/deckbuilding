@@ -20,7 +20,7 @@ import {
 export const bagOfCoins: RelicSpec = {
     name: 'Bag of Coins',
     simpleText: ['Start with an extra copper.'],
-    staticTriggers: [{
+    triggers: [{
         kind: 'gameStart',
         text: 'At the start of the game, create a copper in your discard.',
         handles: () => true,
@@ -32,7 +32,7 @@ relicRewards.push(bagOfCoins)
 export const bagOfPreparation: RelicSpec = {
     name: 'Bag of Preparation',
     simpleText: ['+2 actions each time you refresh.'],
-    staticTriggers: [{
+    triggers: [{
         kind: 'afterUse',
         handles: (e, s, c) => e.card.name === refresh.name,
         text: 'After using Refresh, +2 actions.',
@@ -44,7 +44,7 @@ relicRewards.push(bagOfPreparation)
 export const courier: RelicSpec = {
     name: 'Courier',
     simpleText: ['+1 buy each time you refresh.'],
-    staticTriggers: [{
+    triggers: [{
         kind: 'resource',
         text: 'Whenever you gain actions from refreshing, gain 1 buy.',
         handles: (e: ResourceEvent, state, card) =>
@@ -58,9 +58,9 @@ relicRewards.push(courier)
 // Inkwell: Par is 1@ higher on each course
 export const inkwell: RelicSpec = {
     name: 'Inkwell',
+    simpleText: [`Par is 1@ higher on each course.`],
     metaReplacers: [{
         kind: 'gameSetup',
-        text: ['Par is 1@ higher on each course.'],
         replace: (p: GameSetupParams) => ({ ...p, par: p.par + 1 })
     }]
 }
@@ -69,9 +69,9 @@ relicRewards.push(inkwell)
 // Elegant Quill: Gain 3@ buffer (one-time effect on acquisition)
 export const elegantQuill: RelicSpec = {
     name: 'Elegant Quill',
+    simpleText: [`+3@ buffer when you gain this.`],
     metaTriggers: [{
         kind: 'relic',
-        text: '+3@ buffer when you gain this.',
         handles: (e: GainRelicEvent, s: MetaState, self: Relic) => self.id == e.relic.id,
         transform: (e: GainRelicEvent) => addBuffer(3)
     }]
@@ -81,32 +81,32 @@ relicRewards.push(elegantQuill)
 // Broken Lever: VP targets are 25% lower
 export const brokenLever: RelicSpec = {
     name: 'Broken Lever',
+    simpleText: [`VP targets are 25% lower.`],
     metaReplacers: [{
         kind: 'gameSetup',
-        text: ['VP targets are 25% lower.'],
         replace: (p: GameSetupParams) => ({ ...p, vpGoal: Math.floor(p.vpGoal * 0.75) })
     }]
 }
 relicRewards.push(brokenLever)
 
-// Cursed Quill: Par is 6@ lower, gain 3@ buffer at start of each course
-export const cursedQuill: CardSpec = {
-    name: 'Cursed Quill',
+// Cursed Quill: Par is 6@ lower, gain 2@ buffer at start of each course
+export const cursedInkwell: RelicSpec = {
+    name: 'Cursed Inkwell',
     simpleText: [
-        'Par is 6@ lower on each course.',
+        'Par is 4@ lower on each course.',
         'Gain 3@ buffer at the start of each course.'
     ],
     metaReplacers: [{
         kind: 'gameSetup',
-        replace: (p: GameSetupParams) => ({ ...p, par: p.par - 6 })
+        replace: (p: GameSetupParams) => ({ ...p, par: p.par - 4 })
     }],
     metaTriggers: [{
-        kind: 'courseStart',
+        kind: 'start',
         handles: (e: CourseStartEvent) => true,
         transform: (e: CourseStartEvent) => addBuffer(3)
     }]
 }
-relicRewards.push(cursedQuill)
+relicRewards.push(cursedInkwell)
 
 // TODO: implement
 // Need to have a replacer that can put in cards into the challengespec
@@ -135,17 +135,15 @@ export const emptyBottle: RelicSpec = {
     name: 'Empty Bottle',
     simpleText: [
         'When you add a card to your deck,',
-        'start the next course with an echo copy in hand.'
+        'start the next course with a copy in hand.'
     ],
     mutableTriggers: (relic: Relic) => [{
         kind: 'gameStart',
-        text: 'At the start of the game, create a copy of each bottled card in your hand with an echo token.',
+        text: 'At the start of the game, create a copy of each bottled card in your hand.',
         handles: () => true,
         transform: () => async function (state: State) {
-            console.log('unbottling!')
-            console.log(relic.notedCards)
             for (const spec of relic.notedCards || []) {
-                state = await create(spec, 'hand', undefined, new Map([['echo', 1]]))(state)
+                state = await create(spec, 'hand')(state)
             }
             return state
         }
@@ -153,16 +151,13 @@ export const emptyBottle: RelicSpec = {
     metaTriggers: [{
         kind: 'end',
         handles: () => true,
-        text: 'At the end of each course, forget all bottled cards.',
         transform: (e, s, relic: Relic) => async function (state: MetaState) {
             state.applyToRelic((r:Relic) => r.update({notedCards: []}), relic)
         },
     }, {
         kind: 'card',
         handles: () => true,
-        text: 'When you add a card to your deck, bottle it for the next course.',
         transform: (e: GainCardEvent, s: MetaState, relic: Relic) => async function (state: MetaState) {
-            console.log('bottling!')
             const notedCards = relic.notedCards || []
             state.applyToRelic((r:Relic) => r.update({notedCards: [...notedCards, e.card]}), relic)
         },
@@ -170,32 +165,31 @@ export const emptyBottle: RelicSpec = {
 }
 relicRewards.push(emptyBottle)
 
-// Ancient Quill: For each 3@ you beat par, gain 1@ buffer
-export const ancientQuill: CardSpec = {
-    name: 'Ancient Quill',
+export const banner: RelicSpec = {
+    name: 'Banner',
     simpleText: [
-        'For each 3@ you beat par,',
+        'For each 2@ you beat par,',
         'gain 1@ buffer.'
     ],
     metaTriggers: [{
-        kind: 'gameEnd',
+        kind: 'end',
         handles: (e: CourseEndEvent) => e.score < e.par,
         transform: (e: CourseEndEvent) => {
             const energyUnderPar = e.par - e.score
-            const bufferGain = Math.floor(energyUnderPar / 3)
+            const bufferGain = Math.floor(energyUnderPar / 2)
             return addBuffer(bufferGain)
         }
     }]
 }
-relicRewards.push(ancientQuill)
+relicRewards.push(banner)
 
 // Question Card: Future rewards have 1 more option
-export const questionCard: CardSpec = {
+export const questionCard: RelicSpec = {
     name: 'Question Card',
-    simpleText: ['Future rewards have 1 more option.'],
+    simpleText: ['Future rewards have 2 more options.'],
     metaReplacers: [{
         kind: 'reward',
-        replace: (p: RewardParams) => ({ ...p, optionCount: p.optionCount + 1 })
+        replace: (p: RewardParams) => ({ ...p, optionCount: p.optionCount + 2 })
     }]
 }
 relicRewards.push(questionCard)

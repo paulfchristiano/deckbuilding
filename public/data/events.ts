@@ -213,7 +213,7 @@ eventRewards.push(synergy)
 
 const focus:CardSpec = {name: 'Focus',
     fixedCost: energy(1),
-    effects: [buyEffect(), actionsEffect(1)],
+    effects: [buyEffect(), actionsEffect(2)],
 }
 eventRewards.push(focus)
 
@@ -429,6 +429,7 @@ const redouble:CardSpec = {
 }
 eventRewards.push(redouble)
 
+/*
 const splay:CardSpec = {
     name:'Splay',
     fixedCost: {...free, energy: 1},
@@ -470,6 +471,7 @@ const splay:CardSpec = {
     }]
 }
 eventRewards.push(splay)
+*/
 
 function multitargetedEffect(
     f: (targets:Card[], c:Card) => Transform,
@@ -506,6 +508,7 @@ const recover:CardSpec = {
 }
 eventRewards.push(recover)
 
+/*
 const regroup:CardSpec = {
     name: 'Regroup',
     fixedCost: energy(2),
@@ -516,6 +519,7 @@ const regroup:CardSpec = {
     effects: [actionsEffect(2), buysEffect(1), recycleEffect()],
 }
 eventRewards.push(regroup)
+*/
 
 const summon:CardSpec = {
     name: 'Summon',
@@ -593,7 +597,7 @@ eventRewards.push(hallOfEchoes)
 
 const bulkOrder:CardSpec = {
     name: 'Bulk Order',
-    fixedCost: coin(3),
+    fixedCost: {...free, coin:3, energy:1},
     simpleText: [
         `Choose a card in the supply.`,
         `The next 5 times you buy that card, buy it again for free.`

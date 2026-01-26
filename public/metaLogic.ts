@@ -64,10 +64,10 @@ export const encounters:EncounterFactory[] = []
 // ----------------------------- Constants
 
 export const TOTAL_STAGES = 8
-export const INITIAL_BUFFER = 8
+export const INITIAL_BUFFER = 10
 
 // Base par values for each stage
-export const BASE_PARS: number[] = [30, 27, 24, 20, 18, 16, 14, 8]
+export const BASE_PARS: number[] = [30, 27, 25, 23, 21, 19, 18, 8]
 
 // ----------------------------- Meta-game Types
 
@@ -150,8 +150,8 @@ export interface RewardParams {
 
 // TODO: render relics appropriately when you hold shift etc.
 export type MetaReplacer =
-    | { kind: 'gameSetup', text: string[], replace: (params: GameSetupParams, self: Relic) => GameSetupParams }
-    | { kind: 'reward', text: string[], replace: (params: RewardParams, self: Relic) => RewardParams }
+    | { kind: 'gameSetup', replace: (params: GameSetupParams, self: Relic) => GameSetupParams }
+    | { kind: 'reward', replace: (params: RewardParams, self: Relic) => RewardParams }
 
 // Meta trigger event types
 export interface CourseEndEvent {
@@ -188,7 +188,6 @@ export interface GainEventEvent {
 export type MetaGameEvent = CourseEndEvent | CourseStartEvent | GainRelicEvent | GainPotionEvent | GainCardEvent | GainEventEvent
 
 export interface MetaTrigger<T extends MetaGameEvent> {
-    text: string;
     kind: T['kind'];
     handles: (e:T, s:MetaState, self:Relic) => boolean;
     transform: (e:T, s:MetaState, self:Relic) => MetaTransform;
@@ -454,6 +453,7 @@ export function addBuffer(amount: number): MetaTransform {
 export function gainCard(card: CardSpec): MetaTransform {
     return async function(state: MetaState) {
         state.update({ collectedCards: [...state.data.collectedCards, card ] })
+        await trigger({kind: 'card', card: card}, state)
     }
 }
 
@@ -665,10 +665,10 @@ function fillPath(state: MetaState, skeleton: PathSkeleton): Path {
             const encounter:Encounter = factory(state, generator)
             rewards.push({kind: 'encounter', encounter: encounter, result: null})
         } else if (rewardKind === 'card') {
-            const options = generator.samples(cardRewards, getRewardOptionCount(state))
+            const options = generator.samples(cardRewards, getRewardOptionCount(state), state.data.collectedCards)
             rewards.push({ kind: 'card', options: options, result: null })
         } else if (rewardKind === 'event') {
-            const options = generator.samples(eventRewards, getRewardOptionCount(state))
+            const options = generator.samples(eventRewards, getRewardOptionCount(state), state.data.collectedEvents)
             rewards.push({ kind: 'event', options: options, result: null })
         } else if (rewardKind === 'potion') {
             const options = generator.samples(potionRewards, getRewardOptionCount(state))
@@ -702,14 +702,34 @@ function adoptPath(state:MetaState, path: Path) {
     state.update({challenge: path.challenge, rewards: path.rewards})
 }
 
+// We can define test in order to get a given reward immediately, for testing purposes.
+
+export type TestSpec = ['potion', CardSpec] | ['relic', RelicSpec] | ['card', CardSpec] | ['event', CardSpec] | ['encounter', EncounterFactory]
+
+function makeTestReward(state: MetaState, spec: TestSpec): Reward {
+    switch (spec[0]) {
+        case 'potion':
+        case 'event':
+        case 'card':
+        case 'relic':
+            return {kind: spec[0], options: [spec[1]], result: null}
+        case 'encounter':
+            const generator = state.generator('test')
+            const factory = spec[1]
+            return {kind: 'encounter', encounter: factory(state, generator), result: null}
+    }
+
+}
+
 // TODO: implement undo (figure out how it is done right now).
 // Note that all checkpoints are at a point where you want to back into the main loop in this method.
-export async function playGame(ui: MetaUI): Promise<void> {
+export async function playGame(ui: MetaUI, test:null|TestSpec = null): Promise<void> {
     const state: MetaState = new MetaState(ui)
     const initialPath = fillPath(state, {
         rewards: ['card', 'card', 'event', 'potion'] as RewardKind[],
         challenge: randomChallenge(state)
     })
+    if (test !== null) initialPath.rewards.push(makeTestReward(state, test));
     adoptPath(state, initialPath)
     state.clearHistory()
     while (true) {
@@ -745,7 +765,6 @@ export async function playGame(ui: MetaUI): Promise<void> {
                 }
             }
         } catch (e) {
-            console.log(e)
             if (e instanceof Undo) {
                 state.undo()
             } else if (e instanceof Redo) {

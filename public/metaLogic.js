@@ -102,9 +102,9 @@ import { Card, vpModes, boons, cardRewards, eventRewards, coinKey, energyEventKe
 export var encounters = [];
 // ----------------------------- Constants
 export var TOTAL_STAGES = 8;
-export var INITIAL_BUFFER = 8;
+export var INITIAL_BUFFER = 10;
 // Base par values for each stage
-export var BASE_PARS = [30, 27, 24, 20, 18, 16, 14, 8];
+export var BASE_PARS = [30, 27, 25, 23, 21, 19, 18, 8];
 // TODO: add a tooltip that shows you the par and target, the cards, etc.
 export function renderChallenge(spec, state) {
     var gameSpec = makeSpec(state, spec);
@@ -387,8 +387,14 @@ export function gainCard(card) {
     return function (state) {
         return __awaiter(this, void 0, void 0, function () {
             return __generator(this, function (_a) {
-                state.update({ collectedCards: __spreadArray(__spreadArray([], __read(state.data.collectedCards), false), [card], false) });
-                return [2 /*return*/];
+                switch (_a.label) {
+                    case 0:
+                        state.update({ collectedCards: __spreadArray(__spreadArray([], __read(state.data.collectedCards), false), [card], false) });
+                        return [4 /*yield*/, trigger({ kind: 'card', card: card }, state)];
+                    case 1:
+                        _a.sent();
+                        return [2 /*return*/];
+                }
             });
         });
     };
@@ -684,11 +690,11 @@ function fillPath(state, skeleton) {
                 rewards.push({ kind: 'encounter', encounter: encounter, result: null });
             }
             else if (rewardKind === 'card') {
-                var options = generator.samples(cardRewards, getRewardOptionCount(state));
+                var options = generator.samples(cardRewards, getRewardOptionCount(state), state.data.collectedCards);
                 rewards.push({ kind: 'card', options: options, result: null });
             }
             else if (rewardKind === 'event') {
-                var options = generator.samples(eventRewards, getRewardOptionCount(state));
+                var options = generator.samples(eventRewards, getRewardOptionCount(state), state.data.collectedEvents);
                 rewards.push({ kind: 'event', options: options, result: null });
             }
             else if (rewardKind === 'potion') {
@@ -733,11 +739,25 @@ export { Redo };
 function adoptPath(state, path) {
     state.update({ challenge: path.challenge, rewards: path.rewards });
 }
+function makeTestReward(state, spec) {
+    switch (spec[0]) {
+        case 'potion':
+        case 'event':
+        case 'card':
+        case 'relic':
+            return { kind: spec[0], options: [spec[1]], result: null };
+        case 'encounter':
+            var generator = state.generator('test');
+            var factory = spec[1];
+            return { kind: 'encounter', encounter: factory(state, generator), result: null };
+    }
+}
 // TODO: implement undo (figure out how it is done right now).
 // Note that all checkpoints are at a point where you want to back into the main loop in this method.
-export function playGame(ui) {
-    return __awaiter(this, void 0, void 0, function () {
+export function playGame(ui_1) {
+    return __awaiter(this, arguments, void 0, function (ui, test) {
         var state, initialPath, gameSpec, _a, score, potionsRemaining, paths, path, _b, challengeOrReward, _c, e_8;
+        if (test === void 0) { test = null; }
         return __generator(this, function (_d) {
             switch (_d.label) {
                 case 0:
@@ -746,6 +766,8 @@ export function playGame(ui) {
                         rewards: ['card', 'card', 'event', 'potion'],
                         challenge: randomChallenge(state)
                     });
+                    if (test !== null)
+                        initialPath.rewards.push(makeTestReward(state, test));
                     adoptPath(state, initialPath);
                     state.clearHistory();
                     _d.label = 1;
@@ -810,7 +832,6 @@ export function playGame(ui) {
                 case 16: return [3 /*break*/, 18];
                 case 17:
                     e_8 = _d.sent();
-                    console.log(e_8);
                     if (e_8 instanceof Undo) {
                         state.undo();
                     }

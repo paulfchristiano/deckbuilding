@@ -87,7 +87,7 @@ import { addBuffer, } from '../metaLogic.js';
 export var bagOfCoins = {
     name: 'Bag of Coins',
     simpleText: ['Start with an extra copper.'],
-    staticTriggers: [{
+    triggers: [{
             kind: 'gameStart',
             text: 'At the start of the game, create a copper in your discard.',
             handles: function () { return true; },
@@ -98,7 +98,7 @@ relicRewards.push(bagOfCoins);
 export var bagOfPreparation = {
     name: 'Bag of Preparation',
     simpleText: ['+2 actions each time you refresh.'],
-    staticTriggers: [{
+    triggers: [{
             kind: 'afterUse',
             handles: function (e, s, c) { return e.card.name === refresh.name; },
             text: 'After using Refresh, +2 actions.',
@@ -109,7 +109,7 @@ relicRewards.push(bagOfPreparation);
 export var courier = {
     name: 'Courier',
     simpleText: ['+1 buy each time you refresh.'],
-    staticTriggers: [{
+    triggers: [{
             kind: 'resource',
             text: 'Whenever you gain actions from refreshing, gain 1 buy.',
             handles: function (e, state, card) {
@@ -123,9 +123,9 @@ relicRewards.push(courier);
 // Inkwell: Par is 1@ higher on each course
 export var inkwell = {
     name: 'Inkwell',
+    simpleText: ["Par is 1@ higher on each course."],
     metaReplacers: [{
             kind: 'gameSetup',
-            text: ['Par is 1@ higher on each course.'],
             replace: function (p) { return (__assign(__assign({}, p), { par: p.par + 1 })); }
         }]
 };
@@ -133,9 +133,9 @@ relicRewards.push(inkwell);
 // Elegant Quill: Gain 3@ buffer (one-time effect on acquisition)
 export var elegantQuill = {
     name: 'Elegant Quill',
+    simpleText: ["+3@ buffer when you gain this."],
     metaTriggers: [{
             kind: 'relic',
-            text: '+3@ buffer when you gain this.',
             handles: function (e, s, self) { return self.id == e.relic.id; },
             transform: function (e) { return addBuffer(3); }
         }]
@@ -144,31 +144,31 @@ relicRewards.push(elegantQuill);
 // Broken Lever: VP targets are 25% lower
 export var brokenLever = {
     name: 'Broken Lever',
+    simpleText: ["VP targets are 25% lower."],
     metaReplacers: [{
             kind: 'gameSetup',
-            text: ['VP targets are 25% lower.'],
             replace: function (p) { return (__assign(__assign({}, p), { vpGoal: Math.floor(p.vpGoal * 0.75) })); }
         }]
 };
 relicRewards.push(brokenLever);
-// Cursed Quill: Par is 6@ lower, gain 3@ buffer at start of each course
-export var cursedQuill = {
-    name: 'Cursed Quill',
+// Cursed Quill: Par is 6@ lower, gain 2@ buffer at start of each course
+export var cursedInkwell = {
+    name: 'Cursed Inkwell',
     simpleText: [
-        'Par is 6@ lower on each course.',
+        'Par is 4@ lower on each course.',
         'Gain 3@ buffer at the start of each course.'
     ],
     metaReplacers: [{
             kind: 'gameSetup',
-            replace: function (p) { return (__assign(__assign({}, p), { par: p.par - 6 })); }
+            replace: function (p) { return (__assign(__assign({}, p), { par: p.par - 4 })); }
         }],
     metaTriggers: [{
-            kind: 'courseStart',
+            kind: 'start',
             handles: function (e) { return true; },
             transform: function (e) { return addBuffer(3); }
         }]
 };
-relicRewards.push(cursedQuill);
+relicRewards.push(cursedInkwell);
 // TODO: implement
 // Need to have a replacer that can put in cards into the challengespec
 // But then also want it to take effect immediately.
@@ -195,11 +195,11 @@ export var emptyBottle = {
     name: 'Empty Bottle',
     simpleText: [
         'When you add a card to your deck,',
-        'start the next course with an echo copy in hand.'
+        'start the next course with a copy in hand.'
     ],
     mutableTriggers: function (relic) { return [{
             kind: 'gameStart',
-            text: 'At the start of the game, create a copy of each bottled card in your hand with an echo token.',
+            text: 'At the start of the game, create a copy of each bottled card in your hand.',
             handles: function () { return true; },
             transform: function () { return function (state) {
                 return __awaiter(this, void 0, void 0, function () {
@@ -208,35 +208,31 @@ export var emptyBottle = {
                     return __generator(this, function (_d) {
                         switch (_d.label) {
                             case 0:
-                                console.log('unbottling!');
-                                console.log(relic.notedCards);
+                                _d.trys.push([0, 5, 6, 7]);
+                                _a = __values(relic.notedCards || []), _b = _a.next();
                                 _d.label = 1;
                             case 1:
-                                _d.trys.push([1, 6, 7, 8]);
-                                _a = __values(relic.notedCards || []), _b = _a.next();
-                                _d.label = 2;
-                            case 2:
-                                if (!!_b.done) return [3 /*break*/, 5];
+                                if (!!_b.done) return [3 /*break*/, 4];
                                 spec = _b.value;
-                                return [4 /*yield*/, create(spec, 'hand', undefined, new Map([['echo', 1]]))(state)];
-                            case 3:
+                                return [4 /*yield*/, create(spec, 'hand')(state)];
+                            case 2:
                                 state = _d.sent();
-                                _d.label = 4;
-                            case 4:
+                                _d.label = 3;
+                            case 3:
                                 _b = _a.next();
-                                return [3 /*break*/, 2];
-                            case 5: return [3 /*break*/, 8];
-                            case 6:
+                                return [3 /*break*/, 1];
+                            case 4: return [3 /*break*/, 7];
+                            case 5:
                                 e_1_1 = _d.sent();
                                 e_1 = { error: e_1_1 };
-                                return [3 /*break*/, 8];
-                            case 7:
+                                return [3 /*break*/, 7];
+                            case 6:
                                 try {
                                     if (_b && !_b.done && (_c = _a.return)) _c.call(_a);
                                 }
                                 finally { if (e_1) throw e_1.error; }
                                 return [7 /*endfinally*/];
-                            case 8: return [2 /*return*/, state];
+                            case 7: return [2 /*return*/, state];
                         }
                     });
                 });
@@ -245,7 +241,6 @@ export var emptyBottle = {
     metaTriggers: [{
             kind: 'end',
             handles: function () { return true; },
-            text: 'At the end of each course, forget all bottled cards.',
             transform: function (e, s, relic) { return function (state) {
                 return __awaiter(this, void 0, void 0, function () {
                     return __generator(this, function (_a) {
@@ -257,12 +252,10 @@ export var emptyBottle = {
         }, {
             kind: 'card',
             handles: function () { return true; },
-            text: 'When you add a card to your deck, bottle it for the next course.',
             transform: function (e, s, relic) { return function (state) {
                 return __awaiter(this, void 0, void 0, function () {
                     var notedCards;
                     return __generator(this, function (_a) {
-                        console.log('bottling!');
                         notedCards = relic.notedCards || [];
                         state.applyToRelic(function (r) { return r.update({ notedCards: __spreadArray(__spreadArray([], __read(notedCards), false), [e.card], false) }); }, relic);
                         return [2 /*return*/];
@@ -272,31 +265,30 @@ export var emptyBottle = {
         }]
 };
 relicRewards.push(emptyBottle);
-// Ancient Quill: For each 3@ you beat par, gain 1@ buffer
-export var ancientQuill = {
-    name: 'Ancient Quill',
+export var banner = {
+    name: 'Banner',
     simpleText: [
-        'For each 3@ you beat par,',
+        'For each 2@ you beat par,',
         'gain 1@ buffer.'
     ],
     metaTriggers: [{
-            kind: 'gameEnd',
+            kind: 'end',
             handles: function (e) { return e.score < e.par; },
             transform: function (e) {
                 var energyUnderPar = e.par - e.score;
-                var bufferGain = Math.floor(energyUnderPar / 3);
+                var bufferGain = Math.floor(energyUnderPar / 2);
                 return addBuffer(bufferGain);
             }
         }]
 };
-relicRewards.push(ancientQuill);
+relicRewards.push(banner);
 // Question Card: Future rewards have 1 more option
 export var questionCard = {
     name: 'Question Card',
-    simpleText: ['Future rewards have 1 more option.'],
+    simpleText: ['Future rewards have 2 more options.'],
     metaReplacers: [{
             kind: 'reward',
-            replace: function (p) { return (__assign(__assign({}, p), { optionCount: p.optionCount + 1 })); }
+            replace: function (p) { return (__assign(__assign({}, p), { optionCount: p.optionCount + 2 })); }
         }]
 };
 relicRewards.push(questionCard);

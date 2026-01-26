@@ -22,21 +22,32 @@ export class Generator {
         }
         return new Generator(result);
     }
-    samples<T>(list: readonly T[], k: number): T[] {
-        console.assert(k <= list.length, "k cannot be larger than list length");
-
-        const arr = list.slice(); // copy
-        for (let i = arr.length - 1; i > 0; i--) {
+    permute<T>(list: readonly T[]): T[] {
+        const result = list.slice(); // copy
+        for (let i = result.length - 1; i > 0; i--) {
             const j = Math.floor(this.prng() * (i + 1));
-            [arr[i], arr[j]] = [arr[j], arr[i]];
-        }
-
-        return arr.slice(0, k); 
+            [result[i], result[j]] = [result[j], result[i]];
+        }    
+        return result  
     }
-    sample<T>(list: readonly T[]): T {
-        console.assert(list.length > 0, "Cannot sample from empty list");
-        const idx = Math.floor(this.prng() * list.length);
-        return list[idx];
+    samples<T>(list: readonly T[], k: number, excludes:T[] = []): T[] {
+        if (k == 0) return []
+        const arr:T[] = this.permute(list)
+        const result:T[] = []
+        for (let i = 0; i < list.length; i++) {
+          const candidate:T = arr[i]
+          if (excludes.every(t => (t !== candidate))) {
+            result.push(candidate)
+          }
+          if (result.length >= k) {
+            return result
+          }
+        }
+        console.log('Ran out of items!')
+        return result
+    }
+    sample<T>(list: readonly T[], excludes:T[] = []): T {
+      return this.samples(list, 1, excludes)[0]
     }
 }
 

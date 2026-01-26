@@ -35,20 +35,41 @@ var Generator = /** @class */ (function () {
         }
         return new Generator(result);
     };
-    Generator.prototype.samples = function (list, k) {
+    Generator.prototype.permute = function (list) {
         var _a;
-        console.assert(k <= list.length, "k cannot be larger than list length");
-        var arr = list.slice(); // copy
-        for (var i = arr.length - 1; i > 0; i--) {
+        var result = list.slice(); // copy
+        for (var i = result.length - 1; i > 0; i--) {
             var j = Math.floor(this.prng() * (i + 1));
-            _a = __read([arr[j], arr[i]], 2), arr[i] = _a[0], arr[j] = _a[1];
+            _a = __read([result[j], result[i]], 2), result[i] = _a[0], result[j] = _a[1];
         }
-        return arr.slice(0, k);
+        return result;
     };
-    Generator.prototype.sample = function (list) {
-        console.assert(list.length > 0, "Cannot sample from empty list");
-        var idx = Math.floor(this.prng() * list.length);
-        return list[idx];
+    Generator.prototype.samples = function (list, k, excludes) {
+        if (excludes === void 0) { excludes = []; }
+        if (k == 0)
+            return [];
+        var arr = this.permute(list);
+        var result = [];
+        var _loop_1 = function (i) {
+            var candidate = arr[i];
+            if (excludes.every(function (t) { return (t !== candidate); })) {
+                result.push(candidate);
+            }
+            if (result.length >= k) {
+                return { value: result };
+            }
+        };
+        for (var i = 0; i < list.length; i++) {
+            var state_1 = _loop_1(i);
+            if (typeof state_1 === "object")
+                return state_1.value;
+        }
+        console.log('Ran out of items!');
+        return result;
+    };
+    Generator.prototype.sample = function (list, excludes) {
+        if (excludes === void 0) { excludes = []; }
+        return this.samples(list, 1, excludes)[0];
     };
     return Generator;
 }());

@@ -47,17 +47,6 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
         if (op[0] & 5) throw op[1]; return { value: op[0] ? op[1] : void 0, done: true };
     }
 };
-var __values = (this && this.__values) || function(o) {
-    var s = typeof Symbol === "function" && Symbol.iterator, m = s && o[s], i = 0;
-    if (m) return m.call(o);
-    if (o && typeof o.length === "number") return {
-        next: function () {
-            if (o && i >= o.length) o = void 0;
-            return { value: o && o[i++], done: !o };
-        }
-    };
-    throw new TypeError(s ? "Object is not iterable." : "Symbol.iterator is not defined.");
-};
 var __read = (this && this.__read) || function (o, n) {
     var m = typeof Symbol === "function" && o[Symbol.iterator];
     if (!m) return o;
@@ -74,7 +63,18 @@ var __read = (this && this.__read) || function (o, n) {
     }
     return ar;
 };
-import { doAll, boons, free, coin, energy, costPer, useRefresh, buyEffect, createInPlayEffect, addToken, cannotUse, fair, villager, recycleEffect, targetedEffect, priorityRule, actionsEffect, buysEffect, coinsEffect, gainActions, gainBuys, gainCoins, discharge, charge, costReduceNext, choice, allowNull, multichoice, asNumberedChoices, asChoice, moveMany, leq, num, } from '../gameLogic.js';
+var __values = (this && this.__values) || function(o) {
+    var s = typeof Symbol === "function" && Symbol.iterator, m = s && o[s], i = 0;
+    if (m) return m.call(o);
+    if (o && typeof o.length === "number") return {
+        next: function () {
+            if (o && i >= o.length) o = void 0;
+            return { value: o && o[i++], done: !o };
+        }
+    };
+    throw new TypeError(s ? "Object is not iterable." : "Symbol.iterator is not defined.");
+};
+import { doAll, boons, free, coin, energy, costPer, useRefresh, buyEffect, createInPlayEffect, addToken, cannotUse, fair, villager, recycleEffect, targetedEffect, priorityRule, actionsEffect, buysEffect, coinsEffect, gainActions, gainBuys, gainCoins, discharge, charge, costReduceNext, choice, allowNull, multichoice, asNumberedChoices, asChoice, moveMany, leq, num, removeToken, } from '../gameLogic.js';
 var escalate = { name: 'Escalate',
     fixedCost: free,
     simpleText: [
@@ -115,7 +115,7 @@ var travelingFair = { name: 'Traveling Fair',
 boons.push({
     name: 'Traveling Fair',
     description: 'Add Traveling Fair as an event (no scaling cost)',
-    parReduction: 6,
+    parReduction: 3,
     cards: [],
     events: [travelingFair],
 });
@@ -143,46 +143,79 @@ boons.push({
     cards: [],
     events: [vault],
 });
+import { refresh } from '../gameLogic.js';
+var logisticsToken = 'logistics';
+var logistics = {
+    name: 'Logistics',
+    buyCost: coin(3),
+    fixedCost: energy(1),
+    effects: [{
+            text: ["Put a ".concat(logisticsToken, " token on each supply.")],
+            transform: function (s) { return doAll(s.events.map(function (e) { return addToken(e, 'logistics'); })); }
+        }],
+    staticReplacers: [{
+            text: "Events cost @ less for each logistics token on them, but ".concat(refresh.name, " can't cost 0. Whenever this reduces a cost, remove a logistics token."),
+            kind: 'cost',
+            handles: function (p) { return (p.actionKind == 'use' && p.card.count('logistics') > 0); },
+            replace: function (p, state) {
+                var card = state.find(p.card);
+                var maxReduction = (p.card.name == refresh.name) ? p.cost.energy - 1 : p.cost.energy;
+                var reduction = Math.max(Math.min(maxReduction, card.count('logistics')), 0);
+                return __assign(__assign({}, p), { cost: __assign(__assign({}, p.cost), { energy: p.cost.energy - reduction, effects: p.cost.effects.concat([removeToken(card, 'logistics', reduction)]) }) });
+            }
+        }]
+};
+boons.push({
+    name: 'Logistics',
+    description: 'Add Logistics as a card',
+    parReduction: 4,
+    cards: [logistics],
+    events: [],
+});
 var populate = { name: 'Populate',
     fixedCost: __assign(__assign({}, free), { coin: 8, energy: 2 }),
     simpleText: ['Buy every card in the supply costing up to $8.'],
     effects: [{
-            text: ['Buy every card in the supply costing up to $8.'],
-            transform: function (s, card) { return function (state) {
+            text: ["Repeat this any number of times: buy a card in the supply costing up to $8 that you haven't bought yet."],
+            transform: function (state, card) { return function (state) {
                 return __awaiter(this, void 0, void 0, function () {
-                    var targets, targets_1, targets_1_1, target, e_1_1;
-                    var e_1, _a;
-                    return __generator(this, function (_b) {
-                        switch (_b.label) {
+                    var options, _loop_1, state_1;
+                    return __generator(this, function (_a) {
+                        switch (_a.label) {
                             case 0:
-                                targets = state.supply.filter(function (target) { return leq(target.cost('buy', state), coin(8)); });
-                                _b.label = 1;
+                                options = asNumberedChoices(state.supply.filter(function (c) { return leq(c.cost('buy', state), coin(8)); }));
+                                _loop_1 = function () {
+                                    var picked, id_1;
+                                    var _b;
+                                    return __generator(this, function (_c) {
+                                        switch (_c.label) {
+                                            case 0:
+                                                picked = void 0;
+                                                return [4 /*yield*/, choice(state, 'Pick a card to buy next.', allowNull(options.filter(function (c) { return state.find(c.value).place == 'supply'; })))];
+                                            case 1:
+                                                _b = __read.apply(void 0, [_c.sent(), 2]), state = _b[0], picked = _b[1];
+                                                if (!(picked == null)) return [3 /*break*/, 2];
+                                                return [2 /*return*/, { value: state }];
+                                            case 2: return [4 /*yield*/, picked.buy(card)(state)];
+                                            case 3:
+                                                state = _c.sent();
+                                                id_1 = picked.id;
+                                                options = options.filter(function (c) { return c.value.id != id_1; });
+                                                _c.label = 4;
+                                            case 4: return [2 /*return*/];
+                                        }
+                                    });
+                                };
+                                _a.label = 1;
                             case 1:
-                                _b.trys.push([1, 6, 7, 8]);
-                                targets_1 = __values(targets), targets_1_1 = targets_1.next();
-                                _b.label = 2;
+                                if (!true) return [3 /*break*/, 3];
+                                return [5 /*yield**/, _loop_1()];
                             case 2:
-                                if (!!targets_1_1.done) return [3 /*break*/, 5];
-                                target = targets_1_1.value;
-                                return [4 /*yield*/, target.buy(card)(state)];
-                            case 3:
-                                state = _b.sent();
-                                _b.label = 4;
-                            case 4:
-                                targets_1_1 = targets_1.next();
-                                return [3 /*break*/, 2];
-                            case 5: return [3 /*break*/, 8];
-                            case 6:
-                                e_1_1 = _b.sent();
-                                e_1 = { error: e_1_1 };
-                                return [3 /*break*/, 8];
-                            case 7:
-                                try {
-                                    if (targets_1_1 && !targets_1_1.done && (_a = targets_1.return)) _a.call(targets_1);
-                                }
-                                finally { if (e_1) throw e_1.error; }
-                                return [7 /*endfinally*/];
-                            case 8: return [2 /*return*/, state];
+                                state_1 = _a.sent();
+                                if (typeof state_1 === "object")
+                                    return [2 /*return*/, state_1.value];
+                                return [3 /*break*/, 1];
+                            case 3: return [2 /*return*/];
                         }
                     });
                 });
@@ -197,13 +230,13 @@ boons.push({
     events: [populate],
 });
 var recycle = { name: 'Recycle',
-    fixedCost: energy(2),
+    fixedCost: energy(1),
     effects: [recycleEffect()],
 };
 boons.push({
     name: 'Recycle',
     description: 'Add Recycle as an event',
-    parReduction: 5,
+    parReduction: 7,
     cards: [],
     events: [recycle],
 });
@@ -239,7 +272,7 @@ var flourish = { name: flourishName,
 boons.push({
     name: 'Flourish',
     description: 'Add Flourish as an event',
-    parReduction: 7,
+    parReduction: 9,
     cards: [],
     events: [flourish],
 });
@@ -257,7 +290,7 @@ boons.push({
 });
 var reuse = {
     name: 'Reuse',
-    fixedCost: energy(2),
+    fixedCost: energy(1),
     simpleText: [
         "Play any number of cards in your discard that don't have a reuse token on them.",
         "Put a reuse token on each card played this way."
@@ -266,14 +299,14 @@ var reuse = {
             text: ["Repeat any number of times:\n                choose a card in your discard without a reuse token\n                that was also there at the start of this effect.\n                Play it then put a reuse token on it."],
             transform: function (state, card) { return function (state) {
                 return __awaiter(this, void 0, void 0, function () {
-                    var cards, options, _loop_1, state_1;
+                    var cards, options, _loop_2, state_2;
                     return __generator(this, function (_a) {
                         switch (_a.label) {
                             case 0:
                                 cards = state.discard.filter(function (c) { return c.count('reuse') == 0; });
                                 options = asNumberedChoices(cards);
-                                _loop_1 = function () {
-                                    var picked, id_1;
+                                _loop_2 = function () {
+                                    var picked, id_2;
                                     var _b;
                                     return __generator(this, function (_c) {
                                         switch (_c.label) {
@@ -290,8 +323,8 @@ var reuse = {
                                                 return [4 /*yield*/, addToken(picked, 'reuse')(state)];
                                             case 4:
                                                 state = _c.sent();
-                                                id_1 = picked.id;
-                                                options = options.filter(function (c) { return c.value.id != id_1; });
+                                                id_2 = picked.id;
+                                                options = options.filter(function (c) { return c.value.id != id_2; });
                                                 _c.label = 5;
                                             case 5: return [2 /*return*/];
                                         }
@@ -300,11 +333,11 @@ var reuse = {
                                 _a.label = 1;
                             case 1:
                                 if (!true) return [3 /*break*/, 3];
-                                return [5 /*yield**/, _loop_1()];
+                                return [5 /*yield**/, _loop_2()];
                             case 2:
-                                state_1 = _a.sent();
-                                if (typeof state_1 === "object")
-                                    return [2 /*return*/, state_1.value];
+                                state_2 = _a.sent();
+                                if (typeof state_2 === "object")
+                                    return [2 /*return*/, state_2.value];
                                 return [3 /*break*/, 1];
                             case 3: return [2 /*return*/];
                         }
@@ -323,11 +356,11 @@ boons.push({
 var prioritize = {
     simpleText: [
         "Choose a supply.",
-        "The next 5 times you create a card from that supply, play it immediately."
+        "The next 8 times you create a card from that supply, play it immediately."
     ],
     name: 'Prioritize',
     fixedCost: __assign(__assign({}, free), { energy: 1, coin: 3 }),
-    effects: [targetedEffect(function (card) { return addToken(card, 'priority', 5); }, 'Put five priority tokens on a card in the supply.', function (state) { return state.supply; })],
+    effects: [targetedEffect(function (card) { return addToken(card, 'priority', 8); }, 'Put 8 priority tokens on a card in the supply.', function (state) { return state.supply; })],
     rules: [priorityRule],
 };
 boons.push({
@@ -337,8 +370,11 @@ boons.push({
     cards: [],
     events: [prioritize],
 });
+import { startInPlay } from '../gameLogic.js';
+var compostingName = 'Composting';
 var composting = {
-    name: 'Composting',
+    name: compostingName,
+    buyCost: coin(3),
     effects: [],
     triggers: [{
             kind: 'cost',
@@ -360,7 +396,14 @@ var composting = {
                     });
                 });
             }; }
-        }]
+        }],
+    replacers: [{
+            kind: 'move',
+            text: "Whenever Composting would move to your hand, instead leave it in play.",
+            handles: function (p, s, c) { return p.toZone == 'hand' && p.card.id == c.id; },
+            replace: function (p) { return (__assign(__assign({}, p), { skip: true })); }
+        }],
+    staticReplacers: [startInPlay(compostingName)],
 };
 boons.push({
     name: 'Composting',
@@ -422,8 +465,8 @@ var duplicateStart = {
             handles: function () { return true; },
             transform: function (e, state, card) { return function (state) {
                 return __awaiter(this, void 0, void 0, function () {
-                    var _a, _b, supply, e_2_1;
-                    var e_2, _c;
+                    var _a, _b, supply, e_1_1;
+                    var e_1, _c;
                     return __generator(this, function (_d) {
                         switch (_d.label) {
                             case 0:
@@ -442,14 +485,14 @@ var duplicateStart = {
                                 return [3 /*break*/, 1];
                             case 4: return [3 /*break*/, 7];
                             case 5:
-                                e_2_1 = _d.sent();
-                                e_2 = { error: e_2_1 };
+                                e_1_1 = _d.sent();
+                                e_1 = { error: e_1_1 };
                                 return [3 /*break*/, 7];
                             case 6:
                                 try {
                                     if (_b && !_b.done && (_c = _a.return)) _c.call(_a);
                                 }
-                                finally { if (e_2) throw e_2.error; }
+                                finally { if (e_1) throw e_1.error; }
                                 return [7 /*endfinally*/];
                             case 7: return [2 /*return*/, state];
                         }
@@ -476,8 +519,8 @@ var priorityStart = {
             handles: function () { return true; },
             transform: function (e, state, card) { return function (state) {
                 return __awaiter(this, void 0, void 0, function () {
-                    var _a, _b, supply, e_3_1;
-                    var e_3, _c;
+                    var _a, _b, supply, e_2_1;
+                    var e_2, _c;
                     return __generator(this, function (_d) {
                         switch (_d.label) {
                             case 0:
@@ -496,14 +539,14 @@ var priorityStart = {
                                 return [3 /*break*/, 1];
                             case 4: return [3 /*break*/, 7];
                             case 5:
-                                e_3_1 = _d.sent();
-                                e_3 = { error: e_3_1 };
+                                e_2_1 = _d.sent();
+                                e_2 = { error: e_2_1 };
                                 return [3 /*break*/, 7];
                             case 6:
                                 try {
                                     if (_b && !_b.done && (_c = _a.return)) _c.call(_a);
                                 }
-                                finally { if (e_3) throw e_3.error; }
+                                finally { if (e_2) throw e_2.error; }
                                 return [7 /*endfinally*/];
                             case 7: return [2 /*return*/, state];
                         }

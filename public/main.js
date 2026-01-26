@@ -39,6 +39,9 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
 import './data/index.js'; // Ensure data is loaded
 import { playGame } from './metaLogic.js';
 import { MetaGameUI } from './metaUI.js';
+import { potionOfReuse } from './data/potions.js';
+var test = ['potion', potionOfReuse];
+test = null;
 // Start the game when the page loads
 window.addEventListener('load', function () { return __awaiter(void 0, void 0, void 0, function () {
     var metaUI;
@@ -46,7 +49,7 @@ window.addEventListener('load', function () { return __awaiter(void 0, void 0, v
         switch (_a.label) {
             case 0:
                 metaUI = new MetaGameUI();
-                return [4 /*yield*/, playGame(metaUI)];
+                return [4 /*yield*/, playGame(metaUI, test)];
             case 1:
                 _a.sent();
                 return [2 /*return*/];

@@ -167,12 +167,18 @@ var MetaGameUI = /** @class */ (function () {
                                 // Show the card spec with label as subtitle
                                 var specHtml = renderSpecNoRelated(option.spec);
                                 var specEl = $(specHtml);
-                                specEl.css('cursor', 'pointer');
-                                specEl.on('click', function () {
-                                    hideEncounterPicker();
-                                    //pendingChoiceResolver = null
-                                    resolve(option.value);
-                                });
+                                if (option.disabled) {
+                                    specEl.css('opacity', '0.5');
+                                    specEl.css('cursor', 'default');
+                                }
+                                else {
+                                    specEl.css('cursor', 'pointer');
+                                    specEl.on('click', function () {
+                                        hideEncounterPicker();
+                                        //pendingChoiceResolver = null
+                                        resolve(option.value);
+                                    });
+                                }
                                 optionDiv.append(specEl);
                                 var subtitleSpan = $('<div class="encounterOptionSubtitle"></div>');
                                 subtitleSpan.text(option.label);
@@ -182,11 +188,19 @@ var MetaGameUI = /** @class */ (function () {
                                 // Standard name + description display
                                 var nameSpan = $('<span class="option encounterOptionName" choosable></span>');
                                 nameSpan.text(option.label);
-                                nameSpan.on('click', function () {
-                                    hideEncounterPicker();
-                                    //pendingChoiceResolver = null
-                                    resolve(option.value);
-                                });
+                                var specEl = nameSpan; // TODO: copy-pasted claude code, should fix up an dunifu with previous case.
+                                if (option.disabled) {
+                                    specEl.css('opacity', '0.5');
+                                    specEl.css('cursor', 'default');
+                                }
+                                else {
+                                    specEl.css('cursor', 'pointer');
+                                    specEl.on('click', function () {
+                                        hideEncounterPicker();
+                                        //pendingChoiceResolver = null
+                                        resolve(option.value);
+                                    });
+                                }
                                 if (option.description) {
                                     var descSpan = $('<div class="encounterOptionDesc"></div>');
                                     descSpan.text(option.description);

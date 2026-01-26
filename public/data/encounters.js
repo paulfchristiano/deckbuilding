@@ -74,7 +74,7 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
 };
 import { encounters, addBuffer, gainCard, gainEvent, gainPotion, gainRelic, compose, } from '../metaLogic.js';
 import { emptyBottle, inkwell } from './relics.js';
-import { create, cardRewards, eventRewards, relicRewards, potionRewards } from '../gameLogic.js';
+import { create, cardRewards, eventRewards, relicRewards, potionRewards, leq, coin, free } from '../gameLogic.js';
 import { mirrorBrew } from './potions.js';
 // ----------------------------- Utility Functions
 function shuffleArray(array) {
@@ -92,13 +92,13 @@ function bottledCard(spec) {
         name: "Bottled ".concat(spec.name),
         triggers: [{
                 kind: 'gameStart',
-                text: "Start each course with a copy of ".concat(spec.name, " in hand with an echo token on it."),
+                text: "Start each course with a copy of ".concat(spec.name, " in hand."),
                 handles: function () { return true; },
                 transform: function () { return function (state) {
                     return __awaiter(this, void 0, void 0, function () {
                         return __generator(this, function (_a) {
                             switch (_a.label) {
-                                case 0: return [4 /*yield*/, create(spec, 'hand', undefined, new Map([['echo', 1]]))(state)];
+                                case 0: return [4 /*yield*/, create(spec, 'hand')(state)];
                                 case 1:
                                     state = _a.sent();
                                     return [2 /*return*/, state];
@@ -106,7 +106,8 @@ function bottledCard(spec) {
                         });
                     });
                 }; }
-            }]
+            }],
+        relatedCards: [spec]
     };
 }
 function simpleEvent(_a) {
@@ -169,26 +170,26 @@ function simpleEvent(_a) {
     return { name: name, transform: transform };
 }
 // Find a Bottle encounter
-function findABottle(s, g) {
+export function findABottle(s, g) {
     return simpleEvent({
         name: 'Find a Bottle',
         description: 'Choose how to use this magical bottle.',
         options: [
             {
                 name: 'Bottle a Card',
-                description: 'Lose a card from your deck. Gain a relic that starts each course with a copy of it (with echo).',
+                description: 'Lose a card from your deck costing up to $5. Gain a relic that starts each course with a copy of it (with echo).',
                 transform: function (state) {
                     return __awaiter(this, void 0, void 0, function () {
                         var card;
                         return __generator(this, function (_a) {
                             switch (_a.label) {
-                                case 0: return [4 /*yield*/, state.ui.chooseCard(state, 'Choose a card to bottle:', __spreadArray([], __read(state.data.collectedCards), false), true)];
+                                case 0: return [4 /*yield*/, state.ui.chooseCard(state, 'Choose a card to bottle:', __spreadArray([], __read(state.data.collectedCards.filter(function (x) { return leq(x.buyCost || free, coin(5)); })), false), true)];
                                 case 1:
                                     card = _a.sent();
                                     if (!card)
                                         return [2 /*return*/];
                                     state.removeCard(card.name);
-                                    return [4 /*yield*/, gainRelic(bottledCard(card))];
+                                    return [4 /*yield*/, gainRelic(bottledCard(card))(state)];
                                 case 2:
                                     _a.sent();
                                     return [2 /*return*/];
@@ -220,7 +221,6 @@ var mirrorRelic = {
     metaTriggers: [{
             kind: 'relic',
             handles: function (e, s, relic) { return e.relic.name != mirrorName; },
-            text: "Whenever you gain a relic other than ".concat(mirrorName, ", gain an additional copy of that relic and destroy this."),
             transform: function (e, s, relic) { return function (state) {
                 return __awaiter(this, void 0, void 0, function () {
                     return __generator(this, function (_a) {
@@ -328,7 +328,7 @@ function varietyPack(s, g) {
 }
 encounters.push(varietyPack);
 // Trading Post encounter - pre-generates offers at creation time
-function tradingPost(state, g) {
+export function tradingPost(state, g) {
     var offerCard = g.sample(cardRewards);
     var offerEvent = g.sample(eventRewards);
     var offerPotion = g.sample(potionRewards);
@@ -457,9 +457,9 @@ function tradingPost(state, g) {
 encounters.push(tradingPost);
 var cursedInkwell = {
     name: 'Cursed Inkwell',
+    simpleText: ['Par is 1@ lower on each course.'],
     metaReplacers: [{
             kind: 'gameSetup',
-            text: ['Par is 1@ lower on each course.'],
             replace: function (p) { return (__assign(__assign({}, p), { par: p.par - 1 })); }
         }]
 };
