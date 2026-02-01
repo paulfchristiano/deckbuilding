@@ -19,6 +19,9 @@
     <link rel="stylesheet" type="text/css" href="style.css"/>
     <title>Roguelike Deckbuilder</title>
     <style>
+        [hidden] {
+            display: none !important;
+        }
         #stageScreen {
             display: flex;
             min-height: 80vh;
@@ -107,9 +110,6 @@
             color: #666;
             font-size: 0.9em;
             margin-top: 5px;
-        }
-        #gameContainer {
-            display: none;
         }
         #cardPickerDialog {
             width: auto;
@@ -364,7 +364,7 @@
     </div>
 </div>
 
-<div id="pathSelectionScreen" style="display: none;">
+<div id="pathSelectionScreen" hidden>
     <div id="progressSidebarPath">
         <div id="progressLinePath">
             <div class="progressCircle" data-stage="0"></div>
@@ -426,19 +426,19 @@
     </div>
 </div>
 
-<div id="victoryScreen" style="display: none;">
+<div id="victoryScreen" hidden>
     <h1>Congratulations!</h1>
     <p>You completed all 8 stages!</p>
     <span class="option" id="restartGame" choosable>Play Again</span>
 </div>
 
-<div id="gameOverScreen" style="display: none;">
+<div id="gameOverScreen" hidden>
     <h1>Game Over</h1>
     <p>Your buffer went below zero!</p>
     <span class="option" id="gameOverRestart" choosable>Try Again</span>
 </div>
 
-<div id="gameContainer">
+<div id="gameContainer" hidden>
 
 <div id='tutorialDialog'>
 </div>

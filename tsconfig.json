@@ -4,7 +4,7 @@
     "rootDir": ".",
     "sourceMap": true,
     "target": "es5",
-    "types": ["jquery"],
+    "types": [],
     "lib": [
       "dom",
       "dom.iterable",
@@ -31,6 +31,7 @@
     "gameUI.ts",
     "metaUI.ts",
     "cardRendering.ts",
+    "registry.ts",
     "data/index.ts",
     "data/encounters.ts",
     "data/relics.ts",

@@ -356,7 +356,7 @@ var replicate = { name: 'Replicate',
 eventRewards.push(replicate);
 var lostArts = {
     simpleText: [
-        "Choose a card in the supply and put 8 art tokens on it.",
+        "Put 8 art tokens on a supply.",
         "Whenever you play a card with art tokens on its supply, remove art tokens instead of paying @."
     ],
     fixedCost: __assign(__assign({}, free), { energy: 1, coin: 3 }),
@@ -514,7 +514,7 @@ eventRewards.push(regroup)
 */
 var summon = {
     name: 'Summon',
-    fixedCost: __assign(__assign({}, free), { energy: 1, coin: 5 }),
+    fixedCost: __assign(__assign({}, free), { energy: 1, coin: 4 }),
     effects: [multitargetedEffect(function (targets, card) { return doAll(targets.map(function (target) {
             return create(target.spec, 'hand', function (c) { return addToken(c, 'echo'); });
         })); }, "Choose up to three cards in the supply costing up to $6. Create a copy of each in your hand with an echo token.", function (s) { return s.supply.filter(function (c) { return leq(c.cost('buy', s), coin(6)); }); }, 3)],
@@ -537,7 +537,7 @@ var accelerate = {
         "Put a priority token on each card in the supply.",
         "Whenever you create a card with a priority token on it, remove the token to play the card immediately."
     ],
-    fixedCost: __assign(__assign({}, free), { energy: 1, coin: 4 }),
+    fixedCost: __assign(__assign({}, free), { energy: 1, coin: 3 }),
     effects: [{
             text: ["Put a priority token on each card in the supply."],
             transform: function (state, card) { return doAll(state.supply.map(function (c) { return addToken(c, 'priority'); })); }

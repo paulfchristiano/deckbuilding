@@ -286,7 +286,7 @@ eventRewards.push(replicate)
 
 const lostArts:CardSpec = {
     simpleText: [
-        `Choose a card in the supply and put 8 art tokens on it.`,
+        `Put 8 art tokens on a supply.`,
         `Whenever you play a card with art tokens on its supply, remove art tokens instead of paying @.`
     ],
     fixedCost: {...free, energy:1, coin:3},
@@ -488,7 +488,7 @@ eventRewards.push(regroup)
 
 const summon:CardSpec = {
     name: 'Summon',
-    fixedCost: {...free, energy:1, coin:5},
+    fixedCost: {...free, energy:1, coin:4},
     effects: [multitargetedEffect(
         (targets, card) => doAll(targets.map(target =>
             create(target.spec, 'hand', c => addToken(c, 'echo'))
@@ -519,7 +519,7 @@ const accelerate:CardSpec = {
         `Put a priority token on each card in the supply.`,
         `Whenever you create a card with a priority token on it, remove the token to play the card immediately.`
     ],
-    fixedCost: {...free, energy:1, coin:4},
+    fixedCost: {...free, energy:1, coin:3},
     effects: [{
         text: [`Put a priority token on each card in the supply.`],
         transform: (state, card) => doAll(state.supply.map(c => addToken(c, 'priority')))

@@ -35,11 +35,11 @@ function createElementFromHTML(html: string): HTMLElement {
 }
 
 function showElement(el: HTMLElement): void {
-    el.style.display = ''
+    el.removeAttribute('hidden')
 }
 
 function hideElement(el: HTMLElement): void {
-    el.style.display = 'none'
+    el.setAttribute('hidden', '')
 }
 
 // ----------------------------- Types
