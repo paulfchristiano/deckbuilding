@@ -15,7 +15,7 @@ import { potionOfReuse } from './data/potions.js'
 import { cursedVillage } from './data/cards.js'
 let test: TestSpec | null = ['card', cursedVillage]
 
-// test = null
+test = null
 
 // Start the game when the page loads
 window.addEventListener('load', async () => {

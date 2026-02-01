@@ -1,5 +1,7 @@
 {
   "compilerOptions": {
+    "outDir": "public",
+    "rootDir": ".",
     "sourceMap": true,
     "target": "es5",
     "types": ["jquery"],
@@ -23,17 +25,17 @@
     "incremental": true
   },
   "files": [
-    "public/main.ts",
-    "public/gameLogic.ts",
-    "public/metaLogic.ts",
-    "public/gameUI.ts",
-    "public/metaUI.ts",
-    "public/cardRendering.ts",
-    "public/data/index.ts",
-    "public/data/encounters.ts",
-    "public/data/relics.ts",
-    "public/data/potions.ts",
-    "public/data/boons.ts",
-    "public/data/victory.ts",
+    "main.ts",
+    "gameLogic.ts",
+    "metaLogic.ts",
+    "gameUI.ts",
+    "metaUI.ts",
+    "cardRendering.ts",
+    "data/index.ts",
+    "data/encounters.ts",
+    "data/relics.ts",
+    "data/potions.ts",
+    "data/boons.ts",
+    "data/victory.ts"
   ]
 }

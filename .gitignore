@@ -11,3 +11,8 @@ tsconfig.tsbuildinfo
 logs.txt
 *.log
 .claude
+
+# Compiled output (but keep static assets)
+public/*.js
+public/data/*.js
+!public/jquery.js
