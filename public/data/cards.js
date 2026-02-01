@@ -72,7 +72,7 @@ var __values = (this && this.__values) || function(o) {
     };
     throw new TypeError(s ? "Object is not iterable." : "Symbol.iterator is not defined.");
 };
-import { choice, asChoice, trash, addCosts, subtractCost, eq, leq, noop, gainActions, gainCoins, gainBuys, free, create, move, doAll, multichoice, moveMany, payToDo, payCost, addToken, charge, discharge, tick, a, num, aOrNum, villager, fair, horse, actionsEffect, buyEffect, buysEffect, createEffect, recycleEffect, createInPlayEffect, chargeEffect, targetedEffect, workshopEffect, coinsEffect, energy, coin, repeat, startsWithCharge, costReduce, applyToTarget, playTwice, payAction, discardFromPlay, trashThis, copper, gold, silver, countDistinctNames, playReplacer, trashOnLeavePlay, renderCostOrZero, reflectRule, ferryRule, cardRewards, buyTrigger, afterBuyTrigger, fountainEffect, shelterRule, startInPlay, hagglerRule, hagglerName, } from '../gameLogic.js';
+import { choice, asChoice, trash, addCosts, subtractCost, eq, leq, noop, gainActions, gainCoins, gainBuys, free, create, move, doAll, multichoice, moveMany, payToDo, payCost, addToken, charge, discharge, tick, a, num, aOrNum, createAndTrack, villager, fair, horse, actionsEffect, buyEffect, buysEffect, createEffect, recycleEffect, createInPlayEffect, chargeEffect, targetedEffect, workshopEffect, coinsEffect, energy, coin, repeat, startsWithCharge, costReduce, applyToTarget, playTwice, payAction, discardFromPlay, trashThis, copper, gold, silver, countDistinctNames, playReplacer, trashOnLeavePlay, renderCostOrZero, reflectRule, ferryRule, cardRewards, buyTrigger, afterBuyTrigger, fountainEffect, shelterRule, startInPlay, hagglerRule, hagglerName, } from '../gameLogic.js';
 function toPlay() {
     return {
         text: ["Put this in play."],
@@ -437,9 +437,54 @@ var market = {
     buyCost: coin(3),
 };
 cardRewards.push(market);
-var herbs = { name: 'Herbs',
+var cursedLab = {
+    name: 'Cursed Lab',
+    effects: [actionsEffect(2)],
+    buyCost: coin(2),
+};
+var cursedMarket = {
+    name: 'Cursed Market',
     effects: [coinsEffect(1), buyEffect()],
     buyCost: coin(2),
+};
+export var cursedVillage = {
+    name: 'Cursed Village',
+    effects: [createInPlayEffect(villager)],
+    buyCost: coin(2),
+    relatedCards: [cursedLab, cursedMarket, villager],
+    staticTriggers: [{
+            kind: 'gameStart',
+            text: "At the start of the game, add ".concat(cursedLab.name, " and ").concat(cursedMarket.name, " to the supply."),
+            handles: function () { return true; },
+            transform: function (e, s, c) { return function (state) {
+                return __awaiter(this, void 0, void 0, function () {
+                    var lab, market;
+                    var _a, _b;
+                    return __generator(this, function (_c) {
+                        switch (_c.label) {
+                            case 0: return [4 /*yield*/, createAndTrack(cursedLab, 'supply')(state)];
+                            case 1:
+                                _a = __read.apply(void 0, [_c.sent(), 2]), lab = _a[0], state = _a[1];
+                                if (lab != null) {
+                                    state = state.moveAfter('supply', lab, c);
+                                }
+                                return [4 /*yield*/, createAndTrack(cursedMarket, 'supply')(state)];
+                            case 2:
+                                _b = __read.apply(void 0, [_c.sent(), 2]), market = _b[0], state = _b[1];
+                                if (market != null) {
+                                    state = state.moveAfter('supply', market, c);
+                                }
+                                return [2 /*return*/, state];
+                        }
+                    });
+                });
+            }; }
+        }]
+};
+cardRewards.push(cursedVillage);
+var herbs = { name: 'Herbs',
+    effects: [coinsEffect(1), buyEffect()],
+    buyCost: coin(1),
     staticTriggers: [buyTrigger(buyEffect())]
 };
 cardRewards.push(herbs);

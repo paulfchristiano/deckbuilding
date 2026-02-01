@@ -21,6 +21,7 @@ import { doAll, Boon, boons,
     num,
     Token,
     removeToken,
+    incrementCost,
 } from '../gameLogic.js'
 
 const escalate:CardSpec = {name: 'Escalate',
@@ -130,12 +131,12 @@ boons.push({
 })
 
 const populate:CardSpec = {name: 'Populate',
-    fixedCost: {...free, coin:8, energy:2},
-    simpleText: ['Buy every card in the supply costing up to $8.'],
+    fixedCost: {...free, coin:5, energy:3},
+    simpleText: ['Buy every card in the supply.'],
     effects: [{
         text: [`Repeat this any number of times: buy a card in the supply costing up to $8 that you haven't bought yet.`],
         transform: (state, card) => async function(state) {
-            let options:Option<Card>[] = asNumberedChoices(state.supply.filter(c => leq(c.cost('buy', state), coin(8))))
+            let options:Option<Card>[] = asNumberedChoices(state.supply)
             while (true) {
                 let picked:Card|null; [state, picked] = await choice(state,
                     'Pick a card to buy next.',
@@ -154,13 +155,37 @@ const populate:CardSpec = {name: 'Populate',
     }]
 }
 boons.push(   {
-        name: 'Populate',
-        description: 'Add Populate as an event (buys all cards)',
-        parReduction: 3,
-        cards: [],
-        events: [populate],
-    })
+    name: 'Populate',
+    description: 'Add Populate as an event (buys all cards)',
+    parReduction: 6,
+    cards: [],
+    events: [populate],
+})
 
+import { multitargetedEffect } from '../gameLogic.js'
+
+const recover:CardSpec = {
+    name: 'Recover',
+    simpleText: [
+        `Put up to two cards from your discard into your hand.`,
+        `This costs $1 more each time you use it.`
+    ],
+    fixedCost: coin(1),
+    variableCosts: [costPer(coin(1))],
+    effects: [multitargetedEffect(
+        targets => moveMany(targets, 'hand'),
+        'Put up to 2 cards from your discard into your hand.',
+        state => state.discard,
+        2
+    ), incrementCost()]
+}
+boons.push({
+    name: 'Recover',
+    description: 'Add Recover as an event',
+    parReduction: 4,
+    cards: [],
+    events: [recover],
+})
 
 const recycle:CardSpec = {name: 'Recycle',
     fixedCost: energy(1),

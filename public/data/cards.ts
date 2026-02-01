@@ -403,10 +403,43 @@ const market:CardSpec = {
 }
 cardRewards.push(market)
 
+const cursedLab:CardSpec = {
+    name: 'Cursed Lab',
+    effects: [actionsEffect(2)],
+    buyCost: coin(2),
+}
+const cursedMarket:CardSpec = {
+    name: 'Cursed Market',
+    effects: [coinsEffect(1), buyEffect()],
+    buyCost: coin(2),
+}
+export const cursedVillage:CardSpec = {
+    name: 'Cursed Village',
+    effects: [createInPlayEffect(villager)],
+    buyCost: coin(2),
+    relatedCards: [cursedLab, cursedMarket, villager],
+    staticTriggers: [{
+        kind: 'gameStart',
+        text: `At the start of the game, add ${cursedLab.name} and ${cursedMarket.name} to the supply.`,
+        handles: () => true,
+        transform: (e, s, c) => async function (state: State) {
+            let lab; [lab, state] = await createAndTrack(cursedLab, 'supply')(state)
+            if (lab != null) {
+                state = state.moveAfter('supply', lab, c!)
+            }
+            let market; [market, state] = await createAndTrack(cursedMarket, 'supply')(state)
+            if (market != null) {
+                state = state.moveAfter('supply', market, c!)
+            }
+            return state
+        }
+    }]
+}
+cardRewards.push(cursedVillage)
 
 const herbs:CardSpec = {name: 'Herbs',
     effects: [coinsEffect(1), buyEffect()],
-    buyCost: coin(2),
+    buyCost: coin(1),
     staticTriggers: [buyTrigger(buyEffect())]
 }
 cardRewards.push(herbs)

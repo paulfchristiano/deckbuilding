@@ -601,6 +601,21 @@ var State = /** @class */ (function () {
         newZones.set(zone, newZone);
         return this.update({ zones: newZones });
     };
+    // Puts card into the position after afterCard, assuming that it was already in the same zone
+    State.prototype.moveAfter = function (zone, card, afterCard) {
+        var newZones = new Map(this.zones);
+        // Check to see that both cards are in the zone, otherwise return
+        if (!this[zone].some(function (c) { return c.id == card.id; }))
+            return this;
+        if (!this[zone].some(function (c) { return c.id == afterCard.id; }))
+            return this;
+        var currentZone = this[zone].filter(function (c) { return c.id != card.id; });
+        var insertIndex = currentZone.findIndex(function (c) { return c.id == afterCard.id; }) + 1;
+        var newZone = currentZone.slice(0, insertIndex).concat([card]).concat(currentZone.slice(insertIndex));
+        newZone = newZone.map(function (x, i) { return x.update({ zoneIndex: i }); });
+        newZones.set(zone, newZone);
+        return this.update({ zones: newZones });
+    };
     State.prototype.resolvingCards = function () {
         var e_6, _a;
         var result = [];
@@ -3032,6 +3047,29 @@ export function targetedEffect(f, text, options) {
     return {
         text: [text],
         transform: function (s, c) { return applyToTarget(function (target) { return f(target, c); }, text, options); }
+    };
+}
+export function multitargetedEffect(f, text, options, max) {
+    if (max === void 0) { max = null; }
+    return {
+        text: [text],
+        transform: function (s, c) { return function (state) {
+            return __awaiter(this, void 0, void 0, function () {
+                var cards;
+                var _a;
+                return __generator(this, function (_b) {
+                    switch (_b.label) {
+                        case 0: return [4 /*yield*/, multichoice(state, text, options(state, c).map(asChoice), max)];
+                        case 1:
+                            _a = __read.apply(void 0, [_b.sent(), 2]), state = _a[0], cards = _a[1];
+                            return [4 /*yield*/, f(cards, c)(state)];
+                        case 2:
+                            state = _b.sent();
+                            return [2 /*return*/, state];
+                    }
+                });
+            });
+        }; }
     };
 }
 //

@@ -72,7 +72,7 @@ var __values = (this && this.__values) || function(o) {
     };
     throw new TypeError(s ? "Object is not iterable." : "Symbol.iterator is not defined.");
 };
-import { eventRewards, free, coin, energy, doAll, addToken, removeToken, countNameTokens, nameHasToken, create, trash, gainCoins, applyToTarget, createInPlayEffect, targetedEffect, chargeEffect, charge, discharge, payToDo, sourceHasName, costPer, incrementCost, playReplacer, repeat, actionsEffect, coinsEffect, buyEffect, createEffect, choice, asNumberedChoices, allowNull, multichoice, asChoice, villager, fair, horse, duplicateRule, twinRule, reflectRule, leq, addCosts, priorityRule, echoRule, move, moveMany, fountainEffect, } from '../gameLogic.js';
+import { eventRewards, free, coin, energy, doAll, addToken, removeToken, countNameTokens, nameHasToken, create, trash, gainCoins, applyToTarget, createInPlayEffect, targetedEffect, multitargetedEffect, chargeEffect, charge, discharge, payToDo, sourceHasName, costPer, incrementCost, playReplacer, repeat, actionsEffect, coinsEffect, buyEffect, createEffect, choice, asNumberedChoices, allowNull, multichoice, asChoice, villager, fair, horse, duplicateRule, twinRule, reflectRule, leq, addCosts, priorityRule, echoRule, move, fountainEffect, } from '../gameLogic.js';
 var hallOfMirrors = { name: 'Hall of Mirrors',
     fixedCost: __assign(__assign({}, free), { energy: 1, coin: 5 }),
     effects: [{
@@ -500,40 +500,6 @@ const splay:CardSpec = {
 }
 eventRewards.push(splay)
 */
-function multitargetedEffect(f, text, options, max) {
-    if (max === void 0) { max = null; }
-    return {
-        text: [text],
-        transform: function (s, c) { return function (state) {
-            return __awaiter(this, void 0, void 0, function () {
-                var cards;
-                var _a;
-                return __generator(this, function (_b) {
-                    switch (_b.label) {
-                        case 0: return [4 /*yield*/, multichoice(state, text, options(state, c).map(asChoice), max)];
-                        case 1:
-                            _a = __read.apply(void 0, [_b.sent(), 2]), state = _a[0], cards = _a[1];
-                            return [4 /*yield*/, f(cards, c)(state)];
-                        case 2:
-                            state = _b.sent();
-                            return [2 /*return*/, state];
-                    }
-                });
-            });
-        }; }
-    };
-}
-var recover = {
-    name: 'Recover',
-    simpleText: [
-        "Put up to two cards from your discard into your hand.",
-        "This costs $1 more each time you use it."
-    ],
-    fixedCost: coin(1),
-    variableCosts: [costPer(coin(1))],
-    effects: [multitargetedEffect(function (targets) { return moveMany(targets, 'hand'); }, 'Put up to 2 cards from your discard into your hand.', function (state) { return state.discard; }, 2), incrementCost()]
-};
-eventRewards.push(recover);
 /*
 const regroup:CardSpec = {
     name: 'Regroup',

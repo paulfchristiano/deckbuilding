@@ -39,9 +39,9 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
 import './data/index.js'; // Ensure data is loaded
 import { playGame } from './metaLogic.js';
 import { MetaGameUI } from './metaUI.js';
-import { potionOfReuse } from './data/potions.js';
-var test = ['potion', potionOfReuse];
-test = null;
+import { cursedVillage } from './data/cards.js';
+var test = ['card', cursedVillage];
+// test = null
 // Start the game when the page loads
 window.addEventListener('load', function () { return __awaiter(void 0, void 0, void 0, function () {
     var metaUI;

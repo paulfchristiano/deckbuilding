@@ -9,7 +9,7 @@ import {
     gainCoins,
     applyToTarget,
     createInPlayEffect,
-    targetedEffect,
+    targetedEffect, multitargetedEffect,
     chargeEffect,
     charge, discharge,
     payToDo,
@@ -472,41 +472,6 @@ const splay:CardSpec = {
 }
 eventRewards.push(splay)
 */
-
-function multitargetedEffect(
-    f: (targets:Card[], c:Card) => Transform,
-    text: string,
-    options: (s:State, c:Card) => Card[],
-    max: number|null = null
-): Effect {
-    return {
-        text: [text],
-        transform: (s, c) => async function(state) {
-            let cards:Card[]; [state, cards] = await multichoice(
-                state, text, options(state, c).map(asChoice), max
-            )
-            state = await f(cards, c)(state)
-            return state
-        }
-    }
-}
-
-const recover:CardSpec = {
-    name: 'Recover',
-    simpleText: [
-        `Put up to two cards from your discard into your hand.`,
-        `This costs $1 more each time you use it.`
-    ],
-    fixedCost: coin(1),
-    variableCosts: [costPer(coin(1))],
-    effects: [multitargetedEffect(
-        targets => moveMany(targets, 'hand'),
-        'Put up to 2 cards from your discard into your hand.',
-        state => state.discard,
-        2
-    ), incrementCost()]
-}
-eventRewards.push(recover)
 
 /*
 const regroup:CardSpec = {

@@ -570,6 +570,19 @@ export class State {
         return this.update({zones:newZones})
 
     }
+    // Puts card into the position after afterCard, assuming that it was already in the same zone
+    moveAfter(zone:ZoneName, card:Card, afterCard:Card): State {
+        const newZones:Map<ZoneName,Zone> = new Map(this.zones)
+        // Check to see that both cards are in the zone, otherwise return
+        if (!this[zone].some(c => c.id == card.id)) return this
+        if (!this[zone].some(c => c.id == afterCard.id)) return this
+        const currentZone = this[zone].filter(c => c.id != card.id)
+        const insertIndex = currentZone.findIndex(c => c.id == afterCard.id) + 1
+        let newZone:Card[] = currentZone.slice(0, insertIndex).concat([card]).concat(currentZone.slice(insertIndex))
+        newZone = newZone.map((x, i) => x.update({zoneIndex: i}))
+        newZones.set(zone, newZone)
+        return this.update({zones:newZones})
+    }
     resolvingCards(): Card[] {
         const result:Card[] = []
         for (const c of this.resolving) {
@@ -2521,6 +2534,24 @@ export function targetedEffect(
             text,
             options,
         )
+    }
+}
+
+export function multitargetedEffect(
+    f: (targets:Card[], c:Card) => Transform,
+    text: string,
+    options: (s:State, c:Card) => Card[],
+    max: number|null = null
+): Effect {
+    return {
+        text: [text],
+        transform: (s, c) => async function(state) {
+            let cards:Card[]; [state, cards] = await multichoice(
+                state, text, options(state, c).map(asChoice), max
+            )
+            state = await f(cards, c)(state)
+            return state
+        }
     }
 }
 

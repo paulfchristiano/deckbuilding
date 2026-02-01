@@ -74,7 +74,7 @@ var __values = (this && this.__values) || function(o) {
     };
     throw new TypeError(s ? "Object is not iterable." : "Symbol.iterator is not defined.");
 };
-import { doAll, boons, free, coin, energy, costPer, useRefresh, buyEffect, createInPlayEffect, addToken, cannotUse, fair, villager, recycleEffect, targetedEffect, priorityRule, actionsEffect, buysEffect, coinsEffect, gainActions, gainBuys, gainCoins, discharge, charge, costReduceNext, choice, allowNull, multichoice, asNumberedChoices, asChoice, moveMany, leq, num, removeToken, } from '../gameLogic.js';
+import { doAll, boons, free, coin, energy, costPer, useRefresh, buyEffect, createInPlayEffect, addToken, cannotUse, fair, villager, recycleEffect, targetedEffect, priorityRule, actionsEffect, buysEffect, coinsEffect, gainActions, gainBuys, gainCoins, discharge, charge, costReduceNext, choice, allowNull, multichoice, asNumberedChoices, asChoice, moveMany, num, removeToken, incrementCost, } from '../gameLogic.js';
 var escalate = { name: 'Escalate',
     fixedCost: free,
     simpleText: [
@@ -173,8 +173,8 @@ boons.push({
     events: [],
 });
 var populate = { name: 'Populate',
-    fixedCost: __assign(__assign({}, free), { coin: 8, energy: 2 }),
-    simpleText: ['Buy every card in the supply costing up to $8.'],
+    fixedCost: __assign(__assign({}, free), { coin: 5, energy: 3 }),
+    simpleText: ['Buy every card in the supply.'],
     effects: [{
             text: ["Repeat this any number of times: buy a card in the supply costing up to $8 that you haven't bought yet."],
             transform: function (state, card) { return function (state) {
@@ -183,7 +183,7 @@ var populate = { name: 'Populate',
                     return __generator(this, function (_a) {
                         switch (_a.label) {
                             case 0:
-                                options = asNumberedChoices(state.supply.filter(function (c) { return leq(c.cost('buy', state), coin(8)); }));
+                                options = asNumberedChoices(state.supply);
                                 _loop_1 = function () {
                                     var picked, id_1;
                                     var _b;
@@ -225,9 +225,27 @@ var populate = { name: 'Populate',
 boons.push({
     name: 'Populate',
     description: 'Add Populate as an event (buys all cards)',
-    parReduction: 3,
+    parReduction: 6,
     cards: [],
     events: [populate],
+});
+import { multitargetedEffect } from '../gameLogic.js';
+var recover = {
+    name: 'Recover',
+    simpleText: [
+        "Put up to two cards from your discard into your hand.",
+        "This costs $1 more each time you use it."
+    ],
+    fixedCost: coin(1),
+    variableCosts: [costPer(coin(1))],
+    effects: [multitargetedEffect(function (targets) { return moveMany(targets, 'hand'); }, 'Put up to 2 cards from your discard into your hand.', function (state) { return state.discard; }, 2), incrementCost()]
+};
+boons.push({
+    name: 'Recover',
+    description: 'Add Recover as an event',
+    parReduction: 4,
+    cards: [],
+    events: [recover],
 });
 var recycle = { name: 'Recycle',
     fixedCost: energy(1),

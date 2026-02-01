@@ -11,9 +11,11 @@ import { type TestSpec } from './metaLogic.js'
 
 import { tradingPost } from './data/encounters.js'
 import { potionOfReuse } from './data/potions.js'
-let test: TestSpec | null = ['potion', potionOfReuse]
 
-test = null
+import { cursedVillage } from './data/cards.js'
+let test: TestSpec | null = ['card', cursedVillage]
+
+// test = null
 
 // Start the game when the page loads
 window.addEventListener('load', async () => {
