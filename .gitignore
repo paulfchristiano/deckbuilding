@@ -12,7 +12,6 @@ logs.txt
 *.log
 .claude
 
-# Compiled output (but keep static assets)
+# Compiled output
 public/*.js
 public/data/*.js
-!public/jquery.js

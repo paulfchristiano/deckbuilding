@@ -21,8 +21,7 @@ A browser-based roguelike deckbuilder built with TypeScript. Players progress th
 │   ├── *.js                  # Compiled JavaScript (gitignored)
 │   ├── data/*.js             # Compiled JavaScript (gitignored)
 │   ├── index.html            # Entry point
-│   ├── style.css             # Game styles
-│   └── jquery.js             # jQuery library
+│   └── style.css             # Game styles
 ├── package.json              # Node dependencies
 └── tsconfig.json             # TypeScript configuration
 ```

@@ -7,8 +7,6 @@
     "build": "tsc -p ."
   },
   "dependencies": {
-    "@types/jquery": "^3.5.5",
-    "jquery": "^3.5.1",
     "md5": "^2.3.0"
   },
   "devDependencies": {

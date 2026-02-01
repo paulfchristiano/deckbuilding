@@ -1,6 +1,5 @@
-// gameUI.ts - Game state rendering and interaction during gameplay
-// This handles the in-game UI (playing cards, making choices, etc.)
-// Extracted from main.ts to separate game UI from meta-game UI.
+// gameUI.ts - In-game UI for card game play
+// Handles rendering game state, player choices, hotkeys, macros
 
 import { Cost, Shadow, State, Card, CardSpec, PlaceName, Rule, ID, VictoryData, UndoPastBeginning } from './gameLogic.js'
 import { GameSpec, SlotSpec } from './gameLogic.js'
@@ -10,6 +9,38 @@ import { LogType, logTypes } from './gameLogic.js'
 import { Option, OptionRender, HotkeyHint } from './gameLogic.js'
 import { UI, Undo, SetState } from './gameLogic.js'
 import { playGame, initialState } from './gameLogic.js'
+
+// ----------------------------- DOM Helpers
+
+function getElement(id: string): HTMLElement {
+    return document.getElementById(id)!
+}
+
+function querySelector(selector: string): HTMLElement | null {
+    return document.querySelector(selector)
+}
+
+function querySelectorAll(selector: string): NodeListOf<Element> {
+    return document.querySelectorAll(selector)
+}
+
+function clearElement(el: HTMLElement): void {
+    el.innerHTML = ''
+}
+
+function createElementFromHTML(html: string): HTMLElement {
+    const template = document.createElement('template')
+    template.innerHTML = html.trim()
+    return template.content.firstChild as HTMLElement
+}
+
+function showElement(el: HTMLElement): void {
+    el.style.display = ''
+}
+
+function hideElement(el: HTMLElement): void {
+    el.style.display = 'none'
+}
 
 // ----------------------------- Types
 
@@ -44,11 +75,6 @@ interface RenderSettings {
     updateURL?: boolean
 }
 
-interface StringOption {
-    render: string
-    value: (shifted: boolean) => void
-}
-
 type ZoneName = 'play' | 'supply' | 'events' | 'hand' | 'discard' | 'potions' | 'relics'
 const zoneNames: ZoneName[] = ['play', 'supply', 'events', 'hand', 'discard', 'potions', 'relics']
 
@@ -65,25 +91,25 @@ const supplyAndPlayHotkeys: Key[] = numHotkeys.concat(symbolHotkeys).concat(uppe
 const handHotkeys = lowerHotkeys.concat(upperHotkeys)
 const hotkeys: Key[] = supplyAndPlayHotkeys.concat(handHotkeys)
 
-// Initialize hotkey listeners
 export function initHotkeys(): void {
     window.addEventListener('keydown', (e: KeyboardEvent) => {
-        const listener = keyListeners.get(e.key)
         if (e.altKey || e.ctrlKey || e.metaKey) return
-        if (listener != undefined) {
+
+        const listener = keyListeners.get(e.key)
+        if (listener) {
             e.preventDefault()
             listener()
         }
-        if (e.key == ' ') {
+        if (e.key === ' ') {
             e.preventDefault()
         }
-        if (e.key == 'Shift') {
+        if (e.key === 'Shift') {
             document.body.classList.add('shift-held')
         }
     })
 
     window.addEventListener('keyup', (e: KeyboardEvent) => {
-        if (e.key == 'Shift') {
+        if (e.key === 'Shift') {
             document.body.classList.remove('shift-held')
         }
     })
@@ -96,25 +122,24 @@ function assertNever(x: never): never {
 }
 
 function renderHotkey(hotkey: Key): string {
-    if (hotkey == ' ') hotkey = '&#x23B5;'
+    if (hotkey === ' ') hotkey = '&#x23B5;'
     return `<div class="hotkey">${hotkey}</div> `
 }
 
 function interpretHint(hint: HotkeyHint | undefined): Key | undefined {
-    if (hint == undefined) return undefined
+    if (!hint) return undefined
     switch (hint.kind) {
-        case "number":
-            const n = hint.val
+        case 'number':
             const candidates = numHotkeys.concat(lowerHotkeys).concat(upperHotkeys)
-            if (n < candidates.length) return candidates[n]
-            else return undefined
-        case "none":
+            return hint.val < candidates.length ? candidates[hint.val] : undefined
+        case 'none':
             return ' '
-        case "boolean":
-            return (hint.val) ? 'y' : 'n'
-        case "key":
+        case 'boolean':
+            return hint.val ? 'y' : 'n'
+        case 'key':
             return hint.val
-        default: return assertNever(hint)
+        default:
+            return assertNever(hint)
     }
 }
 
@@ -127,35 +152,24 @@ function renderKey(x: OptionRender): RenderKey {
 }
 
 function getIfDef<S, T>(m: Map<S, T> | undefined, x: S): T | undefined {
-    return (m == undefined) ? undefined : m.get(x)
+    return m?.get(x)
 }
 
 function repeat<T>(xs: T[], n: number): T[] {
     return Array(n).fill(xs).flat(1)
 }
 
-function bindClickEvent(element: JQuery, handler: (shifted: boolean) => void): void {
-    element.unbind('click')
-    element.bind('click', e => handler(e.shiftKey))
-}
-
 // ----------------------------- Hotkey Mapper
 
 class HotkeyMapper {
-    constructor() { }
-
     map(state: State, options: Option<any>[]): Map<RenderKey, Key> {
         const result: Map<RenderKey, Key> = new Map()
         const taken: Map<Key, RenderKey> = new Map()
-        const pickable: Set<RenderKey> = new Set()
-
-        for (const option of options) {
-            pickable.add(renderKey(option.render))
-        }
+        const pickable: Set<RenderKey> = new Set(options.map(o => renderKey(o.render)))
 
         function takenByPickable(key: Key): boolean {
-            const takenBy: RenderKey | undefined = taken.get(key)
-            return (takenBy != undefined && pickable.has(takenBy))
+            const takenBy = taken.get(key)
+            return takenBy !== undefined && pickable.has(takenBy)
         }
 
         function set(x: RenderKey, k: Key): void {
@@ -164,46 +178,41 @@ class HotkeyMapper {
         }
 
         function setFrom(cards: Card[], preferredHotkeys: Key[]) {
-            const preferredSet: Set<Key> = new Set(preferredHotkeys)
-            const otherHotkeys: Key[] = hotkeys.filter(x => !preferredSet.has(x))
-            const toAssign: Key[] = (preferredHotkeys.concat(otherHotkeys)).filter(x => !taken.has(x))
+            const preferredSet = new Set(preferredHotkeys)
+            const otherHotkeys = hotkeys.filter(x => !preferredSet.has(x))
+            const toAssign = preferredHotkeys.concat(otherHotkeys).filter(x => !taken.has(x))
+
             for (const card of cards) {
-                let n = card.zoneIndex
-                if (n < toAssign.length) {
-                    set(card.id, toAssign[n])
+                if (card.zoneIndex < toAssign.length) {
+                    set(card.id, toAssign[card.zoneIndex])
                 }
             }
         }
 
-        // Put zones that are most important not to change earlier
+        // Assign hotkeys to zones in priority order
         setFrom(state.events, supplyAndPlayHotkeys)
         setFrom(state.supply, supplyAndPlayHotkeys)
         setFrom(state.hand, handHotkeys)
         setFrom(state.play, supplyAndPlayHotkeys)
 
+        // Assign hinted hotkeys to options
         for (const option of options) {
-            const hint: Key | undefined = interpretHint(option.hotkeyHint)
-            if (hint != undefined && !result.has(renderKey(option.render))) {
-                if (!takenByPickable(hint))
-                    set(renderKey(option.render), hint)
+            const hint = interpretHint(option.hotkeyHint)
+            if (hint && !result.has(renderKey(option.render)) && !takenByPickable(hint)) {
+                set(renderKey(option.render), hint)
             }
         }
 
+        // Assign remaining hotkeys to unassigned options
         let index = 0
-        function nextHotkey(): Key | null {
-            while (true) {
-                const key: Key = hotkeys[index]
-                if (!takenByPickable(key)) {
-                    return key
-                }
-                else index++
-            }
-        }
-
         for (const option of options) {
             if (!result.has(renderKey(option.render))) {
-                const key = nextHotkey()
-                if (key != null) set(renderKey(option.render), key)
+                while (index < hotkeys.length && takenByPickable(hotkeys[index])) {
+                    index++
+                }
+                if (index < hotkeys.length) {
+                    set(renderKey(option.render), hotkeys[index])
+                }
             }
         }
 
@@ -214,55 +223,39 @@ class HotkeyMapper {
 // ----------------------------- Token Renderer
 
 class TokenRenderer {
-    private readonly tokenTypes: string[]
+    private tokenTypes: string[] = ['charge']
+    private tokenColors = ['black', 'red', 'orange', 'green', 'fuchsia', 'blue']
 
-    constructor() {
-        this.tokenTypes = ['charge']
-    }
-
-    tokenColor(token: string): string {
-        const tokenColors: string[] = ['black', 'red', 'orange', 'green', 'fuchsia', 'blue']
-        return tokenColors[this.tokenType(token) % tokenColors.length]
-    }
-
-    tokenType(token: string): number {
-        const n: number = this.tokenTypes.indexOf(token)
-        if (n >= 0) return n
-        this.tokenTypes.push(token)
-        return this.tokenTypes.length - 1
+    private getTokenIndex(token: string): number {
+        let idx = this.tokenTypes.indexOf(token)
+        if (idx < 0) {
+            this.tokenTypes.push(token)
+            idx = this.tokenTypes.length - 1
+        }
+        return idx
     }
 
     render(tokens: Map<string, number>): string {
-        function f(n: number): string {
-            return (n == 1) ? '*' : n.toString()
-        }
-        const tokenHtmls: string[] = []
-        for (const token of tokens.keys()) {
-            this.tokenType(token)
-        }
-        for (let i = 0; i < this.tokenTypes.length; i++) {
-            const token = this.tokenTypes[i]
-            const n = tokens.get(token) || 0
-            if (n > 0) {
-                tokenHtmls.push(`<span id='token' style='color:${this.tokenColor(token)}'>${f(n)}</span>`)
+        const parts: string[] = []
+        for (const [token, count] of tokens) {
+            if (count > 0) {
+                const idx = this.getTokenIndex(token)
+                const color = this.tokenColors[idx % this.tokenColors.length]
+                const display = count === 1 ? '*' : count.toString()
+                parts.push(`<span id='token' style='color:${color}'>${display}</span>`)
             }
         }
-        return (tokenHtmls.length > 0) ? `(${tokenHtmls.join('')})` : ''
+        return parts.length > 0 ? `(${parts.join('')})` : ''
     }
 
     renderTooltip(tokens: Map<string, number>): string {
-        function f(n: number, s: string): string {
-            return (n == 1) ? s : `${s} (${n})`
+        const parts: string[] = []
+        for (const [token, count] of tokens) {
+            if (count > 0) {
+                parts.push(count === 1 ? token : `${token} (${count})`)
+            }
         }
-        const tokenHtmls: string[] = []
-        for (const token of tokens.keys()) {
-            this.tokenType(token)
-        }
-        for (const token of this.tokenTypes) {
-            const n = tokens.get(token) || 0
-            if (n > 0) tokenHtmls.push(f(n, token))
-        }
-        return (tokenHtmls.length > 0) ? `Tokens: ${tokenHtmls.join(', ')}` : ''
+        return parts.length > 0 ? `Tokens: ${parts.join(', ')}` : ''
     }
 }
 
@@ -303,37 +296,33 @@ function resetGlobalRenderer(): void {
     globalRendererState.tokenRenderer = new TokenRenderer()
 }
 
-// ----------------------------- Callbacks for Meta-game Integration
-
-
 // ----------------------------- Card Text Rendering
 
 function describeCost(cost: Cost): string {
-    const coinCost = (cost.coin > 0) ? [`lose $${cost.coin}`] : []
-    const energyCost = (cost.energy > 0) ? [`gain ${renderEnergy(cost.energy)}`] : []
-    const costs = coinCost.concat(energyCost)
-    const costStr = (costs.length > 0) ? costs.join(' and ') : 'do nothing'
-    return `Cost: ${costStr}.`
+    const parts: string[] = []
+    if (cost.coin > 0) parts.push(`lose $${cost.coin}`)
+    if (cost.energy > 0) parts.push(`gain ${renderEnergy(cost.energy)}`)
+    return `Cost: ${parts.length > 0 ? parts.join(' and ') : 'do nothing'}.`
 }
 
 function renderEffects(spec: CardSpec): string {
-    let parts: string[] = []
+    const parts: string[] = []
     for (const effect of spec.effects || []) {
-        parts = parts.concat(effect.text)
+        parts.push(...effect.text)
     }
     return parts.map(x => `<div>${x}</div>`).join('')
 }
 
 function renderAbility(spec: CardSpec): string {
-    let parts: string[] = []
+    const parts: string[] = []
     for (const effect of spec.ability || []) {
-        parts = parts.concat(effect.text.map(x => `<div>(ability) ${x}</div>`))
+        parts.push(...effect.text.map(x => `<div>(ability) ${x}</div>`))
     }
     return parts.join('')
 }
 
 function renderTrigger(x: Trigger | Replacer, staticTrigger: boolean): string {
-    const desc: string = (staticTrigger) ? '(static)' : '(effect)'
+    const desc = staticTrigger ? '(static)' : '(effect)'
     return `<div>${desc} ${x.text}</div>`
 }
 
@@ -342,57 +331,45 @@ function renderVariableCosts(cs: VariableCost[]): string {
 }
 
 function renderBuyable(bs: { text?: string }[]): string {
-    return bs.map(
-        b => (b.text == undefined) ? '' : `<div>(req) ${b.text}</div>`
-    ).join('')
+    return bs.filter(b => b.text).map(b => `<div>(req) ${b.text}</div>`).join('')
 }
 
 function isZero(c: Cost | undefined): boolean {
-    return (c === undefined || renderCost(c) == '')
+    return !c || renderCost(c) === ''
 }
 
 function renderRuleText(rule: Rule): string {
     const parts: string[] = []
-    for (const trigger of (rule.triggers || [])) {
+    for (const trigger of rule.triggers || []) {
         parts.push(`<div>(rule) ${trigger.text}</div>`)
     }
-    for (const replacer of (rule.replacers || [])) {
+    for (const replacer of rule.replacers || []) {
         parts.push(`<div>(rule) ${replacer.text}</div>`)
     }
     return parts.join('')
 }
 
 export function cardText(spec: CardSpec): string {
-    const effectHtml: string = renderEffects(spec)
-    const buyableHtml: string = (spec.restrictions != undefined) ? renderBuyable(spec.restrictions) : ''
-    const costHtml: string = (spec.variableCosts != undefined) ? renderVariableCosts(spec.variableCosts) : ''
-    const abilitiesHtml: string = renderAbility(spec)
-    const triggerHtml: string = (spec.triggers || []).map(
-        x => renderTrigger(x, false)
-    ).join('')
-    const replacerHtml: string = (spec.replacers || []).map(
-        x => renderTrigger(x, false)
-    ).join('')
-    const staticTriggerHtml: string = (spec.staticTriggers || []).map(
-        x => renderTrigger(x, true)
-    ).join('')
-    const staticReplacerHtml: string = (spec.staticReplacers || []).map(
-        x => renderTrigger(x, true)
-    ).join('')
-    const rulesHtml: string = (spec.rules || []).map(renderRuleText).join('')
-    return [buyableHtml, costHtml, effectHtml, abilitiesHtml,
-        triggerHtml, replacerHtml, staticTriggerHtml, staticReplacerHtml, rulesHtml].join('')
+    return [
+        spec.restrictions ? renderBuyable(spec.restrictions) : '',
+        spec.variableCosts ? renderVariableCosts(spec.variableCosts) : '',
+        renderEffects(spec),
+        renderAbility(spec),
+        (spec.triggers || []).map(x => renderTrigger(x, false)).join(''),
+        (spec.replacers || []).map(x => renderTrigger(x, false)).join(''),
+        (spec.staticTriggers || []).map(x => renderTrigger(x, true)).join(''),
+        (spec.staticReplacers || []).map(x => renderTrigger(x, true)).join(''),
+        (spec.rules || []).map(renderRuleText).join('')
+    ].join('')
 }
 
 // ----------------------------- Tooltip Rendering
 
 function renderTooltipSimple(card: Card, state: State, tokenRenderer: TokenRenderer): string {
-    const buyStr = !isZero(card.spec.buyCost) ?
-        `(${renderCost(card.spec.buyCost as Cost)})` : '---'
-    const costStr = !isZero(card.spec.fixedCost) ?
-        `(${renderCost(card.spec.fixedCost as Cost)})` : '---'
+    const buyStr = !isZero(card.spec.buyCost) ? `(${renderCost(card.spec.buyCost!)})` : '---'
+    const costStr = !isZero(card.spec.fixedCost) ? `(${renderCost(card.spec.fixedCost!)})` : '---'
     const header = `<div>---${buyStr} ${card.name} ${costStr}---</div>`
-    const tokensHtml: string = tokenRenderer.renderTooltip(card.tokens)
+    const tokensHtml = tokenRenderer.renderTooltip(card.tokens)
     const bodyText = card.spec.simpleText
         ? card.spec.simpleText.map(line => `<div>${line}</div>`).join('')
         : cardText(card.spec)
@@ -400,32 +377,27 @@ function renderTooltipSimple(card: Card, state: State, tokenRenderer: TokenRende
 }
 
 function renderTooltipFull(card: Card, state: State, tokenRenderer: TokenRenderer): string {
-    const buyStr = !isZero(card.spec.buyCost) ?
-        `(${renderCost(card.spec.buyCost as Cost)})` : '---'
-    const costStr = !isZero(card.spec.fixedCost) ?
-        `(${renderCost(card.spec.fixedCost as Cost)})` : '---'
+    const buyStr = !isZero(card.spec.buyCost) ? `(${renderCost(card.spec.buyCost!)})` : '---'
+    const costStr = !isZero(card.spec.fixedCost) ? `(${renderCost(card.spec.fixedCost!)})` : '---'
     const header = `<div>---${buyStr} ${card.name} ${costStr}---</div>`
-    const tokensHtml: string = tokenRenderer.renderTooltip(card.tokens)
-    const baseFilling: string = header + cardText(card.spec) + tokensHtml
+    const tokensHtml = tokenRenderer.renderTooltip(card.tokens)
+    const baseFilling = header + cardText(card.spec) + tokensHtml
 
-    function renderRelated(spec: CardSpec) {
-        const card: Card = new Card(spec, -1)
-        return renderTooltipFull(card, state, tokenRenderer)
-    }
-    const relatedFilling: string = card.relatedCards().map(renderRelated).join('')
+    const relatedFilling = card.relatedCards().map(spec => {
+        const tempCard = new Card(spec, -1)
+        return renderTooltipFull(tempCard, state, tokenRenderer)
+    }).join('')
 
-    return `${baseFilling}${relatedFilling}`
+    return baseFilling + relatedFilling
 }
 
 // ----------------------------- Card/Shadow Rendering
 
 function renderShadow(shadow: Shadow, state: State, tokenRenderer: TokenRenderer): string {
-    const card: Card = shadow.spec.card
-    const tokenhtml: string = tokenRenderer.render(card.tokens)
-    const costhtml: string = '&nbsp'
-    const ticktext: string = `tick=${shadow.tick}`
-    const shadowtext: string = `shadow='true'`
+    const card = shadow.spec.card
+    const tokenhtml = tokenRenderer.render(card.tokens)
     let tooltip: string
+
     switch (shadow.spec.kind) {
         case 'ability':
             tooltip = renderAbility(shadow.spec.card.spec)
@@ -442,13 +414,15 @@ function renderShadow(shadow: Shadow, state: State, tokenRenderer: TokenRenderer
         case 'buying':
             tooltip = `Buying ${shadow.spec.card.name}`
             break
-        default: return assertNever(shadow.spec)
+        default:
+            return assertNever(shadow.spec)
     }
-    return [`<div class='card' ${ticktext} ${shadowtext}>`,
-        `<div class='cardbody'>${card}${tokenhtml}</div>`,
-        `<div class='cardcost'>${costhtml}</div>`,
-        `<span class='tooltip tooltip-simple'>${tooltip}</span>`,
-        `</div>`].join('')
+
+    return `<div class='card' tick=${shadow.tick} shadow='true'>
+        <div class='cardbody'>${card}${tokenhtml}</div>
+        <div class='cardcost'>&nbsp</div>
+        <span class='tooltip tooltip-simple'>${tooltip}</span>
+    </div>`
 }
 
 function renderCard(
@@ -457,150 +431,139 @@ function renderCard(
     zone: PlaceName,
     options: CardRenderOptions,
     tokenRenderer: TokenRenderer,
-    count: number = 1,
+    count: number = 1
 ): string {
     if (card instanceof Shadow) {
         return renderShadow(card, state, tokenRenderer)
-    } else {
-        const costType: 'use' | 'play' = (zone == 'events') ? 'use' : 'play'
-        const tokenhtml: string = tokenRenderer.render(card.tokens)
-        const costhtml: string = (zone == 'supply') ?
-            renderCost(card.cost('buy', state)) || '&nbsp' :
-            renderCost(card.cost(costType, state)) || '&nbsp'
-        const picktext: string = (options.pick !== undefined) ? `<div class='pickorder'>${options.pick + 1}</div>` : ''
-        const counttext: string = (count != 1) ? `<div class='cardcount'>${count}</div>` : ''
-        const chosenText: string = (options.pick !== undefined) ? 'true' : 'false'
-        const choosetext: string = (options.option !== undefined)
-            ? `choosable chosen='${chosenText}' option=${options.option}`
-            : ''
-        const hotkeytext: string = (options.hotkey !== undefined) ? renderHotkey(options.hotkey) : ''
-        const ticktext: string = `tick=${card.ticks[card.ticks.length - 1]}`
-        const result = `<div id='card${card.id}' class='card' ${ticktext} ${choosetext}> ${picktext} ${counttext}
-                    <div class='cardbody'>${hotkeytext} ${card}${tokenhtml}</div>
-                    <div class='cardcost'>${costhtml}</div>
-                    <span class='tooltip tooltip-simple'>${renderTooltipSimple(card, state, tokenRenderer)}</span>
-                    <span class='tooltip tooltip-full'>${renderTooltipFull(card, state, tokenRenderer)}</span>
-                </div>`
-        return result
     }
+
+    const costType: 'use' | 'play' = zone === 'events' ? 'use' : 'play'
+    const tokenhtml = tokenRenderer.render(card.tokens)
+    const costhtml = zone === 'supply'
+        ? renderCost(card.cost('buy', state)) || '&nbsp'
+        : renderCost(card.cost(costType, state)) || '&nbsp'
+
+    const picktext = options.pick !== undefined ? `<div class='pickorder'>${options.pick + 1}</div>` : ''
+    const counttext = count !== 1 ? `<div class='cardcount'>${count}</div>` : ''
+    const chosenText = options.pick !== undefined ? 'true' : 'false'
+    const choosetext = options.option !== undefined
+        ? `choosable chosen='${chosenText}' option=${options.option}`
+        : ''
+    const hotkeytext = options.hotkey ? renderHotkey(options.hotkey) : ''
+    const ticktext = `tick=${card.ticks[card.ticks.length - 1]}`
+
+    return `<div id='card${card.id}' class='card' ${ticktext} ${choosetext}>
+        ${picktext} ${counttext}
+        <div class='cardbody'>${hotkeytext} ${card}${tokenhtml}</div>
+        <div class='cardcost'>${costhtml}</div>
+        <span class='tooltip tooltip-simple'>${renderTooltipSimple(card, state, tokenRenderer)}</span>
+        <span class='tooltip tooltip-full'>${renderTooltipFull(card, state, tokenRenderer)}</span>
+    </div>`
 }
 
 // ----------------------------- Spec Rendering (for meta UI)
 
 export function renderSpec(spec: CardSpec): string {
-    const buyText = isZero(spec.buyCost) ? '' : `(${renderCost(spec.buyCost as Cost)})&nbsp;`
-    const costText = isZero(spec.fixedCost) ? '' : `&nbsp;(${renderCost(spec.fixedCost as Cost)})`
+    const buyText = isZero(spec.buyCost) ? '' : `(${renderCost(spec.buyCost!)})&nbsp;`
+    const costText = isZero(spec.fixedCost) ? '' : `&nbsp;(${renderCost(spec.fixedCost!)})`
     const header = `<div>${buyText}<strong>${spec.name}</strong>${costText}</div>`
     const me = `<div class='spec'>${header}${cardText(spec)}</div>`
-    const related: string[] = (spec.relatedCards || []).map(renderSpec)
-    return [me].concat(related).join('')
+    const related = (spec.relatedCards || []).map(renderSpec)
+    return [me, ...related].join('')
 }
 
 export function buildSpecTooltip(spec: CardSpec): string {
-    const buyStr = !isZero(spec.buyCost) ?
-        `(${renderCost(spec.buyCost as Cost)})` : '---'
-    const costStr = !isZero(spec.fixedCost) ?
-        `(${renderCost(spec.fixedCost as Cost)})` : '---'
+    const buyStr = !isZero(spec.buyCost) ? `(${renderCost(spec.buyCost!)})` : '---'
+    const costStr = !isZero(spec.fixedCost) ? `(${renderCost(spec.fixedCost!)})` : '---'
     const header = `<div>---${buyStr} ${spec.name} ${costStr}---</div>`
     const baseFilling = header + cardText(spec)
-
-    const relatedCards = spec.relatedCards || []
-    const relatedFilling = relatedCards.map(r => buildSpecTooltip(r)).join('')
-
-    return `${baseFilling}${relatedFilling}`
+    const relatedFilling = (spec.relatedCards || []).map(buildSpecTooltip).join('')
+    return baseFilling + relatedFilling
 }
 
 export function renderSpecNoRelated(spec: CardSpec): string {
-    const buyText = isZero(spec.buyCost) ? '' : `(${renderCost(spec.buyCost as Cost)})&nbsp;`
-    const costText = isZero(spec.fixedCost) ? '' : `&nbsp;(${renderCost(spec.fixedCost as Cost)})`
+    const buyText = isZero(spec.buyCost) ? '' : `(${renderCost(spec.buyCost!)})&nbsp;`
+    const costText = isZero(spec.fixedCost) ? '' : `&nbsp;(${renderCost(spec.fixedCost!)})`
     const header = `<div>${buyText}<strong>${spec.name}</strong>${costText}</div>`
-
     const displayText = spec.simpleText
         ? spec.simpleText.map(line => `<div>${line}</div>`).join('')
         : cardText(spec)
-
     const tooltipHtml = buildSpecTooltip(spec)
-
     return `<div class='spec'>${header}${displayText}<span class='tooltip'>${tooltipHtml}</span></div>`
 }
 
 // ----------------------------- Zone Rendering
 
 function sketchMap<T>(x: Map<T, number>): string {
-    const kvs: string[] = [...x.entries()].filter(
-        kv => kv[1] > 0
-    ).map(
-        kv => `${kv[0]}${kv[1]}`
-    )
-    kvs.sort()
-    return kvs.join(',')
+    return [...x.entries()]
+        .filter(([_, v]) => v > 0)
+        .map(([k, v]) => `${k}${v}`)
+        .sort()
+        .join(',')
 }
 
-function sketchCard(card: Card, settings: RenderSettings) {
-    return `${card.name}${sketchMap(card.tokens)}
-            ${getIfDef(settings.pickMap, card.id)}
-            ${getIfDef(settings.optionsMap, card.id)}`
+function sketchCard(card: Card, settings: RenderSettings): string {
+    return `${card.name}${sketchMap(card.tokens)}${getIfDef(settings.pickMap, card.id)}${getIfDef(settings.optionsMap, card.id)}`
 }
 
-function sketchCards(
-    cards: Card[],
-    settings: RenderSettings,
-): Array<[string, { first: Card, last: Card, count: number }]> {
+function sketchCards(cards: Card[], settings: RenderSettings): Array<[string, { first: Card, last: Card, count: number }]> {
     const sketches: string[] = []
-    const counts: Map<string, number> = new Map()
-    const first: Map<string, Card> = new Map()
-    const last: Map<string, Card> = new Map()
+    const counts = new Map<string, number>()
+    const first = new Map<string, Card>()
+    const last = new Map<string, Card>()
+
     for (const card of cards) {
         const s = sketchCard(card, settings)
-        if (counts.get(s) === undefined) {
+        if (!counts.has(s)) {
             sketches.push(s)
             first.set(s, card)
         }
         counts.set(s, (counts.get(s) || 0) + 1)
         last.set(s, card)
     }
-    return sketches.map(s => [s, { first: first.get(s) as Card, last: last.get(s) as Card, count: counts.get(s) || 0 }])
+
+    return sketches.map(s => [s, { first: first.get(s)!, last: last.get(s)!, count: counts.get(s) || 0 }])
 }
 
 function renderZone(state: State, zone: ZoneName, settings: RenderSettings = {}): void {
-    const e = $(`#${zone}`)
-    const optionsFns: (((shifted: boolean) => void)[]) = []
+    const container = getElement(zone)
+    const optionsFns: Array<(shifted: boolean) => void> = []
     const optionsIds: number[] = []
 
-    function render(card: Card, count: number = 1, forceHotkey: Key | undefined = undefined): string {
+    function render(card: Card, count = 1, forceHotkey?: Key): string {
         let option: number | undefined
         const optionFn = getIfDef(settings.optionsMap, card.id)
         const hotkey = forceHotkey || getIfDef(settings.hotkeyMap, card.id)
-        if (optionFn !== undefined) {
+
+        if (optionFn) {
             option = optionsFns.length
             optionsFns.push(optionFn)
             optionsIds.push(card.id)
-            if (hotkey !== undefined) keyListeners.set(hotkey, () => optionFn(false))
+            if (hotkey) keyListeners.set(hotkey, () => optionFn(false))
         }
-        const cardRenderOptions: CardRenderOptions = {
-            option: option,
-            hotkey: hotkey,
-            pick: getIfDef(settings.pickMap, card.id),
-        }
-        return renderCard(card, state, zone,
-            cardRenderOptions,
+
+        return renderCard(card, state, zone, { option, hotkey, pick: getIfDef(settings.pickMap, card.id) },
             globalRendererState.tokenRenderer, count)
     }
 
-    const cards: Card[] = state.zones.get(zone) || []
-    const compress: boolean = globalRendererState.compress[zone]
+    const cards = state.zones.get(zone) || []
+    const compress = globalRendererState.compress[zone]
 
     if (compress) {
         const sketches = sketchCards(cards, settings)
-        e.html(sketches.map(
-            data => render(data[1].last, data[1].count || 0, settings.hotkeyMap?.get(data[1].first.id))
-        ).join(''))
+        container.innerHTML = sketches.map(
+            ([_, data]) => render(data.last, data.count, settings.hotkeyMap?.get(data.first.id))
+        ).join('')
     } else {
-        e.html(cards.map(c => render(c)).join(''))
+        container.innerHTML = cards.map(c => render(c)).join('')
     }
 
-    for (const [i, fn] of optionsFns.entries()) {
-        bindClickEvent(e.find(`#card${optionsIds[i]}`), fn)
+    // Bind click handlers
+    for (let i = 0; i < optionsFns.length; i++) {
+        const cardEl = getElement(`card${optionsIds[i]}`)
+        if (cardEl) {
+            cardEl.onclick = (e) => optionsFns[i]((e as MouseEvent).shiftKey)
+        }
     }
 }
 
@@ -613,101 +576,97 @@ declare global {
     }
 }
 
-/*
-function linkForState(state: State, campaign: boolean = false): string {
-    const cs = campaign ? 'campaign&' : ''
-    return `play?${cs}${specToURL(state.spec)}#${state.serializeHistory(false)}`
-}
-    */
-
-function renderState(
-    state: State,
-    settings: RenderSettings = {},
-): void {
+function renderState(state: State, settings: RenderSettings = {}): void {
     window.renderedState = state
     clearChoice()
 
     if (settings.updateURL === undefined || settings.updateURL) {
         globalRendererState.userURL = false
-        // URL update disabled for meta-game integration
     }
 
-    $('#resolvingHeader').html('Resolving:')
+    getElement('resolvingHeader').innerHTML = 'Resolving:'
 
-    // Display energy as X/Y where Y is par, red if over par
+    // Display energy as X/Y where Y is par
     const par = state.spec.par
     const energyDisplay = `${state.energy}/${par}`
+    const energyEl = getElement('energy')
     if (state.energy > par) {
-        $('#energy').html(`<span style="color: red">${energyDisplay}</span>`)
+        energyEl.innerHTML = `<span style="color: red">${energyDisplay}</span>`
     } else {
-        $('#energy').html(energyDisplay)
+        energyEl.innerHTML = energyDisplay
     }
 
-    $('#actions').html(state.actions.toString())
-    $('#buys').html(state.buys.toString())
-    $('#coin').html(state.coin.toString())
-    $('#points').html(`${state.points}/${state.vp_goal}`)
+    getElement('actions').innerHTML = state.actions.toString()
+    getElement('buys').innerHTML = state.buys.toString()
+    getElement('coin').innerHTML = state.coin.toString()
+    getElement('points').innerHTML = `${state.points}/${state.vp_goal}`
 
-    $('#resolving').empty()
-    $('#resolving').html(state.resolving.map(
+    const resolvingEl = getElement('resolving')
+    resolvingEl.innerHTML = state.resolving.map(
         c => renderCard(c, state, 'resolving', {}, globalRendererState.tokenRenderer)
-    ).join(''))
+    ).join('')
 
     for (const zone of zoneNames) {
         renderZone(state, zone, settings)
-        const e = $(`[zone='${zone}'] .zonename`)
-        e.unbind('click')
-        e.click(() => {
-            globalRendererState.compress[zone] = !globalRendererState.compress[zone]
-            localStorage.setItem(`compress${zone}`, JSON.stringify(globalRendererState.compress[zone]))
-            renderZone(state, zone, settings)
-        })
+        const zoneNameEl = querySelector(`[zone='${zone}'] .zonename`)
+        if (zoneNameEl) {
+            (zoneNameEl as HTMLElement).onclick = () => {
+                globalRendererState.compress[zone] = !globalRendererState.compress[zone]
+                localStorage.setItem(`compress${zone}`, JSON.stringify(globalRendererState.compress[zone]))
+                renderZone(state, zone, settings)
+            }
+        }
     }
 
-    $('#playsize').html('' + state.play.length)
-    $('#handsize').html('' + state.hand.length)
-    $('#discardsize').html('' + state.discard.length)
+    getElement('playsize').innerHTML = '' + state.play.length
+    getElement('handsize').innerHTML = '' + state.hand.length
+    getElement('discardsize').innerHTML = '' + state.discard.length
 }
 
 // ----------------------------- Log Rendering
 
 function bindLogTypeButtons(state: State, ui: GameUI): void {
-    const e = $(`input[name='logType']`)
-    e.off('change')
-    e.change(function () {
-        const logType = (this as any).value
-        globalRendererState.logType = logType
-        setVisibleLog(state, logType, ui)
+    const inputs = querySelectorAll(`input[name='logType']`)
+    inputs.forEach(input => {
+        (input as HTMLInputElement).onchange = function() {
+            const logType = (this as HTMLInputElement).value as LogType
+            globalRendererState.logType = logType
+            setVisibleLog(state, logType, ui)
+        }
     })
 }
 
 function setVisibleLog(state: State, logType: LogType, ui: GameUI): void {
     for (const lt of logTypes) {
-        const e = $(`.logOption[option=${lt}]`)
-        const choosable = e.attr('option') != globalRendererState.logType
-        e.attr('choosable', choosable ? 'true' : null)
+        const el = querySelector(`.logOption[option=${lt}]`)
+        if (el) {
+            if (lt === globalRendererState.logType) {
+                el.removeAttribute('choosable')
+            } else {
+                el.setAttribute('choosable', 'true')
+            }
+        }
     }
     displayLogLines(state.logs[logType], ui)
-}
-
-function renderLogLine(msg: string, i: number): string {
-    return `<div><span class="logLine" pos=${i}>${msg}</span></div>`
 }
 
 function displayLogLines(logs: [string, State | null][], ui: GameUI): void {
     const result: string[] = []
     for (let i = logs.length - 1; i >= 0; i--) {
-        result.push(renderLogLine(logs[i][0], i))
+        result.push(`<div><span class="logLine" pos=${i}>${logs[i][0]}</span></div>`)
     }
-    $('#log').html(result.join(''))
-    for (const [i, e] of logs.entries()) {
-        const state: State | null = e[1]
+    getElement('log').innerHTML = result.join('')
+
+    for (const [i, [_, state]] of logs.entries()) {
         if (state !== null) {
-            $(`.logLine[pos=${i}]`).click(function () {
-                if (ui.choiceState !== null) {
-                    ui.choiceState.reject(new SetState(state))
+            const logLine = querySelector(`.logLine[pos='${i}']`)
+            if (logLine) {
+                (logLine as HTMLElement).onclick = () => {
+                    if (ui.choiceState) {
+                        ui.choiceState.reject(new SetState(state))
+                    }
                 }
-            })
+            }
         }
     }
 }
@@ -716,18 +675,25 @@ function displayLogLines(logs: [string, State | null][], ui: GameUI): void {
 
 function clearChoice(): void {
     keyListeners.clear()
-    $('#choicePrompt').html('')
-    $('#options').html('')
-    $('#undoArea').html('')
+    getElement('choicePrompt').innerHTML = ''
+    getElement('options').innerHTML = ''
+    getElement('undoArea').innerHTML = ''
 }
 
-function renderStringOption(option: StringOption, hotkey?: Key, pick?: number): JQuery {
-    const hotkeyText = (hotkey !== undefined) ? renderHotkey(hotkey) : ''
-    if (hotkey !== undefined) keyListeners.set(hotkey, () => option.value(false))
-    const picktext: string = (pick !== undefined) ? `<div class='pickorder'>${pick}</div>` : ''
-    const e = $(`<span class='option' choosable chosen='false'>${picktext}${hotkeyText}${option.render}</span>`)
-    bindClickEvent(e, option.value)
-    return e
+interface StringOption {
+    render: string
+    value: (shifted: boolean) => void
+}
+
+function renderStringOption(option: StringOption, hotkey?: Key, pick?: number): HTMLElement {
+    const hotkeyText = hotkey ? renderHotkey(hotkey) : ''
+    if (hotkey) keyListeners.set(hotkey, () => option.value(false))
+    const picktext = pick !== undefined ? `<div class='pickorder'>${pick}</div>` : ''
+    const el = createElementFromHTML(
+        `<span class='option' choosable chosen='false'>${picktext}${hotkeyText}${option.render}</span>`
+    )
+    el.onclick = (e) => option.value((e as MouseEvent).shiftKey)
+    return el
 }
 
 function renderChoice(
@@ -735,55 +701,47 @@ function renderChoice(
     state: State,
     choicePrompt: string,
     options: Option<(shifted: boolean) => void>[],
-    picks: Array<OptionRender> = [],
+    picks: OptionRender[] = []
 ): void {
-    const optionsMap: Map<number, (shifted: boolean) => void> = new Map()
+    const optionsMap = new Map<number, (shifted: boolean) => void>()
     const stringOptions: StringOption[] = []
 
-    for (let i = 0; i < options.length; i++) {
-        const rendered: OptionRender = options[i].render
-        switch (rendered.kind) {
-            case 'string':
-                stringOptions.push({ render: rendered.string, value: options[i].value })
-                break
-            case 'card':
-                optionsMap.set(rendered.card.id, options[i].value)
-                break
-            default: assertNever(rendered)
+    for (const option of options) {
+        const rendered = option.render
+        if (rendered.kind === 'string') {
+            stringOptions.push({ render: rendered.string, value: option.value })
+        } else if (rendered.kind === 'card') {
+            optionsMap.set(rendered.card.id, option.value)
         }
     }
 
-    let pickMap: Map<RenderKey, number> = new Map()
+    const pickMap = new Map<RenderKey, number>()
     for (const [i, x] of picks.entries()) {
         pickMap.set(renderKey(x), i)
     }
 
-    const hotkeyMap: Map<RenderKey, Key> = (globalRendererState.hotkeysOn)
+    const hotkeyMap = globalRendererState.hotkeysOn
         ? globalRendererState.hotkeyMapper.map(state, options)
-        : new Map()
+        : new Map<RenderKey, Key>()
 
-    renderState(state, {
-        hotkeyMap: hotkeyMap,
-        optionsMap: optionsMap,
-        pickMap: pickMap,
-        updateURL: false
-    })
+    renderState(state, { hotkeyMap, optionsMap, pickMap, updateURL: false })
 
-    if (ui != null) {
+    if (ui) {
         setVisibleLog(state, globalRendererState.logType, ui)
         bindLogTypeButtons(state, ui)
     }
 
-    $('#choicePrompt').html(choicePrompt)
-    $('#options').empty()
+    getElement('choicePrompt').innerHTML = choicePrompt
+    const optionsEl = getElement('options')
+    clearElement(optionsEl)
+
     for (const option of stringOptions) {
         const hotkey = hotkeyMap.get(option.render)
-        $('#options').append(renderStringOption(
-            option, hotkey, pickMap.get(option.render))
-        )
+        optionsEl.appendChild(renderStringOption(option, hotkey, pickMap.get(option.render)))
     }
-    $('#undoArea').html(renderSpecials(state))
-    if (ui !== null) bindSpecials(state, ui)
+
+    getElement('undoArea').innerHTML = renderSpecials(state)
+    if (ui) bindSpecials(state, ui)
 }
 
 // ----------------------------- Special Buttons
@@ -807,37 +765,35 @@ function renderBack(): string {
 }
 
 function renderRestart(): string {
-    return `<span id='restart' class='option', option='restart' choosable chosen='false'>Restart</span>`
+    return `<span id='restart' class='option' option='restart' choosable chosen='false'>Restart</span>`
 }
 
 function renderKingdomViewer(): string {
-    return `<span id='viewKingdom' class='option', option='viewKingdom' choosable chosen='false'>Kingdom</span>`
+    return `<span id='viewKingdom' class='option' option='viewKingdom' choosable chosen='false'>Kingdom</span>`
 }
 
 function renderMacroToggle(): string {
-    return `<span id='macroToggle' class='option', option='macroToggle' choosable chosen='false'>Macros</span>`
+    return `<span id='macroToggle' class='option' option='macroToggle' choosable chosen='false'>Macros</span>`
 }
 
 function renderHotkeyToggle(): string {
-    return `<span class='option', option='hotkeyToggle' choosable chosen='false'>${renderHotkey('/')} Hotkeys</span>`
+    return `<span class='option' option='hotkeyToggle' choosable chosen='false'>${renderHotkey('/')} Hotkeys</span>`
 }
 
 function renderHelp(): string {
-    return `<span id='help' class='option', option='help' choosable chosen='false'>${renderHotkey('?')} Help</span>`
+    return `<span id='help' class='option' option='help' choosable chosen='false'>${renderHotkey('?')} Help</span>`
 }
 
 function renderDeepLink(): string {
-    return `<span id='deeplink' class='option', option='link' choosable chosen='false'>Link</span>`
+    return `<span id='deeplink' class='option' option='link' choosable chosen='false'>Link</span>`
 }
 
 function renderUndo(undoable: boolean): string {
-    const hotkeyText = renderHotkey('z')
-    return `<span class='option', option='undo' choosable chosen='false'>${hotkeyText}Undo</span>`
+    return `<span class='option' option='undo' choosable chosen='false'>${renderHotkey('z')}Undo</span>`
 }
 
 function renderRedo(redoable: boolean): string {
-    const hotkeyText = renderHotkey('Z')
-    return `<span class='option', option='redo' ${redoable ? 'choosable' : ''} chosen='false'>${hotkeyText}Redo</span>`
+    return `<span class='option' option='redo' ${redoable ? 'choosable' : ''} chosen='false'>${renderHotkey('Z')}Redo</span>`
 }
 
 // ----------------------------- Special Button Bindings
@@ -850,116 +806,103 @@ function bindSpecials(state: State, ui: GameUI): void {
     bindRedo(state, ui)
     bindMacroToggle(ui)
     bindViewKingdom(state)
-    //bindDeepLink(state)
     bindBack(ui)
 }
 
 function bindBack(ui: GameUI): void {
     function pick() {
-        if (ui.choiceState != null) {
+        if (ui.choiceState) {
             ui.choiceState.reject(new UndoPastBeginning())
         }
     }
     keyListeners.set('Escape', pick)
-    $(`[option='back']`).on('click', pick)
+    const el = querySelector(`[option='back']`)
+    if (el) (el as HTMLElement).onclick = pick
 }
 
 function bindViewKingdom(state: State): void {
     function onClick() {
-        const e = $('#kingdomViewSpot')
+        const container = getElement('kingdomViewSpot')
         if (globalRendererState.viewingKingdom) {
-            e.html('')
+            container.innerHTML = ''
             globalRendererState.viewingKingdom = false
         } else {
-            const contents = state.events.concat(state.supply).map(
-                card => renderSpec(card.spec)
-            ).join('')
-            e.html(`<div id='kingdomView'>${contents}</div>`)
+            const contents = state.events.concat(state.supply).map(card => renderSpec(card.spec)).join('')
+            container.innerHTML = `<div id='kingdomView'>${contents}</div>`
             globalRendererState.viewingKingdom = true
         }
     }
-    $(`[option='viewKingdom']`).on('click', onClick)
+    const el = querySelector(`[option='viewKingdom']`)
+    if (el) (el as HTMLElement).onclick = onClick
 }
 
 function bindMacroToggle(ui: GameUI): void {
-    function makeMacroButtonsIfNeeded() {
-        const e = $('#macroSpot')
+    function updateMacroDisplay() {
+        const container = getElement('macroSpot')
         if (globalRendererState.viewingMacros) {
-            makeMacroButtons(ui, e)
+            makeMacroButtons(ui, container)
         } else {
-            e.html('')
+            container.innerHTML = ''
         }
     }
-    makeMacroButtonsIfNeeded()
-    function onClick() {
-        globalRendererState.viewingMacros = !globalRendererState.viewingMacros
-        makeMacroButtonsIfNeeded()
+    updateMacroDisplay()
+
+    const el = querySelector(`[option='macroToggle']`)
+    if (el) {
+        (el as HTMLElement).onclick = () => {
+            globalRendererState.viewingMacros = !globalRendererState.viewingMacros
+            updateMacroDisplay()
+        }
     }
-    const e = $(`[option='macroToggle']`)
-    e.off('click')
-    e.on('click', onClick)
 }
 
-function makeMacroButtons(ui: GameUI, e: any): void {
-    const contents = [renderRecordMacroButton(ui)].concat(
-        ui.macros.map(renderPlayMacroButton)
-    ).join('')
-    e.html(`<div id='macros'>${contents}</div>`)
+function makeMacroButtons(ui: GameUI, container: HTMLElement): void {
+    const contents = [renderRecordMacroButton(ui), ...ui.macros.map(renderPlayMacroButton)].join('')
+    container.innerHTML = `<div id='macros'>${contents}</div>`
     bindRecordMacroButton(ui)
     bindPlayMacroButtons(ui)
 }
 
 function renderRecordMacroButton(ui: GameUI): string {
-    const buttonText = (ui.recordingMacro === null)
-        ? 'Start recording'
-        : 'Stop recording'
-    return `<span id='recordMacro' class='option'
-             option='recordMacro' choosable chosen='false'>
-                 ${buttonText}
-             </span>`
+    const buttonText = ui.recordingMacro === null ? 'Start recording' : 'Stop recording'
+    return `<span id='recordMacro' class='option' option='recordMacro' choosable chosen='false'>${buttonText}</span>`
 }
 
 function renderPlayMacroButton(macro: Macro, index: number): string {
-    const optionText = `macro${index}`
     const firstStep = macro[0]
-    const firstStepText = (firstStep.kind == 'card')
-        ? firstStep.card.name
-        : firstStep.string
+    const firstStepText = firstStep.kind === 'card' ? firstStep.card.name : firstStep.string
     const buttonText = `${firstStepText} (${macro.length})`
-    return `<span id='playMacro' class='option'
-             option='${optionText}' choosable chosen='false'>
-                 ${buttonText}
-             </span>`
+    return `<span id='playMacro' class='option' option='macro${index}' choosable chosen='false'>${buttonText}</span>`
 }
 
 function bindRecordMacroButton(ui: GameUI): void {
-    function onClick() {
-        if (ui.recordingMacro === null) {
-            ui.recordingMacro = []
-        } else if (ui.recordingMacro.length == 0) {
-            ui.recordingMacro = null
-        } else {
-            ui.macros.push(ui.recordingMacro)
-            ui.recordingMacro = null
+    const el = querySelector(`[option='recordMacro']`)
+    if (el) {
+        (el as HTMLElement).onclick = () => {
+            if (ui.recordingMacro === null) {
+                ui.recordingMacro = []
+            } else if (ui.recordingMacro.length === 0) {
+                ui.recordingMacro = null
+            } else {
+                ui.macros.push(ui.recordingMacro)
+                ui.recordingMacro = null
+            }
+            makeMacroButtons(ui, getElement('macroSpot'))
         }
-        makeMacroButtons(ui, $('#macroSpot'))
     }
-    const e = $(`[option='recordMacro'`)
-    e.off('click')
-    e.on('click', onClick)
 }
 
 function bindPlayMacroButtons(ui: GameUI): void {
-    function onClick(i: number, shifted: boolean = false) {
-        if (ui.choiceState !== null && ui.playingMacro.length == 0) {
-            ui.playingMacro = repeat(ui.macros[i], shifted ? 10 : 1)
-            ui.resolveWithMacro()
+    for (let i = 0; i < ui.macros.length; i++) {
+        const el = querySelector(`[option='macro${i}']`)
+        if (el) {
+            (el as HTMLElement).onclick = (e) => {
+                if (ui.choiceState && ui.playingMacro.length === 0) {
+                    ui.playingMacro = repeat(ui.macros[i], (e as MouseEvent).shiftKey ? 10 : 1)
+                    ui.resolveWithMacro()
+                }
+            }
         }
-    }
-    for (const [i, macro] of ui.macros.entries()) {
-        const e = $(`[option='macro${i}'`)
-        e.off('click')
-        e.on('click', (e) => onClick(i, e.shiftKey))
     }
 }
 
@@ -970,7 +913,8 @@ function bindHotkeyToggle(ui: GameUI): void {
         ui.render()
     }
     keyListeners.set('/', pick)
-    $(`[option='hotkeyToggle']`).on('click', pick)
+    const el = querySelector(`[option='hotkeyToggle']`)
+    if (el) (el as HTMLElement).onclick = pick
 }
 
 function startState(state: State): State {
@@ -978,90 +922,45 @@ function startState(state: State): State {
 }
 
 function bindRestart(state: State, ui: GameUI): void {
-    function pick() {
-        if (ui.choiceState !== null) {
-            ui.choiceState.reject(new SetState(startState(state)))
+    const el = querySelector(`[option='restart']`)
+    if (el) {
+        (el as HTMLElement).onclick = () => {
+            if (ui.choiceState) {
+                ui.choiceState.reject(new SetState(startState(state)))
+            }
         }
     }
-    $(`[option='restart']`).on('click', pick)
 }
 
 function bindRedo(state: State, ui: GameUI): void {
     function pick() {
-        if (ui.choiceState != null && state.redo.length > 0) {
+        if (ui.choiceState && state.redo.length > 0) {
             ui.choiceState.resolve(state.redo[state.redo.length - 1], false)
         }
     }
     keyListeners.set('Z', pick)
-    $(`[option='redo']`).on('click', pick)
+    const el = querySelector(`[option='redo']`)
+    if (el) (el as HTMLElement).onclick = pick
 }
 
 function bindUndo(state: State, ui: GameUI): void {
     function pick() {
-        if (ui.choiceState != null) {
+        if (ui.choiceState) {
             ui.choiceState.reject(new Undo(state))
         }
     }
     keyListeners.set('z', pick)
-    $(`[option='undo']`).on('click', pick)
-}
-
-/*
-function bindDeepLink(state: State): void {
-    $('#deeplink').click(() => showLinkDialog(linkForState(state)))
-}
-    */
-
-function baseURL(): string {
-    const url = window.location
-    return url.protocol + '//' + url.host
-}
-
-function showLinkDialog(url: string): void {
-    $('#scoreSubmitter').attr('active', 'true')
-    $('#scoreSubmitter').html(
-        `<label for="link">Link:</label>` +
-        `<textarea id="link"></textarea>` +
-        `<div>` +
-        `<span class="option" choosable id="copyLink">${renderHotkey('⏎')}Copy</span>` +
-        `<span class="option" choosable id="cancel">${renderHotkey('Esc')}Cancel</span>` +
-        `</div>`
-    )
-    $('#link').val(`${baseURL()}?${url}`)
-    $('#link').select()
-    function exit() {
-        $('#link').blur()
-        $('#scoreSubmitter').attr('active', 'false')
-    }
-    function submit() {
-        $('#link').select()
-        document.execCommand('copy')
-        exit()
-    }
-    $('#cancel').click(exit)
-    $('#copyLink').click(submit)
-    $('#link').keydown((e: any) => {
-        if (e.keyCode == 27) {
-            exit()
-            e.preventDefault()
-        } else if (e.keyCode == 13) {
-            submit()
-            e.preventDefault()
-        }
-    })
+    const el = querySelector(`[option='undo']`)
+    if (el) (el as HTMLElement).onclick = pick
 }
 
 function bindHelp(state: State, ui: GameUI): void {
     function pick() {
-        alert('Hotkeys:\n' +
-            '/ - Toggle hotkeys\n' +
-            'z - Undo\n' +
-            'Z - Redo\n' +
-            '? - Help\n' +
-            'Shift+click - Repeat action')
+        alert('Hotkeys:\n/ - Toggle hotkeys\nz - Undo\nZ - Redo\n? - Help\nShift+click - Repeat action')
     }
     keyListeners.set('?', pick)
-    $(`[option='help']`).on('click', pick)
+    const el = querySelector(`[option='help']`)
+    if (el) (el as HTMLElement).onclick = pick
 }
 
 // ----------------------------- Macro Helpers
@@ -1069,103 +968,79 @@ function bindHelp(state: State, ui: GameUI): void {
 function macroStepFromChoice(x: OptionRender, chosen: boolean): MacroStep {
     switch (x.kind) {
         case 'string': return x
-        case 'card': return { ...x, chosen: chosen }
+        case 'card': return { ...x, chosen }
         default: return assertNever(x)
     }
 }
 
 function macroMismatch(card: Card, macroCard: Card): number {
-    let result: number = 0
-    function addDisagreements(from: Card, to: Card) {
-        for (const [token, count] of from.tokens.entries()) {
-            if ((to.tokens.get(token) || 0) < count) {
-                result += 1
-            }
-        }
+    let result = 0
+    for (const [token, count] of card.tokens) {
+        if ((macroCard.tokens.get(token) || 0) < count) result++
     }
-    addDisagreements(card, macroCard)
-    addDisagreements(macroCard, card)
+    for (const [token, count] of macroCard.tokens) {
+        if ((card.tokens.get(token) || 0) < count) result++
+    }
     return result
 }
 
 function macroMatchCandidate(card: Card, macroCard: Card): boolean {
-    return (card.place == macroCard.place) && (card.name == macroCard.name)
+    return card.place === macroCard.place && card.name === macroCard.name
 }
 
-function matchMacro<T>(
-    macro: MacroStep,
-    state: State,
-    options: Option<T>[],
-    chosen: number[],
-): (number | null) {
-    let renders: [OptionRender, number][]
-    renders = options.map((x, i) => [x.render, i])
-    switch (macro.kind) {
-        case 'string':
-            renders = renders.filter(x =>
-                x[0].kind == 'string'
-                && x[0].string == macro.string
-            )
-            return (renders.length > 0) ? renders[0][1] : null
-        case 'card':
-            renders = renders.filter(x =>
-                x[0].kind == 'card'
-                && macroMatchCandidate(x[0].card, macro.card)
-                && ((chosen.indexOf(x[1]) >= 0) == macro.chosen)
-            )
-            const card = macro.card
-            renders.sort((a, b) => {
-                if (a[0].kind == 'card') {
-                    if (b[0].kind == 'card') {
-                        const c = a[0].card
-                        const d = b[0].card
-                        return macroMismatch(c, card) - macroMismatch(d, card)
-                    } else {
-                        return 1
-                    }
-                } else {
-                    return -1
-                }
-            })
-            return (renders.length > 0) ? renders[0][1] : null
+function matchMacro<T>(macro: MacroStep, state: State, options: Option<T>[], chosen: number[]): number | null {
+    let renders: [OptionRender, number][] = options.map((x, i) => [x.render, i])
+
+    if (macro.kind === 'string') {
+        renders = renders.filter(([r]) => r.kind === 'string' && r.string === macro.string)
+        return renders.length > 0 ? renders[0][1] : null
     }
+
+    renders = renders.filter(([r]) =>
+        r.kind === 'card' &&
+        macroMatchCandidate(r.card, macro.card) &&
+        (chosen.includes(renders.find(x => x[0] === r)![1]) === macro.chosen)
+    )
+
+    renders.sort((a, b) => {
+        if (a[0].kind === 'card' && b[0].kind === 'card') {
+            return macroMismatch(a[0].card, macro.card) - macroMismatch(b[0].card, macro.card)
+        }
+        return 0
+    })
+
+    return renders.length > 0 ? renders[0][1] : null
 }
 
-// ----------------------------- GameUI Class (webUI)
+// ----------------------------- GameUI Class
 
 export class GameUI implements UI {
-    public undoing: boolean = false
+    public undoing = false
     public macros: Macro[] = []
-    public recordingMacro: (MacroStep[] | null) = null
+    public recordingMacro: MacroStep[] | null = null
     public playingMacro: MacroStep[] = []
     public choiceState: ChoiceState | null = null
 
-    constructor() {}
-
     recordStep(x: MacroStep): void {
-        if (this.recordingMacro === null) return
-        this.recordingMacro.push(x)
+        if (this.recordingMacro) {
+            this.recordingMacro.push(x)
+        }
     }
 
     eraseStep(): void {
-        if (this.recordingMacro === null) return
-        this.recordingMacro.pop()
+        if (this.recordingMacro) {
+            this.recordingMacro.pop()
+        }
     }
 
     matchNextMacroStep(): number | null {
         const macro = this.playingMacro.shift()
-        if (macro !== undefined && this.choiceState != null) {
-            const option: number | null = matchMacro(
-                macro,
-                this.choiceState.state,
-                this.choiceState.options,
-                this.choiceState.chosen
-            )
+        if (macro && this.choiceState) {
+            const option = matchMacro(macro, this.choiceState.state, this.choiceState.options, this.choiceState.chosen)
             if (option === null) this.playingMacro = []
             return option
-        } else {
-            return null
         }
+        return null
     }
 
     clearChoice(): void {
@@ -1174,20 +1049,22 @@ export class GameUI implements UI {
     }
 
     resolveWithMacro(): void {
-        if (this.choiceState !== null) {
+        if (this.choiceState) {
             const option = this.matchNextMacroStep()
-            if (option !== null) this.choiceState.resolve(option, false)
+            if (option !== null) {
+                this.choiceState.resolve(option, false)
+            }
         }
     }
 
     render(): void {
-        if (this.choiceState != null) {
+        if (this.choiceState) {
             const cs = this.choiceState
             renderChoice(
                 this,
                 cs.state,
                 cs.choicePrompt,
-                cs.options.map((x, i) => ({ ...x, value: (shifted) => cs.resolve(i, shifted) })),
+                cs.options.map((x, i) => ({ ...x, value: (shifted: boolean) => cs.resolve(i, shifted) })),
                 cs.chosen.map(i => cs.options[i].render)
             )
         }
@@ -1198,17 +1075,18 @@ export class GameUI implements UI {
         choicePrompt: string,
         options: Option<any>[],
         info: string[],
-        chosen: number[],
+        chosen: number[]
     ): Promise<number> {
-        const ui: GameUI = this
-        return new Promise(function (resolve, reject) {
+        const ui = this
+        return new Promise((resolve, reject) => {
             function newResolve(n: number, shifted: boolean) {
                 ui.clearChoice()
-                const macroStep = macroStepFromChoice(options[n].render, chosen.indexOf(n) >= 0)
+                const macroStep = macroStepFromChoice(options[n].render, chosen.includes(n))
                 ui.recordStep(macroStep)
                 if (shifted) ui.playingMacro = repeat([macroStep], 9)
                 resolve(n)
             }
+
             function newReject(reason: any) {
                 if (reason instanceof Undo) {
                     ui.undoing = true
@@ -1219,18 +1097,19 @@ export class GameUI implements UI {
             }
 
             ui.choiceState = {
-                state: state,
-                choicePrompt: choicePrompt,
-                options: options,
-                info: info,
-                chosen: chosen,
+                state,
+                choicePrompt,
+                options,
+                info,
+                chosen,
                 resolve: newResolve,
-                reject: newReject,
+                reject: newReject
             }
 
-            const option: number | null = ui.matchNextMacroStep()
-            const chooseTrivial: number | null = ui.chooseTrivial(state, options, info)
-            if (option != null) {
+            const option = ui.matchNextMacroStep()
+            const chooseTrivial = ui.chooseTrivial(state, options, info)
+
+            if (option !== null) {
                 newResolve(option, false)
             } else if (chooseTrivial !== null) {
                 if (ui.undoing) {
@@ -1245,68 +1124,58 @@ export class GameUI implements UI {
         })
     }
 
-    chooseTrivial(
-        state: State,
-        options: Option<any>[],
-        info: string[],
-    ): number | null {
-        if (info.indexOf('tutorial') != -1) return null
-        if (info.indexOf('actChoice') != -1) return null
-        if (options.length == 1) return 0
+    chooseTrivial(state: State, options: Option<any>[], info: string[]): number | null {
+        if (info.includes('tutorial') || info.includes('actChoice')) return null
+        if (options.length === 1) return 0
         return null
     }
 
     async victory(state: State): Promise<void> {
-        const ui: GameUI = this
-        const score = state.energy
-        const remainingPotions = state.potions
-        
-        const submitOrUndo: () => Promise<void> = () =>
+        const ui = this
+        return new Promise((resolve, reject) => {
+            ui.undoing = true
 
-            new Promise(function (resolve, reject) {
-                ui.undoing = true
-                function newReject(reason: any) {
-                    if (reason instanceof Undo) ui.undoing = true
+            function newReject(reason: any) {
+                if (reason instanceof Undo) ui.undoing = true
+                ui.clearChoice()
+                reject(reason)
+            }
+
+            const options: Option<null>[] = [{
+                render: { kind: 'string', string: 'Done' },
+                value: null,
+                hotkeyHint: { kind: 'key', val: '!' }
+            }]
+
+            ui.choiceState = {
+                state,
+                choicePrompt: `You won using ${state.energy} energy!`,
+                options,
+                info: ['victory'],
+                chosen: [],
+                resolve: () => {
                     ui.clearChoice()
-                    reject(reason)
-                }
-                const options: Option<null>[] = [{
-                    render: { kind: 'string', string: 'Done' },
-                    value: null,
-                    hotkeyHint: { kind: 'key', val: '!' }
-                }]
-                ui.choiceState = {
-                    state: state,
-                    choicePrompt: `You won using ${state.energy} energy!`,
-                    options: options,
-                    info: ["victory"],
-                    chosen: [],
-                    resolve: (n, shifted) => {
-                        ui.clearChoice()
-                        resolve()
-                    },
-                    reject: newReject,
-                }
-                ui.render()
-            })
-        return submitOrUndo()
+                    resolve()
+                },
+                reject: newReject
+            }
+            ui.render()
+        })
     }
 }
 
-// ----------------------------- Game Entry Points
+// ----------------------------- Game Entry Point
 
 export async function startGame(spec: GameSpec): Promise<VictoryData> {
     resetGlobalRenderer()
-
     const ui = new GameUI()
 
-    // Show game container, hide other screens
-    $('#gameContainer').show()
-    $('#stageScreen').hide()
-    $('#pathSelectionScreen').hide()
-    $('#victoryScreen').hide()
-    $('#gameOverScreen').hide()
+    // Show game container
+    showElement(getElement('gameContainer'))
+    hideElement(getElement('stageScreen'))
+    hideElement(getElement('pathSelectionScreen'))
+    hideElement(getElement('victoryScreen'))
+    hideElement(getElement('gameOverScreen'))
 
-    // Start the game loop
     return await playGame(spec, ui)
 }
