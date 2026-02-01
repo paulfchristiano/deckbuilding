@@ -13,9 +13,10 @@ import { tradingPost } from './data/encounters.js'
 import { potionOfReuse } from './data/potions.js'
 
 import { cursedVillage } from './data/cards.js'
-let test: TestSpec | null = ['card', cursedVillage]
+import { cursedInkwell } from './data/relics.js'
+let test: TestSpec | null = ['relic', cursedInkwell]
 
-test = null
+// test = null
 
 // Start the game when the page loads
 window.addEventListener('load', async () => {

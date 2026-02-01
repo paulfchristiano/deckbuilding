@@ -496,6 +496,10 @@ export class MetaGameUI implements MetaUI {
         console.log(`[MetaUI]: ${message}`)
     }
 
+    updateBuffer(state: MetaState): void {
+        updateBufferDisplay(state)
+    }
+
     playGame(spec: GameSpec): Promise<VictoryData> {
         return startGame(spec).catch(e => {
             if (e instanceof UndoPastBeginning) {

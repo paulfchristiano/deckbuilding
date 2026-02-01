@@ -50,8 +50,8 @@ export interface MetaUI {
     // Show a message to the user
     showMessage(state: MetaState, message: string): Promise<void>
 
-    // Update the display to reflect current state
-    // render(state: MetaState): void
+    // Update the buffer display when it changes
+    updateBuffer(state: MetaState): void
 }
 
 // --------------------- Encounters
@@ -446,6 +446,7 @@ export function compose(...transforms: MetaTransform[]): MetaTransform {
 export function addBuffer(amount: number): MetaTransform {
     return async function(state: MetaState) {
         state.update({ buffer: state.data.buffer + amount })
+        state.ui.updateBuffer(state)
     }
 }
 
