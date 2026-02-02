@@ -33,13 +33,13 @@ import {
 
 // ========== POTIONS ==========
 
-export const potionOfActions: CardSpec = {
-    name: 'Potion of Actions',
+export const potionOfInsight: CardSpec = {
+    name: 'Potion of Insight',
     isPotion: true,
-    simpleText: ['+10 actions.'],
-    effects: [actionsEffect(10)]
+    simpleText: ['+10 actions, +2 buys.'],
+    effects: [actionsEffect(10), buysEffect(2)]
 }
-potionRewards.push(potionOfActions)
+potionRewards.push(potionOfInsight)
 
 export const potionOfWealth: CardSpec = {
     name: 'Potion of Wealth',
@@ -59,10 +59,10 @@ potionRewards.push(potionOfWealth)
 export const potionOfCopper: CardSpec = {
     name: 'Potion of Copper',
     isPotion: true,
-    simpleText: ['Create 5 coppers in your hand.'],
+    simpleText: ['Create 10 coppers in your hand.'],
     effects: [{
-        text: ['Create 5 Coppers in your hand.'],
-        transform: () => repeat(create(copper, 'hand'), 5)
+        text: ['Create 10 Coppers in your hand.'],
+        transform: () => repeat(create(copper, 'hand'), 10)
     }]
 }
 potionRewards.push(potionOfCopper)
@@ -93,8 +93,8 @@ export const potionOfMining: CardSpec = {
 }
 potionRewards.push(potionOfMining)
 
-export const potionOfCelebration: CardSpec = {
-    name: 'Potion of Celebration',
+export const celebratoryBrew: CardSpec = {
+    name: 'Celebratory Brew',
     isPotion: true,
     simpleText: ['Create a Celebration in play.'],
     relatedCards: [celebration],
@@ -104,7 +104,7 @@ export const potionOfCelebration: CardSpec = {
         transform: () => create(celebration, 'play',)
     }]
 }
-potionRewards.push(potionOfCelebration)
+potionRewards.push(celebratoryBrew)
 
 const bounty: CardSpec = {
     name: 'Bounty',
@@ -161,8 +161,8 @@ export const potionOfTransformation: CardSpec = {
     }]
 }
 
-export const potionOfFerry: CardSpec = {
-    name: 'Potion of Ferry',
+export const potionOfTransportation: CardSpec = {
+    name: 'Potion of Transportation',
     isPotion: true,
     simpleText: [
         'Put a ferry token on a supply. It costs $1 less.',
@@ -175,7 +175,7 @@ export const potionOfFerry: CardSpec = {
         state => state.supply,
     ), buyEffect(), coinsEffect(2)]
 }
-potionRewards.push(potionOfFerry)
+potionRewards.push(potionOfTransportation)
 
 export const potionOfRecovery: CardSpec = {
     name: 'Potion of Recovery',
@@ -218,17 +218,17 @@ export const potionOfReuse: CardSpec = {
 }
 potionRewards.push(potionOfReuse)
 
-export const potionOfFairs: CardSpec = {
-    name: 'Potion of Fairs',
+export const intoxicatingBrew: CardSpec = {
+    name: 'Intoxicating Brew',
     isPotion: true,
-    simpleText: ['Create 3 Fairs in play with shelter tokens on them (the first time each would leave play, instead remove the token.).'],
+    simpleText: [`Create a ${fair.name} in play with 10 shelter tokens on it (the first 10 times it would leave play, instead remove the token.).`],
     relatedCards: [fair],
     rules: [shelterRule],
     effects: [
-        createInPlayEffect(fair, 3, new Map([['shelter', 1]])),
+        createInPlayEffect(fair, 1, new Map([['shelter', 10]])),
     ]
 }
-potionRewards.push(potionOfFairs)
+potionRewards.push(intoxicatingBrew)
 
 export const potionOfVitality: CardSpec = {
     name: 'Potion of Vitality',
@@ -289,8 +289,8 @@ export const potionOfTavern: CardSpec = {
 potionRewards.push(potionOfTavern)
 */
 
-export const potionOfInnovation: CardSpec = {
-    name: 'Potion of Innovation',
+export const elixerOfInnovation: CardSpec = {
+    name: 'Elixer of Innovation',
     isPotion: true,
     relatedCards: [innovation],
     effects: [{
@@ -298,7 +298,7 @@ export const potionOfInnovation: CardSpec = {
         transform: () => repeat(create(innovation, 'hand'), 3)
     }]
 }
-potionRewards.push(potionOfInnovation)
+potionRewards.push(elixerOfInnovation)
 
 /*
 export const potionOfTransmogrify: CardSpec = {
@@ -345,8 +345,8 @@ export const potionOfEchoes: CardSpec = {
 }
 potionRewards.push(potionOfEchoes)
 
-export const potionOfOnslaught: CardSpec = {
-    name: 'Potion of Onslaught',
+export const sanguineElixir: CardSpec = {
+    name: 'Sanguine Elixir',
     isPotion: true,
     simpleText: ['Play any number of cards in your hand.'],
     effects: [{
@@ -373,7 +373,7 @@ export const potionOfOnslaught: CardSpec = {
         }
     }]
 }
-potionRewards.push(potionOfOnslaught)
+potionRewards.push(sanguineElixir)
 
 export const potionOfPriority: CardSpec = {
     name: 'Potion of Priority',
@@ -391,8 +391,8 @@ export const potionOfPriority: CardSpec = {
 }
 potionRewards.push(potionOfPriority)
 
-export const geminiPotion: CardSpec = {
-    name: 'Gemini Potion',
+export const geminiBrew: CardSpec = {
+    name: 'Gemini Brew',
     isPotion: true,
     simpleText: [
         'Put a twin token on a card in your hand.',
@@ -404,7 +404,7 @@ export const geminiPotion: CardSpec = {
         'Put a twin token on a card in your hand.',
         state => state.hand)]
 }
-potionRewards.push(geminiPotion)
+potionRewards.push(geminiBrew)
 
 export const mirrorBrew: CardSpec = {
     name: 'Mirror Brew',
