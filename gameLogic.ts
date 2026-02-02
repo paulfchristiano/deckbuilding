@@ -564,11 +564,33 @@ export class State {
     sortZone(zone:ZoneName): State {
         const newZones:Map<ZoneName,Zone> = new Map(this.zones)
         let newZone:Card[] = (this.zones.get(zone) || []).slice()
-        newZone.sort((a, b) => (a.name.localeCompare(b.name)))
+
+        // Create a map from card name to supply index
+        const supplyOrder = new Map<string, number>()
+        this.supply.forEach((card, index) => {
+            if (!supplyOrder.has(card.name)) {
+                supplyOrder.set(card.name, index)
+            }
+        })
+
+        // Sort by supply order, with unknown cards at the end (alphabetically)
+        newZone.sort((a, b) => {
+            const aIndex = supplyOrder.get(a.name) ?? Infinity
+            const bIndex = supplyOrder.get(b.name) ?? Infinity
+            if (aIndex !== Infinity && bIndex !== Infinity) {
+                return aIndex - bIndex
+            } else if (aIndex !== Infinity) {
+                return -1  // a is in supply, b is not
+            } else if (bIndex !== Infinity) {
+                return 1   // b is in supply, a is not
+            } else {
+                return a.name.localeCompare(b.name)  // fallback to alphabetical
+            }
+        })
+
         newZone = newZone.map((x, i) => x.update({zoneIndex: i}))
         newZones.set(zone, newZone)
         return this.update({zones:newZones})
-
     }
     // Puts card into the position after afterCard, assuming that it was already in the same zone
     moveAfter(zone:ZoneName, card:Card, afterCard:Card): State {
