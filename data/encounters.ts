@@ -1,7 +1,7 @@
 // data/encounters.ts - Encounter definitions using async MetaTransforms
 // Ported from main.ts to use the new state-based architecture
 
-import { Encounter, encounters,
+import { Encounter, registerEncounter,
     MetaState, MetaTransform,
     addBuffer, gainCard, gainEvent, gainPotion, gainRelic, removeRelic,
     removeCard, removeEvent,
@@ -132,7 +132,7 @@ export function findABottle(s:MetaState, g:Generator): Encounter {
         ]
     })
 }
-encounters.push(findABottle)
+registerEncounter(findABottle)
 
 // TODO: allow someone to cancel from the choice and then go back to the previous screen.
 
@@ -192,7 +192,7 @@ function mirrorMaker(s:MetaState, g:Generator): Encounter {
         ]
     })
 }
-encounters.push(mirrorMaker)
+registerEncounter(mirrorMaker)
 
 // Variety Pack encounter - pre-generates options at creation time
 function varietyPack(s:MetaState, g:Generator): Encounter {
@@ -236,7 +236,7 @@ function varietyPack(s:MetaState, g:Generator): Encounter {
         ]
     })
 }
-encounters.push(varietyPack)
+registerEncounter(varietyPack)
 
 // Trading Post encounter - pre-generates offers at creation time
 export function tradingPost(state: MetaState, g: Generator): Encounter {
@@ -330,7 +330,7 @@ export function tradingPost(state: MetaState, g: Generator): Encounter {
         ]
     })
 }
-encounters.push(tradingPost)
+registerEncounter(tradingPost, { minStage: 4 })
 
 const cursedInkwell: RelicSpec = {
     name: 'Cursed Inkwell',
@@ -368,4 +368,4 @@ function theScribe(): Encounter {
         ]
     })
 }
-encounters.push(theScribe)
+registerEncounter(theScribe, { maxStage: 4 })

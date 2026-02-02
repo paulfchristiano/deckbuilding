@@ -72,7 +72,7 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
     }
     return to.concat(ar || Array.prototype.slice.call(from));
 };
-import { encounters, addBuffer, gainCard, gainEvent, gainPotion, gainRelic, compose, } from '../metaLogic.js';
+import { registerEncounter, addBuffer, gainCard, gainEvent, gainPotion, gainRelic, compose, } from '../metaLogic.js';
 import { emptyBottle, inkwell } from './relics.js';
 import { create, cardRewards, eventRewards, relicRewards, potionRewards, leq, coin, free } from '../gameLogic.js';
 import { mirrorBrew } from './potions.js';
@@ -209,7 +209,7 @@ export function findABottle(s, g) {
         ]
     });
 }
-encounters.push(findABottle);
+registerEncounter(findABottle);
 // TODO: allow someone to cancel from the choice and then go back to the previous screen.
 var mirrorName = 'Silver Mirror';
 var mirrorRelic = {
@@ -284,7 +284,7 @@ function mirrorMaker(s, g) {
         ]
     });
 }
-encounters.push(mirrorMaker);
+registerEncounter(mirrorMaker);
 // Variety Pack encounter - pre-generates options at creation time
 function varietyPack(s, g) {
     var offerCard = g.sample(cardRewards);
@@ -326,7 +326,7 @@ function varietyPack(s, g) {
         ]
     });
 }
-encounters.push(varietyPack);
+registerEncounter(varietyPack);
 // Trading Post encounter - pre-generates offers at creation time
 export function tradingPost(state, g) {
     var offerCard = g.sample(cardRewards);
@@ -454,7 +454,7 @@ export function tradingPost(state, g) {
         ]
     });
 }
-encounters.push(tradingPost);
+registerEncounter(tradingPost, { minStage: 4 });
 var cursedInkwell = {
     name: 'Cursed Inkwell',
     simpleText: ['Par is 1@ lower on each course.'],
@@ -490,5 +490,5 @@ function theScribe() {
         ]
     });
 }
-encounters.push(theScribe);
+registerEncounter(theScribe, { maxStage: 4 });
 //# sourceMappingURL=encounters.js.map

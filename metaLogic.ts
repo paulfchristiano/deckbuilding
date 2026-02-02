@@ -59,7 +59,31 @@ export interface MetaUI {
 
 export type EncounterFactory = (state: MetaState, generator: Generator) => Encounter
 
-export const encounters:EncounterFactory[] = []
+// Encounter registration with stage constraints
+interface EncounterRegistration {
+    factory: EncounterFactory
+    minStage: number
+    maxStage: number
+}
+
+const encounterRegistry: EncounterRegistration[] = []
+
+export function registerEncounter(
+    factory: EncounterFactory,
+    options?: { minStage?: number, maxStage?: number }
+) {
+    encounterRegistry.push({
+        factory,
+        minStage: options?.minStage ?? 0,
+        maxStage: options?.maxStage ?? 7
+    })
+}
+
+export function getEncounter(state: MetaState, generator: Generator, stage: number): Encounter {
+    const available = encounterRegistry.filter(e => e.minStage <= stage && stage <= e.maxStage)
+    const registration = generator.sample(available)
+    return registration.factory(state, generator)
+}
 
 // ----------------------------- Constants
 
@@ -662,8 +686,7 @@ function fillPath(state: MetaState, skeleton: PathSkeleton): Path {
         // For now, just use placeholder empty arrays
         const generator = state.generator(`rewards${rewardKind}`).newGenerator()
         if (rewardKind === 'encounter') {
-            const factory = generator.sample(encounters)
-            const encounter:Encounter = factory(state, generator)
+            const encounter = getEncounter(state, generator, state.data.stage)
             rewards.push({kind: 'encounter', encounter: encounter, result: null})
         } else if (rewardKind === 'card') {
             const options = generator.samples(cardRewards, getRewardOptionCount(state), state.data.collectedCards)
