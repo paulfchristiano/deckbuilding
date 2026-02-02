@@ -81,6 +81,7 @@ const zoneNames: ZoneName[] = ['play', 'supply', 'events', 'hand', 'discard', 'p
 // ----------------------------- Hotkeys
 
 const keyListeners: Map<Key, () => void> = new Map()
+const potionHotkeys: Key[] = ['!', '@', '#', '$', '%']
 const symbolHotkeys = ['!', '%', '^', '&', '*', '(', ')', '-', '+', '=', '{', '}', '[', ']']
 const lowerHotkeys = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm',
     'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y']
@@ -89,7 +90,7 @@ const upperHotkeys = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L'
 const numHotkeys: Key[] = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9']
 const supplyAndPlayHotkeys: Key[] = numHotkeys.concat(symbolHotkeys).concat(upperHotkeys)
 const handHotkeys = lowerHotkeys.concat(upperHotkeys)
-const hotkeys: Key[] = supplyAndPlayHotkeys.concat(handHotkeys)
+const hotkeys: Key[] = potionHotkeys.concat(supplyAndPlayHotkeys).concat(handHotkeys)
 
 export function initHotkeys(): void {
     window.addEventListener('keydown', (e: KeyboardEvent) => {
@@ -194,6 +195,7 @@ class HotkeyMapper {
         setFrom(state.supply, supplyAndPlayHotkeys)
         setFrom(state.hand, handHotkeys)
         setFrom(state.play, supplyAndPlayHotkeys)
+        setFrom(state.potions, potionHotkeys)
 
         // Assign hinted hotkeys to options
         for (const option of options) {
