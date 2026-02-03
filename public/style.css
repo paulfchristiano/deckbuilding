@@ -284,3 +284,65 @@ input {
 .token[type="3"] {
     color: lightblue;
 }
+
+/* Inline reward rows */
+.rewardRow {
+    display: flex;
+    flex-direction: row;
+    align-items: flex-start;
+    margin-bottom: 1.5em;
+    gap: 1em;
+}
+
+.rewardLabel {
+    font-weight: bold;
+    font-size: 1.1em;
+    min-width: 8em;
+    padding-top: 0.3em;
+}
+
+.rewardOptions {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 0.75em;
+    align-items: flex-start;
+}
+
+.rewardOption {
+    position: relative;
+}
+
+.rewardOption[disabled] {
+    opacity: 0.5;
+    cursor: default;
+}
+
+.rewardOption.checked {
+    border-color: green;
+    background-color: rgba(200, 255, 200, 0.5);
+}
+
+.rewardOption .checkmark {
+    color: green;
+    font-weight: bold;
+}
+
+.rewardOption:not(.checked)::after {
+    content: ' \2713';
+    visibility: hidden;
+}
+
+.rewardOption .optionDesc {
+    font-size: 0.9em;
+    color: #666;
+}
+
+/* Text-based options (encounters) - match card spec sizing */
+.rewardOption.option {
+    font-size: 1em;
+    padding: 3px;
+    width: 15em;
+    min-width: auto;
+    text-align: center;
+}

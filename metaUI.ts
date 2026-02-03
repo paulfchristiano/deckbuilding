@@ -3,11 +3,10 @@
 
 import { Card, CardSpec, GameSpec, UndoPastBeginning, VictoryData } from './gameLogic.js'
 import {
-    MetaState, Reward, Path,
+    MetaState, RewardState, Path,
     MetaUI, MetaOption,
     renderChallenge,
-    RewardKind,
-    ChallengeOrReward,
+    getRewardOptions, getRewardName, updateRewardState, updateRewardAtIndex,
     Undo, Redo
 } from './metaLogic.js'
 import { renderSpecNoRelated } from './cardRendering.js'
@@ -282,52 +281,76 @@ function showOptionPicker<T>(
 
 function renderStageScreen(
     state: MetaState,
-    onChoice: (choice: ChallengeOrReward) => void
+    onChallenge: () => void,
+    onOptionClick: (rewardIndex: number, optionIndex: number) => void
 ): void {
     showScreen('stage')
     renderCommonUI(state)
 
     getElement('stageTitle').textContent = `Stage ${state.data.stage}`
 
-    // Render reward buttons
+    // Render rewards with inline options
     const rewardContainer = getElement('rewardButtons')
     clearElement(rewardContainer)
 
-    state.data.rewards.forEach((reward, index) => {
-        const row = createDiv('gameRow')
-        const label = reward.result ? `✓ ${reward.result}` : getRewardLabel(reward.kind)
+    state.data.rewardStates.forEach((rewardState, rewardIndex) => {
+        const rewardRow = createDiv('rewardRow')
 
-        const button = createSpan('option')
-        button.textContent = label
+        // Add reward name/label
+        const labelDiv = createDiv('rewardLabel')
+        labelDiv.textContent = getRewardName(rewardState)
+        rewardRow.appendChild(labelDiv)
 
-        if (reward.result) {
-            button.setAttribute('disabled', 'disabled')
-        } else {
-            button.setAttribute('choosable', '')
-            button.onclick = () => onChoice({ kind: 'reward', index })
-        }
+        // Add options container
+        const optionsDiv = createDiv('rewardOptions')
 
-        row.appendChild(button)
-        rewardContainer.appendChild(row)
+        const options = getRewardOptions(rewardState, state)
+        options.forEach((option, optionIndex) => {
+            let optionEl: HTMLElement
+
+            if (option.spec) {
+                // Render as card
+                optionEl = createElementFromHTML(renderSpecNoRelated(option.spec))
+                optionEl.classList.add('rewardOption')
+            } else {
+                // Render as text button
+                optionEl = createDiv('rewardOption option')
+                optionEl.textContent = option.label
+                if (option.description) {
+                    const descSpan = createSpan('optionDesc')
+                    descSpan.textContent = ` - ${option.description}`
+                    optionEl.appendChild(descSpan)
+                }
+            }
+
+            if (option.disabled) {
+                optionEl.setAttribute('disabled', 'disabled')
+                if (option.checked) {
+                    optionEl.classList.add('checked')
+                    // Add checkmark
+                    const checkmark = createSpan('checkmark')
+                    checkmark.textContent = ' ✓'
+                    optionEl.appendChild(checkmark)
+                }
+            } else {
+                optionEl.setAttribute('choosable', '')
+                optionEl.style.cursor = 'pointer'
+                optionEl.onclick = () => onOptionClick(rewardIndex, optionIndex)
+            }
+
+            optionsDiv.appendChild(optionEl)
+        })
+
+        rewardRow.appendChild(optionsDiv)
+        rewardContainer.appendChild(rewardRow)
     })
 
     // Render play button
     if (state.data.challenge) {
         const playBtn = getElement('playKingdom')
         playBtn.innerHTML = renderChallenge(state.data.challenge, state)
-        playBtn.onclick = () => onChoice({ kind: 'challenge' })
+        playBtn.onclick = onChallenge
     }
-}
-
-function getRewardLabel(kind: RewardKind): string {
-    const labels: Record<RewardKind, string> = {
-        card: 'Add Card',
-        event: 'Add Event',
-        potion: 'Add Potion',
-        relic: 'Add Relic',
-        encounter: '???'
-    }
-    return labels[kind]
 }
 
 // ----------------------------- Path Selection Screen
@@ -356,9 +379,9 @@ function renderPathColumn(side: 'left' | 'right', path: Path, state: MetaState):
     const rewardsContainer = getElement(`${side}Rewards`)
     clearElement(rewardsContainer)
 
-    for (const reward of path.rewards) {
+    for (const rewardState of path.rewardStates) {
         const rewardDiv = createDiv('pathReward')
-        rewardDiv.textContent = getRewardLabel(reward.kind)
+        rewardDiv.textContent = getRewardName(rewardState)
         rewardsContainer.appendChild(rewardDiv)
     }
 
@@ -470,14 +493,45 @@ export class MetaGameUI implements MetaUI {
         })
     }
 
-    async pickNextStep(state: MetaState): Promise<ChallengeOrReward> {
+    async waitForChallenge(state: MetaState): Promise<void> {
         return new Promise((resolve, reject) => {
-            bindUndoRedoButtons(
-                state,
-                () => reject(new Undo()),
-                () => reject(new Redo())
-            )
-            renderStageScreen(state, resolve)
+            const render = () => {
+                bindUndoRedoButtons(
+                    state,
+                    () => reject(new Undo()),
+                    () => reject(new Redo())
+                )
+                renderStageScreen(
+                    state,
+                    // onChallenge
+                    () => resolve(),
+                    // onOptionClick
+                    async (rewardIndex, optionIndex) => {
+                        const rewardState = state.data.rewardStates[rewardIndex]
+                        const options = getRewardOptions(rewardState, state)
+                        const option = options[optionIndex]
+
+                        if (option.disabled) return
+
+                        // Call the option's onClick handler
+                        const { newData, transform } = await option.onClick()
+
+                        // Update the reward state
+                        const newRewardState = updateRewardState(rewardState, newData)
+                        updateRewardAtIndex(state, rewardIndex, newRewardState)
+
+                        // Apply the transform (gainCard, addBuffer, etc.)
+                        if (transform) await transform(state)
+
+                        // Set checkpoint for undo
+                        state.setCheckpoint()
+
+                        // Re-render
+                        render()
+                    }
+                )
+            }
+            render()
         })
     }
 

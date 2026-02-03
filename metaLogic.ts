@@ -25,7 +25,7 @@ export interface MetaOption<T> {
 
 // UI interface for meta-game interactions (analogous to UI in gameLogic)
 export interface MetaUI {
-    // Choose from a list of cards (for rewards, encounters, etc.)
+    // Choose from a list of cards (for encounters with sub-dialogs)
     chooseCard<T extends CardSpec | Card>(
         state: MetaState,
         prompt: string,
@@ -35,11 +35,13 @@ export interface MetaUI {
 
     playGame(spec: GameSpec): Promise<VictoryData>
 
-    pickNextStep(state: MetaState): Promise<ChallengeOrReward>
+    // Wait for challenge button click (reward options are handled inline)
+    // Re-renders the stage screen with current state
+    waitForChallenge(state: MetaState): Promise<void>
 
     pickPath(state: MetaState, paths: Path[]): Promise<Path>
 
-    // Choose from generic options (for encounters with non-card choices)
+    // Choose from generic options (for encounters with sub-dialogs)
     chooseOption<T>(
         state: MetaState,
         prompt: string,
@@ -54,14 +56,87 @@ export interface MetaUI {
     updateBuffer(state: MetaState): void
 }
 
-// --------------------- Encounters
+// --------------------- Reward Options and Encounters
 
+// A button/option displayed for a reward or encounter
+export interface RewardOption {
+    label: string
+    description?: string
+    spec?: CardSpec           // Display as card if provided
+    disabled: boolean
+    checked: boolean          // Shows checkmark if selected
+    onClick: () => Promise<{ newData: unknown, transform?: MetaTransform }>
+}
 
-export type EncounterFactory = (state: MetaState, generator: Generator) => Encounter
+// Encounter interface - defines behavior for encounter rewards
+export interface Encounter {
+    name: string
+    createInitialData(metaState: MetaState, generator: Generator): unknown
+    getOptions(data: unknown, metaState: MetaState): RewardOption[]
+}
+
+// State for simple rewards (card/event/potion/relic)
+export interface SimpleRewardState {
+    kind: 'card' | 'event' | 'potion' | 'relic'
+    options: CardSpec[] | RelicSpec[]
+    selectedIndex: number | null
+}
+
+// State for encounters (encounter/data are null until path is selected)
+export interface EncounterRewardState {
+    kind: 'encounter'
+    encounter: Encounter | null
+    data: unknown
+}
+
+export type RewardState = SimpleRewardState | EncounterRewardState
+
+// Get options for a simple reward
+function getSimpleRewardOptions(state: SimpleRewardState, metaState: MetaState): RewardOption[] {
+    return state.options.map((option, i) => ({
+        label: option.name,
+        spec: option,
+        disabled: state.selectedIndex !== null,
+        checked: state.selectedIndex === i,
+        onClick: async () => {
+            const transform =
+                state.kind === 'card' ? gainCard(option as CardSpec) :
+                state.kind === 'event' ? gainEvent(option as CardSpec) :
+                state.kind === 'potion' ? gainPotion(option as CardSpec) :
+                gainRelic(option as RelicSpec)
+            return {
+                newData: { ...state, selectedIndex: i },
+                transform
+            }
+        }
+    }))
+}
+
+// Get options for any reward state
+export function getRewardOptions(rewardState: RewardState, metaState: MetaState): RewardOption[] {
+    if (rewardState.kind === 'encounter') {
+        if (!rewardState.encounter) {
+            // Pending encounter - shouldn't be displayed yet
+            return []
+        }
+        return rewardState.encounter.getOptions(rewardState.data, metaState)
+    } else {
+        return getSimpleRewardOptions(rewardState, metaState)
+    }
+}
+
+// Update a reward state with new data
+export function updateRewardState(rewardState: RewardState, newData: unknown): RewardState {
+    if (rewardState.kind === 'encounter') {
+        return { ...rewardState, data: newData }
+    } else {
+        return newData as SimpleRewardState
+    }
+}
 
 // Encounter registration with stage constraints
 interface EncounterRegistration {
-    factory: EncounterFactory
+    encounter: Encounter
     minStage: number
     maxStage: number
 }
@@ -69,20 +144,24 @@ interface EncounterRegistration {
 const encounterRegistry: EncounterRegistration[] = []
 
 export function registerEncounter(
-    factory: EncounterFactory,
+    encounter: Encounter,
     options?: { minStage?: number, maxStage?: number }
 ) {
     encounterRegistry.push({
-        factory,
+        encounter,
         minStage: options?.minStage ?? 0,
         maxStage: options?.maxStage ?? 7
     })
 }
 
-export function getEncounter(state: MetaState, generator: Generator, stage: number): Encounter {
+export function getEncounterState(state: MetaState, generator: Generator, stage: number): EncounterRewardState {
     const available = encounterRegistry.filter(e => e.minStage <= stage && stage <= e.maxStage)
     const registration = generator.sample(available)
-    return registration.factory(state, generator)
+    return {
+        kind: 'encounter',
+        encounter: registration.encounter,
+        data: registration.encounter.createInitialData(state, generator)
+    }
 }
 
 // ----------------------------- Constants
@@ -225,67 +304,25 @@ export type TypedMetaTrigger = MetaTrigger<CourseEndEvent> | MetaTrigger<CourseS
 
 // A path the player can choose (contains rewards + kingdom)
 export interface Path {
-    rewards: Reward[]
+    rewardStates: RewardState[]
     challenge: ChallengeSpec
 }
 
 export type RewardKind = 'card' | 'event' | 'potion' | 'relic' | 'encounter'
 
-export type RewardResult = string | null
-
-export interface Encounter {
-    name: string
-    transform: (state:MetaState) => Promise<RewardResult>
-}
-
-// A pending reward that the player can claim
-export type Reward = {result: RewardResult} & ({
-    kind: 'card' | 'event' | 'potion',
-    options: CardSpec[]
-} | {
-    kind: 'relic',
-    options: RelicSpec[]
-} | {
-    kind: 'encounter'
-    encounter: Encounter
-})
-
-async function doReward(state:MetaState, rewardIndex: number) {
-    const reward = state.data.rewards[rewardIndex]
-    switch (reward.kind) {
-        case 'encounter':
-            const result = await reward.encounter.transform(state)
-            markRewardResult(state, rewardIndex, result)
-            return
-        case 'card':
-            const card = await state.ui.chooseCard(state, 'Choose a card reward', reward.options)
-            if (card !== null) {
-                await gainCard(card)(state)
-                markRewardResult(state, rewardIndex, card.name)
-            }
-            return
-        case 'event':
-            const event = await state.ui.chooseCard(state, 'Choose an event reward:', reward.options)
-            if (event !== null) {
-                await gainEvent(event)(state)
-                markRewardResult(state, rewardIndex, event.name)
-            }
-            return
-        case 'potion':
-            const potion = await state.ui.chooseCard(state, 'Choose a potion reward:', reward.options)
-            if (potion !== null) {
-                await gainPotion(potion)(state)
-                markRewardResult(state, rewardIndex, potion.name)
-            }
-            return
-        case 'relic':
-            const relic = await state.ui.chooseCard(state, 'Choose a relic reward:', reward.options)
-            if (relic !== null) {
-                await gainRelic(relic)(state)
-                markRewardResult(state, rewardIndex, relic.name)
-            }
-            return
+// Get display name for a reward state
+export function getRewardName(rewardState: RewardState): string {
+    if (rewardState.kind === 'encounter') {
+        // Show "???" for pending encounters, name after path is selected
+        return rewardState.encounter ? rewardState.encounter.name : '???'
     }
+    const labels: Record<string, string> = {
+        card: 'Add Card',
+        event: 'Add Event',
+        potion: 'Add Potion',
+        relic: 'Add Relic'
+    }
+    return labels[rewardState.kind]
 }
 
 // ----------------------------- MetaState
@@ -305,7 +342,7 @@ export interface MetaStateData {
     buffer: number
 
     // Pending rewards for current stage
-    rewards: Reward[]
+    rewardStates: RewardState[]
 
     // Collected cards/events (persist across stages)
     collectedCards: CardSpec[]
@@ -349,7 +386,7 @@ export class MetaState {
             stageScores: Array(TOTAL_STAGES).fill(null),
             stagePars: Array(TOTAL_STAGES).fill(null),
             challenge: null,
-            rewards: [],
+            rewardStates: [],
             collectedCards: [],
             collectedEvents: [],
             potions: [],
@@ -534,13 +571,13 @@ export function removeEvent(state: MetaState, name: string) {
     })
 }
 
-// Mark a reward as used with selected card
-export function markRewardResult(state: MetaState, index: number, result: string | null) {
-    const rewards = [...state.data.rewards]
-    if (index >= 0 && index < rewards.length) {
-        rewards[index] = { ...rewards[index], result: result }
+// Update a reward state at the given index
+export function updateRewardAtIndex(state: MetaState, index: number, newRewardState: RewardState) {
+    const rewardStates = [...state.data.rewardStates]
+    if (index >= 0 && index < rewardStates.length) {
+        rewardStates[index] = newRewardState
     }
-    state.update({rewards})
+    state.update({ rewardStates })
 }
 
 export async function endCourse(score: number, par: number, state:MetaState): Promise<void> {
@@ -680,34 +717,30 @@ import { potionRewards, relicRewards } from './gameLogic.js'
 
 // TODO: avoid repeating (by passing in a list of already-chosen items to avoid, and making the PRG re-sample after hitting one)
 function fillPath(state: MetaState, skeleton: PathSkeleton): Path {
-    const rewards: Reward[] = []
+    const rewardStates: RewardState[] = []
     for (const rewardKind of skeleton.rewards) {
-        // Generate options for each reward
-        // For now, just use placeholder empty arrays
         const generator = state.generator(`rewards${rewardKind}`).newGenerator()
         if (rewardKind === 'encounter') {
-            const encounter = getEncounter(state, generator, state.data.stage)
-            rewards.push({kind: 'encounter', encounter: encounter, result: null})
+            // Create pending encounter - will be filled in when path is adopted
+            rewardStates.push({ kind: 'encounter', encounter: null, data: null })
         } else if (rewardKind === 'card') {
             const options = generator.samples(cardRewards, getRewardOptionCount(state), state.data.collectedCards)
-            rewards.push({ kind: 'card', options: options, result: null })
+            rewardStates.push({ kind: 'card', options, selectedIndex: null })
         } else if (rewardKind === 'event') {
             const options = generator.samples(eventRewards, getRewardOptionCount(state), state.data.collectedEvents)
-            rewards.push({ kind: 'event', options: options, result: null })
+            rewardStates.push({ kind: 'event', options, selectedIndex: null })
         } else if (rewardKind === 'potion') {
             const options = generator.samples(potionRewards, getRewardOptionCount(state))
-            rewards.push({ kind: 'potion', options: options, result: null })
+            rewardStates.push({ kind: 'potion', options, selectedIndex: null })
         } else if (rewardKind === 'relic') {
             const options = generator.samples(relicRewards, getRewardOptionCount(state))
-            rewards.push({ kind: 'relic', options: options, result: null })
+            rewardStates.push({ kind: 'relic', options, selectedIndex: null })
         }
     }
-    return { rewards: rewards, challenge: skeleton.challenge }
+    return { rewardStates, challenge: skeleton.challenge }
 }
 
 // ------------------ Meta loop -------------------
-
-export type ChallengeOrReward = {kind: 'challenge'} | {kind: 'reward', index: number}
 
 export class Undo extends Error {
     constructor() {
@@ -723,26 +756,38 @@ export class Redo extends Error {
 }
 
 function adoptPath(state:MetaState, path: Path) {
-    state.update({challenge: path.challenge, rewards: path.rewards})
+    // Fill in any pending encounters now that the path is selected
+    const rewardStates = path.rewardStates.map((rs, index) => {
+        if (rs.kind === 'encounter' && rs.encounter === null) {
+            const generator = state.generator(`encounter${index}`).newGenerator()
+            return getEncounterState(state, generator, state.data.stage)
+        }
+        return rs
+    })
+    state.update({challenge: path.challenge, rewardStates})
 }
 
 // We can define test in order to get a given reward immediately, for testing purposes.
 
-export type TestSpec = ['potion', CardSpec] | ['relic', RelicSpec] | ['card', CardSpec] | ['event', CardSpec] | ['encounter', EncounterFactory]
+export type TestSpec = ['potion', CardSpec] | ['relic', RelicSpec] | ['card', CardSpec] | ['event', CardSpec] | ['encounter', Encounter]
 
-function makeTestReward(state: MetaState, spec: TestSpec): Reward {
+function makeTestReward(state: MetaState, spec: TestSpec): RewardState {
     switch (spec[0]) {
         case 'potion':
         case 'event':
         case 'card':
+            return { kind: spec[0], options: [spec[1] as CardSpec], selectedIndex: null }
         case 'relic':
-            return {kind: spec[0], options: [spec[1]], result: null}
+            return { kind: 'relic', options: [spec[1] as RelicSpec], selectedIndex: null }
         case 'encounter':
             const generator = state.generator('test')
-            const factory = spec[1]
-            return {kind: 'encounter', encounter: factory(state, generator), result: null}
+            const encounter = spec[1]
+            return {
+                kind: 'encounter',
+                encounter,
+                data: encounter.createInitialData(state, generator)
+            }
     }
-
 }
 
 // TODO: implement undo (figure out how it is done right now).
@@ -753,7 +798,7 @@ export async function playGame(ui: MetaUI, test:null|TestSpec = null): Promise<v
         rewards: ['card', 'card', 'event', 'potion'] as RewardKind[],
         challenge: randomChallenge(state)
     })
-    if (test !== null) initialPath.rewards.push(makeTestReward(state, test));
+    if (test !== null) initialPath.rewardStates.push(makeTestReward(state, test));
     adoptPath(state, initialPath)
     state.clearHistory()
     while (true) {
@@ -772,21 +817,15 @@ export async function playGame(ui: MetaUI, test:null|TestSpec = null): Promise<v
                 }
                 const paths = makePaths(state).map(skel => fillPath(state, skel))
                 const path: Path = (paths.length > 1) ? await state.ui.pickPath(state, paths) : paths[0]
-                state.update({ challenge: path.challenge, rewards: path.rewards, playingGame: false } )
+                adoptPath(state, path)
+                state.update({ playingGame: false })
                 state.clearHistory()
             } else {
-                const challengeOrReward = await state.ui.pickNextStep(state)
-                switch (challengeOrReward.kind) {
-                    case('challenge'):
-                        await trigger({kind: 'start', stage: state.data.stage}, state)
-                        state.update({ playingGame: true })
-                        state.setCheckpoint()
-                        break;
-                    case('reward'):
-                        await doReward(state, challengeOrReward.index)
-                        state.setCheckpoint()
-                        break;
-                }
+                // Wait for user to click challenge button (reward options handled inline by UI)
+                await state.ui.waitForChallenge(state)
+                await trigger({kind: 'start', stage: state.data.stage}, state)
+                state.update({ playingGame: true })
+                state.setCheckpoint()
             }
         } catch (e) {
             if (e instanceof Undo) {
