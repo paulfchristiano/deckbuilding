@@ -12,6 +12,8 @@ import { CardSpec, Card, type GameSpec, State, vpModes,
     VictoryData
  } from './gameLogic.js'
 
+import { buildSpecTooltip } from './cardRendering.js'
+
 // ----------------------------- MetaUI Interface
 
 // Option type for meta-game choices (analogous to Option in gameLogic)
@@ -181,10 +183,23 @@ export interface ChallengeSpec {
     boons: Boon[],
 }
 
-// TODO: add a tooltip that shows you the par and target, the cards, etc.
 export function renderChallenge(spec: ChallengeSpec, state: MetaState): string {
     const gameSpec:GameSpec = makeSpec(state, spec)
-    return `${spec.vpMode.name} + ${spec.boons.map(b => b.name).join(' + ')} (${gameSpec.vp}vp in ${gameSpec.par}@)`
+    const label = `${spec.vpMode.name} + ${spec.boons.map(b => b.name).join(' + ')} (${gameSpec.vp}vp in ${gameSpec.par}@)`
+
+    // Build tooltip with all related cards from VP mode and boons
+    const relatedCards: CardSpec[] = [
+        ...spec.vpMode.cards,
+        ...spec.vpMode.events,
+        ...spec.boons.flatMap(b => [...b.cards, ...b.events])
+    ]
+
+    if (relatedCards.length === 0) {
+        return label
+    }
+
+    const tooltipContent = relatedCards.map(buildSpecTooltip).join('')
+    return `${label}<span class='tooltip'>${tooltipContent}</span>`
 }
 
 // Meta replacer types - modify game setup parameters

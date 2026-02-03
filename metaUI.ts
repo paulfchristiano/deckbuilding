@@ -385,7 +385,7 @@ function renderPathColumn(side: 'left' | 'right', path: Path, state: MetaState):
         rewardsContainer.appendChild(rewardDiv)
     }
 
-    getElement(`${side}Play`).textContent = renderChallenge(path.challenge, state)
+    getElement(`${side}Play`).innerHTML = renderChallenge(path.challenge, state)
 }
 
 // ----------------------------- Deck Dialog

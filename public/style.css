@@ -269,6 +269,13 @@ input {
         visibility: visible;
         transition-delay: 0s;
     }
+
+    /* Option buttons (challenge/play button): show tooltip on hover */
+    .option:hover .tooltip,
+    .pathPlay:hover .tooltip {
+        visibility: visible;
+        transition-delay: 0.3s;
+    }
 }
 .hotkey {
   font-family: "Lucida Console", Courier, monospace;
