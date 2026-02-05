@@ -120,6 +120,9 @@ function updateProgressSidebar(state: MetaState): void {
 
 // ----------------------------- Undo/Redo Button Binding
 
+// Current meta keyboard handler (replaced each time bindUndoRedoButtons is called)
+let metaKeyHandler: ((e: KeyboardEvent) => void) | null = null
+
 function bindUndoRedoButtons(state: MetaState, onUndo: () => void, onRedo: () => void): void {
     const undoButtons = document.querySelectorAll('#metaUndo, #metaUndoPath')
     const redoButtons = document.querySelectorAll('#metaRedo, #metaRedoPath')
@@ -145,6 +148,19 @@ function bindUndoRedoButtons(state: MetaState, onUndo: () => void, onRedo: () =>
             el.onclick = null
         }
     })
+
+    // Bind keyboard shortcuts
+    if (metaKeyHandler) {
+        document.removeEventListener('keydown', metaKeyHandler)
+    }
+    metaKeyHandler = (e: KeyboardEvent) => {
+        if (e.key === 'z' && !e.shiftKey && state.canUndo()) {
+            onUndo()
+        } else if (e.key === 'Z' && state.canRedo()) {
+            onRedo()
+        }
+    }
+    document.addEventListener('keydown', metaKeyHandler)
 }
 
 // ----------------------------- Common State Rendering

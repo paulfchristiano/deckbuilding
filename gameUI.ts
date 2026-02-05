@@ -755,15 +755,12 @@ function renderSpecials(state: State): string {
         renderRedo(state.redo.length > 0),
         renderHotkeyToggle(),
         renderMacroToggle(),
-        renderKingdomViewer(),
-        renderHelp(),
         renderRestart(),
-        renderDeepLink()
     ].join('')
 }
 
 function renderBack(): string {
-    return `<span class='option' option='back' choosable chosen='false'>Back</span>`
+    return `<span class='option' option='back' choosable chosen='false'>${renderHotkey('Esc')}Back</span>`
 }
 
 function renderRestart(): string {
@@ -802,12 +799,10 @@ function renderRedo(redoable: boolean): string {
 
 function bindSpecials(state: State, ui: GameUI): void {
     bindHotkeyToggle(ui)
-    bindHelp(state, ui)
     bindRestart(state, ui)
     bindUndo(state, ui)
     bindRedo(state, ui)
     bindMacroToggle(ui)
-    bindViewKingdom(state)
     bindBack(ui)
 }
 
