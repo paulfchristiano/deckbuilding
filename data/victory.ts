@@ -110,15 +110,15 @@ export const territory: CardSpec = {
 
 const farmlandName = 'Farmland'
 export const farmland: CardSpec = {
-    simpleText: [`+7 vp if you played this the normal way from your hand.`],
+    simpleText: [`+6 vp if you played this the normal way from your hand.`],
     name: farmlandName,
     fixedCost: energy(3),
     buyCost: coin(8),
     staticTriggers: [{
         kind: 'play',
-        text: `Whenever you play a ${farmlandName} the normal way, +7 vp.`,
+        text: `Whenever you play a ${farmlandName} the normal way, +6 vp.`,
         handles: e => e.source == 'act' && e.card.name == farmlandName,
-        transform: (e, s, c) => gainPoints(7, c)
+        transform: (e, s, c) => gainPoints(6, c)
     }],
 }
 
@@ -204,7 +204,7 @@ vpModes.push(
     { name: 'Philanthropy', target: 40, cards: [], events: [philanthropy] },
     { name: 'Duke', target: 40, cards: [duchy, duke], events: [] },
     { name: 'Flower Market', target: 40, cards: [flowerMarket], events: [] },
-    { name: 'Farmland', target: 25, cards: [farmland], events: [] },
+    { name: 'Farmland', target: 30, cards: [farmland], events: [] },
     { name: 'Vibrant City', target: 40, cards: [vibrantCity], events: [] },
     { name: 'Palace', target: 40, cards: [palace], events: [] },
     { name: 'Territory', target: 40, cards: [territory], events: [] },

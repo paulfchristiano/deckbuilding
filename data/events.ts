@@ -383,7 +383,7 @@ eventRewards.push(reverberate)
 const festival:CardSpec = {
     name: 'Festival',
     fixedCost: energy(1),
-    effects: [createInPlayEffect(fair, 2)],
+    effects: [createInPlayEffect(fair, 3)],
     relatedCards: [fair]
 }
 eventRewards.push(festival)
@@ -408,7 +408,7 @@ const haggle:CardSpec = {
         kind: 'afterBuy',
         text: `After buying a card, remove a charge token from this to buy a card
         in the supply that costs at least $1 less.`,
-        handles: (e, s, c) => s.find(c!).charge > 0 && !sourceHasName(e.source, c!.name),
+        handles: (e, s, c) => s.find(c!).charge > 0,
         transform: (e, s, c) => payToDo(discharge(c!, 1), buyCheaper(e.card, s, c)),
     }]
 }

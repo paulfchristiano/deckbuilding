@@ -22,7 +22,8 @@ import {
     coin,
     addCosts,
     renderCost,
-    leq
+    leq,
+    gainActions
 } from '../gameLogic.js'
 
 // Import cards that potions reference from base
@@ -36,8 +37,14 @@ import {
 export const potionOfInsight: CardSpec = {
     name: 'Potion of Insight',
     isPotion: true,
-    simpleText: ['+10 actions, +2 buys.'],
-    effects: [actionsEffect(10), buysEffect(2)]
+    effects: [{
+            text: ['Quadruple your actions and buys.'], 
+            transform: (state, card) => async function(state) {
+                state = await gainActions(3 * state.actions, card)(state)
+                state = await gainBuys(3 * state.buys, card)(state)
+                return state
+            }
+    }]
 }
 potionRewards.push(potionOfInsight)
 
@@ -74,7 +81,7 @@ export const potionOfMining: CardSpec = {
     effects: [{
         text: ['Trash all Coppers and Silvers in your discard. Create a Silver for each trashed Copper and a Gold for each trashed Silver.'],
         transform: () => async function(state) {
-            const toTrash = state.hand.filter(c => c.name == copper.name || c.name == silver.name)
+            const toTrash = state.discard.filter(c => c.name == copper.name || c.name == silver.name)
             for (const c of toTrash) {
                 state = await trash(c)(state)
                 if (c.name == copper.name) {
@@ -213,8 +220,8 @@ export const potionOfReuse: CardSpec = {
 }
 potionRewards.push(potionOfReuse)
 
-export const intoxicatingBrew: CardSpec = {
-    name: 'Intoxicating Brew',
+export const potionOfFairs: CardSpec = {
+    name: 'Potion of Fairs',
     isPotion: true,
     simpleText: [`Create a ${fair.name} in play with 10 shelter tokens on it (the first 10 times it would leave play, instead remove a shelter token.).`],
     relatedCards: [fair],
@@ -223,7 +230,7 @@ export const intoxicatingBrew: CardSpec = {
         createInPlayEffect(fair, 1, new Map([['shelter', 10]])),
     ]
 }
-potionRewards.push(intoxicatingBrew)
+potionRewards.push(potionOfFairs)
 
 export const potionOfVitality: CardSpec = {
     name: 'Potion of Vitality',
@@ -289,8 +296,8 @@ export const elixerOfInnovation: CardSpec = {
     isPotion: true,
     relatedCards: [innovation],
     effects: [{
-        text: ['Create three Innovations in your hand.'],
-        transform: () => repeat(create(innovation, 'hand'), 3)
+        text: ['Create two Innovations in your hand.'],
+        transform: () => repeat(create(innovation, 'hand'), 2)
     }]
 }
 potionRewards.push(elixerOfInnovation)

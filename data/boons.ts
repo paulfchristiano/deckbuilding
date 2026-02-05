@@ -131,7 +131,7 @@ boons.push({
     events: [],
 })
 
-const populate:CardSpec = {name: 'Populate',
+/*const populate:CardSpec = {name: 'Populate',
     fixedCost: {...free, coin:5, energy:3},
     simpleText: ['Buy every card in the supply.'],
     effects: [{
@@ -155,10 +155,27 @@ const populate:CardSpec = {name: 'Populate',
         }
     }]
 }
+    */
+const populate:CardSpec = {name: 'Populate',
+    fixedCost: free,
+    restrictions: [cannotUse],
+    simpleText: ['At the start of the game, buy every card in the supply.'],
+    staticTriggers: [{
+        kind: 'gameStart',
+        text: 'At the start of the game, buy every card in the supply.',
+        handles: () => true,
+        transform: (e, state, card) => async function(state) {
+            for (const supplyCard of state.supply) {
+                state = await supplyCard.buy(card)(state)
+            }
+            return state
+        }
+    }]
+}
 boons.push(   {
     name: 'Populate',
-    description: 'Add Populate as an event (buys all cards)',
-    parReduction: 6,
+    description: 'Buy all cards at the start of the game.',
+    parReduction: 12,
     cards: [],
     events: [populate],
 })
@@ -244,13 +261,13 @@ const publicWorks:CardSpec = {name: 'Public Works',
         text: `Events cost @ less, but ${refresh.name} can't cost 0. Whenever this reduces a cost, discard it.`,
         kind: 'cost',
         handles: p => (p.actionKind == 'use'),
-        replace: (p, state) => {
+        replace: (p, state, pworks) => {
             const card = state.find(p.card)
             const maxReduction = (p.card.name == refresh.name) ? p.cost.energy - 1 : p.cost.energy 
-            const reduction = Math.max(Math.min(maxReduction, card.count('logistics')), 0)
+            const reduction = Math.max(Math.min(maxReduction, 1), 0)
             return {...p, cost:{...p.cost,
                 energy:p.cost.energy-reduction,
-                effects:p.cost.effects.concat([move(card, 'discard')])
+                effects:p.cost.effects.concat([move(pworks, 'discard')])
             }}
         }
     }],

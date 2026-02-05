@@ -239,7 +239,7 @@ const investmentName = 'Investment'
 const investment:CardSpec = {name: investmentName,
     simpleText: [
         `+$2.`,
-        `This increases by $1 each time you play it, up to +$6.`
+        `The $ produced increases by 1 each time you play this, up to +$6.`
     ],
     buyCost: coin(3),
     fixedCost: energy(0),
@@ -1332,7 +1332,7 @@ cardRewards.push(bustlingVillage)
 const governorName = 'Governor'
 const governor:CardSpec = {
     name: governorName,
-    buyCost: coin(6),
+    buyCost: coin(5),
     relatedCards: [villager],
     effects: [actionsEffect(2), createInPlayEffect(villager)],
     staticTriggers: [{
