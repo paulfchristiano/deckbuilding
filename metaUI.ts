@@ -88,7 +88,7 @@ function updateBufferDisplay(state: MetaState): void {
 }
 
 function updateProgressSidebar(state: MetaState): void {
-    const circles = document.querySelectorAll('#progressLine .progressCircle, #progressLinePath .progressCircle')
+    const circles = document.querySelectorAll('#progressLine .progressCircle, #progressLinePath .progressCircle, #progressLineGame .progressCircle')
 
     circles.forEach(circle => {
         const el = circle as HTMLElement
