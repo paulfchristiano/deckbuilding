@@ -8,7 +8,7 @@ import { renderCost, renderEnergy } from './gameLogic.js'
 import { LogType, logTypes } from './gameLogic.js'
 import { Option, OptionRender, HotkeyHint } from './gameLogic.js'
 import { UI, Undo, SetState } from './gameLogic.js'
-import { playGame, initialState } from './gameLogic.js'
+import { playGame, initialState, Replayable } from './gameLogic.js'
 
 // ----------------------------- DOM Helpers
 
@@ -80,7 +80,8 @@ const zoneNames: ZoneName[] = ['play', 'supply', 'events', 'hand', 'discard', 'p
 
 // ----------------------------- Hotkeys
 
-const keyListeners: Map<Key, () => void> = new Map()
+// Exported so metaUI can also use the same keyboard system
+export const keyListeners: Map<Key, () => void> = new Map()
 const potionHotkeys: Key[] = ['!', '@', '#', '$', '%']
 const symbolHotkeys = ['!', '%', '^', '&', '*', '(', ')', '-', '+', '=', '{', '}', '[', ']']
 const lowerHotkeys = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm',
@@ -95,6 +96,7 @@ const hotkeys: Key[] = potionHotkeys.concat(supplyAndPlayHotkeys).concat(handHot
 export function initHotkeys(): void {
     window.addEventListener('keydown', (e: KeyboardEvent) => {
         if (e.altKey || e.ctrlKey || e.metaKey) return
+        if (e.repeat) return  // Ignore key repeat
 
         const listener = keyListeners.get(e.key)
         if (listener) {
@@ -809,7 +811,11 @@ function bindSpecials(state: State, ui: GameUI): void {
 function bindBack(ui: GameUI): void {
     function pick() {
         if (ui.choiceState) {
-            ui.choiceState.reject(new UndoPastBeginning())
+            const state = ui.choiceState.state
+            // Capture full history and redo buffer for restoration on meta-redo
+            const history = state.origin().future
+            const redo = state.redo
+            ui.choiceState.reject(new UndoPastBeginning(history, redo))
         }
     }
     keyListeners.set('Escape', pick)
@@ -1163,7 +1169,11 @@ export class GameUI implements UI {
 
 // ----------------------------- Game Entry Point
 
-export async function startGame(spec: GameSpec): Promise<VictoryData> {
+export async function startGame(
+    spec: GameSpec,
+    initialHistory: Replayable[] = [],
+    initialRedo: Replayable[] = []
+): Promise<VictoryData> {
     resetGlobalRenderer()
     const ui = new GameUI()
 
@@ -1174,5 +1184,5 @@ export async function startGame(spec: GameSpec): Promise<VictoryData> {
     hideElement(getElement('victoryScreen'))
     hideElement(getElement('gameOverScreen'))
 
-    return await playGame(spec, ui)
+    return await playGame(spec, ui, initialHistory, initialRedo)
 }

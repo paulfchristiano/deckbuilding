@@ -10,7 +10,7 @@ import {
     Undo, Redo
 } from './metaLogic.js'
 import { renderSpecNoRelated } from './cardRendering.js'
-import { initHotkeys, startGame } from './gameUI.js'
+import { initHotkeys, startGame, keyListeners } from './gameUI.js'
 
 // ----------------------------- DOM Helpers
 
@@ -120,9 +120,6 @@ function updateProgressSidebar(state: MetaState): void {
 
 // ----------------------------- Undo/Redo Button Binding
 
-// Current meta keyboard handler (replaced each time bindUndoRedoButtons is called)
-let metaKeyHandler: ((e: KeyboardEvent) => void) | null = null
-
 function bindUndoRedoButtons(state: MetaState, onUndo: () => void, onRedo: () => void): void {
     const undoButtons = document.querySelectorAll('#metaUndo, #metaUndoPath')
     const redoButtons = document.querySelectorAll('#metaRedo, #metaRedoPath')
@@ -149,18 +146,17 @@ function bindUndoRedoButtons(state: MetaState, onUndo: () => void, onRedo: () =>
         }
     })
 
-    // Bind keyboard shortcuts
-    if (metaKeyHandler) {
-        document.removeEventListener('keydown', metaKeyHandler)
+    // Bind keyboard shortcuts using the shared keyListeners system
+    if (state.canUndo()) {
+        keyListeners.set('z', onUndo)
+    } else {
+        keyListeners.delete('z')
     }
-    metaKeyHandler = (e: KeyboardEvent) => {
-        if (e.key === 'z' && !e.shiftKey && state.canUndo()) {
-            onUndo()
-        } else if (e.key === 'Z' && state.canRedo()) {
-            onRedo()
-        }
+    if (state.canRedo()) {
+        keyListeners.set('Z', onRedo)
+    } else {
+        keyListeners.delete('Z')
     }
-    document.addEventListener('keydown', metaKeyHandler)
 }
 
 // ----------------------------- Common State Rendering
@@ -583,10 +579,11 @@ export class MetaGameUI implements MetaUI {
         updateBufferDisplay(state)
     }
 
-    playGame(spec: GameSpec): Promise<VictoryData> {
-        return startGame(spec).catch(e => {
+    playGame(spec: GameSpec, gameHistory: number[] = [], gameRedo: number[] = []): Promise<VictoryData> {
+        return startGame(spec, gameHistory, gameRedo).catch(e => {
             if (e instanceof UndoPastBeginning) {
-                throw new Undo()
+                // Pass history and redo to meta Undo for restoration on redo
+                throw new Undo(e.history, e.redo)
             }
             throw e
         })

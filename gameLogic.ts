@@ -1471,7 +1471,10 @@ export class Undo extends Error {
 }
 
 export class UndoPastBeginning extends Error {
-    constructor() {
+    constructor(
+        public history: Replayable[] = [],
+        public redo: Replayable[] = []
+    ) {
         super('UndoPastBeginning')
         Object.setPrototypeOf(this, UndoPastBeginning.prototype)
     }
@@ -1580,8 +1583,12 @@ function undo(startState: State): State {
     while (true) {
         let last:Replayable|null; [state, last] = state.popFuture()
         if (last == null) {
+            const prevState = state
             state = state.backup()
-            if (state == null) throw new UndoPastBeginning()
+            if (state == null) {
+                // At the very beginning - pass accumulated redo buffer
+                throw new UndoPastBeginning([], prevState.redo)
+            }
         } else {
             return state.addRedo(last)
         }
@@ -1777,8 +1784,19 @@ function undoOrSet(to:State, from:State): State {
     return predecessor ? to.update({redo: newRedo, ui:from.ui}) : to
 }
 
-export async function playGame(spec: GameSpec, ui: UI): Promise<VictoryData> {
+export async function playGame(
+    spec: GameSpec,
+    ui: UI,
+    initialFuture: Replayable[] = [],
+    initialRedo: Replayable[] = []
+): Promise<VictoryData> {
     let state:State = initialState(spec, ui)
+    if (initialFuture.length > 0) {
+        state = state.update({ future: initialFuture })
+    }
+    if (initialRedo.length > 0) {
+        state = state.update({ redo: initialRedo })
+    }
     state = await trigger({kind:'gameStart'})(state)
     let victorious:boolean = false
     while (true) {

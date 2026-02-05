@@ -35,7 +35,7 @@ export interface MetaUI {
         canCancel?: boolean
     ): Promise<T | null>
 
-    playGame(spec: GameSpec): Promise<VictoryData>
+    playGame(spec: GameSpec, gameHistory?: number[], gameRedo?: number[]): Promise<VictoryData>
 
     // Wait for user to select a challenge (reward options are handled inline)
     // Re-renders the stage screen with current state
@@ -371,6 +371,10 @@ export interface MetaStateData {
     nextID: number
 
     playingGame: boolean
+
+    // Saved game state for restoration on redo
+    gameHistory: number[]
+    gameRedo: number[]
 }
 
 import { Generator, randomString } from './rng.js'
@@ -408,6 +412,8 @@ export class MetaState {
             relics: [] as Relic[],
             nextID: 1,
             playingGame: false,
+            gameHistory: [] as number[],
+            gameRedo: [] as number[],
         }
         this.data = data
         this.checkpoint = data
@@ -470,11 +476,16 @@ export class MetaState {
     }
     
     // Undo to previous checkpoint
-    undo() {
-        if (this.checkpoint != this.data) this.data = this.checkpoint; 
+    // If checkpointUpdate is provided, apply it to the checkpoint before pushing to redoStack
+    undo(checkpointUpdate?: Partial<MetaStateData>) {
+        if (this.checkpoint != this.data) this.data = this.checkpoint;
         if (this.undoStack.length == 0) return
         const previousCheckpoint = this.undoStack.pop()!
-        this.redoStack.push(this.checkpoint)
+        // Push checkpoint (with optional modifications) to redoStack
+        const redoCheckpoint = checkpointUpdate
+            ? { ...this.checkpoint, ...checkpointUpdate }
+            : this.checkpoint
+        this.redoStack.push(redoCheckpoint)
         this.checkpoint = previousCheckpoint
         this.data = previousCheckpoint
     }
@@ -758,7 +769,10 @@ function fillPath(state: MetaState, skeleton: PathSkeleton): Path {
 // ------------------ Meta loop -------------------
 
 export class Undo extends Error {
-    constructor() {
+    constructor(
+        public gameHistory: number[] = [],
+        public gameRedo: number[] = []
+    ) {
         super('Undo')
         Object.setPrototypeOf(this, Undo.prototype)
     }
@@ -823,8 +837,14 @@ export async function playGame(ui: MetaUI, test:null|TestSpec = null): Promise<v
             if (state.data.playingGame) {
                 // challenges[0] is the selected challenge (set when user clicks a challenge button)
                 const gameSpec = makeSpec(state, state.data.challenges[0])
-                const { score, potionsRemaining } = await state.ui.playGame(gameSpec)
-                state.update({ potions: potionsRemaining })
+                // Pass saved game state for replay (from previous redo)
+                const { score, potionsRemaining } = await state.ui.playGame(
+                    gameSpec,
+                    state.data.gameHistory,
+                    state.data.gameRedo
+                )
+                // Clear saved game state after successful completion
+                state.update({ potions: potionsRemaining, gameHistory: [], gameRedo: [] })
                 await endCourse(score, gameSpec.par, state)
                 state.update({ stage: state.data.stage + 1 })
                 if (state.data.stage >= TOTAL_STAGES) {
@@ -848,7 +868,8 @@ export async function playGame(ui: MetaUI, test:null|TestSpec = null): Promise<v
             }
         } catch (e) {
             if (e instanceof Undo) {
-                state.undo()
+                // Pass game state to undo so it's saved in the redo checkpoint
+                state.undo({ gameHistory: e.gameHistory, gameRedo: e.gameRedo })
             } else if (e instanceof Redo) {
                 state.redo()
             } else {
