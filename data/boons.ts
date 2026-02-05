@@ -22,6 +22,7 @@ import { doAll, Boon, boons,
     Token,
     removeToken,
     incrementCost,
+    move
 } from '../gameLogic.js'
 
 const escalate:CardSpec = {name: 'Escalate',
@@ -239,7 +240,20 @@ boons.push(    {
 const publicWorks:CardSpec = {name: 'Public Works',
     buyCost: coin(6),
     effects: [],
-    replacers: [costReduceNext('use', {energy:1}, true)],
+    replacers: [{
+        text: `Events cost @ less, but ${refresh.name} can't cost 0. Whenever this reduces a cost, discard it.`,
+        kind: 'cost',
+        handles: p => (p.actionKind == 'use'),
+        replace: (p, state) => {
+            const card = state.find(p.card)
+            const maxReduction = (p.card.name == refresh.name) ? p.cost.energy - 1 : p.cost.energy 
+            const reduction = Math.max(Math.min(maxReduction, card.count('logistics')), 0)
+            return {...p, cost:{...p.cost,
+                energy:p.cost.energy-reduction,
+                effects:p.cost.effects.concat([move(card, 'discard')])
+            }}
+        }
+    }],
 }
 boons.push({
         name: 'Public Works',

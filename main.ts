@@ -13,7 +13,7 @@ import { tradingPost } from './data/encounters.js'
 import { resume } from './data/events.js'
 import { fountain } from './data/cards.js'
 
-let test: TestSpec | null = ['card', fountain]
+let test: TestSpec | null = null
 
 // Start the game when the page loads
 window.addEventListener('load', async () => {

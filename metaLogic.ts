@@ -173,7 +173,7 @@ export const TOTAL_STAGES = 8
 export const INITIAL_BUFFER = 10
 
 // Base par values for each stage
-export const BASE_PARS: number[] = [30, 27, 25, 23, 21, 19, 18, 8]
+export const BASE_PARS: number[] = [30, 28, 26, 24, 22, 20, 18, 8]
 
 // ----------------------------- Meta-game Types
 
@@ -371,7 +371,6 @@ export interface MetaStateData {
     nextID: number
 
     playingGame: boolean
-
 }
 
 import { Generator, randomString } from './rng.js'
