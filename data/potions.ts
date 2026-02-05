@@ -179,6 +179,7 @@ export const potionOfTransportation: CardSpec = {
 }
 potionRewards.push(potionOfTransportation)
 
+/*
 export const potionOfRecovery: CardSpec = {
     name: 'Potion of Recovery',
     isPotion: true,
@@ -188,6 +189,7 @@ export const potionOfRecovery: CardSpec = {
     }]
 }
 potionRewards.push(potionOfRecovery)
+*/
 
 export const potionOfReuse: CardSpec = {
     name: 'Potion of Reuse',

@@ -375,7 +375,7 @@ const composting:CardSpec = {
 boons.push({
         name: 'Composting',
         description: 'Add Composting as a card',
-        parReduction: 4,
+        parReduction: 3,
         cards: [composting],
         events: [],
 })
