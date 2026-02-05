@@ -208,17 +208,34 @@
             cursor: default;
         }
         #deckDialog {
-            width: auto;
+            width: 60em;
             max-width: 90vw;
             max-height: 80vh;
             overflow-y: auto;
+            overflow-x: hidden;
         }
         #deckContents {
             display: flex;
-            flex-direction: row;
-            flex-wrap: wrap;
+            flex-direction: column;
             gap: 10px;
             margin-top: 10px;
+        }
+        .deckSection {
+            display: flex;
+            flex-direction: row;
+            align-items: flex-start;
+            gap: 10px;
+        }
+        .deckSectionHeader {
+            min-width: 5em;
+            padding-top: 0.3em;
+        }
+        .deckSectionItems {
+            display: flex;
+            flex-direction: row;
+            flex-wrap: wrap;
+            gap: 5px;
+            flex: 1;
         }
         #victoryScreen {
             display: flex;

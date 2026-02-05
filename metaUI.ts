@@ -153,9 +153,9 @@ function renderCommonUI(state: MetaState): void {
     updateBufferDisplay(state)
     updateProgressSidebar(state)
 
-    // Bind deck icon
+    // Bind deck icon (toggle on click)
     const deckIcon = getElement('deckIcon')
-    deckIcon.onclick = () => showDeckDialog(state)
+    deckIcon.onclick = () => deckDialogOpen ? hideDeckDialog() : showDeckDialog(state)
 }
 
 // ----------------------------- Card Picker Dialog
@@ -413,21 +413,28 @@ function showDeckDialog(state: MetaState): void {
     for (const section of sections) {
         if (section.items.length > 0) {
             hasContent = true
-            const header = document.createElement('div')
-            header.innerHTML = `<strong>${section.title}:</strong>`
-            if (container.children.length > 0) {
-                header.style.marginTop = '10px'
-            }
-            container.appendChild(header)
 
+            // Create section container
+            const sectionDiv = createDiv('deckSection')
+
+            // Header
+            const header = createDiv('deckSectionHeader')
+            header.innerHTML = `<strong>${section.title}:</strong>`
+            sectionDiv.appendChild(header)
+
+            // Items row
+            const itemsRow = createDiv('deckSectionItems')
             for (const spec of section.items) {
-                container.appendChild(createElementFromHTML(renderSpecNoRelated(spec)))
+                itemsRow.appendChild(createElementFromHTML(renderSpecNoRelated(spec)))
             }
+            sectionDiv.appendChild(itemsRow)
+
+            container.appendChild(sectionDiv)
         }
     }
 
     if (!hasContent) {
-        const msg = document.createElement('div')
+        const msg = createDiv()
         msg.textContent = 'No items collected yet.'
         container.appendChild(msg)
     }
