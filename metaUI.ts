@@ -3,7 +3,7 @@
 
 import { Card, CardSpec, GameSpec, UndoPastBeginning, VictoryData } from './gameLogic.js'
 import {
-    MetaState, RewardState, Path,
+    MetaState, RewardState, Path, ChallengeSpec,
     MetaUI, MetaOption,
     renderChallenge,
     getRewardOptions, getRewardName, updateRewardState, updateRewardAtIndex,
@@ -281,7 +281,7 @@ function showOptionPicker<T>(
 
 function renderStageScreen(
     state: MetaState,
-    onChallenge: () => void,
+    onChallenge: (challenge: ChallengeSpec) => void,
     onOptionClick: (rewardIndex: number, optionIndex: number) => void
 ): void {
     showScreen('stage')
@@ -345,11 +345,16 @@ function renderStageScreen(
         rewardContainer.appendChild(rewardRow)
     })
 
-    // Render play button
-    if (state.data.challenge) {
-        const playBtn = getElement('playKingdom')
-        playBtn.innerHTML = renderChallenge(state.data.challenge, state)
-        playBtn.onclick = onChallenge
+    // Render challenge button(s)
+    const challengeContainer = getElement('challengeButtons')
+    clearElement(challengeContainer)
+
+    for (const challenge of state.data.challenges) {
+        const playBtn = createSpan('option')
+        playBtn.setAttribute('choosable', '')
+        playBtn.innerHTML = renderChallenge(challenge, state)
+        playBtn.onclick = () => onChallenge(challenge)
+        challengeContainer.appendChild(playBtn)
     }
 }
 
@@ -385,7 +390,8 @@ function renderPathColumn(side: 'left' | 'right', path: Path, state: MetaState):
         rewardsContainer.appendChild(rewardDiv)
     }
 
-    getElement(`${side}Play`).innerHTML = renderChallenge(path.challenge, state)
+    // Each path has one challenge (singleton list for later stages)
+    getElement(`${side}Play`).innerHTML = renderChallenge(path.challenges[0], state)
 }
 
 // ----------------------------- Deck Dialog
@@ -493,7 +499,7 @@ export class MetaGameUI implements MetaUI {
         })
     }
 
-    async waitForChallenge(state: MetaState): Promise<void> {
+    async waitForChallenge(state: MetaState): Promise<ChallengeSpec> {
         return new Promise((resolve, reject) => {
             const render = () => {
                 bindUndoRedoButtons(
@@ -503,8 +509,8 @@ export class MetaGameUI implements MetaUI {
                 )
                 renderStageScreen(
                     state,
-                    // onChallenge
-                    () => resolve(),
+                    // onChallenge - returns the selected challenge
+                    (challenge) => resolve(challenge),
                     // onOptionClick
                     async (rewardIndex, optionIndex) => {
                         const rewardState = state.data.rewardStates[rewardIndex]

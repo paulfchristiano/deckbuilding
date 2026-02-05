@@ -37,9 +37,10 @@ export interface MetaUI {
 
     playGame(spec: GameSpec): Promise<VictoryData>
 
-    // Wait for challenge button click (reward options are handled inline)
+    // Wait for user to select a challenge (reward options are handled inline)
     // Re-renders the stage screen with current state
-    waitForChallenge(state: MetaState): Promise<void>
+    // Returns the selected challenge when user clicks one of the challenge buttons
+    waitForChallenge(state: MetaState): Promise<ChallengeSpec>
 
     pickPath(state: MetaState, paths: Path[]): Promise<Path>
 
@@ -320,7 +321,7 @@ export type TypedMetaTrigger = MetaTrigger<CourseEndEvent> | MetaTrigger<CourseS
 // A path the player can choose (contains rewards + kingdom)
 export interface Path {
     rewardStates: RewardState[]
-    challenge: ChallengeSpec
+    challenges: ChallengeSpec[]
 }
 
 export type RewardKind = 'card' | 'event' | 'potion' | 'relic' | 'encounter'
@@ -346,8 +347,8 @@ export interface MetaStateData {
     // Current stage (1-8)
     stage: number
 
-    // Current kingdom configuration (null if not yet selected)
-    challenge: ChallengeSpec | null
+    // Challenge options for current stage (user selects one to play)
+    challenges: ChallengeSpec[]
 
     // Score tracking
     stageScores: (number | null)[]
@@ -400,12 +401,12 @@ export class MetaState {
             buffer: INITIAL_BUFFER,
             stageScores: Array(TOTAL_STAGES).fill(null),
             stagePars: Array(TOTAL_STAGES).fill(null),
-            challenge: null,
-            rewardStates: [],
-            collectedCards: [],
-            collectedEvents: [],
-            potions: [],
-            relics: [],
+            challenges: [] as ChallengeSpec[],
+            rewardStates: [] as RewardState[],
+            collectedCards: [] as CardSpec[],
+            collectedEvents: [] as CardSpec[],
+            potions: [] as Card[],
+            relics: [] as Relic[],
             nextID: 1,
             playingGame: false,
         }
@@ -455,11 +456,11 @@ export class MetaState {
         this.undoStack = []
         this.redoStack = []
         this.checkpoint = this.data
-        console.assert(this.data.challenge != null) // Should not a set checkpoint while selecting paths.
+        console.assert(this.data.challenges.length > 0) // Should not a set checkpoint while selecting paths.
     }
 
     setCheckpoint() {
-        console.assert(this.data.challenge != null) // Should not a set checkpoint while selecting paths.
+        console.assert(this.data.challenges.length > 0) // Should not a set checkpoint while selecting paths.
         this.undoStack.push(this.checkpoint)
         this.checkpoint = this.data
         this.redoStack = []
@@ -711,7 +712,7 @@ function randomChallenge(state: MetaState): ChallengeSpec {
 
 interface PathSkeleton {
     rewards: RewardKind[],
-    challenge: ChallengeSpec
+    challenges: ChallengeSpec[]
 }
 
 function makePaths(state: MetaState): PathSkeleton[] {
@@ -722,8 +723,8 @@ function makePaths(state: MetaState): PathSkeleton[] {
     const challenge1 = randomChallenge(state)
     const challenge2 = randomChallenge(state)
     return [
-        { rewards: shuffledOptions.slice(0, 2), challenge: challenge1 },
-        { rewards: shuffledOptions.slice(2, 4), challenge: challenge2 },
+        { rewards: shuffledOptions.slice(0, 2), challenges: [challenge1] },
+        { rewards: shuffledOptions.slice(2, 4), challenges: [challenge2] },
     ]
 }
 
@@ -752,7 +753,7 @@ function fillPath(state: MetaState, skeleton: PathSkeleton): Path {
             rewardStates.push({ kind: 'relic', options, selectedIndex: null })
         }
     }
-    return { rewardStates, challenge: skeleton.challenge }
+    return { rewardStates, challenges: skeleton.challenges }
 }
 
 // ------------------ Meta loop -------------------
@@ -779,7 +780,7 @@ function adoptPath(state:MetaState, path: Path) {
         }
         return rs
     })
-    state.update({challenge: path.challenge, rewardStates})
+    state.update({challenges: path.challenges, rewardStates})
 }
 
 // We can define test in order to get a given reward immediately, for testing purposes.
@@ -809,9 +810,10 @@ function makeTestReward(state: MetaState, spec: TestSpec): RewardState {
 // Note that all checkpoints are at a point where you want to back into the main loop in this method.
 export async function playGame(ui: MetaUI, test:null|TestSpec = null): Promise<void> {
     const state: MetaState = new MetaState(ui)
+    // Stage 0 offers two challenge options
     const initialPath = fillPath(state, {
         rewards: ['card', 'card', 'event', 'potion'] as RewardKind[],
-        challenge: randomChallenge(state)
+        challenges: [randomChallenge(state), randomChallenge(state)]
     })
     if (test !== null) initialPath.rewardStates.push(makeTestReward(state, test));
     adoptPath(state, initialPath)
@@ -820,7 +822,8 @@ export async function playGame(ui: MetaUI, test:null|TestSpec = null): Promise<v
         console.assert(state.checkpoint == state.data) // Should always be at a checkpoint when starting this loop
         try {
             if (state.data.playingGame) {
-                const gameSpec = makeSpec(state, state.data.challenge!)
+                // challenges[0] is the selected challenge (set when user clicks a challenge button)
+                const gameSpec = makeSpec(state, state.data.challenges[0])
                 const { score, potionsRemaining } = await state.ui.playGame(gameSpec)
                 state.update({ potions: potionsRemaining })
                 await endCourse(score, gameSpec.par, state)
@@ -836,8 +839,10 @@ export async function playGame(ui: MetaUI, test:null|TestSpec = null): Promise<v
                 state.update({ playingGame: false })
                 state.clearHistory()
             } else {
-                // Wait for user to click challenge button (reward options handled inline by UI)
-                await state.ui.waitForChallenge(state)
+                // Wait for user to select a challenge (reward options handled inline by UI)
+                const selectedChallenge = await state.ui.waitForChallenge(state)
+                // Store the selected challenge as the only one
+                state.update({ challenges: [selectedChallenge] })
                 await trigger({kind: 'start', stage: state.data.stage}, state)
                 state.update({ playingGame: true })
                 state.setCheckpoint()
