@@ -1833,14 +1833,18 @@ export function fountainEffect(): Effect {
             'Lose all $, actions, and buys.',
             `+5 actions, +1 buy.`
         ],
-        transform: (state, card) => async function(state) {
-            state = await setResource('coin', 0, card)(state)
-            state = await setResource('actions', 0, card)(state)
-            state = await setResource('buys', 0, card)(state)
-            state = await gainActions(5, card)(state)
-            state = await gainBuys(1, card)(state)
-            return state
-        }
+        transform: (state, card) => fountainTransform(card),
+    }
+}
+
+export function fountainTransform(source: Source): Transform {
+    return async function(state) {
+        state = await setResource('coin', 0, source)(state)
+        state = await setResource('actions', 0, source)(state)
+        state = await setResource('buys', 0, source)(state)
+        state = await gainActions(5, source)(state)
+        state = await gainBuys(1, source)(state)
+        return state
     }
 }
 

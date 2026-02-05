@@ -70,22 +70,18 @@ potionRewards.push(potionOfCopper)
 export const potionOfMining: CardSpec = {
     name: 'Potion of Mining',
     isPotion: true,
-    simpleText: ['Trash coppers for silvers, silvers for golds.'],
     relatedCards: [copper, silver, gold],
     effects: [{
-        text: ['Trash all Coppers from your hand then create that many Silvers in your discard.',
-               'Trash all Silvers from your hand then create that many Golds in your discard.'],
+        text: ['Trash all Coppers and Silvers in your discard. Create a Silver for each trashed Copper and a Gold for each trashed Silver.'],
         transform: () => async function(state) {
-            // Trash coppers for silvers
-            const coppers = state.hand.filter(c => c.name == copper.name)
-            for (const c of coppers) {
+            const toTrash = state.hand.filter(c => c.name == copper.name || c.name == silver.name)
+            for (const c of toTrash) {
                 state = await trash(c)(state)
-                state = await create(silver)(state)
-            }
-            const silvers = state.hand.filter(c => c.name == silver.name)
-            for (const c of silvers) {
-                state = await trash(c)(state)
-                state = await create(gold)(state)
+                if (c.name == copper.name) {
+                    state = await create(silver)(state)
+                } else if (c.name == silver.name) {
+                    state = await create(gold)(state)
+                }
             }
             return state
         }
@@ -165,15 +161,14 @@ export const potionOfTransportation: CardSpec = {
     name: 'Potion of Transportation',
     isPotion: true,
     simpleText: [
-        'Put a ferry token on a supply. It costs $1 less.',
-        '+$2 and +1 buy.'
+        'Put two ferry tokens on a supply. It costs $2 less.',
     ],
     rules: [ferryRule],
     effects: [targetedEffect(
-        target => addToken(target, 'ferry', 1),
-        'Put a ferry token on a supply.',
+        target => addToken(target, 'ferry', 2),
+        'Put two ferry tokens on a supply.',
         state => state.supply,
-    ), buyEffect(), coinsEffect(2)]
+    )]
 }
 potionRewards.push(potionOfTransportation)
 
@@ -221,7 +216,7 @@ potionRewards.push(potionOfReuse)
 export const intoxicatingBrew: CardSpec = {
     name: 'Intoxicating Brew',
     isPotion: true,
-    simpleText: [`Create a ${fair.name} in play with 10 shelter tokens on it (the first 10 times it would leave play, instead remove the token.).`],
+    simpleText: [`Create a ${fair.name} in play with 10 shelter tokens on it (the first 10 times it would leave play, instead remove a shelter token.).`],
     relatedCards: [fair],
     rules: [shelterRule],
     effects: [

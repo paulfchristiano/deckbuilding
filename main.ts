@@ -10,13 +10,10 @@ import { MetaGameUI } from './metaUI.js'
 import { type TestSpec } from './metaLogic.js'
 
 import { tradingPost } from './data/encounters.js'
-import { potionOfReuse } from './data/potions.js'
+import { resume } from './data/events.js'
+import { fountain } from './data/cards.js'
 
-import { cursedVillage } from './data/cards.js'
-import { cursedInkwell } from './data/relics.js'
-let test: TestSpec | null = ['relic', cursedInkwell]
-
-test = null
+let test: TestSpec | null = ['card', fountain]
 
 // Start the game when the page loads
 window.addEventListener('load', async () => {

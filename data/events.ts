@@ -112,7 +112,7 @@ eventRewards.push(parallelize)
 
 const reach:CardSpec = {name:'Reach',
     fixedCost: energy(1),
-    effects: [coinsEffect(1)]
+    effects: [coinsEffect(2)]
 }
 eventRewards.push(reach)
 
@@ -124,7 +124,7 @@ eventRewards.push(finance)
 
 export const duplicate:CardSpec = {name: 'Duplicate',
     simpleText: [`For each card in the supply, the next time you buy that card buy it again for free.`],
-    fixedCost: {...free, coin:4, energy:1},
+    fixedCost: {...free, coin:3, energy:1},
     effects: [{
         text: [`Put a duplicate token on each card in the supply.`],
         transform: (state, card) => doAll(state.supply.map(c => addToken(c, 'duplicate')))
@@ -178,7 +178,7 @@ function removeAllSupplyTokens(token:Token): Effect {
 }
 
 const synergy:CardSpec = {name: 'Synergy',
-    fixedCost: {...free, coin:3, energy:1},
+    fixedCost: {...free, coin:1, energy:1},
     simpleText: [
         `Put synergy tokens on two cards in the supply.`,
         `Whenever you buy the more expensive one (or either if they are tied), you can buy the other one for free.`
@@ -219,7 +219,7 @@ eventRewards.push(focus)
 
 
 const onslaught:CardSpec = {name: 'Onslaught',
-    fixedCost: {...free, coin:4, energy:1},
+    fixedCost: {...free, coin:6, energy:1},
     simpleText: [`Play any number of cards in your hand.`],
     effects: [{
         text: [`Repeat any number of times: play a card in your hand
@@ -247,9 +247,13 @@ const onslaught:CardSpec = {name: 'Onslaught',
 }
 eventRewards.push(onslaught)
 
-const resume:CardSpec = {name: 'Resume',
+export const resume:CardSpec = {name: 'Resume',
     fixedCost: energy(1),
-    effects: [fountainEffect()]
+    effects: [fountainEffect()],
+    restrictions: [{
+        text: 'You must have at least one card in your hand.',
+        test: (c, s, k) => s.hand.length == 0,
+    }]
 }
 eventRewards.push(resume)
 
@@ -351,9 +355,9 @@ eventRewards.push(polish)
 
 const commerce:CardSpec = {
     name: 'Commerce',
-    fixedCost: coin(1),
-    relatedCards: [villager],
-    effects: [createInPlayEffect(villager)],
+    fixedCost: coin(2),
+    relatedCards: [villager, horse],
+    effects: [createInPlayEffect(villager), createEffect(horse, 'discard', 2)],
 }
 
 eventRewards.push(commerce)
@@ -410,6 +414,7 @@ const haggle:CardSpec = {
 }
 eventRewards.push(haggle)
 
+/*
 const ride:CardSpec = {
     name: 'Ride',
     fixedCost: coin(1),
@@ -417,7 +422,9 @@ const ride:CardSpec = {
     effects: [createEffect(horse)]
 }
 eventRewards.push(ride)
+*/
 
+/*
 const redouble:CardSpec = {
     name:'Redouble',
     fixedCost: energy(2),
@@ -428,6 +435,7 @@ const redouble:CardSpec = {
     )],
 }
 eventRewards.push(redouble)
+*/
 
 /*
 const splay:CardSpec = {
@@ -519,7 +527,7 @@ const accelerate:CardSpec = {
         `Put a priority token on each card in the supply.`,
         `Whenever you create a card with a priority token on it, remove the token to play the card immediately.`
     ],
-    fixedCost: {...free, energy:1, coin:3},
+    fixedCost: {...free, energy:1, coin:1},
     effects: [{
         text: [`Put a priority token on each card in the supply.`],
         transform: (state, card) => doAll(state.supply.map(c => addToken(c, 'priority')))
@@ -562,7 +570,7 @@ eventRewards.push(hallOfEchoes)
 
 const bulkOrder:CardSpec = {
     name: 'Bulk Order',
-    fixedCost: {...free, coin:3, energy:1},
+    fixedCost: {...free, coin:2, energy:1},
     simpleText: [
         `Choose a card in the supply.`,
         `The next 5 times you buy that card, buy it again for free.`
