@@ -23,7 +23,7 @@ import type { TestSpec } from './metaLogic.js'
 let test: TestSpec | null = null
 
 const SAVE_STORAGE_KEY = 'roguelike.ongoingSaves.v1'
-const MAX_ONGOING_SAVES = 5
+const MAX_LAUNCHER_SAVES = 10
 
 interface SaveSlot {
     id: string
@@ -61,17 +61,15 @@ function loadSaveSlots(): SaveSlot[] {
         return parsed
             .filter(slot => slot && slot.id && slot.snapshot && slot.seed)
             .sort((a, b) => b.updatedAt - a.updatedAt)
-            .slice(0, MAX_ONGOING_SAVES)
     } catch {
         return []
     }
 }
 
 function persistSaveSlots(slots: SaveSlot[]): void {
-    const trimmed = slots
+    const sorted = slots
         .sort((a, b) => b.updatedAt - a.updatedAt)
-        .slice(0, MAX_ONGOING_SAVES)
-    localStorage.setItem(SAVE_STORAGE_KEY, JSON.stringify(trimmed))
+    localStorage.setItem(SAVE_STORAGE_KEY, JSON.stringify(sorted))
 }
 
 function upsertSaveSlot(id: string, snapshot: SerializedMetaGame): void {
@@ -198,6 +196,35 @@ function ensureLauncherStyles(): void {
             justify-content: center;
             background: rgba(0,0,0,0.25);
         }
+        #allSavesDialog {
+            position: fixed;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(0,0,0,0.25);
+            z-index: 45;
+        }
+        #allSavesCard {
+            width: min(900px, 95vw);
+            max-height: 90vh;
+            overflow: hidden;
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 10px;
+            padding: 16px;
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        #allSavesList {
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            padding-right: 4px;
+        }
         #newGameCard {
             background: white;
             border-radius: 10px;
@@ -231,6 +258,11 @@ function ensureLauncherStyles(): void {
             color: #666;
             padding: 8px 2px;
         }
+        .saveFootnote {
+            margin-top: 10px;
+            font-size: 0.85em;
+            color: #777;
+        }
         .negativeBuffer {
             color: #b00020;
             font-weight: 700;
@@ -243,11 +275,12 @@ function ensureLauncherStyles(): void {
             justify-content: center;
             background: rgba(0,0,0,0.3);
             z-index: 50;
+            padding: 20px 0;
         }
         #viewGameCard {
-            width: min(900px, 95vw);
-            max-height: 90vh;
-            overflow: auto;
+            width: min(1100px, 96vw);
+            max-height: calc(100vh - 40px);
+            overflow-y: auto;
             background: white;
             border: 1px solid #ddd;
             border-radius: 10px;
@@ -283,8 +316,6 @@ function ensureLauncherStyles(): void {
             border: 1px solid #ddd;
             border-radius: 8px;
             padding: 8px;
-            max-height: 42vh;
-            overflow-y: auto;
             background: #fcfcfd;
             display: flex;
             flex-direction: column;
@@ -321,7 +352,7 @@ async function runGame(slotID: string, snapshot: SerializedMetaGame | null, seed
     if (seedDisplay) seedDisplay.textContent = `Seed: ${seed}`
     setCoreUIVisible(true)
     document.getElementById('saveLauncher')?.remove()
-    document.getElementById('newGameDialog')?.remove()
+    clearLauncherDialogs()
 
     const metaUI = new MetaGameUI()
     const saveCallback = (nextSnapshot: SerializedMetaGame) => {
@@ -341,6 +372,7 @@ async function runGame(slotID: string, snapshot: SerializedMetaGame | null, seed
 function clearLauncherDialogs(): void {
     document.getElementById('newGameDialog')?.remove()
     document.getElementById('viewGameDialog')?.remove()
+    document.getElementById('allSavesDialog')?.remove()
 }
 
 async function runReplayFromSnapshot(slot: SaveSlot, stage: number): Promise<void> {
@@ -519,6 +551,99 @@ function openViewDialog(slot: SaveSlot): void {
     document.body.appendChild(dialog)
 }
 
+function createSaveRow(slot: SaveSlot, onAbandon: () => void): HTMLElement {
+    const row = document.createElement('div')
+    row.className = 'saveRow'
+
+    const meta = document.createElement('div')
+    meta.className = 'saveMeta'
+    const primary = document.createElement('div')
+    const done = slot.snapshot.data.phase === 'game_over' || slot.snapshot.data.stage >= 8
+    primary.textContent = done
+        ? `Victory! • Buffer ${slot.snapshot.data.buffer}`
+        : `Stage ${slot.snapshot.data.stage + 1} • Buffer ${slot.snapshot.data.buffer}`
+    if (slot.snapshot.data.buffer < 0) {
+        primary.className = 'negativeBuffer'
+    }
+    const seedLine = document.createElement('div')
+    seedLine.className = 'saveSeed'
+    seedLine.textContent = `Seed: ${slot.seed}`
+    meta.appendChild(primary)
+    meta.appendChild(seedLine)
+
+    const actions = document.createElement('div')
+    actions.className = 'saveActions'
+    if (!done) {
+        const continueButton = document.createElement('button')
+        continueButton.className = 'launcherBtn'
+        continueButton.textContent = 'Continue'
+        continueButton.onclick = async () => runGame(slot.id, slot.snapshot, slot.seed)
+        actions.appendChild(continueButton)
+    }
+    const viewButton = document.createElement('button')
+    viewButton.className = 'launcherBtn'
+    viewButton.textContent = 'View'
+    viewButton.onclick = () => openViewDialog(slot)
+    const abandonButton = document.createElement('button')
+    abandonButton.className = 'launcherBtn dangerBtn'
+    abandonButton.textContent = 'Abandon'
+    abandonButton.onclick = onAbandon
+    actions.appendChild(viewButton)
+    actions.appendChild(abandonButton)
+
+    row.appendChild(meta)
+    row.appendChild(actions)
+    return row
+}
+
+function openAllSavesDialog(): void {
+    clearLauncherDialogs()
+    const slots = loadSaveSlots()
+
+    const dialog = document.createElement('div')
+    dialog.id = 'allSavesDialog'
+    const card = document.createElement('div')
+    card.id = 'allSavesCard'
+
+    const header = document.createElement('div')
+    header.className = 'viewHeader'
+    const title = document.createElement('h3')
+    title.style.margin = '0'
+    title.textContent = `All Saved Games (${slots.length})`
+    const close = document.createElement('button')
+    close.className = 'launcherBtn'
+    close.textContent = 'Close'
+    close.onclick = () => dialog.remove()
+    header.appendChild(title)
+    header.appendChild(close)
+    card.appendChild(header)
+
+    const list = document.createElement('div')
+    list.id = 'allSavesList'
+    if (slots.length === 0) {
+        const empty = document.createElement('div')
+        empty.className = 'saveSeed'
+        empty.textContent = 'No saved games.'
+        list.appendChild(empty)
+    } else {
+        for (const slot of slots) {
+            list.appendChild(createSaveRow(slot, () => {
+                removeSaveSlot(slot.id)
+                dialog.remove()
+                renderLauncher()
+                openAllSavesDialog()
+            }))
+        }
+    }
+
+    card.appendChild(list)
+    dialog.appendChild(card)
+    dialog.addEventListener('mousedown', (e: MouseEvent) => {
+        if (e.target === dialog) dialog.remove()
+    })
+    document.body.appendChild(dialog)
+}
+
 function renderLauncher(): void {
     ensureLauncherStyles()
     setCoreUIVisible(false)
@@ -536,6 +661,12 @@ function renderLauncher(): void {
     const title = document.createElement('h2')
     title.textContent = 'Roguelike Deckbuilder'
     title.style.margin = '0'
+    const headerActions = document.createElement('div')
+    headerActions.className = 'saveActions'
+    const showAllButton = document.createElement('button')
+    showAllButton.className = 'launcherBtn'
+    showAllButton.textContent = 'Show all'
+    showAllButton.onclick = () => openAllSavesDialog()
     const newButton = document.createElement('button')
     newButton.className = 'launcherBtn'
     newButton.textContent = 'new game'
@@ -591,70 +722,38 @@ function renderLauncher(): void {
         seedInput.focus()
         seedInput.select()
     }
+    headerActions.appendChild(showAllButton)
+    headerActions.appendChild(newButton)
     header.appendChild(title)
-    header.appendChild(newButton)
+    header.appendChild(headerActions)
     card.appendChild(header)
 
     const list = document.createElement('div')
     list.id = 'saveList'
 
-    const slots = loadSaveSlots().slice(0, MAX_ONGOING_SAVES)
+    const allSlots = loadSaveSlots()
+    const slots = allSlots.slice(0, MAX_LAUNCHER_SAVES)
     if (slots.length === 0) {
         const empty = document.createElement('div')
         empty.id = 'emptySaves'
-        empty.textContent = 'No ongoing games.'
+        empty.textContent = 'No saved games.'
         list.appendChild(empty)
     } else {
         for (const slot of slots) {
-            const row = document.createElement('div')
-            row.className = 'saveRow'
-
-            const meta = document.createElement('div')
-            meta.className = 'saveMeta'
-            const primary = document.createElement('div')
-            const done = slot.snapshot.data.phase === 'game_over' || slot.snapshot.data.stage >= 8
-            primary.textContent = done
-                ? `Victory! • Buffer ${slot.snapshot.data.buffer}`
-                : `Stage ${slot.snapshot.data.stage + 1} • Buffer ${slot.snapshot.data.buffer}`
-            if (slot.snapshot.data.buffer < 0) {
-                primary.className = 'negativeBuffer'
-            }
-            const seedLine = document.createElement('div')
-            seedLine.className = 'saveSeed'
-            seedLine.textContent = `Seed: ${slot.seed}`
-            meta.appendChild(primary)
-            meta.appendChild(seedLine)
-
-            const actions = document.createElement('div')
-            actions.className = 'saveActions'
-            if (!done) {
-                const continueButton = document.createElement('button')
-                continueButton.className = 'launcherBtn'
-                continueButton.textContent = 'Continue'
-                continueButton.onclick = async () => runGame(slot.id, slot.snapshot, slot.seed)
-                actions.appendChild(continueButton)
-            }
-            const viewButton = document.createElement('button')
-            viewButton.className = 'launcherBtn'
-            viewButton.textContent = 'View'
-            viewButton.onclick = () => openViewDialog(slot)
-            const abandonButton = document.createElement('button')
-            abandonButton.className = 'launcherBtn dangerBtn'
-            abandonButton.textContent = 'Abandon'
-            abandonButton.onclick = () => {
+            list.appendChild(createSaveRow(slot, () => {
                 removeSaveSlot(slot.id)
                 renderLauncher()
-            }
-            actions.appendChild(viewButton)
-            actions.appendChild(abandonButton)
-
-            row.appendChild(meta)
-            row.appendChild(actions)
-            list.appendChild(row)
+            }))
         }
     }
 
     card.appendChild(list)
+    if (allSlots.length > MAX_LAUNCHER_SAVES) {
+        const footnote = document.createElement('div')
+        footnote.className = 'saveFootnote'
+        footnote.textContent = `Showing latest ${MAX_LAUNCHER_SAVES} of ${allSlots.length} saved games.`
+        card.appendChild(footnote)
+    }
     root.appendChild(card)
     document.body.appendChild(root)
 }
