@@ -10,6 +10,8 @@ import { LogType, logTypes } from './gameLogic.js'
 import { Option, OptionRender, HotkeyHint } from './gameLogic.js'
 import { UI, Undo, SetState } from './gameLogic.js'
 import { playGame, initialState, Replayable } from './gameLogic.js'
+import { BASE_PARS } from './metaLogic.js'
+import { ProgressStageDisplay, renderProgressSidebar } from './progressSidebar.js'
 
 // ----------------------------- DOM Helpers
 
@@ -44,41 +46,42 @@ function hideElement(el: HTMLElement): void {
 }
 
 function updateGameProgressSidebar(spec: GameSpec): void {
-    const circles = document.querySelectorAll('#progressLineGame .progressCircle')
     const currentStage = spec.metaStage
     const stageScores = spec.metaStageScores || []
     const stagePars = spec.metaStagePars || []
+    const stageTooltips = spec.metaStageTooltips || []
     const replayStage = spec.replayStage
-    circles.forEach(circle => {
-        const el = circle as HTMLElement
-        const stage = parseInt(el.getAttribute('data-stage') || '-1')
-        el.classList.remove('completed', 'current', 'replaying')
-        const existingScore = el.querySelector('.progressScore')
-        if (existingScore) existingScore.remove()
+    const displays: ProgressStageDisplay[] = []
+
+    for (let stage = 0; stage < BASE_PARS.length; stage++) {
+        const display: ProgressStageDisplay = { stage }
+        const basePar = BASE_PARS[stage]
+        const tooltip = stageTooltips[stage] ?? (basePar === undefined ? null : `${basePar} (base)`)
+        if (tooltip !== null) display.tooltipText = tooltip.replace(/, /g, '\n')
 
         if (currentStage !== undefined && stage < currentStage) {
-            el.classList.add('completed')
+            display.completed = true
             const score = stageScores[stage]
             const par = stagePars[stage]
             if (score !== null && score !== undefined && par !== null && par !== undefined) {
-                const scoreSpan = document.createElement('span')
-                scoreSpan.className = 'progressScore'
-                scoreSpan.textContent = `${score}/${par}`
-                if (score > par) {
-                    scoreSpan.style.color = 'red'
-                } else if (score < par) {
-                    scoreSpan.style.color = 'green'
-                }
-                el.appendChild(scoreSpan)
+                display.scoreText = `${score}/${par}`
+                if (score > par) display.scoreColor = 'red'
+                else if (score < par) display.scoreColor = 'green'
             }
         } else if (currentStage !== undefined && stage === currentStage) {
-            el.classList.add('current')
+            display.current = true
+            display.scoreText = `?/${spec.par}`
+        } else if (basePar !== undefined) {
+            display.scoreText = `${basePar}`
         }
 
         if (replayStage !== null && replayStage !== undefined && stage === replayStage) {
-            el.classList.add('replaying')
+            display.replaying = true
         }
-    })
+        displays.push(display)
+    }
+
+    renderProgressSidebar('#progressLineGame', displays)
 }
 
 let clearMacroDeleteMenuHandlers: (() => void) | null = null

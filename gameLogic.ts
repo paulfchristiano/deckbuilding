@@ -578,6 +578,7 @@ export type GameSpec = {
     metaStage?: number,
     metaStageScores?: (number | null)[],
     metaStagePars?: (number | null)[],
+    metaStageTooltips?: (string | null)[],
     previousScore?: number | null,
     replayUsedPotionIDs?: number[],
     replayStage?: number | null

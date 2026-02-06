@@ -9,7 +9,7 @@ import { Encounter, registerEncounter, RewardOption,
     GameSetupParams,
     compose,
 } from '../metaLogic.js'
-import { emptyBottle, inkwell } from './relics.js'
+import { giftBox, inkwell } from './relics.js'
 import { CardSpec, CardUpgrade,
     cardRewards, eventRewards, relicRewards, potionRewards,
     leq,
@@ -118,13 +118,13 @@ export const magicalBox: Encounter = {
                 }
             },
             {
-                label: 'Empty Box',
+                label: 'Gift box',
                 description: 'Each time you add a card to your deck, start the course with a copy.',
                 disabled: selectedIndex !== null,
                 checked: selectedIndex === 1,
                 onClick: async () => ({
                     newData: { selectedIndex: 1 },
-                    transform: gainRelic(emptyBottle)
+                    transform: gainRelic(giftBox)
                 })
             }
         ]

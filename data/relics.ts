@@ -129,8 +129,8 @@ export const lookingGlass: CardSpec = {
 }
     */
 
-export const emptyBottle: RelicSpec = {
-    name: 'Empty Bottle',
+export const giftBox: RelicSpec = {
+    name: 'Gift box',
     simpleText: [
         'When you add a card to your deck,',
         'start the next course with a copy in hand.'
@@ -161,7 +161,7 @@ export const emptyBottle: RelicSpec = {
         },
     }]
 }
-relicRewards.push(emptyBottle)
+relicRewards.push(giftBox)
 
 export const banner: RelicSpec = {
     name: 'Banner',

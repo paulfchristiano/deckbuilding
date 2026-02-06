@@ -14,6 +14,7 @@ import {
 } from './metaLogic.js'
 import { buildSpecTooltip, renderSpecNoRelated } from './cardRendering.js'
 import { initHotkeys, startGame, keyListeners } from './gameUI.js'
+import { ProgressStageDisplay, renderProgressSidebar } from './progressSidebar.js'
 
 // ----------------------------- DOM Helpers
 
@@ -189,88 +190,57 @@ function updateBufferDisplay(state: MetaState): void {
 }
 
 function updateProgressSidebar(state: MetaState, onReplayStage?: (stage: number) => void): void {
-    const circles = document.querySelectorAll('#progressLine .progressCircle, #progressLinePath .progressCircle, #progressLineGame .progressCircle')
+    const renderLine = (selector: string, inGameSidebar: boolean): void => {
+        const displays: ProgressStageDisplay[] = []
+        for (let stage = 0; stage < BASE_PARS.length; stage++) {
+            const display: ProgressStageDisplay = { stage }
+            const basePar = BASE_PARS[stage]
+            const currentStagePar = (
+                stage === state.data.stage &&
+                state.data.challenges.length === 1
+            )
+                ? makeSpec(state, state.data.challenges[0]).par
+                : null
 
-    circles.forEach(circle => {
-        const el = circle as HTMLElement
-        const stage = parseInt(el.getAttribute('data-stage') || '0')
-        const inGameSidebar = el.closest('#progressLineGame') !== null
-        const basePar = BASE_PARS[stage]
-        const currentStagePar = (
-            stage === state.data.stage &&
-            state.data.challenges.length === 1
-        )
-            ? makeSpec(state, state.data.challenges[0]).par
-            : null
-
-        el.classList.remove('completed', 'current', 'replayable')
-        el.onclick = null
-        const existingScore = el.querySelector('.progressScore')
-        if (existingScore) existingScore.remove()
-        const existingTooltips = el.querySelectorAll('.tooltip')
-        existingTooltips.forEach(node => node.remove())
-
-        let tooltip = basePar === undefined ? '' : `${basePar} (base)`
-        if (stage < state.data.stage) {
-            const replayData = state.data.stageReplays[stage]
-            if (replayData !== null) {
-                tooltip = describeParCalculation(stage, replayData.challenge, replayData.spec.relics)
-            }
-        } else if (stage === state.data.stage && currentStagePar !== null) {
-            tooltip = describeParCalculation(stage, state.data.challenges[0], state.data.relics)
-        }
-        const attachTooltip = (target: HTMLElement): void => {
-            if (tooltip === '') return
-            target.appendChild(createTooltip(tooltip.replace(/, /g, '\n')))
-        }
-
-        if (stage < state.data.stage) {
-            el.classList.add('completed')
-            const score = state.data.stageScores[stage]
-            const par = state.data.stagePars[stage]
-            if (score !== null && par !== null) {
-                const scoreSpan = createSpan('progressScore')
-                scoreSpan.textContent = `${score}/${par}`
-                attachTooltip(scoreSpan)
-                if (score > par) {
-                    scoreSpan.style.color = 'red'
-                } else if (score < par) {
-                    scoreSpan.style.color = 'green'
+            let tooltip = basePar === undefined ? '' : `${basePar} (base)`
+            if (stage < state.data.stage) {
+                const replayData = state.data.stageReplays[stage]
+                if (replayData !== null) {
+                    tooltip = describeParCalculation(stage, replayData.challenge, replayData.spec.relics)
                 }
-                el.appendChild(scoreSpan)
+            } else if (stage === state.data.stage && currentStagePar !== null) {
+                tooltip = describeParCalculation(stage, state.data.challenges[0], state.data.relics)
+            }
+            display.tooltipText = tooltip.replace(/, /g, '\n')
+
+            if (stage < state.data.stage) {
+                display.completed = true
+                const score = state.data.stageScores[stage]
+                const par = state.data.stagePars[stage]
+                if (score !== null && par !== null) {
+                    display.scoreText = `${score}/${par}`
+                    if (score > par) display.scoreColor = 'red'
+                    else if (score < par) display.scoreColor = 'green'
+                }
+                if (!inGameSidebar && onReplayStage && state.data.stageReplays[stage] !== null) {
+                    display.replayable = true
+                    display.onClick = () => onReplayStage(stage)
+                }
+            } else if (stage === state.data.stage) {
+                display.current = true
+                if (currentStagePar !== null) display.scoreText = `?/${currentStagePar}`
+                else if (basePar !== undefined) display.scoreText = `${basePar}`
             } else {
-                attachTooltip(el)
+                if (basePar !== undefined) display.scoreText = `${basePar}`
             }
-            if (!inGameSidebar && onReplayStage && state.data.stageReplays[stage] !== null) {
-                el.classList.add('replayable')
-                el.onclick = () => onReplayStage(stage)
-            }
-        } else if (stage === state.data.stage) {
-            if (currentStagePar !== null) {
-                const scoreSpan = createSpan('progressScore')
-                scoreSpan.textContent = `?/${currentStagePar}`
-                attachTooltip(scoreSpan)
-                el.appendChild(scoreSpan)
-            } else if (basePar !== undefined) {
-                const scoreSpan = createSpan('progressScore')
-                scoreSpan.textContent = `${basePar}`
-                attachTooltip(scoreSpan)
-                el.appendChild(scoreSpan)
-            } else {
-                attachTooltip(el)
-            }
-            el.classList.add('current')
-        } else {
-            if (basePar !== undefined) {
-                const scoreSpan = createSpan('progressScore')
-                scoreSpan.textContent = `${basePar}`
-                attachTooltip(scoreSpan)
-                el.appendChild(scoreSpan)
-            } else {
-                attachTooltip(el)
-            }
+            displays.push(display)
         }
-    })
+        renderProgressSidebar(selector, displays)
+    }
+
+    renderLine('#progressLine', false)
+    renderLine('#progressLinePath', false)
+    renderLine('#progressLineGame', true)
 }
 
 function encounterTooltipText(rewardState: RewardState, state: MetaState): string {

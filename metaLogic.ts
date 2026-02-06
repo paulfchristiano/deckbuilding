@@ -707,6 +707,7 @@ interface SerializedGameSpec {
     metaStage?: number
     metaStageScores?: (number | null)[]
     metaStagePars?: (number | null)[]
+    metaStageTooltips?: (string | null)[]
     previousScore?: number | null
     replayUsedPotionIDs?: number[]
     replayStage?: number | null
@@ -1097,6 +1098,7 @@ function serializeGameSpec(spec: GameSpec): SerializedGameSpec {
         metaStage: spec.metaStage,
         metaStageScores: spec.metaStageScores ? [...spec.metaStageScores] : undefined,
         metaStagePars: spec.metaStagePars ? [...spec.metaStagePars] : undefined,
+        metaStageTooltips: spec.metaStageTooltips ? [...spec.metaStageTooltips] : undefined,
         previousScore: spec.previousScore,
         replayUsedPotionIDs: spec.replayUsedPotionIDs ? [...spec.replayUsedPotionIDs] : undefined,
         replayStage: spec.replayStage
@@ -1114,6 +1116,7 @@ function deserializeGameSpec(spec: SerializedGameSpec): GameSpec {
         metaStage: spec.metaStage,
         metaStageScores: spec.metaStageScores ? [...spec.metaStageScores] : undefined,
         metaStagePars: spec.metaStagePars ? [...spec.metaStagePars] : undefined,
+        metaStageTooltips: spec.metaStageTooltips ? [...spec.metaStageTooltips] : undefined,
         previousScore: spec.previousScore,
         replayUsedPotionIDs: spec.replayUsedPotionIDs ? [...spec.replayUsedPotionIDs] : undefined,
         replayStage: spec.replayStage
@@ -1441,6 +1444,22 @@ export function describeParCalculation(stage: number, challenge: ChallengeSpec |
     return parts.join(', ')
 }
 
+function stageTooltipTexts(state: MetaState): (string | null)[] {
+    return BASE_PARS.map((basePar, stage) => {
+        if (basePar === undefined) return null
+        if (stage < state.data.stage) {
+            const replayData = state.data.stageReplays[stage]
+            if (replayData !== null) {
+                return describeParCalculation(stage, replayData.challenge, replayData.spec.relics)
+            }
+        }
+        if (stage === state.data.stage && state.data.challenges.length === 1) {
+            return describeParCalculation(stage, state.data.challenges[0], state.data.relics)
+        }
+        return `${basePar} (base)`
+    })
+}
+
 // ----------------------------- Meta Trigger Application
 
 
@@ -1496,6 +1515,7 @@ export function makeSpec(state: MetaState, challenge: ChallengeSpec): GameSpec {
         metaStage: state.data.stage,
         metaStageScores: [...state.data.stageScores],
         metaStagePars: [...state.data.stagePars],
+        metaStageTooltips: stageTooltipTexts(state),
     }
 }
 
@@ -1591,6 +1611,7 @@ function cloneGameSpec(spec: GameSpec): GameSpec {
         relics: [...spec.relics],
         metaStageScores: spec.metaStageScores ? [...spec.metaStageScores] : undefined,
         metaStagePars: spec.metaStagePars ? [...spec.metaStagePars] : undefined,
+        metaStageTooltips: spec.metaStageTooltips ? [...spec.metaStageTooltips] : undefined,
         replayUsedPotionIDs: spec.replayUsedPotionIDs ? [...spec.replayUsedPotionIDs] : undefined
     }
 }
@@ -1619,6 +1640,7 @@ function replaySpecForStage(state: MetaState, replayData: StageReplayData): Game
         metaStage: state.data.stage,
         metaStageScores: [...state.data.stageScores],
         metaStagePars: [...state.data.stagePars],
+        metaStageTooltips: stageTooltipTexts(state),
         previousScore: replayData.score,
         replayUsedPotionIDs: replayUsedPotionIDs(replayData),
         replayStage: replayData.stage
