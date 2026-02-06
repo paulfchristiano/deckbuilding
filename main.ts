@@ -659,7 +659,7 @@ function renderLauncher(): void {
     const header = document.createElement('div')
     header.id = 'saveLauncherHeader'
     const title = document.createElement('h2')
-    title.textContent = 'Roguelike Deckbuilder'
+    title.textContent = 'engine-roguelike'
     title.style.margin = '0'
     const headerActions = document.createElement('div')
     headerActions.className = 'saveActions'
