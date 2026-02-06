@@ -340,6 +340,7 @@ export type RewardKind = 'card' | 'event' | 'potion' | 'relic' | 'encounter'
 
 export interface StageReplayData {
     stage: number
+    challenge: ChallengeSpec
     spec: GameSpec
     score: number
     par: number
@@ -702,6 +703,50 @@ export function applyMetaReplacers<K extends keyof MetaReplacerParamMap>(
     return params
 }
 
+function signedAmount(amount: number): string {
+    return amount > 0 ? `+${amount}` : `${amount}`
+}
+
+export function describeParCalculation(stage: number, challenge: ChallengeSpec | null | undefined, relicCards: Card[]): string {
+    const basePar = BASE_PARS[stage]
+    if (basePar === undefined) return ''
+
+    const parts = [`${basePar} (base)`]
+    let par = basePar
+    if (challenge !== null && challenge !== undefined) {
+        for (const boon of challenge.boons) {
+            par -= boon.parReduction
+            if (boon.parReduction !== 0) {
+                parts.push(`${signedAmount(-boon.parReduction)} for ${boon.name}`)
+            }
+        }
+    }
+
+    let params: GameSetupParams = {
+        par,
+        vpGoal: challenge?.vpMode.target ?? 0,
+        cardSpecs: [],
+        eventSpecs: []
+    }
+    for (const relicCard of relicCards) {
+        if (!(relicCard instanceof Relic)) continue
+        const metaReplacers = relicCard.metaReplacers() as MetaReplacer[]
+        for (const replacer of metaReplacers) {
+            if (replacer.kind !== 'gameSetup') continue
+            const replaceFn = replacer.replace as unknown as (p: GameSetupParams) => GameSetupParams
+            const nextParams = replaceFn(params)
+            const parDelta = nextParams.par - params.par
+            if (parDelta !== 0) {
+                parts.push(`${signedAmount(parDelta)} for ${relicCard.name}`)
+            }
+            params = nextParams
+        }
+    }
+
+    parts.push(`= ${params.par}`)
+    return parts.join(', ')
+}
+
 // ----------------------------- Meta Trigger Application
 
 
@@ -857,6 +902,10 @@ function cloneGameSpec(spec: GameSpec): GameSpec {
 function cloneStageReplayData(replayData: StageReplayData): StageReplayData {
     return {
         ...replayData,
+        challenge: {
+            ...replayData.challenge,
+            boons: [...replayData.challenge.boons]
+        },
         spec: cloneGameSpec(replayData.spec),
         history: [...replayData.history],
         potionsRemaining: [...replayData.potionsRemaining]
@@ -1104,6 +1153,10 @@ export async function playGame(ui: MetaUI, test:null|TestSpec = null, seed: stri
                 const stageReplays = [...state.data.stageReplays]
                 stageReplays[stage] = {
                     stage,
+                    challenge: {
+                        ...state.data.challenges[0],
+                        boons: [...state.data.challenges[0].boons]
+                    },
                     spec: cloneGameSpec(gameSpec),
                     score,
                     par: gameSpec.par,
@@ -1121,6 +1174,8 @@ export async function playGame(ui: MetaUI, test:null|TestSpec = null, seed: stri
                 }
                 // Crossing a stage boundary should discard all meta undo/redo history.
                 state.clearHistory()
+                // No current-stage challenge is known until a path is selected.
+                state.update({ challenges: [] })
                 const paths = makePaths(state).map(skel => pathFromSkeleton(skel))
                 let path: Path
                 while (true) {

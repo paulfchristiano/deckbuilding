@@ -310,7 +310,9 @@ input {
 
     /* Option buttons (challenge/play button): show tooltip on hover */
     .option:hover .tooltip,
-    .pathPlay:hover .tooltip {
+    .pathPlay:hover .tooltip,
+    .progressCircle:hover .tooltip,
+    .progressScore:hover .tooltip {
         visibility: visible;
         transition-delay: 0.3s;
     }
