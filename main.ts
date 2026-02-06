@@ -10,12 +10,14 @@ import { randomString } from './rng.js'
 
 import type { TestSpec } from './metaLogic.js'
 
-import { tradingPost } from './data/encounters.js'
+import { shopkeeper, tradingPost } from './data/encounters.js'
 import { resume } from './data/events.js'
 import { fountain } from './data/cards.js'
-import { brewery } from './data/encounters.js'
+import { magicalBox } from './data/encounters.js'
 
-let test: TestSpec | null = ['encounter', brewery]
+let test: TestSpec | null = ['encounter', magicalBox]
+
+test = null;
 
 function resolveSeed(): string {
     const params = new URLSearchParams(window.location.search)

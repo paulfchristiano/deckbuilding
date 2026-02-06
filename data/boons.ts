@@ -93,7 +93,7 @@ const vault:CardSpec = {name: 'Vault',
 boons.push({
     name: 'Vault',
     description: 'Add Vault as an event, start with 10 actions and 2 buys',
-    parReduction: 4,
+    parReduction: 2,
     cards: [],
     events: [vault],
 })
