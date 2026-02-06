@@ -17,11 +17,10 @@ import { randomString } from './rng.js'
 import { startGame } from './gameUI.js'
 import { renderSpecNoRelated } from './cardRendering.js'
 import { Card, CardSpec, UndoPastBeginning } from './gameLogic.js'
-import { piggyBank } from './data/relics.js'
 
 import type { TestSpec } from './metaLogic.js'
 
-let test: TestSpec | null = ['relic', piggyBank]
+let test: TestSpec | null = null
 
 const SAVE_STORAGE_KEY = 'roguelike.ongoingSaves.v1'
 const MAX_LAUNCHER_SAVES = 10
@@ -494,11 +493,16 @@ function openViewDialog(slot: SaveSlot): void {
     status.textContent = `${done ? 'Victory!' : `Stage ${state.data.stage + 1}`} • Buffer ${state.data.buffer} • Seed ${slot.seed}`
     if (state.data.buffer < 0) status.className = 'negativeBuffer'
     card.appendChild(status)
+    const relicDisplaySpecs = state.data.relics.map(relic => (
+        relic.name === 'Winged Boots'
+            ? { ...relic.spec, name: `${relic.spec.name} (${relic.count('charge')})` }
+            : relic.spec
+    ))
 
     card.appendChild(renderDeckSection('Cards', state.data.collectedCards))
     card.appendChild(renderDeckSection('Events', state.data.collectedEvents))
     card.appendChild(renderDeckSection('Potions', state.data.potions.map(p => p.spec)))
-    card.appendChild(renderDeckSection('Relics', state.data.relics.map(r => r.spec)))
+    card.appendChild(renderDeckSection('Relics', relicDisplaySpecs))
 
     const timelineTitle = document.createElement('div')
     timelineTitle.className = 'viewDeckTitle'

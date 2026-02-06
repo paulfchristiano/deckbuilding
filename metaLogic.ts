@@ -168,7 +168,7 @@ export function getRewardOptions(rewardState: RewardState, metaState: MetaState)
         ? encounterRewardCompleted(rewardState)
         : rewardState.selectedIndex !== null
     const piggySelected = rewardState.kind !== 'encounter' && rewardState.selectedIndex === PIGGY_BANK_SELECTED_INDEX
-    const hasSingingBowl = singingBowlCount(metaState) > 0
+    const hasSingingBowl = rewardState.kind === 'card' && singingBowlCount(metaState) > 0
     if (hasSingingBowl) {
         const optionIndex = baseOptions.length
         const skippedLabels = baseOptions.map(option => option.label)
@@ -177,26 +177,12 @@ export function getRewardOptions(rewardState: RewardState, metaState: MetaState)
             label: '+2 Buffer',
             compact: true,
             disabled: alreadySelected,
-            checked: rewardState.kind === 'encounter'
-                ? false
-                : rewardState.selectedIndex === optionIndex,
+            checked: rewardState.selectedIndex === optionIndex,
             onClick: async () => {
                 const transform = compose(
                     addTimelineAction('Gain 2 buffer', details),
                     addBuffer(2)
                 )
-                if (rewardState.kind === 'encounter') {
-                    const data = rewardState.data as Record<string, unknown> | null
-                    let newData: unknown = rewardState.data
-                    if (data && typeof data === 'object') {
-                        if ('selectedIndex' in data) {
-                            newData = { ...data, selectedIndex: -1 }
-                        } else if ('finished' in data) {
-                            newData = { ...data, finished: true }
-                        }
-                    }
-                    return { newData, transform }
-                }
                 return {
                     newData: { ...rewardState, selectedIndex: optionIndex },
                     transform
@@ -389,10 +375,15 @@ export interface RewardParams {
     optionCount: number
 }
 
+export interface PathRewardParams {
+    rewardsPerPath: number
+}
+
 // TODO: render relics appropriately when you hold shift etc.
 export type MetaReplacer =
     | { kind: 'gameSetup', replace: (params: GameSetupParams, self: Relic) => GameSetupParams }
     | { kind: 'reward', replace: (params: RewardParams, self: Relic) => RewardParams }
+    | { kind: 'pathRewards', replace: (params: PathRewardParams, self: Relic) => PathRewardParams }
 
 // Meta trigger event types
 export interface CourseEndEvent {
@@ -404,6 +395,12 @@ export interface CourseEndEvent {
 export interface CourseStartEvent {
     kind: 'start',
     stage: number
+}
+
+export interface PathGenerationEvent {
+    kind: 'path'
+    baseRewardsPerPath: number
+    rewardsPerPath: number
 }
 
 export interface GainRelicEvent {
@@ -426,7 +423,7 @@ export interface GainEventEvent {
     event: CardSpec
 }
 
-export type MetaGameEvent = CourseEndEvent | CourseStartEvent | GainRelicEvent | GainPotionEvent | GainCardEvent | GainEventEvent
+export type MetaGameEvent = CourseEndEvent | CourseStartEvent | PathGenerationEvent | GainRelicEvent | GainPotionEvent | GainCardEvent | GainEventEvent
 
 export interface MetaTrigger<T extends MetaGameEvent> {
     kind: T['kind'];
@@ -435,7 +432,14 @@ export interface MetaTrigger<T extends MetaGameEvent> {
 }
 
 // Meta trigger types - now return MetaTransform instead of just a result
-export type TypedMetaTrigger = MetaTrigger<CourseEndEvent> | MetaTrigger<CourseStartEvent> | MetaTrigger<GainRelicEvent> | MetaTrigger<GainPotionEvent> | MetaTrigger<GainCardEvent> | MetaTrigger<GainEventEvent>
+export type TypedMetaTrigger =
+    | MetaTrigger<CourseEndEvent>
+    | MetaTrigger<CourseStartEvent>
+    | MetaTrigger<PathGenerationEvent>
+    | MetaTrigger<GainRelicEvent>
+    | MetaTrigger<GainPotionEvent>
+    | MetaTrigger<GainCardEvent>
+    | MetaTrigger<GainEventEvent>
 
 // ----------------------------- State Types
 
@@ -1581,6 +1585,7 @@ export async function endCourse(score: number, par: number, state:MetaState): Pr
 type MetaReplacerParamMap = {
     'gameSetup': GameSetupParams
     'reward': RewardParams
+    'pathRewards': PathRewardParams
 }
 
 export function applyMetaReplacers<K extends keyof MetaReplacerParamMap>(
@@ -1594,8 +1599,8 @@ export function applyMetaReplacers<K extends keyof MetaReplacerParamMap>(
         for (const replacer of metaReplacers) {
             if (replacer.kind === kind) {
                 // Type assertion via unknown needed due to TypeScript limitations with discriminated unions
-                const replaceFn = replacer.replace as unknown as (p: MetaReplacerParamMap[K]) => MetaReplacerParamMap[K]
-                params = replaceFn(params)
+                const replaceFn = replacer.replace as unknown as (p: MetaReplacerParamMap[K], self: Relic) => MetaReplacerParamMap[K]
+                params = replaceFn(params, relic)
             }
         }
     }
@@ -1632,8 +1637,8 @@ export function describeParCalculation(stage: number, challenge: ChallengeSpec |
         const metaReplacers = relicCard.metaReplacers() as MetaReplacer[]
         for (const replacer of metaReplacers) {
             if (replacer.kind !== 'gameSetup') continue
-            const replaceFn = replacer.replace as unknown as (p: GameSetupParams) => GameSetupParams
-            const nextParams = replaceFn(params)
+            const replaceFn = replacer.replace as unknown as (p: GameSetupParams, self: Relic) => GameSetupParams
+            const nextParams = replaceFn(params, relicCard)
             const parDelta = nextParams.par - params.par
             if (parDelta !== 0) {
                 parts.push(`${signedAmount(parDelta)} for ${relicCard.name}`)
@@ -1747,16 +1752,32 @@ interface PathSkeleton {
     challenges: ChallengeSpec[]
 }
 
-function makePaths(state: MetaState): PathSkeleton[] {
+async function makePaths(state: MetaState): Promise<PathSkeleton[]> {
     const stage = state.data.stage
     const generator = state.generator(`paths${stage}`).newGenerator()
-    const allOptions: RewardKind[] = ['card', 'card', 'event', 'potion', 'relic', 'encounter']
-    const shuffledOptions = generator.samples(allOptions, 4)
+    const baseRewardsPerPath = 2
+    const pathRewardParams = applyMetaReplacers('pathRewards', { rewardsPerPath: baseRewardsPerPath }, state)
+    await trigger({
+        kind: 'path',
+        baseRewardsPerPath,
+        rewardsPerPath: pathRewardParams.rewardsPerPath
+    }, state)
+    const totalRewardsPerPath = pathRewardParams.rewardsPerPath
+    const leftRewards: RewardKind[] = []
+    const rightRewards: RewardKind[] = []
+    let remainingRewards = totalRewardsPerPath
+    while (remainingRewards > 0) {
+        const chunkSize = Math.min(3, remainingRewards)
+        const sampled: RewardKind[] = generator.permute(['card', 'card', 'event', 'potion', 'relic', 'encounter'])
+        leftRewards.push(...sampled.slice(0, chunkSize))
+        rightRewards.push(...sampled.slice(chunkSize, chunkSize * 2))
+        remainingRewards -= chunkSize
+    }
     const challenge1 = randomChallenge(state)
     const challenge2 = randomChallenge(state)
     return [
-        { rewards: shuffledOptions.slice(0, 2), challenges: [challenge1] },
-        { rewards: shuffledOptions.slice(2, 4), challenges: [challenge2] },
+        { rewards: leftRewards, challenges: [challenge1] },
+        { rewards: rightRewards, challenges: [challenge2] },
     ]
 }
 
@@ -2183,7 +2204,7 @@ export async function playGame(
                     await state.ui.showMessage(state, 'Congratulations! You have completed all stages!')
                     return
                 }
-                const paths = makePaths(state).map(skel => pathFromSkeleton(skel))
+                const paths = (await makePaths(state)).map(skel => pathFromSkeleton(skel))
                 state.replaceAndClearHistory({
                     phase: 'path_select',
                     challenges: [],

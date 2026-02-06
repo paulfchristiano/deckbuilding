@@ -148,6 +148,37 @@ export const piggyBank: RelicSpec = {
 }
 relicRewards.push(piggyBank)
 
+export const wingedBoots: RelicSpec = {
+    name: 'Winged Boots',
+    simpleText: ['Your next two stages have an additional reward.'],
+    metaReplacers: [{
+        kind: 'pathRewards',
+        replace: (p, self) => self.count('charge') > 0
+            ? ({ ...p, rewardsPerPath: p.rewardsPerPath + 1 })
+            : p
+    }],
+    metaTriggers: [{
+        kind: 'relic',
+        handles: (e: GainRelicEvent, _s: MetaState, self: Relic) => self.id === e.relic.id,
+        transform: (_e: GainRelicEvent, _s: MetaState, self: Relic) => async function (state: MetaState) {
+            const tokens = new Map(self.tokens)
+            tokens.set('charge', 2)
+            state.applyToRelic(r => r.update({ tokens }), self)
+        }
+    }, {
+        kind: 'path',
+        handles: (_e, _s, self: Relic) => self.count('charge') > 0,
+        transform: (_e, _s, self: Relic) => async function (state: MetaState) {
+            const current = state.data.relics.find(r => r.id === self.id)
+            if (!current || current.count('charge') <= 0) return
+            const tokens = new Map(current.tokens)
+            tokens.set('charge', current.count('charge') - 1)
+            state.applyToRelic(r => r.update({ tokens }), current)
+        }
+    }]
+}
+relicRewards.push(wingedBoots)
+
 // TODO: implement
 // Need to have a replacer that can put in cards into the challengespec
 // But then also want it to take effect immediately.

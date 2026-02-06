@@ -547,12 +547,17 @@ let deckDialogOpen = false
 function showDeckDialog(state: MetaState): void {
     const container = getElement('deckContents')
     clearElement(container)
+    const relicDisplaySpecs = state.data.relics.map(relic => (
+        relic.name === 'Winged Boots'
+            ? { ...relic.spec, name: `${relic.spec.name} (${relic.count('charge')})` }
+            : relic.spec
+    ))
 
     const sections: Array<{ title: string, items: CardSpec[] }> = [
         { title: 'Cards', items: state.data.collectedCards },
         { title: 'Events', items: state.data.collectedEvents },
         { title: 'Potions', items: state.data.potions.map(p => p.spec) },
-        { title: 'Relics', items: state.data.relics.map(r => r.spec) }
+        { title: 'Relics', items: relicDisplaySpecs }
     ]
 
     let hasContent = false
