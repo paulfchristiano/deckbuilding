@@ -336,7 +336,7 @@ eventRewards.push(lostArts)
 
 const polish:CardSpec = {
     name: 'Polish',
-    fixedCost: {...free, coin:2},
+    fixedCost: {...free, coin:1, energy:1},
     effects: [{
         text: [`Put a polish token on each card in your hand.`],
         transform: state => doAll(state.hand.map(c => addToken(c, 'polish')))
