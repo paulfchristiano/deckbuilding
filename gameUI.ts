@@ -109,7 +109,6 @@ const hotkeys: Key[] = potionHotkeys.concat(supplyAndPlayHotkeys).concat(handHot
 export function initHotkeys(): void {
     window.addEventListener('keydown', (e: KeyboardEvent) => {
         if (e.altKey || e.ctrlKey || e.metaKey) return
-        if (e.repeat) return  // Ignore key repeat
 
         const listener = keyListeners.get(e.key)
         if (listener) {
