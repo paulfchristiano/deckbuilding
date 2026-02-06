@@ -13,11 +13,17 @@ import { emptyBottle, inkwell } from './relics.js'
 import { create, State, Card, CardSpec, CardUpgrade,
     cardRewards, eventRewards, relicRewards, potionRewards,
     cardSpecEffects,
+    addCosts,
     leq,
     coin,
     cardSpecCost,
-    cardSpecName,
+    displayName,
+    buyTrigger,
+    afterBuyTrigger,
+    applyToTarget,
+    trash,
     actionsEffect,
+    buysEffect,
     coinsEffect,
     free
 } from '../gameLogic.js'
@@ -29,12 +35,12 @@ import { geminiBrew, mirrorBrew, potionOfEchoes, potionOfReflection } from './po
 // ----------------------------- Helper Functions
 
 function bottledCard(spec: CardSpec): RelicSpec {
-    const displayName = cardSpecName(spec)
+    const cardName = displayName(spec)
     return {
-        name: `Bottled ${displayName}`,
+        name: `Bottled ${cardName}`,
         triggers: [{
             kind: 'gameStart',
-            text: `Start each course with a copy of ${displayName} in hand.`,
+            text: `Start each course with a copy of ${cardName} in hand.`,
             handles: () => true,
             transform: () => async function (state: State) {
                 state = await create(spec, 'hand')(state)
@@ -49,19 +55,19 @@ function bottledEventPotion(
     spec: CardSpec,
     options: { useUnderlyingEvent?: boolean } = {}
 ): CardSpec {
-    const displayName = cardSpecName(spec)
+    const cardName = displayName(spec)
     const copiedEffects = cardSpecEffects(spec)
     const useUnderlyingEvent = options.useUnderlyingEvent ?? true
     const copiedText = copiedEffects.flatMap(effect => effect.text)
     const displayText = spec.simpleText
         ? [...spec.simpleText]
-        : (copiedText.length > 0 ? copiedText : [`Use ${displayName}.`])
+        : (copiedText.length > 0 ? copiedText : [`Use ${cardName}.`])
 
     const effects = useUnderlyingEvent
         ? [{
-            text: copiedText.length > 0 ? copiedText : [`Use ${displayName}.`],
+            text: copiedText.length > 0 ? copiedText : [`Use ${cardName}.`],
             transform: (_state: State, sourceCard: Card) => async function (state: State) {
-                const target = state.events.find(event => event.name === displayName)
+                const target = state.events.find(event => event.name === cardName)
                 if (!target) {
                     return state
                 }
@@ -71,7 +77,7 @@ function bottledEventPotion(
         : copiedEffects
 
     return {
-        name: `Bottled ${displayName}`,
+        name: `Bottled ${cardName}`,
         isPotion: true,
         simpleText: displayText,
         relatedCards: [spec],
@@ -258,8 +264,8 @@ const sharpenUpgrade: CardUpgrade = {
 
 const redesignUpgrade: CardUpgrade = {
     name: name => `${name}+`,
-    cost: (cost, kind) => kind === 'buy'
-        ? { ...cost, coin: Math.max(cost.coin - 1, 1) }
+    cost: (cost, kind) => kind === 'play'
+        ? { ...cost, energy: Math.max(cost.energy - 1, 0) }
         : cost,
 }
 
@@ -311,7 +317,7 @@ export const blacksmith: Encounter = {
             },
             {
                 label: 'Redesign',
-                description: 'Reduce the buy cost by $1 (not below $1).',
+                description: 'Reduce the play cost by @1 (not below @0).',
                 disabled: selectedIndex !== null || !hasCards,
                 checked: selectedIndex === 2,
                 onClick: async () => chooseUpgrade(redesignUpgrade, 2),
@@ -320,6 +326,207 @@ export const blacksmith: Encounter = {
     }
 }
 registerEncounter(blacksmith)
+
+const transmuteUpgrade: CardUpgrade = {
+    name: name => `${name}+`,
+    effects: [{
+        text: [
+            'Trash this.',
+            'Buy a card in the supply costing up to $2 more than this.'
+        ],
+        transform: (_state: State, sourceCard: Card) => async function (state: State) {
+            const maxCost = addCosts(sourceCard.cost('buy', state), coin(2))
+            state = await trash(sourceCard)(state)
+            state = await applyToTarget(
+                target => target.buy(sourceCard),
+                'Choose a card to buy.',
+                s => s.supply.filter(c => leq(c.cost('buy', s), maxCost))
+            )(state)
+            return state
+        }
+    }]
+}
+
+const fortifyUpgrade: CardUpgrade = {
+    name: name => `${name}+`,
+    staticReplacers: [{
+        kind: 'move',
+        text: 'Whenever you would trash a card that shares a name with this one, instead put it in your discard.',
+        handles: (x, _state, card) => x.toZone === 'void' && x.card.name === card.name,
+        replace: x => ({ ...x, toZone: 'discard' }),
+    }]
+}
+
+const possessUpgrade: CardUpgrade = {
+    name: name => `${name}+`,
+    staticTriggers: [buyTrigger({
+        text: [
+            'Trash a card in your hand.',
+            'Choose a card in the supply costing up to $2 more than it and create a copy in your hand.'
+        ],
+        transform: (_state: State, _sourceCard: Card) => async function (state: State) {
+            if (state.hand.length === 0) {
+                return state
+            }
+            state = await applyToTarget(
+                trashed => async function (state: State) {
+                    const maxCost = addCosts(trashed.cost('buy', state), coin(2))
+                    state = await trash(trashed)(state)
+                    state = await applyToTarget(
+                        target => create(target.spec, 'hand'),
+                        'Choose a card to copy.',
+                        s => s.supply.filter(c => leq(c.cost('buy', s), maxCost))
+                    )(state)
+                    return state
+                },
+                'Choose a card to trash.',
+                s => s.hand
+            )(state)
+            return state
+        }
+    })]
+}
+
+export const enchantress: Encounter = {
+    name: 'Enchantress',
+    createInitialData: () => ({ selectedIndex: null as number | null }),
+    getOptions(data: unknown, metaState: MetaState): RewardOption[] {
+        const { selectedIndex } = data as { selectedIndex: number | null }
+        const hasCards = metaState.data.collectedCards.length > 0
+
+        const chooseUpgrade = async (upgrade: CardUpgrade, index: number) => {
+            const card = await metaState.ui.chooseCard(
+                metaState,
+                'Choose a card to enchant:',
+                [...metaState.data.collectedCards],
+                true
+            )
+            if (!card) {
+                return { newData: data }
+            }
+            return {
+                newData: { selectedIndex: index },
+                transform: async (state: MetaState) => {
+                    const updated = upgradeCardSpec(card, upgrade)
+                    const cards = [...state.data.collectedCards]
+                    const cardIndex = cards.indexOf(card)
+                    if (cardIndex >= 0) {
+                        cards[cardIndex] = updated
+                        state.update({ collectedCards: cards })
+                    }
+                }
+            }
+        }
+
+        return [
+            {
+                label: 'Transmute',
+                description: 'After playing this, trash it and buy a card costing up to $2 more.',
+                disabled: selectedIndex !== null || !hasCards,
+                checked: selectedIndex === 0,
+                onClick: async () => chooseUpgrade(transmuteUpgrade, 0),
+            },
+            {
+                label: 'Fortify',
+                description: 'Whenever this would be trashed, put it in your discard instead.',
+                disabled: selectedIndex !== null || !hasCards,
+                checked: selectedIndex === 1,
+                onClick: async () => chooseUpgrade(fortifyUpgrade, 1),
+            },
+            {
+                label: 'Possess',
+                description: 'When you buy this, trash a card in hand and copy one costing up to $2 more into hand.',
+                disabled: selectedIndex !== null || !hasCards,
+                checked: selectedIndex === 2,
+                onClick: async () => chooseUpgrade(possessUpgrade, 2),
+            }
+        ]
+    }
+}
+registerEncounter(enchantress)
+
+const bulkPurchaseUpgrade: CardUpgrade = {
+    name: name => `${name}+`,
+    staticTriggers: [afterBuyTrigger(buysEffect(1))]
+}
+
+const streetFairUpgrade: CardUpgrade = {
+    name: name => `${name}+`,
+    staticReplacers: [{
+        kind: 'create',
+        text: 'Whenever you would create this in your discard, instead create it in your hand.',
+        handles: (p, _state, card) => p.zone === 'discard' && displayName(p.spec) === card.name,
+        replace: p => ({ ...p, zone: 'hand' }),
+    }]
+}
+
+const saleUpgrade: CardUpgrade = {
+    name: name => `${name}+`,
+    cost: (cost, kind) => {
+        if (kind !== 'buy' || cost.coin <= 1) {
+            return cost
+        }
+        return { ...cost, coin: Math.max(cost.coin - 2, 1) }
+    }
+}
+
+export const shopkeeper: Encounter = {
+    name: 'Shopkeeper',
+    createInitialData: () => ({ selectedIndex: null as number | null }),
+    getOptions(data: unknown, metaState: MetaState): RewardOption[] {
+        const { selectedIndex } = data as { selectedIndex: number | null }
+        const hasCards = metaState.data.collectedCards.length > 0
+
+        const chooseUpgrade = async (upgrade: CardUpgrade, index: number) => {
+            const card = await metaState.ui.chooseCard(
+                metaState,
+                'Choose a card to upgrade:',
+                [...metaState.data.collectedCards],
+                true
+            )
+            if (!card) {
+                return { newData: data }
+            }
+            return {
+                newData: { selectedIndex: index },
+                transform: async (state: MetaState) => {
+                    const updated = upgradeCardSpec(card, upgrade)
+                    const cards = [...state.data.collectedCards]
+                    const cardIndex = cards.indexOf(card)
+                    if (cardIndex >= 0) {
+                        cards[cardIndex] = updated
+                        state.update({ collectedCards: cards })
+                    }
+                }
+            }
+        }
+
+        return [
+            {
+                label: 'Bulk purchase',
+                description: 'Add: whenever you buy this, +1 buy.',
+                disabled: selectedIndex !== null || !hasCards,
+                checked: selectedIndex === 0,
+                onClick: async () => chooseUpgrade(bulkPurchaseUpgrade, 0),
+            },
+            {
+                label: 'Street fair',
+                description: 'Add: whenever this would be created in discard, create it in hand instead.',
+                disabled: selectedIndex !== null || !hasCards,
+                checked: selectedIndex === 1,
+                onClick: async () => chooseUpgrade(streetFairUpgrade, 1),
+            },
+            {
+                label: 'Sale',
+                description: 'Reduce buy cost by $2 (not below $1).',
+                disabled: selectedIndex !== null || !hasCards,
+                checked: selectedIndex === 2,
+                onClick: async () => chooseUpgrade(saleUpgrade, 2),
+            }
+        ]
+    }
+}
+registerEncounter(shopkeeper)
 
 interface BreweryData {
     selectedIndex: number | null

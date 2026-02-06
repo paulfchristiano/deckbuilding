@@ -2,7 +2,7 @@
 // Shared between gameUI and metaUI for consistent card display.
 
 import { CardSpec, Cost, VariableCost, Trigger, Replacer, Rule } from './gameLogic.js'
-import { cardSpecCost, cardSpecEffects, cardSpecName, cardSpecReplacers, cardSpecStaticReplacers, cardSpecStaticTriggers, cardSpecTriggers, renderCost } from './gameLogic.js'
+import { cardSpecCost, cardSpecEffects, displayName, cardSpecReplacers, cardSpecStaticReplacers, cardSpecStaticTriggers, cardSpecTriggers, renderCost } from './gameLogic.js'
 
 // ----------------------------- Helper Functions
 
@@ -85,7 +85,7 @@ export function buildSpecTooltip(spec: CardSpec): string {
     const actionCost = cardSpecCost(spec, actionCostKindForSpec(spec))
     const buyStr = !isZero(buyCost) ? `(${renderCost(buyCost as Cost)})` : '---'
     const costStr = !isZero(actionCost) ? `(${renderCost(actionCost as Cost)})` : '---'
-    const header = `<div>---${buyStr} ${cardSpecName(spec)} ${costStr}---</div>`
+    const header = `<div>---${buyStr} ${displayName(spec)} ${costStr}---</div>`
     const baseFilling = header + cardText(spec)
 
     // Related cards
@@ -101,7 +101,7 @@ export function renderSpec(spec: CardSpec): string {
     const actionCost = cardSpecCost(spec, actionCostKindForSpec(spec))
     const buyText = isZero(buyCost) ? '' : `(${renderCost(buyCost as Cost)})&nbsp;`
     const costText = isZero(actionCost) ? '' : `&nbsp;(${renderCost(actionCost as Cost)})`
-    const header = `<div>${buyText}<strong>${cardSpecName(spec)}</strong>${costText}</div>`
+    const header = `<div>${buyText}<strong>${displayName(spec)}</strong>${costText}</div>`
     const me = `<div class='spec'>${header}${cardText(spec)}</div>`
     const related = (spec.relatedCards || []).map(renderSpec)
     return [me, ...related].join('')
@@ -114,10 +114,10 @@ export function renderSpecNoRelated(spec: CardSpec): string {
     const actionCost = cardSpecCost(spec, actionCostKindForSpec(spec))
     const buyText = isZero(buyCost) ? '' : `(${renderCost(buyCost as Cost)})&nbsp;`
     const costText = isZero(actionCost) ? '' : `&nbsp;(${renderCost(actionCost as Cost)})`
-    const header = `<div>${buyText}<strong>${cardSpecName(spec)}</strong>${costText}</div>`
+    const header = `<div>${buyText}<strong>${displayName(spec)}</strong>${costText}</div>`
 
     // Use simpleText if available, otherwise full card text
-    const displayText = spec.simpleText
+    const displayText = (spec.simpleText && (spec.upgrades || []).length === 0)
         ? spec.simpleText.map(line => `<div>${line}</div>`).join('')
         : cardText(spec)
 
@@ -133,13 +133,13 @@ export function renderSpecHeader(spec: CardSpec): string {
     const actionCost = cardSpecCost(spec, actionCostKindForSpec(spec))
     const buyText = isZero(buyCost) ? '' : `(${renderCost(buyCost as Cost)})&nbsp;`
     const costText = isZero(actionCost) ? '' : `&nbsp;(${renderCost(actionCost as Cost)})`
-    return `${buyText}<strong>${cardSpecName(spec)}</strong>${costText}`
+    return `${buyText}<strong>${displayName(spec)}</strong>${costText}`
 }
 
 // Render just the simple description (for tooltips in other contexts)
 export function renderSpecSimple(spec: CardSpec): string {
-    if (spec.simpleText) {
+    if (spec.simpleText && (spec.upgrades || []).length === 0) {
         return spec.simpleText.join(' ')
     }
-    return cardSpecName(spec)
+    return displayName(spec)
 }

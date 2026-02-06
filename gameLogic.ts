@@ -44,7 +44,7 @@ function appendUpgrades<T>(
     return result
 }
 
-export function cardSpecName(spec: CardSpec): string {
+export function displayName(spec: CardSpec): string {
     let name = spec.name
     for (const upgrade of spec.upgrades || []) {
         if (upgrade.name) {
@@ -180,7 +180,7 @@ export class Card {
         this.charge = this.count('charge')
     }
     get name(): string {
-        return cardSpecName(this.spec)
+        return displayName(this.spec)
     }
     toString():string {
         return this.name
@@ -1813,7 +1813,7 @@ export function toComp<T>(key:(x:T) => number): Comp<T> {
     return (a, b) => key(a) - key(b)
 }
 export function nameComp(a:CardSpec, b:CardSpec): number {
-    return cardSpecName(a).localeCompare(cardSpecName(b), 'en')
+    return displayName(a).localeCompare(displayName(b), 'en')
 }
 function lexical<T>(comps:Comp<T>[]): Comp<T> {
     return function(a:T, b:T){

@@ -4,7 +4,7 @@
 import { Cost, Shadow, State, Card, CardSpec, PlaceName, Rule, ID, VictoryData, UndoPastBeginning } from './gameLogic.js'
 import { GameSpec, SlotSpec } from './gameLogic.js'
 import { Trigger, Replacer, VariableCost, Token } from './gameLogic.js'
-import { cardSpecCost, cardSpecEffects, cardSpecName, cardSpecReplacers, cardSpecStaticReplacers, cardSpecStaticTriggers, cardSpecTriggers } from './gameLogic.js'
+import { cardSpecCost, cardSpecEffects, displayName, cardSpecReplacers, cardSpecStaticReplacers, cardSpecStaticTriggers, cardSpecTriggers } from './gameLogic.js'
 import { renderCost, renderEnergy } from './gameLogic.js'
 import { LogType, logTypes } from './gameLogic.js'
 import { Option, OptionRender, HotkeyHint } from './gameLogic.js'
@@ -643,7 +643,7 @@ function renderTooltipSimple(card: Card, state: State, tokenRenderer: TokenRende
     const costStr = !isZero(playCost) ? `(${renderCost(playCost!)})` : '---'
     const header = `<div>---${buyStr} ${card.name} ${costStr}---</div>`
     const tokensHtml = tokenRenderer.renderTooltip(card.tokens)
-    const bodyText = card.spec.simpleText
+    const bodyText = (card.spec.simpleText && (card.spec.upgrades || []).length === 0)
         ? card.spec.simpleText.map(line => `<div>${line}</div>`).join('')
         : cardText(card.spec)
     return header + bodyText + tokensHtml
@@ -749,7 +749,7 @@ export function renderSpec(spec: CardSpec): string {
     const actionCost = cardSpecCost(spec, actionCostKindForSpec(spec))
     const buyText = isZero(buyCost) ? '' : `(${renderCost(buyCost!)})&nbsp;`
     const costText = isZero(actionCost) ? '' : `&nbsp;(${renderCost(actionCost!)})`
-    const header = `<div>${buyText}<strong>${cardSpecName(spec)}</strong>${costText}</div>`
+    const header = `<div>${buyText}<strong>${displayName(spec)}</strong>${costText}</div>`
     const me = `<div class='spec'>${header}${cardText(spec)}</div>`
     const related = (spec.relatedCards || []).map(renderSpec)
     return [me, ...related].join('')
@@ -760,7 +760,7 @@ export function buildSpecTooltip(spec: CardSpec): string {
     const actionCost = cardSpecCost(spec, actionCostKindForSpec(spec))
     const buyStr = !isZero(buyCost) ? `(${renderCost(buyCost!)})` : '---'
     const costStr = !isZero(actionCost) ? `(${renderCost(actionCost!)})` : '---'
-    const header = `<div>---${buyStr} ${cardSpecName(spec)} ${costStr}---</div>`
+    const header = `<div>---${buyStr} ${displayName(spec)} ${costStr}---</div>`
     const baseFilling = header + cardText(spec)
     const relatedFilling = (spec.relatedCards || []).map(buildSpecTooltip).join('')
     return baseFilling + relatedFilling
@@ -771,8 +771,8 @@ export function renderSpecNoRelated(spec: CardSpec): string {
     const actionCost = cardSpecCost(spec, actionCostKindForSpec(spec))
     const buyText = isZero(buyCost) ? '' : `(${renderCost(buyCost!)})&nbsp;`
     const costText = isZero(actionCost) ? '' : `&nbsp;(${renderCost(actionCost!)})`
-    const header = `<div>${buyText}<strong>${cardSpecName(spec)}</strong>${costText}</div>`
-    const displayText = spec.simpleText
+    const header = `<div>${buyText}<strong>${displayName(spec)}</strong>${costText}</div>`
+    const displayText = (spec.simpleText && (spec.upgrades || []).length === 0)
         ? spec.simpleText.map(line => `<div>${line}</div>`).join('')
         : cardText(spec)
     const tooltipHtml = buildSpecTooltip(spec)
