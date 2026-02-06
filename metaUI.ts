@@ -7,6 +7,7 @@ import {
     MetaUI, MetaOption,
     BASE_PARS, describeParCalculation,
     makeSpec,
+    ActiveGameProgress,
     renderChallenge,
     getRewardOptions, getRewardName, updateRewardState, updateRewardAtIndex,
     Undo, Redo, ReplayStage
@@ -765,9 +766,10 @@ export class MetaGameUI implements MetaUI {
         gameHistory: number[] = [],
         gameRedo: number[] = [],
         macros: unknown = null,
-        viewingMacros: boolean = false
+        viewingMacros: boolean = false,
+        onProgress: ((progress: ActiveGameProgress) => void) | null = null
     ): Promise<VictoryData> {
-        return startGame(spec, gameHistory, gameRedo, macros, viewingMacros).catch(e => {
+        return startGame(spec, gameHistory, gameRedo, macros, viewingMacros, onProgress).catch(e => {
             if (e instanceof UndoPastBeginning) {
                 // Pass history and redo to meta Undo for restoration on redo
                 const persistence = e.macroPersistence as { macros?: unknown, viewingMacros?: boolean } | null

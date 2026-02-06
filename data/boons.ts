@@ -93,7 +93,7 @@ const vault:CardSpec = {name: 'Vault',
 boons.push({
     name: 'Vault',
     description: 'Add Vault as an event, start with 10 actions and 2 buys',
-    parReduction: 4,
+    parReduction: 2,
     cards: [],
     events: [vault],
 })
@@ -445,11 +445,12 @@ const duplicateStart:CardSpec = {
 boons.push({
         name: 'Duplication',
         description: 'Start with a duplicate token on each supply.',
-        parReduction: 5,
+        parReduction: 3,
         cards: [],
         events: [duplicateStart],
 })
 
+/*
 const priorityStart:CardSpec = {
     name: 'Prioritization',
     fixedCost: free,
@@ -474,3 +475,4 @@ boons.push(   {
         cards: [],
         events: [priorityStart],
 })
+*/

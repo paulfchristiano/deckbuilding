@@ -18,9 +18,14 @@ export interface CardSpec {
     simpleText?: string[]; // Short description for card selector/deck view (one line per array element)
     isPotion?: boolean; // If true, trash after playing
     rules?: Rule[]; // Rules this card references (for tooltip display)
+    persistence?: {
+        kind: 'cardInABoxRelic' | 'bottledCardPotion' | 'bottledEventPotion'
+        useUnderlyingEvent?: boolean
+    }
 }
 
 export interface CardUpgrade {
+    id?: string;
     name?: (name: string) => string;
     effects?: Effect[];
     triggers?: TypedTrigger[];
@@ -570,6 +575,9 @@ export type GameSpec = {
     events:CardSpec[],
     potions: Card[],
     relics: Card[],
+    metaStage?: number,
+    metaStageScores?: (number | null)[],
+    metaStagePars?: (number | null)[],
     previousScore?: number | null,
     replayUsedPotionIDs?: number[],
     replayStage?: number | null

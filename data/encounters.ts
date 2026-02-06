@@ -10,108 +10,35 @@ import { Encounter, registerEncounter, RewardOption,
     compose,
 } from '../metaLogic.js'
 import { emptyBottle, inkwell } from './relics.js'
-import { create, State, Card, CardSpec, CardUpgrade,
+import { CardSpec, CardUpgrade,
     cardRewards, eventRewards, relicRewards, potionRewards,
-    cardSpecEffects,
-    addCosts,
     leq,
     coin,
     cardSpecCost,
-    displayName,
-    buyTrigger,
-    afterBuyTrigger,
-    applyToTarget,
-    addToken,
-    trash,
-    actionsEffect,
-    buysEffect,
-    coinsEffect,
     free
 } from '../gameLogic.js'
 
 import { Generator } from '../rng.js'
 import { accelerate, duplicate } from './events.js'
 import { geminiBrew, mirrorBrew, potionOfEchoes, potionOfReflection } from './potions.js'
+import { makeBottledCardPotion, makeBottledEventPotion, makeCardInABoxRelic } from './specialSpecs.js'
+import {
+    bulkPurchaseUpgrade,
+    fortifyUpgrade,
+    polishUpgrade,
+    possessUpgrade,
+    redesignUpgrade,
+    saleUpgrade,
+    sharpenUpgrade,
+    streetFairUpgrade,
+    transmuteUpgrade,
+} from './upgrades.js'
 
 // ----------------------------- Helper Functions
-
-function cardInABox(spec: CardSpec): RelicSpec {
-    const cardName = displayName(spec)
-    return {
-        name: `${cardName} in a Box`,
-        triggers: [{
-            kind: 'gameStart',
-            text: `Start each course with a copy of ${cardName} in hand.`,
-            handles: () => true,
-            transform: () => async function (state: State) {
-                state = await create(spec, 'hand')(state)
-                return state
-            }
-        }],
-        relatedCards: [spec]
-    }
-}
-
-function bottledCardPotion(spec: CardSpec): CardSpec {
-    const cardName = displayName(spec)
-    return {
-        name: `Bottled ${cardName}`,
-        isPotion: true,
-        simpleText: [`Create a copy of ${cardName} with an echo token and play it.`],
-        relatedCards: [spec],
-        effects: [{
-            text: [`Create a copy of ${cardName} with an echo token and play it.`],
-            transform: (_state: State, sourceCard: Card) => async function (state: State) {
-                return create(spec, 'void', created => async function (state: State) {
-                    state = await addToken(created, 'echo')(state)
-                    state = await created.play(sourceCard)(state)
-                    return state
-                })(state)
-            }
-        }]
-    }
-}
-
-function bottledEventPotion(
-    spec: CardSpec,
-    options: { useUnderlyingEvent?: boolean, includeRelatedCard?: boolean } = {}
-): CardSpec {
-    const cardName = displayName(spec)
-    const copiedEffects = cardSpecEffects(spec)
-    const useUnderlyingEvent = options.useUnderlyingEvent ?? true
-    const includeRelatedCard = options.includeRelatedCard ?? true
-    const copiedText = copiedEffects.flatMap(effect => effect.text)
-    const displayText = spec.simpleText
-        ? [...spec.simpleText]
-        : (copiedText.length > 0 ? copiedText : [`Use ${cardName}.`])
-
-    const effects = useUnderlyingEvent
-        ? [{
-            text: copiedText.length > 0 ? copiedText : [`Use ${cardName}.`],
-            transform: (_state: State, sourceCard: Card) => async function (state: State) {
-                const target = state.events.find(event => event.name === cardName)
-                if (!target) {
-                    return state
-                }
-                return target.use(sourceCard)(state)
-            }
-        }]
-        : copiedEffects
-
-    return {
-        name: `Bottled ${cardName}`,
-        isPotion: true,
-        simpleText: displayText,
-        relatedCards: includeRelatedCard ? [spec] : undefined,
-        rules: spec.rules ? [...spec.rules] : undefined,
-        effects,
-    }
-}
 
 function withIndefiniteArticle(name: string): string {
     return /^[aeiou]/i.test(name) ? `an ${name}` : `a ${name}`
 }
-
 function upgradeCardSpec(spec: CardSpec, upgrade: CardUpgrade): CardSpec {
     return {
         ...spec,
@@ -185,7 +112,7 @@ export const magicalBox: Encounter = {
                         newData: { selectedIndex: 0 },
                         transform: async (state: MetaState) => {
                             state.removeCard(card.name)
-                            await gainRelic(cardInABox(card))(state)
+                            await gainRelic(makeCardInABoxRelic(card))(state)
                         }
                     }
                 }
@@ -278,23 +205,6 @@ const mirrorMaker: Encounter = {
 }
 registerEncounter(mirrorMaker)
 
-const polishUpgrade: CardUpgrade = {
-    name: name => `${name}+`,
-    effects: [coinsEffect(1)],
-}
-
-const sharpenUpgrade: CardUpgrade = {
-    name: name => `${name}+`,
-    effects: [actionsEffect(1)],
-}
-
-const redesignUpgrade: CardUpgrade = {
-    name: name => `${name}+`,
-    cost: (cost, kind) => kind === 'play'
-        ? { ...cost, energy: Math.max(cost.energy - 1, 0) }
-        : cost,
-}
-
 export const blacksmith: Encounter = {
     name: 'The Blacksmith',
     createInitialData: () => ({ selectedIndex: null as number | null }),
@@ -353,66 +263,6 @@ export const blacksmith: Encounter = {
 }
 registerEncounter(blacksmith)
 
-const transmuteUpgrade: CardUpgrade = {
-    name: name => `${name}+`,
-    effects: [{
-        text: [
-            'Trash this.',
-            'Buy a card in the supply costing up to $2 more than this.'
-        ],
-        transform: (_state: State, sourceCard: Card) => async function (state: State) {
-            const maxCost = addCosts(sourceCard.cost('buy', state), coin(2))
-            state = await trash(sourceCard)(state)
-            state = await applyToTarget(
-                target => target.buy(sourceCard),
-                'Choose a card to buy.',
-                s => s.supply.filter(c => leq(c.cost('buy', s), maxCost))
-            )(state)
-            return state
-        }
-    }]
-}
-
-const fortifyUpgrade: CardUpgrade = {
-    name: name => `${name}+`,
-    staticReplacers: [{
-        kind: 'move',
-        text: 'Whenever you would trash a card that shares a name with this one, instead put it in your discard.',
-        handles: (x, _state, card) => x.toZone === 'void' && x.card.name === card.name,
-        replace: x => ({ ...x, toZone: 'discard' }),
-    }]
-}
-
-const possessUpgrade: CardUpgrade = {
-    name: name => `${name}+`,
-    staticTriggers: [buyTrigger({
-        text: [
-            'Trash a card in your hand.',
-            'Choose a card in the supply costing up to $2 more than it and create a copy in your hand.'
-        ],
-        transform: (_state: State, _sourceCard: Card) => async function (state: State) {
-            if (state.hand.length === 0) {
-                return state
-            }
-            state = await applyToTarget(
-                trashed => async function (state: State) {
-                    const maxCost = addCosts(trashed.cost('buy', state), coin(2))
-                    state = await trash(trashed)(state)
-                    state = await applyToTarget(
-                        target => create(target.spec, 'hand'),
-                        'Choose a card to copy.',
-                        s => s.supply.filter(c => leq(c.cost('buy', s), maxCost))
-                    )(state)
-                    return state
-                },
-                'Choose a card to trash.',
-                s => s.hand
-            )(state)
-            return state
-        }
-    })]
-}
-
 export const enchantress: Encounter = {
     name: 'Enchantress',
     createInitialData: () => ({ selectedIndex: null as number | null }),
@@ -470,31 +320,6 @@ export const enchantress: Encounter = {
     }
 }
 registerEncounter(enchantress)
-
-const bulkPurchaseUpgrade: CardUpgrade = {
-    name: name => `${name}+`,
-    staticTriggers: [afterBuyTrigger(buysEffect(1))]
-}
-
-const streetFairUpgrade: CardUpgrade = {
-    name: name => `${name}+`,
-    staticReplacers: [{
-        kind: 'create',
-        text: 'Whenever you would create this in your discard, instead create it in your hand.',
-        handles: (p, _state, card) => p.zone === 'discard' && displayName(p.spec) === card.name,
-        replace: p => ({ ...p, zone: 'hand' }),
-    }]
-}
-
-const saleUpgrade: CardUpgrade = {
-    name: name => `${name}+`,
-    cost: (cost, kind) => {
-        if (kind !== 'buy' || cost.coin <= 1) {
-            return cost
-        }
-        return { ...cost, coin: Math.max(cost.coin - 2, 1) }
-    }
-}
 
 export const shopkeeper: Encounter = {
     name: 'Shopkeeper',
@@ -566,8 +391,8 @@ export const brewery: Encounter = {
             potionOfEchoes,
             potionOfReflection,
             { ...geminiBrew, name: 'Gemini Potion' },
-            bottledEventPotion(duplicate, { useUnderlyingEvent: false, includeRelatedCard: false }),
-            bottledEventPotion(accelerate, { useUnderlyingEvent: false, includeRelatedCard: false }),
+            makeBottledEventPotion(duplicate, { useUnderlyingEvent: false }),
+            makeBottledEventPotion(accelerate, { useUnderlyingEvent: false }),
         ]
         return {
             selectedIndex: null,
@@ -596,7 +421,7 @@ export const brewery: Encounter = {
                     }
                     return {
                         newData: { ...d, selectedIndex: 0 },
-                        transform: gainPotion(bottledCardPotion(card)),
+                        transform: gainPotion(makeBottledCardPotion(card)),
                     }
                 }
             },
