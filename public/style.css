@@ -262,6 +262,31 @@ input {
   left: 0px;
 }
 
+.macroDeleteMenuOverlay {
+    position: fixed;
+    z-index: 25;
+    background: linear-gradient(180deg, #ffffff 0%, #fff6f6 100%);
+    border: 1px solid #d7b3b3;
+    border-radius: 8px;
+    padding: 0.35em;
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+}
+
+.macroDeleteButton {
+    font-size: 0.95em;
+    border: 1px solid #c34747;
+    border-radius: 6px;
+    background: linear-gradient(180deg, #fff8f8 0%, #ffecec 100%);
+    color: #8b2424;
+    padding: 0.25em 0.7em;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.macroDeleteButton:hover {
+    background: linear-gradient(180deg, #fff1f1 0%, #ffe1e1 100%);
+}
+
 
 @media (hover: hover) {
     /* In-game cards: show simple tooltip normally, full tooltip with shift */

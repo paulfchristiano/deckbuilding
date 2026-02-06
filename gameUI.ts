@@ -55,6 +55,70 @@ function updateGameReplaySidebar(replayStage: number | null | undefined): void {
     })
 }
 
+let clearMacroDeleteMenuHandlers: (() => void) | null = null
+let activeMacroDeleteMenu: HTMLElement | null = null
+
+function closeMacroDeleteMenu(): void {
+    if (activeMacroDeleteMenu !== null) {
+        activeMacroDeleteMenu.remove()
+        activeMacroDeleteMenu = null
+    }
+    if (clearMacroDeleteMenuHandlers !== null) {
+        clearMacroDeleteMenuHandlers()
+        clearMacroDeleteMenuHandlers = null
+    }
+}
+
+function openMacroDeleteMenu(anchor: HTMLElement, onDelete: () => void): void {
+    closeMacroDeleteMenu()
+    const menu = document.createElement('div')
+    menu.className = 'macroDeleteMenuOverlay'
+    const deleteButton = document.createElement('button')
+    deleteButton.className = 'macroDeleteButton'
+    deleteButton.textContent = 'Delete macro'
+    deleteButton.onclick = (e: MouseEvent) => {
+        e.preventDefault()
+        e.stopPropagation()
+        closeMacroDeleteMenu()
+        onDelete()
+    }
+    menu.appendChild(deleteButton)
+    document.body.appendChild(menu)
+
+    const anchorRect = anchor.getBoundingClientRect()
+    const menuRect = menu.getBoundingClientRect()
+    let left = anchorRect.left
+    if (left + menuRect.width + 8 > window.innerWidth) {
+        left = window.innerWidth - menuRect.width - 8
+    }
+    left = Math.max(8, left)
+    let top = anchorRect.bottom + 6
+    if (top + menuRect.height + 8 > window.innerHeight) {
+        top = Math.max(8, anchorRect.top - menuRect.height - 6)
+    }
+    menu.style.left = `${left}px`
+    menu.style.top = `${top}px`
+    activeMacroDeleteMenu = menu
+
+    const onMouseDown = (e: MouseEvent) => {
+        if (!menu!.contains(e.target as Node)) closeMacroDeleteMenu()
+    }
+    const onKeyDown = (e: KeyboardEvent) => {
+        if (e.key === 'Escape') closeMacroDeleteMenu()
+    }
+    const onViewportChange = () => closeMacroDeleteMenu()
+    document.addEventListener('mousedown', onMouseDown, true)
+    document.addEventListener('keydown', onKeyDown, true)
+    window.addEventListener('resize', onViewportChange, true)
+    window.addEventListener('scroll', onViewportChange, true)
+    clearMacroDeleteMenuHandlers = () => {
+        document.removeEventListener('mousedown', onMouseDown, true)
+        document.removeEventListener('keydown', onKeyDown, true)
+        window.removeEventListener('resize', onViewportChange, true)
+        window.removeEventListener('scroll', onViewportChange, true)
+    }
+}
+
 // ----------------------------- Types
 
 type Key = string
@@ -70,10 +134,28 @@ interface ChoiceState {
     reject: (x: any) => void
 }
 
-type CardMacro = { kind: 'card', card: Card, chosen: boolean }
-type StringMacro = { kind: 'string', string: string }
+type MacroVerb = 'Choose' | 'Buy' | 'Play' | 'Use'
+type CardMacro = { kind: 'card', card: Card, chosen: boolean, verb: MacroVerb }
+type StringMacro = { kind: 'string', string: string, verb: MacroVerb }
 type MacroStep = CardMacro | StringMacro
-type Macro = MacroStep[]
+interface MacroRequirements {
+    coin: number
+    actions: number
+    buys: number
+    hand: Map<string, number>
+    discard: Map<string, number>
+}
+
+interface Macro {
+    steps: MacroStep[]
+    requirements: MacroRequirements
+    startPrompt: string | null
+}
+
+interface MacroMatchResult {
+    option: number | null
+    failed: boolean
+}
 
 interface CardRenderOptions {
     option?: number
@@ -172,6 +254,112 @@ function getIfDef<S, T>(m: Map<S, T> | undefined, x: S): T | undefined {
 
 function repeat<T>(xs: T[], n: number): T[] {
     return Array(n).fill(xs).flat(1)
+}
+
+function emptyMacroRequirements(): MacroRequirements {
+    return {
+        coin: 0,
+        actions: 0,
+        buys: 0,
+        hand: new Map(),
+        discard: new Map()
+    }
+}
+
+function cardCountsByName(cards: Card[]): Map<string, number> {
+    const counts = new Map<string, number>()
+    for (const card of cards) {
+        counts.set(card.name, (counts.get(card.name) || 0) + 1)
+    }
+    return counts
+}
+
+function noteDecrease(
+    target: Map<string, number>,
+    start: Map<string, number>,
+    current: Map<string, number>
+): void {
+    const names = new Set<string>([...start.keys(), ...current.keys()])
+    for (const name of names) {
+        const decrease = (start.get(name) || 0) - (current.get(name) || 0)
+        if (decrease > 0) {
+            target.set(name, Math.max(target.get(name) || 0, decrease))
+        }
+    }
+}
+
+function updateMacroRequirements(
+    requirements: MacroRequirements,
+    startState: State,
+    currentState: State
+): void {
+    requirements.coin = Math.max(requirements.coin, startState.coin - currentState.coin)
+    requirements.actions = Math.max(requirements.actions, startState.actions - currentState.actions)
+    requirements.buys = Math.max(requirements.buys, startState.buys - currentState.buys)
+
+    noteDecrease(
+        requirements.hand,
+        cardCountsByName(startState.hand),
+        cardCountsByName(currentState.hand)
+    )
+    noteDecrease(
+        requirements.discard,
+        cardCountsByName(startState.discard),
+        cardCountsByName(currentState.discard)
+    )
+}
+
+function recomputeMacroRequirements(
+    requirements: MacroRequirements,
+    startState: State,
+    states: State[]
+): void {
+    requirements.coin = 0
+    requirements.actions = 0
+    requirements.buys = 0
+    requirements.hand.clear()
+    requirements.discard.clear()
+    for (const state of states) {
+        updateMacroRequirements(requirements, startState, state)
+    }
+}
+
+function hasRequiredCounts(
+    required: Map<string, number>,
+    current: Map<string, number>
+): boolean {
+    for (const [name, minimum] of required) {
+        if ((current.get(name) || 0) < minimum) return false
+    }
+    return true
+}
+
+function canPlayMacro(macro: Macro, state: State, choiceState: ChoiceState | null): boolean {
+    if (state.coin < macro.requirements.coin) return false
+    if (state.actions < macro.requirements.actions) return false
+    if (state.buys < macro.requirements.buys) return false
+    if (!hasRequiredCounts(macro.requirements.hand, cardCountsByName(state.hand))) return false
+    if (!hasRequiredCounts(macro.requirements.discard, cardCountsByName(state.discard))) return false
+    if (choiceState === null) return false
+    if (macro.startPrompt !== choiceState.choicePrompt) return false
+    const firstStep = macro.steps[0]
+    if (firstStep === undefined) return false
+    if (matchMacro(firstStep, choiceState.state, choiceState.options, choiceState.chosen) === null) return false
+    return true
+}
+
+function macroStepVerb(step: MacroStep): string {
+    return step.verb
+}
+
+function macroStepLabel(step: MacroStep): string {
+    if (step.kind === 'string') return step.string
+    return step.card.name
+}
+
+function renderMacroTooltip(macro: Macro): string {
+    if (macro.steps.length === 0) return '<div>No actions recorded.</div>'
+    return macro.steps.map(step => `<div>${macroStepVerb(step)} ${macroStepLabel(step)}</div>`).join('')
 }
 
 // ----------------------------- Hotkey Mapper
@@ -825,7 +1013,7 @@ function bindSpecials(state: State, ui: GameUI): void {
     bindRestart(state, ui)
     bindUndo(state, ui)
     bindRedo(state, ui)
-    bindMacroToggle(ui)
+    bindMacroToggle(state, ui)
     bindBack(ui)
 }
 
@@ -860,12 +1048,13 @@ function bindViewKingdom(state: State): void {
     if (el) (el as HTMLElement).onclick = onClick
 }
 
-function bindMacroToggle(ui: GameUI): void {
+function bindMacroToggle(state: State, ui: GameUI): void {
     function updateMacroDisplay() {
         const container = getElement('macroSpot')
         if (globalRendererState.viewingMacros) {
-            makeMacroButtons(ui, container)
+            makeMacroButtons(ui, container, state)
         } else {
+            closeMacroDeleteMenu()
             container.innerHTML = ''
         }
     }
@@ -880,11 +1069,13 @@ function bindMacroToggle(ui: GameUI): void {
     }
 }
 
-function makeMacroButtons(ui: GameUI, container: HTMLElement): void {
-    const contents = [renderRecordMacroButton(ui), ...ui.macros.map(renderPlayMacroButton)].join('')
+function makeMacroButtons(ui: GameUI, container: HTMLElement, state: State): void {
+    closeMacroDeleteMenu()
+    const macroButtons = ui.macros.map((macro, index) => renderPlayMacroButton(macro, index, canPlayMacro(macro, state, ui.choiceState)))
+    const contents = [renderRecordMacroButton(ui), ...macroButtons].join('')
     container.innerHTML = `<div id='macros'>${contents}</div>`
-    bindRecordMacroButton(ui)
-    bindPlayMacroButtons(ui)
+    bindRecordMacroButton(ui, state)
+    bindPlayMacroButtons(ui, state)
 }
 
 function renderRecordMacroButton(ui: GameUI): string {
@@ -892,39 +1083,73 @@ function renderRecordMacroButton(ui: GameUI): string {
     return `<span id='recordMacro' class='option' option='recordMacro' choosable chosen='false'>${buttonText}</span>`
 }
 
-function renderPlayMacroButton(macro: Macro, index: number): string {
-    const firstStep = macro[0]
-    const firstStepText = firstStep.kind === 'card' ? firstStep.card.name : firstStep.string
-    const buttonText = `${firstStepText} (${macro.length})`
-    return `<span id='playMacro' class='option' option='macro${index}' choosable chosen='false'>${buttonText}</span>`
+function renderPlayMacroButton(macro: Macro, index: number, enabled: boolean): string {
+    const firstStep = macro.steps[0]
+    const firstStepText = firstStep ? macroStepLabel(firstStep) : '(empty)'
+    const buttonText = `${firstStepText} (${macro.steps.length})`
+    const statusAttr = enabled ? 'choosable' : `disabled='disabled'`
+    const styleAttr = enabled ? '' : `style='opacity:0.45; cursor:default;'`
+    return `<span id='playMacro' class='option' option='macro${index}' ${statusAttr} chosen='false' ${styleAttr}>${buttonText}<span class='tooltip'>${renderMacroTooltip(macro)}</span></span>`
 }
 
-function bindRecordMacroButton(ui: GameUI): void {
+function bindRecordMacroButton(ui: GameUI, state: State): void {
     const el = querySelector(`[option='recordMacro']`)
     if (el) {
         (el as HTMLElement).onclick = () => {
             if (ui.recordingMacro === null) {
-                ui.recordingMacro = []
-            } else if (ui.recordingMacro.length === 0) {
+                ui.recordingMacro = {
+                    steps: [],
+                    requirements: emptyMacroRequirements(),
+                    startPrompt: ui.choiceState ? ui.choiceState.choicePrompt : null
+                }
+                ui.recordingStates = ui.choiceState ? [ui.choiceState.state] : []
+            } else if (ui.recordingMacro.steps.length === 0) {
                 ui.recordingMacro = null
+                ui.recordingStates = []
             } else {
-                ui.macros.push(ui.recordingMacro)
+                if (ui.choiceState) {
+                    ui.observeRecordingState(ui.choiceState.state)
+                }
+                ui.macros.push({
+                    steps: [...ui.recordingMacro.steps],
+                    requirements: {
+                        coin: ui.recordingMacro.requirements.coin,
+                        actions: ui.recordingMacro.requirements.actions,
+                        buys: ui.recordingMacro.requirements.buys,
+                        hand: new Map(ui.recordingMacro.requirements.hand),
+                        discard: new Map(ui.recordingMacro.requirements.discard)
+                    },
+                    startPrompt: ui.recordingMacro.startPrompt
+                })
                 ui.recordingMacro = null
+                ui.recordingStates = []
             }
-            makeMacroButtons(ui, getElement('macroSpot'))
+            makeMacroButtons(ui, getElement('macroSpot'), state)
         }
     }
 }
 
-function bindPlayMacroButtons(ui: GameUI): void {
+function bindPlayMacroButtons(ui: GameUI, state: State): void {
     for (let i = 0; i < ui.macros.length; i++) {
         const el = querySelector(`[option='macro${i}']`)
-        if (el) {
-            (el as HTMLElement).onclick = (e) => {
-                if (ui.choiceState && ui.playingMacro.length === 0) {
-                    ui.playingMacro = repeat(ui.macros[i], (e as MouseEvent).shiftKey ? 10 : 1)
-                    ui.resolveWithMacro()
-                }
+        if (!el) continue
+        const macroButton = el as HTMLElement
+        macroButton.oncontextmenu = (e: MouseEvent) => {
+            e.preventDefault()
+            e.stopPropagation()
+            openMacroDeleteMenu(macroButton, () => {
+                ui.macros.splice(i, 1)
+                makeMacroButtons(ui, getElement('macroSpot'), ui.choiceState ? ui.choiceState.state : state)
+            })
+            return false
+        }
+        if (!canPlayMacro(ui.macros[i], state, ui.choiceState)) continue
+        macroButton.onclick = (e) => {
+            closeMacroDeleteMenu()
+            if (ui.choiceState && ui.playingMacro.length === 0) {
+                ui.playingMacro = repeat(ui.macros[i].steps, (e as MouseEvent).shiftKey ? 10 : 1)
+                ui.macroStartState = ui.choiceState.state
+                ui.resolveWithMacro()
             }
         }
     }
@@ -989,10 +1214,24 @@ function bindHelp(state: State, ui: GameUI): void {
 
 // ----------------------------- Macro Helpers
 
-function macroStepFromChoice(x: OptionRender, chosen: boolean): MacroStep {
+function choiceVerb(x: OptionRender, info: string[]): MacroVerb {
+    if (!info.includes('actChoice')) return 'Choose'
+    if (x.kind === 'string') return 'Choose'
+    switch (x.card.place) {
+        case 'supply': return 'Buy'
+        case 'hand': return 'Play'
+        case 'events': return 'Use'
+        case 'potions': return 'Use'
+        case 'play': return 'Use'
+        default: return 'Choose'
+    }
+}
+
+function macroStepFromChoice(x: OptionRender, chosen: boolean, info: string[]): MacroStep {
+    const verb = choiceVerb(x, info)
     switch (x.kind) {
-        case 'string': return x
-        case 'card': return { ...x, chosen }
+        case 'string': return { ...x, verb }
+        case 'card': return { ...x, chosen, verb }
         default: return assertNever(x)
     }
 }
@@ -1041,30 +1280,63 @@ function matchMacro<T>(macro: MacroStep, state: State, options: Option<T>[], cho
 export class GameUI implements UI {
     public undoing = false
     public macros: Macro[] = []
-    public recordingMacro: MacroStep[] | null = null
+    public recordingMacro: Macro | null = null
+    public recordingStates: State[] = []
     public playingMacro: MacroStep[] = []
+    public macroStartState: State | null = null
     public choiceState: ChoiceState | null = null
 
     recordStep(x: MacroStep): void {
         if (this.recordingMacro) {
-            this.recordingMacro.push(x)
+            this.recordingMacro.steps.push(x)
         }
     }
 
     eraseStep(): void {
         if (this.recordingMacro) {
-            this.recordingMacro.pop()
+            if (this.recordingMacro.steps.length > 0) {
+                this.recordingMacro.steps.pop()
+            }
+            if (this.recordingStates.length > 1) {
+                this.recordingStates.pop()
+            }
+            if (this.recordingStates.length > 0) {
+                recomputeMacroRequirements(
+                    this.recordingMacro.requirements,
+                    this.recordingStates[0],
+                    this.recordingStates
+                )
+            } else {
+                this.recordingMacro.requirements = emptyMacroRequirements()
+            }
         }
     }
 
-    matchNextMacroStep(): number | null {
+    observeRecordingState(state: State): void {
+        if (this.recordingMacro === null) return
+        if (this.recordingStates.length === 0) {
+            this.recordingStates.push(state)
+            return
+        }
+        this.recordingStates.push(state)
+        recomputeMacroRequirements(
+            this.recordingMacro.requirements,
+            this.recordingStates[0],
+            this.recordingStates
+        )
+    }
+
+    matchNextMacroStep(): MacroMatchResult {
         const macro = this.playingMacro.shift()
         if (macro && this.choiceState) {
             const option = matchMacro(macro, this.choiceState.state, this.choiceState.options, this.choiceState.chosen)
-            if (option === null) this.playingMacro = []
-            return option
+            if (option === null) {
+                this.playingMacro = []
+                return { option: null, failed: true }
+            }
+            return { option, failed: false }
         }
-        return null
+        return { option: null, failed: false }
     }
 
     clearChoice(): void {
@@ -1074,9 +1346,9 @@ export class GameUI implements UI {
 
     resolveWithMacro(): void {
         if (this.choiceState) {
-            const option = this.matchNextMacroStep()
-            if (option !== null) {
-                this.choiceState.resolve(option, false)
+            const match = this.matchNextMacroStep()
+            if (match.option !== null) {
+                this.choiceState.resolve(match.option, false)
             }
         }
     }
@@ -1105,9 +1377,12 @@ export class GameUI implements UI {
         return new Promise((resolve, reject) => {
             function newResolve(n: number, shifted: boolean) {
                 ui.clearChoice()
-                const macroStep = macroStepFromChoice(options[n].render, chosen.includes(n))
+                const macroStep = macroStepFromChoice(options[n].render, chosen.includes(n), info)
                 ui.recordStep(macroStep)
                 if (shifted) ui.playingMacro = repeat([macroStep], 9)
+                if (ui.playingMacro.length === 0) {
+                    ui.macroStartState = null
+                }
                 resolve(n)
             }
 
@@ -1115,6 +1390,10 @@ export class GameUI implements UI {
                 if (reason instanceof Undo) {
                     ui.undoing = true
                     ui.eraseStep()
+                }
+                if (reason instanceof SetState) {
+                    ui.playingMacro = []
+                    ui.macroStartState = null
                 }
                 ui.clearChoice()
                 reject(reason)
@@ -1130,11 +1409,16 @@ export class GameUI implements UI {
                 reject: newReject
             }
 
-            const option = ui.matchNextMacroStep()
+            ui.observeRecordingState(state)
+            const macroMatch = ui.matchNextMacroStep()
+            if (macroMatch.failed && ui.macroStartState !== null) {
+                newReject(new SetState(ui.macroStartState))
+                return
+            }
             const chooseTrivial = ui.chooseTrivial(state, options, info)
 
-            if (option !== null) {
-                newResolve(option, false)
+            if (macroMatch.option !== null) {
+                newResolve(macroMatch.option, false)
             } else if (chooseTrivial !== null) {
                 if (ui.undoing) {
                     newReject(new Undo(state))
