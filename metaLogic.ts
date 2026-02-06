@@ -86,6 +86,7 @@ export interface RewardOption {
     description?: string
     spec?: CardSpec           // Display as card if provided
     tooltipSpec?: CardSpec    // Optional tooltip card content for text options
+    compact?: boolean         // Render as compact text option
     disabled: boolean
     checked: boolean          // Shows checkmark if selected
     onClick: () => Promise<{ newData: unknown, transform?: MetaTransform }>
@@ -114,6 +115,19 @@ export interface EncounterRewardState {
 
 export type RewardState = SimpleRewardState | EncounterRewardState
 
+function singingBowlCount(state: MetaState): number {
+    return state.data.relics.filter(relic => relic.name === 'Singing Bowl').length
+}
+
+function encounterRewardCompleted(rewardState: EncounterRewardState): boolean {
+    const data = rewardState.data as Record<string, unknown> | null
+    if (data && typeof data === 'object') {
+        if ('selectedIndex' in data) return data.selectedIndex !== null
+        if ('finished' in data) return data.finished === true
+    }
+    return false
+}
+
 // Get options for a simple reward
 function getSimpleRewardOptions(state: SimpleRewardState, metaState: MetaState): RewardOption[] {
     const options = state.options as Array<CardSpec | RelicSpec>
@@ -141,15 +155,53 @@ function getSimpleRewardOptions(state: SimpleRewardState, metaState: MetaState):
 
 // Get options for any reward state
 export function getRewardOptions(rewardState: RewardState, metaState: MetaState): RewardOption[] {
-    if (rewardState.kind === 'encounter') {
-        if (!rewardState.encounter) {
-            // Pending encounter - shouldn't be displayed yet
-            return []
-        }
-        return rewardState.encounter.getOptions(rewardState.data, metaState)
-    } else {
-        return getSimpleRewardOptions(rewardState, metaState)
+    const baseOptions = rewardState.kind === 'encounter'
+        ? (!rewardState.encounter ? [] : rewardState.encounter.getOptions(rewardState.data, metaState))
+        : getSimpleRewardOptions(rewardState, metaState)
+    const bowls = singingBowlCount(metaState)
+    if (bowls <= 0) return baseOptions
+    const skippedLabels = baseOptions.map(option => option.label)
+    const details = skippedLabels.length > 0 ? `Skipped: ${skippedLabels.join(', ')}` : undefined
+
+    const alreadySelected = rewardState.kind === 'encounter'
+        ? encounterRewardCompleted(rewardState)
+        : rewardState.selectedIndex !== null
+
+    for (let bowlIndex = 0; bowlIndex < bowls; bowlIndex++) {
+        const optionIndex = baseOptions.length + bowlIndex
+        baseOptions.push({
+            label: '+2 Buffer',
+            compact: true,
+            disabled: alreadySelected,
+            checked: rewardState.kind === 'encounter'
+                ? false
+                : rewardState.selectedIndex === optionIndex,
+            onClick: async () => {
+                const transform = compose(
+                    addTimelineAction('Gain 2 buffer', details),
+                    addBuffer(2)
+                )
+                if (rewardState.kind === 'encounter') {
+                    const data = rewardState.data as Record<string, unknown> | null
+                    let newData: unknown = rewardState.data
+                    if (data && typeof data === 'object') {
+                        if ('selectedIndex' in data) {
+                            newData = { ...data, selectedIndex: -1 }
+                        } else if ('finished' in data) {
+                            newData = { ...data, finished: true }
+                        }
+                    }
+                    return { newData, transform }
+                }
+                return {
+                    newData: { ...rewardState, selectedIndex: optionIndex },
+                    transform
+                }
+            }
+        })
     }
+
+    return baseOptions
 }
 
 // Update a reward state with new data

@@ -136,6 +136,12 @@ export const sacredBark: RelicSpec = {
 }
 relicRewards.push(sacredBark)
 
+export const singingBowl: RelicSpec = {
+    name: 'Singing Bowl',
+    simpleText: ['Whenever you are offered a reward, you may gain 2@ buffer instead.'],
+}
+relicRewards.push(singingBowl)
+
 // TODO: implement
 // Need to have a replacer that can put in cards into the challengespec
 // But then also want it to take effect immediately.

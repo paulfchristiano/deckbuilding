@@ -376,11 +376,18 @@ input {
 .rewardOption .checkmark {
     color: green;
     font-weight: bold;
-}
-
-.rewardOption:not(.checked)::after {
-    content: ' \2713';
-    visibility: hidden;
+    position: absolute;
+    right: -0.35em;
+    bottom: -0.35em;
+    font-size: 0.85em;
+    border: 1px solid green;
+    border-radius: 50%;
+    width: 1.2em;
+    height: 1.2em;
+    line-height: 1.1em;
+    text-align: center;
+    background: white;
+    box-sizing: border-box;
 }
 
 .rewardOption .optionDesc {
@@ -395,6 +402,16 @@ input {
     width: 15em;
     min-width: auto;
     text-align: center;
+}
+
+.rewardOption.option.rewardOptionCompact {
+    width: auto;
+    min-width: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding-left: 0.7em;
+    padding-right: 0.7em;
 }
 
 .rewardOptionNameText {

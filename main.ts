@@ -17,10 +17,11 @@ import { randomString } from './rng.js'
 import { startGame } from './gameUI.js'
 import { renderSpecNoRelated } from './cardRendering.js'
 import { Card, CardSpec, UndoPastBeginning } from './gameLogic.js'
+import { singingBowl } from './data/relics.js'
 
 import type { TestSpec } from './metaLogic.js'
 
-let test: TestSpec | null = null
+let test: TestSpec | null = ['relic', singingBowl]
 
 const SAVE_STORAGE_KEY = 'roguelike.ongoingSaves.v1'
 const MAX_LAUNCHER_SAVES = 10
@@ -663,10 +664,6 @@ function renderLauncher(): void {
     title.style.margin = '0'
     const headerActions = document.createElement('div')
     headerActions.className = 'saveActions'
-    const showAllButton = document.createElement('button')
-    showAllButton.className = 'launcherBtn'
-    showAllButton.textContent = 'Show all'
-    showAllButton.onclick = () => openAllSavesDialog()
     const newButton = document.createElement('button')
     newButton.className = 'launcherBtn'
     newButton.textContent = 'new game'
@@ -722,7 +719,6 @@ function renderLauncher(): void {
         seedInput.focus()
         seedInput.select()
     }
-    headerActions.appendChild(showAllButton)
     headerActions.appendChild(newButton)
     header.appendChild(title)
     header.appendChild(headerActions)
@@ -753,6 +749,15 @@ function renderLauncher(): void {
         footnote.className = 'saveFootnote'
         footnote.textContent = `Showing latest ${MAX_LAUNCHER_SAVES} of ${allSlots.length} saved games.`
         card.appendChild(footnote)
+
+        const footerActions = document.createElement('div')
+        footerActions.className = 'saveActions'
+        const showAllButton = document.createElement('button')
+        showAllButton.className = 'launcherBtn'
+        showAllButton.textContent = 'Show all'
+        showAllButton.onclick = () => openAllSavesDialog()
+        footerActions.appendChild(showAllButton)
+        card.appendChild(footerActions)
     }
     root.appendChild(card)
     document.body.appendChild(root)

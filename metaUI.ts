@@ -452,6 +452,7 @@ function renderStageScreen(
             } else {
                 // Render as text button
                 optionEl = createDiv('rewardOption option')
+                if (option.compact) optionEl.classList.add('rewardOptionCompact')
                 const nameDiv = createDiv('rewardOptionNameText')
                 nameDiv.textContent = option.label
                 optionEl.appendChild(nameDiv)
