@@ -135,7 +135,12 @@ interface ChoiceState {
 }
 
 type MacroVerb = 'Choose' | 'Buy' | 'Play' | 'Use'
-type CardMacro = { kind: 'card', card: Card, chosen: boolean, verb: MacroVerb }
+interface MacroCardSnapshot {
+    name: string
+    place: PlaceName
+    tokens: Map<Token, number>
+}
+type CardMacro = { kind: 'card', card: MacroCardSnapshot, chosen: boolean, verb: MacroVerb }
 type StringMacro = { kind: 'string', string: string, verb: MacroVerb }
 type MacroStep = CardMacro | StringMacro
 interface MacroRequirements {
@@ -150,6 +155,11 @@ interface Macro {
     steps: MacroStep[]
     requirements: MacroRequirements
     startPrompt: string | null
+}
+
+export type MacroPersistenceData = {
+    macros: unknown
+    viewingMacros: boolean
 }
 
 interface MacroMatchResult {
@@ -254,6 +264,57 @@ function getIfDef<S, T>(m: Map<S, T> | undefined, x: S): T | undefined {
 
 function repeat<T>(xs: T[], n: number): T[] {
     return Array(n).fill(xs).flat(1)
+}
+
+function cloneMacroCardSnapshot(card: MacroCardSnapshot): MacroCardSnapshot {
+    return {
+        name: card.name,
+        place: card.place,
+        tokens: new Map(card.tokens)
+    }
+}
+
+function macroCardSnapshotFromCard(card: Card): MacroCardSnapshot {
+    return {
+        name: card.name,
+        place: card.place,
+        tokens: new Map(card.tokens)
+    }
+}
+
+function cloneMacroStep(step: MacroStep): MacroStep {
+    if (step.kind === 'string') {
+        return { ...step }
+    }
+    return {
+        kind: 'card',
+        card: cloneMacroCardSnapshot(step.card),
+        chosen: step.chosen,
+        verb: step.verb
+    }
+}
+
+function cloneMacro(macro: Macro): Macro {
+    return {
+        steps: macro.steps.map(cloneMacroStep),
+        requirements: {
+            coin: macro.requirements.coin,
+            actions: macro.requirements.actions,
+            buys: macro.requirements.buys,
+            hand: new Map(macro.requirements.hand),
+            discard: new Map(macro.requirements.discard)
+        },
+        startPrompt: macro.startPrompt
+    }
+}
+
+function cloneMacros(macros: Macro[]): Macro[] {
+    return macros.map(cloneMacro)
+}
+
+function loadMacros(raw: unknown): Macro[] {
+    if (!Array.isArray(raw)) return []
+    return cloneMacros(raw as Macro[])
 }
 
 function emptyMacroRequirements(): MacroRequirements {
@@ -1024,7 +1085,7 @@ function bindBack(ui: GameUI): void {
             // Capture full history and redo buffer for restoration on meta-redo
             const history = state.origin().future
             const redo = state.redo
-            ui.choiceState.reject(new UndoPastBeginning(history, redo))
+            ui.choiceState.reject(new UndoPastBeginning(history, redo, ui.exportPersistenceData()))
         }
     }
     keyListeners.set('Escape', pick)
@@ -1110,17 +1171,7 @@ function bindRecordMacroButton(ui: GameUI, state: State): void {
                 if (ui.choiceState) {
                     ui.observeRecordingState(ui.choiceState.state)
                 }
-                ui.macros.push({
-                    steps: [...ui.recordingMacro.steps],
-                    requirements: {
-                        coin: ui.recordingMacro.requirements.coin,
-                        actions: ui.recordingMacro.requirements.actions,
-                        buys: ui.recordingMacro.requirements.buys,
-                        hand: new Map(ui.recordingMacro.requirements.hand),
-                        discard: new Map(ui.recordingMacro.requirements.discard)
-                    },
-                    startPrompt: ui.recordingMacro.startPrompt
-                })
+                ui.macros.push(cloneMacro(ui.recordingMacro))
                 ui.recordingMacro = null
                 ui.recordingStates = []
             }
@@ -1231,12 +1282,12 @@ function macroStepFromChoice(x: OptionRender, chosen: boolean, info: string[]): 
     const verb = choiceVerb(x, info)
     switch (x.kind) {
         case 'string': return { ...x, verb }
-        case 'card': return { ...x, chosen, verb }
+        case 'card': return { kind: 'card', card: macroCardSnapshotFromCard(x.card), chosen, verb }
         default: return assertNever(x)
     }
 }
 
-function macroMismatch(card: Card, macroCard: Card): number {
+function macroMismatch(card: Card, macroCard: MacroCardSnapshot): number {
     let result = 0
     for (const [token, count] of card.tokens) {
         if ((macroCard.tokens.get(token) || 0) < count) result++
@@ -1247,7 +1298,7 @@ function macroMismatch(card: Card, macroCard: Card): number {
     return result
 }
 
-function macroMatchCandidate(card: Card, macroCard: Card): boolean {
+function macroMatchCandidate(card: Card, macroCard: MacroCardSnapshot): boolean {
     return card.place === macroCard.place && card.name === macroCard.name
 }
 
@@ -1285,6 +1336,17 @@ export class GameUI implements UI {
     public playingMacro: MacroStep[] = []
     public macroStartState: State | null = null
     public choiceState: ChoiceState | null = null
+
+    constructor(initialMacros: unknown = null) {
+        this.macros = loadMacros(initialMacros)
+    }
+
+    exportPersistenceData(): MacroPersistenceData {
+        return {
+            macros: cloneMacros(this.macros),
+            viewingMacros: globalRendererState.viewingMacros
+        }
+    }
 
     recordStep(x: MacroStep): void {
         if (this.recordingMacro) {
@@ -1477,10 +1539,14 @@ export class GameUI implements UI {
 export async function startGame(
     spec: GameSpec,
     initialHistory: Replayable[] = [],
-    initialRedo: Replayable[] = []
+    initialRedo: Replayable[] = [],
+    initialMacros: unknown = null,
+    initialViewingMacros: boolean = false
 ): Promise<VictoryData> {
     resetGlobalRenderer()
-    const ui = new GameUI()
+    closeMacroDeleteMenu()
+    globalRendererState.viewingMacros = initialViewingMacros
+    const ui = new GameUI(initialMacros)
 
     // Show game container
     showElement(getElement('gameContainer'))
@@ -1490,5 +1556,6 @@ export async function startGame(
     hideElement(getElement('gameOverScreen'))
     updateGameReplaySidebar(spec.replayStage)
 
-    return await playGame(spec, ui, initialHistory, initialRedo)
+    const result = await playGame(spec, ui, initialHistory, initialRedo)
+    return { ...result, ...ui.exportPersistenceData() }
 }

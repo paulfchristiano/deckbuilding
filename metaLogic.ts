@@ -36,7 +36,13 @@ export interface MetaUI {
         canCancel?: boolean
     ): Promise<T | null>
 
-    playGame(spec: GameSpec, gameHistory?: number[], gameRedo?: number[]): Promise<VictoryData>
+    playGame(
+        spec: GameSpec,
+        gameHistory?: number[],
+        gameRedo?: number[],
+        macros?: unknown,
+        viewingMacros?: boolean
+    ): Promise<VictoryData>
 
     // Wait for user to select a challenge (reward options are handled inline)
     // Re-renders the stage screen with current state
@@ -393,6 +399,11 @@ export interface MetaStateData {
     gameRedo: number[]
 }
 
+export interface MetaGlobalState {
+    macros: unknown
+    viewingMacros: boolean
+}
+
 import { Generator, randomString } from './rng.js'
 
 export class MetaState {
@@ -404,6 +415,7 @@ export class MetaState {
     public readonly masterGenerator: Generator
     public generators: Map<string, Generator> = new Map()
     public data: MetaStateData
+    public global: MetaGlobalState
 
     constructor(
         public readonly ui: MetaUI,
@@ -434,6 +446,10 @@ export class MetaState {
         }
         this.data = data
         this.checkpoint = data
+        this.global = {
+            macros: [],
+            viewingMacros: false
+        }
     }
 
     private removeFromZone(id:number, zone: 'potions' | 'relics') {
@@ -490,6 +506,10 @@ export class MetaState {
     
     update(updates: Partial<MetaStateData>) {
         this.data = {...this.data, ...updates}
+    }
+
+    updateGlobal(updates: Partial<MetaGlobalState>) {
+        this.global = {...this.global, ...updates}
     }
     
     // Undo to previous checkpoint
@@ -800,7 +820,9 @@ function pathFromSkeleton(skeleton: PathSkeleton): Path {
 export class Undo extends Error {
     constructor(
         public gameHistory: number[] = [],
-        public gameRedo: number[] = []
+        public gameRedo: number[] = [],
+        public macros: unknown = null,
+        public viewingMacros: boolean | null = null
     ) {
         super('Undo')
         Object.setPrototypeOf(this, Undo.prototype)
@@ -859,7 +881,13 @@ const replaySimulationUI: MetaUI = {
         _prompt: string,
         _options: T[]
     ): Promise<T | null> => null,
-    playGame: async (): Promise<VictoryData> => {
+    playGame: async (
+        _spec: GameSpec,
+        _gameHistory: number[] = [],
+        _gameRedo: number[] = [],
+        _macros: unknown = null,
+        _viewingMacros: boolean = false
+    ): Promise<VictoryData> => {
         throw new Error('Replay simulation does not support playGame')
     },
     waitForChallenge: async (): Promise<ChallengeSpec> => {
@@ -934,12 +962,25 @@ async function replayCompletedStage(state: MetaState, stage: number): Promise<vo
         replayResult = await state.ui.playGame(
             replaySpecForStage(replayData),
             replayData.history,
-            []
+            [],
+            state.global.macros,
+            state.global.viewingMacros
         )
     } catch (e) {
-        if (e instanceof Undo || e instanceof Redo) return
+        if (e instanceof Undo) {
+            const macros = e.macros ?? state.global.macros
+            const viewingMacros = e.viewingMacros ?? state.global.viewingMacros
+            state.updateGlobal({ macros, viewingMacros })
+            return
+        }
+        if (e instanceof Redo) return
         throw e
     }
+
+    state.updateGlobal({
+        macros: replayResult.macros ?? state.global.macros,
+        viewingMacros: replayResult.viewingMacros ?? state.global.viewingMacros
+    })
 
     const newBufferAfterCourse = await computeReplayBufferAfterCourse(replayData, replayResult.score)
     const updatedReplayData: StageReplayData = {
@@ -1038,13 +1079,25 @@ export async function playGame(ui: MetaUI, test:null|TestSpec = null, seed: stri
                 const gameSpec = makeSpec(state, state.data.challenges[0])
                 const startingBuffer = state.data.buffer
                 // Pass saved game state for replay (from previous redo)
-                const { score, potionsRemaining, history } = await state.ui.playGame(
+                const { score, potionsRemaining, history, macros, viewingMacros } = await state.ui.playGame(
                     gameSpec,
                     state.data.gameHistory,
-                    state.data.gameRedo
+                    state.data.gameRedo,
+                    state.global.macros,
+                    state.global.viewingMacros
                 )
+                const persistedMacros = macros ?? state.global.macros
+                const persistedViewingMacros = viewingMacros ?? state.global.viewingMacros
+                state.updateGlobal({
+                    macros: persistedMacros,
+                    viewingMacros: persistedViewingMacros
+                })
                 // Clear saved game state after successful completion
-                state.update({ potions: potionsRemaining, gameHistory: [], gameRedo: [] })
+                state.update({
+                    potions: potionsRemaining,
+                    gameHistory: [],
+                    gameRedo: [],
+                })
                 await endCourse(score, gameSpec.par, state)
                 const stageReplays = [...state.data.stageReplays]
                 stageReplays[stage] = {
@@ -1106,8 +1159,17 @@ export async function playGame(ui: MetaUI, test:null|TestSpec = null, seed: stri
             }
         } catch (e) {
             if (e instanceof Undo) {
+                const persistedMacros = e.macros ?? state.global.macros
+                const persistedViewingMacros = e.viewingMacros ?? state.global.viewingMacros
+                state.updateGlobal({
+                    macros: persistedMacros,
+                    viewingMacros: persistedViewingMacros
+                })
                 // Pass game state to undo so it's saved in the redo checkpoint
-                state.undo({ gameHistory: e.gameHistory, gameRedo: e.gameRedo })
+                state.undo({
+                    gameHistory: e.gameHistory,
+                    gameRedo: e.gameRedo,
+                })
             } else if (e instanceof Redo) {
                 state.redo()
             } else {

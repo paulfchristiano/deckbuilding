@@ -593,11 +593,23 @@ export class MetaGameUI implements MetaUI {
         updateBufferDisplay(state)
     }
 
-    playGame(spec: GameSpec, gameHistory: number[] = [], gameRedo: number[] = []): Promise<VictoryData> {
-        return startGame(spec, gameHistory, gameRedo).catch(e => {
+    playGame(
+        spec: GameSpec,
+        gameHistory: number[] = [],
+        gameRedo: number[] = [],
+        macros: unknown = null,
+        viewingMacros: boolean = false
+    ): Promise<VictoryData> {
+        return startGame(spec, gameHistory, gameRedo, macros, viewingMacros).catch(e => {
             if (e instanceof UndoPastBeginning) {
                 // Pass history and redo to meta Undo for restoration on redo
-                throw new Undo(e.history, e.redo)
+                const persistence = e.macroPersistence as { macros?: unknown, viewingMacros?: boolean } | null
+                throw new Undo(
+                    e.history,
+                    e.redo,
+                    persistence?.macros ?? macros,
+                    persistence?.viewingMacros ?? viewingMacros
+                )
             }
             throw e
         })

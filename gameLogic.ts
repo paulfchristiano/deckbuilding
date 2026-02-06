@@ -445,7 +445,9 @@ export const allResources:ResourceName[] = (allCostResources as ResourceName[]).
 export type VictoryData = {
     score: number,
     potionsRemaining: Card[],
-    history: Replayable[]
+    history: Replayable[],
+    macros?: unknown,
+    viewingMacros?: boolean
 }
 
 export interface UI {
@@ -1484,7 +1486,8 @@ export class Undo extends Error {
 export class UndoPastBeginning extends Error {
     constructor(
         public history: Replayable[] = [],
-        public redo: Replayable[] = []
+        public redo: Replayable[] = [],
+        public macroPersistence: unknown = null
     ) {
         super('UndoPastBeginning')
         Object.setPrototypeOf(this, UndoPastBeginning.prototype)
