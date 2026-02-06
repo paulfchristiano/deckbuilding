@@ -86,6 +86,7 @@ function updateGameProgressSidebar(spec: GameSpec): void {
 
 let clearMacroDeleteMenuHandlers: (() => void) | null = null
 let activeMacroDeleteMenu: HTMLElement | null = null
+let inGameDeckDialogOpen = false
 
 function closeMacroDeleteMenu(): void {
     if (activeMacroDeleteMenu !== null) {
@@ -1128,7 +1129,50 @@ function bindSpecials(state: State, ui: GameUI): void {
     bindUndo(state, ui)
     bindRedo(state, ui)
     bindMacroToggle(state, ui)
+    bindInGameDeckDialog(state)
     bindBack(ui)
+}
+
+function renderInGameDeckSection(title: string, specs: CardSpec[]): string {
+    if (specs.length === 0) {
+        return `<div class='deckSection'><div class='deckSectionHeader'><strong>${title}:</strong></div><div class='deckSectionItems'><div class='saveSeed'>None</div></div></div>`
+    }
+    const cards = specs.map(spec => renderSpecNoRelated(spec)).join('')
+    return `<div class='deckSection'><div class='deckSectionHeader'><strong>${title}:</strong></div><div class='deckSectionItems'>${cards}</div></div>`
+}
+
+function buildRelicDisplaySpecs(state: State): CardSpec[] {
+    return state.relics.map(relic => (
+        relic.name === 'Winged Boots'
+            ? { ...relic.spec, name: `${relic.spec.name} (${relic.count('charge')})` }
+            : relic.spec
+    ))
+}
+
+function showInGameDeckDialog(state: State): void {
+    const sections = [
+        renderInGameDeckSection('Cards', state.spec.cards),
+        renderInGameDeckSection('Events', state.spec.events),
+        renderInGameDeckSection('Potions', state.potions.map(p => p.spec)),
+        renderInGameDeckSection('Relics', buildRelicDisplaySpecs(state)),
+    ].join('')
+    getElement('deckContents').innerHTML = sections
+    getElement('deckDialog').setAttribute('active', 'true')
+    inGameDeckDialogOpen = true
+}
+
+function hideInGameDeckDialog(): void {
+    getElement('deckDialog').setAttribute('active', 'false')
+    inGameDeckDialogOpen = false
+}
+
+function bindInGameDeckDialog(state: State): void {
+    const deckIcon = getElement('deckIcon')
+    deckIcon.onclick = () => {
+        if (inGameDeckDialogOpen) hideInGameDeckDialog()
+        else showInGameDeckDialog(state)
+    }
+    getElement('deckClose').onclick = () => hideInGameDeckDialog()
 }
 
 function bindBack(ui: GameUI): void {

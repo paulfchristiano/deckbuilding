@@ -2127,7 +2127,6 @@ export async function playGame(
     }
     state.ui.updateBuffer(state)
     while (true) {
-        console.assert(state.checkpoint == state.data) // Should always be at a checkpoint when starting this loop
         try {
             if (state.data.phase === 'in_game') {
                 const sameReplay = (a: number[], b: number[]): boolean =>

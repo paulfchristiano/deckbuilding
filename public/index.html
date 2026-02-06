@@ -218,11 +218,15 @@
             cursor: default;
         }
         #deckDialog {
-            width: 60em;
-            max-width: 90vw;
-            max-height: 80vh;
+            top: 8.5em;
+            left: 2vw;
+            width: 96vw;
+            max-width: 96vw;
+            max-height: calc(100vh - 10em);
             overflow-y: auto;
             overflow-x: hidden;
+            font-size: 1em;
+            box-sizing: border-box;
         }
         #deckContents {
             display: flex;
@@ -232,20 +236,22 @@
         }
         .deckSection {
             display: flex;
-            flex-direction: row;
-            align-items: flex-start;
-            gap: 10px;
+            flex-direction: column;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 8px;
+            background: #fcfcfd;
         }
         .deckSectionHeader {
-            min-width: 5em;
-            padding-top: 0.3em;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 6px;
         }
         .deckSectionItems {
             display: flex;
             flex-direction: row;
             flex-wrap: wrap;
-            gap: 5px;
-            flex: 1;
+            gap: 6px;
         }
         #victoryScreen {
             display: flex;
