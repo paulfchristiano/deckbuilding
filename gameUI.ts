@@ -231,8 +231,11 @@ const numHotkeys: Key[] = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9']
 const supplyAndPlayHotkeys: Key[] = numHotkeys.concat(symbolHotkeys).concat(upperHotkeys)
 const handHotkeys = lowerHotkeys.concat(upperHotkeys)
 const hotkeys: Key[] = potionHotkeys.concat(supplyAndPlayHotkeys).concat(handHotkeys)
+let hotkeysInitialized = false
 
 export function initHotkeys(): void {
+    if (hotkeysInitialized) return
+    hotkeysInitialized = true
     window.addEventListener('keydown', (e: KeyboardEvent) => {
         if (e.altKey || e.ctrlKey || e.metaKey) return
 
@@ -1604,6 +1607,7 @@ export async function startGame(
     initialViewingMacros: boolean = false,
     onProgress: ((progress: GameProgressData) => void) | null = null
 ): Promise<VictoryData> {
+    initHotkeys()
     resetGlobalRenderer()
     closeMacroDeleteMenu()
     globalRendererState.viewingMacros = initialViewingMacros
