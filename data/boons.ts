@@ -445,11 +445,12 @@ const duplicateStart:CardSpec = {
 boons.push({
         name: 'Duplication',
         description: 'Start with a duplicate token on each supply.',
-        parReduction: 5,
+        parReduction: 3,
         cards: [],
         events: [duplicateStart],
 })
 
+/*
 const priorityStart:CardSpec = {
     name: 'Prioritization',
     fixedCost: free,
@@ -474,3 +475,4 @@ boons.push(   {
         cards: [],
         events: [priorityStart],
 })
+*/

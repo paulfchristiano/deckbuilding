@@ -5,9 +5,10 @@ import { CardSpec, Card, State, vpModes,
     TypedTrigger, TypedReplacer,
     Boon, VPMode,
     boons,
+    core,
     PlaceName,
     Token,
-    cardRewards, eventRewards,
+    cardRewards, eventRewards, potionRewards, relicRewards,
     coinKey, energyEventKey,
     VictoryData,
     Replayable
@@ -15,6 +16,8 @@ import { CardSpec, Card, State, vpModes,
 import type { GameSpec } from './gameLogic.js'
 
 import { buildSpecTooltip } from './cardRendering.js'
+import { makeBottledCardPotion, makeBottledEventPotion, makeCardInABoxRelic } from './data/specialSpecs.js'
+import { getEncounterUpgradeById } from './data/upgrades.js'
 
 // ----------------------------- MetaUI Interface
 
@@ -42,7 +45,8 @@ export interface MetaUI {
         gameHistory?: number[],
         gameRedo?: number[],
         macros?: unknown,
-        viewingMacros?: boolean
+        viewingMacros?: boolean,
+        onProgress?: ((progress: ActiveGameProgress) => void) | null
     ): Promise<VictoryData>
 
     // Wait for user to select a challenge (reward options are handled inline)
@@ -65,6 +69,13 @@ export interface MetaUI {
 
     // Update the buffer display when it changes
     updateBuffer(state: MetaState): void
+}
+
+export interface ActiveGameProgress {
+    history: Replayable[]
+    redo: Replayable[]
+    macros: unknown
+    viewingMacros: boolean
 }
 
 // --------------------- Reward Options and Encounters
@@ -177,6 +188,11 @@ export function getEncounterState(state: MetaState, generator: Generator, stage:
         encounter: registration.encounter,
         data: registration.encounter.createInitialData(state, generator)
     }
+}
+
+export function getEncounterByName(name: string): Encounter | null {
+    const registration = encounterRegistry.find(entry => entry.encounter.name === name)
+    return registration ? registration.encounter : null
 }
 
 // ----------------------------- Constants
@@ -336,6 +352,8 @@ export interface Path {
     challenges: ChallengeSpec[]
 }
 
+export type MetaPhase = 'stage_select' | 'path_select' | 'in_game' | 'game_over'
+
 export type RewardKind = 'card' | 'event' | 'potion' | 'relic' | 'encounter'
 
 export interface StageReplayData {
@@ -369,9 +387,11 @@ export function getRewardName(rewardState: RewardState): string {
 export interface MetaStateData {
     // Current stage (1-8)
     stage: number
+    phase: MetaPhase
 
     // Challenge options for current stage (user selects one to play)
     challenges: ChallengeSpec[]
+    availablePaths: Path[]
 
     // Score tracking
     stageScores: (number | null)[]
@@ -394,8 +414,6 @@ export interface MetaStateData {
 
     nextID: number
 
-    playingGame: boolean
-
     // Saved game state for restoration on redo
     gameHistory: number[]
     gameRedo: number[]
@@ -414,15 +432,18 @@ export class MetaState {
     public redoStack: MetaStateData[] = []
     public undoStack: MetaStateData[] = []
     public readonly seed: string
-    public readonly masterGenerator: Generator
+    public masterGenerator: Generator
     public generators: Map<string, Generator> = new Map()
     public data: MetaStateData
     public global: MetaGlobalState
+    private onChange: (() => void) | null
 
     constructor(
         public readonly ui: MetaUI,
         seed: null | string = null,
+        onChange: (() => void) | null = null,
     ) {
+        this.onChange = onChange
         if (seed === null) {
             this.seed = randomString()
         } else {
@@ -431,18 +452,19 @@ export class MetaState {
         this.masterGenerator = new Generator(this.seed)
         const data = {
             stage: 0,
+            phase: 'stage_select' as MetaPhase,
             buffer: INITIAL_BUFFER,
             stageScores: Array(TOTAL_STAGES).fill(null),
             stagePars: Array(TOTAL_STAGES).fill(null),
             stageReplays: Array(TOTAL_STAGES).fill(null),
             challenges: [] as ChallengeSpec[],
+            availablePaths: [] as Path[],
             rewardStates: [] as RewardState[],
             collectedCards: [] as CardSpec[],
             collectedEvents: [] as CardSpec[],
             potions: [] as Card[],
             relics: [] as Relic[],
             nextID: 1,
-            playingGame: false,
             gameHistory: [] as number[],
             gameRedo: [] as number[],
         }
@@ -493,25 +515,53 @@ export class MetaState {
     }
 
     clearHistory() {
+        if (this.data.phase === 'in_game') {
+            throw new Error('Invariant violation: clearHistory() called while in active game')
+        }
         this.undoStack = []
         this.redoStack = []
         this.checkpoint = this.data
-        console.assert(this.data.challenges.length > 0) // Should not a set checkpoint while selecting paths.
+        this.notifyChanged()
     }
 
     setCheckpoint() {
-        console.assert(this.data.challenges.length > 0) // Should not a set checkpoint while selecting paths.
+        console.assert(this.data.phase !== 'path_select') // Should not set checkpoint while selecting paths.
         this.undoStack.push(this.checkpoint)
         this.checkpoint = this.data
         this.redoStack = []
+        this.notifyChanged()
+    }
+
+    updateAndSetCheckpoint(updates: Partial<MetaStateData>) {
+        console.assert(this.data.phase !== 'path_select') // Should not set checkpoint while selecting paths.
+        const nextData = { ...this.data, ...updates }
+        this.undoStack.push(this.checkpoint)
+        this.data = nextData
+        this.checkpoint = nextData
+        this.redoStack = []
+        this.notifyChanged()
+    }
+
+    replaceAndClearHistory(updates: Partial<MetaStateData>) {
+        const nextData = { ...this.data, ...updates }
+        if (nextData.phase === 'in_game') {
+            throw new Error('Invariant violation: replaceAndClearHistory() cannot enter active game')
+        }
+        this.data = nextData
+        this.undoStack = []
+        this.redoStack = []
+        this.checkpoint = nextData
+        this.notifyChanged()
     }
     
     update(updates: Partial<MetaStateData>) {
         this.data = {...this.data, ...updates}
+        this.notifyChanged()
     }
 
     updateGlobal(updates: Partial<MetaGlobalState>) {
         this.global = {...this.global, ...updates}
+        this.notifyChanged()
     }
     
     // Undo to previous checkpoint
@@ -527,6 +577,7 @@ export class MetaState {
         this.redoStack.push(redoCheckpoint)
         this.checkpoint = previousCheckpoint
         this.data = previousCheckpoint
+        this.notifyChanged()
     }
 
     // Redo a previously undone action
@@ -536,6 +587,7 @@ export class MetaState {
         this.undoStack.push(this.checkpoint)
         this.checkpoint = nextState!
         this.data = nextState!
+        this.notifyChanged()
     }
 
     canUndo(): boolean {
@@ -563,7 +615,631 @@ export class MetaState {
         for (const snapshot of this.uniqueSnapshots()) {
             mutator(snapshot)
         }
+        this.notifyChanged()
     }
+
+    setChangeListener(listener: (() => void) | null): void {
+        this.onChange = listener
+    }
+
+    private notifyChanged(): void {
+        if (this.onChange) this.onChange()
+    }
+}
+
+// ----------------------------- Serialization
+
+type SerializedSpecCategory = 'card' | 'event' | 'potion' | 'relic'
+
+type SerializedSpecRef =
+    | {
+        type: 'base'
+        category: SerializedSpecCategory
+        name: string
+        upgradeIDs: string[]
+    }
+    | {
+        type: 'dynamic'
+        dynamicKind: 'cardInABoxRelic' | 'bottledCardPotion' | 'bottledEventPotion'
+        base: SerializedSpecRef
+        useUnderlyingEvent?: boolean
+    }
+
+interface SerializedCard {
+    kind: 'card' | 'relic'
+    id: number
+    spec: SerializedSpecRef
+    ticks: number[]
+    tokens: [Token, number][]
+    place: PlaceName
+    zoneIndex: number
+    notedCards?: SerializedSpecRef[]
+}
+
+interface SerializedSimpleRewardState {
+    kind: 'card' | 'event' | 'potion' | 'relic'
+    options: SerializedSpecRef[]
+    selectedIndex: number | null
+}
+
+interface SerializedEncounterRewardState {
+    kind: 'encounter'
+    encounterName: string | null
+    data: unknown
+}
+
+type SerializedRewardState = SerializedSimpleRewardState | SerializedEncounterRewardState
+
+interface SerializedChallengeSpec {
+    stage: number
+    vpModeName: string
+    boonNames: string[]
+}
+
+interface SerializedPath {
+    rewardStates: SerializedRewardState[]
+    challenges: SerializedChallengeSpec[]
+}
+
+interface SerializedGameSpec {
+    vp: number
+    par: number
+    cards: SerializedSpecRef[]
+    events: SerializedSpecRef[]
+    potions: SerializedCard[]
+    relics: SerializedCard[]
+    metaStage?: number
+    metaStageScores?: (number | null)[]
+    metaStagePars?: (number | null)[]
+    previousScore?: number | null
+    replayUsedPotionIDs?: number[]
+    replayStage?: number | null
+}
+
+interface SerializedStageReplayData {
+    stage: number
+    spec: SerializedGameSpec
+    score: number
+    par: number
+    history: Replayable[]
+    potionsRemaining: SerializedCard[]
+    bufferBeforeCourse: number
+    bufferAfterCourse: number
+}
+
+interface SerializedMetaStateData {
+    stage: number
+    phase?: MetaPhase
+    challenges: SerializedChallengeSpec[]
+    availablePaths?: SerializedPath[]
+    stageScores: (number | null)[]
+    stagePars: (number | null)[]
+    stageReplays: (SerializedStageReplayData | null)[]
+    buffer: number
+    rewardStates: SerializedRewardState[]
+    collectedCards: SerializedSpecRef[]
+    collectedEvents: SerializedSpecRef[]
+    potions: SerializedCard[]
+    relics: SerializedCard[]
+    nextID: number
+    playingGame?: boolean
+    gameHistory: number[]
+    gameRedo: number[]
+}
+
+interface SerializedMetaHistory {
+    checkpoint: SerializedMetaStateData
+    undoStack: SerializedMetaStateData[]
+    redoStack: SerializedMetaStateData[]
+}
+
+export interface SerializedMetaGame {
+    version: 1
+    seed: string
+    masterGeneratorState: number
+    generatorStates: Array<{ key: string, state: number }>
+    data: SerializedMetaStateData
+    history?: SerializedMetaHistory
+    global: unknown
+}
+
+function validateMetaStateData(data: MetaStateData, context: string): void {
+    if (data.phase === 'path_select' && data.availablePaths.length === 0) {
+        throw new Error(`Invariant violation (${context}): path_select requires available paths`)
+    }
+    if (data.phase !== 'path_select' && data.availablePaths.length > 0) {
+        throw new Error(`Invariant violation (${context}): only path_select may store available paths`)
+    }
+    if (data.phase === 'stage_select' && data.challenges.length === 0) {
+        throw new Error(`Invariant violation (${context}): stage_select requires challenge options`)
+    }
+    if (data.phase === 'in_game' && data.challenges.length !== 1) {
+        throw new Error(`Invariant violation (${context}): in_game requires exactly one selected challenge`)
+    }
+    if (data.phase !== 'in_game' && (data.gameHistory.length > 0 || data.gameRedo.length > 0)) {
+        throw new Error(`Invariant violation (${context}): saved game history only allowed in in_game`)
+    }
+}
+
+function looksLikeCardSpec(value: unknown): value is CardSpec {
+    if (value === null || typeof value !== 'object') return false
+    const record = value as Record<string, unknown>
+    if (typeof record.name !== 'string') return false
+    if ('spec' in record && 'id' in record && 'place' in record) return false
+    return 'effects' in record
+        || 'buyCost' in record
+        || 'fixedCost' in record
+        || 'isPotion' in record
+        || 'upgrades' in record
+        || 'persistence' in record
+        || 'metaReplacers' in record
+        || 'metaTriggers' in record
+        || 'relatedCards' in record
+        || 'simpleText' in record
+}
+
+function encodeUnknown(value: unknown): unknown {
+    if (value instanceof Relic) {
+        return {
+            __type: 'relic',
+            value: serializeCard(value)
+        }
+    }
+    if (value instanceof Card) {
+        return {
+            __type: 'card',
+            value: serializeCard(value)
+        }
+    }
+    if (value instanceof Map) {
+        return {
+            __type: 'map',
+            entries: [...value.entries()].map(([key, entryValue]) => [encodeUnknown(key), encodeUnknown(entryValue)])
+        }
+    }
+    if (Array.isArray(value)) {
+        return value.map(encodeUnknown)
+    }
+    if (looksLikeCardSpec(value)) {
+        return {
+            __type: 'spec',
+            value: serializeSpec(value)
+        }
+    }
+    if (value !== null && typeof value === 'object') {
+        const result: Record<string, unknown> = {}
+        for (const [key, entryValue] of Object.entries(value as Record<string, unknown>)) {
+            result[key] = encodeUnknown(entryValue)
+        }
+        return result
+    }
+    return value
+}
+
+function decodeUnknown(value: unknown): unknown {
+    if (Array.isArray(value)) {
+        return value.map(decodeUnknown)
+    }
+    if (value !== null && typeof value === 'object') {
+        const record = value as Record<string, unknown>
+        if (record.__type === 'map') {
+            const entries = (record.entries as unknown[]).map(entry => {
+                const pair = entry as [unknown, unknown]
+                return [decodeUnknown(pair[0]), decodeUnknown(pair[1])] as [unknown, unknown]
+            })
+            return new Map(entries)
+        }
+        if (record.__type === 'spec') {
+            return deserializeSpec(record.value as SerializedSpecRef)
+        }
+        if (record.__type === 'card' || record.__type === 'relic') {
+            return deserializeCard(record.value as SerializedCard)
+        }
+        const result: Record<string, unknown> = {}
+        for (const [key, entryValue] of Object.entries(record)) {
+            result[key] = decodeUnknown(entryValue)
+        }
+        return result
+    }
+    return value
+}
+
+function specsForCategory(category: SerializedSpecCategory): CardSpec[] {
+    const fromVP = category === 'card'
+        ? vpModes.flatMap(vpMode => vpMode.cards)
+        : category === 'event'
+            ? vpModes.flatMap(vpMode => vpMode.events)
+            : []
+    const fromBoons = category === 'card'
+        ? boons.flatMap(boon => boon.cards)
+        : category === 'event'
+            ? boons.flatMap(boon => boon.events)
+            : []
+    const fromCore = category === 'card'
+        ? core.cards
+        : category === 'event'
+            ? core.events
+            : []
+    const fromRewards =
+        category === 'card' ? cardRewards :
+        category === 'event' ? eventRewards :
+        category === 'potion' ? potionRewards :
+        relicRewards
+    const all = [...fromRewards, ...fromVP, ...fromBoons, ...fromCore]
+    const byName = new Map<string, CardSpec>()
+    for (const spec of all) {
+        if (!byName.has(spec.name)) byName.set(spec.name, spec)
+    }
+    return [...byName.values()]
+}
+
+function inferSpecCategory(spec: CardSpec): SerializedSpecCategory {
+    const categories: SerializedSpecCategory[] = []
+    for (const category of ['card', 'event', 'potion', 'relic'] as SerializedSpecCategory[]) {
+        if (specsForCategory(category).some(candidate => candidate.name === spec.name)) {
+            categories.push(category)
+        }
+    }
+    if (categories.length === 1) return categories[0]
+    if (categories.length === 0) {
+        if (spec.isPotion) return 'potion'
+        throw new Error(`Unable to infer category for spec "${spec.name}"`)
+    }
+    throw new Error(`Ambiguous category for spec "${spec.name}"`)
+}
+
+function findBaseSpec(category: SerializedSpecCategory, name: string): CardSpec {
+    const primaryPool = specsForCategory(category)
+    const primaryMatch = primaryPool.find(spec => spec.name === name)
+    if (primaryMatch) return primaryMatch
+
+    const crossCategoryMatches: CardSpec[] = []
+    for (const categoryName of ['card', 'event', 'potion', 'relic'] as SerializedSpecCategory[]) {
+        const match = specsForCategory(categoryName).find(spec => spec.name === name)
+        if (match) crossCategoryMatches.push(match)
+    }
+    if (crossCategoryMatches.length === 1) {
+        return crossCategoryMatches[0]
+    }
+
+    throw new Error(`Unable to resolve ${category} spec "${name}"`)
+}
+
+function serializeSpec(spec: CardSpec, categoryHint: SerializedSpecCategory | null = null): SerializedSpecRef {
+    if (spec.persistence) {
+        const base = spec.relatedCards?.[0]
+        if (!base) {
+            throw new Error(`Dynamic spec "${spec.name}" is missing related base card`)
+        }
+        return {
+            type: 'dynamic',
+            dynamicKind: spec.persistence.kind,
+            base: serializeSpec(base),
+            useUnderlyingEvent: spec.persistence.useUnderlyingEvent,
+        }
+    }
+
+    const category = categoryHint || inferSpecCategory(spec)
+    const upgradeIDs = (spec.upgrades || []).map(upgrade => upgrade.id)
+    if (upgradeIDs.some(id => id === undefined)) {
+        throw new Error(`Spec "${spec.name}" has non-serializable upgrades`)
+    }
+    return {
+        type: 'base',
+        category,
+        name: spec.name,
+        upgradeIDs: upgradeIDs as string[],
+    }
+}
+
+function applyUpgrades(base: CardSpec, upgradeIDs: string[]): CardSpec {
+    let result: CardSpec = base
+    for (const id of upgradeIDs) {
+        const upgrade = getEncounterUpgradeById(id)
+        if (!upgrade) {
+            throw new Error(`Unknown upgrade id "${id}"`)
+        }
+        result = {
+            ...result,
+            upgrades: [...(result.upgrades || []), upgrade]
+        }
+    }
+    return result
+}
+
+function deserializeSpec(spec: SerializedSpecRef): CardSpec {
+    if (spec.type === 'base') {
+        const base = findBaseSpec(spec.category, spec.name)
+        return applyUpgrades(base, spec.upgradeIDs)
+    }
+    const base = deserializeSpec(spec.base)
+    switch (spec.dynamicKind) {
+        case 'cardInABoxRelic':
+            return makeCardInABoxRelic(base)
+        case 'bottledCardPotion':
+            return makeBottledCardPotion(base)
+        case 'bottledEventPotion':
+            return makeBottledEventPotion(base, { useUnderlyingEvent: spec.useUnderlyingEvent ?? true })
+        default:
+            throw new Error(`Unknown dynamic spec kind`)
+    }
+}
+
+function serializeCard(card: Card): SerializedCard {
+    const common = {
+        id: card.id,
+        spec: serializeSpec(card.spec),
+        ticks: [...card.ticks],
+        tokens: [...card.tokens.entries()],
+        place: card.place,
+        zoneIndex: card.zoneIndex,
+    }
+    if (card instanceof Relic) {
+        return {
+            kind: 'relic',
+            ...common,
+            notedCards: (card.notedCards || []).map(spec => serializeSpec(spec)),
+        }
+    }
+    return {
+        kind: 'card',
+        ...common
+    }
+}
+
+function deserializeCard(card: SerializedCard): Card {
+    const spec = deserializeSpec(card.spec)
+    const tokens = new Map<Token, number>(card.tokens)
+    if (card.kind === 'relic') {
+        const notedCards = (card.notedCards || []).map(deserializeSpec)
+        return new Relic(spec as RelicSpec, card.id, notedCards, card.ticks, tokens, card.place, card.zoneIndex)
+    }
+    return new Card(spec, card.id, card.ticks, tokens, card.place, card.zoneIndex)
+}
+
+function serializeChallenge(challenge: ChallengeSpec): SerializedChallengeSpec {
+    return {
+        stage: challenge.stage,
+        vpModeName: challenge.vpMode.name,
+        boonNames: challenge.boons.map(boon => boon.name)
+    }
+}
+
+function deserializeChallenge(challenge: SerializedChallengeSpec): ChallengeSpec {
+    const vpMode = vpModes.find(mode => mode.name === challenge.vpModeName)
+    if (!vpMode) throw new Error(`Unknown vp mode "${challenge.vpModeName}"`)
+    const resolvedBoons = challenge.boonNames.map(name => {
+        const boon = boons.find(candidate => candidate.name === name)
+        if (!boon) throw new Error(`Unknown boon "${name}"`)
+        return boon
+    })
+    return {
+        stage: challenge.stage,
+        vpMode,
+        boons: resolvedBoons
+    }
+}
+
+function serializePath(path: Path): SerializedPath {
+    return {
+        rewardStates: path.rewardStates.map(serializeRewardState),
+        challenges: path.challenges.map(serializeChallenge)
+    }
+}
+
+function deserializePath(path: SerializedPath): Path {
+    return {
+        rewardStates: path.rewardStates.map(deserializeRewardState),
+        challenges: path.challenges.map(deserializeChallenge)
+    }
+}
+
+function serializeRewardState(rewardState: RewardState): SerializedRewardState {
+    if (rewardState.kind === 'encounter') {
+        return {
+            kind: 'encounter',
+            encounterName: rewardState.encounter ? rewardState.encounter.name : null,
+            data: encodeUnknown(rewardState.data)
+        }
+    }
+    const category =
+        rewardState.kind === 'card' ? 'card' :
+        rewardState.kind === 'event' ? 'event' :
+        rewardState.kind === 'potion' ? 'potion' :
+        'relic'
+    return {
+        kind: rewardState.kind,
+        options: (rewardState.options as CardSpec[]).map(spec => serializeSpec(spec, category)),
+        selectedIndex: rewardState.selectedIndex
+    }
+}
+
+function deserializeRewardState(rewardState: SerializedRewardState): RewardState {
+    if (rewardState.kind === 'encounter') {
+        return {
+            kind: 'encounter',
+            encounter: rewardState.encounterName ? getEncounterByName(rewardState.encounterName) : null,
+            data: decodeUnknown(rewardState.data)
+        }
+    }
+    return {
+        kind: rewardState.kind,
+        options: rewardState.options.map(deserializeSpec) as CardSpec[],
+        selectedIndex: rewardState.selectedIndex
+    }
+}
+
+function serializeGameSpec(spec: GameSpec): SerializedGameSpec {
+    return {
+        vp: spec.vp,
+        par: spec.par,
+        cards: spec.cards.map(card => serializeSpec(card, 'card')),
+        events: spec.events.map(event => serializeSpec(event, 'event')),
+        potions: spec.potions.map(potion => serializeCard(potion)),
+        relics: spec.relics.map(relic => serializeCard(relic)),
+        metaStage: spec.metaStage,
+        metaStageScores: spec.metaStageScores ? [...spec.metaStageScores] : undefined,
+        metaStagePars: spec.metaStagePars ? [...spec.metaStagePars] : undefined,
+        previousScore: spec.previousScore,
+        replayUsedPotionIDs: spec.replayUsedPotionIDs ? [...spec.replayUsedPotionIDs] : undefined,
+        replayStage: spec.replayStage
+    }
+}
+
+function deserializeGameSpec(spec: SerializedGameSpec): GameSpec {
+    return {
+        vp: spec.vp,
+        par: spec.par,
+        cards: spec.cards.map(card => deserializeSpec(card)),
+        events: spec.events.map(event => deserializeSpec(event)),
+        potions: spec.potions.map(card => deserializeCard(card)),
+        relics: spec.relics.map(card => deserializeCard(card)),
+        metaStage: spec.metaStage,
+        metaStageScores: spec.metaStageScores ? [...spec.metaStageScores] : undefined,
+        metaStagePars: spec.metaStagePars ? [...spec.metaStagePars] : undefined,
+        previousScore: spec.previousScore,
+        replayUsedPotionIDs: spec.replayUsedPotionIDs ? [...spec.replayUsedPotionIDs] : undefined,
+        replayStage: spec.replayStage
+    }
+}
+
+function serializeMetaStateData(data: MetaStateData): SerializedMetaStateData {
+    validateMetaStateData(data, 'serialize')
+    return {
+        stage: data.stage,
+        phase: data.phase,
+        challenges: data.challenges.map(serializeChallenge),
+        availablePaths: data.availablePaths.map(serializePath),
+        stageScores: [...data.stageScores],
+        stagePars: [...data.stagePars],
+        stageReplays: data.stageReplays.map(stageReplay => {
+            if (stageReplay === null) return null
+            return {
+                stage: stageReplay.stage,
+                spec: serializeGameSpec(stageReplay.spec),
+                score: stageReplay.score,
+                par: stageReplay.par,
+                history: [...stageReplay.history],
+                potionsRemaining: stageReplay.potionsRemaining.map(card => serializeCard(card)),
+                bufferBeforeCourse: stageReplay.bufferBeforeCourse,
+                bufferAfterCourse: stageReplay.bufferAfterCourse
+            }
+        }),
+        buffer: data.buffer,
+        rewardStates: data.rewardStates.map(serializeRewardState),
+        collectedCards: data.collectedCards.map(card => serializeSpec(card, 'card')),
+        collectedEvents: data.collectedEvents.map(event => serializeSpec(event, 'event')),
+        potions: data.potions.map(card => serializeCard(card)),
+        relics: data.relics.map(card => serializeCard(card)),
+        nextID: data.nextID,
+        gameHistory: [...data.gameHistory],
+        gameRedo: [...data.gameRedo]
+    }
+}
+
+function cloneSerializedMetaStateData(data: SerializedMetaStateData): SerializedMetaStateData {
+    return JSON.parse(JSON.stringify(data)) as SerializedMetaStateData
+}
+
+function deserializeMetaStateData(data: SerializedMetaStateData): MetaStateData {
+    const phase: MetaPhase = data.phase ?? (
+        data.playingGame === true
+            ? 'in_game'
+            : (data.availablePaths && data.availablePaths.length > 0 ? 'path_select' : 'stage_select')
+    )
+    const result: MetaStateData = {
+        stage: data.stage,
+        phase,
+        challenges: data.challenges.map(deserializeChallenge),
+        availablePaths: (data.availablePaths || []).map(deserializePath),
+        stageScores: [...data.stageScores],
+        stagePars: [...data.stagePars],
+        stageReplays: data.stageReplays.map(stageReplay => {
+            if (stageReplay === null) return null
+            return {
+                stage: stageReplay.stage,
+                spec: deserializeGameSpec(stageReplay.spec),
+                score: stageReplay.score,
+                par: stageReplay.par,
+                history: [...stageReplay.history],
+                potionsRemaining: stageReplay.potionsRemaining.map(card => deserializeCard(card)),
+                bufferBeforeCourse: stageReplay.bufferBeforeCourse,
+                bufferAfterCourse: stageReplay.bufferAfterCourse
+            }
+        }),
+        buffer: data.buffer,
+        rewardStates: data.rewardStates.map(deserializeRewardState),
+        collectedCards: data.collectedCards.map(card => deserializeSpec(card)),
+        collectedEvents: data.collectedEvents.map(event => deserializeSpec(event)),
+        potions: data.potions.map(card => deserializeCard(card)),
+        relics: data.relics.map(card => deserializeCard(card) as Relic),
+        nextID: data.nextID,
+        gameHistory: [...data.gameHistory],
+        gameRedo: [...data.gameRedo],
+    }
+    validateMetaStateData(result, 'deserialize')
+    return result
+}
+
+export function serializeMetaGame(state: MetaState): SerializedMetaGame {
+    return {
+        version: 1,
+        seed: state.seed,
+        masterGeneratorState: state.masterGenerator.exportState(),
+        generatorStates: [...state.generators.entries()].map(([key, generator]) => ({
+            key,
+            state: generator.exportState()
+        })),
+        data: serializeMetaStateData(state.data),
+        history: {
+            checkpoint: serializeMetaStateData(state.checkpoint),
+            undoStack: state.undoStack.map(serializeMetaStateData),
+            redoStack: state.redoStack.map(serializeMetaStateData),
+        },
+        global: encodeUnknown(state.global)
+    }
+}
+
+export function deserializeMetaGame(
+    ui: MetaUI,
+    serialized: SerializedMetaGame,
+    onChange: (() => void) | null = null
+): MetaState {
+    if (serialized.version !== 1) {
+        throw new Error(`Unsupported save version ${serialized.version}`)
+    }
+    const state = new MetaState(ui, serialized.seed, onChange)
+    state.masterGenerator = Generator.fromState(serialized.masterGeneratorState)
+    state.generators = new Map(
+        serialized.generatorStates.map(entry => [entry.key, Generator.fromState(entry.state)])
+    )
+    const serializedData = cloneSerializedMetaStateData(serialized.data)
+    const history = serialized.history
+    const serializedCheckpoint = history ? cloneSerializedMetaStateData(history.checkpoint) : serializedData
+    const serializedUndo = (history ? history.undoStack : []).map(cloneSerializedMetaStateData)
+    const serializedRedo = (history ? history.redoStack : []).map(cloneSerializedMetaStateData)
+
+    const dataBySerialized = new Map<SerializedMetaStateData, MetaStateData>()
+    const decodeSnapshot = (snapshot: SerializedMetaStateData): MetaStateData => {
+        if (!dataBySerialized.has(snapshot)) {
+            dataBySerialized.set(snapshot, deserializeMetaStateData(snapshot))
+        }
+        return dataBySerialized.get(snapshot)!
+    }
+
+    state.data = decodeSnapshot(serializedData)
+    state.checkpoint = history ? decodeSnapshot(serializedCheckpoint) : state.data
+    state.undoStack = serializedUndo.map(decodeSnapshot)
+    state.redoStack = serializedRedo.map(decodeSnapshot)
+    if (state.data.phase === 'in_game' && state.undoStack.length === 0) {
+        throw new Error('Malformed save: in-progress game is missing a meta undo checkpoint')
+    }
+    const restoredGlobal = decodeUnknown(serialized.global) as Partial<MetaGlobalState>
+    state.global = {
+        macros: restoredGlobal.macros ?? [],
+        viewingMacros: restoredGlobal.viewingMacros ?? false
+    }
+    return state
 }
 
 // ----------------------------- MetaTransform
@@ -754,6 +1430,9 @@ export function makeSpec(state: MetaState, challenge: ChallengeSpec): GameSpec {
         events: gameSetupParams.eventSpecs,
         potions: state.data.potions,
         relics: state.data.relics,
+        metaStage: state.data.stage,
+        metaStageScores: [...state.data.stageScores],
+        metaStagePars: [...state.data.stagePars],
     }
 }
 
@@ -795,9 +1474,6 @@ function makePaths(state: MetaState): PathSkeleton[] {
         { rewards: shuffledOptions.slice(2, 4), challenges: [challenge2] },
     ]
 }
-
-// TODO: actually create these in gameLogic and then then fill them in the ./data files
-import { potionRewards, relicRewards } from './gameLogic.js'
 
 function pathFromSkeleton(skeleton: PathSkeleton): Path {
     const rewardStates: RewardState[] = []
@@ -850,6 +1526,8 @@ function cloneGameSpec(spec: GameSpec): GameSpec {
         events: [...spec.events],
         potions: [...spec.potions],
         relics: [...spec.relics],
+        metaStageScores: spec.metaStageScores ? [...spec.metaStageScores] : undefined,
+        metaStagePars: spec.metaStagePars ? [...spec.metaStagePars] : undefined,
         replayUsedPotionIDs: spec.replayUsedPotionIDs ? [...spec.replayUsedPotionIDs] : undefined
     }
 }
@@ -868,9 +1546,12 @@ function replayUsedPotionIDs(replayData: StageReplayData): number[] {
     return replayData.spec.potions.map(p => p.id).filter(id => !remainingIDs.has(id))
 }
 
-function replaySpecForStage(replayData: StageReplayData): GameSpec {
+function replaySpecForStage(state: MetaState, replayData: StageReplayData): GameSpec {
     return {
         ...cloneGameSpec(replayData.spec),
+        metaStage: state.data.stage,
+        metaStageScores: [...state.data.stageScores],
+        metaStagePars: [...state.data.stagePars],
         previousScore: replayData.score,
         replayUsedPotionIDs: replayUsedPotionIDs(replayData),
         replayStage: replayData.stage
@@ -888,7 +1569,8 @@ const replaySimulationUI: MetaUI = {
         _gameHistory: number[] = [],
         _gameRedo: number[] = [],
         _macros: unknown = null,
-        _viewingMacros: boolean = false
+        _viewingMacros: boolean = false,
+        _onProgress: ((progress: ActiveGameProgress) => void) | null = null
     ): Promise<VictoryData> => {
         throw new Error('Replay simulation does not support playGame')
     },
@@ -911,7 +1593,9 @@ async function computeReplayBufferAfterCourse(replayData: StageReplayData, score
     const simulationState = new MetaState(replaySimulationUI, 'replay-sim')
     const data: MetaStateData = {
         stage: replayData.stage,
+        phase: 'stage_select',
         challenges: [],
+        availablePaths: [],
         stageScores: Array(TOTAL_STAGES).fill(null),
         stagePars: Array(TOTAL_STAGES).fill(null),
         stageReplays: Array(TOTAL_STAGES).fill(null),
@@ -922,7 +1606,6 @@ async function computeReplayBufferAfterCourse(replayData: StageReplayData, score
         potions: [...replayData.spec.potions],
         relics: [...(replayData.spec.relics as Relic[])],
         nextID: 1,
-        playingGame: false,
         gameHistory: [],
         gameRedo: [],
     }
@@ -962,11 +1645,12 @@ async function replayCompletedStage(state: MetaState, stage: number): Promise<vo
     let replayResult: VictoryData
     try {
         replayResult = await state.ui.playGame(
-            replaySpecForStage(replayData),
+            replaySpecForStage(state, replayData),
             replayData.history,
             [],
             state.global.macros,
-            state.global.viewingMacros
+            state.global.viewingMacros,
+            null
         )
     } catch (e) {
         if (e instanceof Undo) {
@@ -997,7 +1681,7 @@ async function replayCompletedStage(state: MetaState, stage: number): Promise<vo
     state.ui.updateBuffer(state)
 }
 
-function adoptPath(state:MetaState, path: Path) {
+function materializePath(state: MetaState, path: Path): Pick<MetaStateData, 'challenges' | 'rewardStates'> {
     // Materialize rewards only when the path is actually selected.
     const rewardStates = path.rewardStates.map(rs => {
         if (rs.kind === 'encounter' && rs.encounter === null) {
@@ -1034,7 +1718,7 @@ function adoptPath(state:MetaState, path: Path) {
         }
         return rs
     })
-    state.update({challenges: path.challenges, rewardStates})
+    return { challenges: path.challenges, rewardStates }
 }
 
 // We can define test in order to get a given reward immediately, for testing purposes.
@@ -1062,20 +1746,40 @@ function makeTestReward(state: MetaState, spec: TestSpec): RewardState {
 
 // TODO: implement undo (figure out how it is done right now).
 // Note that all checkpoints are at a point where you want to back into the main loop in this method.
-export async function playGame(ui: MetaUI, test:null|TestSpec = null, seed: string | null = null): Promise<void> {
-    const state: MetaState = new MetaState(ui, seed)
-    // Stage 0 offers two challenge options
-    const initialPath = pathFromSkeleton({
-        rewards: ['card', 'card', 'event', 'potion'] as RewardKind[],
-        challenges: [randomChallenge(state), randomChallenge(state)]
-    })
-    if (test !== null) initialPath.rewardStates.push(makeTestReward(state, test));
-    adoptPath(state, initialPath)
-    state.clearHistory()
+export async function playGame(
+    ui: MetaUI,
+    test:null|TestSpec = null,
+    seed: string | null = null,
+    initialSnapshot: SerializedMetaGame | null = null,
+    onStateChange: ((snapshot: SerializedMetaGame) => void) | null = null
+): Promise<void> {
+    const state: MetaState = initialSnapshot
+        ? deserializeMetaGame(ui, initialSnapshot, null)
+        : new MetaState(ui, seed, null)
+    state.setChangeListener(onStateChange ? () => onStateChange!(serializeMetaGame(state)) : null)
+
+    if (!initialSnapshot) {
+        // Stage 0 offers two challenge options
+        const initialPath = pathFromSkeleton({
+            rewards: ['card', 'card', 'event', 'potion'] as RewardKind[],
+            challenges: [randomChallenge(state), randomChallenge(state)]
+        })
+        if (test !== null) initialPath.rewardStates.push(makeTestReward(state, test));
+        state.replaceAndClearHistory({
+            ...materializePath(state, initialPath),
+            phase: 'stage_select',
+            availablePaths: [],
+        })
+    } else if (onStateChange) {
+        onStateChange(serializeMetaGame(state))
+    }
+    state.ui.updateBuffer(state)
     while (true) {
         console.assert(state.checkpoint == state.data) // Should always be at a checkpoint when starting this loop
         try {
-            if (state.data.playingGame) {
+            if (state.data.phase === 'in_game') {
+                const sameReplay = (a: number[], b: number[]): boolean =>
+                    a.length === b.length && a.every((value, index) => value === b[index])
                 const stage = state.data.stage
                 // challenges[0] is the selected challenge (set when user clicks a challenge button)
                 const gameSpec = makeSpec(state, state.data.challenges[0])
@@ -1086,7 +1790,19 @@ export async function playGame(ui: MetaUI, test:null|TestSpec = null, seed: stri
                     state.data.gameHistory,
                     state.data.gameRedo,
                     state.global.macros,
-                    state.global.viewingMacros
+                    state.global.viewingMacros,
+                    progress => {
+                        if (!sameReplay(state.data.gameHistory, progress.history) || !sameReplay(state.data.gameRedo, progress.redo)) {
+                            state.update({
+                                gameHistory: [...progress.history],
+                                gameRedo: [...progress.redo],
+                            })
+                        }
+                        state.updateGlobal({
+                            macros: progress.macros,
+                            viewingMacros: progress.viewingMacros
+                        })
+                    }
                 )
                 const persistedMacros = macros ?? state.global.macros
                 const persistedViewingMacros = viewingMacros ?? state.global.viewingMacros
@@ -1113,15 +1829,24 @@ export async function playGame(ui: MetaUI, test:null|TestSpec = null, seed: stri
                     bufferAfterCourse: state.data.buffer
                 }
                 state.update({ stageReplays })
-                state.update({ stage: state.data.stage + 1 })
-                if (state.data.stage >= TOTAL_STAGES) {
+                const nextStage = state.data.stage + 1
+                state.update({ stage: nextStage })
+                if (nextStage >= TOTAL_STAGES) {
+                    state.update({ phase: 'game_over' })
                     // Game over - player has completed all stages
                     await state.ui.showMessage(state, 'Congratulations! You have completed all stages!')
                     return
                 }
-                // Crossing a stage boundary should discard all meta undo/redo history.
-                state.clearHistory()
                 const paths = makePaths(state).map(skel => pathFromSkeleton(skel))
+                state.replaceAndClearHistory({
+                    phase: 'path_select',
+                    availablePaths: paths,
+                })
+            } else if (state.data.phase === 'path_select') {
+                const paths = state.data.availablePaths
+                if (paths.length === 0) {
+                    throw new Error('Invariant violation: path_select phase missing available paths')
+                }
                 let path: Path
                 while (true) {
                     try {
@@ -1135,10 +1860,12 @@ export async function playGame(ui: MetaUI, test:null|TestSpec = null, seed: stri
                         throw e
                     }
                 }
-                adoptPath(state, path)
-                state.update({ playingGame: false })
-                state.clearHistory()
-            } else {
+                state.replaceAndClearHistory({
+                    ...materializePath(state, path),
+                    phase: 'stage_select',
+                    availablePaths: [],
+                })
+            } else if (state.data.phase === 'stage_select') {
                 // Wait for user to select a challenge (reward options handled inline by UI)
                 let selectedChallenge: ChallengeSpec
                 while (true) {
@@ -1154,10 +1881,15 @@ export async function playGame(ui: MetaUI, test:null|TestSpec = null, seed: stri
                     }
                 }
                 // Store the selected challenge as the only one
-                state.update({ challenges: [selectedChallenge] })
+                state.update({ challenges: [selectedChallenge], availablePaths: [] })
                 await trigger({kind: 'start', stage: state.data.stage}, state)
-                state.update({ playingGame: true })
-                state.setCheckpoint()
+                state.updateAndSetCheckpoint({
+                    phase: 'in_game',
+                    gameHistory: [],
+                    gameRedo: [],
+                })
+            } else {
+                return
             }
         } catch (e) {
             if (e instanceof Undo) {

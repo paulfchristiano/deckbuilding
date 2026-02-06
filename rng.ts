@@ -10,14 +10,27 @@ export function randomString() {
 }
 
 export class Generator {
-    public prng: () => number;
-    constructor(seedString: string) {
-        this.prng = PRNGFromString(seedString);
+    private state: number;
+    constructor(seedString: string, state: number | null = null) {
+        this.state = state === null ? makeSeedFromString(seedString) : state;
+    }
+    static fromState(state: number): Generator {
+        return new Generator('A', state);
+    }
+    exportState(): number {
+        return this.state;
+    }
+    private next(): number {
+        this.state |= 0;
+        this.state = this.state + 0x6D2B79F5 | 0;
+        let t = Math.imul(this.state ^ this.state >>> 15, 1 | this.state);
+        t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+        return ((t ^ t >>> 14) >>> 0) / 4294967296;
     }
     newGenerator(): Generator {
         let result = "";
         for (let i = 0; i < 8; i++) {
-            const idx = Math.floor(this.prng() * ALPHANUM.length);
+            const idx = Math.floor(this.next() * ALPHANUM.length);
             result += ALPHANUM[idx];
         }
         return new Generator(result);
@@ -25,7 +38,7 @@ export class Generator {
     permute<T>(list: readonly T[]): T[] {
         const result = list.slice(); // copy
         for (let i = result.length - 1; i > 0; i--) {
-            const j = Math.floor(this.prng() * (i + 1));
+            const j = Math.floor(this.next() * (i + 1));
             [result[i], result[j]] = [result[j], result[i]];
         }    
         return result  
@@ -64,18 +77,6 @@ function makeSeedFromString(s: string): number {
   return hash >>> 0;
 }
 
-
-/** Deterministic PRNG */
-function PRNGFromString(seedString: string): () => number {
-  let seed = makeSeedFromString(seedString);
-  return function () {
-    seed |= 0;
-    seed = seed + 0x6D2B79F5 | 0;
-    let t = Math.imul(seed ^ seed >>> 15, 1 | seed);
-    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
-    return ((t ^ t >>> 14) >>> 0) / 4294967296;
-  };
-}
 
 /** Normalize the input string (capitalization only) */
 function normalizeSeedString(s: string): string {

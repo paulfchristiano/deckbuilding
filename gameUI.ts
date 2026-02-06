@@ -43,15 +43,40 @@ function hideElement(el: HTMLElement): void {
     el.setAttribute('hidden', '')
 }
 
-function updateGameReplaySidebar(replayStage: number | null | undefined): void {
+function updateGameProgressSidebar(spec: GameSpec): void {
     const circles = document.querySelectorAll('#progressLineGame .progressCircle')
+    const currentStage = spec.metaStage
+    const stageScores = spec.metaStageScores || []
+    const stagePars = spec.metaStagePars || []
+    const replayStage = spec.replayStage
     circles.forEach(circle => {
         const el = circle as HTMLElement
         const stage = parseInt(el.getAttribute('data-stage') || '-1')
+        el.classList.remove('completed', 'current', 'replaying')
+        const existingScore = el.querySelector('.progressScore')
+        if (existingScore) existingScore.remove()
+
+        if (currentStage !== undefined && stage < currentStage) {
+            el.classList.add('completed')
+            const score = stageScores[stage]
+            const par = stagePars[stage]
+            if (score !== null && score !== undefined && par !== null && par !== undefined) {
+                const scoreSpan = document.createElement('span')
+                scoreSpan.className = 'progressScore'
+                scoreSpan.textContent = `${score}/${par}`
+                if (score > par) {
+                    scoreSpan.style.color = 'red'
+                } else if (score < par) {
+                    scoreSpan.style.color = 'green'
+                }
+                el.appendChild(scoreSpan)
+            }
+        } else if (currentStage !== undefined && stage === currentStage) {
+            el.classList.add('current')
+        }
+
         if (replayStage !== null && replayStage !== undefined && stage === replayStage) {
             el.classList.add('replaying')
-        } else {
-            el.classList.remove('replaying')
         }
     })
 }
@@ -161,6 +186,11 @@ interface Macro {
 export type MacroPersistenceData = {
     macros: unknown
     viewingMacros: boolean
+}
+
+export interface GameProgressData extends MacroPersistenceData {
+    history: Replayable[]
+    redo: Replayable[]
 }
 
 interface MacroMatchResult {
@@ -1354,7 +1384,10 @@ export class GameUI implements UI {
     public macroStartState: State | null = null
     public choiceState: ChoiceState | null = null
 
-    constructor(initialMacros: unknown = null) {
+    constructor(
+        initialMacros: unknown = null,
+        private onProgress: ((progress: GameProgressData) => void) | null = null
+    ) {
         this.macros = loadMacros(initialMacros)
     }
 
@@ -1435,6 +1468,13 @@ export class GameUI implements UI {
     render(): void {
         if (this.choiceState) {
             const cs = this.choiceState
+            if (this.onProgress) {
+                this.onProgress({
+                    history: [...cs.state.origin().future],
+                    redo: [...cs.state.future],
+                    ...this.exportPersistenceData()
+                })
+            }
             renderChoice(
                 this,
                 cs.state,
@@ -1558,12 +1598,13 @@ export async function startGame(
     initialHistory: Replayable[] = [],
     initialRedo: Replayable[] = [],
     initialMacros: unknown = null,
-    initialViewingMacros: boolean = false
+    initialViewingMacros: boolean = false,
+    onProgress: ((progress: GameProgressData) => void) | null = null
 ): Promise<VictoryData> {
     resetGlobalRenderer()
     closeMacroDeleteMenu()
     globalRendererState.viewingMacros = initialViewingMacros
-    const ui = new GameUI(initialMacros)
+    const ui = new GameUI(initialMacros, onProgress)
 
     // Show game container
     showElement(getElement('gameContainer'))
@@ -1571,7 +1612,7 @@ export async function startGame(
     hideElement(getElement('pathSelectionScreen'))
     hideElement(getElement('victoryScreen'))
     hideElement(getElement('gameOverScreen'))
-    updateGameReplaySidebar(spec.replayStage)
+    updateGameProgressSidebar(spec)
 
     const result = await playGame(spec, ui, initialHistory, initialRedo)
     return { ...result, ...ui.exportPersistenceData() }
