@@ -995,8 +995,8 @@ function makeTestReward(state: MetaState, spec: TestSpec): RewardState {
 
 // TODO: implement undo (figure out how it is done right now).
 // Note that all checkpoints are at a point where you want to back into the main loop in this method.
-export async function playGame(ui: MetaUI, test:null|TestSpec = null): Promise<void> {
-    const state: MetaState = new MetaState(ui)
+export async function playGame(ui: MetaUI, test:null|TestSpec = null, seed: string | null = null): Promise<void> {
+    const state: MetaState = new MetaState(ui, seed)
     // Stage 0 offers two challenge options
     const initialPath = fillPath(state, {
         rewards: ['card', 'card', 'event', 'potion'] as RewardKind[],

@@ -3,6 +3,15 @@
     font-size: 1.25em;
     user-select: none;
 }
+#seedDisplay {
+    position: fixed;
+    right: 0;
+    bottom: 0;
+    font-size: 1.2em;
+    color: rgba(0, 0, 0, 0.35);
+    user-select: text;
+    z-index: 5;
+}
 .logTypes {
     font-size: 1em;
 }
