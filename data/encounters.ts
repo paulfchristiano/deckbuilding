@@ -23,7 +23,7 @@ import { create, State, Card, CardSpec, CardUpgrade,
 } from '../gameLogic.js'
 
 import { Generator } from '../rng.js'
-import { duplicate } from './events.js'
+import { accelerate, duplicate } from './events.js'
 import { geminiBrew, mirrorBrew, potionOfEchoes, potionOfReflection } from './potions.js'
 
 // ----------------------------- Helper Functions
@@ -78,14 +78,6 @@ function bottledEventPotion(
         rules: spec.rules ? [...spec.rules] : undefined,
         effects,
     }
-}
-
-function requireEventReward(name: string): CardSpec {
-    const spec = eventRewards.find(event => event.name === name)
-    if (!spec) {
-        throw new Error(`Encounter setup error: missing event reward "${name}"`)
-    }
-    return spec
 }
 
 function upgradeCardSpec(spec: CardSpec, upgrade: CardUpgrade): CardSpec {
@@ -342,7 +334,7 @@ export const brewery: Encounter = {
             potionOfReflection,
             { ...geminiBrew, name: 'Gemini Potion' },
             bottledEventPotion(duplicate, { useUnderlyingEvent: false }),
-            bottledEventPotion(requireEventReward('Accelerate'), { useUnderlyingEvent: false }),
+            bottledEventPotion(accelerate, { useUnderlyingEvent: false }),
         ]
         return {
             selectedIndex: null,

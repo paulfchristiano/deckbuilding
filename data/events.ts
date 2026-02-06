@@ -521,7 +521,7 @@ const reprise:CardSpec = {
 }
 eventRewards.push(reprise)
 
-const accelerate:CardSpec = {
+export const accelerate:CardSpec = {
     name: 'Accelerate',
     simpleText: [
         `Put a priority token on each card in the supply.`,
