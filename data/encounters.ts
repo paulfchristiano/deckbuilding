@@ -5,12 +5,11 @@ import { Encounter, registerEncounter, RewardOption,
     MetaState, MetaTransform,
     addBuffer, gainCard, gainEvent, gainPotion, gainRelic,
     addTimelineAction,
-    RelicSpec, Relic,
-    GainRelicEvent,
+    RelicSpec,
     GameSetupParams,
     compose,
 } from '../metaLogic.js'
-import { giftBox, inkwell } from './relics.js'
+import { giftBox, inkwell, silverMirror } from './relics.js'
 import { CardSpec, CardUpgrade,
     cardRewards, eventRewards, relicRewards, potionRewards,
     leq,
@@ -137,23 +136,6 @@ export const magicalBox: Encounter = {
 registerEncounter(magicalBox)
 
 // Mirror Maker encounter
-const mirrorName = 'Silver Mirror'
-const mirrorRelic: RelicSpec = {
-    name: mirrorName,
-    simpleText: [
-        'The next time you gain a relic,',
-        'gain an additional copy of that relic.'
-    ],
-    metaTriggers: [{
-        kind: 'relic',
-        handles: (e: GainRelicEvent, s: MetaState, relic: Relic) => e.relic.name != mirrorName,
-        transform: (e: GainRelicEvent, s: MetaState, relic: Relic) => async function (state: MetaState) {
-            state.removeRelic(relic.id)
-            await gainRelic(e.relic.spec)(state)
-        },
-    }]
-}
-
 const mirrorMaker: Encounter = {
     name: 'Mirror Maker',
     createInitialData: () => ({ selectedIndex: null as number | null }),
@@ -198,12 +180,12 @@ const mirrorMaker: Encounter = {
             },
             {
                 label: 'Take the mirror for the road',
-                description: 'The next time you gain a relic, gain another copy.',
+                description: 'The next time you gain a relic, gain two additional copies.',
                 disabled: selectedIndex !== null,
                 checked: selectedIndex === 2,
                 onClick: async () => ({
                     newData: { selectedIndex: 2 },
-                    transform: gainRelic(mirrorRelic)
+                    transform: gainRelic(silverMirror)
                 })
             }
         ]

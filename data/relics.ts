@@ -12,7 +12,7 @@ import {
 import {
     GameSetupParams, RewardParams,
     CourseEndEvent, CourseStartEvent, GainRelicEvent, GainCardEvent,
-    MetaTransform, addBuffer, RelicSpec, Relic,
+    MetaTransform, addBuffer, gainRelic, RelicSpec, Relic,
     MetaState,
 } from '../metaLogic.js'
 
@@ -105,6 +105,24 @@ export const cursedInkwell: RelicSpec = {
     }]
 }
 relicRewards.push(cursedInkwell)
+
+export const silverMirror: RelicSpec = {
+    name: 'Silver Mirror',
+    simpleText: [
+        'The next time you gain a relic,',
+        'gain two additional copies of that relic.'
+    ],
+    metaTriggers: [{
+        kind: 'relic',
+        handles: (e: GainRelicEvent, _s: MetaState, relic: Relic) => e.relic.id !== relic.id && e.relic.name !== 'Silver Mirror',
+        transform: (e: GainRelicEvent, _s: MetaState, relic: Relic) => async function (state: MetaState) {
+            state.removeRelic(relic.id)
+            await gainRelic(e.relic.spec)(state)
+            await gainRelic(e.relic.spec)(state)
+        },
+    }]
+}
+relicRewards.push(silverMirror)
 
 // TODO: implement
 // Need to have a replacer that can put in cards into the challengespec
