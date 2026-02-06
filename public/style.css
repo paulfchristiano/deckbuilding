@@ -37,6 +37,10 @@
     background: white;
     user-select: none;
 }
+.card.replay-used-potion {
+    border-color: #d22;
+    box-shadow: 0 0 0 2px rgba(210, 34, 34, 0.25) inset;
+}
 .spec {
     display:flex;
     flex-direction: column;

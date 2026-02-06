@@ -444,7 +444,8 @@ export const allResources:ResourceName[] = (allCostResources as ResourceName[]).
 // TODO: allow for relics to change in a fight
 export type VictoryData = {
     score: number,
-    potionsRemaining: Card[]
+    potionsRemaining: Card[],
+    history: Replayable[]
 }
 
 export interface UI {
@@ -485,7 +486,17 @@ export interface Kingdom {
     events: CardSpec[];
 }
 
-export type GameSpec = {vp: number, par: number, cards:CardSpec[], events:CardSpec[], potions: Card[], relics: Card[]}
+export type GameSpec = {
+    vp: number,
+    par: number,
+    cards:CardSpec[],
+    events:CardSpec[],
+    potions: Card[],
+    relics: Card[],
+    previousScore?: number | null,
+    replayUsedPotionIDs?: number[],
+    replayStage?: number | null
+}
 
 export class State {
     public readonly coin:number;
@@ -1689,7 +1700,10 @@ function actChoice(state:State): Promise<[State, [Card, ActionKind]|null]> {
     const supply = state.supply.filter(available('buy')).map(asActChoice('buy'))
     const events = state.events.filter(available('use')).map(asActChoice('use'))
     const play = state.play.filter(available('activate')).map(asActChoice('activate'))
-    const potions = state.potions.filter(available('potion')).map(asActChoice('potion'))
+    const replayUsedPotions = state.spec.replayUsedPotionIDs
+    const allowedPotion = (card: Card) =>
+        replayUsedPotions === undefined || replayUsedPotions.includes(card.id)
+    const potions = state.potions.filter(allowedPotion).filter(available('potion')).map(asActChoice('potion'))
     return choice(state, `Buy a card (costs 1 buy),
         play a card from your hand (costs 1 action),
         use an event, or drink a potion.`,
@@ -1804,7 +1818,11 @@ export async function playGame(
         try {
             if (victorious) {
                 await state.ui.victory(state)
-                return {score: state.energy, potionsRemaining: state.potions}
+                return {
+                    score: state.energy,
+                    potionsRemaining: state.potions,
+                    history: state.origin().future
+                }
             } else {
                 state = await act(state)
             }

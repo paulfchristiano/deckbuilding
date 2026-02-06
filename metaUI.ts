@@ -7,7 +7,7 @@ import {
     MetaUI, MetaOption,
     renderChallenge,
     getRewardOptions, getRewardName, updateRewardState, updateRewardAtIndex,
-    Undo, Redo
+    Undo, Redo, ReplayStage
 } from './metaLogic.js'
 import { renderSpecNoRelated } from './cardRendering.js'
 import { initHotkeys, startGame, keyListeners } from './gameUI.js'
@@ -87,14 +87,16 @@ function updateBufferDisplay(state: MetaState): void {
     getElement('bufferDisplay').textContent = `Buffer: ${state.data.buffer}`
 }
 
-function updateProgressSidebar(state: MetaState): void {
+function updateProgressSidebar(state: MetaState, onReplayStage?: (stage: number) => void): void {
     const circles = document.querySelectorAll('#progressLine .progressCircle, #progressLinePath .progressCircle, #progressLineGame .progressCircle')
 
     circles.forEach(circle => {
         const el = circle as HTMLElement
         const stage = parseInt(el.getAttribute('data-stage') || '0')
+        const inGameSidebar = el.closest('#progressLineGame') !== null
 
-        el.classList.remove('completed', 'current')
+        el.classList.remove('completed', 'current', 'replayable')
+        el.onclick = null
         const existingScore = el.querySelector('.progressScore')
         if (existingScore) existingScore.remove()
 
@@ -111,6 +113,10 @@ function updateProgressSidebar(state: MetaState): void {
                     scoreSpan.style.color = 'green'
                 }
                 el.appendChild(scoreSpan)
+            }
+            if (!inGameSidebar && onReplayStage && state.data.stageReplays[stage] !== null) {
+                el.classList.add('replayable')
+                el.onclick = () => onReplayStage(stage)
             }
         } else if (stage === state.data.stage) {
             el.classList.add('current')
@@ -161,9 +167,9 @@ function bindUndoRedoButtons(state: MetaState, onUndo: () => void, onRedo: () =>
 
 // ----------------------------- Common State Rendering
 
-function renderCommonUI(state: MetaState): void {
+function renderCommonUI(state: MetaState, onReplayStage?: (stage: number) => void): void {
     updateBufferDisplay(state)
-    updateProgressSidebar(state)
+    updateProgressSidebar(state, onReplayStage)
 
     // Bind deck icon (toggle on click)
     const deckIcon = getElement('deckIcon')
@@ -294,10 +300,11 @@ function showOptionPicker<T>(
 function renderStageScreen(
     state: MetaState,
     onChallenge: (challenge: ChallengeSpec) => void,
-    onOptionClick: (rewardIndex: number, optionIndex: number) => void
+    onOptionClick: (rewardIndex: number, optionIndex: number) => void,
+    onReplayStage: (stage: number) => void
 ): void {
     showScreen('stage')
-    renderCommonUI(state)
+    renderCommonUI(state, onReplayStage)
 
     getElement('stageTitle').textContent = `Stage ${state.data.stage}`
 
@@ -375,10 +382,11 @@ function renderStageScreen(
 function renderPathSelectionScreen(
     state: MetaState,
     paths: Path[],
-    onSelect: (path: Path) => void
+    onSelect: (path: Path) => void,
+    onReplayStage: (stage: number) => void
 ): void {
     showScreen('path')
-    renderCommonUI(state)
+    renderCommonUI(state, onReplayStage)
 
     console.assert(paths.length === 2, 'Expected exactly two paths')
     const [leftPath, rightPath] = paths
@@ -553,7 +561,8 @@ export class MetaGameUI implements MetaUI {
 
                         // Re-render
                         render()
-                    }
+                    },
+                    (stage) => reject(new ReplayStage(stage))
                 )
             }
             render()
@@ -567,7 +576,12 @@ export class MetaGameUI implements MetaUI {
                 () => reject(new Undo()),
                 () => reject(new Redo())
             )
-            renderPathSelectionScreen(state, paths, resolve)
+            renderPathSelectionScreen(
+                state,
+                paths,
+                resolve,
+                (stage) => reject(new ReplayStage(stage))
+            )
         })
     }
 

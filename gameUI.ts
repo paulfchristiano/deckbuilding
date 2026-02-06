@@ -42,6 +42,19 @@ function hideElement(el: HTMLElement): void {
     el.setAttribute('hidden', '')
 }
 
+function updateGameReplaySidebar(replayStage: number | null | undefined): void {
+    const circles = document.querySelectorAll('#progressLineGame .progressCircle')
+    circles.forEach(circle => {
+        const el = circle as HTMLElement
+        const stage = parseInt(el.getAttribute('data-stage') || '-1')
+        if (replayStage !== null && replayStage !== undefined && stage === replayStage) {
+            el.classList.add('replaying')
+        } else {
+            el.classList.remove('replaying')
+        }
+    })
+}
+
 // ----------------------------- Types
 
 type Key = string
@@ -456,7 +469,12 @@ function renderCard(
     const hotkeytext = options.hotkey ? renderHotkey(options.hotkey) : ''
     const ticktext = `tick=${card.ticks[card.ticks.length - 1]}`
 
-    return `<div id='card${card.id}' class='card' ${ticktext} ${choosetext}>
+    const replayUsedPotion = zone === 'potions' &&
+        state.spec.replayUsedPotionIDs !== undefined &&
+        state.spec.replayUsedPotionIDs.includes(card.id)
+    const replayPotionClass = replayUsedPotion ? ' replay-used-potion' : ''
+
+    return `<div id='card${card.id}' class='card${replayPotionClass}' ${ticktext} ${choosetext}>
         ${picktext} ${counttext}
         <div class='cardbody'>${hotkeytext} ${card}${tokenhtml}</div>
         <div class='cardcost'>${costhtml}</div>
@@ -592,7 +610,11 @@ function renderState(state: State, settings: RenderSettings = {}): void {
 
     // Display energy as X/Y where Y is par
     const par = state.spec.par
-    const energyDisplay = `${state.energy}/${par}`
+    const previousScore = state.spec.previousScore
+    const previousDisplay = (previousScore === undefined || previousScore === null)
+        ? ''
+        : ` (previous: ${previousScore})`
+    const energyDisplay = `${state.energy}/${par}${previousDisplay}`
     const energyEl = getElement('energy')
     if (state.energy > par) {
         energyEl.innerHTML = `<span style="color: red">${energyDisplay}</span>`
@@ -1183,6 +1205,7 @@ export async function startGame(
     hideElement(getElement('pathSelectionScreen'))
     hideElement(getElement('victoryScreen'))
     hideElement(getElement('gameOverScreen'))
+    updateGameReplaySidebar(spec.replayStage)
 
     return await playGame(spec, ui, initialHistory, initialRedo)
 }

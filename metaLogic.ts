@@ -9,7 +9,8 @@ import { CardSpec, Card, type GameSpec, State, vpModes,
     Token,
     cardRewards, eventRewards,
     coinKey, energyEventKey,
-    VictoryData
+    VictoryData,
+    Replayable
  } from './gameLogic.js'
 
 import { buildSpecTooltip } from './cardRendering.js'
@@ -326,6 +327,17 @@ export interface Path {
 
 export type RewardKind = 'card' | 'event' | 'potion' | 'relic' | 'encounter'
 
+export interface StageReplayData {
+    stage: number
+    spec: GameSpec
+    score: number
+    par: number
+    history: Replayable[]
+    potionsRemaining: Card[]
+    bufferBeforeCourse: number
+    bufferAfterCourse: number
+}
+
 // Get display name for a reward state
 export function getRewardName(rewardState: RewardState): string {
     if (rewardState.kind === 'encounter') {
@@ -353,6 +365,7 @@ export interface MetaStateData {
     // Score tracking
     stageScores: (number | null)[]
     stagePars: (number | null)[]
+    stageReplays: (StageReplayData | null)[]
 
     // Buffer (life total)
     buffer: number
@@ -404,6 +417,7 @@ export class MetaState {
             buffer: INITIAL_BUFFER,
             stageScores: Array(TOTAL_STAGES).fill(null),
             stagePars: Array(TOTAL_STAGES).fill(null),
+            stageReplays: Array(TOTAL_STAGES).fill(null),
             challenges: [] as ChallengeSpec[],
             rewardStates: [] as RewardState[],
             collectedCards: [] as CardSpec[],
@@ -505,6 +519,25 @@ export class MetaState {
 
     canRedo(): boolean {
         return this.redoStack.length > 0
+    }
+
+    private uniqueSnapshots(): MetaStateData[] {
+        const snapshots = [this.data, this.checkpoint, ...this.undoStack, ...this.redoStack]
+        const seen = new Set<MetaStateData>()
+        const result: MetaStateData[] = []
+        for (const snapshot of snapshots) {
+            if (!seen.has(snapshot)) {
+                seen.add(snapshot)
+                result.push(snapshot)
+            }
+        }
+        return result
+    }
+
+    mutateAllSnapshots(mutator: (snapshot: MetaStateData) => void): void {
+        for (const snapshot of this.uniqueSnapshots()) {
+            mutator(snapshot)
+        }
     }
 }
 
@@ -783,6 +816,147 @@ export class Redo extends Error {
         Object.setPrototypeOf(this, Redo.prototype)
     }
 }
+export class ReplayStage extends Error {
+    constructor(public stage: number) {
+        super('ReplayStage')
+        Object.setPrototypeOf(this, ReplayStage.prototype)
+    }
+}
+
+function cloneGameSpec(spec: GameSpec): GameSpec {
+    return {
+        ...spec,
+        cards: [...spec.cards],
+        events: [...spec.events],
+        potions: [...spec.potions],
+        relics: [...spec.relics],
+        replayUsedPotionIDs: spec.replayUsedPotionIDs ? [...spec.replayUsedPotionIDs] : undefined
+    }
+}
+
+function cloneStageReplayData(replayData: StageReplayData): StageReplayData {
+    return {
+        ...replayData,
+        spec: cloneGameSpec(replayData.spec),
+        history: [...replayData.history],
+        potionsRemaining: [...replayData.potionsRemaining]
+    }
+}
+
+function replayUsedPotionIDs(replayData: StageReplayData): number[] {
+    const remainingIDs = new Set(replayData.potionsRemaining.map(p => p.id))
+    return replayData.spec.potions.map(p => p.id).filter(id => !remainingIDs.has(id))
+}
+
+function replaySpecForStage(replayData: StageReplayData): GameSpec {
+    return {
+        ...cloneGameSpec(replayData.spec),
+        previousScore: replayData.score,
+        replayUsedPotionIDs: replayUsedPotionIDs(replayData),
+        replayStage: replayData.stage
+    }
+}
+
+const replaySimulationUI: MetaUI = {
+    chooseCard: async <T extends CardSpec | Card>(
+        _state: MetaState,
+        _prompt: string,
+        _options: T[]
+    ): Promise<T | null> => null,
+    playGame: async (): Promise<VictoryData> => {
+        throw new Error('Replay simulation does not support playGame')
+    },
+    waitForChallenge: async (): Promise<ChallengeSpec> => {
+        throw new Error('Replay simulation does not support waitForChallenge')
+    },
+    pickPath: async (): Promise<Path> => {
+        throw new Error('Replay simulation does not support pickPath')
+    },
+    chooseOption: async <T>(
+        _state: MetaState,
+        _prompt: string,
+        _options: MetaOption<T>[]
+    ): Promise<T | null> => null,
+    showMessage: async (): Promise<void> => {},
+    updateBuffer: (): void => {}
+}
+
+async function computeReplayBufferAfterCourse(replayData: StageReplayData, score: number): Promise<number> {
+    const simulationState = new MetaState(replaySimulationUI, 'replay-sim')
+    const data: MetaStateData = {
+        stage: replayData.stage,
+        challenges: [],
+        stageScores: Array(TOTAL_STAGES).fill(null),
+        stagePars: Array(TOTAL_STAGES).fill(null),
+        stageReplays: Array(TOTAL_STAGES).fill(null),
+        buffer: replayData.bufferBeforeCourse,
+        rewardStates: [],
+        collectedCards: [],
+        collectedEvents: [],
+        potions: [...replayData.spec.potions],
+        relics: [...(replayData.spec.relics as Relic[])],
+        nextID: 1,
+        playingGame: false,
+        gameHistory: [],
+        gameRedo: [],
+    }
+    simulationState.data = data
+    simulationState.checkpoint = data
+    await endCourse(score, replayData.par, simulationState)
+    return simulationState.data.buffer
+}
+
+function applyReplayResultToAllSnapshots(
+    state: MetaState,
+    stage: number,
+    replayData: StageReplayData,
+    bufferAdjustment: number
+): void {
+    state.mutateAllSnapshots(snapshot => {
+        const stageScores = [...snapshot.stageScores]
+        stageScores[stage] = replayData.score
+        snapshot.stageScores = stageScores
+
+        const stagePars = [...snapshot.stagePars]
+        stagePars[stage] = replayData.par
+        snapshot.stagePars = stagePars
+
+        const stageReplays = [...snapshot.stageReplays]
+        stageReplays[stage] = cloneStageReplayData(replayData)
+        snapshot.stageReplays = stageReplays
+
+        snapshot.buffer += bufferAdjustment
+    })
+}
+
+async function replayCompletedStage(state: MetaState, stage: number): Promise<void> {
+    const replayData = state.data.stageReplays[stage]
+    if (replayData === null || replayData === undefined) return
+
+    let replayResult: VictoryData
+    try {
+        replayResult = await state.ui.playGame(
+            replaySpecForStage(replayData),
+            replayData.history,
+            []
+        )
+    } catch (e) {
+        if (e instanceof Undo || e instanceof Redo) return
+        throw e
+    }
+
+    const newBufferAfterCourse = await computeReplayBufferAfterCourse(replayData, replayResult.score)
+    const updatedReplayData: StageReplayData = {
+        ...replayData,
+        score: replayResult.score,
+        history: [...replayResult.history],
+        potionsRemaining: [...replayResult.potionsRemaining],
+        bufferAfterCourse: newBufferAfterCourse
+    }
+    const bufferAdjustment = newBufferAfterCourse - replayData.bufferAfterCourse
+    applyReplayResultToAllSnapshots(state, stage, updatedReplayData, bufferAdjustment)
+    state.ui.updateBuffer(state)
+}
 
 function adoptPath(state:MetaState, path: Path) {
     // Fill in any pending encounters now that the path is selected
@@ -835,10 +1009,12 @@ export async function playGame(ui: MetaUI, test:null|TestSpec = null): Promise<v
         console.assert(state.checkpoint == state.data) // Should always be at a checkpoint when starting this loop
         try {
             if (state.data.playingGame) {
+                const stage = state.data.stage
                 // challenges[0] is the selected challenge (set when user clicks a challenge button)
                 const gameSpec = makeSpec(state, state.data.challenges[0])
+                const startingBuffer = state.data.buffer
                 // Pass saved game state for replay (from previous redo)
-                const { score, potionsRemaining } = await state.ui.playGame(
+                const { score, potionsRemaining, history } = await state.ui.playGame(
                     gameSpec,
                     state.data.gameHistory,
                     state.data.gameRedo
@@ -846,20 +1022,58 @@ export async function playGame(ui: MetaUI, test:null|TestSpec = null): Promise<v
                 // Clear saved game state after successful completion
                 state.update({ potions: potionsRemaining, gameHistory: [], gameRedo: [] })
                 await endCourse(score, gameSpec.par, state)
+                const stageReplays = [...state.data.stageReplays]
+                stageReplays[stage] = {
+                    stage,
+                    spec: cloneGameSpec(gameSpec),
+                    score,
+                    par: gameSpec.par,
+                    history: [...history],
+                    potionsRemaining: [...potionsRemaining],
+                    bufferBeforeCourse: startingBuffer,
+                    bufferAfterCourse: state.data.buffer
+                }
+                state.update({ stageReplays })
                 state.update({ stage: state.data.stage + 1 })
                 if (state.data.stage >= TOTAL_STAGES) {
                     // Game over - player has completed all stages
                     await state.ui.showMessage(state, 'Congratulations! You have completed all stages!')
                     return
                 }
+                // Crossing a stage boundary should discard all meta undo/redo history.
+                state.clearHistory()
                 const paths = makePaths(state).map(skel => fillPath(state, skel))
-                const path: Path = (paths.length > 1) ? await state.ui.pickPath(state, paths) : paths[0]
+                let path: Path
+                while (true) {
+                    try {
+                        path = (paths.length > 1) ? await state.ui.pickPath(state, paths) : paths[0]
+                        break
+                    } catch (e) {
+                        if (e instanceof ReplayStage) {
+                            await replayCompletedStage(state, e.stage)
+                            continue
+                        }
+                        throw e
+                    }
+                }
                 adoptPath(state, path)
                 state.update({ playingGame: false })
                 state.clearHistory()
             } else {
                 // Wait for user to select a challenge (reward options handled inline by UI)
-                const selectedChallenge = await state.ui.waitForChallenge(state)
+                let selectedChallenge: ChallengeSpec
+                while (true) {
+                    try {
+                        selectedChallenge = await state.ui.waitForChallenge(state)
+                        break
+                    } catch (e) {
+                        if (e instanceof ReplayStage) {
+                            await replayCompletedStage(state, e.stage)
+                            continue
+                        }
+                        throw e
+                    }
+                }
                 // Store the selected challenge as the only one
                 state.update({ challenges: [selectedChallenge] })
                 await trigger({kind: 'start', stage: state.data.stage}, state)
