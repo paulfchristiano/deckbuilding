@@ -515,10 +515,21 @@ export class MetaState {
     updateGlobal(updates: Partial<MetaGlobalState>) {
         this.global = {...this.global, ...updates}
     }
+
+    private inPathSelection(): boolean {
+        return this.data.challenges.length === 0
+    }
     
     // Undo to previous checkpoint
     // If checkpointUpdate is provided, apply it to the checkpoint before pushing to redoStack
     undo(checkpointUpdate?: Partial<MetaStateData>) {
+        // Path selection intentionally has no meta undo/redo.
+        if (this.inPathSelection()) {
+            this.undoStack = []
+            this.redoStack = []
+            this.checkpoint = this.data
+            return
+        }
         if (this.checkpoint != this.data) this.data = this.checkpoint;
         if (this.undoStack.length == 0) return
         const previousCheckpoint = this.undoStack.pop()!
@@ -533,6 +544,7 @@ export class MetaState {
 
     // Redo a previously undone action
     redo() {
+        if (this.inPathSelection()) return
         if (this.redoStack.length === 0) return
         const nextState = this.redoStack.pop()
         this.undoStack.push(this.checkpoint)
@@ -541,10 +553,12 @@ export class MetaState {
     }
 
     canUndo(): boolean {
+        if (this.inPathSelection()) return false
         return this.undoStack.length > 0 || this.checkpoint != this.data
     }
 
     canRedo(): boolean {
+        if (this.inPathSelection()) return false
         return this.redoStack.length > 0
     }
 
@@ -1177,6 +1191,8 @@ export async function playGame(ui: MetaUI, test:null|TestSpec = null, seed: stri
                 state.clearHistory()
                 // No current-stage challenge is known until a path is selected.
                 state.update({ challenges: [] })
+                // Keep checkpoint aligned so undo cannot jump back into an invalid in-game state.
+                state.checkpoint = state.data
                 const paths = makePaths(state).map(skel => pathFromSkeleton(skel))
                 let path: Path
                 while (true) {

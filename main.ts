@@ -15,7 +15,7 @@ import { resume } from './data/events.js'
 import { fountain } from './data/cards.js'
 import { brewery } from './data/encounters.js'
 
-let test: TestSpec | null = ['encounter', brewery]
+let test: TestSpec | null = null
 
 function resolveSeed(): string {
     const params = new URLSearchParams(window.location.search)

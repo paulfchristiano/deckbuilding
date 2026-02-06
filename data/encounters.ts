@@ -217,8 +217,8 @@ const mirrorRelic: RelicSpec = {
         kind: 'relic',
         handles: (e: GainRelicEvent, s: MetaState, relic: Relic) => e.relic.name != mirrorName,
         transform: (e: GainRelicEvent, s: MetaState, relic: Relic) => async function (state: MetaState) {
-            await gainRelic(e.relic.spec)(state)
             state.removeRelic(relic.id)
+            await gainRelic(e.relic.spec)(state)
         },
     }]
 }
