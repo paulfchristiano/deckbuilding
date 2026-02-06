@@ -124,6 +124,18 @@ export const silverMirror: RelicSpec = {
 }
 relicRewards.push(silverMirror)
 
+export const sacredBark: RelicSpec = {
+    name: 'Sacred Bark',
+    simpleText: ['Whenever you use a potion, repeat its effect.'],
+    triggers: [{
+        kind: 'afterUse',
+        text: 'After using a potion other than with this, use it again.',
+        handles: (e, _state, _card) => e.card.spec.isPotion === true && !sourceHasName(e.source, 'Sacred Bark'),
+        transform: (e, _state, card) => e.card.activate('potion', card)
+    }]
+}
+relicRewards.push(sacredBark)
+
 // TODO: implement
 // Need to have a replacer that can put in cards into the challengespec
 // But then also want it to take effect immediately.

@@ -370,6 +370,12 @@ export class Card {
                         source:source,
                         before:before,
                     })(state)
+                    state = await trigger({
+                        kind:'afterUse',
+                        card:card,
+                        source:source,
+                        before:before,
+                    })(state)
                     return state
                 case 'use':
                     state = await trigger({
