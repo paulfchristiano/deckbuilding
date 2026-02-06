@@ -31,12 +31,12 @@ relicRewards.push(bagOfCoins)
 
 export const bagOfPreparation: RelicSpec = {
     name: 'Bag of Preparation',
-    simpleText: ['+2 actions each time you refresh.'],
+    simpleText: ['+3 actions each time you refresh.'],
     triggers: [{
         kind: 'afterUse',
         handles: (e, s, c) => e.card.name === refresh.name,
-        text: 'After using Refresh, +2 actions.',
-        transform: (e, s, c) => gainActions(2, c)
+        text: 'After using Refresh, +3 actions.',
+        transform: (e, s, c) => gainActions(3, c)
     }],
 }
 relicRewards.push(bagOfPreparation)
