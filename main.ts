@@ -8,7 +8,7 @@ import { playGame } from './metaLogic.js'
 import { MetaGameUI } from './metaUI.js'
 import { randomString } from './rng.js'
 
-import { type TestSpec } from './metaLogic.js'
+import type { TestSpec } from './metaLogic.js'
 
 import { tradingPost } from './data/encounters.js'
 import { resume } from './data/events.js'

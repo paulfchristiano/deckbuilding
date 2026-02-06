@@ -3,6 +3,7 @@
 
 export interface CardSpec {
     name: string;
+    upgrades?: CardUpgrade[];
     fixedCost?: Cost;
     restrictions?: Restriction[];
     variableCosts?: VariableCost[];
@@ -17,6 +18,76 @@ export interface CardSpec {
     simpleText?: string[]; // Short description for card selector/deck view (one line per array element)
     isPotion?: boolean; // If true, trash after playing
     rules?: Rule[]; // Rules this card references (for tooltip display)
+}
+
+export interface CardUpgrade {
+    name?: (name: string) => string;
+    effects?: Effect[];
+    triggers?: TypedTrigger[];
+    staticTriggers?: TypedTrigger[];
+    replacers?: TypedReplacer[];
+    staticReplacers?: TypedReplacer[];
+    cost?: (cost: Cost, kind: ActionKind) => Cost;
+}
+
+function appendUpgrades<T>(
+    base: T[] | undefined,
+    upgrades: CardUpgrade[] | undefined,
+    getter: (upgrade: CardUpgrade) => T[] | undefined
+): T[] {
+    const result = base ? [...base] : []
+    if (!upgrades) return result
+    for (const upgrade of upgrades) {
+        const extra = getter(upgrade)
+        if (extra) result.push(...extra)
+    }
+    return result
+}
+
+export function cardSpecName(spec: CardSpec): string {
+    let name = spec.name
+    for (const upgrade of spec.upgrades || []) {
+        if (upgrade.name) {
+            name = upgrade.name(name)
+        }
+    }
+    return name
+}
+
+export function cardSpecEffects(spec: CardSpec): Effect[] {
+    return appendUpgrades(spec.effects, spec.upgrades, upgrade => upgrade.effects)
+}
+
+export function cardSpecTriggers(spec: CardSpec): TypedTrigger[] {
+    return appendUpgrades(spec.triggers, spec.upgrades, upgrade => upgrade.triggers)
+}
+
+export function cardSpecStaticTriggers(spec: CardSpec): TypedTrigger[] {
+    return appendUpgrades(spec.staticTriggers, spec.upgrades, upgrade => upgrade.staticTriggers)
+}
+
+export function cardSpecReplacers(spec: CardSpec): TypedReplacer[] {
+    return appendUpgrades(spec.replacers, spec.upgrades, upgrade => upgrade.replacers)
+}
+
+export function cardSpecStaticReplacers(spec: CardSpec): TypedReplacer[] {
+    return appendUpgrades(spec.staticReplacers, spec.upgrades, upgrade => upgrade.staticReplacers)
+}
+
+export function applyCardUpgradeCost(spec: CardSpec, cost: Cost, kind: ActionKind): Cost {
+    let result = cost
+    for (const upgrade of spec.upgrades || []) {
+        if (upgrade.cost) {
+            result = upgrade.cost(result, kind)
+        }
+    }
+    return result
+}
+
+export function cardSpecCost(spec: CardSpec, kind: ActionKind): Cost | undefined {
+    const base = kind === 'buy' ? spec.buyCost : spec.fixedCost
+    if (!base) return undefined
+    return applyCardUpgradeCost(spec, base, kind)
 }
 
 // Rules are global triggers/replacers that apply to all games
@@ -95,7 +166,6 @@ export interface CardUpdate {
 }
 
 export class Card {
-    readonly name: string;
     readonly charge: number;
     public readonly kind = 'card'
     constructor(
@@ -107,8 +177,10 @@ export class Card {
         // we assign each card the smallest unused index in its current zone, for consistency of hotkey mappings
         public readonly zoneIndex = 0,
     ) {
-        this.name = spec.name
         this.charge = this.count('charge')
+    }
+    get name(): string {
+        return cardSpecName(this.spec)
     }
     toString():string {
         return this.name
@@ -157,8 +229,11 @@ export class Card {
                 }
 
                 if (kind == 'play') result = addCosts(result, {actions:1});
-                return result
-            case 'buy': return addCosts(this.spec.buyCost || free, {buys:1})
+                return applyCardUpgradeCost(this.spec, result, kind)
+            case 'buy': {
+                const result = addCosts(this.spec.buyCost || free, {buys:1})
+                return applyCardUpgradeCost(this.spec, result, kind)
+            }
             case 'activate': return free
             case 'potion': return free
             default: return assertNever(kind)
@@ -322,19 +397,19 @@ export class Card {
         return this.spec.ability || []
     }
     effects(): Effect[] {
-        return this.spec.effects || []
+        return cardSpecEffects(this.spec)
     }
     triggers(): TypedTrigger[] {
-        return this.spec.triggers || []
+        return cardSpecTriggers(this.spec)
     }
     staticTriggers(): TypedTrigger[] {
-        return this.spec.staticTriggers|| []
+        return cardSpecStaticTriggers(this.spec)
     }
     replacers(): TypedReplacer[] {
-        return this.spec.replacers || []
+        return cardSpecReplacers(this.spec)
     }
     staticReplacers(): TypedReplacer[] {
-        return this.spec.staticReplacers|| []
+        return cardSpecStaticReplacers(this.spec)
     }
     relatedCards(): CardSpec[] {
         return this.spec.relatedCards || []
@@ -1719,22 +1794,23 @@ function actChoice(state:State): Promise<[State, [Card, ActionKind]|null]> {
 // ------------------------------ Start the game
 
 export function coinKey(spec:CardSpec): number {
-    if (spec.buyCost !== undefined)
-        return spec.buyCost.coin
+    const cost = cardSpecCost(spec, 'buy')
+    if (cost)
+        return cost.coin
     return 0
 }
 export function coinEventKey(spec:CardSpec): number {
-    return (spec.fixedCost || free).coin
+    return (cardSpecCost(spec, 'use') || free).coin
 }
 export function energyEventKey(spec:CardSpec): number {
-    return (spec.fixedCost || free).energy
+    return (cardSpecCost(spec, 'use') || free).energy
 }
 export type Comp<T> = (a:T, b:T) => number
 export function toComp<T>(key:(x:T) => number): Comp<T> {
     return (a, b) => key(a) - key(b)
 }
 export function nameComp(a:CardSpec, b:CardSpec): number {
-    return a.name.localeCompare(b.name, 'en')
+    return cardSpecName(a).localeCompare(cardSpecName(b), 'en')
 }
 function lexical<T>(comps:Comp<T>[]): Comp<T> {
     return function(a:T, b:T){
@@ -2458,7 +2534,7 @@ export const villager:CardSpec = {
     }, trashOnLeavePlay()]
 }
 
-export function playReplacer<S>(
+export function playReplacer<S extends Source>(
     text:string,
     condition: (p: CreateParams, s:State, source:S) => boolean,
     cost: (p:CreateParams, s:State, source:S) => Transform
@@ -2472,7 +2548,7 @@ export function playReplacer<S>(
             t => async function(state) {
                 t = state.find(t)
                 if (t.place == 'void') {
-                    state = await t.play(source as Source)(state)
+                    state = await t.play(source)(state)
                 }
                 return state
             }
