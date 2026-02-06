@@ -413,7 +413,6 @@ potionRewards.push(geminiBrew)
 export const mirrorBrew: CardSpec = {
     name: 'Mirror Brew',
     isPotion: true,
-    simpleText: ['Copy the effect of another potion.'],
     effects: [{
         text: ['Choose another potion you have. Create a copy of it and drink it immediately.'],
         transform: (state, card) => async function(state) {
