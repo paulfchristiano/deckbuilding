@@ -355,6 +355,10 @@ function isZero(c: Cost | undefined): boolean {
     return !c || renderCost(c) === ''
 }
 
+function actionCostKindForSpec(spec: CardSpec): 'play' | 'use' {
+    return spec.buyCost === undefined ? 'use' : 'play'
+}
+
 function renderRuleText(rule: Rule): string {
     const parts: string[] = []
     for (const trigger of rule.triggers || []) {
@@ -493,9 +497,9 @@ function renderCard(
 
 export function renderSpec(spec: CardSpec): string {
     const buyCost = cardSpecCost(spec, 'buy')
-    const playCost = cardSpecCost(spec, 'play')
+    const actionCost = cardSpecCost(spec, actionCostKindForSpec(spec))
     const buyText = isZero(buyCost) ? '' : `(${renderCost(buyCost!)})&nbsp;`
-    const costText = isZero(playCost) ? '' : `&nbsp;(${renderCost(playCost!)})`
+    const costText = isZero(actionCost) ? '' : `&nbsp;(${renderCost(actionCost!)})`
     const header = `<div>${buyText}<strong>${cardSpecName(spec)}</strong>${costText}</div>`
     const me = `<div class='spec'>${header}${cardText(spec)}</div>`
     const related = (spec.relatedCards || []).map(renderSpec)
@@ -504,9 +508,9 @@ export function renderSpec(spec: CardSpec): string {
 
 export function buildSpecTooltip(spec: CardSpec): string {
     const buyCost = cardSpecCost(spec, 'buy')
-    const playCost = cardSpecCost(spec, 'play')
+    const actionCost = cardSpecCost(spec, actionCostKindForSpec(spec))
     const buyStr = !isZero(buyCost) ? `(${renderCost(buyCost!)})` : '---'
-    const costStr = !isZero(playCost) ? `(${renderCost(playCost!)})` : '---'
+    const costStr = !isZero(actionCost) ? `(${renderCost(actionCost!)})` : '---'
     const header = `<div>---${buyStr} ${cardSpecName(spec)} ${costStr}---</div>`
     const baseFilling = header + cardText(spec)
     const relatedFilling = (spec.relatedCards || []).map(buildSpecTooltip).join('')
@@ -515,9 +519,9 @@ export function buildSpecTooltip(spec: CardSpec): string {
 
 export function renderSpecNoRelated(spec: CardSpec): string {
     const buyCost = cardSpecCost(spec, 'buy')
-    const playCost = cardSpecCost(spec, 'play')
+    const actionCost = cardSpecCost(spec, actionCostKindForSpec(spec))
     const buyText = isZero(buyCost) ? '' : `(${renderCost(buyCost!)})&nbsp;`
-    const costText = isZero(playCost) ? '' : `&nbsp;(${renderCost(playCost!)})`
+    const costText = isZero(actionCost) ? '' : `&nbsp;(${renderCost(actionCost!)})`
     const header = `<div>${buyText}<strong>${cardSpecName(spec)}</strong>${costText}</div>`
     const displayText = spec.simpleText
         ? spec.simpleText.map(line => `<div>${line}</div>`).join('')

@@ -10,6 +10,10 @@ function isZero(c: Cost | undefined): boolean {
     return c === undefined || renderCost(c) === ''
 }
 
+function actionCostKindForSpec(spec: CardSpec): 'play' | 'use' {
+    return spec.buyCost === undefined ? 'use' : 'play'
+}
+
 // ----------------------------- Text Rendering
 
 function renderEffects(spec: CardSpec): string {
@@ -78,9 +82,9 @@ export function cardText(spec: CardSpec): string {
 // Build full HTML tooltip for a card spec (matching in-game tooltip style)
 export function buildSpecTooltip(spec: CardSpec): string {
     const buyCost = cardSpecCost(spec, 'buy')
-    const playCost = cardSpecCost(spec, 'play')
+    const actionCost = cardSpecCost(spec, actionCostKindForSpec(spec))
     const buyStr = !isZero(buyCost) ? `(${renderCost(buyCost as Cost)})` : '---'
-    const costStr = !isZero(playCost) ? `(${renderCost(playCost as Cost)})` : '---'
+    const costStr = !isZero(actionCost) ? `(${renderCost(actionCost as Cost)})` : '---'
     const header = `<div>---${buyStr} ${cardSpecName(spec)} ${costStr}---</div>`
     const baseFilling = header + cardText(spec)
 
@@ -94,9 +98,9 @@ export function buildSpecTooltip(spec: CardSpec): string {
 // Render a CardSpec with full details including related cards
 export function renderSpec(spec: CardSpec): string {
     const buyCost = cardSpecCost(spec, 'buy')
-    const playCost = cardSpecCost(spec, 'play')
+    const actionCost = cardSpecCost(spec, actionCostKindForSpec(spec))
     const buyText = isZero(buyCost) ? '' : `(${renderCost(buyCost as Cost)})&nbsp;`
-    const costText = isZero(playCost) ? '' : `&nbsp;(${renderCost(playCost as Cost)})`
+    const costText = isZero(actionCost) ? '' : `&nbsp;(${renderCost(actionCost as Cost)})`
     const header = `<div>${buyText}<strong>${cardSpecName(spec)}</strong>${costText}</div>`
     const me = `<div class='spec'>${header}${cardText(spec)}</div>`
     const related = (spec.relatedCards || []).map(renderSpec)
@@ -107,9 +111,9 @@ export function renderSpec(spec: CardSpec): string {
 // Uses simpleText if available for compact display
 export function renderSpecNoRelated(spec: CardSpec): string {
     const buyCost = cardSpecCost(spec, 'buy')
-    const playCost = cardSpecCost(spec, 'play')
+    const actionCost = cardSpecCost(spec, actionCostKindForSpec(spec))
     const buyText = isZero(buyCost) ? '' : `(${renderCost(buyCost as Cost)})&nbsp;`
-    const costText = isZero(playCost) ? '' : `&nbsp;(${renderCost(playCost as Cost)})`
+    const costText = isZero(actionCost) ? '' : `&nbsp;(${renderCost(actionCost as Cost)})`
     const header = `<div>${buyText}<strong>${cardSpecName(spec)}</strong>${costText}</div>`
 
     // Use simpleText if available, otherwise full card text
@@ -126,9 +130,9 @@ export function renderSpecNoRelated(spec: CardSpec): string {
 // Render a simple card header (name + cost) without text
 export function renderSpecHeader(spec: CardSpec): string {
     const buyCost = cardSpecCost(spec, 'buy')
-    const playCost = cardSpecCost(spec, 'play')
+    const actionCost = cardSpecCost(spec, actionCostKindForSpec(spec))
     const buyText = isZero(buyCost) ? '' : `(${renderCost(buyCost as Cost)})&nbsp;`
-    const costText = isZero(playCost) ? '' : `&nbsp;(${renderCost(playCost as Cost)})`
+    const costText = isZero(actionCost) ? '' : `&nbsp;(${renderCost(actionCost as Cost)})`
     return `${buyText}<strong>${cardSpecName(spec)}</strong>${costText}`
 }
 
