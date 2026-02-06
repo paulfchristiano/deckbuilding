@@ -48,6 +48,10 @@ function resolveSeedFromURL(): string | null {
     return urlSeed.length > 0 ? urlSeed.toUpperCase() : null
 }
 
+function normalizeSeed(seed: string): string {
+    return seed.replace(/\s+/g, '').toUpperCase()
+}
+
 function loadSaveSlots(): SaveSlot[] {
     try {
         const raw = localStorage.getItem(SAVE_STORAGE_KEY)
@@ -198,8 +202,9 @@ function ensureLauncherStyles(): void {
             background: white;
             border-radius: 10px;
             border: 1px solid #ddd;
-            padding: 16px;
-            width: min(400px, 90vw);
+            padding: 16px 28px 16px 16px;
+            width: auto;
+            max-width: 92vw;
             box-sizing: border-box;
             overflow: hidden;
             display: flex;
@@ -216,10 +221,10 @@ function ensureLauncherStyles(): void {
             padding: 8px;
             border: 1px solid #ccc;
             border-radius: 6px;
-            width: 100%;
-            min-width: 0;
+            width: 260px;
             max-width: 100%;
             box-sizing: border-box;
+            align-self: flex-start;
         }
         #emptySaves {
             font-size: 0.95em;
@@ -547,8 +552,14 @@ function renderLauncher(): void {
 
         const seedInput = document.createElement('input')
         seedInput.id = 'newGameSeedInput'
-        seedInput.value = resolveSeedFromURL() || randomString()
+        seedInput.value = normalizeSeed(resolveSeedFromURL() || randomString())
         seedInput.autocomplete = 'off'
+        seedInput.addEventListener('input', () => {
+            const normalized = normalizeSeed(seedInput.value)
+            if (seedInput.value !== normalized) {
+                seedInput.value = normalized
+            }
+        })
 
         const actions = document.createElement('div')
         actions.className = 'saveActions'
@@ -557,7 +568,7 @@ function renderLauncher(): void {
         startButton.className = 'launcherBtn'
         startButton.textContent = 'start'
         startButton.onclick = async () => {
-            const seed = seedInput.value.trim().toUpperCase() || randomString()
+            const seed = normalizeSeed(seedInput.value) || randomString()
             const slotID = `${Date.now()}-${Math.floor(Math.random() * 1_000_000)}`
             await runGame(slotID, null, seed)
         }
