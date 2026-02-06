@@ -74,11 +74,12 @@ function bottledCardPotion(spec: CardSpec): CardSpec {
 
 function bottledEventPotion(
     spec: CardSpec,
-    options: { useUnderlyingEvent?: boolean } = {}
+    options: { useUnderlyingEvent?: boolean, includeRelatedCard?: boolean } = {}
 ): CardSpec {
     const cardName = displayName(spec)
     const copiedEffects = cardSpecEffects(spec)
     const useUnderlyingEvent = options.useUnderlyingEvent ?? true
+    const includeRelatedCard = options.includeRelatedCard ?? true
     const copiedText = copiedEffects.flatMap(effect => effect.text)
     const displayText = spec.simpleText
         ? [...spec.simpleText]
@@ -101,10 +102,14 @@ function bottledEventPotion(
         name: `Bottled ${cardName}`,
         isPotion: true,
         simpleText: displayText,
-        relatedCards: [spec],
+        relatedCards: includeRelatedCard ? [spec] : undefined,
         rules: spec.rules ? [...spec.rules] : undefined,
         effects,
     }
+}
+
+function withIndefiniteArticle(name: string): string {
+    return /^[aeiou]/i.test(name) ? `an ${name}` : `a ${name}`
 }
 
 function upgradeCardSpec(spec: CardSpec, upgrade: CardUpgrade): CardSpec {
@@ -561,8 +566,8 @@ export const brewery: Encounter = {
             potionOfEchoes,
             potionOfReflection,
             { ...geminiBrew, name: 'Gemini Potion' },
-            bottledEventPotion(duplicate, { useUnderlyingEvent: false }),
-            bottledEventPotion(accelerate, { useUnderlyingEvent: false }),
+            bottledEventPotion(duplicate, { useUnderlyingEvent: false, includeRelatedCard: false }),
+            bottledEventPotion(accelerate, { useUnderlyingEvent: false, includeRelatedCard: false }),
         ]
         return {
             selectedIndex: null,
@@ -576,7 +581,7 @@ export const brewery: Encounter = {
         return [
             {
                 label: 'Bottle a card',
-                description: 'Choose a card to bottle. Gain a potion that creates an echo copy and plays it.',
+                description: 'Gain a potion that creates a copy of the card with an echo token and plays it.',
                 disabled: d.selectedIndex !== null || !hasCards,
                 checked: d.selectedIndex === 0,
                 onClick: async () => {
@@ -597,8 +602,8 @@ export const brewery: Encounter = {
             },
             {
                 label: 'Take one from the shelf',
-                description: `Gain ${d.shelfPotion.name}.`,
-                spec: d.shelfPotion,
+                description: `Gain ${withIndefiniteArticle(d.shelfPotion.name)}.`,
+                tooltipSpec: d.shelfPotion,
                 disabled: d.selectedIndex !== null,
                 checked: d.selectedIndex === 1,
                 onClick: async () => ({

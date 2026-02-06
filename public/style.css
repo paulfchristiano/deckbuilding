@@ -312,7 +312,9 @@ input {
     .option:hover .tooltip,
     .pathPlay:hover .tooltip,
     .progressCircle:hover .tooltip,
-    .progressScore:hover .tooltip {
+    .progressScore:hover .tooltip,
+    .rewardLabel:hover .tooltip,
+    .pathReward:hover .tooltip {
         visibility: visible;
         transition-delay: 0.3s;
     }
@@ -346,6 +348,7 @@ input {
     font-size: 1.1em;
     min-width: 8em;
     padding-top: 0.3em;
+    position: relative;
 }
 
 .rewardOptions {
@@ -381,7 +384,7 @@ input {
 }
 
 .rewardOption .optionDesc {
-    font-size: 0.9em;
+    font-size: 1em;
     color: #666;
 }
 
@@ -392,4 +395,15 @@ input {
     width: 15em;
     min-width: auto;
     text-align: center;
+}
+
+.rewardOptionNameText {
+    color: #000;
+    font-weight: bold;
+    margin-bottom: 0.25em;
+}
+
+.rewardOptionDescriptionText {
+    color: #666;
+    font-weight: normal;
 }

@@ -74,6 +74,7 @@ export interface RewardOption {
     label: string
     description?: string
     spec?: CardSpec           // Display as card if provided
+    tooltipSpec?: CardSpec    // Optional tooltip card content for text options
     disabled: boolean
     checked: boolean          // Shows checkmark if selected
     onClick: () => Promise<{ newData: unknown, transform?: MetaTransform }>

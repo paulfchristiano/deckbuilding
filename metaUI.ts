@@ -11,7 +11,7 @@ import {
     getRewardOptions, getRewardName, updateRewardState, updateRewardAtIndex,
     Undo, Redo, ReplayStage
 } from './metaLogic.js'
-import { renderSpecNoRelated } from './cardRendering.js'
+import { buildSpecTooltip, renderSpecNoRelated } from './cardRendering.js'
 import { initHotkeys, startGame, keyListeners } from './gameUI.js'
 
 // ----------------------------- DOM Helpers
@@ -40,6 +40,13 @@ function createElementFromHTML(html: string): HTMLElement {
     const template = document.createElement('template')
     template.innerHTML = html.trim()
     return template.content.firstChild as HTMLElement
+}
+
+function createTooltip(text: string): HTMLSpanElement {
+    const tooltip = createSpan('tooltip')
+    tooltip.style.whiteSpace = 'pre-line'
+    tooltip.textContent = text
+    return tooltip
 }
 
 function showElement(el: HTMLElement): void {
@@ -213,10 +220,7 @@ function updateProgressSidebar(state: MetaState, onReplayStage?: (stage: number)
         }
         const attachTooltip = (target: HTMLElement): void => {
             if (tooltip === '') return
-            const tooltipSpan = createSpan('tooltip')
-            tooltipSpan.style.whiteSpace = 'pre-line'
-            tooltipSpan.textContent = tooltip.replace(/, /g, '\n')
-            target.appendChild(tooltipSpan)
+            target.appendChild(createTooltip(tooltip.replace(/, /g, '\n')))
         }
 
         if (stage < state.data.stage) {
@@ -266,6 +270,18 @@ function updateProgressSidebar(state: MetaState, onReplayStage?: (stage: number)
             }
         }
     })
+}
+
+function encounterTooltipText(rewardState: RewardState, state: MetaState): string {
+    if (rewardState.kind !== 'encounter' || rewardState.encounter === null) return ''
+    const options = getRewardOptions(rewardState, state)
+    if (options.length === 0) return ''
+    const lines: string[] = []
+    for (const option of options) {
+        const text = option.description ? `${option.label}: ${option.description}` : option.label
+        lines.push(text)
+    }
+    return lines.join('\n')
 }
 
 // ----------------------------- Undo/Redo Button Binding
@@ -443,6 +459,12 @@ function renderStageScreen(
         // Add reward name/label
         const labelDiv = createDiv('rewardLabel')
         labelDiv.textContent = getRewardName(rewardState)
+        if (rewardState.kind === 'encounter') {
+            const tooltipText = encounterTooltipText(rewardState, state)
+            if (tooltipText !== '') {
+                labelDiv.appendChild(createTooltip(tooltipText))
+            }
+        }
         rewardRow.appendChild(labelDiv)
 
         // Add options container
@@ -459,11 +481,18 @@ function renderStageScreen(
             } else {
                 // Render as text button
                 optionEl = createDiv('rewardOption option')
-                optionEl.textContent = option.label
+                const nameDiv = createDiv('rewardOptionNameText')
+                nameDiv.textContent = option.label
+                optionEl.appendChild(nameDiv)
                 if (option.description) {
-                    const descSpan = createSpan('optionDesc')
-                    descSpan.textContent = ` - ${option.description}`
-                    optionEl.appendChild(descSpan)
+                    const descDiv = createDiv('rewardOptionDescriptionText')
+                    descDiv.textContent = option.description
+                    optionEl.appendChild(descDiv)
+                }
+                if (option.tooltipSpec) {
+                    const tooltip = createSpan('tooltip')
+                    tooltip.innerHTML = buildSpecTooltip(option.tooltipSpec)
+                    optionEl.appendChild(tooltip)
                 }
             }
 
