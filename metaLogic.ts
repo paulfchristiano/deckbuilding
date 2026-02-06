@@ -1745,6 +1745,17 @@ function usedPotionNames(startingPotions: Card[], remainingPotions: Card[]): str
         .map(potion => displayName(potion.spec))
 }
 
+function sampleRewardOptionsByBaseName(
+    generator: Generator,
+    allOptions: CardSpec[],
+    count: number,
+    collected: CardSpec[]
+): CardSpec[] {
+    const collectedBaseNames = new Set(collected.map(spec => spec.name))
+    const eligible = allOptions.filter(spec => !collectedBaseNames.has(spec.name))
+    return generator.samples(eligible, count)
+}
+
 export function replaySpecForStage(state: MetaState, replayData: StageReplayData): GameSpec {
     return {
         ...cloneGameSpec(replayData.spec),
@@ -1903,14 +1914,24 @@ function materializePath(state: MetaState, path: Path): Pick<MetaStateData, 'cha
             const generator = state.generator(`rewardscard`).newGenerator()
             return {
                 kind: 'card' as const,
-                options: generator.samples(cardRewards, getRewardOptionCount(state), state.data.collectedCards),
+                options: sampleRewardOptionsByBaseName(
+                    generator,
+                    cardRewards,
+                    getRewardOptionCount(state),
+                    state.data.collectedCards
+                ),
                 selectedIndex: null
             }
         } else if (rs.kind === 'event' && rs.options.length === 0) {
             const generator = state.generator(`rewardsevent`).newGenerator()
             return {
                 kind: 'event' as const,
-                options: generator.samples(eventRewards, getRewardOptionCount(state), state.data.collectedEvents),
+                options: sampleRewardOptionsByBaseName(
+                    generator,
+                    eventRewards,
+                    getRewardOptionCount(state),
+                    state.data.collectedEvents
+                ),
                 selectedIndex: null
             }
         } else if (rs.kind === 'potion' && rs.options.length === 0) {
