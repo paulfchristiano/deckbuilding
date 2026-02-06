@@ -10,8 +10,9 @@ import { Encounter, registerEncounter, RewardOption,
     compose,
 } from '../metaLogic.js'
 import { emptyBottle, inkwell } from './relics.js'
-import { create, State, CardSpec, CardUpgrade,
+import { create, State, Card, CardSpec, CardUpgrade,
     cardRewards, eventRewards, relicRewards, potionRewards,
+    cardSpecEffects,
     leq,
     coin,
     cardSpecCost,
@@ -22,7 +23,8 @@ import { create, State, CardSpec, CardUpgrade,
 } from '../gameLogic.js'
 
 import { Generator } from '../rng.js'
-import { mirrorBrew } from './potions.js'
+import { duplicate } from './events.js'
+import { geminiBrew, mirrorBrew, potionOfEchoes, potionOfReflection } from './potions.js'
 
 // ----------------------------- Helper Functions
 
@@ -41,6 +43,49 @@ function bottledCard(spec: CardSpec): RelicSpec {
         }],
         relatedCards: [spec]
     }
+}
+
+function bottledEventPotion(
+    spec: CardSpec,
+    options: { useUnderlyingEvent?: boolean } = {}
+): CardSpec {
+    const displayName = cardSpecName(spec)
+    const copiedEffects = cardSpecEffects(spec)
+    const useUnderlyingEvent = options.useUnderlyingEvent ?? true
+    const copiedText = copiedEffects.flatMap(effect => effect.text)
+    const displayText = spec.simpleText
+        ? [...spec.simpleText]
+        : (copiedText.length > 0 ? copiedText : [`Use ${displayName}.`])
+
+    const effects = useUnderlyingEvent
+        ? [{
+            text: copiedText.length > 0 ? copiedText : [`Use ${displayName}.`],
+            transform: (_state: State, sourceCard: Card) => async function (state: State) {
+                const target = state.events.find(event => event.name === displayName)
+                if (!target) {
+                    return state
+                }
+                return target.use(sourceCard)(state)
+            }
+        }]
+        : copiedEffects
+
+    return {
+        name: `Bottled ${displayName}`,
+        isPotion: true,
+        simpleText: displayText,
+        relatedCards: [spec],
+        rules: spec.rules ? [...spec.rules] : undefined,
+        effects,
+    }
+}
+
+function requireEventReward(name: string): CardSpec {
+    const spec = eventRewards.find(event => event.name === name)
+    if (!spec) {
+        throw new Error(`Encounter setup error: missing event reward "${name}"`)
+    }
+    return spec
 }
 
 function upgradeCardSpec(spec: CardSpec, upgrade: CardUpgrade): CardSpec {
@@ -226,7 +271,7 @@ const redesignUpgrade: CardUpgrade = {
         : cost,
 }
 
-const blacksmith: Encounter = {
+export const blacksmith: Encounter = {
     name: 'The Blacksmith',
     createInitialData: () => ({ selectedIndex: null as number | null }),
     getOptions(data: unknown, metaState: MetaState): RewardOption[] {
@@ -283,6 +328,68 @@ const blacksmith: Encounter = {
     }
 }
 registerEncounter(blacksmith)
+
+interface BreweryData {
+    selectedIndex: number | null
+    shelfPotion: CardSpec
+}
+
+export const brewery: Encounter = {
+    name: 'Brewery',
+    createInitialData(_metaState: MetaState, generator: Generator): BreweryData {
+        const shelfOptions: CardSpec[] = [
+            potionOfEchoes,
+            potionOfReflection,
+            { ...geminiBrew, name: 'Gemini Potion' },
+            bottledEventPotion(duplicate, { useUnderlyingEvent: false }),
+            bottledEventPotion(requireEventReward('Accelerate'), { useUnderlyingEvent: false }),
+        ]
+        return {
+            selectedIndex: null,
+            shelfPotion: generator.sample(shelfOptions),
+        }
+    },
+    getOptions(data: unknown, metaState: MetaState): RewardOption[] {
+        const d = data as BreweryData
+        const hasEvents = metaState.data.collectedEvents.length > 0
+
+        return [
+            {
+                label: 'Bottle an event',
+                description: 'Choose an event to bottle. Gain a potion that uses that event.',
+                disabled: d.selectedIndex !== null || !hasEvents,
+                checked: d.selectedIndex === 0,
+                onClick: async () => {
+                    const event = await metaState.ui.chooseCard(
+                        metaState,
+                        'Choose an event to bottle:',
+                        [...metaState.data.collectedEvents],
+                        true
+                    )
+                    if (!event) {
+                        return { newData: data }
+                    }
+                    return {
+                        newData: { ...d, selectedIndex: 0 },
+                        transform: gainPotion(bottledEventPotion(event)),
+                    }
+                }
+            },
+            {
+                label: 'Take one from the shelf',
+                description: `Gain ${d.shelfPotion.name}.`,
+                spec: d.shelfPotion,
+                disabled: d.selectedIndex !== null,
+                checked: d.selectedIndex === 1,
+                onClick: async () => ({
+                    newData: { ...d, selectedIndex: 1 },
+                    transform: gainPotion(d.shelfPotion),
+                })
+            }
+        ]
+    }
+}
+registerEncounter(brewery)
 
 // Variety Pack encounter - pre-generates options at creation time
 const varietyPack: Encounter = {

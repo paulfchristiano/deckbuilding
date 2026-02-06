@@ -13,8 +13,9 @@ import type { TestSpec } from './metaLogic.js'
 import { tradingPost } from './data/encounters.js'
 import { resume } from './data/events.js'
 import { fountain } from './data/cards.js'
+import { brewery } from './data/encounters.js'
 
-let test: TestSpec | null = null
+let test: TestSpec | null = ['encounter', brewery]
 
 function resolveSeed(): string {
     const params = new URLSearchParams(window.location.search)
