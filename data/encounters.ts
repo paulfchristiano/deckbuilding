@@ -21,6 +21,7 @@ import { create, State, Card, CardSpec, CardUpgrade,
     buyTrigger,
     afterBuyTrigger,
     applyToTarget,
+    addToken,
     trash,
     actionsEffect,
     buysEffect,
@@ -34,10 +35,10 @@ import { geminiBrew, mirrorBrew, potionOfEchoes, potionOfReflection } from './po
 
 // ----------------------------- Helper Functions
 
-function bottledCard(spec: CardSpec): RelicSpec {
+function cardInABox(spec: CardSpec): RelicSpec {
     const cardName = displayName(spec)
     return {
-        name: `Bottled ${cardName}`,
+        name: `${cardName} in a Box`,
         triggers: [{
             kind: 'gameStart',
             text: `Start each course with a copy of ${cardName} in hand.`,
@@ -48,6 +49,26 @@ function bottledCard(spec: CardSpec): RelicSpec {
             }
         }],
         relatedCards: [spec]
+    }
+}
+
+function bottledCardPotion(spec: CardSpec): CardSpec {
+    const cardName = displayName(spec)
+    return {
+        name: `Bottled ${cardName}`,
+        isPotion: true,
+        simpleText: [`Create a copy of ${cardName} with an echo token and play it.`],
+        relatedCards: [spec],
+        effects: [{
+            text: [`Create a copy of ${cardName} with an echo token and play it.`],
+            transform: (_state: State, sourceCard: Card) => async function (state: State) {
+                return create(spec, 'void', created => async function (state: State) {
+                    state = await addToken(created, 'echo')(state)
+                    state = await created.play(sourceCard)(state)
+                    return state
+                })(state)
+            }
+        }]
     }
 }
 
@@ -126,10 +147,10 @@ function simpleEncounter(config: {
 
 // ----------------------------- Encounters
 
-// Find a Bottle encounter
-// Note: "Bottle a Card" requires a sub-dialog, so we handle it specially
-const findABottle: Encounter = {
-    name: 'Find a Bottle',
+// Magical Box encounter
+// Note: "Box a card" requires a sub-dialog, so we handle it specially
+export const magicalBox: Encounter = {
+    name: 'Magical Box',
     createInitialData: () => ({ selectedIndex: null as number | null }),
     getOptions(data: unknown, metaState: MetaState): RewardOption[] {
         const { selectedIndex } = data as { selectedIndex: number | null }
@@ -139,7 +160,7 @@ const findABottle: Encounter = {
 
         return [
             {
-                label: 'Bottle a Card',
+                label: 'Box a card',
                 description: 'Lose a card costing up to $5. Gain a relic that starts each course with a copy.',
                 disabled: selectedIndex !== null || !hasCards,
                 checked: selectedIndex === 0,
@@ -147,7 +168,7 @@ const findABottle: Encounter = {
                     // Open sub-dialog to choose card
                     const card = await metaState.ui.chooseCard(
                         metaState,
-                        'Choose a card to bottle:',
+                        'Choose a card to box:',
                         [...metaState.data.collectedCards.filter(x => leq(cardSpecCost(x, 'buy') || free, coin(5)))],
                         true
                     )
@@ -159,13 +180,13 @@ const findABottle: Encounter = {
                         newData: { selectedIndex: 0 },
                         transform: async (state: MetaState) => {
                             state.removeCard(card.name)
-                            await gainRelic(bottledCard(card))(state)
+                            await gainRelic(cardInABox(card))(state)
                         }
                     }
                 }
             },
             {
-                label: 'Gain Empty Bottle',
+                label: 'Empty Box',
                 description: 'Each time you add a card to your deck, start the course with a copy.',
                 disabled: selectedIndex !== null,
                 checked: selectedIndex === 1,
@@ -177,7 +198,7 @@ const findABottle: Encounter = {
         ]
     }
 }
-registerEncounter(findABottle)
+registerEncounter(magicalBox)
 
 // Mirror Maker encounter
 const mirrorName = 'Silver Mirror'
@@ -550,27 +571,27 @@ export const brewery: Encounter = {
     },
     getOptions(data: unknown, metaState: MetaState): RewardOption[] {
         const d = data as BreweryData
-        const hasEvents = metaState.data.collectedEvents.length > 0
+        const hasCards = metaState.data.collectedCards.length > 0
 
         return [
             {
-                label: 'Bottle an event',
-                description: 'Choose an event to bottle. Gain a potion that uses that event.',
-                disabled: d.selectedIndex !== null || !hasEvents,
+                label: 'Bottle a card',
+                description: 'Choose a card to bottle. Gain a potion that creates an echo copy and plays it.',
+                disabled: d.selectedIndex !== null || !hasCards,
                 checked: d.selectedIndex === 0,
                 onClick: async () => {
-                    const event = await metaState.ui.chooseCard(
+                    const card = await metaState.ui.chooseCard(
                         metaState,
-                        'Choose an event to bottle:',
-                        [...metaState.data.collectedEvents],
+                        'Choose a card to bottle:',
+                        [...metaState.data.collectedCards],
                         true
                     )
-                    if (!event) {
+                    if (!card) {
                         return { newData: data }
                     }
                     return {
                         newData: { ...d, selectedIndex: 0 },
-                        transform: gainPotion(bottledEventPotion(event)),
+                        transform: gainPotion(bottledCardPotion(card)),
                     }
                 }
             },
@@ -832,4 +853,4 @@ const theScribe: Encounter = simpleEncounter({
 registerEncounter(theScribe, { maxStage: 4 })
 
 // Export for testing
-export { tradingPost, findABottle }
+export { tradingPost, magicalBox as findABottle }
