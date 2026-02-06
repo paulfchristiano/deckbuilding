@@ -81,6 +81,97 @@ function hideDialog(id: string): void {
     getElement(id).setAttribute('active', 'false')
 }
 
+function bindDialogDismiss(dialogId: string, onDismiss: () => void): () => void {
+    const dialog = getElement(dialogId)
+    const onKeyDown = (e: KeyboardEvent) => {
+        if (e.key === 'Escape') {
+            e.preventDefault()
+            onDismiss()
+        }
+    }
+    const onMouseDown = (e: MouseEvent) => {
+        const target = e.target as Node | null
+        if (target !== null && !dialog.contains(target)) {
+            onDismiss()
+        }
+    }
+    document.addEventListener('keydown', onKeyDown, true)
+    document.addEventListener('mousedown', onMouseDown, true)
+    return () => {
+        document.removeEventListener('keydown', onKeyDown, true)
+        document.removeEventListener('mousedown', onMouseDown, true)
+    }
+}
+
+let currentUndoRedoState: {
+    state: MetaState | null,
+    onUndo: (() => void) | null,
+    onRedo: (() => void) | null
+} = {
+    state: null,
+    onUndo: null,
+    onRedo: null
+}
+
+let modalDialogDepth = 0
+
+function refreshUndoRedoButtons(): void {
+    const state = currentUndoRedoState.state
+    const onUndo = currentUndoRedoState.onUndo
+    const onRedo = currentUndoRedoState.onRedo
+    if (state === null || onUndo === null || onRedo === null) return
+
+    const dialogsOpen = modalDialogDepth > 0
+    const undoEnabled = !dialogsOpen && state.canUndo()
+    const redoEnabled = !dialogsOpen && state.canRedo()
+
+    const undoButtons = document.querySelectorAll('#metaUndo, #metaUndoPath')
+    const redoButtons = document.querySelectorAll('#metaRedo, #metaRedoPath')
+
+    undoButtons.forEach(btn => {
+        const el = btn as HTMLElement
+        if (undoEnabled) {
+            el.removeAttribute('disabled')
+            el.onclick = onUndo
+        } else {
+            el.setAttribute('disabled', 'disabled')
+            el.onclick = null
+        }
+    })
+
+    redoButtons.forEach(btn => {
+        const el = btn as HTMLElement
+        if (redoEnabled) {
+            el.removeAttribute('disabled')
+            el.onclick = onRedo
+        } else {
+            el.setAttribute('disabled', 'disabled')
+            el.onclick = null
+        }
+    })
+
+    if (undoEnabled) {
+        keyListeners.set('z', onUndo)
+    } else {
+        keyListeners.delete('z')
+    }
+    if (redoEnabled) {
+        keyListeners.set('Z', onRedo)
+    } else {
+        keyListeners.delete('Z')
+    }
+}
+
+function enterModalDialog(): void {
+    modalDialogDepth++
+    refreshUndoRedoButtons()
+}
+
+function exitModalDialog(): void {
+    modalDialogDepth = Math.max(0, modalDialogDepth - 1)
+    refreshUndoRedoButtons()
+}
+
 // ----------------------------- Progress & Buffer Display
 
 function updateBufferDisplay(state: MetaState): void {
@@ -127,42 +218,8 @@ function updateProgressSidebar(state: MetaState, onReplayStage?: (stage: number)
 // ----------------------------- Undo/Redo Button Binding
 
 function bindUndoRedoButtons(state: MetaState, onUndo: () => void, onRedo: () => void): void {
-    const undoButtons = document.querySelectorAll('#metaUndo, #metaUndoPath')
-    const redoButtons = document.querySelectorAll('#metaRedo, #metaRedoPath')
-
-    undoButtons.forEach(btn => {
-        const el = btn as HTMLElement
-        if (state.canUndo()) {
-            el.removeAttribute('disabled')
-            el.onclick = onUndo
-        } else {
-            el.setAttribute('disabled', 'disabled')
-            el.onclick = null
-        }
-    })
-
-    redoButtons.forEach(btn => {
-        const el = btn as HTMLElement
-        if (state.canRedo()) {
-            el.removeAttribute('disabled')
-            el.onclick = onRedo
-        } else {
-            el.setAttribute('disabled', 'disabled')
-            el.onclick = null
-        }
-    })
-
-    // Bind keyboard shortcuts using the shared keyListeners system
-    if (state.canUndo()) {
-        keyListeners.set('z', onUndo)
-    } else {
-        keyListeners.delete('z')
-    }
-    if (state.canRedo()) {
-        keyListeners.set('Z', onRedo)
-    } else {
-        keyListeners.delete('Z')
-    }
+    currentUndoRedoState = { state, onUndo, onRedo }
+    refreshUndoRedoButtons()
 }
 
 // ----------------------------- Common State Rendering
@@ -185,6 +242,18 @@ function showCardPicker<T extends CardSpec | Card>(
     onSelect: (card: T) => void,
     onCancel: () => void
 ): void {
+    enterModalDialog()
+    let closed = false
+    let unbindDismiss = () => {}
+    function close(next: () => void): void {
+        if (closed) return
+        closed = true
+        unbindDismiss()
+        hideDialog('cardPickerDialog')
+        exitModalDialog()
+        next()
+    }
+
     getElement('cardPickerTitle').textContent = prompt
 
     const container = getElement('cardPickerOptions')
@@ -194,25 +263,22 @@ function showCardPicker<T extends CardSpec | Card>(
         const spec: CardSpec = 'spec' in card ? (card as Card).spec : card as CardSpec
         const optionEl = createElementFromHTML(renderSpecNoRelated(spec))
         optionEl.style.cursor = 'pointer'
-        optionEl.onclick = () => {
-            hideDialog('cardPickerDialog')
-            onSelect(card)
-        }
+        optionEl.onclick = () => close(() => onSelect(card))
         container.appendChild(optionEl)
     }
 
     const cancelBtn = getElement('cardPickerCancel')
     if (canCancel) {
         showElement(cancelBtn)
-        cancelBtn.onclick = () => {
-            hideDialog('cardPickerDialog')
-            onCancel()
-        }
+        cancelBtn.onclick = () => close(onCancel)
     } else {
         hideElement(cancelBtn)
     }
 
     showDialog('cardPickerDialog')
+    if (canCancel) {
+        unbindDismiss = bindDialogDismiss('cardPickerDialog', () => close(onCancel))
+    }
 }
 
 // ----------------------------- Option Picker Dialog (for encounters)
@@ -224,6 +290,18 @@ function showOptionPicker<T>(
     onSelect: (value: T) => void,
     onCancel: () => void
 ): void {
+    enterModalDialog()
+    let closed = false
+    let unbindDismiss = () => {}
+    function close(next: () => void): void {
+        if (closed) return
+        closed = true
+        unbindDismiss()
+        hideDialog('encounterDialog')
+        exitModalDialog()
+        next()
+    }
+
     getElement('encounterTitle').textContent = prompt
     getElement('encounterDescription').textContent = ''
 
@@ -242,10 +320,7 @@ function showOptionPicker<T>(
                 specEl.style.cursor = 'default'
             } else {
                 specEl.style.cursor = 'pointer'
-                specEl.onclick = () => {
-                    hideDialog('encounterDialog')
-                    onSelect(option.value)
-                }
+                specEl.onclick = () => close(() => onSelect(option.value))
             }
             optionDiv.appendChild(specEl)
 
@@ -263,10 +338,7 @@ function showOptionPicker<T>(
                 nameSpan.style.cursor = 'default'
             } else {
                 nameSpan.style.cursor = 'pointer'
-                nameSpan.onclick = () => {
-                    hideDialog('encounterDialog')
-                    onSelect(option.value)
-                }
+                nameSpan.onclick = () => close(() => onSelect(option.value))
             }
 
             optionDiv.appendChild(nameSpan)
@@ -284,15 +356,15 @@ function showOptionPicker<T>(
     const cancelBtn = getElement('encounterCancel')
     if (canCancel) {
         showElement(cancelBtn)
-        cancelBtn.onclick = () => {
-            hideDialog('encounterDialog')
-            onCancel()
-        }
+        cancelBtn.onclick = () => close(onCancel)
     } else {
         hideElement(cancelBtn)
     }
 
     showDialog('encounterDialog')
+    if (canCancel) {
+        unbindDismiss = bindDialogDismiss('encounterDialog', () => close(onCancel))
+    }
 }
 
 // ----------------------------- Stage Screen
@@ -548,6 +620,15 @@ export class MetaGameUI implements MetaUI {
 
                         // Call the option's onClick handler
                         const { newData, transform } = await option.onClick()
+
+                        const noOpCancel =
+                            rewardState.kind === 'encounter' &&
+                            transform === undefined &&
+                            newData === rewardState.data
+                        if (noOpCancel) {
+                            render()
+                            return
+                        }
 
                         // Update the reward state
                         const newRewardState = updateRewardState(rewardState, newData)
