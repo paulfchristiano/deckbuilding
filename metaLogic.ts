@@ -159,8 +159,11 @@ export function registerEncounter(
 }
 
 export function getEncounterState(state: MetaState, generator: Generator, stage: number): EncounterRewardState {
-    const available = encounterRegistry.filter(e => e.minStage <= stage && stage <= e.maxStage)
-    const registration = generator.sample(available)
+    const ordered = generator.permute(encounterRegistry)
+    const registration = ordered.find(e => e.minStage <= stage && stage <= e.maxStage)
+    if (!registration) {
+        throw new Error(`No encounters available for stage ${stage}`)
+    }
     return {
         kind: 'encounter',
         encounter: registration.encounter,
@@ -774,26 +777,19 @@ function makePaths(state: MetaState): PathSkeleton[] {
 // TODO: actually create these in gameLogic and then then fill them in the ./data files
 import { potionRewards, relicRewards } from './gameLogic.js'
 
-// TODO: avoid repeating (by passing in a list of already-chosen items to avoid, and making the PRG re-sample after hitting one)
-function fillPath(state: MetaState, skeleton: PathSkeleton): Path {
+function pathFromSkeleton(skeleton: PathSkeleton): Path {
     const rewardStates: RewardState[] = []
     for (const rewardKind of skeleton.rewards) {
-        const generator = state.generator(`rewards${rewardKind}`).newGenerator()
         if (rewardKind === 'encounter') {
-            // Create pending encounter - will be filled in when path is adopted
             rewardStates.push({ kind: 'encounter', encounter: null, data: null })
-        } else if (rewardKind === 'card') {
-            const options = generator.samples(cardRewards, getRewardOptionCount(state), state.data.collectedCards)
-            rewardStates.push({ kind: 'card', options, selectedIndex: null })
-        } else if (rewardKind === 'event') {
-            const options = generator.samples(eventRewards, getRewardOptionCount(state), state.data.collectedEvents)
-            rewardStates.push({ kind: 'event', options, selectedIndex: null })
-        } else if (rewardKind === 'potion') {
-            const options = generator.samples(potionRewards, getRewardOptionCount(state))
-            rewardStates.push({ kind: 'potion', options, selectedIndex: null })
         } else if (rewardKind === 'relic') {
-            const options = generator.samples(relicRewards, getRewardOptionCount(state))
-            rewardStates.push({ kind: 'relic', options, selectedIndex: null })
+            rewardStates.push({ kind: 'relic', options: [] as RelicSpec[], selectedIndex: null })
+        } else if (rewardKind === 'card') {
+            rewardStates.push({ kind: 'card', options: [] as CardSpec[], selectedIndex: null })
+        } else if (rewardKind === 'event') {
+            rewardStates.push({ kind: 'event', options: [] as CardSpec[], selectedIndex: null })
+        } else if (rewardKind === 'potion') {
+            rewardStates.push({ kind: 'potion', options: [] as CardSpec[], selectedIndex: null })
         }
     }
     return { rewardStates, challenges: skeleton.challenges }
@@ -959,11 +955,39 @@ async function replayCompletedStage(state: MetaState, stage: number): Promise<vo
 }
 
 function adoptPath(state:MetaState, path: Path) {
-    // Fill in any pending encounters now that the path is selected
-    const rewardStates = path.rewardStates.map((rs, index) => {
+    // Materialize rewards only when the path is actually selected.
+    const rewardStates = path.rewardStates.map(rs => {
         if (rs.kind === 'encounter' && rs.encounter === null) {
-            const generator = state.generator(`encounter${index}`).newGenerator()
+            const generator = state.generator(`encounter`).newGenerator()
             return getEncounterState(state, generator, state.data.stage)
+        } else if (rs.kind === 'card' && rs.options.length === 0) {
+            const generator = state.generator(`rewardscard`).newGenerator()
+            return {
+                kind: 'card' as const,
+                options: generator.samples(cardRewards, getRewardOptionCount(state), state.data.collectedCards),
+                selectedIndex: null
+            }
+        } else if (rs.kind === 'event' && rs.options.length === 0) {
+            const generator = state.generator(`rewardsevent`).newGenerator()
+            return {
+                kind: 'event' as const,
+                options: generator.samples(eventRewards, getRewardOptionCount(state), state.data.collectedEvents),
+                selectedIndex: null
+            }
+        } else if (rs.kind === 'potion' && rs.options.length === 0) {
+            const generator = state.generator(`rewardspotion`).newGenerator()
+            return {
+                kind: 'potion' as const,
+                options: generator.samples(potionRewards, getRewardOptionCount(state)),
+                selectedIndex: null
+            }
+        } else if (rs.kind === 'relic' && rs.options.length === 0) {
+            const generator = state.generator(`rewardsrelic`).newGenerator()
+            return {
+                kind: 'relic' as const,
+                options: generator.samples(relicRewards, getRewardOptionCount(state)),
+                selectedIndex: null
+            }
         }
         return rs
     })
@@ -998,7 +1022,7 @@ function makeTestReward(state: MetaState, spec: TestSpec): RewardState {
 export async function playGame(ui: MetaUI, test:null|TestSpec = null, seed: string | null = null): Promise<void> {
     const state: MetaState = new MetaState(ui, seed)
     // Stage 0 offers two challenge options
-    const initialPath = fillPath(state, {
+    const initialPath = pathFromSkeleton({
         rewards: ['card', 'card', 'event', 'potion'] as RewardKind[],
         challenges: [randomChallenge(state), randomChallenge(state)]
     })
@@ -1042,7 +1066,7 @@ export async function playGame(ui: MetaUI, test:null|TestSpec = null, seed: stri
                 }
                 // Crossing a stage boundary should discard all meta undo/redo history.
                 state.clearHistory()
-                const paths = makePaths(state).map(skel => fillPath(state, skel))
+                const paths = makePaths(state).map(skel => pathFromSkeleton(skel))
                 let path: Path
                 while (true) {
                     try {
