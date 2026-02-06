@@ -5,6 +5,8 @@ import { Card, CardSpec, GameSpec, UndoPastBeginning, VictoryData } from './game
 import {
     MetaState, RewardState, Path, ChallengeSpec,
     MetaUI, MetaOption,
+    BASE_PARS, describeParCalculation,
+    makeSpec,
     renderChallenge,
     getRewardOptions, getRewardName, updateRewardState, updateRewardAtIndex,
     Undo, Redo, ReplayStage
@@ -185,11 +187,37 @@ function updateProgressSidebar(state: MetaState, onReplayStage?: (stage: number)
         const el = circle as HTMLElement
         const stage = parseInt(el.getAttribute('data-stage') || '0')
         const inGameSidebar = el.closest('#progressLineGame') !== null
+        const basePar = BASE_PARS[stage]
+        const currentStagePar = (
+            stage === state.data.stage &&
+            state.data.challenges.length === 1
+        )
+            ? makeSpec(state, state.data.challenges[0]).par
+            : null
 
         el.classList.remove('completed', 'current', 'replayable')
         el.onclick = null
         const existingScore = el.querySelector('.progressScore')
         if (existingScore) existingScore.remove()
+        const existingTooltips = el.querySelectorAll('.tooltip')
+        existingTooltips.forEach(node => node.remove())
+
+        let tooltip = basePar === undefined ? '' : `${basePar} (base)`
+        if (stage < state.data.stage) {
+            const replayData = state.data.stageReplays[stage]
+            if (replayData !== null) {
+                tooltip = describeParCalculation(stage, replayData.challenge, replayData.spec.relics)
+            }
+        } else if (stage === state.data.stage && currentStagePar !== null) {
+            tooltip = describeParCalculation(stage, state.data.challenges[0], state.data.relics)
+        }
+        const attachTooltip = (target: HTMLElement): void => {
+            if (tooltip === '') return
+            const tooltipSpan = createSpan('tooltip')
+            tooltipSpan.style.whiteSpace = 'pre-line'
+            tooltipSpan.textContent = tooltip.replace(/, /g, '\n')
+            target.appendChild(tooltipSpan)
+        }
 
         if (stage < state.data.stage) {
             el.classList.add('completed')
@@ -198,19 +226,44 @@ function updateProgressSidebar(state: MetaState, onReplayStage?: (stage: number)
             if (score !== null && par !== null) {
                 const scoreSpan = createSpan('progressScore')
                 scoreSpan.textContent = `${score}/${par}`
+                attachTooltip(scoreSpan)
                 if (score > par) {
                     scoreSpan.style.color = 'red'
                 } else if (score < par) {
                     scoreSpan.style.color = 'green'
                 }
                 el.appendChild(scoreSpan)
+            } else {
+                attachTooltip(el)
             }
             if (!inGameSidebar && onReplayStage && state.data.stageReplays[stage] !== null) {
                 el.classList.add('replayable')
                 el.onclick = () => onReplayStage(stage)
             }
         } else if (stage === state.data.stage) {
+            if (currentStagePar !== null) {
+                const scoreSpan = createSpan('progressScore')
+                scoreSpan.textContent = `?/${currentStagePar}`
+                attachTooltip(scoreSpan)
+                el.appendChild(scoreSpan)
+            } else if (basePar !== undefined) {
+                const scoreSpan = createSpan('progressScore')
+                scoreSpan.textContent = `${basePar}`
+                attachTooltip(scoreSpan)
+                el.appendChild(scoreSpan)
+            } else {
+                attachTooltip(el)
+            }
             el.classList.add('current')
+        } else {
+            if (basePar !== undefined) {
+                const scoreSpan = createSpan('progressScore')
+                scoreSpan.textContent = `${basePar}`
+                attachTooltip(scoreSpan)
+                el.appendChild(scoreSpan)
+            } else {
+                attachTooltip(el)
+            }
         }
     })
 }
@@ -609,7 +662,11 @@ export class MetaGameUI implements MetaUI {
                 renderStageScreen(
                     state,
                     // onChallenge - returns the selected challenge
-                    (challenge) => resolve(challenge),
+                    (challenge) => {
+                        state.update({ challenges: [challenge] })
+                        updateProgressSidebar(state)
+                        resolve(challenge)
+                    },
                     // onOptionClick
                     async (rewardIndex, optionIndex) => {
                         const rewardState = state.data.rewardStates[rewardIndex]
