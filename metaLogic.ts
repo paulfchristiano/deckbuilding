@@ -114,9 +114,14 @@ export interface EncounterRewardState {
 }
 
 export type RewardState = SimpleRewardState | EncounterRewardState
+const PIGGY_BANK_SELECTED_INDEX = -2
 
 function singingBowlCount(state: MetaState): number {
     return state.data.relics.filter(relic => relic.name === 'Singing Bowl').length
+}
+
+function piggyBankCount(state: MetaState): number {
+    return state.data.relics.filter(relic => relic.name === 'Piggy Bank').length
 }
 
 function encounterRewardCompleted(rewardState: EncounterRewardState): boolean {
@@ -135,7 +140,7 @@ function getSimpleRewardOptions(state: SimpleRewardState, metaState: MetaState):
         label: displayName(option as CardSpec),
         spec: option as CardSpec,
         disabled: state.selectedIndex !== null,
-        checked: state.selectedIndex === i,
+        checked: state.selectedIndex === i || state.selectedIndex === PIGGY_BANK_SELECTED_INDEX,
         onClick: async () => {
             const skipped = options
                 .filter((_, optionIndex) => optionIndex !== i)
@@ -158,17 +163,16 @@ export function getRewardOptions(rewardState: RewardState, metaState: MetaState)
     const baseOptions = rewardState.kind === 'encounter'
         ? (!rewardState.encounter ? [] : rewardState.encounter.getOptions(rewardState.data, metaState))
         : getSimpleRewardOptions(rewardState, metaState)
-    const bowls = singingBowlCount(metaState)
-    if (bowls <= 0) return baseOptions
-    const skippedLabels = baseOptions.map(option => option.label)
-    const details = skippedLabels.length > 0 ? `Skipped: ${skippedLabels.join(', ')}` : undefined
 
     const alreadySelected = rewardState.kind === 'encounter'
         ? encounterRewardCompleted(rewardState)
         : rewardState.selectedIndex !== null
-
-    for (let bowlIndex = 0; bowlIndex < bowls; bowlIndex++) {
-        const optionIndex = baseOptions.length + bowlIndex
+    const piggySelected = rewardState.kind !== 'encounter' && rewardState.selectedIndex === PIGGY_BANK_SELECTED_INDEX
+    const hasSingingBowl = singingBowlCount(metaState) > 0
+    if (hasSingingBowl) {
+        const optionIndex = baseOptions.length
+        const skippedLabels = baseOptions.map(option => option.label)
+        const details = skippedLabels.length > 0 ? `Skipped: ${skippedLabels.join(', ')}` : undefined
         baseOptions.push({
             label: '+2 Buffer',
             compact: true,
@@ -195,6 +199,35 @@ export function getRewardOptions(rewardState: RewardState, metaState: MetaState)
                 }
                 return {
                     newData: { ...rewardState, selectedIndex: optionIndex },
+                    transform
+                }
+            }
+        })
+    }
+
+    const hasPiggyBank = rewardState.kind !== 'encounter' && (piggyBankCount(metaState) > 0 || piggySelected)
+    if (hasPiggyBank) {
+        const takenNames = rewardState.options.map(option => displayName(option as CardSpec))
+        const details = takenNames.length > 0 ? `Taken: ${takenNames.join(', ')}` : undefined
+        baseOptions.push({
+            label: 'Take it all',
+            compact: true,
+            disabled: alreadySelected,
+            checked: piggySelected,
+            onClick: async () => {
+                const transform: MetaTransform = async (state: MetaState) => {
+                    const piggyBank = state.data.relics.find(relic => relic.name === 'Piggy Bank')
+                    if (piggyBank) state.removeRelic(piggyBank.id)
+                    await addTimelineAction('Take it all', details)(state)
+                    for (const option of rewardState.options) {
+                        if (rewardState.kind === 'card') await gainCard(option as CardSpec, { silent: true })(state)
+                        else if (rewardState.kind === 'event') await gainEvent(option as CardSpec, { silent: true })(state)
+                        else if (rewardState.kind === 'potion') await gainPotion(option as CardSpec, { silent: true })(state)
+                        else await gainRelic(option as RelicSpec, { silent: true })(state)
+                    }
+                }
+                return {
+                    newData: { ...rewardState, selectedIndex: PIGGY_BANK_SELECTED_INDEX },
                     transform
                 }
             }
@@ -1379,6 +1412,7 @@ export const noop: MetaTransform = async function (state: MetaState) { return }
 interface GainTimelineDetails {
     skipped?: string[]
     details?: string
+    silent?: boolean
 }
 
 // Compose multiple transforms (handles async)
@@ -1416,9 +1450,11 @@ export function addTimelineAction(action: string, details?: string): MetaTransfo
 // Add a card to collection
 export function gainCard(card: CardSpec, timelineDetails: GainTimelineDetails = {}): MetaTransform {
     return async function(state: MetaState) {
-        state.update({
+        const nextData: Partial<MetaStateData> = {
             collectedCards: [...state.data.collectedCards, card],
-            timeline: [...state.data.timeline, {
+        }
+        if (!timelineDetails.silent) {
+            nextData.timeline = [...state.data.timeline, {
                 kind: 'gain',
                 stage: state.data.stage,
                 gainKind: 'card',
@@ -1426,7 +1462,8 @@ export function gainCard(card: CardSpec, timelineDetails: GainTimelineDetails = 
                 skipped: timelineDetails.skipped ? [...timelineDetails.skipped] : undefined,
                 details: timelineDetails.details
             }]
-        })
+        }
+        state.update(nextData)
         await trigger({kind: 'card', card: card}, state)
     }
 }
@@ -1434,9 +1471,11 @@ export function gainCard(card: CardSpec, timelineDetails: GainTimelineDetails = 
 // Add an event to collection
 export function gainEvent(event: CardSpec, timelineDetails: GainTimelineDetails = {}): MetaTransform {
     return async function(state: MetaState) {
-        state.update({
+        const nextData: Partial<MetaStateData> = {
             collectedEvents: [...state.data.collectedEvents, event],
-            timeline: [...state.data.timeline, {
+        }
+        if (!timelineDetails.silent) {
+            nextData.timeline = [...state.data.timeline, {
                 kind: 'gain',
                 stage: state.data.stage,
                 gainKind: 'event',
@@ -1444,7 +1483,8 @@ export function gainEvent(event: CardSpec, timelineDetails: GainTimelineDetails 
                 skipped: timelineDetails.skipped ? [...timelineDetails.skipped] : undefined,
                 details: timelineDetails.details
             }]
-        })
+        }
+        state.update(nextData)
     }
 }
 
@@ -1453,10 +1493,12 @@ export function gainPotion(potion: CardSpec, timelineDetails: GainTimelineDetail
     return async function(state: MetaState) {
         const nextID = state.data.nextID
         const potionCard = new Card(potion, nextID)
-        state.update({
+        const nextData: Partial<MetaStateData> = {
             potions: [...state.data.potions, potionCard],
             nextID: nextID + 1,
-            timeline: [...state.data.timeline, {
+        }
+        if (!timelineDetails.silent) {
+            nextData.timeline = [...state.data.timeline, {
                 kind: 'gain',
                 stage: state.data.stage,
                 gainKind: 'potion',
@@ -1464,7 +1506,8 @@ export function gainPotion(potion: CardSpec, timelineDetails: GainTimelineDetail
                 skipped: timelineDetails.skipped ? [...timelineDetails.skipped] : undefined,
                 details: timelineDetails.details
             }]
-        })
+        }
+        state.update(nextData)
     }
 } 
 
@@ -1473,10 +1516,12 @@ export function gainRelic(relic: RelicSpec, timelineDetails: GainTimelineDetails
     return async function(state: MetaState) {
         const nextID = state.data.nextID
         const relicCard:Relic = new Relic(relic, nextID)
-        state.update({
+        const nextData: Partial<MetaStateData> = {
             relics: [...state.data.relics, relicCard],
             nextID: nextID + 1,
-            timeline: [...state.data.timeline, {
+        }
+        if (!timelineDetails.silent) {
+            nextData.timeline = [...state.data.timeline, {
                 kind: 'gain',
                 stage: state.data.stage,
                 gainKind: 'relic',
@@ -1484,7 +1529,8 @@ export function gainRelic(relic: RelicSpec, timelineDetails: GainTimelineDetails
                 skipped: timelineDetails.skipped ? [...timelineDetails.skipped] : undefined,
                 details: timelineDetails.details
             }]
-        })
+        }
+        state.update(nextData)
         await trigger({kind: 'relic', relic: relicCard}, state)
     }
 }

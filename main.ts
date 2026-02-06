@@ -17,11 +17,11 @@ import { randomString } from './rng.js'
 import { startGame } from './gameUI.js'
 import { renderSpecNoRelated } from './cardRendering.js'
 import { Card, CardSpec, UndoPastBeginning } from './gameLogic.js'
-import { singingBowl } from './data/relics.js'
+import { piggyBank } from './data/relics.js'
 
 import type { TestSpec } from './metaLogic.js'
 
-let test: TestSpec | null = ['relic', singingBowl]
+let test: TestSpec | null = ['relic', piggyBank]
 
 const SAVE_STORAGE_KEY = 'roguelike.ongoingSaves.v1'
 const MAX_LAUNCHER_SAVES = 10
