@@ -9,7 +9,7 @@ import { CardSpec, Card, State, vpModes,
     PlaceName,
     Token,
     cardRewards, eventRewards, potionRewards, relicRewards,
-    coinKey, energyEventKey,
+    coinKey, energyEventKey, displayName,
     VictoryData,
     Replayable
  } from './gameLogic.js'
@@ -118,16 +118,19 @@ export type RewardState = SimpleRewardState | EncounterRewardState
 function getSimpleRewardOptions(state: SimpleRewardState, metaState: MetaState): RewardOption[] {
     const options = state.options as Array<CardSpec | RelicSpec>
     return options.map((option: CardSpec | RelicSpec, i: number) => ({
-        label: option.name,
+        label: displayName(option as CardSpec),
         spec: option as CardSpec,
         disabled: state.selectedIndex !== null,
         checked: state.selectedIndex === i,
         onClick: async () => {
+            const skipped = options
+                .filter((_, optionIndex) => optionIndex !== i)
+                .map(spec => displayName(spec as CardSpec))
             const transform =
-                state.kind === 'card' ? gainCard(option as CardSpec) :
-                state.kind === 'event' ? gainEvent(option as CardSpec) :
-                state.kind === 'potion' ? gainPotion(option as CardSpec) :
-                gainRelic(option as RelicSpec)
+                state.kind === 'card' ? gainCard(option as CardSpec, { skipped }) :
+                state.kind === 'event' ? gainEvent(option as CardSpec, { skipped }) :
+                state.kind === 'potion' ? gainPotion(option as CardSpec, { skipped }) :
+                gainRelic(option as RelicSpec, { skipped })
             return {
                 newData: { ...state, selectedIndex: i },
                 transform
@@ -230,6 +233,11 @@ export function renderChallenge(spec: ChallengeSpec, state: MetaState): string {
 
     const tooltipContent = relatedCards.map(buildSpecTooltip).join('')
     return `${label}<span class='tooltip'>${tooltipContent}</span>`
+}
+
+export function challengeSummary(challenge: ChallengeSpec): string {
+    const boonSummary = challenge.boons.map(b => b.name).join(' + ')
+    return boonSummary.length > 0 ? `${challenge.vpMode.name} + ${boonSummary}` : challenge.vpMode.name
 }
 
 // Meta replacer types - modify game setup parameters
@@ -369,6 +377,30 @@ export interface StageReplayData {
     bufferAfterCourse: number
 }
 
+export type MetaTimelineEntry =
+    | {
+        kind: 'stage'
+        stage: number
+        challenge: string
+        score: number
+        par: number
+        usedPotions?: string[]
+    }
+    | {
+        kind: 'gain'
+        stage: number
+        gainKind: 'card' | 'event' | 'potion' | 'relic'
+        name: string
+        skipped?: string[]
+        details?: string
+    }
+    | {
+        kind: 'action'
+        stage: number
+        action: string
+        details?: string
+    }
+
 // Get display name for a reward state
 export function getRewardName(rewardState: RewardState): string {
     if (rewardState.kind === 'encounter') {
@@ -399,6 +431,7 @@ export interface MetaStateData {
     stageScores: (number | null)[]
     stagePars: (number | null)[]
     stageReplays: (StageReplayData | null)[]
+    timeline: MetaTimelineEntry[]
 
     // Buffer (life total)
     buffer: number
@@ -459,6 +492,7 @@ export class MetaState {
             stageScores: Array(TOTAL_STAGES).fill(null),
             stagePars: Array(TOTAL_STAGES).fill(null),
             stageReplays: Array(TOTAL_STAGES).fill(null),
+            timeline: [] as MetaTimelineEntry[],
             challenges: [] as ChallengeSpec[],
             availablePaths: [] as Path[],
             rewardStates: [] as RewardState[],
@@ -741,6 +775,7 @@ interface SerializedMetaStateData {
     relics: SerializedCard[]
     nextID: number
     playingGame?: boolean
+    timeline?: MetaTimelineEntry[]
     gameHistory: number[]
     gameRedo: number[]
 }
@@ -1153,6 +1188,7 @@ function serializeMetaStateData(data: MetaStateData): SerializedMetaStateData {
         potions: data.potions.map(card => serializeCard(card)),
         relics: data.relics.map(card => serializeCard(card)),
         nextID: data.nextID,
+        timeline: data.timeline.map(entry => ({ ...entry })),
         gameHistory: [...data.gameHistory],
         gameRedo: [...data.gameRedo]
     }
@@ -1196,8 +1232,22 @@ function deserializeMetaStateData(data: SerializedMetaStateData): MetaStateData 
         potions: data.potions.map(card => deserializeCard(card)),
         relics: data.relics.map(card => deserializeCard(card) as Relic),
         nextID: data.nextID,
+        timeline: (data.timeline || []).map(entry => ({ ...entry })),
         gameHistory: [...data.gameHistory],
         gameRedo: [...data.gameRedo],
+    }
+    if (!data.timeline) {
+        result.timeline = result.stageReplays.flatMap(stageReplay => {
+            if (stageReplay === null) return []
+            return [{
+                kind: 'stage' as const,
+                stage: stageReplay.stage,
+                challenge: challengeSummary(stageReplay.challenge),
+                score: stageReplay.score,
+                par: stageReplay.par,
+                usedPotions: usedPotionNames(stageReplay.spec.potions, stageReplay.potionsRemaining),
+            }]
+        })
     }
     validateMetaStateData(result, 'deserialize')
     return result
@@ -1274,6 +1324,11 @@ export type MetaTransform = (state: MetaState) => Promise<void> | ((state: MetaS
 // Identity transform - does nothing
 export const noop: MetaTransform = async function (state: MetaState) { return }
 
+interface GainTimelineDetails {
+    skipped?: string[]
+    details?: string
+}
+
 // Compose multiple transforms (handles async)
 export function compose(...transforms: MetaTransform[]): MetaTransform {
     return async function (state): Promise<void> {
@@ -1293,41 +1348,90 @@ export function addBuffer(amount: number): MetaTransform {
     }
 }
 
-// Add a card to collection
-export function gainCard(card: CardSpec): MetaTransform {
+export function addTimelineAction(action: string, details?: string): MetaTransform {
     return async function(state: MetaState) {
-        state.update({ collectedCards: [...state.data.collectedCards, card ] })
+        state.update({
+            timeline: [...state.data.timeline, {
+                kind: 'action',
+                stage: state.data.stage,
+                action,
+                details
+            }]
+        })
+    }
+}
+
+// Add a card to collection
+export function gainCard(card: CardSpec, timelineDetails: GainTimelineDetails = {}): MetaTransform {
+    return async function(state: MetaState) {
+        state.update({
+            collectedCards: [...state.data.collectedCards, card],
+            timeline: [...state.data.timeline, {
+                kind: 'gain',
+                stage: state.data.stage,
+                gainKind: 'card',
+                name: displayName(card),
+                skipped: timelineDetails.skipped ? [...timelineDetails.skipped] : undefined,
+                details: timelineDetails.details
+            }]
+        })
         await trigger({kind: 'card', card: card}, state)
     }
 }
 
 // Add an event to collection
-export function gainEvent(event: CardSpec): MetaTransform {
+export function gainEvent(event: CardSpec, timelineDetails: GainTimelineDetails = {}): MetaTransform {
     return async function(state: MetaState) {
-        state.update({ collectedEvents: [...state.data.collectedEvents, event] })
+        state.update({
+            collectedEvents: [...state.data.collectedEvents, event],
+            timeline: [...state.data.timeline, {
+                kind: 'gain',
+                stage: state.data.stage,
+                gainKind: 'event',
+                name: displayName(event),
+                skipped: timelineDetails.skipped ? [...timelineDetails.skipped] : undefined,
+                details: timelineDetails.details
+            }]
+        })
     }
 }
 
 // Add a potion
-export function gainPotion(potion: CardSpec): MetaTransform {
+export function gainPotion(potion: CardSpec, timelineDetails: GainTimelineDetails = {}): MetaTransform {
     return async function(state: MetaState) {
         const nextID = state.data.nextID
         const potionCard = new Card(potion, nextID)
         state.update({
             potions: [...state.data.potions, potionCard],
-            nextID: nextID + 1
+            nextID: nextID + 1,
+            timeline: [...state.data.timeline, {
+                kind: 'gain',
+                stage: state.data.stage,
+                gainKind: 'potion',
+                name: displayName(potion),
+                skipped: timelineDetails.skipped ? [...timelineDetails.skipped] : undefined,
+                details: timelineDetails.details
+            }]
         })
     }
 } 
 
 // Add a relic
-export function gainRelic(relic: RelicSpec): MetaTransform {
+export function gainRelic(relic: RelicSpec, timelineDetails: GainTimelineDetails = {}): MetaTransform {
     return async function(state: MetaState) {
         const nextID = state.data.nextID
         const relicCard:Relic = new Relic(relic, nextID)
         state.update({
             relics: [...state.data.relics, relicCard],
-            nextID: nextID + 1
+            nextID: nextID + 1,
+            timeline: [...state.data.timeline, {
+                kind: 'gain',
+                stage: state.data.stage,
+                gainKind: 'relic',
+                name: displayName(relic),
+                skipped: timelineDetails.skipped ? [...timelineDetails.skipped] : undefined,
+                details: timelineDetails.details
+            }]
         })
         await trigger({kind: 'relic', relic: relicCard}, state)
     }
@@ -1634,7 +1738,14 @@ function replayUsedPotionIDs(replayData: StageReplayData): number[] {
     return replayData.spec.potions.map(p => p.id).filter(id => !remainingIDs.has(id))
 }
 
-function replaySpecForStage(state: MetaState, replayData: StageReplayData): GameSpec {
+function usedPotionNames(startingPotions: Card[], remainingPotions: Card[]): string[] {
+    const remainingIDs = new Set(remainingPotions.map(potion => potion.id))
+    return startingPotions
+        .filter(potion => !remainingIDs.has(potion.id))
+        .map(potion => displayName(potion.spec))
+}
+
+export function replaySpecForStage(state: MetaState, replayData: StageReplayData): GameSpec {
     return {
         ...cloneGameSpec(replayData.spec),
         metaStage: state.data.stage,
@@ -1688,6 +1799,7 @@ async function computeReplayBufferAfterCourse(replayData: StageReplayData, score
         stageScores: Array(TOTAL_STAGES).fill(null),
         stagePars: Array(TOTAL_STAGES).fill(null),
         stageReplays: Array(TOTAL_STAGES).fill(null),
+        timeline: [],
         buffer: replayData.bufferBeforeCourse,
         rewardStates: [],
         collectedCards: [],
@@ -1766,7 +1878,18 @@ async function replayCompletedStage(state: MetaState, stage: number): Promise<vo
         bufferAfterCourse: newBufferAfterCourse
     }
     const bufferAdjustment = newBufferAfterCourse - replayData.bufferAfterCourse
+    const usedPotions = usedPotionNames(replayData.spec.potions, replayResult.potionsRemaining)
     applyReplayResultToAllSnapshots(state, stage, updatedReplayData, bufferAdjustment)
+    state.update({
+        timeline: [...state.data.timeline, {
+            kind: 'stage',
+            stage,
+            challenge: challengeSummary(updatedReplayData.challenge),
+            score: replayResult.score,
+            par: updatedReplayData.par,
+            usedPotions
+        }]
+    })
     state.ui.updateBuffer(state)
 }
 
@@ -1893,6 +2016,7 @@ export async function playGame(
                         })
                     }
                 )
+                const usedPotions = usedPotionNames(gameSpec.potions, potionsRemaining)
                 const persistedMacros = macros ?? state.global.macros
                 const persistedViewingMacros = viewingMacros ?? state.global.viewingMacros
                 state.updateGlobal({
@@ -1921,7 +2045,17 @@ export async function playGame(
                     bufferBeforeCourse: startingBuffer,
                     bufferAfterCourse: state.data.buffer
                 }
-                state.update({ stageReplays })
+                state.update({
+                    stageReplays,
+                    timeline: [...state.data.timeline, {
+                        kind: 'stage',
+                        stage,
+                        challenge: challengeSummary(state.data.challenges[0]),
+                        score,
+                        par: gameSpec.par,
+                        usedPotions
+                    }]
+                })
                 const nextStage = state.data.stage + 1
                 state.update({ stage: nextStage })
                 if (nextStage >= TOTAL_STAGES) {

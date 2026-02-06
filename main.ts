@@ -4,9 +4,19 @@
 import './data/index.js' // Ensure data is loaded
 
 
-import { playGame, SerializedMetaGame } from './metaLogic.js'
+import {
+    playGame,
+    SerializedMetaGame,
+    MetaUI,
+    MetaTimelineEntry,
+    deserializeMetaGame,
+    replaySpecForStage
+} from './metaLogic.js'
 import { MetaGameUI } from './metaUI.js'
 import { randomString } from './rng.js'
+import { startGame } from './gameUI.js'
+import { renderSpecNoRelated } from './cardRendering.js'
+import { Card, CardSpec, UndoPastBeginning } from './gameLogic.js'
 
 import type { TestSpec } from './metaLogic.js'
 
@@ -20,6 +30,16 @@ interface SaveSlot {
     updatedAt: number
     seed: string
     snapshot: SerializedMetaGame
+}
+
+const summaryMetaUI: MetaUI = {
+    chooseCard: async <T extends CardSpec | Card>(): Promise<T | null> => null,
+    playGame: async () => { throw new Error('Summary UI does not support playGame') },
+    waitForChallenge: async () => { throw new Error('Summary UI does not support waitForChallenge') },
+    pickPath: async () => { throw new Error('Summary UI does not support pickPath') },
+    chooseOption: async <T>(): Promise<T | null> => null,
+    showMessage: async () => {},
+    updateBuffer: () => {}
 }
 
 function resolveSeedFromURL(): string | null {
@@ -206,6 +226,87 @@ function ensureLauncherStyles(): void {
             color: #666;
             padding: 8px 2px;
         }
+        .negativeBuffer {
+            color: #b00020;
+            font-weight: 700;
+        }
+        #viewGameDialog {
+            position: fixed;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(0,0,0,0.3);
+            z-index: 50;
+        }
+        #viewGameCard {
+            width: min(900px, 95vw);
+            max-height: 90vh;
+            overflow: auto;
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 10px;
+            padding: 16px;
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .viewHeader {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+        }
+        .viewDeckSection {
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 8px;
+            background: #fcfcfd;
+        }
+        .viewDeckTitle {
+            font-weight: 600;
+            margin-bottom: 6px;
+            color: #333;
+        }
+        .viewDeckCards {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+        #viewTimeline {
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 8px;
+            max-height: 42vh;
+            overflow-y: auto;
+            background: #fcfcfd;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        .timelineRow {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+            border-bottom: 1px solid #eee;
+            padding: 4px 0;
+        }
+        .timelineText {
+            display: flex;
+            align-items: baseline;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        .timelinePrimary {
+            font-size: 0.95em;
+            color: #333;
+        }
+        .timelineSecondary {
+            font-size: 0.82em;
+            color: #777;
+        }
     `
     document.head.appendChild(style)
 }
@@ -224,7 +325,6 @@ async function runGame(slotID: string, snapshot: SerializedMetaGame | null, seed
 
     try {
         await playGame(metaUI, test, seed, snapshot, saveCallback)
-        removeSaveSlot(slotID)
     } catch (error) {
         console.error(error)
         alert('Failed to load or run this game. You can abandon it from the launcher.')
@@ -233,11 +333,192 @@ async function runGame(slotID: string, snapshot: SerializedMetaGame | null, seed
     }
 }
 
+function clearLauncherDialogs(): void {
+    document.getElementById('newGameDialog')?.remove()
+    document.getElementById('viewGameDialog')?.remove()
+}
+
+async function runReplayFromSnapshot(slot: SaveSlot, stage: number): Promise<void> {
+    const seedDisplay = document.getElementById('seedDisplay')
+    if (seedDisplay) seedDisplay.textContent = `Seed: ${slot.seed}`
+    setCoreUIVisible(true)
+    document.getElementById('saveLauncher')?.remove()
+    clearLauncherDialogs()
+    try {
+        const state = deserializeMetaGame(summaryMetaUI, slot.snapshot, null)
+        const replayData = state.data.stageReplays[stage]
+        if (!replayData) {
+            alert('No replay available for that stage.')
+            return
+        }
+        await startGame(
+            replaySpecForStage(state, replayData),
+            replayData.history,
+            [],
+            state.global.macros,
+            state.global.viewingMacros,
+            null
+        )
+    } catch (error) {
+        if (!(error instanceof UndoPastBeginning)) {
+            console.error(error)
+            alert('Failed to open replay.')
+        }
+    } finally {
+        renderLauncher()
+        openViewDialog(slot)
+    }
+}
+
+function timelineRowContent(entry: MetaTimelineEntry): { primary: string, secondary: string | null } {
+    if (entry.kind === 'stage') {
+        const usedText = (entry.usedPotions && entry.usedPotions.length > 0)
+            ? entry.usedPotions.map(name => `used ${name}`).join(', ')
+            : null
+        return {
+            primary: `Stage ${entry.stage + 1}: ${entry.challenge} • Score ${entry.score}/${entry.par}`,
+            secondary: usedText
+        }
+    }
+    if (entry.kind === 'action') {
+        return {
+            primary: `Stage ${entry.stage + 1}: ${entry.action}`,
+            secondary: entry.details ?? null
+        }
+    }
+    const secondaryParts: string[] = []
+    if (entry.details) secondaryParts.push(entry.details)
+    if (entry.skipped && entry.skipped.length > 0) {
+        secondaryParts.push(`Skipped: ${entry.skipped.join(', ')}`)
+    }
+    return {
+        primary: `Stage ${entry.stage + 1}: Added ${entry.name}`,
+        secondary: secondaryParts.length > 0 ? secondaryParts.join(' • ') : null
+    }
+}
+
+function renderDeckSection(title: string, specs: CardSpec[]): HTMLElement {
+    const section = document.createElement('div')
+    section.className = 'viewDeckSection'
+    const heading = document.createElement('div')
+    heading.className = 'viewDeckTitle'
+    heading.textContent = title
+    section.appendChild(heading)
+    const cards = document.createElement('div')
+    cards.className = 'viewDeckCards'
+    if (specs.length === 0) {
+        const empty = document.createElement('div')
+        empty.className = 'saveSeed'
+        empty.textContent = 'None'
+        cards.appendChild(empty)
+    } else {
+        for (const spec of specs) {
+            const wrap = document.createElement('div')
+            wrap.innerHTML = renderSpecNoRelated(spec)
+            cards.appendChild(wrap.firstElementChild as HTMLElement)
+        }
+    }
+    section.appendChild(cards)
+    return section
+}
+
+function openViewDialog(slot: SaveSlot): void {
+    clearLauncherDialogs()
+    let state
+    try {
+        state = deserializeMetaGame(summaryMetaUI, slot.snapshot, null)
+    } catch (error) {
+        console.error(error)
+        alert('Failed to load summary for this game.')
+        return
+    }
+
+    const dialog = document.createElement('div')
+    dialog.id = 'viewGameDialog'
+    const card = document.createElement('div')
+    card.id = 'viewGameCard'
+
+    const header = document.createElement('div')
+    header.className = 'viewHeader'
+    const title = document.createElement('h3')
+    title.style.margin = '0'
+    title.textContent = `Game Summary`
+    const close = document.createElement('button')
+    close.className = 'launcherBtn'
+    close.textContent = 'Close'
+    close.onclick = () => dialog.remove()
+    header.appendChild(title)
+    header.appendChild(close)
+    card.appendChild(header)
+
+    const status = document.createElement('div')
+    const done = state.data.phase === 'game_over' || state.data.stage >= 8
+    status.textContent = `${done ? 'Victory!' : `Stage ${state.data.stage + 1}`} • Buffer ${state.data.buffer} • Seed ${slot.seed}`
+    if (state.data.buffer < 0) status.className = 'negativeBuffer'
+    card.appendChild(status)
+
+    card.appendChild(renderDeckSection('Cards', state.data.collectedCards))
+    card.appendChild(renderDeckSection('Events', state.data.collectedEvents))
+    card.appendChild(renderDeckSection('Potions', state.data.potions.map(p => p.spec)))
+    card.appendChild(renderDeckSection('Relics', state.data.relics.map(r => r.spec)))
+
+    const timelineTitle = document.createElement('div')
+    timelineTitle.className = 'viewDeckTitle'
+    timelineTitle.textContent = 'Timeline'
+    card.appendChild(timelineTitle)
+
+    const timeline = document.createElement('div')
+    timeline.id = 'viewTimeline'
+    if (state.data.timeline.length === 0) {
+        const empty = document.createElement('div')
+        empty.className = 'saveSeed'
+        empty.textContent = 'No events recorded yet.'
+        timeline.appendChild(empty)
+    } else {
+        for (const entry of state.data.timeline) {
+            const row = document.createElement('div')
+            row.className = 'timelineRow'
+            const text = document.createElement('div')
+            text.className = 'timelineText'
+            const content = timelineRowContent(entry)
+            const primary = document.createElement('span')
+            primary.className = 'timelinePrimary'
+            primary.textContent = content.primary
+            text.appendChild(primary)
+            if (content.secondary) {
+                const secondary = document.createElement('span')
+                secondary.className = 'timelineSecondary'
+                secondary.textContent = content.secondary
+                text.appendChild(secondary)
+            }
+            row.appendChild(text)
+            if (entry.kind === 'stage' && state.data.stageReplays[entry.stage] !== null) {
+                const replayButton = document.createElement('button')
+                replayButton.className = 'launcherBtn'
+                replayButton.textContent = 'View replay'
+                replayButton.onclick = async () => {
+                    dialog.remove()
+                    await runReplayFromSnapshot(slot, entry.stage)
+                }
+                row.appendChild(replayButton)
+            }
+            timeline.appendChild(row)
+        }
+    }
+    card.appendChild(timeline)
+
+    dialog.appendChild(card)
+    dialog.addEventListener('mousedown', (e: MouseEvent) => {
+        if (e.target === dialog) dialog.remove()
+    })
+    document.body.appendChild(dialog)
+}
+
 function renderLauncher(): void {
     ensureLauncherStyles()
     setCoreUIVisible(false)
     document.getElementById('saveLauncher')?.remove()
-    document.getElementById('newGameDialog')?.remove()
+    clearLauncherDialogs()
 
     const root = document.createElement('div')
     root.id = 'saveLauncher'
@@ -254,7 +535,7 @@ function renderLauncher(): void {
     newButton.className = 'launcherBtn'
     newButton.textContent = 'new game'
     newButton.onclick = () => {
-        document.getElementById('newGameDialog')?.remove()
+        clearLauncherDialogs()
         const dialog = document.createElement('div')
         dialog.id = 'newGameDialog'
         const dialogCard = document.createElement('div')
@@ -320,7 +601,13 @@ function renderLauncher(): void {
             const meta = document.createElement('div')
             meta.className = 'saveMeta'
             const primary = document.createElement('div')
-            primary.textContent = `Stage ${slot.snapshot.data.stage + 1} • Buffer ${slot.snapshot.data.buffer}`
+            const done = slot.snapshot.data.phase === 'game_over' || slot.snapshot.data.stage >= 8
+            primary.textContent = done
+                ? `Victory! • Buffer ${slot.snapshot.data.buffer}`
+                : `Stage ${slot.snapshot.data.stage + 1} • Buffer ${slot.snapshot.data.buffer}`
+            if (slot.snapshot.data.buffer < 0) {
+                primary.className = 'negativeBuffer'
+            }
             const seedLine = document.createElement('div')
             seedLine.className = 'saveSeed'
             seedLine.textContent = `Seed: ${slot.seed}`
@@ -329,10 +616,17 @@ function renderLauncher(): void {
 
             const actions = document.createElement('div')
             actions.className = 'saveActions'
-            const continueButton = document.createElement('button')
-            continueButton.className = 'launcherBtn'
-            continueButton.textContent = 'Continue'
-            continueButton.onclick = async () => runGame(slot.id, slot.snapshot, slot.seed)
+            if (!done) {
+                const continueButton = document.createElement('button')
+                continueButton.className = 'launcherBtn'
+                continueButton.textContent = 'Continue'
+                continueButton.onclick = async () => runGame(slot.id, slot.snapshot, slot.seed)
+                actions.appendChild(continueButton)
+            }
+            const viewButton = document.createElement('button')
+            viewButton.className = 'launcherBtn'
+            viewButton.textContent = 'View'
+            viewButton.onclick = () => openViewDialog(slot)
             const abandonButton = document.createElement('button')
             abandonButton.className = 'launcherBtn dangerBtn'
             abandonButton.textContent = 'Abandon'
@@ -340,7 +634,7 @@ function renderLauncher(): void {
                 removeSaveSlot(slot.id)
                 renderLauncher()
             }
-            actions.appendChild(continueButton)
+            actions.appendChild(viewButton)
             actions.appendChild(abandonButton)
 
             row.appendChild(meta)

@@ -4,6 +4,7 @@
 import { Encounter, registerEncounter, RewardOption,
     MetaState, MetaTransform,
     addBuffer, gainCard, gainEvent, gainPotion, gainRelic,
+    addTimelineAction,
     RelicSpec, Relic,
     GainRelicEvent,
     GameSetupParams,
@@ -15,7 +16,8 @@ import { CardSpec, CardUpgrade,
     leq,
     coin,
     cardSpecCost,
-    free
+    free,
+    displayName
 } from '../gameLogic.js'
 
 import { Generator } from '../rng.js'
@@ -112,13 +114,15 @@ export const magicalBox: Encounter = {
                         newData: { selectedIndex: 0 },
                         transform: async (state: MetaState) => {
                             state.removeCard(card.name)
-                            await gainRelic(makeCardInABoxRelic(card))(state)
+                            await gainRelic(makeCardInABoxRelic(card), {
+                                details: `Boxed ${displayName(card)}`
+                            })(state)
                         }
                     }
                 }
             },
             {
-                label: 'Gift box',
+                label: 'Gift Box',
                 description: 'Each time you add a card to your deck, start the course with a copy.',
                 disabled: selectedIndex !== null,
                 checked: selectedIndex === 1,
@@ -186,7 +190,9 @@ const mirrorMaker: Encounter = {
                     }
                     return {
                         newData: { selectedIndex: 1 },
-                        transform: gainRelic(relic)
+                        transform: gainRelic(relic, {
+                            details: `Mirrored ${displayName(relic)}`
+                        })
                     }
                 }
             },
@@ -212,7 +218,7 @@ export const blacksmith: Encounter = {
         const { selectedIndex } = data as { selectedIndex: number | null }
         const hasCards = metaState.data.collectedCards.length > 0
 
-        const chooseUpgrade = async (upgrade: CardUpgrade, index: number) => {
+        const chooseUpgrade = async (upgrade: CardUpgrade, index: number, upgradeName: string) => {
             const card = await metaState.ui.chooseCard(
                 metaState,
                 'Choose a card to upgrade:',
@@ -222,6 +228,7 @@ export const blacksmith: Encounter = {
             if (!card) {
                 return { newData: data }
             }
+            const chosenName = displayName(card)
             return {
                 newData: { selectedIndex: index },
                 transform: async (state: MetaState) => {
@@ -231,6 +238,7 @@ export const blacksmith: Encounter = {
                     if (cardIndex >= 0) {
                         cards[cardIndex] = updated
                         state.update({ collectedCards: cards })
+                        await addTimelineAction(`The Blacksmith: Upgraded ${chosenName} with ${upgradeName}`)(state)
                     }
                 }
             }
@@ -242,21 +250,21 @@ export const blacksmith: Encounter = {
                 description: 'Add +$1 to a card.',
                 disabled: selectedIndex !== null || !hasCards,
                 checked: selectedIndex === 0,
-                onClick: async () => chooseUpgrade(polishUpgrade, 0),
+                onClick: async () => chooseUpgrade(polishUpgrade, 0, 'Polish'),
             },
             {
                 label: 'Sharpen',
                 description: 'Add +1 action to a card.',
                 disabled: selectedIndex !== null || !hasCards,
                 checked: selectedIndex === 1,
-                onClick: async () => chooseUpgrade(sharpenUpgrade, 1),
+                onClick: async () => chooseUpgrade(sharpenUpgrade, 1, 'Sharpen'),
             },
             {
                 label: 'Redesign',
                 description: 'Reduce the play cost by @1 (not below @0).',
                 disabled: selectedIndex !== null || !hasCards,
                 checked: selectedIndex === 2,
-                onClick: async () => chooseUpgrade(redesignUpgrade, 2),
+                onClick: async () => chooseUpgrade(redesignUpgrade, 2, 'Redesign'),
             }
         ]
     }
@@ -270,7 +278,7 @@ export const enchantress: Encounter = {
         const { selectedIndex } = data as { selectedIndex: number | null }
         const hasCards = metaState.data.collectedCards.length > 0
 
-        const chooseUpgrade = async (upgrade: CardUpgrade, index: number) => {
+        const chooseUpgrade = async (upgrade: CardUpgrade, index: number, upgradeName: string) => {
             const card = await metaState.ui.chooseCard(
                 metaState,
                 'Choose a card to enchant:',
@@ -280,6 +288,7 @@ export const enchantress: Encounter = {
             if (!card) {
                 return { newData: data }
             }
+            const chosenName = displayName(card)
             return {
                 newData: { selectedIndex: index },
                 transform: async (state: MetaState) => {
@@ -289,6 +298,7 @@ export const enchantress: Encounter = {
                     if (cardIndex >= 0) {
                         cards[cardIndex] = updated
                         state.update({ collectedCards: cards })
+                        await addTimelineAction(`Enchantress: Upgraded ${chosenName} with ${upgradeName}`)(state)
                     }
                 }
             }
@@ -300,21 +310,21 @@ export const enchantress: Encounter = {
                 description: 'After playing this, trash it and buy a card costing up to $2 more.',
                 disabled: selectedIndex !== null || !hasCards,
                 checked: selectedIndex === 0,
-                onClick: async () => chooseUpgrade(transmuteUpgrade, 0),
+                onClick: async () => chooseUpgrade(transmuteUpgrade, 0, 'Transmute'),
             },
             {
                 label: 'Fortify',
                 description: 'Whenever this would be trashed, put it in your discard instead.',
                 disabled: selectedIndex !== null || !hasCards,
                 checked: selectedIndex === 1,
-                onClick: async () => chooseUpgrade(fortifyUpgrade, 1),
+                onClick: async () => chooseUpgrade(fortifyUpgrade, 1, 'Fortify'),
             },
             {
                 label: 'Possess',
                 description: 'When you buy this, trash a card in hand and copy one costing up to $2 more into hand.',
                 disabled: selectedIndex !== null || !hasCards,
                 checked: selectedIndex === 2,
-                onClick: async () => chooseUpgrade(possessUpgrade, 2),
+                onClick: async () => chooseUpgrade(possessUpgrade, 2, 'Possess'),
             }
         ]
     }
@@ -328,7 +338,7 @@ export const shopkeeper: Encounter = {
         const { selectedIndex } = data as { selectedIndex: number | null }
         const hasCards = metaState.data.collectedCards.length > 0
 
-        const chooseUpgrade = async (upgrade: CardUpgrade, index: number) => {
+        const chooseUpgrade = async (upgrade: CardUpgrade, index: number, upgradeName: string) => {
             const card = await metaState.ui.chooseCard(
                 metaState,
                 'Choose a card to upgrade:',
@@ -338,6 +348,7 @@ export const shopkeeper: Encounter = {
             if (!card) {
                 return { newData: data }
             }
+            const chosenName = displayName(card)
             return {
                 newData: { selectedIndex: index },
                 transform: async (state: MetaState) => {
@@ -347,6 +358,7 @@ export const shopkeeper: Encounter = {
                     if (cardIndex >= 0) {
                         cards[cardIndex] = updated
                         state.update({ collectedCards: cards })
+                        await addTimelineAction(`Shopkeeper: Upgraded ${chosenName} with ${upgradeName}`)(state)
                     }
                 }
             }
@@ -358,21 +370,21 @@ export const shopkeeper: Encounter = {
                 description: 'Add: whenever you buy this, +1 buy.',
                 disabled: selectedIndex !== null || !hasCards,
                 checked: selectedIndex === 0,
-                onClick: async () => chooseUpgrade(bulkPurchaseUpgrade, 0),
+                onClick: async () => chooseUpgrade(bulkPurchaseUpgrade, 0, 'Bulk purchase'),
             },
             {
                 label: 'Street fair',
                 description: 'Add: whenever this would be created in discard, create it in hand instead.',
                 disabled: selectedIndex !== null || !hasCards,
                 checked: selectedIndex === 1,
-                onClick: async () => chooseUpgrade(streetFairUpgrade, 1),
+                onClick: async () => chooseUpgrade(streetFairUpgrade, 1, 'Street fair'),
             },
             {
                 label: 'Sale',
                 description: 'Reduce buy cost by $2 (not below $1).',
                 disabled: selectedIndex !== null || !hasCards,
                 checked: selectedIndex === 2,
-                onClick: async () => chooseUpgrade(saleUpgrade, 2),
+                onClick: async () => chooseUpgrade(saleUpgrade, 2, 'Sale'),
             }
         ]
     }
@@ -421,7 +433,9 @@ export const brewery: Encounter = {
                     }
                     return {
                         newData: { ...d, selectedIndex: 0 },
-                        transform: gainPotion(makeBottledCardPotion(card)),
+                        transform: gainPotion(makeBottledCardPotion(card), {
+                            details: `Bottled ${displayName(card)}`
+                        }),
                     }
                 }
             },
@@ -442,7 +456,7 @@ export const brewery: Encounter = {
 registerEncounter(brewery)
 
 // Variety Pack encounter - pre-generates options at creation time
-const varietyPack: Encounter = {
+export const varietyPack: Encounter = {
     name: 'Variety Pack',
     createInitialData(metaState: MetaState, generator: Generator) {
         return {
@@ -463,6 +477,12 @@ const varietyPack: Encounter = {
         }
 
         const currentData = { selectedIndex, offerCard, offerEvent, offerPotion, offerRelic }
+        const allOptionNames = [
+            displayName(offerCard),
+            displayName(offerEvent),
+            displayName(offerPotion),
+            displayName(offerRelic),
+        ]
         return [
             {
                 label: 'Take Card',
@@ -471,7 +491,7 @@ const varietyPack: Encounter = {
                 checked: selectedIndex === 0,
                 onClick: async () => ({
                     newData: { ...currentData, selectedIndex: 0 },
-                    transform: gainCard(offerCard)
+                    transform: gainCard(offerCard, { skipped: allOptionNames.filter((_, i) => i !== 0) })
                 })
             },
             {
@@ -481,7 +501,7 @@ const varietyPack: Encounter = {
                 checked: selectedIndex === 1,
                 onClick: async () => ({
                     newData: { ...currentData, selectedIndex: 1 },
-                    transform: gainEvent(offerEvent)
+                    transform: gainEvent(offerEvent, { skipped: allOptionNames.filter((_, i) => i !== 1) })
                 })
             },
             {
@@ -491,7 +511,7 @@ const varietyPack: Encounter = {
                 checked: selectedIndex === 2,
                 onClick: async () => ({
                     newData: { ...currentData, selectedIndex: 2 },
-                    transform: gainPotion(offerPotion)
+                    transform: gainPotion(offerPotion, { skipped: allOptionNames.filter((_, i) => i !== 2) })
                 })
             },
             {
@@ -501,7 +521,7 @@ const varietyPack: Encounter = {
                 checked: selectedIndex === 3,
                 onClick: async () => ({
                     newData: { ...currentData, selectedIndex: 3 },
-                    transform: gainRelic(offerRelic)
+                    transform: gainRelic(offerRelic, { skipped: allOptionNames.filter((_, i) => i !== 3) })
                 })
             }
         ]
@@ -565,7 +585,9 @@ const tradingPost: Encounter = {
                         newData: { ...d, cardTraded: true },
                         transform: async (state: MetaState) => {
                             state.removeCard(card.name)
-                            await gainCard(d.offerCard)(state)
+                            await gainCard(d.offerCard, {
+                                details: `Traded away ${displayName(card)}`
+                            })(state)
                         }
                     }
                 }
@@ -587,7 +609,9 @@ const tradingPost: Encounter = {
                         newData: { ...d, eventTraded: true },
                         transform: async (state: MetaState) => {
                             state.removeEvent(event.name)
-                            await gainEvent(d.offerEvent)(state)
+                            await gainEvent(d.offerEvent, {
+                                details: `Traded away ${displayName(event)}`
+                            })(state)
                         }
                     }
                 }
@@ -609,7 +633,9 @@ const tradingPost: Encounter = {
                         newData: { ...d, potionTraded: true },
                         transform: async (state: MetaState) => {
                             state.removePotion(potion.id)
-                            await gainPotion(d.offerPotion)(state)
+                            await gainPotion(d.offerPotion, {
+                                details: `Traded away ${displayName(potion.spec)}`
+                            })(state)
                         }
                     }
                 }
@@ -631,7 +657,9 @@ const tradingPost: Encounter = {
                         newData: { ...d, relicTraded: true },
                         transform: async (state: MetaState) => {
                             state.removeRelic(relic.id)
-                            await gainRelic(d.offerRelic)(state)
+                            await gainRelic(d.offerRelic, {
+                                details: `Traded away ${displayName(relic.spec)}`
+                            })(state)
                         }
                     }
                 }
