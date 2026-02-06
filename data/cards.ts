@@ -1379,7 +1379,7 @@ cardRewards.push(greatFeast)
 const universityName = 'University'
 const university:CardSpec = {
     name: universityName,
-    buyCost: coin(12),
+    buyCost: coin(10),
     effects: [actionsEffect(4), buysEffect(2)],
     staticReplacers: [{
         text: `${universityName} costs $1 less per action you have, but not less than $1.`,

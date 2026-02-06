@@ -35,7 +35,7 @@ export const bagOfPreparation: RelicSpec = {
     triggers: [{
         kind: 'afterUse',
         handles: (e, s, c) => e.card.name === refresh.name,
-        text: 'After using Refresh, +3 actions.',
+        text: `After using ${refresh.name}, +3 actions.`,
         transform: (e, s, c) => gainActions(3, c)
     }],
 }
@@ -45,13 +45,11 @@ export const courier: RelicSpec = {
     name: 'Courier',
     simpleText: ['+1 buy each time you refresh.'],
     triggers: [{
-        kind: 'resource',
-        text: 'Whenever you gain actions from refreshing, gain 1 buy.',
-        handles: (e: ResourceEvent, state, card) =>
-            e.resource === 'actions' && e.source !== 'act' &&
-            typeof e.source !== 'string' && sourceHasName(e.source, refresh.name),
-        transform: (e, s, card) => gainBuys(1, card)
-    }]
+        kind: 'afterUse',
+        text: `After using ${refresh.name}, +1 buy.`,
+        handles: (e, s, c) => e.card.name === refresh.name,
+        transform: (e, s, c) => gainBuys(1, c)
+    }],
 }
 relicRewards.push(courier)
 
