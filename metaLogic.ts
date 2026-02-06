@@ -1,7 +1,7 @@
 // metaLogic.ts - Meta-game state and transformations
 // This handles the roguelike progression layer on top of the core game.
 
-import { CardSpec, Card, type GameSpec, State, vpModes,
+import { CardSpec, Card, State, vpModes,
     TypedTrigger, TypedReplacer,
     Boon, VPMode,
     boons,
@@ -12,6 +12,7 @@ import { CardSpec, Card, type GameSpec, State, vpModes,
     VictoryData,
     Replayable
  } from './gameLogic.js'
+import type { GameSpec } from './gameLogic.js'
 
 import { buildSpecTooltip } from './cardRendering.js'
 
@@ -103,9 +104,10 @@ export type RewardState = SimpleRewardState | EncounterRewardState
 
 // Get options for a simple reward
 function getSimpleRewardOptions(state: SimpleRewardState, metaState: MetaState): RewardOption[] {
-    return state.options.map((option, i) => ({
+    const options = state.options as Array<CardSpec | RelicSpec>
+    return options.map((option: CardSpec | RelicSpec, i: number) => ({
         label: option.name,
-        spec: option,
+        spec: option as CardSpec,
         disabled: state.selectedIndex !== null,
         checked: state.selectedIndex === i,
         onClick: async () => {

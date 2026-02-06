@@ -10,10 +10,14 @@ import { Encounter, registerEncounter, RewardOption,
     compose,
 } from '../metaLogic.js'
 import { emptyBottle, inkwell } from './relics.js'
-import { create, State, CardSpec,
+import { create, State, CardSpec, CardUpgrade,
     cardRewards, eventRewards, relicRewards, potionRewards,
     leq,
     coin,
+    cardSpecCost,
+    cardSpecName,
+    actionsEffect,
+    coinsEffect,
     free
 } from '../gameLogic.js'
 
@@ -23,11 +27,12 @@ import { mirrorBrew } from './potions.js'
 // ----------------------------- Helper Functions
 
 function bottledCard(spec: CardSpec): RelicSpec {
+    const displayName = cardSpecName(spec)
     return {
-        name: `Bottled ${spec.name}`,
+        name: `Bottled ${displayName}`,
         triggers: [{
             kind: 'gameStart',
-            text: `Start each course with a copy of ${spec.name} in hand.`,
+            text: `Start each course with a copy of ${displayName} in hand.`,
             handles: () => true,
             transform: () => async function (state: State) {
                 state = await create(spec, 'hand')(state)
@@ -35,6 +40,13 @@ function bottledCard(spec: CardSpec): RelicSpec {
             }
         }],
         relatedCards: [spec]
+    }
+}
+
+function upgradeCardSpec(spec: CardSpec, upgrade: CardUpgrade): CardSpec {
+    return {
+        ...spec,
+        upgrades: [...(spec.upgrades || []), upgrade],
     }
 }
 
@@ -78,7 +90,9 @@ const findABottle: Encounter = {
     createInitialData: () => ({ selectedIndex: null as number | null }),
     getOptions(data: unknown, metaState: MetaState): RewardOption[] {
         const { selectedIndex } = data as { selectedIndex: number | null }
-        const hasCards = metaState.data.collectedCards.filter(x => leq(x.buyCost || free, coin(5))).length > 0
+        const hasCards = metaState.data.collectedCards.filter(
+            x => leq(cardSpecCost(x, 'buy') || free, coin(5))
+        ).length > 0
 
         return [
             {
@@ -91,7 +105,7 @@ const findABottle: Encounter = {
                     const card = await metaState.ui.chooseCard(
                         metaState,
                         'Choose a card to bottle:',
-                        [...metaState.data.collectedCards.filter(x => leq(x.buyCost || free, coin(5)))],
+                        [...metaState.data.collectedCards.filter(x => leq(cardSpecCost(x, 'buy') || free, coin(5)))],
                         true
                     )
                     if (!card) {
@@ -194,6 +208,81 @@ const mirrorMaker: Encounter = {
     }
 }
 registerEncounter(mirrorMaker)
+
+const polishUpgrade: CardUpgrade = {
+    name: name => `${name}+`,
+    effects: [coinsEffect(1)],
+}
+
+const sharpenUpgrade: CardUpgrade = {
+    name: name => `${name}+`,
+    effects: [actionsEffect(1)],
+}
+
+const redesignUpgrade: CardUpgrade = {
+    name: name => `${name}+`,
+    cost: (cost, kind) => kind === 'buy'
+        ? { ...cost, coin: Math.max(cost.coin - 1, 1) }
+        : cost,
+}
+
+const blacksmith: Encounter = {
+    name: 'The Blacksmith',
+    createInitialData: () => ({ selectedIndex: null as number | null }),
+    getOptions(data: unknown, metaState: MetaState): RewardOption[] {
+        const { selectedIndex } = data as { selectedIndex: number | null }
+        const hasCards = metaState.data.collectedCards.length > 0
+
+        const chooseUpgrade = async (upgrade: CardUpgrade, index: number) => {
+            const card = await metaState.ui.chooseCard(
+                metaState,
+                'Choose a card to upgrade:',
+                [...metaState.data.collectedCards],
+                true
+            )
+            if (!card) {
+                return { newData: data }
+            }
+            return {
+                newData: { selectedIndex: index },
+                transform: async (state: MetaState) => {
+                    const updated = upgradeCardSpec(card, upgrade)
+                    const cards = [...state.data.collectedCards]
+                    const cardIndex = cards.indexOf(card)
+                    if (cardIndex >= 0) {
+                        cards[cardIndex] = updated
+                        state.update({ collectedCards: cards })
+                    }
+                }
+            }
+        }
+
+        return [
+            {
+                label: 'Polish',
+                description: 'Add +$1 to a card.',
+                disabled: selectedIndex !== null || !hasCards,
+                checked: selectedIndex === 0,
+                onClick: async () => chooseUpgrade(polishUpgrade, 0),
+            },
+            {
+                label: 'Sharpen',
+                description: 'Add +1 action to a card.',
+                disabled: selectedIndex !== null || !hasCards,
+                checked: selectedIndex === 1,
+                onClick: async () => chooseUpgrade(sharpenUpgrade, 1),
+            },
+            {
+                label: 'Redesign',
+                description: 'Reduce the buy cost by $1 (not below $1).',
+                disabled: selectedIndex !== null || !hasCards,
+                checked: selectedIndex === 2,
+                onClick: async () => chooseUpgrade(redesignUpgrade, 2),
+            }
+        ]
+    }
+}
+registerEncounter(blacksmith)
 
 // Variety Pack encounter - pre-generates options at creation time
 const varietyPack: Encounter = {

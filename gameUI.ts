@@ -4,6 +4,7 @@
 import { Cost, Shadow, State, Card, CardSpec, PlaceName, Rule, ID, VictoryData, UndoPastBeginning } from './gameLogic.js'
 import { GameSpec, SlotSpec } from './gameLogic.js'
 import { Trigger, Replacer, VariableCost, Token } from './gameLogic.js'
+import { cardSpecCost, cardSpecEffects, cardSpecName, cardSpecReplacers, cardSpecStaticReplacers, cardSpecStaticTriggers, cardSpecTriggers } from './gameLogic.js'
 import { renderCost, renderEnergy } from './gameLogic.js'
 import { LogType, logTypes } from './gameLogic.js'
 import { Option, OptionRender, HotkeyHint } from './gameLogic.js'
@@ -572,7 +573,7 @@ function describeCost(cost: Cost): string {
 
 function renderEffects(spec: CardSpec): string {
     const parts: string[] = []
-    for (const effect of spec.effects || []) {
+    for (const effect of cardSpecEffects(spec)) {
         parts.push(...effect.text)
     }
     return parts.map(x => `<div>${x}</div>`).join('')
@@ -603,6 +604,10 @@ function isZero(c: Cost | undefined): boolean {
     return !c || renderCost(c) === ''
 }
 
+function actionCostKindForSpec(spec: CardSpec): 'play' | 'use' {
+    return spec.buyCost === undefined ? 'use' : 'play'
+}
+
 function renderRuleText(rule: Rule): string {
     const parts: string[] = []
     for (const trigger of rule.triggers || []) {
@@ -620,10 +625,10 @@ export function cardText(spec: CardSpec): string {
         spec.variableCosts ? renderVariableCosts(spec.variableCosts) : '',
         renderEffects(spec),
         renderAbility(spec),
-        (spec.triggers || []).map(x => renderTrigger(x, false)).join(''),
-        (spec.replacers || []).map(x => renderTrigger(x, false)).join(''),
-        (spec.staticTriggers || []).map(x => renderTrigger(x, true)).join(''),
-        (spec.staticReplacers || []).map(x => renderTrigger(x, true)).join(''),
+        cardSpecTriggers(spec).map(x => renderTrigger(x, false)).join(''),
+        cardSpecReplacers(spec).map(x => renderTrigger(x, false)).join(''),
+        cardSpecStaticTriggers(spec).map(x => renderTrigger(x, true)).join(''),
+        cardSpecStaticReplacers(spec).map(x => renderTrigger(x, true)).join(''),
         (spec.rules || []).map(renderRuleText).join('')
     ].join('')
 }
@@ -631,8 +636,11 @@ export function cardText(spec: CardSpec): string {
 // ----------------------------- Tooltip Rendering
 
 function renderTooltipSimple(card: Card, state: State, tokenRenderer: TokenRenderer): string {
-    const buyStr = !isZero(card.spec.buyCost) ? `(${renderCost(card.spec.buyCost!)})` : '---'
-    const costStr = !isZero(card.spec.fixedCost) ? `(${renderCost(card.spec.fixedCost!)})` : '---'
+    const costKind = card.place === 'events' ? 'use' : 'play'
+    const buyCost = cardSpecCost(card.spec, 'buy')
+    const playCost = cardSpecCost(card.spec, costKind)
+    const buyStr = !isZero(buyCost) ? `(${renderCost(buyCost!)})` : '---'
+    const costStr = !isZero(playCost) ? `(${renderCost(playCost!)})` : '---'
     const header = `<div>---${buyStr} ${card.name} ${costStr}---</div>`
     const tokensHtml = tokenRenderer.renderTooltip(card.tokens)
     const bodyText = card.spec.simpleText
@@ -642,8 +650,11 @@ function renderTooltipSimple(card: Card, state: State, tokenRenderer: TokenRende
 }
 
 function renderTooltipFull(card: Card, state: State, tokenRenderer: TokenRenderer): string {
-    const buyStr = !isZero(card.spec.buyCost) ? `(${renderCost(card.spec.buyCost!)})` : '---'
-    const costStr = !isZero(card.spec.fixedCost) ? `(${renderCost(card.spec.fixedCost!)})` : '---'
+    const costKind = card.place === 'events' ? 'use' : 'play'
+    const buyCost = cardSpecCost(card.spec, 'buy')
+    const playCost = cardSpecCost(card.spec, costKind)
+    const buyStr = !isZero(buyCost) ? `(${renderCost(buyCost!)})` : '---'
+    const costStr = !isZero(playCost) ? `(${renderCost(playCost!)})` : '---'
     const header = `<div>---${buyStr} ${card.name} ${costStr}---</div>`
     const tokensHtml = tokenRenderer.renderTooltip(card.tokens)
     const baseFilling = header + cardText(card.spec) + tokensHtml
@@ -734,27 +745,33 @@ function renderCard(
 // ----------------------------- Spec Rendering (for meta UI)
 
 export function renderSpec(spec: CardSpec): string {
-    const buyText = isZero(spec.buyCost) ? '' : `(${renderCost(spec.buyCost!)})&nbsp;`
-    const costText = isZero(spec.fixedCost) ? '' : `&nbsp;(${renderCost(spec.fixedCost!)})`
-    const header = `<div>${buyText}<strong>${spec.name}</strong>${costText}</div>`
+    const buyCost = cardSpecCost(spec, 'buy')
+    const actionCost = cardSpecCost(spec, actionCostKindForSpec(spec))
+    const buyText = isZero(buyCost) ? '' : `(${renderCost(buyCost!)})&nbsp;`
+    const costText = isZero(actionCost) ? '' : `&nbsp;(${renderCost(actionCost!)})`
+    const header = `<div>${buyText}<strong>${cardSpecName(spec)}</strong>${costText}</div>`
     const me = `<div class='spec'>${header}${cardText(spec)}</div>`
     const related = (spec.relatedCards || []).map(renderSpec)
     return [me, ...related].join('')
 }
 
 export function buildSpecTooltip(spec: CardSpec): string {
-    const buyStr = !isZero(spec.buyCost) ? `(${renderCost(spec.buyCost!)})` : '---'
-    const costStr = !isZero(spec.fixedCost) ? `(${renderCost(spec.fixedCost!)})` : '---'
-    const header = `<div>---${buyStr} ${spec.name} ${costStr}---</div>`
+    const buyCost = cardSpecCost(spec, 'buy')
+    const actionCost = cardSpecCost(spec, actionCostKindForSpec(spec))
+    const buyStr = !isZero(buyCost) ? `(${renderCost(buyCost!)})` : '---'
+    const costStr = !isZero(actionCost) ? `(${renderCost(actionCost!)})` : '---'
+    const header = `<div>---${buyStr} ${cardSpecName(spec)} ${costStr}---</div>`
     const baseFilling = header + cardText(spec)
     const relatedFilling = (spec.relatedCards || []).map(buildSpecTooltip).join('')
     return baseFilling + relatedFilling
 }
 
 export function renderSpecNoRelated(spec: CardSpec): string {
-    const buyText = isZero(spec.buyCost) ? '' : `(${renderCost(spec.buyCost!)})&nbsp;`
-    const costText = isZero(spec.fixedCost) ? '' : `&nbsp;(${renderCost(spec.fixedCost!)})`
-    const header = `<div>${buyText}<strong>${spec.name}</strong>${costText}</div>`
+    const buyCost = cardSpecCost(spec, 'buy')
+    const actionCost = cardSpecCost(spec, actionCostKindForSpec(spec))
+    const buyText = isZero(buyCost) ? '' : `(${renderCost(buyCost!)})&nbsp;`
+    const costText = isZero(actionCost) ? '' : `&nbsp;(${renderCost(actionCost!)})`
+    const header = `<div>${buyText}<strong>${cardSpecName(spec)}</strong>${costText}</div>`
     const displayText = spec.simpleText
         ? spec.simpleText.map(line => `<div>${line}</div>`).join('')
         : cardText(spec)
