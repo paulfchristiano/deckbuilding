@@ -9,7 +9,7 @@ import { Encounter, registerEncounter, RewardOption,
     GameSetupParams,
     compose,
 } from '../metaLogic.js'
-import { calledShot, delayedGratification, giftBox, inkwell, silverMirror } from './relics.js'
+import { calledShot, delayedGratification, giftBox, inkwell, sacredBark, silverMirror } from './relics.js'
 import { CardSpec, CardUpgrade,
     cardRewards, eventRewards, relicRewards, potionRewards,
     leq,
@@ -441,6 +441,125 @@ export const brewery: Encounter = {
     }
 }
 registerEncounter(brewery)
+
+interface PotionShopData {
+    selectedIndex: number | null
+    offers: CardSpec[]
+}
+
+export const potionShop: Encounter = {
+    name: 'Potion Shop',
+    createInitialData(_metaState: MetaState, generator: Generator): PotionShopData {
+        return {
+            selectedIndex: null,
+            offers: generator.samples(potionRewards, 4),
+        }
+    },
+    getOptions(data: unknown, metaState: MetaState): RewardOption[] {
+        const d = data as PotionShopData
+        const [first, second, third, fourth] = d.offers
+        const bundleDetail = `Potion Shop bundle for 3@: with ${displayName(third)} and ${displayName(fourth)}`
+        return [
+            {
+                label: `Take ${displayName(first)}`,
+                description: 'Take this potion for free.',
+                tooltipSpec: first,
+                disabled: d.selectedIndex !== null,
+                checked: d.selectedIndex === 0,
+                onClick: async () => ({
+                    newData: { ...d, selectedIndex: 0 },
+                    transform: gainPotion(first, { details: 'Potion Shop: free sample' }),
+                })
+            },
+            {
+                label: `Buy ${displayName(second)}`,
+                description: 'Spend 1@ to take this potion.',
+                tooltipSpec: second,
+                disabled: d.selectedIndex !== null || metaState.data.buffer < 1,
+                checked: d.selectedIndex === 1,
+                onClick: async () => ({
+                    newData: { ...d, selectedIndex: 1 },
+                    transform: compose(
+                        addBuffer(-1),
+                        gainPotion(second, { details: 'Potion Shop: paid 1@' })
+                    ),
+                })
+            },
+            {
+                label: `Buy ${displayName(third)} + ${displayName(fourth)}`,
+                description: 'Spend 3@ to take both potions.',
+                disabled: d.selectedIndex !== null || metaState.data.buffer < 3,
+                checked: d.selectedIndex === 2,
+                onClick: async () => ({
+                    newData: { ...d, selectedIndex: 2 },
+                    transform: compose(
+                        addBuffer(-3),
+                        gainPotion(third, { details: bundleDetail }),
+                        gainPotion(fourth, { details: bundleDetail }),
+                    ),
+                })
+            }
+        ]
+    }
+}
+registerEncounter(potionShop)
+
+interface PotionLabData {
+    selectedIndex: number | null
+    offer: CardSpec
+}
+
+export const potionLab: Encounter = {
+    name: 'Potion Lab',
+    createInitialData(_metaState: MetaState, generator: Generator): PotionLabData {
+        return {
+            selectedIndex: null,
+            offer: generator.sample(potionRewards),
+        }
+    },
+    getOptions(data: unknown): RewardOption[] {
+        const d = data as PotionLabData
+        const offerName = displayName(d.offer)
+        return [
+            {
+                label: 'House special',
+                description: `Gain 2 copies of ${offerName}.`,
+                tooltipSpec: d.offer,
+                disabled: d.selectedIndex !== null,
+                checked: d.selectedIndex === 0,
+                onClick: async () => ({
+                    newData: { ...d, selectedIndex: 0 },
+                    transform: compose(
+                        addTimelineAction('Potion Lab: House special', `Gained two ${offerName}`),
+                        gainPotion(d.offer, { silent: true }),
+                        gainPotion(d.offer, { silent: true }),
+                    )
+                })
+            },
+            {
+                label: 'Mirror brew',
+                spec: mirrorBrew,
+                disabled: d.selectedIndex !== null,
+                checked: d.selectedIndex === 1,
+                onClick: async () => ({
+                    newData: { ...d, selectedIndex: 1 },
+                    transform: gainPotion(mirrorBrew, { details: 'Potion Lab' }),
+                })
+            },
+            {
+                label: 'Sacred bark',
+                spec: sacredBark,
+                disabled: d.selectedIndex !== null,
+                checked: d.selectedIndex === 2,
+                onClick: async () => ({
+                    newData: { ...d, selectedIndex: 2 },
+                    transform: gainRelic(sacredBark, { details: 'Potion Lab' }),
+                })
+            }
+        ]
+    }
+}
+registerEncounter(potionLab)
 
 // Variety Pack encounter - pre-generates options at creation time
 export const varietyPack: Encounter = {

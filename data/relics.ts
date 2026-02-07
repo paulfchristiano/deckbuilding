@@ -2,8 +2,11 @@ import {
     CardSpec, Card, State, Transform,
     TypedTrigger,
     gainActions, gainBuys,
+    addCosts,
     create,
     copper,
+    silver,
+    gold,
     ResourceEvent,
     refresh, relicRewards,
     sourceHasName
@@ -136,6 +139,23 @@ export const sacredBark: RelicSpec = {
     }]
 }
 relicRewards.push(sacredBark)
+
+export const discountCard: RelicSpec = {
+    name: 'Discount card',
+    simpleText: ['Silver and Gold cost $2 less to buy (but not less than $1).'],
+    staticReplacers: [{
+        text: 'Silver and Gold cost $2 less to buy, but not less than $1.',
+        kind: 'cost',
+        handles: p =>
+            p.actionKind === 'buy'
+            && (p.card.spec.name === silver.name || p.card.spec.name === gold.name),
+        replace: p => {
+            const reduction = Math.max(Math.min(2, p.cost.coin - 1), 0)
+            return { ...p, cost: addCosts(p.cost, { coin: -reduction }) }
+        }
+    }]
+}
+relicRewards.push(discountCard)
 
 export const singingBowl: RelicSpec = {
     name: 'Singing Bowl',

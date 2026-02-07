@@ -2,7 +2,6 @@
 // This file wires together game logic, meta logic, and UI components.
 
 import './data/index.js' // Ensure data is loaded
-import { callYourShot } from './data/encounters.js'
 
 
 import {
@@ -21,7 +20,7 @@ import { Card, CardSpec, UndoPastBeginning } from './gameLogic.js'
 
 import type { TestSpec } from './metaLogic.js'
 
-let test: TestSpec | null = ['encounter', callYourShot]
+let test: TestSpec | null = null
 
 const SAVE_STORAGE_KEY = 'roguelike.ongoingSaves.v1'
 const MAX_LAUNCHER_SAVES = 10
