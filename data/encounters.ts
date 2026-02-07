@@ -27,6 +27,9 @@ import {
     saleUpgrade,
     sharpenUpgrade,
     streetFairUpgrade,
+    tacticianAgilityUpgrade,
+    tacticianCooperationUpgrade,
+    tacticianStrengthUpgrade,
     transmuteUpgrade,
 } from './upgrades.js'
 
@@ -397,6 +400,66 @@ export const shopkeeper: Encounter = {
     }
 }
 registerEncounter(shopkeeper)
+
+export const tactician: Encounter = {
+    name: 'Tactician',
+    createInitialData: () => ({ selectedIndex: null as number | null }),
+    getOptions(data: unknown, metaState: MetaState): RewardOption[] {
+        const { selectedIndex } = data as { selectedIndex: number | null }
+        const hasEvents = metaState.data.collectedEvents.length > 0
+
+        const chooseUpgrade = async (upgrade: CardUpgrade, index: number, upgradeName: string) => {
+            const event = await metaState.ui.chooseCard(
+                metaState,
+                'Choose an event to upgrade:',
+                [...metaState.data.collectedEvents],
+                true
+            )
+            if (!event) {
+                return { newData: data }
+            }
+            const chosenName = displayName(event)
+            return {
+                newData: { selectedIndex: index },
+                transform: async (state: MetaState) => {
+                    const updated = upgradeCardSpec(event, upgrade)
+                    const events = [...state.data.collectedEvents]
+                    const eventIndex = events.indexOf(event)
+                    if (eventIndex >= 0) {
+                        events[eventIndex] = updated
+                        state.update({ collectedEvents: events })
+                        await addTimelineAction(`Tactician: Upgraded ${chosenName} with ${upgradeName}`)(state)
+                    }
+                }
+            }
+        }
+
+        return [
+            {
+                label: 'Strength',
+                description: 'Strength. Upgrade an event. Whenever you use it, use it again.',
+                disabled: selectedIndex !== null || !hasEvents,
+                checked: selectedIndex === 0,
+                onClick: async () => chooseUpgrade(tacticianStrengthUpgrade, 0, 'Strength'),
+            },
+            {
+                label: 'Agility',
+                description: 'Agility. Upgrade an event. The first three times you use it it costs @ less.',
+                disabled: selectedIndex !== null || !hasEvents,
+                checked: selectedIndex === 1,
+                onClick: async () => chooseUpgrade(tacticianAgilityUpgrade, 1, 'Agility'),
+            },
+            {
+                label: 'Cooperation',
+                description: 'Cooperation. Upgrade an event. After using it, use another event with equal or lesser cost for free.',
+                disabled: selectedIndex !== null || !hasEvents,
+                checked: selectedIndex === 2,
+                onClick: async () => chooseUpgrade(tacticianCooperationUpgrade, 2, 'Cooperation'),
+            }
+        ]
+    }
+}
+registerEncounter(tactician)
 
 interface PotionShopData {
     selectedIndex: number | null

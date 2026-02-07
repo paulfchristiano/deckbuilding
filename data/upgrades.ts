@@ -3,6 +3,7 @@ import {
     CardSpec,
     CardUpgrade,
     State,
+    addToken,
     actionsEffect,
     addCosts,
     afterBuyTrigger,
@@ -14,6 +15,8 @@ import {
     create,
     displayName,
     leq,
+    removeToken,
+    sourceHasName,
     trash,
 } from '../gameLogic.js'
 
@@ -138,6 +141,79 @@ export const saleUpgrade: CardUpgrade = registerUpgrade('sale', {
     }
 })
 
+export const tacticianStrengthUpgrade: CardUpgrade = registerUpgrade('tacticianStrength', {
+    name: name => `${name}+`,
+    staticTriggers: [{
+        kind: 'afterUse',
+        text: 'After using this other than with this effect, use it again.',
+        handles: (e, _state, sourceCard) =>
+            e.card.id === sourceCard!.id && !sourceHasName(e.source, sourceCard!.name),
+        transform: (_e, _state, sourceCard) => async function (state: State) {
+            sourceCard = state.find(sourceCard!)
+            return sourceCard.use(sourceCard)(state)
+        }
+    }]
+})
+
+export const tacticianAgilityUpgrade: CardUpgrade = registerUpgrade('tacticianAgility', {
+    name: name => `${name}+`,
+    staticTriggers: [{
+        kind: 'gameStart',
+        text: 'This starts with 3 reduction tokens on it.',
+        handles: (_e, state, sourceCard) => state.find(sourceCard!).count('reduce') === 0,
+        transform: (_e, _state, sourceCard) => addToken(sourceCard!, 'reduce', 3),
+    }],
+    staticReplacers: [{
+        kind: 'cost',
+        text: 'This costs @ less to use for each reduction token on it. Whenever this reduces a cost, remove that many reduction tokens.',
+        handles: (params, state, sourceCard) =>
+            params.actionKind === 'use' &&
+            params.card.id === sourceCard!.id &&
+            state.find(sourceCard!).count('reduce') > 0,
+        replace: (params, state, sourceCard) => {
+            const available = state.find(sourceCard!).count('reduce')
+            const reduction = Math.min(available, params.cost.energy, 1)
+            if (reduction <= 0) return params
+            return {
+                ...params,
+                cost: {
+                    ...params.cost,
+                    energy: params.cost.energy - reduction,
+                    effects: params.cost.effects.concat([removeToken(params.card, 'reduce', reduction, true)])
+                }
+            }
+        }
+    }]
+})
+
+export const tacticianCooperationUpgrade: CardUpgrade = registerUpgrade('tacticianCooperation', {
+    name: name => `${name}+`,
+    staticTriggers: [{
+        kind: 'afterUse',
+        text: 'After using this other than with this effect, use another event with equal or lesser cost for free.',
+        handles: (e, state, sourceCard) =>
+            e.card.id === sourceCard!.id &&
+            !sourceHasName(e.source, sourceCard!.name) &&
+            state.events.some(event =>
+                event.id !== sourceCard!.id &&
+                leq(event.cost('use', state), sourceCard!.cost('use', state))
+            ),
+        transform: (_e, _state, sourceCard) => async function (state: State) {
+            const source = state.find(sourceCard!)
+            const maxCost = source.cost('use', state)
+            return applyToTarget(
+                target => async function (state: State) {
+                    state = await addToken(target, 'reconfigure', 1)(state)
+                    target = state.find(target)
+                    return target.use(source)(state)
+                },
+                'Choose another event with equal or lesser cost to use for free.',
+                s => s.events.filter(event => event.id !== source.id && leq(event.cost('use', s), maxCost))
+            )(state)
+        },
+    }]
+})
+
 export const allEncounterUpgrades: CardUpgrade[] = [
     polishUpgrade,
     sharpenUpgrade,
@@ -148,6 +224,9 @@ export const allEncounterUpgrades: CardUpgrade[] = [
     bulkPurchaseUpgrade,
     streetFairUpgrade,
     saleUpgrade,
+    tacticianStrengthUpgrade,
+    tacticianAgilityUpgrade,
+    tacticianCooperationUpgrade,
 ]
 
 const upgradesById = new Map<string, CardUpgrade>()
