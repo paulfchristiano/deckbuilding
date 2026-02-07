@@ -1435,7 +1435,7 @@ export type Token = 'charge' | 'cost' | 'mirror' | 'duplicate' | 'twin' | 'syner
     'shelter' | 'echo' | 'decay' | 'burden' | 'pathfinding' | 'neglect' |
     'reuse' | 'polish' | 'priority' | 'parallelize' | 'art' | 'reduce' |
     'mire' | 'onslaught' | 'accelerate' | 'reflect' | 'brigade' | 'bulk' |
-    'pillage' | 'bargain' | 'splay' | 'crown' | 'ferry' | 'ideal' | 'reconfigure' |
+    'pillage' | 'bargain' | 'splay' | 'crown' | 'ferry' | 'ideal' |
     'logistics'
 
 export function discharge(card:Card, n:number): Transform {
@@ -2165,29 +2165,6 @@ export const duplicateRule: Rule = {
     }]
 }
 registerRule(duplicateRule)
-
-// Reconfigure rule: events with reconfigure tokens cost nothing to use once
-export const reconfigureRule: Rule = {
-    name: 'Reconfigure',
-    replacers: [{
-        text: `Events with a reconfigure token cost nothing to use.
-            Whenever this applies, remove a reconfigure token from that event.`,
-        kind: 'cost',
-        handles: (p, state) => p.actionKind == 'use' && state.find(p.card).count('reconfigure') > 0,
-        replace: p => ({
-            ...p,
-            cost: {
-                ...p.cost,
-                coin: 0,
-                energy: 0,
-                actions: 0,
-                buys: 0,
-                effects: p.cost.effects.concat([removeToken(p.card, 'reconfigure', 1, true)])
-            }
-        })
-    }]
-}
-registerRule(reconfigureRule)
 
 function assertNever(x: never): never {
     throw new Error(`Unexpected: ${x}`)

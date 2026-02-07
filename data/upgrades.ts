@@ -25,6 +25,16 @@ function registerUpgrade(id: string, upgrade: CardUpgrade): CardUpgrade {
     return upgrade
 }
 
+function cooperationTargets(state: State, sourceCard: Card): Card[] {
+    const source = state.find(sourceCard)
+    const maxCost = source.cost('use', state)
+    return state.events.filter(event => {
+        if (event.id === source.id) return false
+        if (!leq(event.cost('use', state), maxCost)) return false
+        return event.available('use', state)
+    })
+}
+
 export const polishUpgrade: CardUpgrade = registerUpgrade('polish', {
     name: name => `${name}+`,
     effects: [coinsEffect(1)],
@@ -194,21 +204,13 @@ export const tacticianCooperationUpgrade: CardUpgrade = registerUpgrade('tactici
         handles: (e, state, sourceCard) =>
             e.card.id === sourceCard!.id &&
             !sourceHasName(e.source, sourceCard!.name) &&
-            state.events.some(event =>
-                event.id !== sourceCard!.id &&
-                leq(event.cost('use', state), sourceCard!.cost('use', state))
-            ),
+            cooperationTargets(state, sourceCard!).length > 0,
         transform: (_e, _state, sourceCard) => async function (state: State) {
             const source = state.find(sourceCard!)
-            const maxCost = source.cost('use', state)
             return applyToTarget(
-                target => async function (state: State) {
-                    state = await addToken(target, 'reconfigure', 1)(state)
-                    target = state.find(target)
-                    return target.use(source)(state)
-                },
+                target => target.use(source),
                 'Choose another event with equal or lesser cost to use for free.',
-                s => s.events.filter(event => event.id !== source.id && leq(event.cost('use', s), maxCost))
+                s => cooperationTargets(s, source)
             )(state)
         },
     }]
