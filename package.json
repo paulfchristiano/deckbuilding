@@ -4,12 +4,11 @@
   "description": "A deckbuilding game",
   "type": "module",
   "scripts": {
-    "build": "tsc -p ."
-  },
-  "dependencies": {
-    "md5": "^2.3.0"
+    "build": "tsc -p .",
+    "build:static": "npm run build && node scripts/build-static.mjs"
   },
   "devDependencies": {
+    "esbuild": "^0.25.0",
     "typescript": "^5.4.5"
   },
   "repository": {

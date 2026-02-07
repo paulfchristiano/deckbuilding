@@ -1,0 +1,1028 @@
+<html>
+<head>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    <style>
+#rightBox, #resources, #choicePrompt, .header, #requireLink, #pickLink,
+.helpLine, .sizeDescription, .homeLine {
+    font-size: 1.25em;
+    user-select: none;
+}
+#seedDisplay {
+    position: fixed;
+    right: 0;
+    bottom: 0;
+    font-size: 1.2em;
+    color: rgba(0, 0, 0, 0.35);
+    user-select: text;
+    z-index: 5;
+}
+.logTypes {
+    font-size: 1em;
+}
+.logLine {
+    font-size: 1em;
+    cursor:pointer;
+}
+.homeLine {
+    max-width: 30em;
+    margin-bottom: 1em;
+}
+#rules {
+    display:none;
+}
+#rules[active='true'] {
+    display:block;
+}
+.card, .option {
+    font-size: 1em;
+    border: 2px solid;
+    border-radius: 5px;
+    padding-left: 3px;
+    padding-right: 3px;
+    padding-top: 3px;
+    padding-bottom: 3px;
+    margin-right: 3px;
+    margin-top: 3px;
+    display: inline-block;
+    cursor:default;
+    text-align: center;
+    position: relative;
+    background: white;
+    user-select: none;
+}
+.card.replay-used-potion {
+    border-color: #d22;
+    box-shadow: 0 0 0 2px rgba(210, 34, 34, 0.25) inset;
+}
+.spec {
+    display:flex;
+    flex-direction: column;
+    justify-content: center;
+    font-size: 1em;
+    border: 2px solid;
+    border-radius: 5px;
+    padding-left: 3px;
+    padding-right: 3px;
+    padding-top: 3px;
+    padding-bottom: 3px;
+    margin-right: 3px;
+    margin-top: 3px;
+    width: 15em;
+    cursor:default;
+    text-align: center;
+    position: relative;
+}
+.resource {
+    margin-right:1em;
+}
+.option {
+    max-width: 20em;
+    min-width: 3em;
+}
+#scoreSubmitter{
+    height: 3em;
+}
+#loginDialog{
+    height: 4em;
+}
+input {
+    margin-left: 1em;
+}
+.dialogBox {
+    position:absolute;
+    visibility:hidden;
+    top:5em;
+    left:5em;
+    font-size: 1.5em;
+    border: 3px solid;
+    border-radius: 6px;
+    width: 15em;
+    padding: 1em;
+    background: white;
+    z-index:3;
+}
+.dialogBox[active='true'] {
+    visibility:visible;
+}
+#kingdomView {
+    flex-direction: row;
+    flex-wrap: wrap;
+    display:flex;
+    margin-top: 1em;
+    margin-bottom: 1em;
+    max-width: 65em;
+}
+#tutorialText {
+    padding-bottom: 1em;
+}
+#tutorialDialog {
+    position:absolute;
+    visibility:hidden;
+    top:10em;
+    left:5em;
+    font-size: 1.5em;
+    width: 15em;
+    border: 3px solid;
+    border-radius: 6px;
+    padding: 1em;
+    background: white;
+    z-index:3;
+}
+#tutorialDialog[active='true'] {
+    visibility:visible;
+}
+#username {
+    margin-left: 0.5em;
+    margin-right: 0.5em;
+    padding: 0.1em;
+    padding-top: 0.3em;
+    padding-bottom: 0.3em;
+    width: 10em;
+    font-size: 1em;
+    height: 1.2em;
+    border:none;
+}
+#link {
+    margin-left: 0.5em;
+    margin-right: 0.5em;
+    padding: 0.1em;
+    padding-top: 0.3em;
+    padding-bottom: 0.3em;
+    width: 10em;
+    font-size: 1em;
+    height: 1.5em;
+    border:none;
+}
+#resolving {
+    display:inline-block;
+}
+#choicePrompt {
+    position:absolute;
+    display:inline-block;
+    top:33%;
+    padding-left: 3px;
+}
+.card[shadow='true'] {
+    color: grey;
+    border-color: grey;
+}
+[tick='1'] {
+    background-color: rgba(230, 243, 255, 1.0);
+}
+[tick='2'] {
+    background-color: rgba(230, 255, 243, 1.0);
+}
+[tick='3'] {
+    background-color: rgba(255, 230, 243, 1.0);
+}
+[choosable] {
+    background-color: rgba(255, 240, 224, 1.0);
+    cursor:pointer;
+}
+[tick='1'][choosable] {
+    background: linear-gradient(45deg, rgba(255, 240, 224, 1.0) 0%, rgba(230, 243, 255, 1.0) 100%);
+}
+[tick='2'][choosable] {
+    background: linear-gradient(45deg, rgba(255, 240, 224, 1.0) 0%, rgba(230, 255, 243, 1.0) 100%);
+}
+[tick='3'][choosable] {
+    background: linear-gradient(45deg, rgba(255, 240, 224, 1.0) 0%, rgba(255, 230, 243, 1.0) 100%);
+}
+[chosen=true] {
+    background-color: rgba(255, 216, 177, 1.0);
+}
+[tick='1'][chosen='true'] {
+    background: linear-gradient(45deg, rgba(255, 240, 224, 1.0) 0%, rgba(230, 243, 255, 1.0) 100%);
+}
+[tick='2'][chosen='true'] {
+    background: linear-gradient(45deg, rgba(255, 240, 224, 1.0) 0%, rgba(230, 255, 243, 1.0) 100%);
+}
+[tick='3'][chosen='true'] {
+    background: linear-gradient(45deg, rgba(255, 240, 224, 1.0) 0%, rgba(230, 255, 243, 1.0) 100%);
+}
+.pickorder, .cardcount {
+    position: absolute;
+    border: 1px solid;
+    font-size: 0.8em;
+    margin: auto;
+    text-align: center;
+    border-radius: 50%;
+    width: 1.5em;
+    height: 1.5em;
+    color: black;
+    background: inherit;
+}
+.pickorder {
+    top: -0.5em;
+    right: -0.5em;
+    z-index: 3;
+}
+.cardcount {
+    right: -0.5em;
+    bottom: -0.5em;
+    z-index: 2;
+}
+.zonename {
+    cursor:pointer;
+}
+.zone {
+    min-height: 3.1em;
+    max-width: 45em;
+}
+#undoArea {
+    min-height: 1em;
+}
+#rightBox {
+    float:right;
+    position:relative;
+    z-index: 1;
+    text-align:right;
+}
+#toparea {
+    position: relative;
+}
+#options {
+    min-height: 2em;
+}
+.card {
+    text-align:center
+}
+.cardbody {
+    display: inline-block;
+
+}
+
+.tooltip {
+  visibility: hidden;
+  width: 20em;
+  background-color: black;
+  color: #fff;
+  text-align: center;
+  border-radius: 6px;
+  padding: 5px;
+  position: absolute;
+  z-index: 4;
+  top: 3em;
+  left: 0px;
+}
+
+.macroDeleteMenuOverlay {
+    position: fixed;
+    z-index: 25;
+    background: linear-gradient(180deg, #ffffff 0%, #fff6f6 100%);
+    border: 1px solid #d7b3b3;
+    border-radius: 8px;
+    padding: 0.35em;
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+}
+
+.macroDeleteButton {
+    font-size: 0.95em;
+    border: 1px solid #c34747;
+    border-radius: 6px;
+    background: linear-gradient(180deg, #fff8f8 0%, #ffecec 100%);
+    color: #8b2424;
+    padding: 0.25em 0.7em;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.macroDeleteButton:hover {
+    background: linear-gradient(180deg, #fff1f1 0%, #ffe1e1 100%);
+}
+
+
+@media (hover: hover) {
+    /* In-game cards: show simple tooltip normally, full tooltip with shift */
+    .card:hover .tooltip-simple {
+        visibility: visible;
+        transition-delay: 0.5s;
+    }
+    .shift-held .card:hover .tooltip-simple {
+        visibility: hidden;
+    }
+    .shift-held .card:hover .tooltip-full {
+        visibility: visible;
+        transition-delay: 0s;
+    }
+
+    /* Card selector and deck view: only show tooltip with shift */
+    .shift-held .spec:hover .tooltip {
+        visibility: visible;
+        transition-delay: 0s;
+    }
+
+    /* Option buttons (challenge/play button): show tooltip on hover */
+    .option:hover .tooltip,
+    .pathPlay:hover .tooltip,
+    .progressCircle:hover .tooltip,
+    .progressScore:hover .tooltip,
+    .rewardLabel:hover .tooltip,
+    .pathReward:hover .tooltip {
+        visibility: visible;
+        transition-delay: 0.3s;
+    }
+}
+.hotkey {
+  font-family: "Lucida Console", Courier, monospace;
+  color: gray;
+  display: inline-block;
+}
+.token[type="1"] {
+    color: orange;
+}
+.token[type="2"] {
+    color: red;
+}
+.token[type="3"] {
+    color: lightblue;
+}
+
+/* Inline reward rows */
+.rewardRow {
+    display: flex;
+    flex-direction: row;
+    align-items: flex-start;
+    margin-bottom: 1.5em;
+    gap: 1em;
+}
+
+.rewardLabel {
+    font-weight: bold;
+    font-size: 1.1em;
+    min-width: 8em;
+    padding-top: 0.3em;
+    position: relative;
+}
+
+.rewardOptions {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 0.75em;
+    align-items: flex-start;
+}
+
+.rewardOption {
+    position: relative;
+}
+
+.rewardOption[disabled] {
+    opacity: 0.5;
+    cursor: default;
+}
+
+.rewardOption.checked {
+    border-color: green;
+    background-color: rgba(200, 255, 200, 0.5);
+}
+
+.rewardOption .checkmark {
+    color: green;
+    font-weight: bold;
+    position: absolute;
+    right: -0.35em;
+    bottom: -0.35em;
+    font-size: 0.85em;
+    border: 1px solid green;
+    border-radius: 50%;
+    width: 1.2em;
+    height: 1.2em;
+    line-height: 1.1em;
+    text-align: center;
+    background: white;
+    box-sizing: border-box;
+}
+
+.rewardOption .optionDesc {
+    font-size: 1em;
+    color: #666;
+}
+
+/* Text-based options (encounters) - match card spec sizing */
+.rewardOption.option {
+    font-size: 1em;
+    padding: 3px;
+    width: 15em;
+    min-width: auto;
+    text-align: center;
+}
+
+.rewardOption.option.rewardOptionCompact {
+    width: auto;
+    min-width: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding-left: 0.7em;
+    padding-right: 0.7em;
+}
+
+.rewardOptionNameText {
+    color: #000;
+    font-weight: bold;
+    margin-bottom: 0.25em;
+}
+
+.rewardOptionDescriptionText {
+    color: #666;
+    font-weight: normal;
+}
+
+</style>
+    <title>Roguelike Deckbuilder</title>
+    <style>
+        [hidden] {
+            display: none !important;
+        }
+        #stageScreen {
+            display: flex;
+            min-height: 80vh;
+        }
+        #progressSidebar {
+            width: 60px;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+        }
+        #progressLine {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0;
+            position: relative;
+            height: fit-content;
+        }
+        #progressLine::before {
+            content: '';
+            position: absolute;
+            top: 22px;
+            bottom: 22px;
+            width: 2px;
+            background: #ccc;
+            z-index: 0;
+        }
+        .progressCircle {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #ccc;
+            border: 2px solid #ccc;
+            margin: 10px 0;
+            z-index: 1;
+            position: relative;
+        }
+        .progressScore {
+            position: absolute;
+            left: 30px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 0.8em;
+            color: #666;
+            white-space: nowrap;
+        }
+        .progressCircle.completed {
+            background: #4a4;
+            border-color: #4a4;
+        }
+        .progressCircle.current {
+            background: #fff;
+            border-color: #44a;
+            border-width: 3px;
+        }
+        .progressCircle.replayable {
+            cursor: pointer;
+        }
+        .progressCircle.replayable:hover {
+            border-color: #c33;
+            box-shadow: 0 0 0 2px rgba(200, 50, 50, 0.2);
+        }
+        .progressCircle.replaying {
+            box-shadow: 0 0 0 3px rgba(128, 0, 255, 0.8);
+        }
+        #stageContent {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+        }
+        .stageSection {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            align-items: center;
+        }
+        .gameRow {
+            display: flex;
+            align-items: flex-end;
+            justify-content: center;
+            position: relative;
+            gap: 20px;
+        }
+        #stageScreen #challengeButtons .option {
+            cursor: pointer;
+            font-size: 1.5em;
+            padding: 15px 30px;
+            min-width: 200px;
+        }
+        #stageScreen #challengeButtons .option[disabled] {
+            cursor: default;
+            opacity: 0.5;
+        }
+        #kingdomInfo {
+            color: #666;
+            font-size: 0.9em;
+            margin-top: 5px;
+        }
+        #cardPickerDialog {
+            width: auto;
+            max-width: 90vw;
+        }
+        #cardPickerOptions {
+            display: flex;
+            flex-direction: row;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        #cardPickerOptions .spec {
+            cursor: pointer;
+        }
+        #cardPickerOptions .spec:hover {
+            border-color: #44a;
+        }
+        #encounterDialog {
+            width: auto;
+            max-width: 90vw;
+            min-width: 300px;
+        }
+        #encounterOptions {
+            display: flex;
+            flex-direction: row;
+            flex-wrap: wrap;
+            gap: 15px;
+            justify-content: center;
+        }
+        .encounterOption {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 5px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .encounterOption:hover {
+            background: #f5f5f5;
+        }
+        .encounterOptionName {
+            font-size: 1em;
+        }
+        .encounterOptionDesc {
+            font-size: 1em;
+            color: #666;
+            text-align: center;
+        }
+        .encounterOptionSubtitle {
+            font-size: 1em;
+            color: #666;
+            text-align: center;
+            margin-top: 5px;
+        }
+        #deckIcon {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            font-size: 1.5em;
+            cursor: pointer;
+            padding: 5px 10px;
+            background: white;
+            border: 2px solid #ccc;
+            border-radius: 5px;
+            z-index: 10;
+        }
+        #deckIcon:hover {
+            border-color: #44a;
+        }
+        #bufferDisplay {
+            position: fixed;
+            top: 10px;
+            right: 110px;
+            font-size: 1.5em;
+            padding: 5px 10px;
+            background: white;
+            border: 2px solid #ccc;
+            border-radius: 5px;
+            z-index: 10;
+        }
+        #metaUndoArea, #metaUndoAreaPath {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        .metaUndoBtn {
+            font-size: 0.9em !important;
+            padding: 5px 15px !important;
+            min-width: auto !important;
+        }
+        .metaUndoBtn[disabled] {
+            opacity: 0.4;
+            cursor: default;
+        }
+        #deckDialog {
+            top: 8.5em;
+            left: 2vw;
+            width: 96vw;
+            max-width: 96vw;
+            max-height: calc(100vh - 10em);
+            overflow-y: auto;
+            overflow-x: hidden;
+            font-size: 1em;
+            box-sizing: border-box;
+        }
+        #deckContents {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        .deckSection {
+            display: flex;
+            flex-direction: column;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 8px;
+            background: #fcfcfd;
+        }
+        .deckSectionHeader {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 6px;
+        }
+        .deckSectionItems {
+            display: flex;
+            flex-direction: row;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+        #victoryScreen {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 80vh;
+            gap: 20px;
+        }
+        #victoryScreen .option {
+            cursor: pointer;
+            font-size: 1.5em;
+            padding: 15px 30px;
+        }
+        #gameOverScreen {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 80vh;
+            gap: 20px;
+        }
+        #gameOverScreen h1 {
+            color: red;
+        }
+        #gameOverScreen .option {
+            cursor: pointer;
+            font-size: 1.5em;
+            padding: 15px 30px;
+        }
+        /* Path Selection Screen */
+        #pathSelectionScreen {
+            display: flex;
+            min-height: 80vh;
+        }
+        #progressSidebarPath {
+            width: 60px;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+        }
+        #progressLinePath {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0;
+            position: relative;
+            height: fit-content;
+        }
+        #progressLinePath::before {
+            content: '';
+            position: absolute;
+            top: 22px;
+            bottom: 22px;
+            width: 2px;
+            background: #ccc;
+            z-index: 0;
+        }
+        #pathContent {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+        }
+        #pathTitle {
+            margin-bottom: 20px;
+        }
+        #pathColumns {
+            display: flex;
+            gap: 40px;
+            justify-content: center;
+            width: 100%;
+        }
+        .pathColumn {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 15px;
+            padding: 20px;
+            border: 2px solid #ccc;
+            border-radius: 10px;
+            min-width: 250px;
+        }
+        .pathColumn:hover {
+            border-color: #44a;
+        }
+        .pathChoice {
+            cursor: pointer;
+            font-size: 1.3em;
+            padding: 10px 25px;
+        }
+        .pathRewards {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            align-items: center;
+        }
+        .pathReward {
+            padding: 5px 10px;
+            background: #f5f5f5;
+            border-radius: 5px;
+            font-size: 1em;
+        }
+        .pathPlay {
+            margin-top: 10px;
+            font-size: 1.1em;
+            color: #444;
+            text-align: center;
+            position: relative;
+        }
+        /* Game container with sidebar */
+        #gameContainer {
+            display: flex;
+        }
+        #progressSidebarGame {
+            width: 60px;
+            padding: 20px;
+            margin-right: 15px;
+            display: flex;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+        #progressLineGame {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0;
+            position: relative;
+            height: fit-content;
+        }
+        #progressLineGame::before {
+            content: '';
+            position: absolute;
+            top: 22px;
+            bottom: 22px;
+            width: 2px;
+            background: #ccc;
+            z-index: 0;
+        }
+        #gameContent {
+            flex: 1;
+        }
+    </style>
+</head>
+
+<body>
+
+<div id="stageScreen">
+    <div id="progressSidebar">
+        <div id="progressLine">
+            <div class="progressCircle" data-stage="0"></div>
+            <div class="progressCircle" data-stage="1"></div>
+            <div class="progressCircle" data-stage="2"></div>
+            <div class="progressCircle" data-stage="3"></div>
+            <div class="progressCircle" data-stage="4"></div>
+            <div class="progressCircle" data-stage="5"></div>
+            <div class="progressCircle" data-stage="6"></div>
+            <div class="progressCircle" data-stage="7"></div>
+        </div>
+    </div>
+    <div id="stageContent">
+        <div id="metaUndoArea">
+            <span class="option metaUndoBtn" id="metaUndo" choosable><div class="hotkey">z</div> Undo</span>
+            <span class="option metaUndoBtn" id="metaRedo" choosable><div class="hotkey">Z</div> Redo</span>
+        </div>
+        <h2 id="stageTitle">Stage 1</h2>
+        <div class="stageSection" id="rewardButtons">
+            <!-- Reward buttons are dynamically generated, including Debug -->
+        </div>
+        <div class="stageSection" style="margin-top: 20px;">
+            <div class="gameRow" id="challengeButtons">
+                <!-- Challenge buttons are dynamically generated -->
+            </div>
+            <div id="kingdomInfo"></div>
+        </div>
+    </div>
+</div>
+
+<div id="pathSelectionScreen" hidden>
+    <div id="progressSidebarPath">
+        <div id="progressLinePath">
+            <div class="progressCircle" data-stage="0"></div>
+            <div class="progressCircle" data-stage="1"></div>
+            <div class="progressCircle" data-stage="2"></div>
+            <div class="progressCircle" data-stage="3"></div>
+            <div class="progressCircle" data-stage="4"></div>
+            <div class="progressCircle" data-stage="5"></div>
+            <div class="progressCircle" data-stage="6"></div>
+            <div class="progressCircle" data-stage="7"></div>
+        </div>
+    </div>
+    <div id="pathContent">
+        <div id="metaUndoAreaPath">
+            <span class="option metaUndoBtn" id="metaUndoPath" choosable><div class="hotkey">z</div> Undo</span>
+            <span class="option metaUndoBtn" id="metaRedoPath" choosable><div class="hotkey">Z</div> Redo</span>
+        </div>
+        <h2 id="pathTitle">Choose Your Path</h2>
+        <div id="pathColumns">
+            <div class="pathColumn" id="leftPath">
+                <span class="option pathChoice" id="goLeft" choosable>Go Left</span>
+                <div class="pathRewards" id="leftRewards"></div>
+                <div class="pathPlay" id="leftPlay"></div>
+            </div>
+            <div class="pathColumn" id="rightPath">
+                <span class="option pathChoice" id="goRight" choosable>Go Right</span>
+                <div class="pathRewards" id="rightRewards"></div>
+                <div class="pathPlay" id="rightPlay"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="bufferDisplay"></div>
+<div id="deckIcon">Deck</div>
+<div id="seedDisplay"></div>
+
+<div id="cardPickerDialog" class="dialogBox">
+    <div id="cardPickerTitle">Choose a card:</div>
+    <div id="cardPickerOptions"></div>
+    <div style="margin-top: 10px;">
+        <span class="option" id="cardPickerCancel" choosable>Cancel</span>
+    </div>
+</div>
+
+<div id="encounterDialog" class="dialogBox">
+    <h3 id="encounterTitle">Encounter</h3>
+    <div id="encounterDescription" style="margin-bottom: 15px; color: #666;"></div>
+    <div id="encounterOptions"></div>
+    <div style="margin-top: 15px;">
+        <span class="option" id="encounterCancel" choosable>Cancel</span>
+    </div>
+</div>
+
+<div id="deckDialog" class="dialogBox">
+    <div><strong>Your Deck</strong></div>
+    <div id="deckContents"></div>
+    <div style="margin-top: 10px;">
+        <span class="option" id="deckClose" choosable>Close</span>
+    </div>
+</div>
+
+<div id="victoryScreen" hidden>
+    <h1>Congratulations!</h1>
+    <p>You completed all 8 stages!</p>
+    <span class="option" id="restartGame" choosable>Play Again</span>
+</div>
+
+<div id="gameOverScreen" hidden>
+    <h1>Game Over</h1>
+    <p>Your buffer went below zero!</p>
+    <span class="option" id="gameOverRestart" choosable>Try Again</span>
+</div>
+
+<div id="gameContainer" hidden>
+
+<div id="progressSidebarGame">
+    <div id="progressLineGame">
+        <div class="progressCircle" data-stage="0"></div>
+        <div class="progressCircle" data-stage="1"></div>
+        <div class="progressCircle" data-stage="2"></div>
+        <div class="progressCircle" data-stage="3"></div>
+        <div class="progressCircle" data-stage="4"></div>
+        <div class="progressCircle" data-stage="5"></div>
+        <div class="progressCircle" data-stage="6"></div>
+        <div class="progressCircle" data-stage="7"></div>
+    </div>
+</div>
+
+<div id="gameContent">
+
+<div id='tutorialDialog'>
+</div>
+
+<div>
+    <div id='rightBox'>
+        <div id='best'></div>
+    </div>
+    <div id='undoArea'> </div>
+</div>
+<div id='kingdomViewSpot'></div>
+<div id='macroSpot'></div>
+<div> &nbsp; </div>
+<div class='header' zone='potions'> <span class='zonename'>Potions:</span> </div>
+<div id='potions' class='zone'> </div>
+<div> &nbsp; </div>
+<div class='header' zone='relics'> <span class='zonename'>Relics:</span> </div>
+<div id='relics' class='zone'> </div>
+<div> &nbsp; </div>
+<div class='header' id='resolvingHeader'> Resolving: </div>
+<div id='toparea'>
+    <div id='resolving' class='zone'> </div>
+    <div id='choicePrompt'></div>
+</div>
+<div id='options'></div>
+
+<div id='resources'>
+    Actions: <span id='actions' class='resource'></span>
+    Buys: <span id='buys' class='resource'></span>
+    $: <span id='coin' class='resource'></span>
+    @: <span id='energy' class='resource'></span>
+    vp: <span id='points' class='resource'></span>
+</div>
+<div> &nbsp; </div>
+<div class='header' zone='events'> <span class='zonename'>Events:</span> </div>
+<div id='events' class='zone'> </div>
+
+
+<div> &nbsp; </div>
+<div class='header' zone='supply'> <span class='zonename'>Supplies:</span> </div>
+<div id='supply' class='zone'> </div>
+
+<div> &nbsp; </div>
+<div class='header' zone='hand'> <span class='zonename'>Hand (<span id='handsize'></span> cards):</span> </div>
+<div id='hand' class='zone'> </div>
+
+<div> &nbsp; </div>
+<div class='header' zone='play'> <span class='zonename'>Play (<span id='playsize'></span> cards):</span>  </div>
+<div id='play' class='zone'> </div>
+
+
+<div> &nbsp; </div>
+<div class='header' zone='discard'> <span class='zonename'>Discard (<span id='discardsize'></span> cards):</span>  </div>
+<div id='discard' class='zone'> </div>
+
+<div> &nbsp; </div>
+<div class='header'>
+    History:
+    <span class='logTypes'>
+        <input type='radio' name='logType' value='energy' checked='checked'>
+            @
+        <input type='radio' name='logType' value='costs'> costs
+        <input type='radio' name='logType' value='acts'> acts
+        <input type='radio' name='logType' value='all'> all
+    </span>
+</div>
+<div> &nbsp; </div>
+<div id='log'> </div>
+
+</div>
+</div>
+
+
+<script defer src="app.js"></script>
+</body>
+
+</html>
