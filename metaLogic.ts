@@ -3,6 +3,7 @@
 
 import { CardSpec, Card, State, vpModes,
     TypedTrigger, TypedReplacer,
+    CardUpgrade,
     Boon, VPMode,
     boons,
     PlaceName,
@@ -17,7 +18,6 @@ import { getSpecByName } from './registry.js'
 
 import { buildSpecTooltip } from './cardRendering.js'
 import { makeBottledCardPotion, makeBottledEventPotion, makeCardInABoxRelic } from './data/specialSpecs.js'
-import { getEncounterUpgradeById } from './data/encounters.js'
 
 // ----------------------------- MetaUI Interface
 
@@ -248,6 +248,7 @@ interface EncounterRegistration {
 }
 
 const encounterRegistry: EncounterRegistration[] = []
+const encounterUpgradeRegistry = new Map<string, CardUpgrade>()
 
 export function registerEncounter(
     encounter: Encounter,
@@ -258,6 +259,14 @@ export function registerEncounter(
         minStage: options?.minStage ?? 0,
         maxStage: options?.maxStage ?? 7
     })
+}
+
+export function registerEncounterUpgrade(id: string, upgrade: CardUpgrade): void {
+    encounterUpgradeRegistry.set(id, upgrade)
+}
+
+export function getEncounterUpgradeById(id: string): CardUpgrade | null {
+    return encounterUpgradeRegistry.get(id) || null
 }
 
 export function getEncounterState(state: MetaState, generator: Generator, stage: number): EncounterRewardState {

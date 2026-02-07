@@ -8,6 +8,7 @@ import { Encounter, registerEncounter, RewardOption,
     RelicSpec,
     GameSetupParams,
     compose,
+    registerEncounterUpgrade,
 } from '../metaLogic.js'
 import { calledShot, delayedGratification, emptyBottle, giftBox, inkwell, sacredBark, silverMirror } from './relics.js'
 import { CardSpec, CardUpgrade,
@@ -28,6 +29,7 @@ import { makeBottledCardPotion, makeBottledEventPotion } from './specialSpecs.js
 
 function registerUpgrade(id: string, upgrade: CardUpgrade): CardUpgrade {
     upgrade.id = id
+    registerEncounterUpgrade(id, upgrade)
     return upgrade
 }
 
@@ -236,16 +238,6 @@ export const allEncounterUpgrades: CardUpgrade[] = [
     tacticianAgilityUpgrade,
     tacticianCooperationUpgrade,
 ]
-
-const upgradesById = new Map<string, CardUpgrade>()
-for (const upgrade of allEncounterUpgrades) {
-    if (!upgrade.id) continue
-    upgradesById.set(upgrade.id, upgrade)
-}
-
-export function getEncounterUpgradeById(id: string): CardUpgrade | null {
-    return upgradesById.get(id) || null
-}
 
 
 // ----------------------------- Helper Functions
