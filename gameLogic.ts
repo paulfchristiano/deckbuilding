@@ -163,6 +163,10 @@ export function sourceHasName(s:Source, name:string): boolean {
     return s.name == name
 }
 
+function renderCardName(card: Card): string {
+    return displayName(card.spec)
+}
+
 export interface CardUpdate {
     ticks?: number[];
     place?: PlaceName;
@@ -185,10 +189,10 @@ export class Card {
         this.charge = this.count('charge')
     }
     get name(): string {
-        return displayName(this.spec)
+        return this.spec.name
     }
     toString():string {
-        return this.name
+        return renderCardName(this)
     }
     update(newValues: CardUpdate): Card {
         return new Card(
@@ -261,7 +265,7 @@ export class Card {
     payCost(kind:ActionKind): Transform {
         const card = this
         return async function(state:State): Promise<State> {
-            state = state.log(`Paying for ${card.name}`)
+            state = state.log(`Paying for ${renderCardName(card)}`)
             const cost:Cost = card.cost(kind, state)
             return withTracking(
                 payCost(cost, card),
@@ -289,7 +293,7 @@ export class Card {
                 case 'play':
                     trackingSpec = {kind:'none', card:card}
                     gameEvent = {kind:'play', card:card, source:source}
-                    state = state.log(`Playing ${card.name}`)
+                    state = state.log(`Playing ${renderCardName(card)}`)
                     state = state.indent()
                     state = await move(card, 'resolving')(state)
                     state = state.unindent()
@@ -297,7 +301,7 @@ export class Card {
                 case 'potion':
                     trackingSpec = {kind:'none', card:card}
                     gameEvent = {kind:'play', card:card, source:source}
-                    state = state.log(`Drinking ${card.name}`)
+                    state = state.log(`Drinking ${renderCardName(card)}`)
                     state = state.indent()
                     state = await move(card, 'resolving')(state)
                     state = state.unindent()
@@ -305,17 +309,17 @@ export class Card {
                 case 'buy':
                     trackingSpec = {kind:'buying', card:card}
                     gameEvent = {kind:'buy', card:card, source:source}
-                    state = state.log(`Buying ${card.name}`)
+                    state = state.log(`Buying ${renderCardName(card)}`)
                     break
                 case 'use':
                     trackingSpec = {kind: 'effect', card:card}
                     gameEvent = {kind:'use', card:card, source:source}
-                    state = state.log(`Using ${card.name}`)
+                    state = state.log(`Using ${renderCardName(card)}`)
                     break
                 case 'activate':
                     trackingSpec = {kind: 'ability', card:card}
                     gameEvent = {kind:'activate', card:card, source:source}
-                    state = state.log(`Activating ${card.name}`)
+                    state = state.log(`Activating ${renderCardName(card)}`)
                     break
                 default: return assertNever(kind)
             }
@@ -1231,9 +1235,9 @@ export function move(card:Card, toZone:PlaceName, logged:boolean=false): Transfo
             card = params.card
             state = state.remove(card)
             if (toZone == 'void') {
-                if (!logged) state = state.log(`Trashed ${card.name} from ${card.place}`)
+                if (!logged) state = state.log(`Trashed ${renderCardName(card)} from ${card.place}`)
             } else {
-                if (!logged) state = state.log(`Moved ${card.name} from ${card.place} to ${toZone}`)
+                if (!logged) state = state.log(`Moved ${renderCardName(card)} from ${card.place} to ${toZone}`)
             }
             state = state.addToZone(card, toZone)
             state = await trigger({kind:'move', fromZone:card.place, toZone:toZone, card:card})(state)
@@ -1462,8 +1466,8 @@ export function charge(card:Card, n:number=1, cost:boolean=false): Transform {
         const newCharge:number = Math.max(oldCharge+n, 0)
         state = state.apply(card => card.setTokens('charge', newCharge), card)
         state = logChange(state, 'charge token', newCharge - oldCharge,
-            ['Added ', ` to ${card.name}`],
-            ['Removed ', ` from ${card.name}`])
+            ['Added ', ` to ${renderCardName(card)}`],
+            ['Removed ', ` from ${renderCardName(card)}`])
         return trigger({kind:'gainCharge', card:card,
             oldCharge:oldCharge, newCharge:newCharge, cost:cost})(state)
     }
@@ -1471,8 +1475,8 @@ export function charge(card:Card, n:number=1, cost:boolean=false): Transform {
 
 function logTokenChange(state:State, card:Card, token:Token, n:number): State {
     return logChange(state, `${token} token`, n,
-        ['Added ', ` to ${card.name}`],
-        ['Removed ', ` from ${card.name}`])
+        ['Added ', ` to ${renderCardName(card)}`],
+        ['Removed ', ` from ${renderCardName(card)}`])
 }
 
 export function addToken(card:Card, token:Token, n:number=1): Transform {
@@ -1750,14 +1754,14 @@ export function noop(state:State): State {
 
 function logAct(state:State, act:ActionKind, card:Card): State {
     switch (act) {
-        case 'play': return state.log(`Played ${card.name}`, 'acts')
+        case 'play': return state.log(`Played ${renderCardName(card)}`, 'acts')
         case 'buy':
             //state = state.log(card.name, 'buys')
-            return state.log(`Bought ${card.name}`, 'acts')
+            return state.log(`Bought ${renderCardName(card)}`, 'acts')
         case 'use':
             //state = state.log(card.name, 'buys')
-            return state.log(`Used ${card.name}`, 'acts')
-        case 'potion': return state.log(`Drank ${card.name}`, 'acts')
+            return state.log(`Used ${renderCardName(card)}`, 'acts')
+        case 'potion': return state.log(`Drank ${renderCardName(card)}`, 'acts')
         case 'activate': return state
         default: assertNever(act)
     }
@@ -1828,7 +1832,7 @@ export function toComp<T>(key:(x:T) => number): Comp<T> {
     return (a, b) => key(a) - key(b)
 }
 export function nameComp(a:CardSpec, b:CardSpec): number {
-    return displayName(a).localeCompare(displayName(b), 'en')
+    return a.name.localeCompare(b.name, 'en')
 }
 function lexical<T>(comps:Comp<T>[]): Comp<T> {
     return function(a:T, b:T){
@@ -2101,7 +2105,7 @@ export const hagglerRule: Rule = {
                     state = state.startTicker(haggler)
                     lastCard = state.find(lastCard)
                     let target:Card|null; [state, target] = await choice(state,
-                        `Choose a cheaper card than ${lastCard.name} to buy.`,
+                        `Choose a cheaper card than ${renderCardName(lastCard)} to buy.`,
                          state.supply.filter(c => leq(
                             addCosts(c.cost('buy', state), {coin:1}),
                             lastCard.cost('buy', state)
@@ -2193,7 +2197,7 @@ export function countDistinctNames(xs:Card[]): number {
 
 
 function showCards(cards:Card[]): string {
-    return cards.map((card:Card) => card.name).join(', ')
+    return cards.map((card:Card) => renderCardName(card)).join(', ')
 }
 
 export function moveMany(cards:Card[], toZone:PlaceName, logged:boolean=false): Transform {
@@ -2788,7 +2792,7 @@ export function trashThis():Effect {
 
 function makeCard(card:CardSpec, cost:Cost, selfdestruct:boolean=false):CardSpec  {
     const effects:Effect[] = [{
-        text: [`Create ${a(card.name)} in play.`],
+        text: [`Create ${a(displayName(card))} in play.`],
         transform: () => create(card, 'play')
     }]
     if (selfdestruct) effects.push(trashThis())

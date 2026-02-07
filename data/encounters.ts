@@ -685,7 +685,7 @@ const tradingPost: Encounter = {
 
         return [
             {
-                label: `Trade Card for ${d.offerCard.name}`,
+                label: `Trade Card for ${displayName(d.offerCard)}`,
                 description: 'Give up one of your cards to receive this one.',
                 tooltipSpec: d.offerCard,
                 disabled: d.cardTraded || metaState.data.collectedCards.length === 0,
@@ -710,7 +710,7 @@ const tradingPost: Encounter = {
                 }
             },
             {
-                label: `Trade Event for ${d.offerEvent.name}`,
+                label: `Trade Event for ${displayName(d.offerEvent)}`,
                 description: 'Give up one of your events to receive this one.',
                 tooltipSpec: d.offerEvent,
                 disabled: d.eventTraded || metaState.data.collectedEvents.length === 0,
@@ -735,7 +735,7 @@ const tradingPost: Encounter = {
                 }
             },
             {
-                label: `Trade Potion for ${d.offerPotion.name}`,
+                label: `Trade Potion for ${displayName(d.offerPotion)}`,
                 description: 'Give up one of your potions to receive this one.',
                 tooltipSpec: d.offerPotion,
                 disabled: d.potionTraded || metaState.data.potions.length === 0,
@@ -760,7 +760,7 @@ const tradingPost: Encounter = {
                 }
             },
             {
-                label: `Trade Relic for ${d.offerRelic.name}`,
+                label: `Trade Relic for ${displayName(d.offerRelic)}`,
                 description: 'Give up one of your relics to receive this one.',
                 tooltipSpec: d.offerRelic,
                 disabled: d.relicTraded || metaState.data.relics.length === 0,

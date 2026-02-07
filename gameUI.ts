@@ -167,6 +167,7 @@ interface ChoiceState {
 type MacroVerb = 'Choose' | 'Buy' | 'Play' | 'Use'
 interface MacroCardSnapshot {
     name: string
+    displayName?: string
     place: PlaceName
     tokens: Map<Token, number>
 }
@@ -307,6 +308,7 @@ function repeat<T>(xs: T[], n: number): T[] {
 function cloneMacroCardSnapshot(card: MacroCardSnapshot): MacroCardSnapshot {
     return {
         name: card.name,
+        displayName: card.displayName,
         place: card.place,
         tokens: new Map(card.tokens)
     }
@@ -315,6 +317,7 @@ function cloneMacroCardSnapshot(card: MacroCardSnapshot): MacroCardSnapshot {
 function macroCardSnapshotFromCard(card: Card): MacroCardSnapshot {
     return {
         name: card.name,
+        displayName: displayName(card.spec),
         place: card.place,
         tokens: new Map(card.tokens)
     }
@@ -453,7 +456,7 @@ function macroStepVerb(step: MacroStep): string {
 
 function macroStepLabel(step: MacroStep): string {
     if (step.kind === 'string') return step.string
-    return step.card.name
+    return step.card.displayName ?? step.card.name
 }
 
 function renderMacroTooltip(macro: Macro): string {
@@ -691,7 +694,7 @@ function renderTooltipSimple(card: Card, state: State, tokenRenderer: TokenRende
     const playCost = cardSpecCost(card.spec, costKind)
     const buyStr = !isZero(buyCost) ? `(${renderCost(buyCost!)})` : '---'
     const costStr = !isZero(playCost) ? `(${renderCost(playCost!)})` : '---'
-    const header = `<div>---${buyStr} ${card.name} ${costStr}---</div>`
+    const header = `<div>---${buyStr} ${displayName(card.spec)} ${costStr}---</div>`
     const tokensHtml = tokenRenderer.renderTooltip(card.tokens)
     const bodyText = (card.spec.simpleText && (card.spec.upgrades || []).length === 0)
         ? card.spec.simpleText.map(line => `<div>${line}</div>`).join('')
@@ -706,7 +709,7 @@ function renderTooltipFull(card: Card, state: State, tokenRenderer: TokenRendere
     const playCost = cardSpecCost(card.spec, costKind)
     const buyStr = !isZero(buyCost) ? `(${renderCost(buyCost!)})` : '---'
     const costStr = !isZero(playCost) ? `(${renderCost(playCost!)})` : '---'
-    const header = `<div>---${buyStr} ${card.name} ${costStr}---</div>`
+    const header = `<div>---${buyStr} ${displayName(card.spec)} ${costStr}---</div>`
     const tokensHtml = tokenRenderer.renderTooltip(card.tokens)
     const baseFilling = header + cardText(card.spec) + tokensHtml
 
@@ -739,7 +742,7 @@ function renderShadow(shadow: Shadow, state: State, tokenRenderer: TokenRenderer
             tooltip = describeCost(shadow.spec.cost)
             break
         case 'buying':
-            tooltip = `Buying ${shadow.spec.card.name}`
+            tooltip = `Buying ${displayName(shadow.spec.card.spec)}`
             break
         default:
             return assertNever(shadow.spec)

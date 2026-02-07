@@ -13,7 +13,6 @@ import {
     coin,
     coinsEffect,
     create,
-    displayName,
     leq,
     removeToken,
     sourceHasName,
@@ -136,7 +135,7 @@ export const streetFairUpgrade: CardUpgrade = registerUpgrade('streetFair', {
     staticReplacers: [{
         kind: 'create',
         text: 'Whenever you would create this in your discard, instead create it in your hand.',
-        handles: (p, _state, card) => p.zone === 'discard' && displayName(p.spec) === card.name,
+        handles: (p, _state, card) => p.zone === 'discard' && p.spec.name === card.name,
         replace: p => ({ ...p, zone: 'hand' }),
     }]
 })

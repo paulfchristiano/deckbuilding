@@ -42,12 +42,13 @@ export function makeBottledEventPotion(
     spec: CardSpec
 ): CardSpec {
     const cardName = displayName(spec)
+    const baseName = spec.name
     const copiedEffects = cardSpecEffects(spec)
     const copiedText = copiedEffects.flatMap(effect => effect.text)
     const effects = [{
         text: copiedText.length > 0 ? copiedText : [`Use ${cardName}.`],
         transform: (_state: State, sourceCard: Card) => async function (state: State) {
-            const target = state.events.find(event => event.name === cardName)
+            const target = state.events.find(event => event.name === baseName)
             if (!target) {
                 return state
             }

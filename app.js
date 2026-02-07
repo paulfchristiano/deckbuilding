@@ -270,6 +270,9 @@
       return false;
     return s.name == name;
   }
+  function renderCardName(card) {
+    return displayName(card.spec);
+  }
   var Card = (
     /** @class */
     (function() {
@@ -297,13 +300,13 @@
       }
       Object.defineProperty(Card2.prototype, "name", {
         get: function() {
-          return displayName(this.spec);
+          return this.spec.name;
         },
         enumerable: false,
         configurable: true
       });
       Card2.prototype.toString = function() {
-        return this.name;
+        return renderCardName(this);
       };
       Card2.prototype.update = function(newValues) {
         return new Card2(this.spec, this.id, newValues.ticks === void 0 ? this.ticks : newValues.ticks, newValues.tokens === void 0 ? this.tokens : newValues.tokens, newValues.place === void 0 ? this.place : newValues.place, newValues.zoneIndex === void 0 ? this.zoneIndex : newValues.zoneIndex);
@@ -385,7 +388,7 @@
           return __awaiter(this, void 0, void 0, function() {
             var cost;
             return __generator(this, function(_a2) {
-              state = state.log("Paying for ".concat(card.name));
+              state = state.log("Paying for ".concat(renderCardName(card)));
               cost = card.cost(kind, state);
               return [2, withTracking(payCost(cost, card), { kind: "cost", card, cost })(state)];
             });
@@ -429,7 +432,7 @@
                 case 1:
                   trackingSpec = { kind: "none", card };
                   gameEvent = { kind: "play", card, source };
-                  state = state.log("Playing ".concat(card.name));
+                  state = state.log("Playing ".concat(renderCardName(card)));
                   state = state.indent();
                   return [4, move(card, "resolving")(state)];
                 case 2:
@@ -439,7 +442,7 @@
                 case 3:
                   trackingSpec = { kind: "none", card };
                   gameEvent = { kind: "play", card, source };
-                  state = state.log("Drinking ".concat(card.name));
+                  state = state.log("Drinking ".concat(renderCardName(card)));
                   state = state.indent();
                   return [4, move(card, "resolving")(state)];
                 case 4:
@@ -449,17 +452,17 @@
                 case 5:
                   trackingSpec = { kind: "buying", card };
                   gameEvent = { kind: "buy", card, source };
-                  state = state.log("Buying ".concat(card.name));
+                  state = state.log("Buying ".concat(renderCardName(card)));
                   return [3, 9];
                 case 6:
                   trackingSpec = { kind: "effect", card };
                   gameEvent = { kind: "use", card, source };
-                  state = state.log("Using ".concat(card.name));
+                  state = state.log("Using ".concat(renderCardName(card)));
                   return [3, 9];
                 case 7:
                   trackingSpec = { kind: "ability", card };
                   gameEvent = { kind: "activate", card, source };
-                  state = state.log("Activating ".concat(card.name));
+                  state = state.log("Activating ".concat(renderCardName(card)));
                   return [3, 9];
                 case 8:
                   return [2, assertNever(kind)];
@@ -1706,10 +1709,10 @@
               state = state.remove(card);
               if (toZone == "void") {
                 if (!logged)
-                  state = state.log("Trashed ".concat(card.name, " from ").concat(card.place));
+                  state = state.log("Trashed ".concat(renderCardName(card), " from ").concat(card.place));
               } else {
                 if (!logged)
-                  state = state.log("Moved ".concat(card.name, " from ").concat(card.place, " to ").concat(toZone));
+                  state = state.log("Moved ".concat(renderCardName(card), " from ").concat(card.place, " to ").concat(toZone));
               }
               state = state.addToZone(card, toZone);
               return [4, trigger({ kind: "move", fromZone: card.place, toZone, card })(state)];
@@ -2057,7 +2060,7 @@
           state = state.apply(function(card2) {
             return card2.setTokens("charge", newCharge);
           }, card);
-          state = logChange(state, "charge token", newCharge - oldCharge, ["Added ", " to ".concat(card.name)], ["Removed ", " from ".concat(card.name)]);
+          state = logChange(state, "charge token", newCharge - oldCharge, ["Added ", " to ".concat(renderCardName(card))], ["Removed ", " from ".concat(renderCardName(card))]);
           return [2, trigger({
             kind: "gainCharge",
             card,
@@ -2070,7 +2073,7 @@
     };
   }
   function logTokenChange(state, card, token, n) {
-    return logChange(state, "".concat(token, " token"), n, ["Added ", " to ".concat(card.name)], ["Removed ", " from ".concat(card.name)]);
+    return logChange(state, "".concat(token, " token"), n, ["Added ", " to ".concat(renderCardName(card))], ["Removed ", " from ".concat(renderCardName(card))]);
   }
   function addToken(card, token, n) {
     if (n === void 0) {
@@ -2426,13 +2429,13 @@
   function logAct(state, act2, card) {
     switch (act2) {
       case "play":
-        return state.log("Played ".concat(card.name), "acts");
+        return state.log("Played ".concat(renderCardName(card)), "acts");
       case "buy":
-        return state.log("Bought ".concat(card.name), "acts");
+        return state.log("Bought ".concat(renderCardName(card)), "acts");
       case "use":
-        return state.log("Used ".concat(card.name), "acts");
+        return state.log("Used ".concat(renderCardName(card)), "acts");
       case "potion":
-        return state.log("Drank ".concat(card.name), "acts");
+        return state.log("Drank ".concat(renderCardName(card)), "acts");
       case "activate":
         return state;
       default:
@@ -2503,7 +2506,7 @@
     };
   }
   function nameComp(a2, b) {
-    return displayName(a2).localeCompare(displayName(b), "en");
+    return a2.name.localeCompare(b.name, "en");
   }
   function lexical(comps) {
     return function(a2, b) {
@@ -2900,7 +2903,7 @@
                   state2 = state2.startTicker(haggler2);
                   lastCard = state2.find(lastCard);
                   target = void 0;
-                  return [4, choice(state2, "Choose a cheaper card than ".concat(lastCard.name, " to buy."), state2.supply.filter(function(c) {
+                  return [4, choice(state2, "Choose a cheaper card than ".concat(renderCardName(lastCard), " to buy."), state2.supply.filter(function(c) {
                     return leq(addCosts(c.cost("buy", state2), { coin: 1 }), lastCard.cost("buy", state2));
                   }).map(asChoice))];
                 case 2:
@@ -3006,7 +3009,7 @@
   }
   function showCards(cards) {
     return cards.map(function(card) {
-      return card.name;
+      return renderCardName(card);
     }).join(", ");
   }
   function moveMany(cards, toZone, logged) {
@@ -3995,6 +3998,7 @@
   }
   function makeBottledEventPotion(spec) {
     var cardName = displayName(spec);
+    var baseName = spec.name;
     var copiedEffects = cardSpecEffects(spec);
     var copiedText = copiedEffects.flatMap(function(effect) {
       return effect.text;
@@ -4007,7 +4011,7 @@
             var target;
             return __generator2(this, function(_a2) {
               target = state.events.find(function(event) {
-                return event.name === cardName;
+                return event.name === baseName;
               });
               if (!target) {
                 return [2, state];
@@ -4333,7 +4337,7 @@
       kind: "create",
       text: "Whenever you would create this in your discard, instead create it in your hand.",
       handles: function(p, _state, card) {
-        return p.zone === "discard" && displayName(p.spec) === card.name;
+        return p.zone === "discard" && p.spec.name === card.name;
       },
       replace: function(p) {
         return __assign2(__assign2({}, p), { zone: "hand" });
@@ -12820,7 +12824,7 @@
       var d = data;
       return [
         {
-          label: "Trade Card for ".concat(d.offerCard.name),
+          label: "Trade Card for ".concat(displayName(d.offerCard)),
           description: "Give up one of your cards to receive this one.",
           tooltipSpec: d.offerCard,
           disabled: d.cardTraded || metaState.data.collectedCards.length === 0,
@@ -12865,7 +12869,7 @@
           }
         },
         {
-          label: "Trade Event for ".concat(d.offerEvent.name),
+          label: "Trade Event for ".concat(displayName(d.offerEvent)),
           description: "Give up one of your events to receive this one.",
           tooltipSpec: d.offerEvent,
           disabled: d.eventTraded || metaState.data.collectedEvents.length === 0,
@@ -12910,7 +12914,7 @@
           }
         },
         {
-          label: "Trade Potion for ".concat(d.offerPotion.name),
+          label: "Trade Potion for ".concat(displayName(d.offerPotion)),
           description: "Give up one of your potions to receive this one.",
           tooltipSpec: d.offerPotion,
           disabled: d.potionTraded || metaState.data.potions.length === 0,
@@ -12955,7 +12959,7 @@
           }
         },
         {
-          label: "Trade Relic for ".concat(d.offerRelic.name),
+          label: "Trade Relic for ".concat(displayName(d.offerRelic)),
           description: "Give up one of your relics to receive this one.",
           tooltipSpec: d.offerRelic,
           disabled: d.relicTraded || metaState.data.relics.length === 0,
@@ -13531,6 +13535,7 @@
   function cloneMacroCardSnapshot(card) {
     return {
       name: card.name,
+      displayName: card.displayName,
       place: card.place,
       tokens: new Map(card.tokens)
     };
@@ -13538,6 +13543,7 @@
   function macroCardSnapshotFromCard(card) {
     return {
       name: card.name,
+      displayName: displayName(card.spec),
       place: card.place,
       tokens: new Map(card.tokens)
     };
@@ -13697,9 +13703,10 @@
     return step.verb;
   }
   function macroStepLabel(step) {
+    var _a2;
     if (step.kind === "string")
       return step.string;
-    return step.card.name;
+    return (_a2 = step.card.displayName) !== null && _a2 !== void 0 ? _a2 : step.card.name;
   }
   function renderMacroTooltip(macro) {
     if (macro.steps.length === 0)
@@ -14032,7 +14039,7 @@
     var playCost = cardSpecCost(card.spec, costKind);
     var buyStr = !isZero2(buyCost) ? "(".concat(renderCost(buyCost), ")") : "---";
     var costStr = !isZero2(playCost) ? "(".concat(renderCost(playCost), ")") : "---";
-    var header = "<div>---".concat(buyStr, " ").concat(card.name, " ").concat(costStr, "---</div>");
+    var header = "<div>---".concat(buyStr, " ").concat(displayName(card.spec), " ").concat(costStr, "---</div>");
     var tokensHtml = tokenRenderer.renderTooltip(card.tokens);
     var bodyText = card.spec.simpleText && (card.spec.upgrades || []).length === 0 ? card.spec.simpleText.map(function(line) {
       return "<div>".concat(line, "</div>");
@@ -14046,7 +14053,7 @@
     var playCost = cardSpecCost(card.spec, costKind);
     var buyStr = !isZero2(buyCost) ? "(".concat(renderCost(buyCost), ")") : "---";
     var costStr = !isZero2(playCost) ? "(".concat(renderCost(playCost), ")") : "---";
-    var header = "<div>---".concat(buyStr, " ").concat(card.name, " ").concat(costStr, "---</div>");
+    var header = "<div>---".concat(buyStr, " ").concat(displayName(card.spec), " ").concat(costStr, "---</div>");
     var tokensHtml = tokenRenderer.renderTooltip(card.tokens);
     var baseFilling = header + cardText2(card.spec) + tokensHtml;
     var relatedFilling = card.relatedCards().map(function(spec) {
@@ -14073,7 +14080,7 @@
         tooltip = describeCost(shadow.spec.cost);
         break;
       case "buying":
-        tooltip = "Buying ".concat(shadow.spec.card.name);
+        tooltip = "Buying ".concat(displayName(shadow.spec.card.spec));
         break;
       default:
         return assertNever2(shadow.spec);
