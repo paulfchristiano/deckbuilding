@@ -344,13 +344,13 @@ export const potionOfPriority: CardSpec = {
     name: 'Potion of Priority',
     isPotion: true,
     simpleText: [
-        'Put five priority tokens on a supply.',
-        'The next 5 times you create a card from it, play it immediately.'
+        'Put eight priority tokens on a supply.',
+        'The next 8 times you create a card from it, play it immediately.'
     ],
     rules: [priorityRule],
     effects: [targetedEffect(
-        card => addToken(card, 'priority', 5),
-        'Put five priority tokens on a card in the supply.',
+        card => addToken(card, 'priority', 8),
+        'Put eight priority tokens on a card in the supply.',
         state => state.supply,
     )]
 }
