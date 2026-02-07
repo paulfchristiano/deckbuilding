@@ -259,9 +259,10 @@ const publicWorks:CardSpec = {name: 'Public Works',
             const card = state.find(p.card)
             const maxReduction = (p.card.name == refresh.name) ? p.cost.energy - 1 : p.cost.energy 
             const reduction = Math.max(Math.min(maxReduction, 1), 0)
+            const extraEffects = reduction > 0 ? [move(pworks, 'discard')] : []
             return {...p, cost:{...p.cost,
                 energy:p.cost.energy-reduction,
-                effects:p.cost.effects.concat([move(pworks, 'discard')])
+                effects:p.cost.effects.concat(extraEffects)
             }}
         }
     }],
