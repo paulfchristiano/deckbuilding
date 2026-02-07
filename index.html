@@ -320,8 +320,24 @@ input {
         transition-delay: 0s;
     }
 
-    /* Card selector and deck view: only show tooltip with shift */
-    .shift-held .spec:hover .tooltip {
+    /* Card selector and deck view without related cards: tooltip only with shift */
+    .shift-held .spec:not(.has-related):hover .tooltip {
+        visibility: visible;
+        transition-delay: 0s;
+    }
+
+    /* Card selector and deck view with related cards: simple on hover, full with shift */
+    .spec.has-related:hover .tooltip-simple {
+        visibility: visible;
+        transition-delay: 0.3s;
+    }
+    .spec.has-related:hover .tooltip-full {
+        visibility: hidden;
+    }
+    .shift-held .spec.has-related:hover .tooltip-simple {
+        visibility: hidden;
+    }
+    .shift-held .spec.has-related:hover .tooltip-full {
         visibility: visible;
         transition-delay: 0s;
     }
@@ -335,6 +351,18 @@ input {
     .pathReward:hover .tooltip {
         visibility: visible;
         transition-delay: 0.3s;
+    }
+
+    /* Meta reward option tooltips: simple on hover, full on shift-hover */
+    .option:hover .tooltip-full {
+        visibility: hidden;
+    }
+    .shift-held .option:hover .tooltip-simple {
+        visibility: hidden;
+    }
+    .shift-held .option:hover .tooltip-full {
+        visibility: visible;
+        transition-delay: 0s;
     }
 }
 .hotkey {
@@ -382,8 +410,26 @@ input {
 }
 
 .rewardOption[disabled] {
-    opacity: 0.5;
     cursor: default;
+}
+
+/* Keep disabled option appearance unchanged, but ensure tooltips layer above UI */
+.rewardOption[disabled]:hover {
+    z-index: 20;
+}
+.rewardOption[disabled] .tooltip {
+    z-index: 60;
+    opacity: 1;
+}
+
+/* Preserve the old "greyed out" look without fading tooltip content */
+.rewardOption[disabled] > :not(.tooltip) {
+    opacity: 0.5;
+}
+
+/* Reward tooltips should render above fixed UI elements */
+.rewardOption .tooltip {
+    z-index: 50;
 }
 
 .rewardOption.checked {

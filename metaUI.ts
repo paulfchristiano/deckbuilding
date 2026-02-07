@@ -12,7 +12,7 @@ import {
     getRewardOptions, getRewardName, updateRewardState, updateRewardAtIndex,
     Undo, Redo, ReplayStage
 } from './metaLogic.js'
-import { buildSpecTooltip, renderSpecNoRelated } from './cardRendering.js'
+import { buildSpecTooltipFull, buildSpecTooltipSimple, renderSpecNoRelated } from './cardRendering.js'
 import { initHotkeys, startGame, keyListeners } from './gameUI.js'
 import { ProgressStageDisplay, renderProgressSidebar } from './progressSidebar.js'
 
@@ -462,9 +462,13 @@ function renderStageScreen(
                     optionEl.appendChild(descDiv)
                 }
                 if (option.tooltipSpec) {
-                    const tooltip = createSpan('tooltip')
-                    tooltip.innerHTML = buildSpecTooltip(option.tooltipSpec)
-                    optionEl.appendChild(tooltip)
+                    const tooltipSimple = createSpan('tooltip tooltip-simple')
+                    tooltipSimple.innerHTML = buildSpecTooltipSimple(option.tooltipSpec)
+                    optionEl.appendChild(tooltipSimple)
+
+                    const tooltipFull = createSpan('tooltip tooltip-full')
+                    tooltipFull.innerHTML = buildSpecTooltipFull(option.tooltipSpec)
+                    optionEl.appendChild(tooltipFull)
                 }
             }
 

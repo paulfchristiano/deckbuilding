@@ -79,8 +79,14 @@ export function cardText(spec: CardSpec): string {
 
 // ----------------------------- Spec Rendering
 
+function renderSpecSimpleBody(spec: CardSpec): string {
+    return (spec.simpleText && (spec.upgrades || []).length === 0)
+        ? spec.simpleText.map(line => `<div>${line}</div>`).join('')
+        : cardText(spec)
+}
+
 // Build full HTML tooltip for a card spec (matching in-game tooltip style)
-export function buildSpecTooltip(spec: CardSpec): string {
+export function buildSpecTooltipFull(spec: CardSpec): string {
     const buyCost = cardSpecCost(spec, 'buy')
     const actionCost = cardSpecCost(spec, actionCostKindForSpec(spec))
     const buyStr = !isZero(buyCost) ? `(${renderCost(buyCost as Cost)})` : '---'
@@ -93,6 +99,28 @@ export function buildSpecTooltip(spec: CardSpec): string {
     const relatedFilling = relatedCards.map(r => buildSpecTooltip(r)).join('')
 
     return `${baseFilling}${relatedFilling}`
+}
+
+export function buildSpecTooltipSimple(spec: CardSpec): string {
+    const buyCost = cardSpecCost(spec, 'buy')
+    const actionCost = cardSpecCost(spec, actionCostKindForSpec(spec))
+    const buyStr = !isZero(buyCost) ? `(${renderCost(buyCost as Cost)})` : '---'
+    const costStr = !isZero(actionCost) ? `(${renderCost(actionCost as Cost)})` : '---'
+    const header = `<div>---${buyStr} ${displayName(spec)} ${costStr}---</div>`
+    const body = renderSpecSimpleBody(spec)
+    const related = (spec.relatedCards || []).map(relatedSpec => {
+        const relatedBuyCost = cardSpecCost(relatedSpec, 'buy')
+        const relatedActionCost = cardSpecCost(relatedSpec, actionCostKindForSpec(relatedSpec))
+        const relatedBuyStr = !isZero(relatedBuyCost) ? `(${renderCost(relatedBuyCost as Cost)})` : '---'
+        const relatedCostStr = !isZero(relatedActionCost) ? `(${renderCost(relatedActionCost as Cost)})` : '---'
+        return `<div>---${relatedBuyStr} ${displayName(relatedSpec)} ${relatedCostStr}---</div>${renderSpecSimpleBody(relatedSpec)}`
+    }).join('')
+    return `${header}${body}${related}`
+}
+
+// Backward-compatible export for existing callsites.
+export function buildSpecTooltip(spec: CardSpec): string {
+    return buildSpecTooltipFull(spec)
 }
 
 // Render a CardSpec with full details including related cards
@@ -117,13 +145,16 @@ export function renderSpecNoRelated(spec: CardSpec): string {
     const header = `<div>${buyText}<strong>${displayName(spec)}</strong>${costText}</div>`
 
     // Use simpleText if available, otherwise full card text
-    const displayText = (spec.simpleText && (spec.upgrades || []).length === 0)
-        ? spec.simpleText.map(line => `<div>${line}</div>`).join('')
-        : cardText(spec)
+    const displayText = renderSpecSimpleBody(spec)
 
     // Build HTML tooltip matching in-game style
-    const tooltipHtml = buildSpecTooltip(spec)
-
+    const hasRelated = (spec.relatedCards || []).length > 0
+    if (hasRelated) {
+        const tooltipSimple = buildSpecTooltipSimple(spec)
+        const tooltipFull = buildSpecTooltipFull(spec)
+        return `<div class='spec has-related'>${header}${displayText}<span class='tooltip tooltip-simple'>${tooltipSimple}</span><span class='tooltip tooltip-full'>${tooltipFull}</span></div>`
+    }
+    const tooltipHtml = buildSpecTooltipFull(spec)
     return `<div class='spec'>${header}${displayText}<span class='tooltip'>${tooltipHtml}</span></div>`
 }
 

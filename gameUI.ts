@@ -673,6 +673,19 @@ export function cardText(spec: CardSpec): string {
 // ----------------------------- Tooltip Rendering
 
 function renderTooltipSimple(card: Card, state: State, tokenRenderer: TokenRenderer): string {
+    function renderRelatedSimple(spec: CardSpec): string {
+        const relatedBuyCost = cardSpecCost(spec, 'buy')
+        const relatedActionCost = cardSpecCost(spec, actionCostKindForSpec(spec))
+        const relatedBuyStr = !isZero(relatedBuyCost) ? `(${renderCost(relatedBuyCost!)})` : '---'
+        const relatedCostStr = !isZero(relatedActionCost) ? `(${renderCost(relatedActionCost!)})` : '---'
+        const relatedHeader = `<div>---${relatedBuyStr} ${displayName(spec)} ${relatedCostStr}---</div>`
+        const relatedBody = (spec.simpleText && (spec.upgrades || []).length === 0)
+            ? spec.simpleText.map(line => `<div>${line}</div>`).join('')
+            : cardText(spec)
+        const nested = (spec.relatedCards || []).map(renderRelatedSimple).join('')
+        return relatedHeader + relatedBody + nested
+    }
+
     const costKind = card.place === 'events' ? 'use' : 'play'
     const buyCost = cardSpecCost(card.spec, 'buy')
     const playCost = cardSpecCost(card.spec, costKind)
@@ -683,7 +696,8 @@ function renderTooltipSimple(card: Card, state: State, tokenRenderer: TokenRende
     const bodyText = (card.spec.simpleText && (card.spec.upgrades || []).length === 0)
         ? card.spec.simpleText.map(line => `<div>${line}</div>`).join('')
         : cardText(card.spec)
-    return header + bodyText + tokensHtml
+    const relatedSimple = card.relatedCards().map(renderRelatedSimple).join('')
+    return header + bodyText + tokensHtml + relatedSimple
 }
 
 function renderTooltipFull(card: Card, state: State, tokenRenderer: TokenRenderer): string {

@@ -664,7 +664,6 @@ interface TradingPostData {
     eventTraded: boolean
     potionTraded: boolean
     relicTraded: boolean
-    finished: boolean
 }
 
 const tradingPost: Encounter = {
@@ -678,24 +677,17 @@ const tradingPost: Encounter = {
             cardTraded: false,
             eventTraded: false,
             potionTraded: false,
-            relicTraded: false,
-            finished: false
+            relicTraded: false
         }
     },
     getOptions(data: unknown, metaState: MetaState): RewardOption[] {
         const d = data as TradingPostData
 
-        if (d.finished) {
-            // Show completed state
-            return [
-                { label: 'Trading Complete', disabled: true, checked: true, onClick: async () => ({ newData: data }) }
-            ]
-        }
-
         return [
             {
                 label: `Trade Card for ${d.offerCard.name}`,
                 description: 'Give up one of your cards to receive this one.',
+                tooltipSpec: d.offerCard,
                 disabled: d.cardTraded || metaState.data.collectedCards.length === 0,
                 checked: d.cardTraded,
                 onClick: async () => {
@@ -720,6 +712,7 @@ const tradingPost: Encounter = {
             {
                 label: `Trade Event for ${d.offerEvent.name}`,
                 description: 'Give up one of your events to receive this one.',
+                tooltipSpec: d.offerEvent,
                 disabled: d.eventTraded || metaState.data.collectedEvents.length === 0,
                 checked: d.eventTraded,
                 onClick: async () => {
@@ -744,6 +737,7 @@ const tradingPost: Encounter = {
             {
                 label: `Trade Potion for ${d.offerPotion.name}`,
                 description: 'Give up one of your potions to receive this one.',
+                tooltipSpec: d.offerPotion,
                 disabled: d.potionTraded || metaState.data.potions.length === 0,
                 checked: d.potionTraded,
                 onClick: async () => {
@@ -768,6 +762,7 @@ const tradingPost: Encounter = {
             {
                 label: `Trade Relic for ${d.offerRelic.name}`,
                 description: 'Give up one of your relics to receive this one.',
+                tooltipSpec: d.offerRelic,
                 disabled: d.relicTraded || metaState.data.relics.length === 0,
                 checked: d.relicTraded,
                 onClick: async () => {
@@ -788,15 +783,6 @@ const tradingPost: Encounter = {
                         }
                     }
                 }
-            },
-            {
-                label: 'Finish Trading',
-                description: 'Done making trades.',
-                disabled: false,
-                checked: false,
-                onClick: async () => ({
-                    newData: { ...d, finished: true }
-                })
             }
         ]
     }

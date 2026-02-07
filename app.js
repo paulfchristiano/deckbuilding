@@ -3750,7 +3750,12 @@
       rulesHtml
     ].join("");
   }
-  function buildSpecTooltip(spec) {
+  function renderSpecSimpleBody(spec) {
+    return spec.simpleText && (spec.upgrades || []).length === 0 ? spec.simpleText.map(function(line) {
+      return "<div>".concat(line, "</div>");
+    }).join("") : cardText(spec);
+  }
+  function buildSpecTooltipFull(spec) {
     var buyCost = cardSpecCost(spec, "buy");
     var actionCost = cardSpecCost(spec, actionCostKindForSpec(spec));
     var buyStr = !isZero(buyCost) ? "(".concat(renderCost(buyCost), ")") : "---";
@@ -3763,16 +3768,39 @@
     }).join("");
     return "".concat(baseFilling).concat(relatedFilling);
   }
+  function buildSpecTooltipSimple(spec) {
+    var buyCost = cardSpecCost(spec, "buy");
+    var actionCost = cardSpecCost(spec, actionCostKindForSpec(spec));
+    var buyStr = !isZero(buyCost) ? "(".concat(renderCost(buyCost), ")") : "---";
+    var costStr = !isZero(actionCost) ? "(".concat(renderCost(actionCost), ")") : "---";
+    var header = "<div>---".concat(buyStr, " ").concat(displayName(spec), " ").concat(costStr, "---</div>");
+    var body = renderSpecSimpleBody(spec);
+    var related = (spec.relatedCards || []).map(function(relatedSpec) {
+      var relatedBuyCost = cardSpecCost(relatedSpec, "buy");
+      var relatedActionCost = cardSpecCost(relatedSpec, actionCostKindForSpec(relatedSpec));
+      var relatedBuyStr = !isZero(relatedBuyCost) ? "(".concat(renderCost(relatedBuyCost), ")") : "---";
+      var relatedCostStr = !isZero(relatedActionCost) ? "(".concat(renderCost(relatedActionCost), ")") : "---";
+      return "<div>---".concat(relatedBuyStr, " ").concat(displayName(relatedSpec), " ").concat(relatedCostStr, "---</div>").concat(renderSpecSimpleBody(relatedSpec));
+    }).join("");
+    return "".concat(header).concat(body).concat(related);
+  }
+  function buildSpecTooltip(spec) {
+    return buildSpecTooltipFull(spec);
+  }
   function renderSpecNoRelated(spec) {
     var buyCost = cardSpecCost(spec, "buy");
     var actionCost = cardSpecCost(spec, actionCostKindForSpec(spec));
     var buyText = isZero(buyCost) ? "" : "(".concat(renderCost(buyCost), ")&nbsp;");
     var costText = isZero(actionCost) ? "" : "&nbsp;(".concat(renderCost(actionCost), ")");
     var header = "<div>".concat(buyText, "<strong>").concat(displayName(spec), "</strong>").concat(costText, "</div>");
-    var displayText = spec.simpleText && (spec.upgrades || []).length === 0 ? spec.simpleText.map(function(line) {
-      return "<div>".concat(line, "</div>");
-    }).join("") : cardText(spec);
-    var tooltipHtml = buildSpecTooltip(spec);
+    var displayText = renderSpecSimpleBody(spec);
+    var hasRelated = (spec.relatedCards || []).length > 0;
+    if (hasRelated) {
+      var tooltipSimple = buildSpecTooltipSimple(spec);
+      var tooltipFull = buildSpecTooltipFull(spec);
+      return "<div class='spec has-related'>".concat(header).concat(displayText, "<span class='tooltip tooltip-simple'>").concat(tooltipSimple, "</span><span class='tooltip tooltip-full'>").concat(tooltipFull, "</span></div>");
+    }
+    var tooltipHtml = buildSpecTooltipFull(spec);
     return "<div class='spec'>".concat(header).concat(displayText, "<span class='tooltip'>").concat(tooltipHtml, "</span></div>");
   }
 
@@ -12768,28 +12796,17 @@
         cardTraded: false,
         eventTraded: false,
         potionTraded: false,
-        relicTraded: false,
-        finished: false
+        relicTraded: false
       };
     },
     getOptions: function(data, metaState) {
       var _this = this;
       var d = data;
-      if (d.finished) {
-        return [
-          { label: "Trading Complete", disabled: true, checked: true, onClick: function() {
-            return __awaiter11(_this, void 0, void 0, function() {
-              return __generator11(this, function(_a2) {
-                return [2, { newData: data }];
-              });
-            });
-          } }
-        ];
-      }
       return [
         {
           label: "Trade Card for ".concat(d.offerCard.name),
           description: "Give up one of your cards to receive this one.",
+          tooltipSpec: d.offerCard,
           disabled: d.cardTraded || metaState.data.collectedCards.length === 0,
           checked: d.cardTraded,
           onClick: function() {
@@ -12834,6 +12851,7 @@
         {
           label: "Trade Event for ".concat(d.offerEvent.name),
           description: "Give up one of your events to receive this one.",
+          tooltipSpec: d.offerEvent,
           disabled: d.eventTraded || metaState.data.collectedEvents.length === 0,
           checked: d.eventTraded,
           onClick: function() {
@@ -12878,6 +12896,7 @@
         {
           label: "Trade Potion for ".concat(d.offerPotion.name),
           description: "Give up one of your potions to receive this one.",
+          tooltipSpec: d.offerPotion,
           disabled: d.potionTraded || metaState.data.potions.length === 0,
           checked: d.potionTraded,
           onClick: function() {
@@ -12922,6 +12941,7 @@
         {
           label: "Trade Relic for ".concat(d.offerRelic.name),
           description: "Give up one of your relics to receive this one.",
+          tooltipSpec: d.offerRelic,
           disabled: d.relicTraded || metaState.data.relics.length === 0,
           checked: d.relicTraded,
           onClick: function() {
@@ -12959,21 +12979,6 @@
                       }
                     }];
                 }
-              });
-            });
-          }
-        },
-        {
-          label: "Finish Trading",
-          description: "Done making trades.",
-          disabled: false,
-          checked: false,
-          onClick: function() {
-            return __awaiter11(_this, void 0, void 0, function() {
-              return __generator11(this, function(_a2) {
-                return [2, {
-                  newData: __assign9(__assign9({}, d), { finished: true })
-                }];
               });
             });
           }
@@ -13994,6 +13999,18 @@
     ].join("");
   }
   function renderTooltipSimple(card, state, tokenRenderer) {
+    function renderRelatedSimple(spec) {
+      var relatedBuyCost = cardSpecCost(spec, "buy");
+      var relatedActionCost = cardSpecCost(spec, actionCostKindForSpec2(spec));
+      var relatedBuyStr = !isZero2(relatedBuyCost) ? "(".concat(renderCost(relatedBuyCost), ")") : "---";
+      var relatedCostStr = !isZero2(relatedActionCost) ? "(".concat(renderCost(relatedActionCost), ")") : "---";
+      var relatedHeader = "<div>---".concat(relatedBuyStr, " ").concat(displayName(spec), " ").concat(relatedCostStr, "---</div>");
+      var relatedBody = spec.simpleText && (spec.upgrades || []).length === 0 ? spec.simpleText.map(function(line) {
+        return "<div>".concat(line, "</div>");
+      }).join("") : cardText2(spec);
+      var nested = (spec.relatedCards || []).map(renderRelatedSimple).join("");
+      return relatedHeader + relatedBody + nested;
+    }
     var costKind = card.place === "events" ? "use" : "play";
     var buyCost = cardSpecCost(card.spec, "buy");
     var playCost = cardSpecCost(card.spec, costKind);
@@ -14004,7 +14021,8 @@
     var bodyText = card.spec.simpleText && (card.spec.upgrades || []).length === 0 ? card.spec.simpleText.map(function(line) {
       return "<div>".concat(line, "</div>");
     }).join("") : cardText2(card.spec);
-    return header + bodyText + tokensHtml;
+    var relatedSimple = card.relatedCards().map(renderRelatedSimple).join("");
+    return header + bodyText + tokensHtml + relatedSimple;
   }
   function renderTooltipFull(card, state, tokenRenderer) {
     var costKind = card.place === "events" ? "use" : "play";
@@ -15531,9 +15549,12 @@
             optionEl.appendChild(descDiv);
           }
           if (option.tooltipSpec) {
-            var tooltip = createSpan("tooltip");
-            tooltip.innerHTML = buildSpecTooltip(option.tooltipSpec);
-            optionEl.appendChild(tooltip);
+            var tooltipSimple = createSpan("tooltip tooltip-simple");
+            tooltipSimple.innerHTML = buildSpecTooltipSimple(option.tooltipSpec);
+            optionEl.appendChild(tooltipSimple);
+            var tooltipFull = createSpan("tooltip tooltip-full");
+            tooltipFull.innerHTML = buildSpecTooltipFull(option.tooltipSpec);
+            optionEl.appendChild(tooltipFull);
           }
         }
         if (option.disabled) {
