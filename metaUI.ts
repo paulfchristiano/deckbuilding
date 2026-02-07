@@ -95,8 +95,9 @@ function hideDialog(id: string): void {
 function bindDialogDismiss(dialogId: string, onDismiss: () => void): () => void {
     const dialog = getElement(dialogId)
     const onKeyDown = (e: KeyboardEvent) => {
-        if (e.key === 'Escape') {
+        if (e.key === 'Escape' || e.key === 'z') {
             e.preventDefault()
+            e.stopPropagation()
             onDismiss()
         }
     }

@@ -15103,8 +15103,9 @@
   function bindDialogDismiss(dialogId, onDismiss) {
     var dialog = getElement2(dialogId);
     var onKeyDown = function(e) {
-      if (e.key === "Escape") {
+      if (e.key === "Escape" || e.key === "z") {
         e.preventDefault();
+        e.stopPropagation();
         onDismiss();
       }
     };
