@@ -124,6 +124,14 @@ function piggyBankCount(state: MetaState): number {
     return state.data.relics.filter(relic => relic.name === 'Piggy Bank').length
 }
 
+function hasRelicNamed(state: MetaState, name: string): boolean {
+    return state.data.relics.some(relic => relic.name === name)
+}
+
+function lookingGlassCount(state: MetaState): number {
+    return state.data.relics.filter(relic => relic.name === 'Looking Glass').length
+}
+
 function encounterRewardCompleted(rewardState: EncounterRewardState): boolean {
     const data = rewardState.data as Record<string, unknown> | null
     if (data && typeof data === 'object') {
@@ -297,12 +305,26 @@ export function renderChallenge(spec: ChallengeSpec, state: MetaState): string {
         ...spec.vpMode.events,
         ...spec.boons.flatMap(b => [...b.cards, ...b.events])
     ]
-
-    if (relatedCards.length === 0) {
-        return label
+    const tooltipParts: string[] = []
+    if (relatedCards.length > 0) {
+        tooltipParts.push(relatedCards.map(buildSpecTooltip).join(''))
     }
-
-    const tooltipContent = relatedCards.map(buildSpecTooltip).join('')
+    if (hasRelicNamed(state, 'Looking Glass') && state.data.phase !== 'path_select') {
+        const lookingGlassRewards = sampleLookingGlassRoundRewards(state, lookingGlassCount(state))
+        const lines: string[] = []
+        if (lookingGlassRewards.cards.length > 0) {
+            lines.push(`Added cards: ${lookingGlassRewards.cards.map(displayName).join(', ')}`)
+        }
+        if (lookingGlassRewards.events.length > 0) {
+            lines.push(`Added events: ${lookingGlassRewards.events.map(displayName).join(', ')}`)
+        }
+        if (lines.length > 0) {
+            const lookingGlassDetails = `<div style="margin-top:6px;">${lines.join('<br>')}</div>`
+            tooltipParts.push(lookingGlassDetails)
+        }
+    }
+    if (tooltipParts.length === 0) return label
+    const tooltipContent = tooltipParts.join('')
     return `${label}<span class='tooltip'>${tooltipContent}</span>`
 }
 
@@ -1498,9 +1520,7 @@ export function removeCard(state: MetaState, name: string) {
 }
 
 export function removeRelic(state: MetaState, id: number) {
-    state.update({
-        relics: state.data.relics.filter(c => c.id !== id)
-    })
+    state.removeRelic(id)
 }
 
 // Remove an event from collection by name
@@ -1663,11 +1683,14 @@ export function makeSpec(state: MetaState, challenge: ChallengeSpec): GameSpec {
         cardSpecs: cards,
         eventSpecs: events
     }, state)
+    const lookingGlassRewards = sampleLookingGlassRoundRewards(state, lookingGlassCount(state))
+    const finalCards = [...gameSetupParams.cardSpecs, ...lookingGlassRewards.cards]
+    const finalEvents = [...gameSetupParams.eventSpecs, ...lookingGlassRewards.events]
     return {
         vp: gameSetupParams.vpGoal,
         par: gameSetupParams.par,
-        cards: gameSetupParams.cardSpecs,
-        events: gameSetupParams.eventSpecs,
+        cards: finalCards,
+        events: finalEvents,
         potions: state.data.potions,
         relics: state.data.relics,
         metaStage: state.data.stage,
@@ -1685,6 +1708,45 @@ export function getRewardOptionCount(state: MetaState): number {
 
 function standardRelicRewards(): RelicSpec[] {
     return relicRewards as RelicSpec[]
+}
+
+function sampleLookingGlassRoundRewards(
+    state: MetaState,
+    targetCopies: number
+): { cards: CardSpec[], events: CardSpec[] } {
+    if (state.data.phase === 'path_select') {
+        return { cards: [], events: [] }
+    }
+    const cards: CardSpec[] = []
+    const events: CardSpec[] = []
+    if (targetCopies <= 0) {
+        return { cards, events }
+    }
+    const usedCardNames = new Set<string>()
+    const usedEventNames = new Set<string>()
+    const ownedCardNames = new Set(state.data.collectedCards.map(card => card.name))
+    const ownedEventNames = new Set(state.data.collectedEvents.map(event => event.name))
+    const availableCards = cardRewards.filter(card => !ownedCardNames.has(card.name))
+    const availableEvents = eventRewards.filter(event => !ownedEventNames.has(event.name))
+
+    for (let copy = 0; copy < targetCopies; copy++) {
+        const generator = new Generator(`${state.seed}-LOOKINGGLASS-${state.data.stage}-${copy}`)
+        const cardPool = availableCards.filter(card => !usedCardNames.has(card.name))
+        const sampledCards = generator.samples(cardPool, Math.min(3, cardPool.length))
+        for (const card of sampledCards) {
+            cards.push(card)
+            usedCardNames.add(card.name)
+        }
+
+        const eventPool = availableEvents.filter(event => !usedEventNames.has(event.name))
+        const sampledEvents = generator.samples(eventPool, Math.min(1, eventPool.length))
+        for (const event of sampledEvents) {
+            events.push(event)
+            usedEventNames.add(event.name)
+        }
+    }
+
+    return { cards, events }
 }
 
 // ----------------------- Generate data
@@ -2032,6 +2094,12 @@ function materializePath(state: MetaState, path: Path): Pick<MetaStateData, 'cha
 
 export type TestSpec = ['potion', CardSpec] | ['relic', RelicSpec] | ['card', CardSpec] | ['event', CardSpec] | ['encounter', Encounter]
 
+function isTestSpec(value: unknown): value is TestSpec {
+    return Array.isArray(value)
+        && value.length === 2
+        && typeof value[0] === 'string'
+}
+
 function makeTestReward(state: MetaState, spec: TestSpec): RewardState {
     switch (spec[0]) {
         case 'potion':
@@ -2055,7 +2123,7 @@ function makeTestReward(state: MetaState, spec: TestSpec): RewardState {
 // Note that all checkpoints are at a point where you want to back into the main loop in this method.
 export async function playGame(
     ui: MetaUI,
-    test:null|TestSpec = null,
+    test:null|TestSpec|TestSpec[] = null,
     seed: string | null = null,
     initialSnapshot: SerializedMetaGame | null = null,
     onStateChange: ((snapshot: SerializedMetaGame) => void) | null = null
@@ -2071,7 +2139,12 @@ export async function playGame(
             rewards: ['card', 'card', 'event', 'potion'] as RewardKind[],
             challenges: [randomChallenge(state), randomChallenge(state)]
         })
-        if (test !== null) initialPath.rewardStates.push(makeTestReward(state, test));
+        const tests: TestSpec[] = test === null
+            ? []
+            : (isTestSpec(test) ? [test] : test)
+        for (const testSpec of tests) {
+            initialPath.rewardStates.push(makeTestReward(state, testSpec))
+        }
         state.replaceAndClearHistory({
             ...materializePath(state, initialPath),
             phase: 'stage_select',

@@ -141,7 +141,7 @@ export const magicalBox: Encounter = {
 registerEncounter(magicalBox)
 
 // Mirror Maker encounter
-const mirrorMaker: Encounter = {
+export const mirrorMaker: Encounter = {
     name: 'Mirror Maker',
     createInitialData: () => ({ selectedIndex: null as number | null }),
     getOptions(data: unknown, metaState: MetaState): RewardOption[] {
