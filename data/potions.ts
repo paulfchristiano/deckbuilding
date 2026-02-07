@@ -34,8 +34,8 @@ import {
 
 // ========== POTIONS ==========
 
-export const potionOfInsight: CardSpec = {
-    name: 'Potion of Insight',
+export const potionOfInspiration: CardSpec = {
+    name: 'Potion of Inspiration',
     isPotion: true,
     effects: [{
             text: ['Quadruple your actions and buys.'], 
@@ -46,7 +46,7 @@ export const potionOfInsight: CardSpec = {
             }
     }]
 }
-potionRewards.push(potionOfInsight)
+potionRewards.push(potionOfInspiration)
 
 export const potionOfWealth: CardSpec = {
     name: 'Potion of Wealth',
@@ -77,11 +77,10 @@ potionRewards.push(potionOfCopper)
 export const celebratoryBrew: CardSpec = {
     name: 'Celebratory Brew',
     isPotion: true,
-    simpleText: ['Create a Celebration in play.'],
     relatedCards: [celebration],
     rules: [echoRule],
     effects: [{
-        text: ['Create a Celebration with an echo token in play.'],
+        text: [`Create a ${celebration.name} in play.`],
         transform: () => create(celebration, 'play',)
     }]
 }
@@ -116,7 +115,7 @@ export const potionOfTransformation: CardSpec = {
     isPotion: true,
     simpleText: ['Trash any number of cards in your hand. For each one, buy a card costing up to $2 more than it in your hand.'],
     effects: [{
-        text: ['Repeat this any number of times: trash a card in your hand that was there at the start of this process, then buy a card costing up to $2 more than it.'],
+        text: [`Repeat this any number of times: trash a card in your hand that was there at the start of this process, then buy a card costing up to $2 more than it.`],
         transform: (state, card) => async function(state) {
             const options = asNumberedChoices(state.hand)
             while (true) {
@@ -141,6 +140,7 @@ export const potionOfTransformation: CardSpec = {
         }
     }]
 }
+potionRewards.push(potionOfTransformation)
 
 export const potionOfTransportation: CardSpec = {
     name: 'Potion of Transportation',
@@ -212,8 +212,8 @@ export const potionOfFairs: CardSpec = {
 }
 potionRewards.push(potionOfFairs)
 
-export const potionOfVitality: CardSpec = {
-    name: 'Potion of Vitality',
+export const potionOfInsight: CardSpec = {
+    name: 'Potion of Insight',
     isPotion: true,
     simpleText: [
         '+$1, +1 action, +1 buy.',
@@ -228,7 +228,7 @@ export const potionOfVitality: CardSpec = {
         createInPlayEffect(villager),
     ]
 }
-potionRewards.push(potionOfVitality)
+potionRewards.push(potionOfInsight)
 
 /*
 export const potionOfWorkshop: CardSpec = {
