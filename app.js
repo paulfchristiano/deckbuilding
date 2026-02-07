@@ -2788,12 +2788,6 @@
     effects: [refreshEffect(5)]
   };
   core.events.push(refresh);
-  var cheat = {
-    name: "Cheat",
-    fixedCost: energy(0),
-    effects: [pointsEffect(10)]
-  };
-  core.events.push(cheat);
   var copper = {
     name: "Copper",
     buyCost: coin(0),

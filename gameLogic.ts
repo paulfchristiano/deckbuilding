@@ -1994,12 +1994,6 @@ export const refresh:CardSpec = {name: 'Refresh',
 }
 core.events.push(refresh)
 
-export const cheat:CardSpec = {name: 'Cheat',
-    fixedCost: energy(0),
-    effects: [pointsEffect(10)],
-}
-core.events.push(cheat)
-
 export const copper:CardSpec = {name: 'Copper',
     buyCost: coin(0),
     effects: [coinsEffect(1)]
