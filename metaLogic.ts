@@ -284,7 +284,7 @@ export const TOTAL_STAGES = 8
 export const INITIAL_BUFFER = 10
 
 // Base par values for each stage
-export const BASE_PARS: number[] = [30, 28, 26, 24, 22, 20, 18, 8]
+export const BASE_PARS: number[] = [29, 27, 25, 23, 21, 19, 17, 8]
 
 // ----------------------------- Meta-game Types
 
@@ -1731,7 +1731,7 @@ function sampleLookingGlassRoundRewards(
     for (let copy = 0; copy < targetCopies; copy++) {
         const generator = new Generator(`${state.seed}-LOOKINGGLASS-${state.data.stage}-${copy}`)
         const cardPool = availableCards.filter(card => !usedCardNames.has(card.name))
-        const sampledCards = generator.samples(cardPool, Math.min(3, cardPool.length))
+        const sampledCards = generator.samples(cardPool, Math.min(2, cardPool.length))
         for (const card of sampledCards) {
             cards.push(card)
             usedCardNames.add(card.name)

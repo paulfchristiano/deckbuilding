@@ -344,6 +344,6 @@ relicRewards.push(questionCard)
 
 export const lookingGlass: RelicSpec = {
     name: 'Looking Glass',
-    simpleText: ['3 random cards and 1 random event are added to each kingdom.']
+    simpleText: ['2 random cards and 1 random event are added to each kingdom.']
 }
 relicRewards.push(lookingGlass)

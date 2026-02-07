@@ -1047,7 +1047,21 @@ type TypedRuleReplacer = Replacer<ResourceParams, Rule> | Replacer<CostParams, R
     Replacer<VictoryParams, Rule>
 
 function replace<T extends Params>(x: T, state: State): T {
-    // First, process normal replacers
+    // First, process rule replacers
+    for (const rule of rules) {
+        if (rule.replacers) {
+            for (const rawReplacer of rule.replacers) {
+                if (rawReplacer.kind == x.kind) {
+                    const replacer = ((rawReplacer as unknown) as Replacer<T, Rule>)
+                    if (replacer.handles(x, state, rule)) {
+                        x = replacer.replace(x, state, rule)
+                    }
+                }
+            }
+        }
+    }
+
+    // Then, process normal replacers
     const replacers:[Card, TypedReplacer][] = []
     for (const card of state.events.concat(state.supply).concat(state.relics))
         for (const replacer of card.staticReplacers())
@@ -1060,20 +1074,6 @@ function replace<T extends Params>(x: T, state: State): T {
             const replacer = ((rawReplacer as unknown) as Replacer<T>)
             if (replacer.handles(x, state, card)) {
                 x = replacer.replace(x, state, card)
-            }
-        }
-    }
-
-    // Then, process rule replacers (they replace after all other replacers)
-    for (const rule of rules) {
-        if (rule.replacers) {
-            for (const rawReplacer of rule.replacers) {
-                if (rawReplacer.kind == x.kind) {
-                    const replacer = ((rawReplacer as unknown) as Replacer<T, Rule>)
-                    if (replacer.handles(x, state, rule)) {
-                        x = replacer.replace(x, state, rule)
-                    }
-                }
             }
         }
     }
