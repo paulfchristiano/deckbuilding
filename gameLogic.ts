@@ -2811,7 +2811,8 @@ function makeCard(card:CardSpec, cost:Cost, selfdestruct:boolean=false):CardSpec
 export interface Boon {
     name: string
     description: string
-    parReduction: number
+    // Signed par adjustment applied additively to base par.
+    parAdjustment: number
     cards: CardSpec[]
     events: CardSpec[]
 }

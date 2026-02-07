@@ -1,5 +1,5 @@
 // data/boons.ts - Boon definitions
-// Boons are stage modifiers that affect gameplay with a par reduction trade-off
+// Boons are stage modifiers that affect gameplay with a signed par adjustment trade-off
 
 import { doAll, Boon, boons,
     State, Card, CardSpec,
@@ -49,7 +49,7 @@ const escalate:CardSpec = {name: 'Escalate',
 boons.push({
         name: 'Escalate',
         description: 'Add Escalate as an event',
-        parReduction: 12,
+        parAdjustment: -9,
         cards: [],
         events: [escalate],
     })
@@ -66,7 +66,7 @@ const travelingFair:CardSpec = {name:'Traveling Fair',
 boons.push(    {
         name: 'Traveling Fair',
         description: 'Add Traveling Fair as an event (no scaling cost)',
-        parReduction: 3,
+        parAdjustment: 0,
         cards: [],
         events: [travelingFair],
     })
@@ -87,7 +87,7 @@ const vault:CardSpec = {name: 'Vault',
 boons.push({
     name: 'Vault',
     description: 'Add Vault as an event',
-    parReduction: 0,
+    parAdjustment: 3,
     cards: [],
     events: [vault],
 })
@@ -120,7 +120,7 @@ const logistics:CardSpec = {
 boons.push({
     name: 'Logistics',
     description: 'Add Logistics as a card',
-    parReduction: 4,
+    parAdjustment: -1,
     cards: [logistics],
     events: [],
 })
@@ -169,7 +169,7 @@ const populate:CardSpec = {name: 'Populate',
 boons.push(   {
     name: 'Populate',
     description: 'Buy all cards at the start of the game.',
-    parReduction: 12,
+    parAdjustment: -9,
     cards: [],
     events: [populate],
 })
@@ -194,7 +194,7 @@ const recover:CardSpec = {
 boons.push({
     name: 'Recover',
     description: 'Add Recover as an event',
-    parReduction: 4,
+    parAdjustment: -1,
     cards: [],
     events: [recover],
 })
@@ -206,7 +206,7 @@ const recycle:CardSpec = {name: 'Recycle',
 boons.push(    {
         name: 'Recycle',
         description: 'Add Recycle as an event',
-        parReduction: 7,
+        parAdjustment: -4,
         cards: [],
         events: [recycle],
     })
@@ -243,7 +243,7 @@ const flourish:CardSpec = {name: flourishName,
 boons.push(    {
         name: 'Flourish',
         description: 'Add Flourish as an event',
-        parReduction: 9,
+        parAdjustment: -6,
         cards: [],
         events: [flourish],
     })
@@ -270,7 +270,7 @@ const publicWorks:CardSpec = {name: 'Public Works',
 boons.push({
         name: 'Public Works',
         description: 'Add Public Works as a card',
-        parReduction: 5,
+        parAdjustment: -2,
         cards: [publicWorks],
         events: [],
 })
@@ -311,10 +311,10 @@ const reuse:CardSpec = {
 boons.push(    {
         name: 'Reuse',
         description: 'Add Reuse as an event',
-        parReduction: 7,
+        parAdjustment: -4,
         cards: [],
         events: [reuse],
-})
+    })
 
 
 const prioritize:CardSpec = {
@@ -334,7 +334,7 @@ const prioritize:CardSpec = {
 boons.push(   {
         name: 'Prioritize',
         description: 'Add Prioritize as an event',
-        parReduction: 5,
+        parAdjustment: -2,
         cards: [],
         events: [prioritize],
 })
@@ -370,7 +370,7 @@ const composting:CardSpec = {
 boons.push({
         name: 'Composting',
         description: 'Add Composting as a card',
-        parReduction: 3,
+        parAdjustment: 0,
         cards: [composting],
         events: [],
 })
@@ -395,7 +395,7 @@ const insight:CardSpec = {
 boons.push(    {
         name: 'Insight',
         description: 'Add Insight as an event',
-        parReduction: 3,
+        parAdjustment: 0,
         cards: [],
         events: [insight],
     })
@@ -415,7 +415,7 @@ const windfall:CardSpec = {
 boons.push({
         name: 'Windfall',
         description: 'Gain $15 and 5 buys at the start of the game',
-        parReduction: 10,
+        parAdjustment: -7,
         cards: [],
         events: [windfall],
 })
@@ -440,7 +440,7 @@ const duplicateStart:CardSpec = {
 boons.push({
         name: 'Duplication',
         description: 'Start with a duplicate token on each supply.',
-        parReduction: 3,
+        parAdjustment: 0,
         cards: [],
         events: [duplicateStart],
 })
@@ -466,7 +466,7 @@ const priorityStart:CardSpec = {
 boons.push(   {
         name: 'Acceleration',
         description: 'Start with a priority token on each supply.',
-        parReduction: 5,
+        parAdjustment: 5,
         cards: [],
         events: [priorityStart],
 })

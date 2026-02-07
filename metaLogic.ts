@@ -284,7 +284,7 @@ export const TOTAL_STAGES = 8
 export const INITIAL_BUFFER = 10
 
 // Base par values for each stage
-export const BASE_PARS: number[] = [29, 27, 25, 23, 21, 19, 17, 8]
+export const BASE_PARS: number[] = [26, 24, 22, 20, 18, 16, 14, 8]
 
 // ----------------------------- Meta-game Types
 
@@ -297,7 +297,7 @@ export interface ChallengeSpec {
 
 export function renderChallenge(spec: ChallengeSpec, state: MetaState): string {
     const gameSpec:GameSpec = makeSpec(state, spec)
-    const label = `${spec.vpMode.name} + ${spec.boons.map(b => b.name).join(' + ')} (${gameSpec.vp}vp in ${gameSpec.par}@)`
+    const label = `${challengeSummary(spec)} (${gameSpec.vp}vp in ${gameSpec.par}@)`
 
     // Build tooltip with all related cards from VP mode and boons
     const relatedCards: CardSpec[] = [
@@ -1589,9 +1589,9 @@ export function describeParCalculation(stage: number, challenge: ChallengeSpec |
     let par = basePar
     if (challenge !== null && challenge !== undefined) {
         for (const boon of challenge.boons) {
-            par -= boon.parReduction
-            if (boon.parReduction !== 0) {
-                parts.push(`${signedAmount(-boon.parReduction)} for ${boon.name}`)
+            par += boon.parAdjustment
+            if (boon.parAdjustment !== 0) {
+                parts.push(`${signedAmount(boon.parAdjustment)} for ${boon.name}`)
             }
         }
     }
@@ -1617,6 +1617,7 @@ export function describeParCalculation(stage: number, challenge: ChallengeSpec |
         }
     }
 
+    params.par = Math.max(0, params.par)
     parts.push(`= ${params.par}`)
     return parts.join(', ')
 }
@@ -1666,7 +1667,7 @@ export function makeSpec(state: MetaState, challenge: ChallengeSpec): GameSpec {
     const cards = challenge.vpMode.cards.slice()
     const events = challenge.vpMode.events.slice()
     for (const boon of challenge.boons) {
-        par -= boon.parReduction
+        par += boon.parAdjustment
         cards.push(...boon.cards)
         events.push(...boon.events)
     }
@@ -1685,9 +1686,10 @@ export function makeSpec(state: MetaState, challenge: ChallengeSpec): GameSpec {
     const lookingGlassRewards = sampleLookingGlassRoundRewards(state, lookingGlassCount(state))
     const finalCards = [...gameSetupParams.cardSpecs, ...lookingGlassRewards.cards]
     const finalEvents = [...gameSetupParams.eventSpecs, ...lookingGlassRewards.events]
+    const finalPar = Math.max(0, gameSetupParams.par)
     return {
         vp: gameSetupParams.vpGoal,
-        par: gameSetupParams.par,
+        par: finalPar,
         cards: finalCards,
         events: finalEvents,
         potions: state.data.potions,
@@ -1754,12 +1756,13 @@ function randomChallenge(state: MetaState): ChallengeSpec {
     const stage = state.data.stage
     const generator = state.generator(`challenges${stage}`)
     const vpMode = generator.sample(vpModes)
-    const boon = generator.sample(boons)
+    const isFinalStage = stage === TOTAL_STAGES - 1
+    const challengeBoons = isFinalStage ? [] : [generator.sample(boons)]
     // For now, no replacement effects
     return {
         stage: stage,
         vpMode: vpMode,
-        boons: [boon],
+        boons: challengeBoons,
     }
 }
 
