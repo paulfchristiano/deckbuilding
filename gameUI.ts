@@ -486,13 +486,29 @@ class HotkeyMapper {
             const preferredSet = new Set(preferredHotkeys)
             const otherHotkeys = hotkeys.filter(x => !preferredSet.has(x))
             const toAssign = preferredHotkeys.concat(otherHotkeys).filter(x => !taken.has(x))
-            const seenGroupIndices = new Set<number>()
+
+            function tokenSketch(tokens: Map<Token, number>): string {
+                return [...tokens.entries()]
+                    .filter(([_, v]) => v > 0)
+                    .map(([k, v]) => `${k}${v}`)
+                    .sort()
+                    .join(',')
+            }
+
+            function cardGroupKey(card: Card): string {
+                return `${card.name}|${tokenSketch(card.tokens)}`
+            }
+
+            const seenGroups = new Set<string>()
+            let groupRank = 0
             for (const card of cards) {
-                if (seenGroupIndices.has(card.groupIndex)) continue
-                seenGroupIndices.add(card.groupIndex)
-                if (card.groupIndex < toAssign.length) {
-                    set(card.id, toAssign[card.groupIndex])
+                const groupKey = cardGroupKey(card)
+                if (seenGroups.has(groupKey)) continue
+                seenGroups.add(groupKey)
+                if (groupRank < toAssign.length) {
+                    set(card.id, toAssign[groupRank])
                 }
+                groupRank += 1
             }
         }
 

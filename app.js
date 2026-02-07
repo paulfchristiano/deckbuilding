@@ -276,7 +276,7 @@
   var Card = (
     /** @class */
     (function() {
-      function Card2(spec, id, ticks, tokens, place, groupIndex) {
+      function Card2(spec, id, ticks, tokens, place) {
         if (ticks === void 0) {
           ticks = [0];
         }
@@ -286,15 +286,11 @@
         if (place === void 0) {
           place = "void";
         }
-        if (groupIndex === void 0) {
-          groupIndex = 0;
-        }
         this.spec = spec;
         this.id = id;
         this.ticks = ticks;
         this.tokens = tokens;
         this.place = place;
-        this.groupIndex = groupIndex;
         this.kind = "card";
         this.charge = this.count("charge");
       }
@@ -309,7 +305,7 @@
         return renderCardName(this);
       };
       Card2.prototype.update = function(newValues) {
-        return new Card2(this.spec, this.id, newValues.ticks === void 0 ? this.ticks : newValues.ticks, newValues.tokens === void 0 ? this.tokens : newValues.tokens, newValues.place === void 0 ? this.place : newValues.place, newValues.groupIndex === void 0 ? this.groupIndex : newValues.groupIndex);
+        return new Card2(this.spec, this.id, newValues.ticks === void 0 ? this.ticks : newValues.ticks, newValues.tokens === void 0 ? this.tokens : newValues.tokens, newValues.place === void 0 ? this.place : newValues.place);
       };
       Card2.prototype.setTokens = function(token, n) {
         var tokens = new Map(this.tokens);
@@ -762,37 +758,6 @@
   function leq(cost1, cost2) {
     return cost1.coin <= cost2.coin && cost1.energy <= cost2.energy;
   }
-  function tokenSketch(tokens) {
-    return __spreadArray([], __read(tokens.entries()), false).filter(function(_a2) {
-      var _b = __read(_a2, 2), _ = _b[0], v = _b[1];
-      return v > 0;
-    }).map(function(_a2) {
-      var _b = __read(_a2, 2), k = _b[0], v = _b[1];
-      return "".concat(k).concat(v);
-    }).sort().join(",");
-  }
-  function cardGroupKey(card) {
-    return "".concat(card.name, "|").concat(tokenSketch(card.tokens));
-  }
-  function firstFreeGroupIndex(cards) {
-    var indices = new Set(cards.map(function(card) {
-      return card.groupIndex;
-    }));
-    for (var i = 0; i < cards.length + 1; i++) {
-      if (!indices.has(i))
-        return i;
-    }
-  }
-  function assignGroupIndex(card, zone) {
-    var key = cardGroupKey(card);
-    var matching = zone.find(function(existing) {
-      return cardGroupKey(existing) === key;
-    });
-    if (matching) {
-      return card.update({ groupIndex: matching.groupIndex });
-    }
-    return card.update({ groupIndex: firstFreeGroupIndex(zone) });
-  }
   function insertAt(zone, card) {
     return zone.concat([card]);
   }
@@ -948,7 +913,6 @@
           return this.addResolving(card);
         var newZones = new Map(this.zones);
         var currentZone = this[zone];
-        card = assignGroupIndex(card, currentZone);
         newZones.set(zone, insertAt(currentZone, card));
         return this.update({ zones: newZones });
       };
@@ -978,26 +942,12 @@
       State2.prototype.apply = function(f, card) {
         var e_11, _a2;
         var newZones = /* @__PURE__ */ new Map();
-        var _loop_1 = function(name_22, zone2) {
-          var newZone = zone2.map(function(c) {
-            return c.id == card.id ? f(c) : c;
-          });
-          var changedIndex = newZone.findIndex(function(c) {
-            return c.id === card.id;
-          });
-          if (changedIndex >= 0) {
-            var changed = newZone[changedIndex];
-            var rest = newZone.filter(function(_, i) {
-              return i !== changedIndex;
-            });
-            newZone[changedIndex] = assignGroupIndex(changed, rest);
-          }
-          newZones.set(name_22, newZone);
-        };
         try {
           for (var _b = __values(this.zones), _c = _b.next(); !_c.done; _c = _b.next()) {
             var _d = __read(_c.value, 2), name_2 = _d[0], zone = _d[1];
-            _loop_1(name_2, zone);
+            newZones.set(name_2, zone.map(function(c) {
+              return c.id == card.id ? f(c) : c;
+            }));
           }
         } catch (e_11_1) {
           e_11 = { error: e_11_1 };
@@ -5049,7 +4999,7 @@
     /** @class */
     (function(_super) {
       __extends2(Relic2, _super);
-      function Relic2(spec, id, notedCards, ticks, tokens, place, groupIndex) {
+      function Relic2(spec, id, notedCards, ticks, tokens, place) {
         if (notedCards === void 0) {
           notedCards = void 0;
         }
@@ -5062,16 +5012,12 @@
         if (place === void 0) {
           place = "void";
         }
-        if (groupIndex === void 0) {
-          groupIndex = 0;
-        }
-        var _this = _super.call(this, spec, id, ticks, tokens, place, groupIndex) || this;
+        var _this = _super.call(this, spec, id, ticks, tokens, place) || this;
         _this.spec = spec;
         _this.notedCards = notedCards;
         _this.ticks = ticks;
         _this.tokens = tokens;
         _this.place = place;
-        _this.groupIndex = groupIndex;
         return _this;
       }
       Relic2.prototype.metaReplacers = function() {
@@ -5087,7 +5033,7 @@
         return (this.spec.mutableReplacers ? this.spec.mutableReplacers(this) : []).concat(_super.prototype.replacers.call(this));
       };
       Relic2.prototype.update = function(newValues) {
-        return new Relic2(this.spec, this.id, newValues.notedCards === void 0 ? this.notedCards : newValues.notedCards, newValues.ticks === void 0 ? this.ticks : newValues.ticks, newValues.tokens === void 0 ? this.tokens : newValues.tokens, newValues.place === void 0 ? this.place : newValues.place, newValues.groupIndex === void 0 ? this.groupIndex : newValues.groupIndex);
+        return new Relic2(this.spec, this.id, newValues.notedCards === void 0 ? this.notedCards : newValues.notedCards, newValues.ticks === void 0 ? this.ticks : newValues.ticks, newValues.tokens === void 0 ? this.tokens : newValues.tokens, newValues.place === void 0 ? this.place : newValues.place);
       };
       return Relic2;
     })(Card)
@@ -5527,8 +5473,7 @@
       spec: serializeSpec(card.spec, specCategory),
       ticks: __spreadArray5([], __read6(card.ticks), false),
       tokens: __spreadArray5([], __read6(card.tokens.entries()), false),
-      place: card.place,
-      groupIndex: card.groupIndex
+      place: card.place
     };
     if (card instanceof Relic) {
       return __assign3(__assign3({ kind: "relic" }, common), { notedCards: (card.notedCards || []).map(function(spec) {
@@ -5538,15 +5483,13 @@
     return __assign3({ kind: "card" }, common);
   }
   function deserializeCard(card) {
-    var _a2, _b;
     var spec = deserializeSpec(card.spec);
     var tokens = new Map(card.tokens);
-    var groupIndex = (_b = (_a2 = card.groupIndex) !== null && _a2 !== void 0 ? _a2 : card.zoneIndex) !== null && _b !== void 0 ? _b : 0;
     if (card.kind === "relic") {
       var notedCards = (card.notedCards || []).map(deserializeSpec);
-      return new Relic(spec, card.id, notedCards, card.ticks, tokens, card.place, groupIndex);
+      return new Relic(spec, card.id, notedCards, card.ticks, tokens, card.place);
     }
-    return new Card(spec, card.id, card.ticks, tokens, card.place, groupIndex);
+    return new Card(spec, card.id, card.ticks, tokens, card.place);
   }
   function serializeChallenge(challenge) {
     return {
@@ -13776,16 +13719,31 @@
           var toAssign = preferredHotkeys.concat(otherHotkeys).filter(function(x) {
             return !taken.has(x);
           });
-          var seenGroupIndices = /* @__PURE__ */ new Set();
+          function tokenSketch(tokens) {
+            return __spreadArray8([], __read13(tokens.entries()), false).filter(function(_a4) {
+              var _b2 = __read13(_a4, 2), _ = _b2[0], v = _b2[1];
+              return v > 0;
+            }).map(function(_a4) {
+              var _b2 = __read13(_a4, 2), k = _b2[0], v = _b2[1];
+              return "".concat(k).concat(v);
+            }).sort().join(",");
+          }
+          function cardGroupKey(card2) {
+            return "".concat(card2.name, "|").concat(tokenSketch(card2.tokens));
+          }
+          var seenGroups = /* @__PURE__ */ new Set();
+          var groupRank = 0;
           try {
             for (var cards_2 = __values11(cards), cards_2_1 = cards_2.next(); !cards_2_1.done; cards_2_1 = cards_2.next()) {
               var card = cards_2_1.value;
-              if (seenGroupIndices.has(card.groupIndex))
+              var groupKey = cardGroupKey(card);
+              if (seenGroups.has(groupKey))
                 continue;
-              seenGroupIndices.add(card.groupIndex);
-              if (card.groupIndex < toAssign.length) {
-                set(card.id, toAssign[card.groupIndex]);
+              seenGroups.add(groupKey);
+              if (groupRank < toAssign.length) {
+                set(card.id, toAssign[groupRank]);
               }
+              groupRank += 1;
             }
           } catch (e_7_1) {
             e_7 = { error: e_7_1 };
