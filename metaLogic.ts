@@ -803,7 +803,6 @@ type SerializedSpecRef =
         type: 'dynamic'
         dynamicKind: 'cardInABoxRelic' | 'bottledCardPotion' | 'bottledEventPotion'
         base: SerializedSpecRef
-        useUnderlyingEvent?: boolean
     }
 
 interface SerializedCard {
@@ -1028,7 +1027,6 @@ function serializeSpec(spec: CardSpec, categoryHint: SerializedSpecCategory): Se
             type: 'dynamic',
             dynamicKind: spec.persistence.kind,
             base: serializeSpec(base, baseCategory),
-            useUnderlyingEvent: spec.persistence.useUnderlyingEvent,
         }
     }
 
@@ -1071,7 +1069,7 @@ function deserializeSpec(spec: SerializedSpecRef): CardSpec {
         case 'bottledCardPotion':
             return makeBottledCardPotion(base)
         case 'bottledEventPotion':
-            return makeBottledEventPotion(base, { useUnderlyingEvent: spec.useUnderlyingEvent ?? true })
+            return makeBottledEventPotion(base)
         default:
             throw new Error(`Unknown dynamic spec kind`)
     }
@@ -1462,6 +1460,7 @@ export function gainEvent(event: CardSpec, timelineDetails: GainTimelineDetails 
             }]
         }
         state.update(nextData)
+        await trigger({kind: 'event', event: event}, state)
     }
 }
 

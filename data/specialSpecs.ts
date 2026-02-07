@@ -1,4 +1,4 @@
-import { Card, CardSpec, State, addToken, cardSpecEffects, create, displayName } from '../gameLogic.js'
+import { Card, CardSpec, State, cardSpecEffects, create, displayName } from '../gameLogic.js'
 import type { RelicSpec } from '../metaLogic.js'
 
 export function makeCardInABoxRelic(spec: CardSpec): RelicSpec {
@@ -26,58 +26,43 @@ export function makeBottledCardPotion(spec: CardSpec): CardSpec {
     return {
         name: `Bottled ${cardName}`,
         isPotion: true,
-        simpleText: [`Create a copy of ${cardName} with an echo token and play it.`],
+        simpleText: [`Create a copy of ${cardName} in your hand.`],
         relatedCards: [spec],
         persistence: {
             kind: 'bottledCardPotion'
         },
         effects: [{
-            text: [`Create a copy of ${cardName} with an echo token and play it.`],
-            transform: (_state: State, sourceCard: Card) => async function (state: State) {
-                return create(spec, 'void', created => async function (state: State) {
-                    state = await addToken(created, 'echo')(state)
-                    state = await created.play(sourceCard)(state)
-                    return state
-                })(state)
-            }
+            text: [`Create a copy of ${cardName} in your hand.`],
+            transform: () => create(spec, 'hand')
         }]
     }
 }
 
 export function makeBottledEventPotion(
-    spec: CardSpec,
-    options: { useUnderlyingEvent?: boolean } = {}
+    spec: CardSpec
 ): CardSpec {
     const cardName = displayName(spec)
     const copiedEffects = cardSpecEffects(spec)
-    const useUnderlyingEvent = options.useUnderlyingEvent ?? true
     const copiedText = copiedEffects.flatMap(effect => effect.text)
-    const displayText = spec.simpleText
-        ? [...spec.simpleText]
-        : (copiedText.length > 0 ? copiedText : [`Use ${cardName}.`])
-
-    const effects = useUnderlyingEvent
-        ? [{
-            text: copiedText.length > 0 ? copiedText : [`Use ${cardName}.`],
-            transform: (_state: State, sourceCard: Card) => async function (state: State) {
-                const target = state.events.find(event => event.name === cardName)
-                if (!target) {
-                    return state
-                }
-                return target.use(sourceCard)(state)
+    const effects = [{
+        text: copiedText.length > 0 ? copiedText : [`Use ${cardName}.`],
+        transform: (_state: State, sourceCard: Card) => async function (state: State) {
+            const target = state.events.find(event => event.name === cardName)
+            if (!target) {
+                return state
             }
-        }]
-        : copiedEffects
+            return target.use(sourceCard)(state)
+        }
+    }]
 
     return {
         name: `Bottled ${cardName}`,
         isPotion: true,
-        simpleText: displayText,
+        simpleText: [`Use ${cardName}.`],
         relatedCards: [spec],
         rules: spec.rules ? [...spec.rules] : undefined,
         persistence: {
-            kind: 'bottledEventPotion',
-            useUnderlyingEvent
+            kind: 'bottledEventPotion'
         },
         effects,
     }

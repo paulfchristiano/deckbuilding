@@ -9,16 +9,18 @@ import {
     gold,
     ResourceEvent,
     refresh, relicRewards,
-    sourceHasName
+    sourceHasName,
+    displayName
 } from '../gameLogic.js'
 import { registerSpec } from '../registry.js'
 
 import {
     GameSetupParams, RewardParams,
-    CourseEndEvent, CourseStartEvent, GainRelicEvent, GainCardEvent, PathGenerationEvent,
-    MetaTransform, addBuffer, gainRelic, RelicSpec, Relic,
+    CourseEndEvent, CourseStartEvent, GainRelicEvent, GainCardEvent, GainEventEvent, PathGenerationEvent,
+    MetaTransform, addBuffer, gainPotion, gainRelic, RelicSpec, Relic,
     MetaState,
 } from '../metaLogic.js'
+import { makeBottledEventPotion } from './specialSpecs.js'
 
 // Bag of Coins: Start with an extra copper
 export const bagOfCoins: RelicSpec = {
@@ -256,7 +258,7 @@ export const lookingGlass: CardSpec = {
     */
 
 export const giftBox: RelicSpec = {
-    name: 'Gift box',
+    name: 'Gift Box',
     simpleText: [
         'When you add a card to your deck,',
         'start the next course with a copy in hand.'
@@ -288,6 +290,19 @@ export const giftBox: RelicSpec = {
     }]
 }
 relicRewards.push(giftBox)
+
+export const emptyBottle: RelicSpec = {
+    name: 'Empty Bottle',
+    simpleText: ['Whenever you gain an event, gain a potion that uses that event for free.'],
+    metaTriggers: [{
+        kind: 'event',
+        handles: () => true,
+        transform: (e: GainEventEvent) => gainPotion(makeBottledEventPotion(e.event), {
+            details: `Bottled ${displayName(e.event)}`
+        })
+    }]
+}
+registerSpec(emptyBottle)
 
 export const banner: RelicSpec = {
     name: 'Banner',

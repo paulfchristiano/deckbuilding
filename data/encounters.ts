@@ -9,20 +9,15 @@ import { Encounter, registerEncounter, RewardOption,
     GameSetupParams,
     compose,
 } from '../metaLogic.js'
-import { calledShot, delayedGratification, giftBox, inkwell, sacredBark, silverMirror } from './relics.js'
+import { calledShot, delayedGratification, emptyBottle, giftBox, inkwell, sacredBark, silverMirror } from './relics.js'
 import { CardSpec, CardUpgrade,
     cardRewards, eventRewards, relicRewards, potionRewards,
-    leq,
-    coin,
-    cardSpecCost,
-    free,
     displayName
 } from '../gameLogic.js'
 
 import { Generator } from '../rng.js'
-import { accelerate, duplicate } from './events.js'
-import { geminiBrew, mirrorBrew, potionOfEchoes, potionOfReflection } from './potions.js'
-import { makeBottledCardPotion, makeBottledEventPotion, makeCardInABoxRelic } from './specialSpecs.js'
+import { mirrorBrew } from './potions.js'
+import { makeBottledCardPotion, makeBottledEventPotion } from './specialSpecs.js'
 import {
     bulkPurchaseUpgrade,
     fortifyUpgrade,
@@ -36,10 +31,6 @@ import {
 } from './upgrades.js'
 
 // ----------------------------- Helper Functions
-
-function withIndefiniteArticle(name: string): string {
-    return /^[aeiou]/i.test(name) ? `an ${name}` : `a ${name}`
-}
 
 function standardRelicRewards(): RelicSpec[] {
     return relicRewards as RelicSpec[]
@@ -85,60 +76,89 @@ function simpleEncounter(config: {
 
 // ----------------------------- Encounters
 
-// Magical Box encounter
-// Note: "Box a card" requires a sub-dialog, so we handle it specially
-export const magicalBox: Encounter = {
-    name: 'Magical Box',
+interface DistilleryData {
+    selectedIndex: number | null
+}
+
+export const distillery: Encounter = {
+    name: 'Distillery',
     createInitialData: () => ({ selectedIndex: null as number | null }),
     getOptions(data: unknown, metaState: MetaState): RewardOption[] {
-        const { selectedIndex } = data as { selectedIndex: number | null }
-        const hasCards = metaState.data.collectedCards.filter(
-            x => leq(cardSpecCost(x, 'buy') || free, coin(5))
-        ).length > 0
+        const d = data as DistilleryData
+        const hasCards = metaState.data.collectedCards.length > 0
+        const hasEvents = metaState.data.collectedEvents.length > 0
 
         return [
             {
-                label: 'Box a card',
-                description: 'Lose a card costing up to $5. Gain a relic that starts each course with a copy.',
-                disabled: selectedIndex !== null || !hasCards,
-                checked: selectedIndex === 0,
+                label: 'Bottle a card',
+                description: 'Choose a card from your deck, and gain a potion that creates a copy of that card in your hand.',
+                disabled: d.selectedIndex !== null || !hasCards,
+                checked: d.selectedIndex === 0,
                 onClick: async () => {
-                    // Open sub-dialog to choose card
                     const card = await metaState.ui.chooseCard(
                         metaState,
-                        'Choose a card to box:',
-                        [...metaState.data.collectedCards.filter(x => leq(cardSpecCost(x, 'buy') || free, coin(5)))],
+                        'Choose a card to bottle:',
+                        [...metaState.data.collectedCards],
                         true
                     )
                     if (!card) {
-                        // User cancelled, don't change state
                         return { newData: data }
                     }
                     return {
                         newData: { selectedIndex: 0 },
-                        transform: async (state: MetaState) => {
-                            state.removeCard(card.name)
-                            await gainRelic(makeCardInABoxRelic(card), {
-                                details: `Boxed ${displayName(card)}`
-                            })(state)
-                        }
+                        transform: gainPotion(makeBottledCardPotion(card), {
+                            details: `Bottled card ${displayName(card)}`
+                        }),
+                    }
+                }
+            },
+            {
+                label: 'Bottle an event',
+                description: 'Choose an event from your deck, and gain a potion that uses that event for free.',
+                disabled: d.selectedIndex !== null || !hasEvents,
+                checked: d.selectedIndex === 1,
+                onClick: async () => {
+                    const event = await metaState.ui.chooseCard(
+                        metaState,
+                        'Choose an event to bottle:',
+                        [...metaState.data.collectedEvents],
+                        true
+                    )
+                    if (!event) {
+                        return { newData: data }
+                    }
+                    return {
+                        newData: { selectedIndex: 1 },
+                        transform: gainPotion(makeBottledEventPotion(event), {
+                            details: `Bottled event ${displayName(event)}`
+                        }),
                     }
                 }
             },
             {
                 label: 'Gift Box',
-                description: 'Each time you add a card to your deck, start the course with a copy.',
-                disabled: selectedIndex !== null,
-                checked: selectedIndex === 1,
+                spec: giftBox,
+                disabled: d.selectedIndex !== null,
+                checked: d.selectedIndex === 2,
                 onClick: async () => ({
-                    newData: { selectedIndex: 1 },
+                    newData: { selectedIndex: 2 },
                     transform: gainRelic(giftBox)
+                })
+            },
+            {
+                label: 'Empty Bottle',
+                spec: emptyBottle,
+                disabled: d.selectedIndex !== null,
+                checked: d.selectedIndex === 3,
+                onClick: async () => ({
+                    newData: { selectedIndex: 3 },
+                    transform: gainRelic(emptyBottle)
                 })
             }
         ]
     }
 }
-registerEncounter(magicalBox)
+registerEncounter(distillery)
 
 // Mirror Maker encounter
 export const mirrorMaker: Encounter = {
@@ -377,70 +397,6 @@ export const shopkeeper: Encounter = {
     }
 }
 registerEncounter(shopkeeper)
-
-interface BreweryData {
-    selectedIndex: number | null
-    shelfPotion: CardSpec
-}
-
-export const brewery: Encounter = {
-    name: 'Brewery',
-    createInitialData(_metaState: MetaState, generator: Generator): BreweryData {
-        const shelfOptions: CardSpec[] = [
-            potionOfEchoes,
-            potionOfReflection,
-            { ...geminiBrew, name: 'Gemini Potion' },
-            makeBottledEventPotion(duplicate, { useUnderlyingEvent: false }),
-            makeBottledEventPotion(accelerate, { useUnderlyingEvent: false }),
-        ]
-        return {
-            selectedIndex: null,
-            shelfPotion: generator.sample(shelfOptions),
-        }
-    },
-    getOptions(data: unknown, metaState: MetaState): RewardOption[] {
-        const d = data as BreweryData
-        const hasCards = metaState.data.collectedCards.length > 0
-
-        return [
-            {
-                label: 'Bottle a card',
-                description: 'Gain a potion that creates a copy of the card with an echo token and plays it.',
-                disabled: d.selectedIndex !== null || !hasCards,
-                checked: d.selectedIndex === 0,
-                onClick: async () => {
-                    const card = await metaState.ui.chooseCard(
-                        metaState,
-                        'Choose a card to bottle:',
-                        [...metaState.data.collectedCards],
-                        true
-                    )
-                    if (!card) {
-                        return { newData: data }
-                    }
-                    return {
-                        newData: { ...d, selectedIndex: 0 },
-                        transform: gainPotion(makeBottledCardPotion(card), {
-                            details: `Bottled ${displayName(card)}`
-                        }),
-                    }
-                }
-            },
-            {
-                label: 'Take one from the shelf',
-                description: `Gain ${withIndefiniteArticle(d.shelfPotion.name)}.`,
-                tooltipSpec: d.shelfPotion,
-                disabled: d.selectedIndex !== null,
-                checked: d.selectedIndex === 1,
-                onClick: async () => ({
-                    newData: { ...d, selectedIndex: 1 },
-                    transform: gainPotion(d.shelfPotion),
-                })
-            }
-        ]
-    }
-}
-registerEncounter(brewery)
 
 interface PotionShopData {
     selectedIndex: number | null
@@ -834,4 +790,4 @@ export const callYourShot: Encounter = simpleEncounter({
 registerEncounter(callYourShot, { maxStage: 4 })
 
 // Export for testing
-export { tradingPost, magicalBox as findABottle }
+export { tradingPost }
