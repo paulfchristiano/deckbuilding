@@ -170,7 +170,7 @@ export const mirrorMaker: Encounter = {
 
         return [
             {
-                label: 'Grind the mirror into a potion',
+                label: 'Distill the mirror',
                 description: 'Gain a Mirror Brew.',
                 disabled: selectedIndex !== null,
                 checked: selectedIndex === 0,

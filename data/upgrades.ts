@@ -61,11 +61,25 @@ export const transmuteUpgrade: CardUpgrade = registerUpgrade('transmute', {
 
 export const fortifyUpgrade: CardUpgrade = registerUpgrade('fortify', {
     name: name => `${name}+`,
-    staticReplacers: [{
+    staticTriggers: [{
         kind: 'move',
-        text: 'Whenever you would trash a card that shares a name with this one, instead put it in your discard.',
-        handles: (x, _state, card) => x.toZone === 'void' && x.card.name === card.name,
-        replace: x => ({ ...x, toZone: 'discard' }),
+        text: 'Whenever a card that shares a name with this is trashed, create a card costing $1, $2, or $3 more in your hand.',
+        handles: (e, _state, card) => e.toZone === 'void' && card !== null && e.card.name === card.name,
+        transform: (e, _state, _card) => async function (state: State) {
+            const trashedCard = state.find(e.card)
+            const trashedCost = trashedCard.cost('buy', state)
+            const minCoin = trashedCost.coin + 1
+            const maxCoin = trashedCost.coin + 3
+            state = await applyToTarget(
+                target => create(target.spec, 'hand'),
+                'Choose a card to create in hand.',
+                s => s.supply.filter(candidate => {
+                    const candidateCost = candidate.cost('buy', s).coin
+                    return candidateCost >= minCoin && candidateCost <= maxCoin
+                })
+            )(state)
+            return state
+        }
     }]
 })
 

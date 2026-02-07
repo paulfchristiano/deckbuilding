@@ -496,7 +496,7 @@ eventRewards.push(regroup)
 
 const summon:CardSpec = {
     name: 'Summon',
-    fixedCost: {...free, energy:1, coin:4},
+    fixedCost: {...free, energy:1, coin:3},
     effects: [multitargetedEffect(
         (targets, card) => doAll(targets.map(target =>
             create(target.spec, 'hand', c => addToken(c, 'echo'))

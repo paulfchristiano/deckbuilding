@@ -1396,7 +1396,7 @@ cardRewards.push(university)
 const moon:CardSpec = {
     name: 'Moon',
     simpleText: [
-        `The moon starts off empty.`,
+        `The moon starts off full.`,
         `Whenever you would move this from play, it instead toggles between full and empty.`,
     ],
     replacers: [{
@@ -1416,24 +1416,27 @@ const moon:CardSpec = {
 
 const werewolf:CardSpec = {
     simpleText: [
-        `+3 actions. If there is a full moon, instead +$3 and +1 buy.`,
-        `The moon starts off empty and switches between full and empty each time you Refresh.`
+        `+1 buy.`,
+        `If there is a full moon, +$3.`,
+        `Otherwise, +3 actions.`,
+        `The moon starts off full and switches between full and empty each time you Refresh.`
     ],
     name: 'Werewolf',
     buyCost: coin(3),
     relatedCards: [moon],
     effects: [{
-        text: [`If a ${moon.name} in play has an odd number of charge tokens (moon is full), +$3 and +1 buy.`,
-                `Otherwise, +3 actions.`],
-        transform: (s, c) => (s.play.some(c => c.name == moon.name && c.charge % 2 == 1)) ?
-            doAll([gainCoins(3, c), gainBuys(1, c)]) :
-            gainActions(3, c)
+        text: [`+1 buy.`,
+            `If a ${moon.name} in play has an odd number of charge tokens (moon is full), +$3.`,
+            `Otherwise, +3 actions.`],
+        transform: (s, c) => (s.play.some(c => c.name == moon.name && c.charge % 2 == 1))
+            ? doAll([gainBuys(1, c), gainCoins(3, c)])
+            : doAll([gainBuys(1, c), gainActions(3, c)])
     }],
     staticTriggers: [{
         kind: 'gameStart',
-        text: `At the start of the game, create ${a(moon.name)} in play.`,
+        text: `At the start of the game, create ${a(moon.name)} in play with a charge token.`,
         handles: () => true,   
-        transform: () => create(moon, 'play')
+        transform: () => create(moon, 'play', card => charge(card, 1))
     }]
 }
 cardRewards.push(werewolf)

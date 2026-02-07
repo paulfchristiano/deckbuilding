@@ -82,18 +82,12 @@ const vault:CardSpec = {name: 'Vault',
             p.resource == 'buys'
         ),
         replace: p => ({...p, amount:0})
-    }],
-    staticTriggers: [{
-        kind: 'gameStart',
-        text: 'At the start of the game, +10 actions and +2 buys.',
-        handles: () => true,
-        transform: (e, state, card) => doAll([gainActions(10, card), gainBuys(2, card)])
     }]
 }
 boons.push({
     name: 'Vault',
-    description: 'Add Vault as an event, start with 10 actions and 2 buys',
-    parReduction: 2,
+    description: 'Add Vault as an event',
+    parReduction: 0,
     cards: [],
     events: [vault],
 })

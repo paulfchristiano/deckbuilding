@@ -332,23 +332,6 @@ export const potionOfReflection: CardSpec = {
 }
 potionRewards.push(potionOfReflection)
 
-export const potionOfEchoes: CardSpec = {
-    name: 'Potion of Echoes',
-    isPotion: true,
-    simpleText: ['For each card in your hand without an echo token, create a copy with an echo token.'],
-    rules: [echoRule],
-    effects: [{
-        text: [`For each card in your hand without an echo token,
-                create a copy in your hand with an echo token.`],
-        transform: state => doAll(
-            state.hand.filter(c => c.count('echo') == 0).map(
-                c => create(c.spec, 'hand', x => addToken(x, 'echo'))
-            )
-        )
-    }]
-}
-potionRewards.push(potionOfEchoes)
-
 export const sanguineElixir: CardSpec = {
     name: 'Sanguine Elixir',
     isPotion: true,

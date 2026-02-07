@@ -37,24 +37,33 @@ relicRewards.push(bagOfCoins)
 
 export const bagOfPreparation: RelicSpec = {
     name: 'Bag of Preparation',
-    simpleText: ['+3 actions each time you refresh.'],
-    triggers: [{
-        kind: 'afterUse',
-        handles: (e, s, c) => e.card.name === refresh.name,
-        text: `After using ${refresh.name}, +3 actions.`,
-        transform: (e, s, c) => gainActions(3, c)
+    simpleText: [
+        'At the start of the game, +5 actions.',
+        'You can\'t lose actions except by paying costs.'
+    ],
+    staticReplacers: [{
+        text: `You can't lose actions (other than by paying costs).`,
+        kind: 'resource',
+        handles: (p: ResourceEvent) => p.amount < 0 && p.resource == 'actions',
+        replace: p => ({ ...p, amount: 0 })
     }],
+    triggers: [{
+        kind: 'gameStart',
+        handles: () => true,
+        text: 'At the start of the game, +5 actions.',
+        transform: (_e, _s, c) => gainActions(5, c)
+    }]
 }
 relicRewards.push(bagOfPreparation)
 
 export const courier: RelicSpec = {
     name: 'Courier',
-    simpleText: ['+1 buy each time you refresh.'],
+    simpleText: ['+2 buys each time you refresh.'],
     triggers: [{
         kind: 'afterUse',
-        text: `After using ${refresh.name}, +1 buy.`,
+        text: `After using ${refresh.name}, +2 buys.`,
         handles: (e, s, c) => e.card.name === refresh.name,
-        transform: (e, s, c) => gainBuys(1, c)
+        transform: (e, s, c) => gainBuys(2, c)
     }],
 }
 relicRewards.push(courier)
