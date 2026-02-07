@@ -17,7 +17,7 @@ import { getSpecByName } from './registry.js'
 
 import { buildSpecTooltip } from './cardRendering.js'
 import { makeBottledCardPotion, makeBottledEventPotion, makeCardInABoxRelic } from './data/specialSpecs.js'
-import { getEncounterUpgradeById } from './data/upgrades.js'
+import { getEncounterUpgradeById } from './data/encounters.js'
 
 // ----------------------------- MetaUI Interface
 
