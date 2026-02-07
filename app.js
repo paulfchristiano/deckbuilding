@@ -3755,6 +3755,15 @@
       return "<div>".concat(line, "</div>");
     }).join("") : cardText(spec);
   }
+  function buildSimpleTooltipForSingleSpec(spec) {
+    var buyCost = cardSpecCost(spec, "buy");
+    var actionCost = cardSpecCost(spec, actionCostKindForSpec(spec));
+    var buyStr = !isZero(buyCost) ? "(".concat(renderCost(buyCost), ")") : "---";
+    var costStr = !isZero(actionCost) ? "(".concat(renderCost(actionCost), ")") : "---";
+    var header = "<div>---".concat(buyStr, " ").concat(displayName(spec), " ").concat(costStr, "---</div>");
+    var body = renderSpecSimpleBody(spec);
+    return "".concat(header).concat(body);
+  }
   function buildSpecTooltipFull(spec) {
     var buyCost = cardSpecCost(spec, "buy");
     var actionCost = cardSpecCost(spec, actionCostKindForSpec(spec));
@@ -3769,39 +3778,46 @@
     return "".concat(baseFilling).concat(relatedFilling);
   }
   function buildSpecTooltipSimple(spec) {
-    var buyCost = cardSpecCost(spec, "buy");
-    var actionCost = cardSpecCost(spec, actionCostKindForSpec(spec));
-    var buyStr = !isZero(buyCost) ? "(".concat(renderCost(buyCost), ")") : "---";
-    var costStr = !isZero(actionCost) ? "(".concat(renderCost(actionCost), ")") : "---";
-    var header = "<div>---".concat(buyStr, " ").concat(displayName(spec), " ").concat(costStr, "---</div>");
-    var body = renderSpecSimpleBody(spec);
-    var related = (spec.relatedCards || []).map(function(relatedSpec) {
-      var relatedBuyCost = cardSpecCost(relatedSpec, "buy");
-      var relatedActionCost = cardSpecCost(relatedSpec, actionCostKindForSpec(relatedSpec));
-      var relatedBuyStr = !isZero(relatedBuyCost) ? "(".concat(renderCost(relatedBuyCost), ")") : "---";
-      var relatedCostStr = !isZero(relatedActionCost) ? "(".concat(renderCost(relatedActionCost), ")") : "---";
-      return "<div>---".concat(relatedBuyStr, " ").concat(displayName(relatedSpec), " ").concat(relatedCostStr, "---</div>").concat(renderSpecSimpleBody(relatedSpec));
-    }).join("");
-    return "".concat(header).concat(body).concat(related);
+    var mine = buildSimpleTooltipForSingleSpec(spec);
+    var related = (spec.relatedCards || []).map(buildSimpleTooltipForSingleSpec).join("");
+    return "".concat(mine).concat(related);
   }
-  function buildSpecTooltip(spec) {
-    return buildSpecTooltipFull(spec);
+  function buildSpecTooltipOnlyRelatedSimple(spec) {
+    var rules2 = (spec.rules || []).map(renderRuleText).join("");
+    var related = (spec.relatedCards || []).map(buildSimpleTooltipForSingleSpec).join("");
+    return "".concat(rules2).concat(related);
   }
-  function renderSpecNoRelated(spec) {
+  function renderSpecNoRelated(spec, tooltipMode) {
+    if (tooltipMode === void 0) {
+      tooltipMode = "default";
+    }
     var buyCost = cardSpecCost(spec, "buy");
     var actionCost = cardSpecCost(spec, actionCostKindForSpec(spec));
     var buyText = isZero(buyCost) ? "" : "(".concat(renderCost(buyCost), ")&nbsp;");
     var costText = isZero(actionCost) ? "" : "&nbsp;(".concat(renderCost(actionCost), ")");
     var header = "<div>".concat(buyText, "<strong>").concat(displayName(spec), "</strong>").concat(costText, "</div>");
     var displayText = renderSpecSimpleBody(spec);
-    var hasRelated = (spec.relatedCards || []).length > 0;
-    if (hasRelated) {
+    var hasRelatedCards = (spec.relatedCards || []).length > 0;
+    var hasRelatedRules = (spec.rules || []).length > 0;
+    var hasRelatedContent = hasRelatedCards || hasRelatedRules;
+    if (tooltipMode === "onlyRelated" && hasRelatedContent) {
+      var tooltipSimple = buildSpecTooltipOnlyRelatedSimple(spec);
+      var tooltipFull = buildSpecTooltipFull(spec);
+      return "<div class='spec has-related-only'>".concat(header).concat(displayText, "<span class='tooltip tooltip-simple'>").concat(tooltipSimple, "</span><span class='tooltip tooltip-full'>").concat(tooltipFull, "</span></div>");
+    }
+    if (hasRelatedCards) {
       var tooltipSimple = buildSpecTooltipSimple(spec);
       var tooltipFull = buildSpecTooltipFull(spec);
       return "<div class='spec has-related'>".concat(header).concat(displayText, "<span class='tooltip tooltip-simple'>").concat(tooltipSimple, "</span><span class='tooltip tooltip-full'>").concat(tooltipFull, "</span></div>");
     }
+    if (tooltipMode === "onlyRelated") {
+      return "<div class='spec'>".concat(header).concat(displayText, "</div>");
+    }
     var tooltipHtml = buildSpecTooltipFull(spec);
     return "<div class='spec'>".concat(header).concat(displayText, "<span class='tooltip'>").concat(tooltipHtml, "</span></div>");
+  }
+  function buildSpecTooltip(spec) {
+    return buildSpecTooltipFull(spec);
   }
 
   // public/data/specialSpecs.js
@@ -15534,7 +15550,10 @@
       options.forEach(function(option, optionIndex) {
         var optionEl;
         if (option.spec) {
-          optionEl = createElementFromHTML2(renderSpecNoRelated(option.spec));
+          var hasRelatedContent = (option.spec.relatedCards || []).length > 0 || (option.spec.rules || []).length > 0;
+          var useRelatedTooltipMode = rewardState.kind === "card" || rewardState.kind === "potion" || rewardState.kind === "event";
+          var tooltipMode = useRelatedTooltipMode && hasRelatedContent ? "onlyRelated" : "default";
+          optionEl = createElementFromHTML2(renderSpecNoRelated(option.spec, tooltipMode));
           optionEl.classList.add("rewardOption");
         } else {
           optionEl = createDiv("rewardOption option");

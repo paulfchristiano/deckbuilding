@@ -447,7 +447,15 @@ function renderStageScreen(
 
             if (option.spec) {
                 // Render as card
-                optionEl = createElementFromHTML(renderSpecNoRelated(option.spec))
+                const hasRelatedContent = (option.spec.relatedCards || []).length > 0 || (option.spec.rules || []).length > 0
+                const useRelatedTooltipMode =
+                    rewardState.kind === 'card' ||
+                    rewardState.kind === 'potion' ||
+                    rewardState.kind === 'event'
+                const tooltipMode = useRelatedTooltipMode && hasRelatedContent
+                    ? 'onlyRelated'
+                    : 'default'
+                optionEl = createElementFromHTML(renderSpecNoRelated(option.spec, tooltipMode))
                 optionEl.classList.add('rewardOption')
             } else {
                 // Render as text button

@@ -85,6 +85,16 @@ function renderSpecSimpleBody(spec: CardSpec): string {
         : cardText(spec)
 }
 
+function buildSimpleTooltipForSingleSpec(spec: CardSpec): string {
+    const buyCost = cardSpecCost(spec, 'buy')
+    const actionCost = cardSpecCost(spec, actionCostKindForSpec(spec))
+    const buyStr = !isZero(buyCost) ? `(${renderCost(buyCost as Cost)})` : '---'
+    const costStr = !isZero(actionCost) ? `(${renderCost(actionCost as Cost)})` : '---'
+    const header = `<div>---${buyStr} ${displayName(spec)} ${costStr}---</div>`
+    const body = renderSpecSimpleBody(spec)
+    return `${header}${body}`
+}
+
 // Build full HTML tooltip for a card spec (matching in-game tooltip style)
 export function buildSpecTooltipFull(spec: CardSpec): string {
     const buyCost = cardSpecCost(spec, 'buy')
@@ -102,20 +112,52 @@ export function buildSpecTooltipFull(spec: CardSpec): string {
 }
 
 export function buildSpecTooltipSimple(spec: CardSpec): string {
+    const mine = buildSimpleTooltipForSingleSpec(spec)
+    const related = (spec.relatedCards || []).map(buildSimpleTooltipForSingleSpec).join('')
+    return `${mine}${related}`
+}
+
+export function buildSpecTooltipOnlyRelatedSimple(spec: CardSpec): string {
+    const rules = (spec.rules || []).map(renderRuleText).join('')
+    const related = (spec.relatedCards || []).map(buildSimpleTooltipForSingleSpec).join('')
+    return `${rules}${related}`
+}
+
+export type SpecTooltipMode = 'default' | 'onlyRelated'
+
+// Render a CardSpec without related cards inline, but with tooltip
+// Uses simpleText if available for compact display
+export function renderSpecNoRelated(spec: CardSpec, tooltipMode: SpecTooltipMode = 'default'): string {
     const buyCost = cardSpecCost(spec, 'buy')
     const actionCost = cardSpecCost(spec, actionCostKindForSpec(spec))
-    const buyStr = !isZero(buyCost) ? `(${renderCost(buyCost as Cost)})` : '---'
-    const costStr = !isZero(actionCost) ? `(${renderCost(actionCost as Cost)})` : '---'
-    const header = `<div>---${buyStr} ${displayName(spec)} ${costStr}---</div>`
-    const body = renderSpecSimpleBody(spec)
-    const related = (spec.relatedCards || []).map(relatedSpec => {
-        const relatedBuyCost = cardSpecCost(relatedSpec, 'buy')
-        const relatedActionCost = cardSpecCost(relatedSpec, actionCostKindForSpec(relatedSpec))
-        const relatedBuyStr = !isZero(relatedBuyCost) ? `(${renderCost(relatedBuyCost as Cost)})` : '---'
-        const relatedCostStr = !isZero(relatedActionCost) ? `(${renderCost(relatedActionCost as Cost)})` : '---'
-        return `<div>---${relatedBuyStr} ${displayName(relatedSpec)} ${relatedCostStr}---</div>${renderSpecSimpleBody(relatedSpec)}`
-    }).join('')
-    return `${header}${body}${related}`
+    const buyText = isZero(buyCost) ? '' : `(${renderCost(buyCost as Cost)})&nbsp;`
+    const costText = isZero(actionCost) ? '' : `&nbsp;(${renderCost(actionCost as Cost)})`
+    const header = `<div>${buyText}<strong>${displayName(spec)}</strong>${costText}</div>`
+
+    // Use simpleText if available, otherwise full card text
+    const displayText = renderSpecSimpleBody(spec)
+
+    const hasRelatedCards = (spec.relatedCards || []).length > 0
+    const hasRelatedRules = (spec.rules || []).length > 0
+    const hasRelatedContent = hasRelatedCards || hasRelatedRules
+    if (tooltipMode === 'onlyRelated' && hasRelatedContent) {
+        const tooltipSimple = buildSpecTooltipOnlyRelatedSimple(spec)
+        const tooltipFull = buildSpecTooltipFull(spec)
+        return `<div class='spec has-related-only'>${header}${displayText}<span class='tooltip tooltip-simple'>${tooltipSimple}</span><span class='tooltip tooltip-full'>${tooltipFull}</span></div>`
+    }
+
+    if (hasRelatedCards) {
+        const tooltipSimple = buildSpecTooltipSimple(spec)
+        const tooltipFull = buildSpecTooltipFull(spec)
+        return `<div class='spec has-related'>${header}${displayText}<span class='tooltip tooltip-simple'>${tooltipSimple}</span><span class='tooltip tooltip-full'>${tooltipFull}</span></div>`
+    }
+
+    if (tooltipMode === 'onlyRelated') {
+        return `<div class='spec'>${header}${displayText}</div>`
+    }
+
+    const tooltipHtml = buildSpecTooltipFull(spec)
+    return `<div class='spec'>${header}${displayText}<span class='tooltip'>${tooltipHtml}</span></div>`
 }
 
 // Backward-compatible export for existing callsites.
@@ -133,29 +175,6 @@ export function renderSpec(spec: CardSpec): string {
     const me = `<div class='spec'>${header}${cardText(spec)}</div>`
     const related = (spec.relatedCards || []).map(renderSpec)
     return [me, ...related].join('')
-}
-
-// Render a CardSpec without related cards inline, but with tooltip
-// Uses simpleText if available for compact display
-export function renderSpecNoRelated(spec: CardSpec): string {
-    const buyCost = cardSpecCost(spec, 'buy')
-    const actionCost = cardSpecCost(spec, actionCostKindForSpec(spec))
-    const buyText = isZero(buyCost) ? '' : `(${renderCost(buyCost as Cost)})&nbsp;`
-    const costText = isZero(actionCost) ? '' : `&nbsp;(${renderCost(actionCost as Cost)})`
-    const header = `<div>${buyText}<strong>${displayName(spec)}</strong>${costText}</div>`
-
-    // Use simpleText if available, otherwise full card text
-    const displayText = renderSpecSimpleBody(spec)
-
-    // Build HTML tooltip matching in-game style
-    const hasRelated = (spec.relatedCards || []).length > 0
-    if (hasRelated) {
-        const tooltipSimple = buildSpecTooltipSimple(spec)
-        const tooltipFull = buildSpecTooltipFull(spec)
-        return `<div class='spec has-related'>${header}${displayText}<span class='tooltip tooltip-simple'>${tooltipSimple}</span><span class='tooltip tooltip-full'>${tooltipFull}</span></div>`
-    }
-    const tooltipHtml = buildSpecTooltipFull(spec)
-    return `<div class='spec'>${header}${displayText}<span class='tooltip'>${tooltipHtml}</span></div>`
 }
 
 // Render a simple card header (name + cost) without text

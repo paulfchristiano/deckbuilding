@@ -262,6 +262,12 @@ input {
   left: 0px;
 }
 
+/* Reward cards in related-only mode: place tooltip below the card body */
+.spec.has-related-only .tooltip {
+  top: calc(100% + 0.35em);
+  left: 0;
+}
+
 .macroDeleteMenuOverlay {
     position: fixed;
     z-index: 25;
@@ -320,6 +326,22 @@ input {
         visibility: hidden;
     }
     .shift-held .spec.has-related:hover .tooltip-full {
+        visibility: visible;
+        transition-delay: 0s;
+    }
+
+    /* Reward-card related-only tooltip mode: related simple on hover, full card on shift-hover */
+    .spec.has-related-only:hover .tooltip-simple {
+        visibility: visible;
+        transition-delay: 0.3s;
+    }
+    .spec.has-related-only:hover .tooltip-full {
+        visibility: hidden;
+    }
+    .shift-held .spec.has-related-only:hover .tooltip-simple {
+        visibility: hidden;
+    }
+    .shift-held .spec.has-related-only:hover .tooltip-full {
         visibility: visible;
         transition-delay: 0s;
     }
