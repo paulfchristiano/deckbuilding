@@ -5,7 +5,6 @@ import { CardSpec, Card, State, vpModes,
     TypedTrigger, TypedReplacer,
     Boon, VPMode,
     boons,
-    core,
     PlaceName,
     Token,
     cardRewards, eventRewards, potionRewards, relicRewards,
@@ -14,6 +13,7 @@ import { CardSpec, Card, State, vpModes,
     Replayable
  } from './gameLogic.js'
 import type { GameSpec } from './gameLogic.js'
+import { getSpecByName } from './registry.js'
 
 import { buildSpecTooltip } from './cardRendering.js'
 import { makeBottledCardPotion, makeBottledEventPotion, makeCardInABoxRelic } from './data/specialSpecs.js'
@@ -945,7 +945,7 @@ function encodeUnknown(value: unknown): unknown {
     if (looksLikeCardSpec(value)) {
         return {
             __type: 'spec',
-            value: serializeSpec(value)
+            value: serializeSpec(value, 'card')
         }
     }
     if (value !== null && typeof value === 'object') {
@@ -986,89 +986,37 @@ function decodeUnknown(value: unknown): unknown {
     return value
 }
 
-function specsForCategory(category: SerializedSpecCategory): CardSpec[] {
-    const fromVP = category === 'card'
-        ? vpModes.flatMap(vpMode => vpMode.cards)
-        : category === 'event'
-            ? vpModes.flatMap(vpMode => vpMode.events)
-            : []
-    const fromBoons = category === 'card'
-        ? boons.flatMap(boon => boon.cards)
-        : category === 'event'
-            ? boons.flatMap(boon => boon.events)
-            : []
-    const fromCore = category === 'card'
-        ? core.cards
-        : category === 'event'
-            ? core.events
-            : []
-    const fromRewards =
-        category === 'card' ? cardRewards :
-        category === 'event' ? eventRewards :
-        category === 'potion' ? potionRewards :
-        relicRewards
-    const all = [...fromRewards, ...fromVP, ...fromBoons, ...fromCore]
-    const byName = new Map<string, CardSpec>()
-    for (const spec of all) {
-        if (!byName.has(spec.name)) byName.set(spec.name, spec)
-    }
-    return [...byName.values()]
+function findBaseSpec(name: string): CardSpec {
+    const spec = getSpecByName(name)
+    if (spec) return spec
+    throw new Error(`Unable to resolve spec "${name}"`)
 }
 
-function inferSpecCategory(spec: CardSpec): SerializedSpecCategory {
-    const categories: SerializedSpecCategory[] = []
-    for (const category of ['card', 'event', 'potion', 'relic'] as SerializedSpecCategory[]) {
-        if (specsForCategory(category).some(candidate => candidate.name === spec.name)) {
-            categories.push(category)
-        }
-    }
-    if (categories.length === 1) return categories[0]
-    if (categories.length === 0) {
-        if (spec.isPotion) return 'potion'
-        throw new Error(`Unable to infer category for spec "${spec.name}"`)
-    }
-    throw new Error(`Ambiguous category for spec "${spec.name}"`)
-}
-
-function findBaseSpec(category: SerializedSpecCategory, name: string): CardSpec {
-    const primaryPool = specsForCategory(category)
-    const primaryMatch = primaryPool.find(spec => spec.name === name)
-    if (primaryMatch) return primaryMatch
-
-    const crossCategoryMatches: CardSpec[] = []
-    for (const categoryName of ['card', 'event', 'potion', 'relic'] as SerializedSpecCategory[]) {
-        const match = specsForCategory(categoryName).find(spec => spec.name === name)
-        if (match) crossCategoryMatches.push(match)
-    }
-    if (crossCategoryMatches.length === 1) {
-        return crossCategoryMatches[0]
-    }
-
-    throw new Error(`Unable to resolve ${category} spec "${name}"`)
-}
-
-function serializeSpec(spec: CardSpec, categoryHint: SerializedSpecCategory | null = null): SerializedSpecRef {
+function serializeSpec(spec: CardSpec, categoryHint: SerializedSpecCategory): SerializedSpecRef {
     if (spec.persistence) {
         const base = spec.relatedCards?.[0]
         if (!base) {
             throw new Error(`Dynamic spec "${spec.name}" is missing related base card`)
         }
+        const baseCategory: SerializedSpecCategory =
+            spec.persistence.kind === 'bottledEventPotion'
+                ? 'event'
+                : 'card'
         return {
             type: 'dynamic',
             dynamicKind: spec.persistence.kind,
-            base: serializeSpec(base),
+            base: serializeSpec(base, baseCategory),
             useUnderlyingEvent: spec.persistence.useUnderlyingEvent,
         }
     }
 
-    const category = categoryHint || inferSpecCategory(spec)
     const upgradeIDs = (spec.upgrades || []).map(upgrade => upgrade.id)
     if (upgradeIDs.some(id => id === undefined)) {
         throw new Error(`Spec "${spec.name}" has non-serializable upgrades`)
     }
     return {
         type: 'base',
-        category,
+        category: categoryHint,
         name: spec.name,
         upgradeIDs: upgradeIDs as string[],
     }
@@ -1091,7 +1039,7 @@ function applyUpgrades(base: CardSpec, upgradeIDs: string[]): CardSpec {
 
 function deserializeSpec(spec: SerializedSpecRef): CardSpec {
     if (spec.type === 'base') {
-        const base = findBaseSpec(spec.category, spec.name)
+        const base = findBaseSpec(spec.name)
         return applyUpgrades(base, spec.upgradeIDs)
     }
     const base = deserializeSpec(spec.base)
@@ -1108,9 +1056,12 @@ function deserializeSpec(spec: SerializedSpecRef): CardSpec {
 }
 
 function serializeCard(card: Card): SerializedCard {
+    const specCategory: SerializedSpecCategory = card instanceof Relic
+        ? 'relic'
+        : card.spec.isPotion ? 'potion' : 'card'
     const common = {
         id: card.id,
-        spec: serializeSpec(card.spec),
+        spec: serializeSpec(card.spec, specCategory),
         ticks: [...card.ticks],
         tokens: [...card.tokens.entries()],
         place: card.place,
@@ -1120,7 +1071,7 @@ function serializeCard(card: Card): SerializedCard {
         return {
             kind: 'relic',
             ...common,
-            notedCards: (card.notedCards || []).map(spec => serializeSpec(spec)),
+            notedCards: (card.notedCards || []).map(spec => serializeSpec(spec, 'card')),
         }
     }
     return {
@@ -1732,6 +1683,10 @@ export function getRewardOptionCount(state: MetaState): number {
     return params.optionCount
 }
 
+function standardRelicRewards(): RelicSpec[] {
+    return relicRewards as RelicSpec[]
+}
+
 // ----------------------- Generate data
 
 function randomChallenge(state: MetaState): ChallengeSpec {
@@ -2064,7 +2019,7 @@ function materializePath(state: MetaState, path: Path): Pick<MetaStateData, 'cha
             const generator = state.generator(`rewardsrelic`).newGenerator()
             return {
                 kind: 'relic' as const,
-                options: generator.samples(relicRewards, getRewardOptionCount(state)),
+                options: generator.samples(standardRelicRewards(), getRewardOptionCount(state)),
                 selectedIndex: null
             }
         }

@@ -9,7 +9,7 @@ import { Encounter, registerEncounter, RewardOption,
     GameSetupParams,
     compose,
 } from '../metaLogic.js'
-import { giftBox, inkwell, silverMirror } from './relics.js'
+import { calledShot, delayedGratification, giftBox, inkwell, silverMirror } from './relics.js'
 import { CardSpec, CardUpgrade,
     cardRewards, eventRewards, relicRewards, potionRewards,
     leq,
@@ -40,6 +40,11 @@ import {
 function withIndefiniteArticle(name: string): string {
     return /^[aeiou]/i.test(name) ? `an ${name}` : `a ${name}`
 }
+
+function standardRelicRewards(): RelicSpec[] {
+    return relicRewards as RelicSpec[]
+}
+
 function upgradeCardSpec(spec: CardSpec, upgrade: CardUpgrade): CardSpec {
     return {
         ...spec,
@@ -446,7 +451,7 @@ export const varietyPack: Encounter = {
             offerCard: generator.sample(cardRewards),
             offerEvent: generator.sample(eventRewards),
             offerPotion: generator.sample(potionRewards),
-            offerRelic: generator.sample(relicRewards)
+            offerRelic: generator.sample(standardRelicRewards())
         }
     },
     getOptions(data: unknown, metaState: MetaState): RewardOption[] {
@@ -531,7 +536,7 @@ const tradingPost: Encounter = {
             offerCard: generator.sample(cardRewards),
             offerEvent: generator.sample(eventRewards),
             offerPotion: generator.sample(potionRewards),
-            offerRelic: generator.sample(relicRewards),
+            offerRelic: generator.sample(standardRelicRewards()),
             cardTraded: false,
             eventTraded: false,
             potionTraded: false,
@@ -691,6 +696,23 @@ const theScribe: Encounter = simpleEncounter({
     ]
 })
 registerEncounter(theScribe, { maxStage: 4 })
+
+export const callYourShot: Encounter = simpleEncounter({
+    name: 'Call your shot',
+    options: [
+        {
+            label: 'Go for it',
+            description: 'This stage, gain 1 buffer for each @ you beat par.',
+            transform: gainRelic(calledShot)
+        },
+        {
+            label: 'Wait for it',
+            description: 'Get 1 additional reward next stage.',
+            transform: gainRelic(delayedGratification)
+        }
+    ]
+})
+registerEncounter(callYourShot, { maxStage: 4 })
 
 // Export for testing
 export { tradingPost, magicalBox as findABottle }

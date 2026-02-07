@@ -8,10 +8,11 @@ import {
     refresh, relicRewards,
     sourceHasName
 } from '../gameLogic.js'
+import { registerSpec } from '../registry.js'
 
 import {
     GameSetupParams, RewardParams,
-    CourseEndEvent, CourseStartEvent, GainRelicEvent, GainCardEvent,
+    CourseEndEvent, CourseStartEvent, GainRelicEvent, GainCardEvent, PathGenerationEvent,
     MetaTransform, addBuffer, gainRelic, RelicSpec, Relic,
     MetaState,
 } from '../metaLogic.js'
@@ -178,6 +179,38 @@ export const wingedBoots: RelicSpec = {
     }]
 }
 relicRewards.push(wingedBoots)
+
+export const calledShot: RelicSpec = {
+    name: 'Called Shot',
+    simpleText: ['At end of the next course, gain 1 buffer for each @ you beat par.'],
+    metaTriggers: [{
+        kind: 'end',
+        handles: (_e: CourseEndEvent, _s: MetaState, _self: Relic) => true,
+        transform: (e: CourseEndEvent, _s: MetaState, self: Relic) => async function (state: MetaState) {
+            const gain = Math.max(0, e.par - e.score)
+            state.removeRelic(self.id)
+            if (gain > 0) await addBuffer(gain)(state)
+        }
+    }]
+}
+
+export const delayedGratification: RelicSpec = {
+    name: 'Delayed Gratification',
+    simpleText: ['Your next path has an additional reward.'],
+    metaReplacers: [{
+        kind: 'pathRewards',
+        replace: (p) => ({ ...p, rewardsPerPath: p.rewardsPerPath + 1 })
+    }],
+    metaTriggers: [{
+        kind: 'path',
+        handles: (_e: PathGenerationEvent, _s: MetaState, _self: Relic) => true,
+        transform: (_e: PathGenerationEvent, _s: MetaState, self: Relic) => async function (state: MetaState) {
+            state.removeRelic(self.id)
+        }
+    }]
+}
+registerSpec(calledShot)
+registerSpec(delayedGratification)
 
 // TODO: implement
 // Need to have a replacer that can put in cards into the challengespec
