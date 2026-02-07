@@ -486,10 +486,12 @@ class HotkeyMapper {
             const preferredSet = new Set(preferredHotkeys)
             const otherHotkeys = hotkeys.filter(x => !preferredSet.has(x))
             const toAssign = preferredHotkeys.concat(otherHotkeys).filter(x => !taken.has(x))
-
+            const seenGroupIndices = new Set<number>()
             for (const card of cards) {
-                if (card.zoneIndex < toAssign.length) {
-                    set(card.id, toAssign[card.zoneIndex])
+                if (seenGroupIndices.has(card.groupIndex)) continue
+                seenGroupIndices.add(card.groupIndex)
+                if (card.groupIndex < toAssign.length) {
+                    set(card.id, toAssign[card.groupIndex])
                 }
             }
         }
@@ -575,7 +577,6 @@ interface RendererState {
     viewingKingdom: boolean
     viewingMacros: boolean
     logType: LogType
-    compress: Record<ZoneName, boolean>
 }
 
 const globalRendererState: RendererState = {
@@ -586,15 +587,6 @@ const globalRendererState: RendererState = {
     hotkeyMapper: new HotkeyMapper(),
     tokenRenderer: new TokenRenderer(),
     logType: 'energy',
-    compress: {
-        play: typeof localStorage !== 'undefined' && JSON.parse(localStorage.getItem('compressplay')!) === true,
-        supply: false,
-        events: false,
-        hand: typeof localStorage !== 'undefined' && JSON.parse(localStorage.getItem('compresshand')!) === true,
-        discard: typeof localStorage !== 'undefined' && JSON.parse(localStorage.getItem('compressdiscard')!) === true,
-        potions: false,
-        relics: false
-    }
 }
 
 function resetGlobalRenderer(): void {
@@ -888,16 +880,10 @@ function renderZone(state: State, zone: ZoneName, settings: RenderSettings = {})
     }
 
     const cards = state.zones.get(zone) || []
-    const compress = globalRendererState.compress[zone]
-
-    if (compress) {
-        const sketches = sketchCards(cards, settings)
-        container.innerHTML = sketches.map(
-            ([_, data]) => render(data.last, data.count, settings.hotkeyMap?.get(data.first.id))
-        ).join('')
-    } else {
-        container.innerHTML = cards.map(c => render(c)).join('')
-    }
+    const sketches = sketchCards(cards, settings)
+    container.innerHTML = sketches.map(
+        ([_, data]) => render(data.last, data.count, settings.hotkeyMap?.get(data.first.id))
+    ).join('')
 
     // Bind click handlers
     for (let i = 0; i < optionsFns.length; i++) {
@@ -953,14 +939,6 @@ function renderState(state: State, settings: RenderSettings = {}): void {
 
     for (const zone of zoneNames) {
         renderZone(state, zone, settings)
-        const zoneNameEl = querySelector(`[zone='${zone}'] .zonename`)
-        if (zoneNameEl) {
-            (zoneNameEl as HTMLElement).onclick = () => {
-                globalRendererState.compress[zone] = !globalRendererState.compress[zone]
-                localStorage.setItem(`compress${zone}`, JSON.stringify(globalRendererState.compress[zone]))
-                renderZone(state, zone, settings)
-            }
-        }
     }
 
     getElement('playsize').innerHTML = '' + state.play.length

@@ -171,7 +171,7 @@ export interface CardUpdate {
     ticks?: number[];
     place?: PlaceName;
     tokens?: Map<Token, number>;
-    zoneIndex?: number;
+    groupIndex?: number;
 }
 
 export class Card {
@@ -183,8 +183,8 @@ export class Card {
         public readonly ticks: number[] = [0],
         public readonly tokens: Map<Token, number> = new Map(),
         public readonly place:PlaceName = 'void',
-        // we assign each card the smallest unused index in its current zone, for consistency of hotkey mappings
-        public readonly zoneIndex = 0,
+        // we assign each card the smallest unused group index in its current zone, for consistency of hotkey mappings
+        public readonly groupIndex = 0,
     ) {
         this.charge = this.count('charge')
     }
@@ -201,7 +201,7 @@ export class Card {
             (newValues.ticks === undefined) ? this.ticks : newValues.ticks,
             (newValues.tokens === undefined) ? this.tokens : newValues.tokens,
             (newValues.place === undefined) ? this.place : newValues.place,
-            (newValues.zoneIndex === undefined) ? this.zoneIndex : newValues.zoneIndex,
+            (newValues.groupIndex === undefined) ? this.groupIndex : newValues.groupIndex,
         )
     }
     setTokens(token:Token, n:number): Card {
@@ -503,11 +503,32 @@ export type PlaceName = ZoneName | 'resolving'
 export type Zone = Card[]
 
 
-function firstFreeIndex(cards:Card[]) {
-    const indices = new Set(cards.map(card => card.zoneIndex))
+function tokenSketch(tokens: Map<Token, number>): string {
+    return [...tokens.entries()]
+        .filter(([_, v]) => v > 0)
+        .map(([k, v]) => `${k}${v}`)
+        .sort()
+        .join(',')
+}
+
+function cardGroupKey(card: Card): string {
+    return `${card.name}|${tokenSketch(card.tokens)}`
+}
+
+function firstFreeGroupIndex(cards:Card[]) {
+    const indices = new Set(cards.map(card => card.groupIndex))
     for (let i = 0; i < cards.length+1; i++) {
         if (!indices.has(i)) return i
     }
+}
+
+function assignGroupIndex(card: Card, zone: Zone): Card {
+    const key = cardGroupKey(card)
+    const matching = zone.find(existing => cardGroupKey(existing) === key)
+    if (matching) {
+        return card.update({groupIndex: matching.groupIndex})
+    }
+    return card.update({groupIndex: firstFreeGroupIndex(zone)})
 }
 
 function insertAt(zone:Zone, card:Card): Zone {
@@ -695,7 +716,6 @@ export class State {
             }
         })
 
-        newZone = newZone.map((x, i) => x.update({zoneIndex: i}))
         newZones.set(zone, newZone)
         return this.update({zones:newZones})
     }
@@ -707,8 +727,7 @@ export class State {
         if (!this[zone].some(c => c.id == afterCard.id)) return this
         const currentZone = this[zone].filter(c => c.id != card.id)
         const insertIndex = currentZone.findIndex(c => c.id == afterCard.id) + 1
-        let newZone:Card[] = currentZone.slice(0, insertIndex).concat([card]).concat(currentZone.slice(insertIndex))
-        newZone = newZone.map((x, i) => x.update({zoneIndex: i}))
+        const newZone:Card[] = currentZone.slice(0, insertIndex).concat([card]).concat(currentZone.slice(insertIndex))
         newZones.set(zone, newZone)
         return this.update({zones:newZones})
     }
@@ -725,7 +744,7 @@ export class State {
         if (zone == 'resolving') return this.addResolving(card)
         const newZones:Map<ZoneName,Zone> = new Map(this.zones)
         const currentZone = this[zone]
-        card = card.update({zoneIndex: firstFreeIndex(currentZone)})
+        card = assignGroupIndex(card, currentZone)
         newZones.set(zone,  insertAt(currentZone, card))
         return this.update({zones:newZones})
     }
@@ -739,7 +758,14 @@ export class State {
     apply(f:(c:Card) => Card, card:Card): State {
         const newZones:Map<ZoneName,Zone> = new Map()
         for (let [name, zone] of this.zones) {
-            newZones.set(name, zone.map(c => (c.id == card.id) ? f(c) : c))
+            const newZone = zone.map(c => (c.id == card.id) ? f(c) : c)
+            const changedIndex = newZone.findIndex(c => c.id === card.id)
+            if (changedIndex >= 0) {
+                const changed = newZone[changedIndex]
+                const rest = newZone.filter((_, i) => i !== changedIndex)
+                newZone[changedIndex] = assignGroupIndex(changed, rest)
+            }
+            newZones.set(name, newZone)
         }
         function fOnCard(c:(Card|Shadow)): Card|Shadow {
             if (c instanceof Shadow || c.id != card.id) return c

@@ -363,10 +363,10 @@ export class Relic extends Card {
         public readonly ticks: number[] = [0],
         public readonly tokens: Map<Token, number> = new Map(),
         public readonly place:PlaceName = 'void',
-        // we assign each card the smallest unused index in its current zone, for consistency of hotkey mappings
-        public readonly zoneIndex = 0,
+        // we assign each card the smallest unused group index in its current zone, for consistency of hotkey mappings
+        public readonly groupIndex = 0,
     ){
-        super(spec, id, ticks, tokens, place, zoneIndex)
+        super(spec, id, ticks, tokens, place, groupIndex)
     }
     metaReplacers(): MetaReplacer[] {
         return this.spec.metaReplacers || []
@@ -388,7 +388,7 @@ export class Relic extends Card {
             (newValues.ticks === undefined) ? this.ticks : newValues.ticks,
             (newValues.tokens === undefined) ? this.tokens : newValues.tokens,
             (newValues.place === undefined) ? this.place : newValues.place,
-            (newValues.zoneIndex === undefined) ? this.zoneIndex : newValues.zoneIndex,
+            (newValues.groupIndex === undefined) ? this.groupIndex : newValues.groupIndex,
         )
     }
 }
@@ -812,7 +812,8 @@ interface SerializedCard {
     ticks: number[]
     tokens: [Token, number][]
     place: PlaceName
-    zoneIndex: number
+    groupIndex: number
+    zoneIndex?: number // legacy field (v1 saves before groupIndex migration)
     notedCards?: SerializedSpecRef[]
 }
 
@@ -1085,7 +1086,7 @@ function serializeCard(card: Card): SerializedCard {
         ticks: [...card.ticks],
         tokens: [...card.tokens.entries()],
         place: card.place,
-        zoneIndex: card.zoneIndex,
+        groupIndex: card.groupIndex,
     }
     if (card instanceof Relic) {
         return {
@@ -1103,11 +1104,12 @@ function serializeCard(card: Card): SerializedCard {
 function deserializeCard(card: SerializedCard): Card {
     const spec = deserializeSpec(card.spec)
     const tokens = new Map<Token, number>(card.tokens)
+    const groupIndex = card.groupIndex ?? card.zoneIndex ?? 0
     if (card.kind === 'relic') {
         const notedCards = (card.notedCards || []).map(deserializeSpec)
-        return new Relic(spec as RelicSpec, card.id, notedCards, card.ticks, tokens, card.place, card.zoneIndex)
+        return new Relic(spec as RelicSpec, card.id, notedCards, card.ticks, tokens, card.place, groupIndex)
     }
-    return new Card(spec, card.id, card.ticks, tokens, card.place, card.zoneIndex)
+    return new Card(spec, card.id, card.ticks, tokens, card.place, groupIndex)
 }
 
 function serializeChallenge(challenge: ChallengeSpec): SerializedChallengeSpec {

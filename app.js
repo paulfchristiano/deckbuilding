@@ -276,7 +276,7 @@
   var Card = (
     /** @class */
     (function() {
-      function Card2(spec, id, ticks, tokens, place, zoneIndex) {
+      function Card2(spec, id, ticks, tokens, place, groupIndex) {
         if (ticks === void 0) {
           ticks = [0];
         }
@@ -286,15 +286,15 @@
         if (place === void 0) {
           place = "void";
         }
-        if (zoneIndex === void 0) {
-          zoneIndex = 0;
+        if (groupIndex === void 0) {
+          groupIndex = 0;
         }
         this.spec = spec;
         this.id = id;
         this.ticks = ticks;
         this.tokens = tokens;
         this.place = place;
-        this.zoneIndex = zoneIndex;
+        this.groupIndex = groupIndex;
         this.kind = "card";
         this.charge = this.count("charge");
       }
@@ -309,7 +309,7 @@
         return renderCardName(this);
       };
       Card2.prototype.update = function(newValues) {
-        return new Card2(this.spec, this.id, newValues.ticks === void 0 ? this.ticks : newValues.ticks, newValues.tokens === void 0 ? this.tokens : newValues.tokens, newValues.place === void 0 ? this.place : newValues.place, newValues.zoneIndex === void 0 ? this.zoneIndex : newValues.zoneIndex);
+        return new Card2(this.spec, this.id, newValues.ticks === void 0 ? this.ticks : newValues.ticks, newValues.tokens === void 0 ? this.tokens : newValues.tokens, newValues.place === void 0 ? this.place : newValues.place, newValues.groupIndex === void 0 ? this.groupIndex : newValues.groupIndex);
       };
       Card2.prototype.setTokens = function(token, n) {
         var tokens = new Map(this.tokens);
@@ -762,14 +762,36 @@
   function leq(cost1, cost2) {
     return cost1.coin <= cost2.coin && cost1.energy <= cost2.energy;
   }
-  function firstFreeIndex(cards) {
+  function tokenSketch(tokens) {
+    return __spreadArray([], __read(tokens.entries()), false).filter(function(_a2) {
+      var _b = __read(_a2, 2), _ = _b[0], v = _b[1];
+      return v > 0;
+    }).map(function(_a2) {
+      var _b = __read(_a2, 2), k = _b[0], v = _b[1];
+      return "".concat(k).concat(v);
+    }).sort().join(",");
+  }
+  function cardGroupKey(card) {
+    return "".concat(card.name, "|").concat(tokenSketch(card.tokens));
+  }
+  function firstFreeGroupIndex(cards) {
     var indices = new Set(cards.map(function(card) {
-      return card.zoneIndex;
+      return card.groupIndex;
     }));
     for (var i = 0; i < cards.length + 1; i++) {
       if (!indices.has(i))
         return i;
     }
+  }
+  function assignGroupIndex(card, zone) {
+    var key = cardGroupKey(card);
+    var matching = zone.find(function(existing) {
+      return cardGroupKey(existing) === key;
+    });
+    if (matching) {
+      return card.update({ groupIndex: matching.groupIndex });
+    }
+    return card.update({ groupIndex: firstFreeGroupIndex(zone) });
   }
   function insertAt(zone, card) {
     return zone.concat([card]);
@@ -877,9 +899,6 @@
             return a2.name.localeCompare(b.name);
           }
         });
-        newZone = newZone.map(function(x, i) {
-          return x.update({ zoneIndex: i });
-        });
         newZones.set(zone, newZone);
         return this.update({ zones: newZones });
       };
@@ -900,9 +919,6 @@
           return c.id == afterCard.id;
         }) + 1;
         var newZone = currentZone.slice(0, insertIndex).concat([card]).concat(currentZone.slice(insertIndex));
-        newZone = newZone.map(function(x, i) {
-          return x.update({ zoneIndex: i });
-        });
         newZones.set(zone, newZone);
         return this.update({ zones: newZones });
       };
@@ -932,7 +948,7 @@
           return this.addResolving(card);
         var newZones = new Map(this.zones);
         var currentZone = this[zone];
-        card = card.update({ zoneIndex: firstFreeIndex(currentZone) });
+        card = assignGroupIndex(card, currentZone);
         newZones.set(zone, insertAt(currentZone, card));
         return this.update({ zones: newZones });
       };
@@ -962,12 +978,26 @@
       State2.prototype.apply = function(f, card) {
         var e_11, _a2;
         var newZones = /* @__PURE__ */ new Map();
+        var _loop_1 = function(name_22, zone2) {
+          var newZone = zone2.map(function(c) {
+            return c.id == card.id ? f(c) : c;
+          });
+          var changedIndex = newZone.findIndex(function(c) {
+            return c.id === card.id;
+          });
+          if (changedIndex >= 0) {
+            var changed = newZone[changedIndex];
+            var rest = newZone.filter(function(_, i) {
+              return i !== changedIndex;
+            });
+            newZone[changedIndex] = assignGroupIndex(changed, rest);
+          }
+          newZones.set(name_22, newZone);
+        };
         try {
           for (var _b = __values(this.zones), _c = _b.next(); !_c.done; _c = _b.next()) {
             var _d = __read(_c.value, 2), name_2 = _d[0], zone = _d[1];
-            newZones.set(name_2, zone.map(function(c) {
-              return c.id == card.id ? f(c) : c;
-            }));
+            _loop_1(name_2, zone);
           }
         } catch (e_11_1) {
           e_11 = { error: e_11_1 };
@@ -5019,7 +5049,7 @@
     /** @class */
     (function(_super) {
       __extends2(Relic2, _super);
-      function Relic2(spec, id, notedCards, ticks, tokens, place, zoneIndex) {
+      function Relic2(spec, id, notedCards, ticks, tokens, place, groupIndex) {
         if (notedCards === void 0) {
           notedCards = void 0;
         }
@@ -5032,16 +5062,16 @@
         if (place === void 0) {
           place = "void";
         }
-        if (zoneIndex === void 0) {
-          zoneIndex = 0;
+        if (groupIndex === void 0) {
+          groupIndex = 0;
         }
-        var _this = _super.call(this, spec, id, ticks, tokens, place, zoneIndex) || this;
+        var _this = _super.call(this, spec, id, ticks, tokens, place, groupIndex) || this;
         _this.spec = spec;
         _this.notedCards = notedCards;
         _this.ticks = ticks;
         _this.tokens = tokens;
         _this.place = place;
-        _this.zoneIndex = zoneIndex;
+        _this.groupIndex = groupIndex;
         return _this;
       }
       Relic2.prototype.metaReplacers = function() {
@@ -5057,7 +5087,7 @@
         return (this.spec.mutableReplacers ? this.spec.mutableReplacers(this) : []).concat(_super.prototype.replacers.call(this));
       };
       Relic2.prototype.update = function(newValues) {
-        return new Relic2(this.spec, this.id, newValues.notedCards === void 0 ? this.notedCards : newValues.notedCards, newValues.ticks === void 0 ? this.ticks : newValues.ticks, newValues.tokens === void 0 ? this.tokens : newValues.tokens, newValues.place === void 0 ? this.place : newValues.place, newValues.zoneIndex === void 0 ? this.zoneIndex : newValues.zoneIndex);
+        return new Relic2(this.spec, this.id, newValues.notedCards === void 0 ? this.notedCards : newValues.notedCards, newValues.ticks === void 0 ? this.ticks : newValues.ticks, newValues.tokens === void 0 ? this.tokens : newValues.tokens, newValues.place === void 0 ? this.place : newValues.place, newValues.groupIndex === void 0 ? this.groupIndex : newValues.groupIndex);
       };
       return Relic2;
     })(Card)
@@ -5498,7 +5528,7 @@
       ticks: __spreadArray5([], __read6(card.ticks), false),
       tokens: __spreadArray5([], __read6(card.tokens.entries()), false),
       place: card.place,
-      zoneIndex: card.zoneIndex
+      groupIndex: card.groupIndex
     };
     if (card instanceof Relic) {
       return __assign3(__assign3({ kind: "relic" }, common), { notedCards: (card.notedCards || []).map(function(spec) {
@@ -5508,13 +5538,15 @@
     return __assign3({ kind: "card" }, common);
   }
   function deserializeCard(card) {
+    var _a2, _b;
     var spec = deserializeSpec(card.spec);
     var tokens = new Map(card.tokens);
+    var groupIndex = (_b = (_a2 = card.groupIndex) !== null && _a2 !== void 0 ? _a2 : card.zoneIndex) !== null && _b !== void 0 ? _b : 0;
     if (card.kind === "relic") {
       var notedCards = (card.notedCards || []).map(deserializeSpec);
-      return new Relic(spec, card.id, notedCards, card.ticks, tokens, card.place, card.zoneIndex);
+      return new Relic(spec, card.id, notedCards, card.ticks, tokens, card.place, groupIndex);
     }
-    return new Card(spec, card.id, card.ticks, tokens, card.place, card.zoneIndex);
+    return new Card(spec, card.id, card.ticks, tokens, card.place, groupIndex);
   }
   function serializeChallenge(challenge) {
     return {
@@ -13744,11 +13776,15 @@
           var toAssign = preferredHotkeys.concat(otherHotkeys).filter(function(x) {
             return !taken.has(x);
           });
+          var seenGroupIndices = /* @__PURE__ */ new Set();
           try {
             for (var cards_2 = __values11(cards), cards_2_1 = cards_2.next(); !cards_2_1.done; cards_2_1 = cards_2.next()) {
               var card = cards_2_1.value;
-              if (card.zoneIndex < toAssign.length) {
-                set(card.id, toAssign[card.zoneIndex]);
+              if (seenGroupIndices.has(card.groupIndex))
+                continue;
+              seenGroupIndices.add(card.groupIndex);
+              if (card.groupIndex < toAssign.length) {
+                set(card.id, toAssign[card.groupIndex]);
               }
             }
           } catch (e_7_1) {
@@ -13880,16 +13916,7 @@
     viewingMacros: false,
     hotkeyMapper: new HotkeyMapper(),
     tokenRenderer: new TokenRenderer(),
-    logType: "energy",
-    compress: {
-      play: typeof localStorage !== "undefined" && JSON.parse(localStorage.getItem("compressplay")) === true,
-      supply: false,
-      events: false,
-      hand: typeof localStorage !== "undefined" && JSON.parse(localStorage.getItem("compresshand")) === true,
-      discard: typeof localStorage !== "undefined" && JSON.parse(localStorage.getItem("compressdiscard")) === true,
-      potions: false,
-      relics: false
-    }
+    logType: "energy"
   };
   function resetGlobalRenderer() {
     globalRendererState.hotkeyMapper = new HotkeyMapper();
@@ -14197,19 +14224,12 @@
       return renderCard(card, state, zone, { option, hotkey, pick: getIfDef(settings.pickMap, card.id) }, globalRendererState.tokenRenderer, count);
     }
     var cards = state.zones.get(zone) || [];
-    var compress = globalRendererState.compress[zone];
-    if (compress) {
-      var sketches = sketchCards(cards, settings);
-      container.innerHTML = sketches.map(function(_a2) {
-        var _b;
-        var _c = __read13(_a2, 2), _ = _c[0], data = _c[1];
-        return render(data.last, data.count, (_b = settings.hotkeyMap) === null || _b === void 0 ? void 0 : _b.get(data.first.id));
-      }).join("");
-    } else {
-      container.innerHTML = cards.map(function(c) {
-        return render(c);
-      }).join("");
-    }
+    var sketches = sketchCards(cards, settings);
+    container.innerHTML = sketches.map(function(_a2) {
+      var _b;
+      var _c = __read13(_a2, 2), _ = _c[0], data = _c[1];
+      return render(data.last, data.count, (_b = settings.hotkeyMap) === null || _b === void 0 ? void 0 : _b.get(data.first.id));
+    }).join("");
     var _loop_1 = function(i2) {
       var cardEl = getElement("card".concat(optionsIds[i2]));
       if (cardEl) {
@@ -14251,21 +14271,10 @@
     resolvingEl.innerHTML = state.resolving.map(function(c) {
       return renderCard(c, state, "resolving", {}, globalRendererState.tokenRenderer);
     }).join("");
-    var _loop_2 = function(zone2) {
-      renderZone(state, zone2, settings);
-      var zoneNameEl = querySelector("[zone='".concat(zone2, "'] .zonename"));
-      if (zoneNameEl) {
-        zoneNameEl.onclick = function() {
-          globalRendererState.compress[zone2] = !globalRendererState.compress[zone2];
-          localStorage.setItem("compress".concat(zone2), JSON.stringify(globalRendererState.compress[zone2]));
-          renderZone(state, zone2, settings);
-        };
-      }
-    };
     try {
       for (var zoneNames_1 = __values11(zoneNames), zoneNames_1_1 = zoneNames_1.next(); !zoneNames_1_1.done; zoneNames_1_1 = zoneNames_1.next()) {
         var zone = zoneNames_1_1.value;
-        _loop_2(zone);
+        renderZone(state, zone, settings);
       }
     } catch (e_15_1) {
       e_15 = { error: e_15_1 };
@@ -14322,7 +14331,7 @@
       result.push('<div><span class="logLine" pos='.concat(i, ">").concat(logs[i][0], "</span></div>"));
     }
     getElement("log").innerHTML = result.join("");
-    var _loop_3 = function(i2, _2, state2) {
+    var _loop_2 = function(i2, _2, state2) {
       if (state2 !== null) {
         var logLine = querySelector(".logLine[pos='".concat(i2, "']"));
         if (logLine) {
@@ -14337,7 +14346,7 @@
     try {
       for (var _b = __values11(logs.entries()), _c = _b.next(); !_c.done; _c = _b.next()) {
         var _d = __read13(_c.value, 2), i = _d[0], _e = __read13(_d[1], 2), _ = _e[0], state = _e[1];
-        _loop_3(i, _, state);
+        _loop_2(i, _, state);
       }
     } catch (e_17_1) {
       e_17 = { error: e_17_1 };
@@ -14599,7 +14608,7 @@
     }
   }
   function bindPlayMacroButtons(ui, state) {
-    var _loop_4 = function(i2) {
+    var _loop_3 = function(i2) {
       var el = querySelector("[option='macro".concat(i2, "']"));
       if (!el)
         return "continue";
@@ -14625,7 +14634,7 @@
       };
     };
     for (var i = 0; i < ui.macros.length; i++) {
-      _loop_4(i);
+      _loop_3(i);
     }
   }
   function bindHotkeyToggle(ui) {
