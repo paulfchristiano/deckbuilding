@@ -11,6 +11,7 @@ tsconfig.tsbuildinfo
 logs.txt
 *.log
 .claude
+.codex/
 
 # Compiled output
 public/*.js

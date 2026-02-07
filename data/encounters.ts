@@ -321,7 +321,7 @@ export const enchantress: Encounter = {
             },
             {
                 label: 'Fortify',
-                description: 'Whenever this would be trashed, put it in your discard instead.',
+                description: 'When this is trashed, create a card costing $1, $2, or $3 more in your hand.',
                 disabled: selectedIndex !== null || !hasCards,
                 checked: selectedIndex === 1,
                 onClick: async () => chooseUpgrade(fortifyUpgrade, 1, 'Fortify'),
