@@ -11,7 +11,7 @@ import {
     repeat, addToken, moveMany,
     actionsEffect, coinsEffect, buysEffect, buyEffect,
     createInPlayEffect, targetedEffect,
-    copper, silver, gold,
+    copper,
     sortHand,
     echoRule, priorityRule, reflectRule, ferryRule, twinRule,
     // Card specs used by potions
@@ -73,28 +73,6 @@ export const potionOfCopper: CardSpec = {
     }]
 }
 potionRewards.push(potionOfCopper)
-
-export const potionOfMining: CardSpec = {
-    name: 'Potion of Mining',
-    isPotion: true,
-    relatedCards: [copper, silver, gold],
-    effects: [{
-        text: ['Trash all Coppers and Silvers in your discard. Create a Silver for each trashed Copper and a Gold for each trashed Silver.'],
-        transform: () => async function(state) {
-            const toTrash = state.discard.filter(c => c.name == copper.name || c.name == silver.name)
-            for (const c of toTrash) {
-                state = await trash(c)(state)
-                if (c.name == copper.name) {
-                    state = await create(silver)(state)
-                } else if (c.name == silver.name) {
-                    state = await create(gold)(state)
-                }
-            }
-            return state
-        }
-    }]
-}
-potionRewards.push(potionOfMining)
 
 export const celebratoryBrew: CardSpec = {
     name: 'Celebratory Brew',
