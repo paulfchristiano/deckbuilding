@@ -395,12 +395,66 @@
         #gameContent {
             flex: 1;
         }
+        #saveLauncher {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #f6f6f8;
+            color: #222;
+            font-family: system-ui, -apple-system, sans-serif;
+        }
+        #saveLauncherCard {
+            width: min(760px, 92vw);
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.08);
+        }
+        #saveLauncherHeader {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 12px;
+        }
+        .saveActions {
+            display: flex;
+            gap: 8px;
+        }
+        .launcherBtn {
+            border: 1px solid #bbb;
+            border-radius: 6px;
+            padding: 6px 10px;
+            background: #fff;
+            cursor: pointer;
+        }
+        #saveLauncherLoading {
+            font-size: 0.95em;
+            color: #666;
+            padding: 8px 2px;
+        }
     </style>
 </head>
 
 <body>
 
-<div id="stageScreen">
+<div id="saveLauncher">
+    <div id="saveLauncherCard">
+        <div id="saveLauncherHeader">
+            <h2 style="margin: 0;">engine-roguelike</h2>
+            <div class="saveActions">
+                <button class="launcherBtn" type="button">new game</button>
+            </div>
+        </div>
+        <div id="saveLauncherLoading">Loading game picker...</div>
+        <noscript>
+            <div id="saveLauncherLoading">JavaScript is required to load saved games.</div>
+        </noscript>
+    </div>
+</div>
+
+<div id="stageScreen" hidden>
     <div id="progressSidebar">
         <div id="progressLine">
             <div class="progressCircle" data-stage="0"></div>
@@ -465,9 +519,9 @@
     </div>
 </div>
 
-<div id="bufferDisplay"></div>
-<div id="deckIcon">Deck</div>
-<div id="seedDisplay"></div>
+<div id="bufferDisplay" hidden></div>
+<div id="deckIcon" hidden>Deck</div>
+<div id="seedDisplay" hidden></div>
 
 <div id="cardPickerDialog" class="dialogBox">
     <div id="cardPickerTitle">Choose a card:</div>
