@@ -229,7 +229,7 @@ function updateProgressSidebar(state: MetaState, onReplayStage?: (stage: number)
                 }
             } else if (stage === state.data.stage) {
                 display.current = true
-                if (currentStagePar !== null) display.scoreText = `?/${currentStagePar}`
+                if (state.data.phase === 'in_game' && currentStagePar !== null) display.scoreText = `?/${currentStagePar}`
                 else if (basePar !== undefined) display.scoreText = `${basePar}`
             } else {
                 if (basePar !== undefined) display.scoreText = `${basePar}`

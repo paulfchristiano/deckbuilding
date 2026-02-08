@@ -388,6 +388,10 @@ async function runReplayFromSnapshot(slot: SaveSlot, stage: number): Promise<voi
             alert('No replay available for that stage.')
             return
         }
+        const bufferDisplay = document.getElementById('bufferDisplay')
+        if (bufferDisplay) {
+            bufferDisplay.textContent = `Buffer: ${replayData.bufferBeforeCourse}`
+        }
         await startGame(
             replaySpecForStage(state, replayData),
             replayData.history,
@@ -699,11 +703,17 @@ function renderLauncher(): void {
         const startButton = document.createElement('button')
         startButton.className = 'launcherBtn'
         startButton.textContent = 'start'
-        startButton.onclick = async () => {
+        const startNewGame = async () => {
             const seed = normalizeSeed(seedInput.value) || randomString()
             const slotID = `${Date.now()}-${Math.floor(Math.random() * 1_000_000)}`
             await runGame(slotID, null, seed)
         }
+        startButton.onclick = startNewGame
+        seedInput.addEventListener('keydown', async (event: KeyboardEvent) => {
+            if (event.key !== 'Enter') return
+            event.preventDefault()
+            await startNewGame()
+        })
 
         const cancelButton = document.createElement('button')
         cancelButton.className = 'launcherBtn'

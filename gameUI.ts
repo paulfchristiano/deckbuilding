@@ -10,6 +10,7 @@ import { LogType, logTypes } from './gameLogic.js'
 import { Option, OptionRender, HotkeyHint } from './gameLogic.js'
 import { UI, Undo, SetState } from './gameLogic.js'
 import { playGame, initialState, Replayable } from './gameLogic.js'
+import { refresh } from './gameLogic.js'
 import { BASE_PARS } from './metaLogic.js'
 import { ProgressStageDisplay, renderProgressSidebar } from './progressSidebar.js'
 
@@ -47,6 +48,7 @@ function hideElement(el: HTMLElement): void {
 
 function updateGameProgressSidebar(spec: GameSpec): void {
     const currentStage = spec.metaStage
+    const activeStage = spec.replayStage ?? spec.metaStage
     const stageScores = spec.metaStageScores || []
     const stagePars = spec.metaStagePars || []
     const stageTooltips = spec.metaStageTooltips || []
@@ -70,11 +72,16 @@ function updateGameProgressSidebar(spec: GameSpec): void {
             }
         } else if (currentStage !== undefined && stage === currentStage) {
             display.current = true
-            display.scoreText = `?/${spec.par}`
+            if (basePar !== undefined) {
+                display.scoreText = `${basePar}`
+            }
         } else if (basePar !== undefined) {
             display.scoreText = `${basePar}`
         }
 
+        if (activeStage !== null && activeStage !== undefined && stage === activeStage) {
+            display.scoreText = `?/${spec.par}`
+        }
         if (replayStage !== null && replayStage !== undefined && stage === replayStage) {
             display.replaying = true
         }
@@ -390,40 +397,40 @@ function noteDecrease(
     }
 }
 
-function updateMacroRequirements(
-    requirements: MacroRequirements,
-    startState: State,
-    currentState: State
-): void {
-    requirements.coin = Math.max(requirements.coin, startState.coin - currentState.coin)
-    requirements.actions = Math.max(requirements.actions, startState.actions - currentState.actions)
-    requirements.buys = Math.max(requirements.buys, startState.buys - currentState.buys)
-
-    noteDecrease(
-        requirements.hand,
-        cardCountsByName(startState.hand),
-        cardCountsByName(currentState.hand)
-    )
-    noteDecrease(
-        requirements.discard,
-        cardCountsByName(startState.discard),
-        cardCountsByName(currentState.discard)
-    )
+function isRefreshStep(step: MacroStep): boolean {
+    return step.kind === 'card' &&
+        step.verb === 'Use' &&
+        step.card.name === refresh.name
 }
 
-function recomputeMacroRequirements(
-    requirements: MacroRequirements,
-    startState: State,
-    states: State[]
-): void {
-    requirements.coin = 0
-    requirements.actions = 0
-    requirements.buys = 0
-    requirements.hand.clear()
-    requirements.discard.clear()
-    for (const state of states) {
-        updateMacroRequirements(requirements, startState, state)
+function computeMacroRequirements(states: State[], steps: MacroStep[]): MacroRequirements {
+    const requirements = emptyMacroRequirements()
+    if (states.length === 0) return requirements
+
+    const startState = states[0]
+    const startHandCounts = cardCountsByName(startState.hand)
+    const startDiscardCounts = cardCountsByName(startState.discard)
+    let hasEmptiedDiscard = false
+    let discardNonempty = false
+
+    for (let i = 0; i < states.length; i++) {
+        if (i > 0 && isRefreshStep(steps[i - 1])) {
+            return requirements
+        }
+        const state = states[i]
+        const nowEmpty = state.discard.length === 0
+        hasEmptiedDiscard = hasEmptiedDiscard || (nowEmpty && discardNonempty)
+        discardNonempty = !nowEmpty
+        requirements.coin = Math.max(requirements.coin, startState.coin - state.coin)
+        requirements.actions = Math.max(requirements.actions, startState.actions - state.actions)
+        requirements.buys = Math.max(requirements.buys, startState.buys - state.buys)
+        if (!hasEmptiedDiscard) { // If they've returned their discard to their hand, probably don't care about these constraints.
+            noteDecrease(requirements.hand, startHandCounts, cardCountsByName(state.hand))
+            noteDecrease(requirements.discard, startDiscardCounts, cardCountsByName(state.discard))
+        }
     }
+
+    return requirements
 }
 
 function hasRequiredCounts(
@@ -1257,8 +1264,8 @@ function renderPlayMacroButton(macro: Macro, index: number, enabled: boolean): s
     const firstStepText = firstStep ? macroStepLabel(firstStep) : '(empty)'
     const buttonText = `${firstStepText} (${macro.steps.length})`
     const statusAttr = enabled ? 'choosable' : `disabled='disabled'`
-    const styleAttr = enabled ? '' : `style='opacity:0.45; cursor:default;'`
-    return `<span id='playMacro' class='option' option='macro${index}' ${statusAttr} chosen='false' ${styleAttr}>${buttonText}<span class='tooltip'>${renderMacroTooltip(macro)}</span></span>`
+    const styleAttr = enabled ? '' : `style='cursor:default;'`
+    return `<span id='playMacro' class='option macroOption' option='macro${index}' ${statusAttr} chosen='false' ${styleAttr}><span class='macroOptionLabel'>${buttonText}</span><span class='tooltip'>${renderMacroTooltip(macro)}</span></span>`
 }
 
 function bindRecordMacroButton(ui: GameUI, state: State): void {
@@ -1271,14 +1278,12 @@ function bindRecordMacroButton(ui: GameUI, state: State): void {
                     requirements: emptyMacroRequirements(),
                     startPrompt: ui.choiceState ? ui.choiceState.choicePrompt : null
                 }
-                ui.recordingStates = ui.choiceState ? [ui.choiceState.state] : []
+                ui.recordingStates = [state]
             } else if (ui.recordingMacro.steps.length === 0) {
                 ui.recordingMacro = null
                 ui.recordingStates = []
             } else {
-                if (ui.choiceState) {
-                    ui.observeRecordingState(ui.choiceState.state)
-                }
+                ui.recordingMacro.requirements = computeMacroRequirements(ui.recordingStates, ui.recordingMacro.steps)
                 ui.macros.push(cloneMacro(ui.recordingMacro))
                 ui.recordingMacro = null
                 ui.recordingStates = []
@@ -1467,21 +1472,14 @@ export class GameUI implements UI {
 
     eraseStep(): void {
         if (this.recordingMacro) {
-            if (this.recordingMacro.steps.length > 0) {
-                this.recordingMacro.steps.pop()
+            if (this.recordingMacro.steps.length === 0) {
+                this.recordingMacro = null
+                this.recordingStates = []
+                return
             }
-            if (this.recordingStates.length > 1) {
-                this.recordingStates.pop()
-            }
-            if (this.recordingStates.length > 0) {
-                recomputeMacroRequirements(
-                    this.recordingMacro.requirements,
-                    this.recordingStates[0],
-                    this.recordingStates
-                )
-            } else {
-                this.recordingMacro.requirements = emptyMacroRequirements()
-            }
+            this.recordingMacro.steps.pop()
+            console.assert(this.recordingStates.length > 1, 'There should be a recording state to match each macro step')
+            this.recordingStates.pop()
         }
     }
 
@@ -1492,11 +1490,6 @@ export class GameUI implements UI {
             return
         }
         this.recordingStates.push(state)
-        recomputeMacroRequirements(
-            this.recordingMacro.requirements,
-            this.recordingStates[0],
-            this.recordingStates
-        )
     }
 
     matchNextMacroStep(): MacroMatchResult {

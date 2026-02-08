@@ -4359,7 +4359,7 @@
     var baseOptions = rewardState.kind === "encounter" ? !rewardState.encounter ? [] : rewardState.encounter.getOptions(rewardState.data, metaState) : getSimpleRewardOptions(rewardState, metaState);
     var alreadySelected = rewardState.kind === "encounter" ? encounterRewardCompleted(rewardState) : rewardState.selectedIndex !== null;
     var piggySelected = rewardState.kind !== "encounter" && rewardState.selectedIndex === PIGGY_BANK_SELECTED_INDEX;
-    var hasSingingBowl = rewardState.kind === "card" && singingBowlCount(metaState) > 0;
+    var hasSingingBowl = rewardState.kind !== "encounter" && singingBowlCount(metaState) > 0;
     if (hasSingingBowl) {
       var optionIndex_1 = baseOptions.length;
       var skippedLabels = baseOptions.map(function(option) {
@@ -4530,7 +4530,7 @@
   }
   var TOTAL_STAGES = 8;
   var INITIAL_BUFFER = 10;
-  var BASE_PARS = [26, 24, 22, 20, 18, 16, 14, 8];
+  var BASE_PARS = [26, 24, 22, 20, 18, 16, 14, 4];
   function renderChallenge(spec, state) {
     var gameSpec = makeSpec(state, spec);
     var label = "".concat(challengeSummary(spec), " (").concat(gameSpec.vp, "vp in ").concat(gameSpec.par, "@)");
@@ -13221,8 +13221,9 @@
     el.setAttribute("hidden", "");
   }
   function updateGameProgressSidebar(spec) {
-    var _a;
+    var _a, _b;
     var currentStage = spec.metaStage;
+    var activeStage = (_a = spec.replayStage) !== null && _a !== void 0 ? _a : spec.metaStage;
     var stageScores = spec.metaStageScores || [];
     var stagePars = spec.metaStagePars || [];
     var stageTooltips = spec.metaStageTooltips || [];
@@ -13231,7 +13232,7 @@
     for (var stage = 0; stage < BASE_PARS.length; stage++) {
       var display = { stage };
       var basePar = BASE_PARS[stage];
-      var tooltip = (_a = stageTooltips[stage]) !== null && _a !== void 0 ? _a : basePar === void 0 ? null : "".concat(basePar, " (base)");
+      var tooltip = (_b = stageTooltips[stage]) !== null && _b !== void 0 ? _b : basePar === void 0 ? null : "".concat(basePar, " (base)");
       if (tooltip !== null)
         display.tooltipText = tooltip.replace(/, /g, "\n");
       if (currentStage !== void 0 && stage < currentStage) {
@@ -13247,9 +13248,14 @@
         }
       } else if (currentStage !== void 0 && stage === currentStage) {
         display.current = true;
-        display.scoreText = "?/".concat(spec.par);
+        if (basePar !== void 0) {
+          display.scoreText = "".concat(basePar);
+        }
       } else if (basePar !== void 0) {
         display.scoreText = "".concat(basePar);
+      }
+      if (activeStage !== null && activeStage !== void 0 && stage === activeStage) {
+        display.scoreText = "?/".concat(spec.par);
       }
       if (replayStage !== null && replayStage !== void 0 && stage === replayStage) {
         display.replaying = true;
@@ -13548,50 +13554,51 @@
       }
     }
   }
-  function updateMacroRequirements(requirements, startState2, currentState) {
-    requirements.coin = Math.max(requirements.coin, startState2.coin - currentState.coin);
-    requirements.actions = Math.max(requirements.actions, startState2.actions - currentState.actions);
-    requirements.buys = Math.max(requirements.buys, startState2.buys - currentState.buys);
-    noteDecrease(requirements.hand, cardCountsByName(startState2.hand), cardCountsByName(currentState.hand));
-    noteDecrease(requirements.discard, cardCountsByName(startState2.discard), cardCountsByName(currentState.discard));
+  function isRefreshStep(step) {
+    return step.kind === "card" && step.verb === "Use" && step.card.name === refresh.name;
   }
-  function recomputeMacroRequirements(requirements, startState2, states) {
-    var e_3, _a;
-    requirements.coin = 0;
-    requirements.actions = 0;
-    requirements.buys = 0;
-    requirements.hand.clear();
-    requirements.discard.clear();
-    try {
-      for (var states_1 = __values10(states), states_1_1 = states_1.next(); !states_1_1.done; states_1_1 = states_1.next()) {
-        var state = states_1_1.value;
-        updateMacroRequirements(requirements, startState2, state);
+  function computeMacroRequirements(states, steps) {
+    var requirements = emptyMacroRequirements();
+    if (states.length === 0)
+      return requirements;
+    var startState2 = states[0];
+    var startHandCounts = cardCountsByName(startState2.hand);
+    var startDiscardCounts = cardCountsByName(startState2.discard);
+    var hasEmptiedDiscard = false;
+    var discardNonempty = false;
+    for (var i = 0; i < states.length; i++) {
+      if (i > 0 && isRefreshStep(steps[i - 1])) {
+        return requirements;
       }
-    } catch (e_3_1) {
-      e_3 = { error: e_3_1 };
-    } finally {
-      try {
-        if (states_1_1 && !states_1_1.done && (_a = states_1.return)) _a.call(states_1);
-      } finally {
-        if (e_3) throw e_3.error;
+      var state = states[i];
+      var nowEmpty = state.discard.length === 0;
+      hasEmptiedDiscard = hasEmptiedDiscard || nowEmpty && discardNonempty;
+      discardNonempty = !nowEmpty;
+      requirements.coin = Math.max(requirements.coin, startState2.coin - state.coin);
+      requirements.actions = Math.max(requirements.actions, startState2.actions - state.actions);
+      requirements.buys = Math.max(requirements.buys, startState2.buys - state.buys);
+      if (!hasEmptiedDiscard) {
+        noteDecrease(requirements.hand, startHandCounts, cardCountsByName(state.hand));
+        noteDecrease(requirements.discard, startDiscardCounts, cardCountsByName(state.discard));
       }
     }
+    return requirements;
   }
   function hasRequiredCounts(required, current) {
-    var e_4, _a;
+    var e_3, _a;
     try {
       for (var required_1 = __values10(required), required_1_1 = required_1.next(); !required_1_1.done; required_1_1 = required_1.next()) {
         var _b = __read13(required_1_1.value, 2), name_2 = _b[0], minimum = _b[1];
         if ((current.get(name_2) || 0) < minimum)
           return false;
       }
-    } catch (e_4_1) {
-      e_4 = { error: e_4_1 };
+    } catch (e_3_1) {
+      e_3 = { error: e_3_1 };
     } finally {
       try {
         if (required_1_1 && !required_1_1.done && (_a = required_1.return)) _a.call(required_1);
       } finally {
-        if (e_4) throw e_4.error;
+        if (e_3) throw e_3.error;
       }
     }
     return true;
@@ -13640,7 +13647,7 @@
       function HotkeyMapper2() {
       }
       HotkeyMapper2.prototype.map = function(state, options) {
-        var e_5, _a, e_6, _b;
+        var e_4, _a, e_5, _b;
         var result = /* @__PURE__ */ new Map();
         var taken = /* @__PURE__ */ new Map();
         var pickable = new Set(options.map(function(o) {
@@ -13655,7 +13662,7 @@
           taken.set(k, x);
         }
         function setFrom(cards, preferredHotkeys) {
-          var e_7, _a2;
+          var e_6, _a2;
           var preferredSet = new Set(preferredHotkeys);
           var otherHotkeys = hotkeys.filter(function(x) {
             return !preferredSet.has(x);
@@ -13689,13 +13696,13 @@
               }
               groupRank += 1;
             }
-          } catch (e_7_1) {
-            e_7 = { error: e_7_1 };
+          } catch (e_6_1) {
+            e_6 = { error: e_6_1 };
           } finally {
             try {
               if (cards_2_1 && !cards_2_1.done && (_a2 = cards_2.return)) _a2.call(cards_2);
             } finally {
-              if (e_7) throw e_7.error;
+              if (e_6) throw e_6.error;
             }
           }
         }
@@ -13712,13 +13719,13 @@
               set(renderKey(option.render), hint);
             }
           }
-        } catch (e_5_1) {
-          e_5 = { error: e_5_1 };
+        } catch (e_4_1) {
+          e_4 = { error: e_4_1 };
         } finally {
           try {
             if (options_1_1 && !options_1_1.done && (_a = options_1.return)) _a.call(options_1);
           } finally {
-            if (e_5) throw e_5.error;
+            if (e_4) throw e_4.error;
           }
         }
         var index = 0;
@@ -13734,13 +13741,13 @@
               }
             }
           }
-        } catch (e_6_1) {
-          e_6 = { error: e_6_1 };
+        } catch (e_5_1) {
+          e_5 = { error: e_5_1 };
         } finally {
           try {
             if (options_2_1 && !options_2_1.done && (_b = options_2.return)) _b.call(options_2);
           } finally {
-            if (e_6) throw e_6.error;
+            if (e_5) throw e_5.error;
           }
         }
         return result;
@@ -13764,7 +13771,7 @@
         return idx;
       };
       TokenRenderer2.prototype.render = function(tokens) {
-        var e_8, _a;
+        var e_7, _a;
         var parts = [];
         try {
           for (var tokens_1 = __values10(tokens), tokens_1_1 = tokens_1.next(); !tokens_1_1.done; tokens_1_1 = tokens_1.next()) {
@@ -13776,19 +13783,19 @@
               parts.push("<span id='token' style='color:".concat(color, "'>").concat(display, "</span>"));
             }
           }
-        } catch (e_8_1) {
-          e_8 = { error: e_8_1 };
+        } catch (e_7_1) {
+          e_7 = { error: e_7_1 };
         } finally {
           try {
             if (tokens_1_1 && !tokens_1_1.done && (_a = tokens_1.return)) _a.call(tokens_1);
           } finally {
-            if (e_8) throw e_8.error;
+            if (e_7) throw e_7.error;
           }
         }
         return parts.length > 0 ? "(".concat(parts.join(""), ")") : "";
       };
       TokenRenderer2.prototype.renderTooltip = function(tokens) {
-        var e_9, _a;
+        var e_8, _a;
         var parts = [];
         try {
           for (var tokens_2 = __values10(tokens), tokens_2_1 = tokens_2.next(); !tokens_2_1.done; tokens_2_1 = tokens_2.next()) {
@@ -13797,13 +13804,13 @@
               parts.push(count === 1 ? token : "".concat(token, " (").concat(count, ")"));
             }
           }
-        } catch (e_9_1) {
-          e_9 = { error: e_9_1 };
+        } catch (e_8_1) {
+          e_8 = { error: e_8_1 };
         } finally {
           try {
             if (tokens_2_1 && !tokens_2_1.done && (_a = tokens_2.return)) _a.call(tokens_2);
           } finally {
-            if (e_9) throw e_9.error;
+            if (e_8) throw e_8.error;
           }
         }
         return parts.length > 0 ? "Tokens: ".concat(parts.join(", ")) : "";
@@ -13833,20 +13840,20 @@
     return "Cost: ".concat(parts.length > 0 ? parts.join(" and ") : "do nothing", ".");
   }
   function renderEffects2(spec) {
-    var e_10, _a;
+    var e_9, _a;
     var parts = [];
     try {
       for (var _b = __values10(cardSpecEffects(spec)), _c = _b.next(); !_c.done; _c = _b.next()) {
         var effect = _c.value;
         parts.push.apply(parts, __spreadArray8([], __read13(effect.text), false));
       }
-    } catch (e_10_1) {
-      e_10 = { error: e_10_1 };
+    } catch (e_9_1) {
+      e_9 = { error: e_9_1 };
     } finally {
       try {
         if (_c && !_c.done && (_a = _b.return)) _a.call(_b);
       } finally {
-        if (e_10) throw e_10.error;
+        if (e_9) throw e_9.error;
       }
     }
     return parts.map(function(x) {
@@ -13854,7 +13861,7 @@
     }).join("");
   }
   function renderAbility2(spec) {
-    var e_11, _a;
+    var e_10, _a;
     var parts = [];
     try {
       for (var _b = __values10(spec.ability || []), _c = _b.next(); !_c.done; _c = _b.next()) {
@@ -13863,13 +13870,13 @@
           return "<div>(ability) ".concat(x, "</div>");
         })), false));
       }
-    } catch (e_11_1) {
-      e_11 = { error: e_11_1 };
+    } catch (e_10_1) {
+      e_10 = { error: e_10_1 };
     } finally {
       try {
         if (_c && !_c.done && (_a = _b.return)) _a.call(_b);
       } finally {
-        if (e_11) throw e_11.error;
+        if (e_10) throw e_10.error;
       }
     }
     return parts.join("");
@@ -13897,20 +13904,20 @@
     return spec.buyCost === void 0 ? "use" : "play";
   }
   function renderRuleText2(rule) {
-    var e_12, _a, e_13, _b;
+    var e_11, _a, e_12, _b;
     var parts = [];
     try {
       for (var _c = __values10(rule.triggers || []), _d = _c.next(); !_d.done; _d = _c.next()) {
         var trigger3 = _d.value;
         parts.push("<div>(rule) ".concat(trigger3.text, "</div>"));
       }
-    } catch (e_12_1) {
-      e_12 = { error: e_12_1 };
+    } catch (e_11_1) {
+      e_11 = { error: e_11_1 };
     } finally {
       try {
         if (_d && !_d.done && (_a = _c.return)) _a.call(_c);
       } finally {
-        if (e_12) throw e_12.error;
+        if (e_11) throw e_11.error;
       }
     }
     try {
@@ -13918,13 +13925,13 @@
         var replacer = _f.value;
         parts.push("<div>(rule) ".concat(replacer.text, "</div>"));
       }
-    } catch (e_13_1) {
-      e_13 = { error: e_13_1 };
+    } catch (e_12_1) {
+      e_12 = { error: e_12_1 };
     } finally {
       try {
         if (_f && !_f.done && (_b = _e.return)) _b.call(_e);
       } finally {
-        if (e_13) throw e_13.error;
+        if (e_12) throw e_12.error;
       }
     }
     return parts.join("");
@@ -14071,7 +14078,7 @@
     return "".concat(card.name).concat(sketchMap(card.tokens)).concat(getIfDef(settings.pickMap, card.id)).concat(getIfDef(settings.optionsMap, card.id));
   }
   function sketchCards(cards, settings) {
-    var e_14, _a;
+    var e_13, _a;
     var sketches = [];
     var counts = /* @__PURE__ */ new Map();
     var first = /* @__PURE__ */ new Map();
@@ -14087,13 +14094,13 @@
         counts.set(s, (counts.get(s) || 0) + 1);
         last.set(s, card);
       }
-    } catch (e_14_1) {
-      e_14 = { error: e_14_1 };
+    } catch (e_13_1) {
+      e_13 = { error: e_13_1 };
     } finally {
       try {
         if (cards_3_1 && !cards_3_1.done && (_a = cards_3.return)) _a.call(cards_3);
       } finally {
-        if (e_14) throw e_14.error;
+        if (e_13) throw e_13.error;
       }
     }
     return sketches.map(function(s2) {
@@ -14145,7 +14152,7 @@
     }
   }
   function renderState(state, settings) {
-    var e_15, _a;
+    var e_14, _a;
     if (settings === void 0) {
       settings = {};
     }
@@ -14178,13 +14185,13 @@
         var zone = zoneNames_1_1.value;
         renderZone(state, zone, settings);
       }
-    } catch (e_15_1) {
-      e_15 = { error: e_15_1 };
+    } catch (e_14_1) {
+      e_14 = { error: e_14_1 };
     } finally {
       try {
         if (zoneNames_1_1 && !zoneNames_1_1.done && (_a = zoneNames_1.return)) _a.call(zoneNames_1);
       } finally {
-        if (e_15) throw e_15.error;
+        if (e_14) throw e_14.error;
       }
     }
     getElement("playsize").innerHTML = "" + state.play.length;
@@ -14202,7 +14209,7 @@
     });
   }
   function setVisibleLog(state, logType, ui) {
-    var e_16, _a;
+    var e_15, _a;
     try {
       for (var logTypes_1 = __values10(logTypes), logTypes_1_1 = logTypes_1.next(); !logTypes_1_1.done; logTypes_1_1 = logTypes_1.next()) {
         var lt = logTypes_1_1.value;
@@ -14215,19 +14222,19 @@
           }
         }
       }
-    } catch (e_16_1) {
-      e_16 = { error: e_16_1 };
+    } catch (e_15_1) {
+      e_15 = { error: e_15_1 };
     } finally {
       try {
         if (logTypes_1_1 && !logTypes_1_1.done && (_a = logTypes_1.return)) _a.call(logTypes_1);
       } finally {
-        if (e_16) throw e_16.error;
+        if (e_15) throw e_15.error;
       }
     }
     displayLogLines(state.logs[logType], ui);
   }
   function displayLogLines(logs, ui) {
-    var e_17, _a;
+    var e_16, _a;
     var result = [];
     for (var i = logs.length - 1; i >= 0; i--) {
       result.push('<div><span class="logLine" pos='.concat(i, ">").concat(logs[i][0], "</span></div>"));
@@ -14250,13 +14257,13 @@
         var _d = __read13(_c.value, 2), i = _d[0], _e = __read13(_d[1], 2), _ = _e[0], state = _e[1];
         _loop_2(i, _, state);
       }
-    } catch (e_17_1) {
-      e_17 = { error: e_17_1 };
+    } catch (e_16_1) {
+      e_16 = { error: e_16_1 };
     } finally {
       try {
         if (_c && !_c.done && (_a = _b.return)) _a.call(_b);
       } finally {
-        if (e_17) throw e_17.error;
+        if (e_16) throw e_16.error;
       }
     }
   }
@@ -14280,7 +14287,7 @@
     return el;
   }
   function renderChoice(ui, state, choicePrompt, options, picks) {
-    var e_18, _a, e_19, _b, e_20, _c;
+    var e_17, _a, e_18, _b, e_19, _c;
     if (picks === void 0) {
       picks = [];
     }
@@ -14296,13 +14303,13 @@
           optionsMap.set(rendered.card.id, option.value);
         }
       }
-    } catch (e_18_1) {
-      e_18 = { error: e_18_1 };
+    } catch (e_17_1) {
+      e_17 = { error: e_17_1 };
     } finally {
       try {
         if (options_3_1 && !options_3_1.done && (_a = options_3.return)) _a.call(options_3);
       } finally {
-        if (e_18) throw e_18.error;
+        if (e_17) throw e_17.error;
       }
     }
     var pickMap = /* @__PURE__ */ new Map();
@@ -14311,13 +14318,13 @@
         var _f = __read13(_e.value, 2), i = _f[0], x = _f[1];
         pickMap.set(renderKey(x), i);
       }
-    } catch (e_19_1) {
-      e_19 = { error: e_19_1 };
+    } catch (e_18_1) {
+      e_18 = { error: e_18_1 };
     } finally {
       try {
         if (_e && !_e.done && (_b = _d.return)) _b.call(_d);
       } finally {
-        if (e_19) throw e_19.error;
+        if (e_18) throw e_18.error;
       }
     }
     var hotkeyMap = globalRendererState.hotkeysOn ? globalRendererState.hotkeyMapper.map(state, options) : /* @__PURE__ */ new Map();
@@ -14335,13 +14342,13 @@
         var hotkey = hotkeyMap.get(option.render);
         optionsEl.appendChild(renderStringOption(option, hotkey, pickMap.get(option.render)));
       }
-    } catch (e_20_1) {
-      e_20 = { error: e_20_1 };
+    } catch (e_19_1) {
+      e_19 = { error: e_19_1 };
     } finally {
       try {
         if (stringOptions_1_1 && !stringOptions_1_1.done && (_c = stringOptions_1.return)) _c.call(stringOptions_1);
       } finally {
-        if (e_20) throw e_20.error;
+        if (e_19) throw e_19.error;
       }
     }
     getElement("undoArea").innerHTML = renderSpecials(state);
@@ -14480,8 +14487,8 @@
     var firstStepText = firstStep ? macroStepLabel(firstStep) : "(empty)";
     var buttonText = "".concat(firstStepText, " (").concat(macro.steps.length, ")");
     var statusAttr = enabled ? "choosable" : "disabled='disabled'";
-    var styleAttr = enabled ? "" : "style='opacity:0.45; cursor:default;'";
-    return "<span id='playMacro' class='option' option='macro".concat(index, "' ").concat(statusAttr, " chosen='false' ").concat(styleAttr, ">").concat(buttonText, "<span class='tooltip'>").concat(renderMacroTooltip(macro), "</span></span>");
+    var styleAttr = enabled ? "" : "style='cursor:default;'";
+    return "<span id='playMacro' class='option macroOption' option='macro".concat(index, "' ").concat(statusAttr, " chosen='false' ").concat(styleAttr, "><span class='macroOptionLabel'>").concat(buttonText, "</span><span class='tooltip'>").concat(renderMacroTooltip(macro), "</span></span>");
   }
   function bindRecordMacroButton(ui, state) {
     var el = querySelector("[option='recordMacro']");
@@ -14493,14 +14500,12 @@
             requirements: emptyMacroRequirements(),
             startPrompt: ui.choiceState ? ui.choiceState.choicePrompt : null
           };
-          ui.recordingStates = ui.choiceState ? [ui.choiceState.state] : [];
+          ui.recordingStates = [state];
         } else if (ui.recordingMacro.steps.length === 0) {
           ui.recordingMacro = null;
           ui.recordingStates = [];
         } else {
-          if (ui.choiceState) {
-            ui.observeRecordingState(ui.choiceState.state);
-          }
+          ui.recordingMacro.requirements = computeMacroRequirements(ui.recordingStates, ui.recordingMacro.steps);
           ui.macros.push(cloneMacro(ui.recordingMacro));
           ui.recordingMacro = null;
           ui.recordingStates = [];
@@ -14617,7 +14622,7 @@
     }
   }
   function macroMismatch(card, macroCard) {
-    var e_21, _a, e_22, _b;
+    var e_20, _a, e_21, _b;
     var result = 0;
     try {
       for (var _c = __values10(card.tokens), _d = _c.next(); !_d.done; _d = _c.next()) {
@@ -14625,13 +14630,13 @@
         if ((macroCard.tokens.get(token) || 0) < count)
           result++;
       }
-    } catch (e_21_1) {
-      e_21 = { error: e_21_1 };
+    } catch (e_20_1) {
+      e_20 = { error: e_20_1 };
     } finally {
       try {
         if (_d && !_d.done && (_a = _c.return)) _a.call(_c);
       } finally {
-        if (e_21) throw e_21.error;
+        if (e_20) throw e_20.error;
       }
     }
     try {
@@ -14640,13 +14645,13 @@
         if ((card.tokens.get(token) || 0) < count)
           result++;
       }
-    } catch (e_22_1) {
-      e_22 = { error: e_22_1 };
+    } catch (e_21_1) {
+      e_21 = { error: e_21_1 };
     } finally {
       try {
         if (_g && !_g.done && (_b = _f.return)) _b.call(_f);
       } finally {
-        if (e_22) throw e_22.error;
+        if (e_21) throw e_21.error;
       }
     }
     return result;
@@ -14712,17 +14717,14 @@
       };
       GameUI2.prototype.eraseStep = function() {
         if (this.recordingMacro) {
-          if (this.recordingMacro.steps.length > 0) {
-            this.recordingMacro.steps.pop();
+          if (this.recordingMacro.steps.length === 0) {
+            this.recordingMacro = null;
+            this.recordingStates = [];
+            return;
           }
-          if (this.recordingStates.length > 1) {
-            this.recordingStates.pop();
-          }
-          if (this.recordingStates.length > 0) {
-            recomputeMacroRequirements(this.recordingMacro.requirements, this.recordingStates[0], this.recordingStates);
-          } else {
-            this.recordingMacro.requirements = emptyMacroRequirements();
-          }
+          this.recordingMacro.steps.pop();
+          console.assert(this.recordingStates.length > 1, "There should be a recording state to match each macro step");
+          this.recordingStates.pop();
         }
       };
       GameUI2.prototype.observeRecordingState = function(state) {
@@ -14733,7 +14735,6 @@
           return;
         }
         this.recordingStates.push(state);
-        recomputeMacroRequirements(this.recordingMacro.requirements, this.recordingStates[0], this.recordingStates);
       };
       GameUI2.prototype.matchNextMacroStep = function() {
         var macro = this.playingMacro.shift();
@@ -15239,7 +15240,7 @@
           }
         } else if (stage2 === state.data.stage) {
           display.current = true;
-          if (currentStagePar !== null)
+          if (state.data.phase === "in_game" && currentStagePar !== null)
             display.scoreText = "?/".concat(currentStagePar);
           else if (basePar !== void 0)
             display.scoreText = "".concat(basePar);
@@ -16150,7 +16151,7 @@
   }
   function runReplayFromSnapshot(slot, stage) {
     return __awaiter13(this, void 0, void 0, function() {
-      var seedDisplay, state, replayData, error_2;
+      var seedDisplay, state, replayData, bufferDisplay, error_2;
       var _a;
       return __generator13(this, function(_b) {
         switch (_b.label) {
@@ -16172,6 +16173,10 @@
                 2
                 /*return*/
               ];
+            }
+            bufferDisplay = document.getElementById("bufferDisplay");
+            if (bufferDisplay) {
+              bufferDisplay.textContent = "Buffer: ".concat(replayData.bufferBeforeCourse);
             }
             return [4, startGame(replaySpecForStage(state, replayData), replayData.history, [], state.global.macros, state.global.viewingMacros, null)];
           case 2:
@@ -16541,7 +16546,7 @@
       var startButton = document.createElement("button");
       startButton.className = "launcherBtn";
       startButton.textContent = "start";
-      startButton.onclick = function() {
+      var startNewGame = function() {
         return __awaiter13(_this, void 0, void 0, function() {
           var seed, slotID;
           return __generator13(this, function(_a2) {
@@ -16560,6 +16565,29 @@
           });
         });
       };
+      startButton.onclick = startNewGame;
+      seedInput.addEventListener("keydown", function(event) {
+        return __awaiter13(_this, void 0, void 0, function() {
+          return __generator13(this, function(_a2) {
+            switch (_a2.label) {
+              case 0:
+                if (event.key !== "Enter")
+                  return [
+                    2
+                    /*return*/
+                  ];
+                event.preventDefault();
+                return [4, startNewGame()];
+              case 1:
+                _a2.sent();
+                return [
+                  2
+                  /*return*/
+                ];
+            }
+          });
+        });
+      });
       var cancelButton = document.createElement("button");
       cancelButton.className = "launcherBtn";
       cancelButton.textContent = "Cancel";
