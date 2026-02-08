@@ -144,7 +144,7 @@ const twin:CardSpec = {name: 'Twin',
     fixedCost: {...free, energy:1, coin:3},
     simpleText: [
         `Put a twin token on a card in your hand.`,
-        `Whenever you play it other than with this effect, play it again.`
+        `Whenever you would play it, play it twice instead.`
     ],
     effects: [targetedEffect(
         target => addToken(target, 'twin'),
