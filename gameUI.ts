@@ -392,7 +392,9 @@ function noteDecrease(
 }
 
 function isRefreshStep(step: MacroStep): boolean {
-    return step.kind === 'card' && step.verb === 'Use' && step.card.name === refresh.name
+    return step.kind === 'card' &&
+        step.verb === 'Use' &&
+        step.card.name === refresh.name
 }
 
 function computeMacroRequirements(states: State[], steps: MacroStep[]): MacroRequirements {
@@ -1275,9 +1277,6 @@ function bindRecordMacroButton(ui: GameUI, state: State): void {
                 ui.recordingMacro = null
                 ui.recordingStates = []
             } else {
-                if (ui.choiceState) {
-                    ui.observeRecordingState(ui.choiceState.state)
-                }
                 ui.recordingMacro.requirements = computeMacroRequirements(ui.recordingStates, ui.recordingMacro.steps)
                 ui.macros.push(cloneMacro(ui.recordingMacro))
                 ui.recordingMacro = null

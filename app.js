@@ -14499,9 +14499,6 @@
           ui.recordingMacro = null;
           ui.recordingStates = [];
         } else {
-          if (ui.choiceState) {
-            ui.observeRecordingState(ui.choiceState.state);
-          }
           ui.recordingMacro.requirements = computeMacroRequirements(ui.recordingStates, ui.recordingMacro.steps);
           ui.macros.push(cloneMacro(ui.recordingMacro));
           ui.recordingMacro = null;
