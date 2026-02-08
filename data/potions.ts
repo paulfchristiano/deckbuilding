@@ -361,7 +361,7 @@ export const geminiBrew: CardSpec = {
     isPotion: true,
     simpleText: [
         'Put a twin token on a card in your hand.',
-        'Whenever you play it, play it again.'
+        'Whenever you would play it, play it twice instead.'
     ],
     rules: [twinRule],
     effects: [targetedEffect(

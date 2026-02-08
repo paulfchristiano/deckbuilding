@@ -180,8 +180,8 @@ export const piggyBank: RelicSpec = {
 }
 relicRewards.push(piggyBank)
 
-export const wingedBoots: RelicSpec = {
-    name: 'Winged Boots',
+export const matryoshkaDoll: RelicSpec = {
+    name: 'Matryoshka Doll',
     simpleText: ['Your next two stages have an additional reward.'],
     metaReplacers: [{
         kind: 'pathRewards',
@@ -209,7 +209,7 @@ export const wingedBoots: RelicSpec = {
         }
     }]
 }
-relicRewards.push(wingedBoots)
+relicRewards.push(matryoshkaDoll)
 
 export const calledShot: RelicSpec = {
     name: 'Called Shot',
