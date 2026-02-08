@@ -14460,6 +14460,8 @@
           ui.recordingMacro = null;
           ui.recordingStates = [];
         } else {
+          console.log(ui.recordingMacro.steps);
+          console.log(ui.recordingStates);
           ui.recordingMacro.requirements = computeMacroRequirements(ui.recordingStates, ui.recordingMacro.steps);
           ui.macros.push(cloneMacro(ui.recordingMacro));
           ui.recordingMacro = null;
@@ -14677,9 +14679,13 @@
             this.recordingStates = [];
             return;
           }
+          console.log(this.recordingMacro.steps);
+          console.log(this.recordingStates);
           this.recordingMacro.steps.pop();
           console.assert(this.recordingStates.length > 1, "There should be a recording state to match each macro step");
           this.recordingStates.pop();
+          console.log(this.recordingMacro.steps);
+          console.log(this.recordingStates);
         }
       };
       GameUI2.prototype.observeRecordingState = function(state) {
@@ -14732,6 +14738,7 @@
           function newResolve(n, shifted) {
             ui.clearChoice();
             var macroStep = macroStepFromChoice(options[n].render, chosen.includes(n), info);
+            ui.observeRecordingState(state);
             ui.recordStep(macroStep);
             if (shifted)
               ui.playingMacro = repeat2([macroStep], 9);
@@ -14761,7 +14768,6 @@
             resolve: newResolve,
             reject: newReject
           };
-          ui.observeRecordingState(state);
           var macroMatch = ui.matchNextMacroStep();
           if (macroMatch.failed && ui.macroStartState !== null) {
             newReject(new SetState(ui.macroStartState));

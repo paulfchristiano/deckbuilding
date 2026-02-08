@@ -1283,6 +1283,8 @@ function bindRecordMacroButton(ui: GameUI, state: State): void {
                 ui.recordingMacro = null
                 ui.recordingStates = []
             } else {
+                console.log(ui.recordingMacro.steps)
+                console.log(ui.recordingStates)
                 ui.recordingMacro.requirements = computeMacroRequirements(ui.recordingStates, ui.recordingMacro.steps)
                 ui.macros.push(cloneMacro(ui.recordingMacro))
                 ui.recordingMacro = null
@@ -1477,9 +1479,13 @@ export class GameUI implements UI {
                 this.recordingStates = []
                 return
             }
+            console.log(this.recordingMacro.steps)
+            console.log(this.recordingStates)
             this.recordingMacro.steps.pop()
             console.assert(this.recordingStates.length > 1, 'There should be a recording state to match each macro step')
             this.recordingStates.pop()
+            console.log(this.recordingMacro.steps)
+            console.log(this.recordingStates)
         }
     }
 
@@ -1547,6 +1553,7 @@ export class GameUI implements UI {
             function newResolve(n: number, shifted: boolean) {
                 ui.clearChoice()
                 const macroStep = macroStepFromChoice(options[n].render, chosen.includes(n), info)
+                ui.observeRecordingState(state)
                 ui.recordStep(macroStep)
                 if (shifted) ui.playingMacro = repeat([macroStep], 9)
                 if (ui.playingMacro.length === 0) {
@@ -1578,7 +1585,6 @@ export class GameUI implements UI {
                 reject: newReject
             }
 
-            ui.observeRecordingState(state)
             const macroMatch = ui.matchNextMacroStep()
             if (macroMatch.failed && ui.macroStartState !== null) {
                 newReject(new SetState(ui.macroStartState))
