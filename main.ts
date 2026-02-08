@@ -17,7 +17,6 @@ import { randomString } from './rng.js'
 import { startGame } from './gameUI.js'
 import { renderSpecNoRelated } from './cardRendering.js'
 import { Card, CardSpec, UndoPastBeginning } from './gameLogic.js'
-import { potionOfTransformation } from './data/potions.js'
 
 import type { TestSpec } from './metaLogic.js'
 import { banquet } from './data/cards.js'
