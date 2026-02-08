@@ -4530,7 +4530,7 @@
   }
   var TOTAL_STAGES = 8;
   var INITIAL_BUFFER = 10;
-  var BASE_PARS = [26, 24, 22, 20, 18, 16, 14, 8];
+  var BASE_PARS = [26, 24, 22, 20, 18, 16, 14, 4];
   function renderChallenge(spec, state) {
     var gameSpec = makeSpec(state, spec);
     var label = "".concat(challengeSummary(spec), " (").concat(gameSpec.vp, "vp in ").concat(gameSpec.par, "@)");
@@ -16543,7 +16543,7 @@
       var startButton = document.createElement("button");
       startButton.className = "launcherBtn";
       startButton.textContent = "start";
-      startButton.onclick = function() {
+      var startNewGame = function() {
         return __awaiter13(_this, void 0, void 0, function() {
           var seed, slotID;
           return __generator13(this, function(_a2) {
@@ -16562,6 +16562,29 @@
           });
         });
       };
+      startButton.onclick = startNewGame;
+      seedInput.addEventListener("keydown", function(event) {
+        return __awaiter13(_this, void 0, void 0, function() {
+          return __generator13(this, function(_a2) {
+            switch (_a2.label) {
+              case 0:
+                if (event.key !== "Enter")
+                  return [
+                    2
+                    /*return*/
+                  ];
+                event.preventDefault();
+                return [4, startNewGame()];
+              case 1:
+                _a2.sent();
+                return [
+                  2
+                  /*return*/
+                ];
+            }
+          });
+        });
+      });
       var cancelButton = document.createElement("button");
       cancelButton.className = "launcherBtn";
       cancelButton.textContent = "Cancel";
