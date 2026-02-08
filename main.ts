@@ -17,11 +17,10 @@ import { randomString } from './rng.js'
 import { startGame } from './gameUI.js'
 import { renderSpecNoRelated } from './cardRendering.js'
 import { Card, CardSpec, UndoPastBeginning } from './gameLogic.js'
-import { potionOfTransformation } from './data/potions.js'
 
 import type { TestSpec } from './metaLogic.js'
 
-let test: TestSpec | null = ['potion', potionOfTransformation]
+let test: TestSpec | null = null
 
 const SAVE_STORAGE_KEY = 'roguelike.ongoingSaves.v1'
 const MAX_LAUNCHER_SAVES = 10

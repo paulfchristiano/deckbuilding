@@ -13285,7 +13285,7 @@
   }
   var zoneNames = ["play", "supply", "events", "hand", "discard", "potions", "relics"];
   var keyListeners = /* @__PURE__ */ new Map();
-  var potionHotkeys = ["!", "@", "#", "$", "%"];
+  var potionHotkeys = ["!", "@", "#", "$", "%", "^", "&", "*", "(", ")"];
   var symbolHotkeys = ["!", "%", "^", "&", "*", "(", ")", "-", "+", "=", "{", "}", "[", "]"];
   var lowerHotkeys = [
     "a",
@@ -14456,7 +14456,7 @@
             startPrompt: ui.choiceState ? ui.choiceState.choicePrompt : null
           };
           ui.recordingStates = [state];
-        } else if (ui.recordingMacro.steps.length === 0) {
+        } else if (ui.choiceState === null || ui.recordingMacro.steps.length === 0) {
           ui.recordingMacro = null;
           ui.recordingStates = [];
         } else {
@@ -14685,10 +14685,6 @@
       GameUI2.prototype.observeRecordingState = function(state) {
         if (this.recordingMacro === null)
           return;
-        if (this.recordingStates.length === 0) {
-          this.recordingStates.push(state);
-          return;
-        }
         this.recordingStates.push(state);
       };
       GameUI2.prototype.matchNextMacroStep = function() {
@@ -15904,7 +15900,7 @@
     };
     throw new TypeError(s ? "Object is not iterable." : "Symbol.iterator is not defined.");
   };
-  var test = ["potion", potionOfTransformation];
+  var test = null;
   var SAVE_STORAGE_KEY = "roguelike.ongoingSaves.v1";
   var MAX_LAUNCHER_SAVES = 10;
   var summaryMetaUI = {
