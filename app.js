@@ -2852,66 +2852,6 @@
     }]
   };
   registerRule(reflectRule);
-  var hagglerName = "Haggler";
-  var hagglerRule = {
-    name: "Haggle",
-    triggers: [{
-      text: "After buying a card the normal way,\n                buy an additional card for each ".concat(hagglerName, " in play.\n                Each card you buy this way must cost at least $1 less than the previous one."),
-      kind: "afterBuy",
-      handles: function(p) {
-        return p.source == "act";
-      },
-      transform: function(p, state, card) {
-        return function(state2) {
-          return __awaiter(this, void 0, void 0, function() {
-            var lastCard, hagglers, haggler2, target;
-            var _a;
-            return __generator(this, function(_b) {
-              switch (_b.label) {
-                case 0:
-                  lastCard = p.card;
-                  hagglers = state2.play.filter(function(c) {
-                    return c.name == hagglerName;
-                  });
-                  _b.label = 1;
-                case 1:
-                  if (false) return [3, 5];
-                  haggler2 = hagglers.shift();
-                  if (haggler2 === void 0) {
-                    return [2, state2];
-                  }
-                  state2 = state2.startTicker(haggler2);
-                  lastCard = state2.find(lastCard);
-                  target = void 0;
-                  return [4, choice(state2, "Choose a cheaper card than ".concat(renderCardName(lastCard), " to buy."), state2.supply.filter(function(c) {
-                    return leq(addCosts(c.cost("buy", state2), { coin: 1 }), lastCard.cost("buy", state2));
-                  }).map(asChoice))];
-                case 2:
-                  _a = __read.apply(void 0, [_b.sent(), 2]), state2 = _a[0], target = _a[1];
-                  if (!(target !== null)) return [3, 4];
-                  lastCard = target;
-                  return [4, target.buy(card)(state2)];
-                case 3:
-                  state2 = _b.sent();
-                  _b.label = 4;
-                case 4:
-                  state2 = state2.endTicker(haggler2);
-                  hagglers = hagglers.filter(function(c) {
-                    return state2.find(c).place == "play";
-                  });
-                  return [3, 1];
-                case 5:
-                  return [
-                    2
-                    /*return*/
-                  ];
-              }
-            });
-          });
-        };
-      }
-    }]
-  };
   var ferryRule = {
     name: "Ferry",
     replacers: [{
@@ -8386,13 +8326,28 @@
     buyCost: coin(2)
   };
   cardRewards.push(hireling);
+  var hagglerName = "Haggler";
   var haggler = {
     name: hagglerName,
     fixedCost: energy(1),
-    effects: [coinsEffect(2), toPlay()],
-    simpleText: ["After buying a card the normal way,\n            buy an additional card for each ".concat(hagglerName, " in play.\n            Each card you buy this way must cost at least $1 less than the previous one.")],
     buyCost: coin(3),
-    rules: [hagglerRule]
+    effects: [coinsEffect(2)],
+    triggers: [{
+      text: "After you buy a card the normal way, you may buy another card that costs less.",
+      kind: "afterBuy",
+      handles: function(e, state, card) {
+        return state.find(card).place == "play" && e.source == "act";
+      },
+      transform: function(e, state, card) {
+        return applyToTarget(function(target) {
+          return target.buy(card);
+        }, "Buy a card in the supply costing less than $".concat(e.card.cost("buy", state).coin, "."), function(state2) {
+          return state2.supply.filter(function(x) {
+            return leq(x.cost("buy", state2), coin(e.card.cost("buy", state2).coin - 1));
+          });
+        });
+      }
+    }]
   };
   cardRewards.push(haggler);
   var highwayName = "Highway";
