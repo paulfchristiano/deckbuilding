@@ -6972,8 +6972,8 @@
     simpleText: ["One time, you can take all of the rewards from a pack."]
   };
   relicRewards.push(piggyBank);
-  var wingedBoots = {
-    name: "Winged Boots",
+  var matryoshkaDoll = {
+    name: "Matryoshka Doll",
     simpleText: ["Your next two stages have an additional reward."],
     metaReplacers: [{
       kind: "pathRewards",
@@ -7037,7 +7037,7 @@
       }
     }]
   };
-  relicRewards.push(wingedBoots);
+  relicRewards.push(matryoshkaDoll);
   var calledShot = {
     name: "Called Shot",
     simpleText: ["At end of the next course, gain 1 buffer for each @ you beat par."],
@@ -9367,9 +9367,9 @@
   var potionOfTransformation = {
     name: "Potion of Transformation",
     isPotion: true,
-    simpleText: ["Trash any number of cards in your hand. For each one, buy a card costing up to $2 more than it in your hand."],
+    simpleText: ["Trash any number of cards in your hand. For each one, buy a card costing up to double its cost."],
     effects: [{
-      text: ["Repeat this any number of times: trash a card in your hand that was there at the start of this process, then buy a card costing up to $2 more than it."],
+      text: ["Repeat this any number of times: trash a card in your hand that was there at the start of this process, then buy a card costing up to double its cost."],
       transform: function(state, card) {
         return function(state2) {
           return __awaiter6(this, void 0, void 0, function() {
@@ -9379,7 +9379,7 @@
                 case 0:
                   options = asNumberedChoices(state2.hand);
                   _loop_1 = function() {
-                    var picked, cost_1, toBuy;
+                    var picked, trashedCost, cost_1, toBuy;
                     var _b, _c;
                     return __generator6(this, function(_d) {
                       switch (_d.label) {
@@ -9393,7 +9393,8 @@
                           if (!(picked == null)) return [3, 2];
                           return [2, { value: state2 }];
                         case 2:
-                          cost_1 = addCosts(picked.cost("buy", state2), coin(2));
+                          trashedCost = picked.cost("buy", state2);
+                          cost_1 = addCosts(trashedCost, trashedCost);
                           return [4, trash(picked)(state2)];
                         case 3:
                           state2 = _d.sent();
@@ -9674,7 +9675,7 @@
     isPotion: true,
     simpleText: [
       "Put a twin token on a card in your hand.",
-      "Whenever you play it, play it again."
+      "Whenever you would play it, play it twice instead."
     ],
     rules: [twinRule],
     effects: [targetedEffect(function(target) {
@@ -10014,7 +10015,7 @@
     fixedCost: __assign5(__assign5({}, free), { energy: 1, coin: 3 }),
     simpleText: [
       "Put a twin token on a card in your hand.",
-      "Whenever you play it other than with this effect, play it again."
+      "Whenever you would play it, play it twice instead."
     ],
     effects: [targetedEffect(function(target) {
       return addToken(target, "twin");
@@ -15948,7 +15949,7 @@
     };
     throw new TypeError(s ? "Object is not iterable." : "Symbol.iterator is not defined.");
   };
-  var test = null;
+  var test = ["potion", potionOfTransformation];
   var SAVE_STORAGE_KEY = "roguelike.ongoingSaves.v1";
   var MAX_LAUNCHER_SAVES = 10;
   var summaryMetaUI = {

@@ -113,9 +113,9 @@ potionRewards.push(potionOfBounty)
 export const potionOfTransformation: CardSpec = {
     name: 'Potion of Transformation',
     isPotion: true,
-    simpleText: ['Trash any number of cards in your hand. For each one, buy a card costing up to $2 more than it in your hand.'],
+    simpleText: ['Trash any number of cards in your hand. For each one, buy a card costing up to double its cost.'],
     effects: [{
-        text: [`Repeat this any number of times: trash a card in your hand that was there at the start of this process, then buy a card costing up to $2 more than it.`],
+        text: ['Repeat this any number of times: trash a card in your hand that was there at the start of this process, then buy a card costing up to double its cost.'],
         transform: (state, card) => async function(state) {
             const options = asNumberedChoices(state.hand)
             while (true) {
@@ -126,7 +126,8 @@ export const potionOfTransformation: CardSpec = {
                 if (picked == null) {
                     return state
                 } else {
-                    const cost = addCosts(picked.cost('buy', state), coin(2))
+                    const trashedCost = picked.cost('buy', state)
+                    const cost = addCosts(trashedCost, trashedCost)
                     state = await trash(picked)(state)
                     let toBuy: Card | null; [state, toBuy] = await choice(state,
                         `Pick a card to buy costing up to ${renderCost(cost)}`,
