@@ -1256,8 +1256,8 @@ function renderPlayMacroButton(macro: Macro, index: number, enabled: boolean): s
     const firstStepText = firstStep ? macroStepLabel(firstStep) : '(empty)'
     const buttonText = `${firstStepText} (${macro.steps.length})`
     const statusAttr = enabled ? 'choosable' : `disabled='disabled'`
-    const styleAttr = enabled ? '' : `style='opacity:0.45; cursor:default;'`
-    return `<span id='playMacro' class='option' option='macro${index}' ${statusAttr} chosen='false' ${styleAttr}>${buttonText}<span class='tooltip'>${renderMacroTooltip(macro)}</span></span>`
+    const styleAttr = enabled ? '' : `style='cursor:default;'`
+    return `<span id='playMacro' class='option macroOption' option='macro${index}' ${statusAttr} chosen='false' ${styleAttr}><span class='macroOptionLabel'>${buttonText}</span><span class='tooltip'>${renderMacroTooltip(macro)}</span></span>`
 }
 
 function bindRecordMacroButton(ui: GameUI, state: State): void {

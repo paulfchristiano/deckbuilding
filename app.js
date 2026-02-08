@@ -14481,8 +14481,8 @@
     var firstStepText = firstStep ? macroStepLabel(firstStep) : "(empty)";
     var buttonText = "".concat(firstStepText, " (").concat(macro.steps.length, ")");
     var statusAttr = enabled ? "choosable" : "disabled='disabled'";
-    var styleAttr = enabled ? "" : "style='opacity:0.45; cursor:default;'";
-    return "<span id='playMacro' class='option' option='macro".concat(index, "' ").concat(statusAttr, " chosen='false' ").concat(styleAttr, ">").concat(buttonText, "<span class='tooltip'>").concat(renderMacroTooltip(macro), "</span></span>");
+    var styleAttr = enabled ? "" : "style='cursor:default;'";
+    return "<span id='playMacro' class='option macroOption' option='macro".concat(index, "' ").concat(statusAttr, " chosen='false' ").concat(styleAttr, "><span class='macroOptionLabel'>").concat(buttonText, "</span><span class='tooltip'>").concat(renderMacroTooltip(macro), "</span></span>");
   }
   function bindRecordMacroButton(ui, state) {
     var el = querySelector("[option='recordMacro']");
