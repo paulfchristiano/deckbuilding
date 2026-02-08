@@ -13221,8 +13221,9 @@
     el.setAttribute("hidden", "");
   }
   function updateGameProgressSidebar(spec) {
-    var _a;
+    var _a, _b;
     var currentStage = spec.metaStage;
+    var activeStage = (_a = spec.replayStage) !== null && _a !== void 0 ? _a : spec.metaStage;
     var stageScores = spec.metaStageScores || [];
     var stagePars = spec.metaStagePars || [];
     var stageTooltips = spec.metaStageTooltips || [];
@@ -13231,7 +13232,7 @@
     for (var stage = 0; stage < BASE_PARS.length; stage++) {
       var display = { stage };
       var basePar = BASE_PARS[stage];
-      var tooltip = (_a = stageTooltips[stage]) !== null && _a !== void 0 ? _a : basePar === void 0 ? null : "".concat(basePar, " (base)");
+      var tooltip = (_b = stageTooltips[stage]) !== null && _b !== void 0 ? _b : basePar === void 0 ? null : "".concat(basePar, " (base)");
       if (tooltip !== null)
         display.tooltipText = tooltip.replace(/, /g, "\n");
       if (currentStage !== void 0 && stage < currentStage) {
@@ -13247,9 +13248,14 @@
         }
       } else if (currentStage !== void 0 && stage === currentStage) {
         display.current = true;
-        display.scoreText = "?/".concat(spec.par);
+        if (basePar !== void 0) {
+          display.scoreText = "".concat(basePar);
+        }
       } else if (basePar !== void 0) {
         display.scoreText = "".concat(basePar);
+      }
+      if (activeStage !== null && activeStage !== void 0 && stage === activeStage) {
+        display.scoreText = "?/".concat(spec.par);
       }
       if (replayStage !== null && replayStage !== void 0 && stage === replayStage) {
         display.replaying = true;
@@ -15234,7 +15240,7 @@
           }
         } else if (stage2 === state.data.stage) {
           display.current = true;
-          if (currentStagePar !== null)
+          if (state.data.phase === "in_game" && currentStagePar !== null)
             display.scoreText = "?/".concat(currentStagePar);
           else if (basePar !== void 0)
             display.scoreText = "".concat(basePar);

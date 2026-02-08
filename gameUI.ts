@@ -48,6 +48,7 @@ function hideElement(el: HTMLElement): void {
 
 function updateGameProgressSidebar(spec: GameSpec): void {
     const currentStage = spec.metaStage
+    const activeStage = spec.replayStage ?? spec.metaStage
     const stageScores = spec.metaStageScores || []
     const stagePars = spec.metaStagePars || []
     const stageTooltips = spec.metaStageTooltips || []
@@ -71,11 +72,16 @@ function updateGameProgressSidebar(spec: GameSpec): void {
             }
         } else if (currentStage !== undefined && stage === currentStage) {
             display.current = true
-            display.scoreText = `?/${spec.par}`
+            if (basePar !== undefined) {
+                display.scoreText = `${basePar}`
+            }
         } else if (basePar !== undefined) {
             display.scoreText = `${basePar}`
         }
 
+        if (activeStage !== null && activeStage !== undefined && stage === activeStage) {
+            display.scoreText = `?/${spec.par}`
+        }
         if (replayStage !== null && replayStage !== undefined && stage === replayStage) {
             display.replaying = true
         }
