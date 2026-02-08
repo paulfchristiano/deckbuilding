@@ -230,7 +230,7 @@ const zoneNames: ZoneName[] = ['play', 'supply', 'events', 'hand', 'discard', 'p
 
 // Exported so metaUI can also use the same keyboard system
 export const keyListeners: Map<Key, () => void> = new Map()
-const potionHotkeys: Key[] = ['!', '@', '#', '$', '%']
+const potionHotkeys: Key[] = ['!', '@', '#', '$', '%', '^', '&', '*', '(', ')']
 const symbolHotkeys = ['!', '%', '^', '&', '*', '(', ')', '-', '+', '=', '{', '}', '[', ']']
 const lowerHotkeys = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm',
     'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y']
@@ -1279,7 +1279,7 @@ function bindRecordMacroButton(ui: GameUI, state: State): void {
                     startPrompt: ui.choiceState ? ui.choiceState.choicePrompt : null
                 }
                 ui.recordingStates = [state]
-            } else if (ui.recordingMacro.steps.length === 0) {
+            } else if (ui.choiceState === null || ui.recordingMacro.steps.length === 0) {
                 ui.recordingMacro = null
                 ui.recordingStates = []
             } else {
@@ -1485,10 +1485,6 @@ export class GameUI implements UI {
 
     observeRecordingState(state: State): void {
         if (this.recordingMacro === null) return
-        if (this.recordingStates.length === 0) {
-            this.recordingStates.push(state)
-            return
-        }
         this.recordingStates.push(state)
     }
 
