@@ -1424,7 +1424,7 @@ export function literalOptions(xs:string[], keys:Key[]): Option<string>[] {
 export type Token = 'charge' | 'cost' | 'mirror' | 'duplicate' | 'twin' | 'synergy' |
     'shelter' | 'echo' | 'decay' | 'burden' | 'pathfinding' | 'neglect' |
     'reuse' | 'polish' | 'priority' | 'parallelize' | 'art' | 'reduce' |
-    'mire' | 'onslaught' | 'accelerate' | 'reflect' | 'brigade' | 'bulk' |
+    'strength' | 'mire' | 'onslaught' | 'accelerate' | 'reflect' | 'brigade' | 'bulk' |
     'pillage' | 'bargain' | 'splay' | 'crown' | 'ferry' | 'ideal' |
     'logistics'
 

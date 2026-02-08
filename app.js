@@ -11783,23 +11783,44 @@
     name: function(name) {
       return "".concat(name, "+");
     },
-    staticTriggers: [{
-      kind: "afterUse",
-      text: "After using this other than with this effect, use it again.",
-      handles: function(e, _state, sourceCard) {
-        return e.card.id === sourceCard.id && !sourceHasName(e.source, sourceCard.name);
+    staticTriggers: [
+      {
+        kind: "gameStart",
+        text: "This starts with 4 strength tokens.",
+        handles: function(_e, state, sourceCard) {
+          return state.find(sourceCard).count("strength") === 0;
+        },
+        transform: function(_e, _state, sourceCard) {
+          return addToken(sourceCard, "strength", 4);
+        }
       },
-      transform: function(_e, _state, sourceCard) {
-        return function(state) {
-          return __awaiter10(this, void 0, void 0, function() {
-            return __generator10(this, function(_a) {
-              sourceCard = state.find(sourceCard);
-              return [2, sourceCard.use(sourceCard)(state)];
+      {
+        kind: "afterUse",
+        text: "The first four times you use this each stage, use it again.",
+        handles: function(e, state, sourceCard) {
+          return e.card.id === sourceCard.id && !sourceHasName(e.source, sourceCard.name) && state.find(sourceCard).count("strength") > 0;
+        },
+        transform: function(_e, _state, sourceCard) {
+          return function(state) {
+            return __awaiter10(this, void 0, void 0, function() {
+              return __generator10(this, function(_a) {
+                switch (_a.label) {
+                  case 0:
+                    sourceCard = state.find(sourceCard);
+                    if (sourceCard.count("strength") <= 0) {
+                      return [2, state];
+                    }
+                    return [4, removeToken(sourceCard, "strength", 1, true)(state)];
+                  case 1:
+                    state = _a.sent();
+                    return [2, sourceCard.use(sourceCard)(state)];
+                }
+              });
             });
-          });
-        };
+          };
+        }
       }
-    }]
+    ]
   });
   var tacticianAgilityUpgrade = registerUpgrade("tacticianAgility", {
     name: function(name) {
@@ -11807,12 +11828,12 @@
     },
     staticTriggers: [{
       kind: "gameStart",
-      text: "This starts with 3 reduction tokens on it.",
+      text: "This starts with 2 reduction tokens on it.",
       handles: function(_e, state, sourceCard) {
         return state.find(sourceCard).count("reduce") === 0;
       },
       transform: function(_e, _state, sourceCard) {
-        return addToken(sourceCard, "reduce", 3);
+        return addToken(sourceCard, "reduce", 2);
       }
     }],
     staticReplacers: [{
@@ -11836,7 +11857,7 @@
     },
     staticTriggers: [{
       kind: "afterUse",
-      text: "After using this other than with this effect, use another event with equal or lesser cost for free.",
+      text: "Every time you use this, use another event that's cheaper or equal for free.",
       handles: function(e, state, sourceCard) {
         return e.card.id === sourceCard.id && !sourceHasName(e.source, sourceCard.name) && cooperationTargets(state, sourceCard).length > 0;
       },
@@ -12428,40 +12449,40 @@
       };
       return [
         {
-          label: "Strength",
-          description: "Strength. Upgrade an event. Whenever you use it, use it again.",
+          label: "Brute Force",
+          description: "Brute Force. Upgrade an event. The first four times you use that event each stage, use it again.",
           disabled: selectedIndex !== null || !hasEvents,
           checked: selectedIndex === 0,
           onClick: function() {
             return __awaiter10(_this, void 0, void 0, function() {
               return __generator10(this, function(_a) {
-                return [2, chooseUpgrade(tacticianStrengthUpgrade, 0, "Strength")];
+                return [2, chooseUpgrade(tacticianStrengthUpgrade, 0, "Brute Force")];
               });
             });
           }
         },
         {
-          label: "Agility",
-          description: "Agility. Upgrade an event. The first three times you use it it costs @ less.",
+          label: "Finesse",
+          description: "Finesse. Upgrade an event. The first two times you use it it costs @ less.",
           disabled: selectedIndex !== null || !hasEvents,
           checked: selectedIndex === 1,
           onClick: function() {
             return __awaiter10(_this, void 0, void 0, function() {
               return __generator10(this, function(_a) {
-                return [2, chooseUpgrade(tacticianAgilityUpgrade, 1, "Agility")];
+                return [2, chooseUpgrade(tacticianAgilityUpgrade, 1, "Finesse")];
               });
             });
           }
         },
         {
-          label: "Cooperation",
-          description: "Cooperation. Upgrade an event. After using it, use another event with equal or lesser cost for free.",
+          label: "Teamwork",
+          description: "Teamwork. Upgrade an event. Every time you use that event, use another event that's cheaper or equal for free.",
           disabled: selectedIndex !== null || !hasEvents,
           checked: selectedIndex === 2,
           onClick: function() {
             return __awaiter10(_this, void 0, void 0, function() {
               return __generator10(this, function(_a) {
-                return [2, chooseUpgrade(tacticianCooperationUpgrade, 2, "Cooperation")];
+                return [2, chooseUpgrade(tacticianCooperationUpgrade, 2, "Teamwork")];
               });
             });
           }

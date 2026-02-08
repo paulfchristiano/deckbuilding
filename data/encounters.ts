@@ -161,25 +161,39 @@ export const saleUpgrade: CardUpgrade = registerUpgrade('sale', {
 
 export const tacticianStrengthUpgrade: CardUpgrade = registerUpgrade('tacticianStrength', {
     name: name => `${name}+`,
-    staticTriggers: [{
-        kind: 'afterUse',
-        text: 'After using this other than with this effect, use it again.',
-        handles: (e, _state, sourceCard) =>
-            e.card.id === sourceCard!.id && !sourceHasName(e.source, sourceCard!.name),
-        transform: (_e, _state, sourceCard) => async function (state: State) {
-            sourceCard = state.find(sourceCard!)
-            return sourceCard.use(sourceCard)(state)
+    staticTriggers: [
+        {
+            kind: 'gameStart',
+            text: 'This starts with 4 strength tokens.',
+            handles: (_e, state, sourceCard) => state.find(sourceCard!).count('strength') === 0,
+            transform: (_e, _state, sourceCard) => addToken(sourceCard!, 'strength', 4),
+        },
+        {
+            kind: 'afterUse',
+            text: 'The first four times you use this each stage, use it again.',
+            handles: (e, state, sourceCard) =>
+                e.card.id === sourceCard!.id &&
+                !sourceHasName(e.source, sourceCard!.name) &&
+                state.find(sourceCard!).count('strength') > 0,
+            transform: (_e, _state, sourceCard) => async function (state: State) {
+                sourceCard = state.find(sourceCard!)
+                if (sourceCard.count('strength') <= 0) {
+                    return state
+                }
+                state = await removeToken(sourceCard, 'strength', 1, true)(state)
+                return sourceCard.use(sourceCard)(state)
+            }
         }
-    }]
+    ]
 })
 
 export const tacticianAgilityUpgrade: CardUpgrade = registerUpgrade('tacticianAgility', {
     name: name => `${name}+`,
     staticTriggers: [{
         kind: 'gameStart',
-        text: 'This starts with 3 reduction tokens on it.',
+        text: 'This starts with 2 reduction tokens on it.',
         handles: (_e, state, sourceCard) => state.find(sourceCard!).count('reduce') === 0,
-        transform: (_e, _state, sourceCard) => addToken(sourceCard!, 'reduce', 3),
+        transform: (_e, _state, sourceCard) => addToken(sourceCard!, 'reduce', 2),
     }],
     staticReplacers: [{
         kind: 'cost',
@@ -208,7 +222,7 @@ export const tacticianCooperationUpgrade: CardUpgrade = registerUpgrade('tactici
     name: name => `${name}+`,
     staticTriggers: [{
         kind: 'afterUse',
-        text: 'After using this other than with this effect, use another event with equal or lesser cost for free.',
+        text: "Every time you use this, use another event that's cheaper or equal for free.",
         handles: (e, state, sourceCard) =>
             e.card.id === sourceCard!.id &&
             !sourceHasName(e.source, sourceCard!.name) &&
@@ -643,25 +657,25 @@ export const tactician: Encounter = {
 
         return [
             {
-                label: 'Strength',
-                description: 'Strength. Upgrade an event. Whenever you use it, use it again.',
+                label: 'Brute Force',
+                description: 'Brute Force. Upgrade an event. The first four times you use that event each stage, use it again.',
                 disabled: selectedIndex !== null || !hasEvents,
                 checked: selectedIndex === 0,
-                onClick: async () => chooseUpgrade(tacticianStrengthUpgrade, 0, 'Strength'),
+                onClick: async () => chooseUpgrade(tacticianStrengthUpgrade, 0, 'Brute Force'),
             },
             {
-                label: 'Agility',
-                description: 'Agility. Upgrade an event. The first three times you use it it costs @ less.',
+                label: 'Finesse',
+                description: 'Finesse. Upgrade an event. The first two times you use it it costs @ less.',
                 disabled: selectedIndex !== null || !hasEvents,
                 checked: selectedIndex === 1,
-                onClick: async () => chooseUpgrade(tacticianAgilityUpgrade, 1, 'Agility'),
+                onClick: async () => chooseUpgrade(tacticianAgilityUpgrade, 1, 'Finesse'),
             },
             {
-                label: 'Cooperation',
-                description: 'Cooperation. Upgrade an event. After using it, use another event with equal or lesser cost for free.',
+                label: 'Teamwork',
+                description: "Teamwork. Upgrade an event. Every time you use that event, use another event that's cheaper or equal for free.",
                 disabled: selectedIndex !== null || !hasEvents,
                 checked: selectedIndex === 2,
-                onClick: async () => chooseUpgrade(tacticianCooperationUpgrade, 2, 'Cooperation'),
+                onClick: async () => chooseUpgrade(tacticianCooperationUpgrade, 2, 'Teamwork'),
             }
         ]
     }
