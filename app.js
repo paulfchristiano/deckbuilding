@@ -11259,18 +11259,19 @@
     name: "Duchy",
     buyCost: coin(4),
     fixedCost: energy(1),
-    effects: [pointsEffect(2)]
+    effects: [pointsEffect(1)]
   };
   var province = {
     name: "Province",
     buyCost: coin(8),
     fixedCost: energy(1),
-    effects: [pointsEffect(3)]
+    effects: [pointsEffect(1)]
   };
   var colony = {
     name: "Colony",
     fixedCost: energy(1),
-    effects: [pointsEffect(6)]
+    buyCost: coin(15),
+    effects: [pointsEffect(1)]
   };
   var flowerMarket = {
     name: "Flower Market",
@@ -11280,7 +11281,7 @@
   };
   var vibrantCity = {
     name: "Vibrant City",
-    effects: [pointsEffect(2), actionsEffect(1)],
+    effects: [pointsEffect(1), actionsEffect(1)],
     buyCost: coin(5)
   };
   function chargeUpTo2(max) {
@@ -11296,7 +11297,7 @@
     name: frontierName,
     simpleText: [
       "+2 vp.",
-      "This increases by 1vp each time you play it, up to +6vp."
+      "The vp gain increases by 1vp each time you play it, up to +6vp."
     ],
     fixedCost: energy(1),
     buyCost: coin(6),
@@ -11322,13 +11323,13 @@
   var territoryName = "Territory";
   var territory = {
     simpleText: [
-      "+2 vp.",
+      "+1 vp.",
       "Leave this in your hand when you play it."
     ],
     name: territoryName,
     buyCost: coin(10),
     fixedCost: energy(1),
-    effects: [pointsEffect(2)],
+    effects: [pointsEffect(1)],
     staticReplacers: [{
       kind: "move",
       text: "When you play a ".concat(territoryName, " from your hand, leave it there."),
@@ -11342,18 +11343,18 @@
   };
   var farmlandName = "Farmland";
   var farmland = {
-    simpleText: ["+6 vp if you played this the normal way from your hand."],
+    simpleText: ["+1 vp if you played this the normal way from your hand."],
     name: farmlandName,
     fixedCost: energy(3),
     buyCost: coin(8),
     staticTriggers: [{
       kind: "play",
-      text: "Whenever you play a ".concat(farmlandName, " the normal way, +6 vp."),
+      text: "Whenever you play a ".concat(farmlandName, " the normal way, +1 vp."),
       handles: function(e) {
         return e.source == "act" && e.card.name == farmlandName;
       },
       transform: function(e, s, c) {
-        return gainPoints(6, c);
+        return gainPoints(1, c);
       }
     }]
   };
@@ -11361,7 +11362,7 @@
     name: "Palace",
     fixedCost: energy(1),
     buyCost: coin(5),
-    effects: [actionsEffect(2), pointsEffect(2), coinsEffect(2)]
+    effects: [actionsEffect(2), pointsEffect(1), coinsEffect(2)]
   };
   var duke = {
     name: "Duke",
@@ -11443,7 +11444,7 @@
     fixedCost: coin(1),
     effects: [pointsEffect(1)]
   };
-  vpModes.push({ name: "Province", target: 30, cards: [province], events: [] }, { name: "Duchy", target: 30, cards: [duchy], events: [] }, { name: "Estate", target: 20, cards: [estate], events: [] }, { name: "Thoroughfare", target: 100, cards: [], events: [thoroughfare] }, { name: "Monument", target: 25, cards: [], events: [monument] }, { name: "Capitalization", target: 60, cards: [], events: [capitalization] }, { name: "Philanthropy", target: 40, cards: [], events: [philanthropy] }, { name: "Duke", target: 40, cards: [duchy, duke], events: [] }, { name: "Flower Market", target: 40, cards: [flowerMarket], events: [] }, { name: "Farmland", target: 30, cards: [farmland], events: [] }, { name: "Vibrant City", target: 40, cards: [vibrantCity], events: [] }, { name: "Palace", target: 40, cards: [palace], events: [] }, { name: "Territory", target: 40, cards: [territory], events: [] }, { name: "Frontier", target: 30, cards: [frontier], events: [] }, { name: "Gardens", target: 30, cards: [gardens], events: [] });
+  vpModes.push({ name: "Province", target: 10, cards: [province], events: [] }, { name: "Duchy", target: 15, cards: [duchy], events: [] }, { name: "Estate", target: 20, cards: [estate], events: [] }, { name: "Colony", target: 5, cards: [colony], events: [] }, { name: "Thoroughfare", target: 100, cards: [], events: [thoroughfare] }, { name: "Monument", target: 25, cards: [], events: [monument] }, { name: "Capitalization", target: 60, cards: [], events: [capitalization] }, { name: "Philanthropy", target: 40, cards: [], events: [philanthropy] }, { name: "Duke", target: 40, cards: [duchy, duke], events: [] }, { name: "Flower Market", target: 40, cards: [flowerMarket], events: [] }, { name: "Farmland", target: 5, cards: [farmland], events: [] }, { name: "Vibrant City", target: 20, cards: [vibrantCity], events: [] }, { name: "Palace", target: 20, cards: [palace], events: [] }, { name: "Territory", target: 25, cards: [territory], events: [] }, { name: "Frontier", target: 34, cards: [frontier], events: [] }, { name: "Gardens", target: 30, cards: [gardens], events: [] });
 
   // public/data/encounters.js
   var __assign8 = function() {
