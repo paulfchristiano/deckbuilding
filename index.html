@@ -511,6 +511,22 @@ input {
     font-weight: normal;
 }
 
+.macroOption[disabled] {
+    cursor: default;
+}
+
+/* Keep disabled macro labels dimmed without fading or burying tooltip content. */
+.macroOption[disabled]:hover {
+    z-index: 20;
+}
+.macroOption[disabled] .tooltip {
+    z-index: 60;
+    opacity: 0.45;
+}
+.macroOption[disabled] > :not(.tooltip) {
+    opacity: 0.45;
+}
+
 </style>
     <title>Roguelike Deckbuilder</title>
     <style>
