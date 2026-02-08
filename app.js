@@ -5902,59 +5902,58 @@
     if (targetCopies <= 0) {
       return { cards, events };
     }
-    var usedCardNames = /* @__PURE__ */ new Set();
-    var usedEventNames = /* @__PURE__ */ new Set();
+    var neededCards = 2 * targetCopies;
+    var neededEvents = targetCopies;
     var ownedCardNames = new Set(state.data.collectedCards.map(function(card2) {
       return card2.name;
     }));
     var ownedEventNames = new Set(state.data.collectedEvents.map(function(event) {
       return event.name;
     }));
-    var availableCards = cardRewards.filter(function(card2) {
-      return !ownedCardNames.has(card2.name);
-    });
-    var availableEvents = eventRewards.filter(function(event) {
-      return !ownedEventNames.has(event.name);
-    });
-    for (var copy = 0; copy < targetCopies; copy++) {
-      var generator = new Generator("".concat(state.seed, "-LOOKINGGLASS-").concat(state.data.stage, "-").concat(copy));
-      var cardPool = availableCards.filter(function(card2) {
-        return !usedCardNames.has(card2.name);
-      });
-      var sampledCards = generator.samples(cardPool, Math.min(2, cardPool.length));
-      try {
-        for (var sampledCards_1 = (e_16 = void 0, __values4(sampledCards)), sampledCards_1_1 = sampledCards_1.next(); !sampledCards_1_1.done; sampledCards_1_1 = sampledCards_1.next()) {
-          var card = sampledCards_1_1.value;
-          cards.push(card);
-          usedCardNames.add(card.name);
-        }
-      } catch (e_16_1) {
-        e_16 = { error: e_16_1 };
-      } finally {
-        try {
-          if (sampledCards_1_1 && !sampledCards_1_1.done && (_a = sampledCards_1.return)) _a.call(sampledCards_1);
-        } finally {
-          if (e_16) throw e_16.error;
-        }
+    var selectedCardNames = /* @__PURE__ */ new Set();
+    var selectedEventNames = /* @__PURE__ */ new Set();
+    var cardOrder = new Generator("".concat(state.seed, "-LOOKINGGLASS-CARDS-").concat(state.data.stage)).permute(__spreadArray5([], __read6(cardRewards), false));
+    try {
+      for (var cardOrder_1 = __values4(cardOrder), cardOrder_1_1 = cardOrder_1.next(); !cardOrder_1_1.done; cardOrder_1_1 = cardOrder_1.next()) {
+        var card = cardOrder_1_1.value;
+        if (cards.length >= neededCards)
+          break;
+        if (ownedCardNames.has(card.name))
+          continue;
+        if (selectedCardNames.has(card.name))
+          continue;
+        cards.push(card);
+        selectedCardNames.add(card.name);
       }
-      var eventPool = availableEvents.filter(function(event) {
-        return !usedEventNames.has(event.name);
-      });
-      var sampledEvents = generator.samples(eventPool, Math.min(1, eventPool.length));
+    } catch (e_16_1) {
+      e_16 = { error: e_16_1 };
+    } finally {
       try {
-        for (var sampledEvents_1 = (e_17 = void 0, __values4(sampledEvents)), sampledEvents_1_1 = sampledEvents_1.next(); !sampledEvents_1_1.done; sampledEvents_1_1 = sampledEvents_1.next()) {
-          var event_1 = sampledEvents_1_1.value;
-          events.push(event_1);
-          usedEventNames.add(event_1.name);
-        }
-      } catch (e_17_1) {
-        e_17 = { error: e_17_1 };
+        if (cardOrder_1_1 && !cardOrder_1_1.done && (_a = cardOrder_1.return)) _a.call(cardOrder_1);
       } finally {
-        try {
-          if (sampledEvents_1_1 && !sampledEvents_1_1.done && (_b = sampledEvents_1.return)) _b.call(sampledEvents_1);
-        } finally {
-          if (e_17) throw e_17.error;
-        }
+        if (e_16) throw e_16.error;
+      }
+    }
+    var eventOrder = new Generator("".concat(state.seed, "-LOOKINGGLASS-EVENTS-").concat(state.data.stage)).permute(__spreadArray5([], __read6(eventRewards), false));
+    try {
+      for (var eventOrder_1 = __values4(eventOrder), eventOrder_1_1 = eventOrder_1.next(); !eventOrder_1_1.done; eventOrder_1_1 = eventOrder_1.next()) {
+        var event_1 = eventOrder_1_1.value;
+        if (events.length >= neededEvents)
+          break;
+        if (ownedEventNames.has(event_1.name))
+          continue;
+        if (selectedEventNames.has(event_1.name))
+          continue;
+        events.push(event_1);
+        selectedEventNames.add(event_1.name);
+      }
+    } catch (e_17_1) {
+      e_17 = { error: e_17_1 };
+    } finally {
+      try {
+        if (eventOrder_1_1 && !eventOrder_1_1.done && (_b = eventOrder_1.return)) _b.call(eventOrder_1);
+      } finally {
+        if (e_17) throw e_17.error;
       }
     }
     return { cards, events };

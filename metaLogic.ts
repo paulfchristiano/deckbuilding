@@ -1727,28 +1727,32 @@ function sampleLookingGlassRoundRewards(
     if (targetCopies <= 0) {
         return { cards, events }
     }
-    const usedCardNames = new Set<string>()
-    const usedEventNames = new Set<string>()
+
+    const neededCards = 2 * targetCopies
+    const neededEvents = targetCopies
     const ownedCardNames = new Set(state.data.collectedCards.map(card => card.name))
     const ownedEventNames = new Set(state.data.collectedEvents.map(event => event.name))
-    const availableCards = cardRewards.filter(card => !ownedCardNames.has(card.name))
-    const availableEvents = eventRewards.filter(event => !ownedEventNames.has(event.name))
+    const selectedCardNames = new Set<string>()
+    const selectedEventNames = new Set<string>()
 
-    for (let copy = 0; copy < targetCopies; copy++) {
-        const generator = new Generator(`${state.seed}-LOOKINGGLASS-${state.data.stage}-${copy}`)
-        const cardPool = availableCards.filter(card => !usedCardNames.has(card.name))
-        const sampledCards = generator.samples(cardPool, Math.min(2, cardPool.length))
-        for (const card of sampledCards) {
-            cards.push(card)
-            usedCardNames.add(card.name)
-        }
+    const cardOrder = new Generator(`${state.seed}-LOOKINGGLASS-CARDS-${state.data.stage}`)
+        .permute([...cardRewards])
+    for (const card of cardOrder) {
+        if (cards.length >= neededCards) break
+        if (ownedCardNames.has(card.name)) continue
+        if (selectedCardNames.has(card.name)) continue
+        cards.push(card)
+        selectedCardNames.add(card.name)
+    }
 
-        const eventPool = availableEvents.filter(event => !usedEventNames.has(event.name))
-        const sampledEvents = generator.samples(eventPool, Math.min(1, eventPool.length))
-        for (const event of sampledEvents) {
-            events.push(event)
-            usedEventNames.add(event.name)
-        }
+    const eventOrder = new Generator(`${state.seed}-LOOKINGGLASS-EVENTS-${state.data.stage}`)
+        .permute([...eventRewards])
+    for (const event of eventOrder) {
+        if (events.length >= neededEvents) break
+        if (ownedEventNames.has(event.name)) continue
+        if (selectedEventNames.has(event.name)) continue
+        events.push(event)
+        selectedEventNames.add(event.name)
     }
 
     return { cards, events }
