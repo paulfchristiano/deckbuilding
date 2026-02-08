@@ -10,7 +10,8 @@ import {
     MetaUI,
     MetaTimelineEntry,
     deserializeMetaGame,
-    replaySpecForStage
+    replaySpecForStage,
+    ExitToLauncher
 } from './metaLogic.js'
 import { MetaGameUI } from './metaUI.js'
 import { randomString } from './rng.js'
@@ -362,6 +363,7 @@ async function runGame(slotID: string, snapshot: SerializedMetaGame | null, seed
     try {
         await playGame(metaUI, test, seed, snapshot, saveCallback)
     } catch (error) {
+        if (error instanceof ExitToLauncher) return
         console.error(error)
         alert('Failed to load or run this game. You can abandon it from the launcher.')
     } finally {

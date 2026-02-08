@@ -1851,6 +1851,12 @@ export class ReplayStage extends Error {
         Object.setPrototypeOf(this, ReplayStage.prototype)
     }
 }
+export class ExitToLauncher extends Error {
+    constructor() {
+        super('ExitToLauncher')
+        Object.setPrototypeOf(this, ExitToLauncher.prototype)
+    }
+}
 
 function cloneGameSpec(spec: GameSpec): GameSpec {
     return {

@@ -10,7 +10,7 @@ import {
     ActiveGameProgress,
     renderChallenge,
     getRewardOptions, getRewardName, updateRewardState, updateRewardAtIndex,
-    Undo, Redo, ReplayStage
+    Undo, Redo, ReplayStage, ExitToLauncher
 } from './metaLogic.js'
 import { buildSpecTooltipFull, buildSpecTooltipSimple, renderSpecNoRelated } from './cardRendering.js'
 import { initHotkeys, startGame, keyListeners } from './gameUI.js'
@@ -672,11 +672,26 @@ export class MetaGameUI implements MetaUI {
 
     async waitForChallenge(state: MetaState): Promise<ChallengeSpec> {
         return new Promise((resolve, reject) => {
+            const escapeListener = () => finishReject(new ExitToLauncher())
+            const cleanupEscapeListener = () => {
+                if (keyListeners.get('Escape') === escapeListener) keyListeners.delete('Escape')
+                if (keyListeners.get('Esc') === escapeListener) keyListeners.delete('Esc')
+            }
+            const finishResolve = (challenge: ChallengeSpec) => {
+                cleanupEscapeListener()
+                resolve(challenge)
+            }
+            const finishReject = (error: Error) => {
+                cleanupEscapeListener()
+                reject(error)
+            }
+            keyListeners.set('Escape', escapeListener)
+            keyListeners.set('Esc', escapeListener)
             const render = () => {
                 bindUndoRedoButtons(
                     state,
-                    () => reject(new Undo()),
-                    () => reject(new Redo())
+                    () => finishReject(new Undo()),
+                    () => finishReject(new Redo())
                 )
                 renderStageScreen(
                     state,
@@ -684,7 +699,7 @@ export class MetaGameUI implements MetaUI {
                     (challenge) => {
                         state.update({ challenges: [challenge] })
                         updateProgressSidebar(state)
-                        resolve(challenge)
+                        finishResolve(challenge)
                     },
                     // onOptionClick
                     async (rewardIndex, optionIndex) => {
@@ -719,7 +734,7 @@ export class MetaGameUI implements MetaUI {
                         // Re-render
                         render()
                     },
-                    (stage) => reject(new ReplayStage(stage))
+                    (stage) => finishReject(new ReplayStage(stage))
                 )
             }
             render()
@@ -728,16 +743,31 @@ export class MetaGameUI implements MetaUI {
 
     async pickPath(state: MetaState, paths: Path[]): Promise<Path> {
         return new Promise((resolve, reject) => {
+            const escapeListener = () => finishReject(new ExitToLauncher())
+            const cleanupEscapeListener = () => {
+                if (keyListeners.get('Escape') === escapeListener) keyListeners.delete('Escape')
+                if (keyListeners.get('Esc') === escapeListener) keyListeners.delete('Esc')
+            }
+            const finishResolve = (path: Path) => {
+                cleanupEscapeListener()
+                resolve(path)
+            }
+            const finishReject = (error: Error) => {
+                cleanupEscapeListener()
+                reject(error)
+            }
+            keyListeners.set('Escape', escapeListener)
+            keyListeners.set('Esc', escapeListener)
             bindUndoRedoButtons(
                 state,
-                () => reject(new Undo()),
-                () => reject(new Redo())
+                () => finishReject(new Undo()),
+                () => finishReject(new Redo())
             )
             renderPathSelectionScreen(
                 state,
                 paths,
-                resolve,
-                (stage) => reject(new ReplayStage(stage))
+                finishResolve,
+                (stage) => finishReject(new ReplayStage(stage))
             )
         })
     }

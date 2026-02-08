@@ -6030,6 +6030,18 @@
       return ReplayStage2;
     })(Error)
   );
+  var ExitToLauncher = (
+    /** @class */
+    (function(_super) {
+      __extends2(ExitToLauncher2, _super);
+      function ExitToLauncher2() {
+        var _this = _super.call(this, "ExitToLauncher") || this;
+        Object.setPrototypeOf(_this, ExitToLauncher2.prototype);
+        return _this;
+      }
+      return ExitToLauncher2;
+    })(Error)
+  );
   function cloneGameSpec(spec) {
     return __assign2(__assign2({}, spec), { cards: __spreadArray5([], __read6(spec.cards), false), events: __spreadArray5([], __read6(spec.events), false), potions: __spreadArray5([], __read6(spec.potions), false), relics: __spreadArray5([], __read6(spec.relics), false), metaStageScores: spec.metaStageScores ? __spreadArray5([], __read6(spec.metaStageScores), false) : void 0, metaStagePars: spec.metaStagePars ? __spreadArray5([], __read6(spec.metaStagePars), false) : void 0, metaStageTooltips: spec.metaStageTooltips ? __spreadArray5([], __read6(spec.metaStageTooltips), false) : void 0, replayUsedPotionIDs: spec.replayUsedPotionIDs ? __spreadArray5([], __read6(spec.replayUsedPotionIDs), false) : void 0 });
   }
@@ -15650,11 +15662,30 @@
           var _this = this;
           return __generator12(this, function(_a) {
             return [2, new Promise(function(resolve, reject) {
+              var escapeListener = function() {
+                return finishReject(new ExitToLauncher());
+              };
+              var cleanupEscapeListener = function() {
+                if (keyListeners.get("Escape") === escapeListener)
+                  keyListeners.delete("Escape");
+                if (keyListeners.get("Esc") === escapeListener)
+                  keyListeners.delete("Esc");
+              };
+              var finishResolve = function(challenge) {
+                cleanupEscapeListener();
+                resolve(challenge);
+              };
+              var finishReject = function(error) {
+                cleanupEscapeListener();
+                reject(error);
+              };
+              keyListeners.set("Escape", escapeListener);
+              keyListeners.set("Esc", escapeListener);
               var render = function() {
                 bindUndoRedoButtons(state, function() {
-                  return reject(new Undo2());
+                  return finishReject(new Undo2());
                 }, function() {
-                  return reject(new Redo());
+                  return finishReject(new Redo());
                 });
                 renderStageScreen(
                   state,
@@ -15662,7 +15693,7 @@
                   function(challenge) {
                     state.update({ challenges: [challenge] });
                     updateProgressSidebar(state);
-                    resolve(challenge);
+                    finishResolve(challenge);
                   },
                   // onOptionClick
                   function(rewardIndex, optionIndex) {
@@ -15713,7 +15744,7 @@
                     });
                   },
                   function(stage) {
-                    return reject(new ReplayStage(stage));
+                    return finishReject(new ReplayStage(stage));
                   }
                 );
               };
@@ -15726,13 +15757,32 @@
         return __awaiter12(this, void 0, void 0, function() {
           return __generator12(this, function(_a) {
             return [2, new Promise(function(resolve, reject) {
+              var escapeListener = function() {
+                return finishReject(new ExitToLauncher());
+              };
+              var cleanupEscapeListener = function() {
+                if (keyListeners.get("Escape") === escapeListener)
+                  keyListeners.delete("Escape");
+                if (keyListeners.get("Esc") === escapeListener)
+                  keyListeners.delete("Esc");
+              };
+              var finishResolve = function(path) {
+                cleanupEscapeListener();
+                resolve(path);
+              };
+              var finishReject = function(error) {
+                cleanupEscapeListener();
+                reject(error);
+              };
+              keyListeners.set("Escape", escapeListener);
+              keyListeners.set("Esc", escapeListener);
               bindUndoRedoButtons(state, function() {
-                return reject(new Undo2());
+                return finishReject(new Undo2());
               }, function() {
-                return reject(new Redo());
+                return finishReject(new Redo());
               });
-              renderPathSelectionScreen(state, paths, resolve, function(stage) {
-                return reject(new ReplayStage(stage));
+              renderPathSelectionScreen(state, paths, finishResolve, function(stage) {
+                return finishReject(new ReplayStage(stage));
               });
             })];
           });
@@ -16076,6 +16126,11 @@
             return [3, 5];
           case 3:
             error_1 = _b.sent();
+            if (error_1 instanceof ExitToLauncher)
+              return [
+                2
+                /*return*/
+              ];
             console.error(error_1);
             alert("Failed to load or run this game. You can abandon it from the launcher.");
             return [3, 5];
