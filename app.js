@@ -16148,7 +16148,7 @@
   }
   function runReplayFromSnapshot(slot, stage) {
     return __awaiter13(this, void 0, void 0, function() {
-      var seedDisplay, state, replayData, error_2;
+      var seedDisplay, state, replayData, bufferDisplay, error_2;
       var _a;
       return __generator13(this, function(_b) {
         switch (_b.label) {
@@ -16170,6 +16170,10 @@
                 2
                 /*return*/
               ];
+            }
+            bufferDisplay = document.getElementById("bufferDisplay");
+            if (bufferDisplay) {
+              bufferDisplay.textContent = "Buffer: ".concat(replayData.bufferBeforeCourse);
             }
             return [4, startGame(replaySpecForStage(state, replayData), replayData.history, [], state.global.macros, state.global.viewingMacros, null)];
           case 2:

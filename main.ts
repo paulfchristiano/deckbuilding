@@ -388,6 +388,10 @@ async function runReplayFromSnapshot(slot: SaveSlot, stage: number): Promise<voi
             alert('No replay available for that stage.')
             return
         }
+        const bufferDisplay = document.getElementById('bufferDisplay')
+        if (bufferDisplay) {
+            bufferDisplay.textContent = `Buffer: ${replayData.bufferBeforeCourse}`
+        }
         await startGame(
             replaySpecForStage(state, replayData),
             replayData.history,
