@@ -176,7 +176,7 @@ export function getRewardOptions(rewardState: RewardState, metaState: MetaState)
         ? encounterRewardCompleted(rewardState)
         : rewardState.selectedIndex !== null
     const piggySelected = rewardState.kind !== 'encounter' && rewardState.selectedIndex === PIGGY_BANK_SELECTED_INDEX
-    const hasSingingBowl = rewardState.kind === 'card' && singingBowlCount(metaState) > 0
+    const hasSingingBowl = rewardState.kind !== 'encounter' && singingBowlCount(metaState) > 0
     if (hasSingingBowl) {
         const optionIndex = baseOptions.length
         const skippedLabels = baseOptions.map(option => option.label)

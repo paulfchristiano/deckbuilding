@@ -4359,7 +4359,7 @@
     var baseOptions = rewardState.kind === "encounter" ? !rewardState.encounter ? [] : rewardState.encounter.getOptions(rewardState.data, metaState) : getSimpleRewardOptions(rewardState, metaState);
     var alreadySelected = rewardState.kind === "encounter" ? encounterRewardCompleted(rewardState) : rewardState.selectedIndex !== null;
     var piggySelected = rewardState.kind !== "encounter" && rewardState.selectedIndex === PIGGY_BANK_SELECTED_INDEX;
-    var hasSingingBowl = rewardState.kind === "card" && singingBowlCount(metaState) > 0;
+    var hasSingingBowl = rewardState.kind !== "encounter" && singingBowlCount(metaState) > 0;
     if (hasSingingBowl) {
       var optionIndex_1 = baseOptions.length;
       var skippedLabels = baseOptions.map(function(option) {
