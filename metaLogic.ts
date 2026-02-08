@@ -293,7 +293,7 @@ export const TOTAL_STAGES = 8
 export const INITIAL_BUFFER = 10
 
 // Base par values for each stage
-export const BASE_PARS: number[] = [26, 24, 22, 20, 18, 16, 14, 8]
+export const BASE_PARS: number[] = [26, 24, 22, 20, 18, 16, 14, 4]
 
 // ----------------------------- Meta-game Types
 
