@@ -20,6 +20,7 @@ import { renderSpecNoRelated } from './cardRendering.js'
 import { Card, CardSpec, UndoPastBeginning } from './gameLogic.js'
 
 import type { TestSpec } from './metaLogic.js'
+import { banquet } from './data/cards.js'
 
 let test: TestSpec | null = null
 

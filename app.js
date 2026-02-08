@@ -8185,16 +8185,16 @@
   cardRewards.push(artificer);
   var banquet = {
     name: "Banquet",
-    buyCost: coin(4),
+    buyCost: coin(3),
     restrictions: [{
       test: function(c, s, k) {
         return k == "activate" && s.hand.length > 0;
       }
     }],
     effects: [{
-      text: ["Put a charge token on this for each card in your hand up to 6."],
+      text: ["Put a charge token on this for every 2 cards in your hand, rounded up."],
       transform: function(state, c) {
-        return charge(c, Math.min(6, state.hand.length));
+        return charge(c, Math.ceil(state.hand.length / 2));
       }
     }],
     replacers: [{
@@ -14472,6 +14472,8 @@
           ui.recordingMacro = null;
           ui.recordingStates = [];
         } else {
+          console.log(ui.recordingMacro.steps);
+          console.log(ui.recordingStates);
           ui.recordingMacro.requirements = computeMacroRequirements(ui.recordingStates, ui.recordingMacro.steps);
           ui.macros.push(cloneMacro(ui.recordingMacro));
           ui.recordingMacro = null;
@@ -14689,9 +14691,13 @@
             this.recordingStates = [];
             return;
           }
+          console.log(this.recordingMacro.steps);
+          console.log(this.recordingStates);
           this.recordingMacro.steps.pop();
           console.assert(this.recordingStates.length > 1, "There should be a recording state to match each macro step");
           this.recordingStates.pop();
+          console.log(this.recordingMacro.steps);
+          console.log(this.recordingStates);
         }
       };
       GameUI2.prototype.observeRecordingState = function(state) {
@@ -14744,6 +14750,7 @@
           function newResolve(n, shifted) {
             ui.clearChoice();
             var macroStep = macroStepFromChoice(options[n].render, chosen.includes(n), info);
+            ui.observeRecordingState(state);
             ui.recordStep(macroStep);
             if (shifted)
               ui.playingMacro = repeat2([macroStep], 9);
@@ -14773,7 +14780,6 @@
             resolve: newResolve,
             reject: newReject
           };
-          ui.observeRecordingState(state);
           var macroMatch = ui.matchNextMacroStep();
           if (macroMatch.failed && ui.macroStartState !== null) {
             newReject(new SetState(ui.macroStartState));
