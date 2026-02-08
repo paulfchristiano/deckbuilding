@@ -39,7 +39,6 @@ import {
   fountainEffect,
   shelterRule,
   startInPlay,
-  hagglerRule, hagglerName,
   discard,
   fountainTransform,
 } from '../gameLogic.js'
@@ -903,19 +902,31 @@ const hireling:CardSpec = {
 }
 cardRewards.push(hireling)
 
-const haggler:CardSpec = {
+const hagglerName = 'Haggler'
+export const haggler:CardSpec = {
     name: hagglerName,
     fixedCost: energy(1),
-    effects: [coinsEffect(2), toPlay()],
-    simpleText: [        `After buying a card the normal way,
-            buy an additional card for each ${hagglerName} in play.
-            Each card you buy this way must cost at least $1 less than the previous one.`],
     buyCost: coin(3),
-    rules: [hagglerRule]
+    effects: [coinsEffect(2)],
+    triggers: [{
+        text: `After you buy a card the normal way, you may buy another card that costs less.`,
+        kind: 'afterBuy',
+        handles: (e, state, card) => state.find(card!).place == 'play' && e.source == 'act',
+        transform: (e, state, card) => async function(state) {
+            const cost = subtractCost(e.card.cost('buy', state), {coin:1})
+            let target:Card|null; [state, target] = await choice(state,
+                `You may buy another card that costs at most $${cost.coin}.`,
+                allowNull(state.supply.filter(c => leq(c.cost('buy', state), cost)).map(asChoice)))
+            if (target === null) {
+                return state
+            } else {
+                state = await target.buy(card)(state)
+                return state
+            }
+        }
+    }]
 }
 cardRewards.push(haggler)
-
-
 
 const highwayName = 'Highway'
 const highway:CardSpec = {

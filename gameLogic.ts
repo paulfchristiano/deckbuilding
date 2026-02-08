@@ -2071,6 +2071,7 @@ export const reflectRule: Rule = {
 }
 registerRule(reflectRule)
 
+/*
 export const hagglerName = 'Haggler'
 export const hagglerRule: Rule = {
     name: 'Haggle',
@@ -2107,6 +2108,7 @@ export const hagglerRule: Rule = {
             }
         }]
 }
+        */
 
 // Ferry rule: cards with ferry tokens cost $1 less per token (but not zero)
 export const ferryRule: Rule = {
