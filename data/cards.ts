@@ -912,18 +912,13 @@ export const haggler:CardSpec = {
         text: `After you buy a card the normal way, you may buy another card that costs less.`,
         kind: 'afterBuy',
         handles: (e, state, card) => state.find(card!).place == 'play' && e.source == 'act',
-        transform: (e, state, card) => async function(state) {
-            const cost = subtractCost(e.card.cost('buy', state), {coin:1})
-            let target:Card|null; [state, target] = await choice(state,
-                `You may buy another card that costs at most $${cost.coin}.`,
-                allowNull(state.supply.filter(c => leq(c.cost('buy', state), cost)).map(asChoice)))
-            if (target === null) {
-                return state
-            } else {
-                state = await target.buy(card)(state)
-                return state
-            }
-        }
+        transform: (e, state, card) =>  applyToTarget(
+            target => target.buy(card),
+            `Buy a card in the supply costing less than $${e.card.cost('buy', state).coin}.`,
+            state => state.supply.filter(
+                x => leq(x.cost('buy', state), coin(e.card.cost('buy', state).coin - 1))
+            )
+        )
     }]
 }
 cardRewards.push(haggler)

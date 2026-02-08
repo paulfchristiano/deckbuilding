@@ -8340,30 +8340,13 @@
         return state.find(card).place == "play" && e.source == "act";
       },
       transform: function(e, state, card) {
-        return function(state2) {
-          return __awaiter5(this, void 0, void 0, function() {
-            var cost, target;
-            var _a;
-            return __generator5(this, function(_b) {
-              switch (_b.label) {
-                case 0:
-                  cost = subtractCost(e.card.cost("buy", state2), { coin: 1 });
-                  return [4, choice(state2, "You may buy another card that costs at most $".concat(cost.coin, "."), allowNull(state2.supply.filter(function(c) {
-                    return leq(c.cost("buy", state2), cost);
-                  }).map(asChoice)))];
-                case 1:
-                  _a = __read8.apply(void 0, [_b.sent(), 2]), state2 = _a[0], target = _a[1];
-                  if (!(target === null)) return [3, 2];
-                  return [2, state2];
-                case 2:
-                  return [4, target.buy(card)(state2)];
-                case 3:
-                  state2 = _b.sent();
-                  return [2, state2];
-              }
-            });
+        return applyToTarget(function(target) {
+          return target.buy(card);
+        }, "Buy a card in the supply costing less than $".concat(e.card.cost("buy", state).coin, "."), function(state2) {
+          return state2.supply.filter(function(x) {
+            return leq(x.cost("buy", state2), coin(e.card.cost("buy", state2).coin - 1));
           });
-        };
+        });
       }
     }]
   };
