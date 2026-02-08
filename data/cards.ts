@@ -814,13 +814,13 @@ cardRewards.push(artificer)
 
 export const banquet:CardSpec = {
     name: 'Banquet',
-    buyCost: coin(4),
+    buyCost: coin(3),
     restrictions: [{
         test: (c:Card, s:State, k:ActionKind) => k == 'activate' && s.hand.length > 0
     }],
     effects: [{
-        text: [`Put a charge token on this for each card in your hand up to 6.`],
-        transform: (state, c) => charge(c, Math.min(6, state.hand.length))
+        text: [`Put a charge token on this for every 2 cards in your hand, rounded up.`],
+        transform: (state, c) => charge(c, Math.ceil(state.hand.length / 2))
     }],
     replacers: [{
         text: `Whenever this leaves play, remove all charge tokens from it.`,
