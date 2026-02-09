@@ -11548,7 +11548,7 @@
         return false;
       if (!leq(event.cost("use", state), maxCost))
         return false;
-      return event.available("use", state);
+      return true;
     });
   }
   var polishUpgrade = registerUpgrade("polish", {
@@ -11742,38 +11742,27 @@
     staticTriggers: [
       {
         kind: "gameStart",
-        text: "This starts with 4 strength tokens.",
+        text: "This starts with 4 reflect tokens.",
         handles: function(_e, state, sourceCard) {
-          return state.find(sourceCard).count("strength") === 0;
+          return true;
         },
         transform: function(_e, _state, sourceCard) {
-          return addToken(sourceCard, "strength", 4);
+          return addToken(sourceCard, "reflect", 4);
         }
       },
       {
+        text: "After using this other than with this ability, if it has a reflect token on it remove the token to use it again.",
         kind: "afterUse",
-        text: "The first four times you use this each stage, use it again.",
-        handles: function(e, state, sourceCard) {
-          return e.card.id === sourceCard.id && !sourceHasName(e.source, sourceCard.name) && state.find(sourceCard).count("strength") > 0;
+        handles: function(e, state, card) {
+          var played = state.find(e.card);
+          return played.count("reflect") > 0 && !sourceHasName(e.source, card.name);
         },
-        transform: function(_e, _state, sourceCard) {
-          return function(state) {
-            return __awaiter10(this, void 0, void 0, function() {
-              return __generator10(this, function(_a) {
-                switch (_a.label) {
-                  case 0:
-                    sourceCard = state.find(sourceCard);
-                    if (sourceCard.count("strength") <= 0) {
-                      return [2, state];
-                    }
-                    return [4, removeToken(sourceCard, "strength", 1, true)(state)];
-                  case 1:
-                    state = _a.sent();
-                    return [2, sourceCard.use(sourceCard)(state)];
-                }
-              });
-            });
-          };
+        transform: function(e, s, card) {
+          return doAll([
+            removeToken(e.card, "reflect"),
+            e.card.use(card)
+            // the source is the card itself
+          ]);
         }
       }
     ]
@@ -11827,7 +11816,7 @@
                 return target.use(source);
               }, "Choose another event with equal or lesser cost to use for free.", function(s) {
                 return cooperationTargets(s, source);
-              })(state)];
+              }, { optional: "none" })(state)];
             });
           });
         };

@@ -20,7 +20,8 @@ import { CardSpec, CardUpgrade,
     coinsEffect,
     actionsEffect,
     addCosts, coin, trash, applyToTarget,
-    create, buyTrigger, afterBuyTrigger, buysEffect, sourceHasName, addToken, removeToken
+    create, buyTrigger, afterBuyTrigger, buysEffect, sourceHasName, addToken, removeToken,
+    doAll
 } from '../gameLogic.js'
 
 import { Generator } from '../rng.js'
@@ -39,7 +40,7 @@ function cooperationTargets(state: State, sourceCard: Card): Card[] {
     return state.events.filter(event => {
         if (event.id === source.id) return false
         if (!leq(event.cost('use', state), maxCost)) return false
-        return event.available('use', state)
+        return true
     })
 }
 
@@ -164,26 +165,23 @@ export const tacticianStrengthUpgrade: CardUpgrade = registerUpgrade('tacticianS
     staticTriggers: [
         {
             kind: 'gameStart',
-            text: 'This starts with 4 strength tokens.',
-            handles: (_e, state, sourceCard) => state.find(sourceCard!).count('strength') === 0,
-            transform: (_e, _state, sourceCard) => addToken(sourceCard!, 'strength', 4),
-        },
-        {
-            kind: 'afterUse',
-            text: 'The first four times you use this each stage, use it again.',
-            handles: (e, state, sourceCard) =>
-                e.card.id === sourceCard!.id &&
-                !sourceHasName(e.source, sourceCard!.name) &&
-                state.find(sourceCard!).count('strength') > 0,
-            transform: (_e, _state, sourceCard) => async function (state: State) {
-                sourceCard = state.find(sourceCard!)
-                if (sourceCard.count('strength') <= 0) {
-                    return state
-                }
-                state = await removeToken(sourceCard, 'strength', 1, true)(state)
-                return sourceCard.use(sourceCard)(state)
+            text: 'This starts with 4 reflect tokens.',
+            handles: (_e, state, sourceCard) => true,
+            transform: (_e, _state, sourceCard) => addToken(sourceCard!, 'reflect', 4),
+        }, {
+                text: `After using this other than with this ability, if it has a reflect token on it remove the token to use it again.`,
+                kind: 'afterUse',
+                handles: (e, state, card) => {
+                    const played: Card = state.find(e.card)
+                    // Don't trigger if the play was already from this rule (prevent infinite loops)
+                    // TODO: should have upgrades as sources I guess?
+                    return played.count('reflect') > 0 && !sourceHasName(e.source, card!.name)
+                },
+                transform: (e, s, card) => doAll([
+                    removeToken(e.card, 'reflect'),
+                    e.card.use(card), // the source is the card itself
+                ]),
             }
-        }
     ]
 })
 
@@ -232,7 +230,8 @@ export const tacticianCooperationUpgrade: CardUpgrade = registerUpgrade('tactici
             return applyToTarget(
                 target => target.use(source),
                 'Choose another event with equal or lesser cost to use for free.',
-                s => cooperationTargets(s, source)
+                s => cooperationTargets(s, source),
+                { optional: 'none' }
             )(state)
         },
     }]
