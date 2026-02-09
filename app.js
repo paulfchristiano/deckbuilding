@@ -8443,7 +8443,7 @@
                                 return create(target2.spec, "hand");
                               }, "Choose a cheaper card to copy.", function(s) {
                                 return s.supply.filter(function(c2) {
-                                  return leq(target.cost("buy", s), c2.cost("buy", s));
+                                  return !leq(target.cost("buy", s), c2.cost("buy", s));
                                 });
                               })(state2)];
                             case 2:
@@ -8462,7 +8462,7 @@
                         });
                       });
                     };
-                  }, "Choose a card to develop.", function(s) {
+                  }, "Choose a card to transmogrify.", function(s) {
                     return s.hand;
                   })(state)];
                 case 1:
@@ -9186,17 +9186,17 @@
     name: "Potion of Inspiration",
     isPotion: true,
     effects: [{
-      text: ["Quadruple your actions and buys."],
+      text: ["Triple your actions and buys."],
       transform: function(state, card) {
         return function(state2) {
           return __awaiter6(this, void 0, void 0, function() {
             return __generator6(this, function(_a) {
               switch (_a.label) {
                 case 0:
-                  return [4, gainActions(3 * state2.actions, card)(state2)];
+                  return [4, gainActions(2 * state2.actions, card)(state2)];
                 case 1:
                   state2 = _a.sent();
-                  return [4, gainBuys(3 * state2.buys, card)(state2)];
+                  return [4, gainBuys(2 * state2.buys, card)(state2)];
                 case 2:
                   state2 = _a.sent();
                   return [2, state2];
@@ -11408,7 +11408,7 @@
       }
     }]
   };
-  vpModes.push({ name: "Province", target: 10, cards: [province], events: [] }, { name: "Duchy", target: 15, cards: [duchy], events: [] }, { name: "Estate", target: 20, cards: [estate], events: [] }, { name: "Colony", target: 5, cards: [colony], events: [] }, { name: "Thoroughfare", target: 100, cards: [], events: [thoroughfare] }, { name: "Monument", target: 25, cards: [], events: [monument] }, { name: "Capitalization", target: 60, cards: [], events: [capitalization] }, { name: "Philanthropy", target: 40, cards: [], events: [philanthropy] }, { name: "Duke", target: 40, cards: [duchy, duke], events: [] }, { name: "Flower Market", target: 40, cards: [flowerMarket], events: [] }, { name: "Farmland", target: 5, cards: [farmland], events: [] }, { name: "Vibrant City", target: 20, cards: [vibrantCity], events: [] }, { name: "Palace", target: 20, cards: [palace], events: [] }, { name: "Territory", target: 25, cards: [territory], events: [] }, { name: "Frontier", target: 34, cards: [frontier], events: [] }, { name: "Gardens", target: 30, cards: [gardens], events: [] });
+  vpModes.push({ name: "Province", target: 10, cards: [province], events: [] }, { name: "Duchy", target: 15, cards: [duchy], events: [] }, { name: "Estate", target: 20, cards: [estate], events: [] }, { name: "Colony", target: 5, cards: [colony], events: [] }, { name: "Thoroughfare", target: 100, cards: [], events: [thoroughfare] }, { name: "Monument", target: 25, cards: [], events: [monument] }, { name: "Capitalization", target: 60, cards: [], events: [capitalization] }, { name: "Philanthropy", target: 40, cards: [], events: [philanthropy] }, { name: "Duke", target: 40, cards: [duchy, duke], events: [] }, { name: "Flower Market", target: 40, cards: [flowerMarket], events: [] }, { name: "Farmland", target: 5, cards: [farmland], events: [] }, { name: "Vibrant City", target: 20, cards: [vibrantCity], events: [] }, { name: "Palace", target: 20, cards: [palace], events: [] }, { name: "Territory", target: 20, cards: [territory], events: [] }, { name: "Frontier", target: 34, cards: [frontier], events: [] }, { name: "Gardens", target: 30, cards: [gardens], events: [] });
 
   // public/data/encounters.js
   var __assign8 = function() {

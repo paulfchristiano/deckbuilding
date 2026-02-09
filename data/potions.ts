@@ -39,10 +39,10 @@ export const potionOfInspiration: CardSpec = {
     name: 'Potion of Inspiration',
     isPotion: true,
     effects: [{
-            text: ['Quadruple your actions and buys.'], 
+            text: ['Triple your actions and buys.'], 
             transform: (state, card) => async function(state) {
-                state = await gainActions(3 * state.actions, card)(state)
-                state = await gainBuys(3 * state.buys, card)(state)
+                state = await gainActions(2 * state.actions, card)(state)
+                state = await gainBuys(2 * state.buys, card)(state)
                 return state
             }
     }]
