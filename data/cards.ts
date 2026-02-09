@@ -1020,7 +1020,7 @@ export const transmogrify:CardSpec = {
                     state = await applyToTarget(
                         target2 => create(target2.spec, 'hand'),
                         'Choose a cheaper card to copy.',
-                        s => s.supply.filter(c => leq(
+                        s => s.supply.filter(c => !leq(
                             target.cost('buy', s), c.cost('buy', s)
                         ))
                     )(state)
@@ -1036,7 +1036,7 @@ export const transmogrify:CardSpec = {
                         ))
                     )(state)
                     return state
-                }, 'Choose a card to develop.',
+                }, 'Choose a card to transmogrify.',
                 s => s.hand,
             )(state)
             return state

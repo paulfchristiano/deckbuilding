@@ -218,7 +218,7 @@ vpModes.push(
     { name: 'Farmland', target: 5, cards: [farmland], events: [] },
     { name: 'Vibrant City', target: 20, cards: [vibrantCity], events: [] },
     { name: 'Palace', target: 20, cards: [palace], events: [] },
-    { name: 'Territory', target: 25, cards: [territory], events: [] },
+    { name: 'Territory', target: 20, cards: [territory], events: [] },
     { name: 'Frontier', target: 34, cards: [frontier], events: [] },
     { name: 'Gardens', target: 30, cards: [gardens], events: [] },
 )
