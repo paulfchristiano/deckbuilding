@@ -21,6 +21,7 @@ import { Card, CardSpec, UndoPastBeginning } from './gameLogic.js'
 
 import type { TestSpec } from './metaLogic.js'
 import { banquet } from './data/cards.js'
+import { tactician } from './data/encounters.js'
 
 let test: TestSpec | null = null
 
