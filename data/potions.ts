@@ -23,12 +23,13 @@ import {
     addCosts,
     renderCost,
     leq,
-    gainActions
+    gainActions,
+    tick
 } from '../gameLogic.js'
 
 // Import cards that potions reference from base
 import {
-    celebration, shelter,
+    shelter, bridge, highway,
     workshop, tavern, throneRoom, innovation, transmogrify,
 } from './cards.js'
 
@@ -66,14 +67,15 @@ potionRewards.push(potionOfWealth)
 export const potionOfCopper: CardSpec = {
     name: 'Potion of Copper',
     isPotion: true,
-    simpleText: ['Create 10 coppers in your hand.'],
+    simpleText: ['Create 8 coppers in your hand.'],
     effects: [{
-        text: ['Create 10 Coppers in your hand.'],
-        transform: () => repeat(create(copper, 'hand'), 10)
+        text: ['Create 8 Coppers in your hand.'],
+        transform: () => repeat(create(copper, 'hand'), 8)
     }]
 }
 potionRewards.push(potionOfCopper)
 
+/*
 export const celebratoryBrew: CardSpec = {
     name: 'Celebratory Brew',
     isPotion: true,
@@ -85,6 +87,7 @@ export const celebratoryBrew: CardSpec = {
     }]
 }
 potionRewards.push(celebratoryBrew)
+*/
 
 const bounty: CardSpec = {
     name: 'Bounty',
@@ -143,8 +146,8 @@ export const potionOfTransformation: CardSpec = {
 }
 potionRewards.push(potionOfTransformation)
 
-export const potionOfTransportation: CardSpec = {
-    name: 'Potion of Transportation',
+export const sailorsBrew: CardSpec = {
+    name: `Sailor's Brew`,
     isPotion: true,
     simpleText: [
         'Put two ferry tokens on a supply. It costs $2 less.',
@@ -156,7 +159,38 @@ export const potionOfTransportation: CardSpec = {
         state => state.supply,
     )]
 }
-potionRewards.push(potionOfTransportation)
+potionRewards.push(sailorsBrew)
+
+export const highwayPotion: CardSpec = {
+    name: 'Highway Potion',
+    isPotion: true,
+    effects: [{
+        text: [`Create a ${highway.name} in play.`],
+        transform: (state, card) => async function(state) {
+            return create(highway, 'play',)(state)
+        }
+    }],
+    relatedCards: [highway],
+    rules: [echoRule],
+}
+potionRewards.push(highwayPotion)
+
+export const royalNectar: CardSpec = {
+    name: 'Royal Nectar',
+    isPotion: true,
+    effects: [targetedEffect(
+        (target:Card, card:Card) => doAll([
+            target.play(card),
+            tick(card),
+            target.play(card),
+            tick(card),
+            target.play(card),
+        ]),
+        'Choose a card in your hand to play three times.',
+        state => state.hand
+    )],
+}
+potionRewards.push(royalNectar)
 
 /*
 export const potionOfRecovery: CardSpec = {
@@ -204,11 +238,11 @@ potionRewards.push(potionOfReuse)
 export const potionOfFairs: CardSpec = {
     name: 'Potion of Fairs',
     isPotion: true,
-    simpleText: [`Create a ${fair.name} in play with 10 shelter tokens on it (the first 10 times it would leave play, instead remove a shelter token.).`],
+    simpleText: [`Create a ${fair.name} in play with 16 shelter tokens on it (the first 16 times it would leave play, instead remove a shelter token.).`],
     relatedCards: [fair],
     rules: [shelterRule],
     effects: [
-        createInPlayEffect(fair, 1, new Map([['shelter', 10]])),
+        createInPlayEffect(fair, 1, new Map([['shelter', 16]])),
     ]
 }
 potionRewards.push(potionOfFairs)
@@ -255,8 +289,8 @@ export const potionOfCreation: CardSpec = {
             x => leq(x.cost('buy', state), coin(4))
         )
     )]
-
 }
+potionRewards.push(potionOfCreation)
 
 /*
 export const potionOfTavern: CardSpec = {
@@ -345,13 +379,13 @@ export const potionOfPriority: CardSpec = {
     name: 'Potion of Priority',
     isPotion: true,
     simpleText: [
-        'Put eight priority tokens on a supply.',
+        'Put 8 priority tokens on a supply.',
         'The next 8 times you create a card from it, play it immediately.'
     ],
     rules: [priorityRule],
     effects: [targetedEffect(
         card => addToken(card, 'priority', 8),
-        'Put eight priority tokens on a card in the supply.',
+        'Put 8 priority tokens on a card in the supply.',
         state => state.supply,
     )]
 }

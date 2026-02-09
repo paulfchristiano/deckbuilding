@@ -213,7 +213,7 @@ eventRewards.push(synergy)
 
 const focus:CardSpec = {name: 'Focus',
     fixedCost: energy(1),
-    effects: [buyEffect(), actionsEffect(2)],
+    effects: [buysEffect(2), actionsEffect(2)],
 }
 eventRewards.push(focus)
 
@@ -247,6 +247,7 @@ const onslaught:CardSpec = {name: 'Onslaught',
 }
 eventRewards.push(onslaught)
 
+/*
 export const resume:CardSpec = {name: 'Resume',
     fixedCost: energy(1),
     effects: [fountainEffect()],
@@ -256,6 +257,7 @@ export const resume:CardSpec = {name: 'Resume',
     }]
 }
 eventRewards.push(resume)
+*/
 
 const reflect:CardSpec = {name: 'Reflect',
     simpleText: [
@@ -350,8 +352,6 @@ const polish:CardSpec = {
     }]
 }
 eventRewards.push(polish)
-
-
 
 const commerce:CardSpec = {
     name: 'Commerce',

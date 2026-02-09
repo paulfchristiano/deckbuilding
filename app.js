@@ -2723,17 +2723,6 @@
       }
     };
   }
-  function fountainEffect() {
-    return {
-      text: [
-        "Lose all $, actions, and buys.",
-        "+5 actions, +1 buy."
-      ],
-      transform: function(state, card) {
-        return fountainTransform(card);
-      }
-    };
-  }
   function fountainTransform(source) {
     return function(state) {
       return __awaiter(this, void 0, void 0, function() {
@@ -7454,19 +7443,6 @@
     ]
   };
   cardRewards.push(unearth);
-  var celebrationName = "Celebration";
-  var celebration = {
-    name: celebrationName,
-    buyCost: coin(6),
-    simpleText: [
-      "Cards cost @ less to play.",
-      "When you create this, put it directly into play."
-    ],
-    fixedCost: energy(1),
-    replacers: [costReduce("play", { energy: 1 })],
-    staticReplacers: [startInPlay(celebrationName)]
-  };
-  cardRewards.push(celebration);
   var plowName = "Plow";
   var plow = {
     name: plowName,
@@ -9262,28 +9238,15 @@
   var potionOfCopper = {
     name: "Potion of Copper",
     isPotion: true,
-    simpleText: ["Create 10 coppers in your hand."],
+    simpleText: ["Create 8 coppers in your hand."],
     effects: [{
-      text: ["Create 10 Coppers in your hand."],
+      text: ["Create 8 Coppers in your hand."],
       transform: function() {
-        return repeat(create(copper, "hand"), 10);
+        return repeat(create(copper, "hand"), 8);
       }
     }]
   };
   potionRewards.push(potionOfCopper);
-  var celebratoryBrew = {
-    name: "Celebratory Brew",
-    isPotion: true,
-    relatedCards: [celebration],
-    rules: [echoRule],
-    effects: [{
-      text: ["Create a ".concat(celebration.name, " in play.")],
-      transform: function() {
-        return create(celebration, "play");
-      }
-    }]
-  };
-  potionRewards.push(celebratoryBrew);
   var bounty = {
     name: "Bounty",
     simpleText: ["The next time you buy a card, buy it again."],
@@ -9394,8 +9357,8 @@
     }]
   };
   potionRewards.push(potionOfTransformation);
-  var potionOfTransportation = {
-    name: "Potion of Transportation",
+  var sailorsBrew = {
+    name: "Sailor's Brew",
     isPotion: true,
     simpleText: [
       "Put two ferry tokens on a supply. It costs $2 less."
@@ -9407,7 +9370,42 @@
       return state.supply;
     })]
   };
-  potionRewards.push(potionOfTransportation);
+  potionRewards.push(sailorsBrew);
+  var highwayPotion = {
+    name: "Highway Potion",
+    isPotion: true,
+    effects: [{
+      text: ["Create a ".concat(highway.name, " in play.")],
+      transform: function(state, card) {
+        return function(state2) {
+          return __awaiter6(this, void 0, void 0, function() {
+            return __generator6(this, function(_a) {
+              return [2, create(highway, "play")(state2)];
+            });
+          });
+        };
+      }
+    }],
+    relatedCards: [highway],
+    rules: [echoRule]
+  };
+  potionRewards.push(highwayPotion);
+  var royalNectar = {
+    name: "Royal Nectar",
+    isPotion: true,
+    effects: [targetedEffect(function(target, card) {
+      return doAll([
+        target.play(card),
+        tick(card),
+        target.play(card),
+        tick(card),
+        target.play(card)
+      ]);
+    }, "Choose a card in your hand to play three times.", function(state) {
+      return state.hand;
+    })]
+  };
+  potionRewards.push(royalNectar);
   var potionOfReuse = {
     name: "Potion of Reuse",
     simpleText: ["Play each card in your discard."],
@@ -9479,11 +9477,11 @@
   var potionOfFairs = {
     name: "Potion of Fairs",
     isPotion: true,
-    simpleText: ["Create a ".concat(fair.name, " in play with 10 shelter tokens on it (the first 10 times it would leave play, instead remove a shelter token.).")],
+    simpleText: ["Create a ".concat(fair.name, " in play with 16 shelter tokens on it (the first 16 times it would leave play, instead remove a shelter token.).")],
     relatedCards: [fair],
     rules: [shelterRule],
     effects: [
-      createInPlayEffect(fair, 1, /* @__PURE__ */ new Map([["shelter", 10]]))
+      createInPlayEffect(fair, 1, /* @__PURE__ */ new Map([["shelter", 16]]))
     ]
   };
   potionRewards.push(potionOfFairs);
@@ -9515,6 +9513,7 @@
       });
     })]
   };
+  potionRewards.push(potionOfCreation);
   var elixerOfInnovation = {
     name: "Elixer of Innovation",
     isPotion: true,
@@ -9614,13 +9613,13 @@
     name: "Potion of Priority",
     isPotion: true,
     simpleText: [
-      "Put eight priority tokens on a supply.",
+      "Put 8 priority tokens on a supply.",
       "The next 8 times you create a card from it, play it immediately."
     ],
     rules: [priorityRule],
     effects: [targetedEffect(function(card) {
       return addToken(card, "priority", 8);
-    }, "Put eight priority tokens on a card in the supply.", function(state) {
+    }, "Put 8 priority tokens on a card in the supply.", function(state) {
       return state.supply;
     })]
   };
@@ -10082,7 +10081,7 @@
   var focus = {
     name: "Focus",
     fixedCost: energy(1),
-    effects: [buyEffect(), actionsEffect(2)]
+    effects: [buysEffect(2), actionsEffect(2)]
   };
   eventRewards.push(focus);
   var onslaught = {
@@ -10153,18 +10152,6 @@
     }]
   };
   eventRewards.push(onslaught);
-  var resume = {
-    name: "Resume",
-    fixedCost: energy(1),
-    effects: [fountainEffect()],
-    restrictions: [{
-      text: "You must have at least one card in your hand.",
-      test: function(c, s, k) {
-        return s.hand.length == 0;
-      }
-    }]
-  };
-  eventRewards.push(resume);
   var reflect = {
     name: "Reflect",
     simpleText: [
@@ -11396,8 +11383,30 @@
   };
   var capitalization = {
     name: "Capitalization",
-    fixedCost: coin(1),
-    effects: [pointsEffect(1)]
+    fixedCost: free,
+    effects: [{
+      text: ["Pay all $.", "+1 vp per $ paid."],
+      transform: function(s, c) {
+        return function(state) {
+          return __awaiter9(this, void 0, void 0, function() {
+            var n;
+            return __generator9(this, function(_a) {
+              switch (_a.label) {
+                case 0:
+                  n = state.coin;
+                  return [4, payCost(__assign7(__assign7({}, free), { coin: n }), c)(state)];
+                case 1:
+                  state = _a.sent();
+                  return [4, gainPoints(n, c)(state)];
+                case 2:
+                  state = _a.sent();
+                  return [2, state];
+              }
+            });
+          });
+        };
+      }
+    }]
   };
   vpModes.push({ name: "Province", target: 10, cards: [province], events: [] }, { name: "Duchy", target: 15, cards: [duchy], events: [] }, { name: "Estate", target: 20, cards: [estate], events: [] }, { name: "Colony", target: 5, cards: [colony], events: [] }, { name: "Thoroughfare", target: 100, cards: [], events: [thoroughfare] }, { name: "Monument", target: 25, cards: [], events: [monument] }, { name: "Capitalization", target: 60, cards: [], events: [capitalization] }, { name: "Philanthropy", target: 40, cards: [], events: [philanthropy] }, { name: "Duke", target: 40, cards: [duchy, duke], events: [] }, { name: "Flower Market", target: 40, cards: [flowerMarket], events: [] }, { name: "Farmland", target: 5, cards: [farmland], events: [] }, { name: "Vibrant City", target: 20, cards: [vibrantCity], events: [] }, { name: "Palace", target: 20, cards: [palace], events: [] }, { name: "Territory", target: 25, cards: [territory], events: [] }, { name: "Frontier", target: 34, cards: [frontier], events: [] }, { name: "Gardens", target: 30, cards: [gardens], events: [] });
 
