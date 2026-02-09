@@ -189,9 +189,18 @@ export const monument: CardSpec = {
 
 export const capitalization: CardSpec = {
     name: 'Capitalization',
-    fixedCost: coin(1),
-    effects: [pointsEffect(1)]
+    fixedCost: free,
+    effects: [{
+        text: ['Pay all $.', '+1 vp per $ paid.'],
+        transform: (s, c) => async function(state) {
+            const n = state.coin
+            state = await payCost({ ...free, coin: n }, c)(state)
+            state = await gainPoints(n, c)(state)
+            return state
+        }
+    }]
 }
+
 
 // ========== VP MODES ==========
 

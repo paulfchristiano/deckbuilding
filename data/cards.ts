@@ -123,7 +123,7 @@ const village:CardSpec = {name: 'Village',
 }
 cardRewards.push(village)
 
-const bridge:CardSpec = {name: 'Bridge',
+export const bridge:CardSpec = {name: 'Bridge',
     buyCost: coin(3),
     fixedCost: energy(1),
     effects: [coinsEffect(1), buyEffect()],
@@ -178,6 +178,7 @@ const unearth:CardSpec = {name: Unearth,
 }
 cardRewards.push(unearth)
 
+/*
 const celebrationName = 'Celebration'
 export const celebration:CardSpec = {name: celebrationName,
     buyCost: coin(6),
@@ -190,6 +191,7 @@ export const celebration:CardSpec = {name: celebrationName,
     staticReplacers: [startInPlay(celebrationName)]
 }
 cardRewards.push(celebration)
+*/
 
 const plowName = 'Plow'
 const plow:CardSpec = {name: plowName,
@@ -924,7 +926,7 @@ export const haggler:CardSpec = {
 cardRewards.push(haggler)
 
 const highwayName = 'Highway'
-const highway:CardSpec = {
+export const highway:CardSpec = {
     name: highwayName,
     effects: [actionsEffect(1)],
     simpleText: [`Cards cost $1 less to buy.`,
