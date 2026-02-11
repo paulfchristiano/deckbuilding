@@ -25,13 +25,13 @@ import {
     leq,
     gainActions,
     tick,
-    artRule
+    reductionRule
 } from '../gameLogic.js'
 
 // Import cards that potions reference from base
 import {
     shelter, bridge, highway,
-    workshop, tavern, throneRoom, innovation, transmogrify,
+    workshop, tavern, throneRoom, innovation, develop,
 } from './cards.js'
 
 // ========== POTIONS ==========
@@ -147,8 +147,8 @@ export const potionOfTransformation: CardSpec = {
 }
 potionRewards.push(potionOfTransformation)
 
-export const sailorsBrew: CardSpec = {
-    name: `Sailor's Brew`,
+export const ferryPotion: CardSpec = {
+    name: `Ferry Potion`,
     isPotion: true,
     simpleText: [
         'Put two ferry tokens on a supply. It costs $2 less.',
@@ -160,7 +160,7 @@ export const sailorsBrew: CardSpec = {
         state => state.supply,
     )]
 }
-potionRewards.push(sailorsBrew)
+potionRewards.push(ferryPotion)
 
 export const highwayPotion: CardSpec = {
     name: 'Highway Potion',
@@ -172,7 +172,6 @@ export const highwayPotion: CardSpec = {
         }
     }],
     relatedCards: [highway],
-    rules: [echoRule],
 }
 potionRewards.push(highwayPotion)
 
@@ -396,13 +395,13 @@ export const artistsBrew: CardSpec = {
     name: `Artist's Brew`,
     isPotion: true,
     simpleText: [
-        `Put 8 art tokens on a supply.`,
-        `Whenever you play a card with art tokens on its supply, remove art tokens instead of paying @.`
+        `Put 8 reduction tokens on a supply.`,
+        `Whenever you play a card with reduction tokens on its supply, remove reduction tokens instead of paying @.`
     ],
-    rules: [artRule],
+    rules: [reductionRule],
     effects: [targetedEffect(
-        card => addToken(card, 'art', 8),
-        'Put 8 art tokens on a card in the supply.',
+        card => addToken(card, 'reduction', 8),
+        'Put 8 reduction tokens on a card in the supply.',
         state => state.supply,
     )]
 }

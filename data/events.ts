@@ -35,7 +35,7 @@ import {
     echoRule,
     move, moveMany,
     fountainEffect,
-    artRule,
+    reductionRule,
 } from '../gameLogic.js'
 
 const hallOfMirrors:CardSpec = {name: 'Hall of Mirrors',
@@ -293,20 +293,20 @@ eventRewards.push(replicate)
 
 const lostArts:CardSpec = {
     simpleText: [
-        `Put 8 art tokens on a supply.`,
-        `Whenever you play a card with art tokens on its supply, remove art tokens instead of paying @.`
+        `Put 8 reduction tokens on a supply.`,
+        `Whenever you play a card with reduction tokens on its supply, remove reduction tokens instead of paying @.`
     ],
     fixedCost: {...free, energy:1, coin:3},
     name: 'Lost Arts',
     effects: [targetedEffect(
         card => async function(state) {
-            state = await addToken(card, 'art', 8)(state)
+            state = await addToken(card, 'reduction', 8)(state)
             return state
         },
-        `Put eight art tokens on a card in the supply.`,
+        `Put eight reduction tokens on a card in the supply.`,
         s => s.supply
     )],
-    rules: [artRule],
+    rules: [reductionRule],
 }
 eventRewards.push(lostArts)
 
@@ -411,49 +411,20 @@ const redouble:CardSpec = {
 eventRewards.push(redouble)
 */
 
-/*
-const splay:CardSpec = {
+export const splay:CardSpec = {
     name:'Splay',
-    fixedCost: {...free, energy: 1},
+    fixedCost: {...free, coin: 2},
     effects: [{
-        text: [`Put a splay token on each supply.`],
-        transform: s => doAll(s.supply.map(c => addToken(c, 'splay')))
+        text: [`Put a reduction token on each supply.`],
+        transform: s => doAll(s.supply.map(c => addToken(c, 'reduction')))
     }],
     simpleText: [
-        `Put a splay token on each supply.`,
-        `Whenever you play a card with a splay token on its supply, remove splay tokens instead of paying @.`
+        `Put a reduction token on each supply.`,
+        `Whenever you play a card with a reduction token on its supply, remove reduction tokens instead of paying @.`
     ],
-    staticReplacers: [{
-        text: `Cards you play cost @ less for each splay token on their supply.
-               Whenever this reduces a card's cost by one or more @,
-               remove that many splay tokens from its supply.`,
-        kind: 'cost',
-        handles: (x, state, card) => (x.actionKind == 'play')
-            && nameHasToken(x.card, 'splay', state),
-        replace: (x, state, card) => {
-            card = state.find(card)
-            const reduction = Math.min(
-                x.cost.energy,
-                countNameTokens(x.card, 'splay', state)
-            )
-            return {...x, cost:{...x.cost,
-                energy:x.cost.energy-reduction,
-                effects:x.cost.effects.concat([repeat(
-                    applyToTarget(
-                        target => removeToken(target, 'splay'),
-                        'Remove a splay token from a supply.',
-                        state => state.supply.filter(
-                            c => c.name == x.card.name && c.count('splay') > 0
-                        )
-                    )
-                    , reduction
-                )])
-            }}
-        }
-    }]
+    rules: [reductionRule]
 }
 eventRewards.push(splay)
-*/
 
 /*
 const regroup:CardSpec = {

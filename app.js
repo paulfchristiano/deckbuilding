@@ -2855,27 +2855,27 @@
     }]
   };
   registerRule(ferryRule);
-  var artRule = {
-    name: "Art",
+  var reductionRule = {
+    name: "Reduction",
     replacers: [{
-      text: "Cards cost @ less to play for each art token on their supply.\n               Whenever this reduces a cost by one or more @,\n               remove that many art tokens.",
+      text: "Cards cost @ less to play for each reduction token on their supply.\n               Whenever this reduces a cost by one or more @,\n               remove that many reduction tokens.",
       kind: "cost",
       handles: function(x, state, _rule) {
-        return x.actionKind == "play" && nameHasToken(x.card, "art", state);
+        return x.actionKind == "play" && nameHasToken(x.card, "reduction", state);
       },
       replace: function(x, state, _rule) {
-        var reduction = Math.min(x.cost.energy, countNameTokens(x.card, "art", state));
+        var reduction = Math.min(x.cost.energy, countNameTokens(x.card, "reduction", state));
         return __assign(__assign({}, x), { cost: __assign(__assign({}, x.cost), { energy: x.cost.energy - reduction, effects: x.cost.effects.concat([repeat(applyToTarget(function(target) {
-          return removeToken(target, "art");
-        }, "Remove an art token from a supply.", function(state2) {
+          return removeToken(target, "reduction");
+        }, "Remove a reduction token from a supply.", function(state2) {
           return state2.supply.filter(function(c) {
-            return c.name == x.card.name && c.count("art") > 0;
+            return c.name == x.card.name && c.count("reduction") > 0;
           });
         }), reduction)]) }) });
       }
     }]
   };
-  registerRule(artRule);
+  registerRule(reductionRule);
   var twinRule = {
     name: "Twin",
     triggers: [{
@@ -6745,12 +6745,12 @@
     simpleText: ["Start with an extra copper."],
     triggers: [{
       kind: "gameStart",
-      text: "At the start of the game, create a copper in your discard.",
+      text: "At the start of the game, create two coppers in your discard.",
       handles: function() {
         return true;
       },
       transform: function() {
-        return create(copper, "discard");
+        return repeat(create(copper, "discard"), 2);
       }
     }]
   };
@@ -6758,7 +6758,7 @@
   var bagOfPreparation = {
     name: "Bag of Preparation",
     simpleText: [
-      "At the start of the game, +5 actions.",
+      "At the start of the game, +10 actions.",
       "You can't lose actions except by paying costs."
     ],
     staticReplacers: [{
@@ -6776,24 +6776,24 @@
       handles: function() {
         return true;
       },
-      text: "At the start of the game, +5 actions.",
+      text: "At the start of the game, +10 actions.",
       transform: function(_e, _s, c) {
-        return gainActions(5, c);
+        return gainActions(10, c);
       }
     }]
   };
   relicRewards.push(bagOfPreparation);
   var courier = {
     name: "Courier",
-    simpleText: ["+2 buys each time you refresh."],
+    simpleText: ["+2 buys, +1 action each time you refresh."],
     triggers: [{
       kind: "afterUse",
-      text: "After using ".concat(refresh.name, ", +2 buys."),
+      text: "After using ".concat(refresh.name, ", +2 buys and +1 action."),
       handles: function(e, s, c) {
         return e.card.name === refresh.name;
       },
       transform: function(e, s, c) {
-        return gainBuys(2, c);
+        return doAll([gainBuys(2, c), gainActions(1, c)]);
       }
     }]
   };
@@ -6834,8 +6834,8 @@
     }]
   };
   relicRewards.push(brokenLever);
-  var cursedInkwell = {
-    name: "Cursed Inkwell",
+  var darkBanner = {
+    name: "Dark Banner",
     simpleText: [
       "Par is 4@ lower on each course.",
       "Gain 3@ buffer at the start of each course."
@@ -6856,7 +6856,7 @@
       }
     }]
   };
-  relicRewards.push(cursedInkwell);
+  relicRewards.push(darkBanner);
   var silverMirror = {
     name: "Silver Mirror",
     simpleText: [
@@ -8107,7 +8107,7 @@
   cardRewards.push(fountain);
   var grandMarket = {
     name: "Grand Market",
-    buyCost: coin(6),
+    buyCost: coin(7),
     effects: [actionsEffect(1), coinsEffect(3), buysEffect(2)]
   };
   cardRewards.push(grandMarket);
@@ -8450,9 +8450,9 @@
     rules: [ferryRule]
   };
   cardRewards.push(ferry);
-  var transmogrify = {
-    name: "Transmogrify",
-    buyCost: coin(3),
+  var develop = {
+    name: "Develop",
+    buyCost: coin(4),
     effects: [{
       text: ["Trash a card in your hand.", "Choose a card in the supply costing less and create a copy in your hand.", "Choose a card in the supply costing $1 or $2 more and create a copy in your hand."],
       transform: function(_, c) {
@@ -8495,7 +8495,7 @@
                         });
                       });
                     };
-                  }, "Choose a card to transmogrify.", function(s) {
+                  }, "Choose a card to develop.", function(s) {
                     return s.hand;
                   })(state)];
                 case 1:
@@ -8508,7 +8508,7 @@
       }
     }]
   };
-  cardRewards.push(transmogrify);
+  cardRewards.push(develop);
   var harrowName = "Harrow";
   var harrow = {
     name: harrowName,
@@ -8947,7 +8947,7 @@
     relatedCards: [fair],
     effects: [actionsEffect(1), buysEffect(1)],
     buyCost: coin(2),
-    staticTriggers: [afterBuyTrigger(createInPlayEffect(fair, 2))]
+    staticTriggers: [afterBuyTrigger(createInPlayEffect(fair))]
   };
   cardRewards.push(marketSquare);
   var greatFeastName = "Great Feast";
@@ -9390,8 +9390,8 @@
     }]
   };
   potionRewards.push(potionOfTransformation);
-  var sailorsBrew = {
-    name: "Sailor's Brew",
+  var ferryPotion = {
+    name: "Ferry Potion",
     isPotion: true,
     simpleText: [
       "Put two ferry tokens on a supply. It costs $2 less."
@@ -9403,7 +9403,7 @@
       return state.supply;
     })]
   };
-  potionRewards.push(sailorsBrew);
+  potionRewards.push(ferryPotion);
   var highwayPotion = {
     name: "Highway Potion",
     isPotion: true,
@@ -9419,8 +9419,7 @@
         };
       }
     }],
-    relatedCards: [highway],
-    rules: [echoRule]
+    relatedCards: [highway]
   };
   potionRewards.push(highwayPotion);
   var royalNectar = {
@@ -9661,13 +9660,13 @@
     name: "Artist's Brew",
     isPotion: true,
     simpleText: [
-      "Put 8 art tokens on a supply.",
-      "Whenever you play a card with art tokens on its supply, remove art tokens instead of paying @."
+      "Put 8 reduction tokens on a supply.",
+      "Whenever you play a card with reduction tokens on its supply, remove reduction tokens instead of paying @."
     ],
-    rules: [artRule],
+    rules: [reductionRule],
     effects: [targetedEffect(function(card) {
-      return addToken(card, "art", 8);
-    }, "Put 8 art tokens on a card in the supply.", function(state) {
+      return addToken(card, "reduction", 8);
+    }, "Put 8 reduction tokens on a card in the supply.", function(state) {
       return state.supply;
     })]
   };
@@ -10236,8 +10235,8 @@
   eventRewards.push(replicate);
   var lostArts = {
     simpleText: [
-      "Put 8 art tokens on a supply.",
-      "Whenever you play a card with art tokens on its supply, remove art tokens instead of paying @."
+      "Put 8 reduction tokens on a supply.",
+      "Whenever you play a card with reduction tokens on its supply, remove reduction tokens instead of paying @."
     ],
     fixedCost: __assign5(__assign5({}, free), { energy: 1, coin: 3 }),
     name: "Lost Arts",
@@ -10247,7 +10246,7 @@
           return __generator7(this, function(_a) {
             switch (_a.label) {
               case 0:
-                return [4, addToken(card, "art", 8)(state)];
+                return [4, addToken(card, "reduction", 8)(state)];
               case 1:
                 state = _a.sent();
                 return [2, state];
@@ -10255,10 +10254,10 @@
           });
         });
       };
-    }, "Put eight art tokens on a card in the supply.", function(s) {
+    }, "Put eight reduction tokens on a card in the supply.", function(s) {
       return s.supply;
     })],
-    rules: [artRule]
+    rules: [reductionRule]
   };
   eventRewards.push(lostArts);
   var polish = {
@@ -10343,6 +10342,24 @@
     }]
   };
   eventRewards.push(haggle);
+  var splay = {
+    name: "Splay",
+    fixedCost: __assign5(__assign5({}, free), { coin: 2 }),
+    effects: [{
+      text: ["Put a reduction token on each supply."],
+      transform: function(s) {
+        return doAll(s.supply.map(function(c) {
+          return addToken(c, "reduction");
+        }));
+      }
+    }],
+    simpleText: [
+      "Put a reduction token on each supply.",
+      "Whenever you play a card with a reduction token on its supply, remove reduction tokens instead of paying @."
+    ],
+    rules: [reductionRule]
+  };
+  eventRewards.push(splay);
   var summon = {
     name: "Summon",
     fixedCost: __assign5(__assign5({}, free), { energy: 1, coin: 4 }),
@@ -11257,20 +11274,12 @@
     effects: [pointsEffect(1), actionsEffect(1)],
     buyCost: coin(5)
   };
-  function chargeUpTo2(max) {
-    return {
-      text: ["Put a charge token on this if it has less than ".concat(max, ".")],
-      transform: function(state, card) {
-        return card.charge >= max ? noop : charge(card, 1);
-      }
-    };
-  }
   var frontierName = "Frontier";
   var frontier = {
     name: frontierName,
     simpleText: [
-      "+2 vp.",
-      "The vp gain increases by 1vp each time you play it, up to +6vp."
+      "+1 vp.",
+      "The vp gain increases by 1vp each time you play it."
     ],
     fixedCost: energy(1),
     buyCost: coin(6),
@@ -11279,8 +11288,8 @@
       transform: function(state, card) {
         return gainPoints(state.find(card).charge, card);
       }
-    }, chargeUpTo2(6)],
-    staticReplacers: [startsWithCharge(frontierName, 2)]
+    }, chargeEffect()],
+    staticReplacers: [startsWithCharge(frontierName, 1)]
   };
   var gardens = {
     name: "Gardens",
@@ -11439,7 +11448,7 @@
       }
     }]
   };
-  vpModes.push({ name: "Province", target: 10, cards: [province], events: [] }, { name: "Duchy", target: 15, cards: [duchy], events: [] }, { name: "Estate", target: 20, cards: [estate], events: [] }, { name: "Colony", target: 5, cards: [colony], events: [] }, { name: "Thoroughfare", target: 100, cards: [], events: [thoroughfare] }, { name: "Monument", target: 25, cards: [], events: [monument] }, { name: "Capitalization", target: 60, cards: [], events: [capitalization] }, { name: "Philanthropy", target: 40, cards: [], events: [philanthropy] }, { name: "Duke", target: 40, cards: [duchy, duke], events: [] }, { name: "Flower Market", target: 40, cards: [flowerMarket], events: [] }, { name: "Farmland", target: 5, cards: [farmland], events: [] }, { name: "Vibrant City", target: 20, cards: [vibrantCity], events: [] }, { name: "Palace", target: 20, cards: [palace], events: [] }, { name: "Territory", target: 20, cards: [territory], events: [] }, { name: "Frontier", target: 34, cards: [frontier], events: [] }, { name: "Gardens", target: 30, cards: [gardens], events: [] });
+  vpModes.push({ name: "Province", target: 10, cards: [province], events: [] }, { name: "Duchy", target: 15, cards: [duchy], events: [] }, { name: "Estate", target: 20, cards: [estate], events: [] }, { name: "Colony", target: 5, cards: [colony], events: [] }, { name: "Thoroughfare", target: 100, cards: [], events: [thoroughfare] }, { name: "Monument", target: 25, cards: [], events: [monument] }, { name: "Capitalization", target: 60, cards: [], events: [capitalization] }, { name: "Philanthropy", target: 40, cards: [], events: [philanthropy] }, { name: "Duke", target: 40, cards: [duchy, duke], events: [] }, { name: "Flower Market", target: 40, cards: [flowerMarket], events: [] }, { name: "Farmland", target: 5, cards: [farmland], events: [] }, { name: "Vibrant City", target: 20, cards: [vibrantCity], events: [] }, { name: "Palace", target: 20, cards: [palace], events: [] }, { name: "Territory", target: 20, cards: [territory], events: [] }, { name: "Frontier", target: 25, cards: [frontier], events: [] }, { name: "Gardens", target: 30, cards: [gardens], events: [] });
 
   // public/data/encounters.js
   var __assign8 = function() {
@@ -12910,7 +12919,7 @@
     }
   };
   registerEncounter(tradingPost, { minStage: 4 });
-  var cursedInkwell2 = {
+  var cursedInkwell = {
     name: "Cursed Inkwell",
     simpleText: ["Par is 1@ lower on each course."],
     metaReplacers: [{
@@ -12936,7 +12945,7 @@
       {
         label: "Use the cursed quill",
         description: "+5@ buffer, but par is 1@ lower on each course.",
-        transform: compose(addBuffer(5), gainRelic(cursedInkwell2))
+        transform: compose(addBuffer(5), gainRelic(cursedInkwell))
       }
     ]
   });
@@ -15973,7 +15982,7 @@
     };
     throw new TypeError(s ? "Object is not iterable." : "Symbol.iterator is not defined.");
   };
-  var test = ["potion", artistsBrew];
+  var test = null;
   var SAVE_STORAGE_KEY = "roguelike.ongoingSaves.v1";
   var MAX_LAUNCHER_SAVES = 10;
   var summaryMetaUI = {

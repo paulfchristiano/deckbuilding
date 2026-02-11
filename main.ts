@@ -23,8 +23,9 @@ import type { TestSpec } from './metaLogic.js'
 import { banquet } from './data/cards.js'
 import { tactician } from './data/encounters.js'
 import { highwayPotion, royalNectar, artistsBrew } from './data/potions.js'
+import { splay } from './data/events.js'
 
-let test: TestSpec | null = ['potion', artistsBrew]
+let test: TestSpec | null = null
 
 const SAVE_STORAGE_KEY = 'roguelike.ongoingSaves.v1'
 const MAX_LAUNCHER_SAVES = 10

@@ -1423,7 +1423,7 @@ export function literalOptions(xs:string[], keys:Key[]): Option<string>[] {
 
 export type Token = 'charge' | 'cost' | 'mirror' | 'duplicate' | 'twin' | 'synergy' |
     'shelter' | 'echo' | 'decay' | 'burden' | 'pathfinding' | 'neglect' |
-    'reuse' | 'polish' | 'priority' | 'parallelize' | 'art' | 'reduce' |
+    'reuse' | 'polish' | 'priority' | 'parallelize' | 'reduction' | 'reduce' |
     'strength' | 'mire' | 'onslaught' | 'accelerate' | 'reflect' | 'brigade' | 'bulk' |
     'pillage' | 'bargain' | 'splay' | 'crown' | 'ferry' | 'ideal' |
     'logistics'
@@ -2122,28 +2122,28 @@ export const ferryRule: Rule = {
 }
 registerRule(ferryRule)
 
-export const artRule: Rule = {
-    name: 'Art',
+export const reductionRule: Rule = {
+    name: 'Reduction',
     replacers: [{
-        text: `Cards cost @ less to play for each art token on their supply.
+        text: `Cards cost @ less to play for each reduction token on their supply.
                Whenever this reduces a cost by one or more @,
-               remove that many art tokens.`,
+               remove that many reduction tokens.`,
         kind: 'cost',
         handles: (x, state, _rule) => (x.actionKind == 'play')
-            && nameHasToken(x.card, 'art', state),
+            && nameHasToken(x.card, 'reduction', state),
         replace: (x, state, _rule) => {
             const reduction = Math.min(
                 x.cost.energy,
-                countNameTokens(x.card, 'art', state)
+                countNameTokens(x.card, 'reduction', state)
             )
             return {...x, cost:{...x.cost,
                 energy:x.cost.energy-reduction,
                 effects:x.cost.effects.concat([repeat(
                     applyToTarget(
-                        target => removeToken(target, 'art'),
-                        'Remove an art token from a supply.',
+                        target => removeToken(target, 'reduction'),
+                        'Remove a reduction token from a supply.',
                         state => state.supply.filter(
-                            c => c.name == x.card.name && c.count('art') > 0
+                            c => c.name == x.card.name && c.count('reduction') > 0
                         )
                     )
                     , reduction
@@ -2152,7 +2152,7 @@ export const artRule: Rule = {
         }
     }]
 }
-registerRule(artRule)
+registerRule(reductionRule)
 
 // Twin rule: after playing a card with a twin token, play it again
 export const twinRule: Rule = {

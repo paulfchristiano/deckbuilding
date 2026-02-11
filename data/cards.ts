@@ -756,7 +756,7 @@ cardRewards.push(fountain)
 
 const grandMarket:CardSpec = {
     name: 'Grand Market',
-    buyCost: coin(6),
+    buyCost: coin(7),
     effects: [actionsEffect(1), coinsEffect(3), buysEffect(2)],
 }
 cardRewards.push(grandMarket)
@@ -1005,9 +1005,9 @@ const ferry:CardSpec = {
 }
 cardRewards.push(ferry)
 
-export const transmogrify:CardSpec = {
-    name: 'Transmogrify',
-    buyCost: coin(3),
+export const develop:CardSpec = {
+    name: 'Develop',
+    buyCost: coin(4),
     effects: [{
         text: [`Trash a card in your hand.`,
         `Choose a card in the supply costing less and create a copy in your hand.`,
@@ -1036,14 +1036,14 @@ export const transmogrify:CardSpec = {
                         ))
                     )(state)
                     return state
-                }, 'Choose a card to transmogrify.',
+                }, 'Choose a card to develop.',
                 s => s.hand,
             )(state)
             return state
         }
     }]
 }
-cardRewards.push(transmogrify)
+cardRewards.push(develop)
 
 const harrowName = 'Harrow'
 const harrow:CardSpec = {
@@ -1357,7 +1357,7 @@ const marketSquare:CardSpec = {
     relatedCards: [fair],
     effects: [actionsEffect(1), buysEffect(1)],
     buyCost: coin(2),
-    staticTriggers: [afterBuyTrigger(createInPlayEffect(fair, 2))]
+    staticTriggers: [afterBuyTrigger(createInPlayEffect(fair))]
 }
 cardRewards.push(marketSquare)
 
