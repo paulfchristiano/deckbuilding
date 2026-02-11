@@ -419,7 +419,7 @@ function renderStageScreen(
     showScreen('stage')
     renderCommonUI(state, onReplayStage)
 
-    getElement('stageTitle').textContent = `Stage ${state.data.stage}`
+    getElement('stageTitle').textContent = `Stage ${state.data.stage + 1}`
 
     // Render rewards with inline options
     const rewardContainer = getElement('rewardButtons')
@@ -530,7 +530,7 @@ function renderPathSelectionScreen(
     console.assert(paths.length === 2, 'Expected exactly two paths')
     const [leftPath, rightPath] = paths
 
-    getElement('pathTitle').textContent = `Stage ${state.data.stage} - Choose Your Path`
+    getElement('pathTitle').textContent = `Stage ${state.data.stage + 1} - Choose Your Path`
 
     renderPathColumn('left', leftPath, state)
     renderPathColumn('right', rightPath, state)

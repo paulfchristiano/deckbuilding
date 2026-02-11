@@ -15491,7 +15491,7 @@
     var e_5, _a;
     showScreen("stage");
     renderCommonUI(state, onReplayStage);
-    getElement2("stageTitle").textContent = "Stage ".concat(state.data.stage);
+    getElement2("stageTitle").textContent = "Stage ".concat(state.data.stage + 1);
     var rewardContainer = getElement2("rewardButtons");
     clearElement2(rewardContainer);
     state.data.rewardStates.forEach(function(rewardState, rewardIndex) {
@@ -15587,7 +15587,7 @@
     renderCommonUI(state, onReplayStage);
     console.assert(paths.length === 2, "Expected exactly two paths");
     var _a = __read14(paths, 2), leftPath = _a[0], rightPath = _a[1];
-    getElement2("pathTitle").textContent = "Stage ".concat(state.data.stage, " - Choose Your Path");
+    getElement2("pathTitle").textContent = "Stage ".concat(state.data.stage + 1, " - Choose Your Path");
     renderPathColumn("left", leftPath, state);
     renderPathColumn("right", rightPath, state);
     getElement2("goLeft").onclick = function() {
