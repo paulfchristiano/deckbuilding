@@ -4611,6 +4611,47 @@
       return Relic2;
     })(Card)
   );
+  function normalizeTimelineEntries(timeline) {
+    var e_2, _a;
+    var result = [];
+    var firstStageRowIndex = /* @__PURE__ */ new Map();
+    try {
+      for (var timeline_1 = __values4(timeline), timeline_1_1 = timeline_1.next(); !timeline_1_1.done; timeline_1_1 = timeline_1.next()) {
+        var entry = timeline_1_1.value;
+        if (entry.kind !== "stage") {
+          result.push(entry);
+          continue;
+        }
+        var existing = firstStageRowIndex.get(entry.stage);
+        if (existing === void 0) {
+          firstStageRowIndex.set(entry.stage, result.length);
+          result.push(entry);
+        } else {
+          result[existing] = entry;
+        }
+      }
+    } catch (e_2_1) {
+      e_2 = { error: e_2_1 };
+    } finally {
+      try {
+        if (timeline_1_1 && !timeline_1_1.done && (_a = timeline_1.return)) _a.call(timeline_1);
+      } finally {
+        if (e_2) throw e_2.error;
+      }
+    }
+    return result;
+  }
+  function upsertStageTimelineEntry(timeline, entry) {
+    var normalized = normalizeTimelineEntries(timeline);
+    var existingIndex = normalized.findIndex(function(t) {
+      return t.kind === "stage" && t.stage === entry.stage;
+    });
+    if (existingIndex < 0)
+      return __spreadArray5(__spreadArray5([], __read6(normalized), false), [entry], false);
+    var updated = __spreadArray5([], __read6(normalized), false);
+    updated[existingIndex] = entry;
+    return updated;
+  }
   function getRewardName(rewardState) {
     if (rewardState.kind === "encounter") {
       return rewardState.encounter ? rewardState.encounter.name : "???";
@@ -4795,7 +4836,7 @@
         return this.redoStack.length > 0;
       };
       MetaState2.prototype.uniqueSnapshots = function() {
-        var e_2, _a;
+        var e_3, _a;
         var snapshots = __spreadArray5(__spreadArray5([this.data, this.checkpoint], __read6(this.undoStack), false), __read6(this.redoStack), false);
         var seen = /* @__PURE__ */ new Set();
         var result = [];
@@ -4807,31 +4848,31 @@
               result.push(snapshot);
             }
           }
-        } catch (e_2_1) {
-          e_2 = { error: e_2_1 };
+        } catch (e_3_1) {
+          e_3 = { error: e_3_1 };
         } finally {
           try {
             if (snapshots_1_1 && !snapshots_1_1.done && (_a = snapshots_1.return)) _a.call(snapshots_1);
           } finally {
-            if (e_2) throw e_2.error;
+            if (e_3) throw e_3.error;
           }
         }
         return result;
       };
       MetaState2.prototype.mutateAllSnapshots = function(mutator) {
-        var e_3, _a;
+        var e_4, _a;
         try {
           for (var _b = __values4(this.uniqueSnapshots()), _c = _b.next(); !_c.done; _c = _b.next()) {
             var snapshot = _c.value;
             mutator(snapshot);
           }
-        } catch (e_3_1) {
-          e_3 = { error: e_3_1 };
+        } catch (e_4_1) {
+          e_4 = { error: e_4_1 };
         } finally {
           try {
             if (_c && !_c.done && (_a = _b.return)) _a.call(_b);
           } finally {
-            if (e_3) throw e_3.error;
+            if (e_4) throw e_4.error;
           }
         }
         this.notifyChanged();
@@ -4874,7 +4915,7 @@
     return "effects" in record || "buyCost" in record || "fixedCost" in record || "isPotion" in record || "upgrades" in record || "persistence" in record || "metaReplacers" in record || "metaTriggers" in record || "relatedCards" in record || "simpleText" in record;
   }
   function encodeUnknown(value) {
-    var e_4, _a;
+    var e_5, _a;
     if (value instanceof Relic) {
       return {
         __type: "relic",
@@ -4912,13 +4953,13 @@
           var _d = __read6(_c.value, 2), key = _d[0], entryValue = _d[1];
           result[key] = encodeUnknown(entryValue);
         }
-      } catch (e_4_1) {
-        e_4 = { error: e_4_1 };
+      } catch (e_5_1) {
+        e_5 = { error: e_5_1 };
       } finally {
         try {
           if (_c && !_c.done && (_a = _b.return)) _a.call(_b);
         } finally {
-          if (e_4) throw e_4.error;
+          if (e_5) throw e_5.error;
         }
       }
       return result;
@@ -4926,7 +4967,7 @@
     return value;
   }
   function decodeUnknown(value) {
-    var e_5, _a;
+    var e_6, _a;
     if (Array.isArray(value)) {
       return value.map(decodeUnknown);
     }
@@ -4951,13 +4992,13 @@
           var _d = __read6(_c.value, 2), key = _d[0], entryValue = _d[1];
           result[key] = decodeUnknown(entryValue);
         }
-      } catch (e_5_1) {
-        e_5 = { error: e_5_1 };
+      } catch (e_6_1) {
+        e_6 = { error: e_6_1 };
       } finally {
         try {
           if (_c && !_c.done && (_a = _b.return)) _a.call(_b);
         } finally {
-          if (e_5) throw e_5.error;
+          if (e_6) throw e_6.error;
         }
       }
       return result;
@@ -5000,7 +5041,7 @@
     };
   }
   function applyUpgrades(base, upgradeIDs) {
-    var e_6, _a;
+    var e_7, _a;
     var result = base;
     try {
       for (var upgradeIDs_1 = __values4(upgradeIDs), upgradeIDs_1_1 = upgradeIDs_1.next(); !upgradeIDs_1_1.done; upgradeIDs_1_1 = upgradeIDs_1.next()) {
@@ -5011,13 +5052,13 @@
         }
         result = __assign2(__assign2({}, result), { upgrades: __spreadArray5(__spreadArray5([], __read6(result.upgrades || []), false), [upgrade], false) });
       }
-    } catch (e_6_1) {
-      e_6 = { error: e_6_1 };
+    } catch (e_7_1) {
+      e_7 = { error: e_7_1 };
     } finally {
       try {
         if (upgradeIDs_1_1 && !upgradeIDs_1_1.done && (_a = upgradeIDs_1.return)) _a.call(upgradeIDs_1);
       } finally {
-        if (e_6) throw e_6.error;
+        if (e_7) throw e_7.error;
       }
     }
     return result;
@@ -5279,14 +5320,14 @@
         return deserializeCard(card);
       }),
       nextID: data.nextID,
-      timeline: (data.timeline || []).map(function(entry) {
+      timeline: normalizeTimelineEntries((data.timeline || []).map(function(entry) {
         return __assign2({}, entry);
-      }),
+      })),
       gameHistory: __spreadArray5([], __read6(data.gameHistory), false),
       gameRedo: __spreadArray5([], __read6(data.gameRedo), false)
     };
     if (!data.timeline) {
-      result.timeline = result.stageReplays.flatMap(function(stageReplay) {
+      result.timeline = normalizeTimelineEntries(result.stageReplays.flatMap(function(stageReplay) {
         if (stageReplay === null)
           return [];
         return [{
@@ -5297,7 +5338,7 @@
           par: stageReplay.par,
           usedPotions: usedPotionNames(stageReplay.spec.potions, stageReplay.potionsRemaining)
         }];
-      });
+      }));
     }
     validateMetaStateData(result, "deserialize");
     return result;
@@ -5369,8 +5410,8 @@
     }
     return function(state) {
       return __awaiter3(this, void 0, void 0, function() {
-        var transforms_1, transforms_1_1, t, e_7_1;
-        var e_7, _a;
+        var transforms_1, transforms_1_1, t, e_8_1;
+        var e_8, _a;
         return __generator3(this, function(_b) {
           switch (_b.label) {
             case 0:
@@ -5390,14 +5431,14 @@
             case 4:
               return [3, 7];
             case 5:
-              e_7_1 = _b.sent();
-              e_7 = { error: e_7_1 };
+              e_8_1 = _b.sent();
+              e_8 = { error: e_8_1 };
               return [3, 7];
             case 6:
               try {
                 if (transforms_1_1 && !transforms_1_1.done && (_a = transforms_1.return)) _a.call(transforms_1);
               } finally {
-                if (e_7) throw e_7.error;
+                if (e_8) throw e_8.error;
               }
               return [
                 7
@@ -5627,37 +5668,37 @@
     });
   }
   function applyMetaReplacers(kind, params, state) {
-    var e_8, _a, e_9, _b;
+    var e_9, _a, e_10, _b;
     var relics = state.data.relics;
     try {
       for (var relics_1 = __values4(relics), relics_1_1 = relics_1.next(); !relics_1_1.done; relics_1_1 = relics_1.next()) {
         var relic = relics_1_1.value;
         var metaReplacers = relic.metaReplacers();
         try {
-          for (var metaReplacers_1 = (e_9 = void 0, __values4(metaReplacers)), metaReplacers_1_1 = metaReplacers_1.next(); !metaReplacers_1_1.done; metaReplacers_1_1 = metaReplacers_1.next()) {
+          for (var metaReplacers_1 = (e_10 = void 0, __values4(metaReplacers)), metaReplacers_1_1 = metaReplacers_1.next(); !metaReplacers_1_1.done; metaReplacers_1_1 = metaReplacers_1.next()) {
             var replacer = metaReplacers_1_1.value;
             if (replacer.kind === kind) {
               var replaceFn = replacer.replace;
               params = replaceFn(params, relic);
             }
           }
-        } catch (e_9_1) {
-          e_9 = { error: e_9_1 };
+        } catch (e_10_1) {
+          e_10 = { error: e_10_1 };
         } finally {
           try {
             if (metaReplacers_1_1 && !metaReplacers_1_1.done && (_b = metaReplacers_1.return)) _b.call(metaReplacers_1);
           } finally {
-            if (e_9) throw e_9.error;
+            if (e_10) throw e_10.error;
           }
         }
       }
-    } catch (e_8_1) {
-      e_8 = { error: e_8_1 };
+    } catch (e_9_1) {
+      e_9 = { error: e_9_1 };
     } finally {
       try {
         if (relics_1_1 && !relics_1_1.done && (_a = relics_1.return)) _a.call(relics_1);
       } finally {
-        if (e_8) throw e_8.error;
+        if (e_9) throw e_9.error;
       }
     }
     return params;
@@ -5666,7 +5707,7 @@
     return amount > 0 ? "+".concat(amount) : "".concat(amount);
   }
   function describeParCalculation(stage, challenge, relicCards) {
-    var e_10, _a, e_11, _b, e_12, _c;
+    var e_11, _a, e_12, _b, e_13, _c;
     var _d;
     var basePar = BASE_PARS[stage];
     if (basePar === void 0)
@@ -5682,13 +5723,13 @@
             parts.push("".concat(signedAmount(boon.parAdjustment), " for ").concat(boon.name));
           }
         }
-      } catch (e_10_1) {
-        e_10 = { error: e_10_1 };
+      } catch (e_11_1) {
+        e_11 = { error: e_11_1 };
       } finally {
         try {
           if (_f && !_f.done && (_a = _e.return)) _a.call(_e);
         } finally {
-          if (e_10) throw e_10.error;
+          if (e_11) throw e_11.error;
         }
       }
     }
@@ -5705,7 +5746,7 @@
           continue;
         var metaReplacers = relicCard.metaReplacers();
         try {
-          for (var metaReplacers_2 = (e_12 = void 0, __values4(metaReplacers)), metaReplacers_2_1 = metaReplacers_2.next(); !metaReplacers_2_1.done; metaReplacers_2_1 = metaReplacers_2.next()) {
+          for (var metaReplacers_2 = (e_13 = void 0, __values4(metaReplacers)), metaReplacers_2_1 = metaReplacers_2.next(); !metaReplacers_2_1.done; metaReplacers_2_1 = metaReplacers_2.next()) {
             var replacer = metaReplacers_2_1.value;
             if (replacer.kind !== "gameSetup")
               continue;
@@ -5717,23 +5758,23 @@
             }
             params = nextParams;
           }
-        } catch (e_12_1) {
-          e_12 = { error: e_12_1 };
+        } catch (e_13_1) {
+          e_13 = { error: e_13_1 };
         } finally {
           try {
             if (metaReplacers_2_1 && !metaReplacers_2_1.done && (_c = metaReplacers_2.return)) _c.call(metaReplacers_2);
           } finally {
-            if (e_12) throw e_12.error;
+            if (e_13) throw e_13.error;
           }
         }
       }
-    } catch (e_11_1) {
-      e_11 = { error: e_11_1 };
+    } catch (e_12_1) {
+      e_12 = { error: e_12_1 };
     } finally {
       try {
         if (relicCards_1_1 && !relicCards_1_1.done && (_b = relicCards_1.return)) _b.call(relicCards_1);
       } finally {
-        if (e_11) throw e_11.error;
+        if (e_12) throw e_12.error;
       }
     }
     params.par = Math.max(0, params.par);
@@ -5758,8 +5799,8 @@
   }
   function trigger2(e, state) {
     return __awaiter3(this, void 0, void 0, function() {
-      var _a, _b, relic, metaTriggers, metaTriggers_1, metaTriggers_1_1, rawTrigger, trigger_1, handles, e_13_1, e_14_1;
-      var e_14, _c, e_13, _d;
+      var _a, _b, relic, metaTriggers, metaTriggers_1, metaTriggers_1_1, rawTrigger, trigger_1, handles, e_14_1, e_15_1;
+      var e_15, _c, e_14, _d;
       return __generator3(this, function(_e) {
         switch (_e.label) {
           case 0:
@@ -5774,7 +5815,7 @@
             _e.label = 2;
           case 2:
             _e.trys.push([2, 7, 8, 9]);
-            metaTriggers_1 = (e_13 = void 0, __values4(metaTriggers)), metaTriggers_1_1 = metaTriggers_1.next();
+            metaTriggers_1 = (e_14 = void 0, __values4(metaTriggers)), metaTriggers_1_1 = metaTriggers_1.next();
             _e.label = 3;
           case 3:
             if (!!metaTriggers_1_1.done) return [3, 6];
@@ -5793,14 +5834,14 @@
           case 6:
             return [3, 9];
           case 7:
-            e_13_1 = _e.sent();
-            e_13 = { error: e_13_1 };
+            e_14_1 = _e.sent();
+            e_14 = { error: e_14_1 };
             return [3, 9];
           case 8:
             try {
               if (metaTriggers_1_1 && !metaTriggers_1_1.done && (_d = metaTriggers_1.return)) _d.call(metaTriggers_1);
             } finally {
-              if (e_13) throw e_13.error;
+              if (e_14) throw e_14.error;
             }
             return [
               7
@@ -5812,14 +5853,14 @@
           case 10:
             return [3, 13];
           case 11:
-            e_14_1 = _e.sent();
-            e_14 = { error: e_14_1 };
+            e_15_1 = _e.sent();
+            e_15 = { error: e_15_1 };
             return [3, 13];
           case 12:
             try {
               if (_b && !_b.done && (_c = _a.return)) _c.call(_a);
             } finally {
-              if (e_14) throw e_14.error;
+              if (e_15) throw e_15.error;
             }
             return [
               7
@@ -5835,7 +5876,7 @@
     });
   }
   function makeSpec(state, challenge) {
-    var e_15, _a;
+    var e_16, _a;
     var par = BASE_PARS[state.data.stage];
     var vpTarget = challenge.vpMode.target;
     var cards = challenge.vpMode.cards.slice();
@@ -5847,13 +5888,13 @@
         cards.push.apply(cards, __spreadArray5([], __read6(boon.cards), false));
         events.push.apply(events, __spreadArray5([], __read6(boon.events), false));
       }
-    } catch (e_15_1) {
-      e_15 = { error: e_15_1 };
+    } catch (e_16_1) {
+      e_16 = { error: e_16_1 };
     } finally {
       try {
         if (_c && !_c.done && (_a = _b.return)) _a.call(_b);
       } finally {
-        if (e_15) throw e_15.error;
+        if (e_16) throw e_16.error;
       }
     }
     var sortedCollectedCards = __spreadArray5([], __read6(state.data.collectedCards), false).sort(function(a2, b) {
@@ -5895,7 +5936,7 @@
     return relicRewards;
   }
   function sampleLookingGlassRoundRewards(state, targetCopies) {
-    var e_16, _a, e_17, _b;
+    var e_17, _a, e_18, _b;
     if (state.data.phase === "path_select") {
       return { cards: [], events: [] };
     }
@@ -5927,13 +5968,13 @@
         cards.push(card);
         selectedCardNames.add(card.name);
       }
-    } catch (e_16_1) {
-      e_16 = { error: e_16_1 };
+    } catch (e_17_1) {
+      e_17 = { error: e_17_1 };
     } finally {
       try {
         if (cardOrder_1_1 && !cardOrder_1_1.done && (_a = cardOrder_1.return)) _a.call(cardOrder_1);
       } finally {
-        if (e_16) throw e_16.error;
+        if (e_17) throw e_17.error;
       }
     }
     var eventOrder = new Generator("".concat(state.seed, "-LOOKINGGLASS-EVENTS-").concat(state.data.stage)).permute(__spreadArray5([], __read6(eventRewards), false));
@@ -5949,13 +5990,13 @@
         events.push(event_1);
         selectedEventNames.add(event_1.name);
       }
-    } catch (e_17_1) {
-      e_17 = { error: e_17_1 };
+    } catch (e_18_1) {
+      e_18 = { error: e_18_1 };
     } finally {
       try {
         if (eventOrder_1_1 && !eventOrder_1_1.done && (_b = eventOrder_1.return)) _b.call(eventOrder_1);
       } finally {
-        if (e_17) throw e_17.error;
+        if (e_18) throw e_18.error;
       }
     }
     return { cards, events };
@@ -6011,7 +6052,7 @@
     });
   }
   function pathFromSkeleton(skeleton) {
-    var e_18, _a;
+    var e_19, _a;
     var rewardStates = [];
     try {
       for (var _b = __values4(skeleton.rewards), _c = _b.next(); !_c.done; _c = _b.next()) {
@@ -6028,13 +6069,13 @@
           rewardStates.push({ kind: "potion", options: [], selectedIndex: null });
         }
       }
-    } catch (e_18_1) {
-      e_18 = { error: e_18_1 };
+    } catch (e_19_1) {
+      e_19 = { error: e_19_1 };
     } finally {
       try {
         if (_c && !_c.done && (_a = _b.return)) _a.call(_b);
       } finally {
-        if (e_18) throw e_18.error;
+        if (e_19) throw e_19.error;
       }
     }
     return { rewardStates, challenges: skeleton.challenges };
@@ -6262,7 +6303,7 @@
   }
   function replayCompletedStage(state, stage) {
     return __awaiter3(this, void 0, void 0, function() {
-      var replayData, replayResult, e_19, macros, viewingMacros, newBufferAfterCourse, updatedReplayData, bufferAdjustment, usedPotions;
+      var replayData, replayResult, e_20, macros, viewingMacros, newBufferAfterCourse, updatedReplayData, bufferAdjustment, usedPotions, stageTimelineEntry;
       var _a, _b, _c, _d;
       return __generator3(this, function(_e) {
         switch (_e.label) {
@@ -6281,22 +6322,22 @@
             replayResult = _e.sent();
             return [3, 4];
           case 3:
-            e_19 = _e.sent();
-            if (e_19 instanceof Undo2) {
-              macros = (_a = e_19.macros) !== null && _a !== void 0 ? _a : state.global.macros;
-              viewingMacros = (_b = e_19.viewingMacros) !== null && _b !== void 0 ? _b : state.global.viewingMacros;
+            e_20 = _e.sent();
+            if (e_20 instanceof Undo2) {
+              macros = (_a = e_20.macros) !== null && _a !== void 0 ? _a : state.global.macros;
+              viewingMacros = (_b = e_20.viewingMacros) !== null && _b !== void 0 ? _b : state.global.viewingMacros;
               state.updateGlobal({ macros, viewingMacros });
               return [
                 2
                 /*return*/
               ];
             }
-            if (e_19 instanceof Redo)
+            if (e_20 instanceof Redo)
               return [
                 2
                 /*return*/
               ];
-            throw e_19;
+            throw e_20;
           case 4:
             state.updateGlobal({
               macros: (_c = replayResult.macros) !== null && _c !== void 0 ? _c : state.global.macros,
@@ -6309,15 +6350,16 @@
             bufferAdjustment = newBufferAfterCourse - replayData.bufferAfterCourse;
             usedPotions = usedPotionNames(replayData.spec.potions, replayResult.potionsRemaining);
             applyReplayResultToAllSnapshots(state, stage, updatedReplayData, bufferAdjustment);
+            stageTimelineEntry = {
+              kind: "stage",
+              stage,
+              challenge: challengeSummary(updatedReplayData.challenge),
+              score: replayResult.score,
+              par: updatedReplayData.par,
+              usedPotions
+            };
             state.update({
-              timeline: __spreadArray5(__spreadArray5([], __read6(state.data.timeline), false), [{
-                kind: "stage",
-                stage,
-                challenge: challengeSummary(updatedReplayData.challenge),
-                score: replayResult.score,
-                par: updatedReplayData.par,
-                usedPotions
-              }], false)
+              timeline: upsertStageTimelineEntry(state.data.timeline, stageTimelineEntry)
             });
             state.ui.updateBuffer(state);
             return [
@@ -6390,7 +6432,7 @@
   function playGame2(ui_1) {
     return __awaiter3(this, arguments, void 0, function(ui, test2, seed, initialSnapshot, onStateChange) {
       var state, initialPath, tests, tests_1, tests_1_1, testSpec, _loop_1, state_1;
-      var e_20, _a;
+      var e_21, _a;
       var _b, _c;
       if (test2 === void 0) {
         test2 = null;
@@ -6422,13 +6464,13 @@
                   testSpec = tests_1_1.value;
                   initialPath.rewardStates.push(makeTestReward(state, testSpec));
                 }
-              } catch (e_20_1) {
-                e_20 = { error: e_20_1 };
+              } catch (e_21_1) {
+                e_21 = { error: e_21_1 };
               } finally {
                 try {
                   if (tests_1_1 && !tests_1_1.done && (_a = tests_1.return)) _a.call(tests_1);
                 } finally {
-                  if (e_20) throw e_20.error;
+                  if (e_21) throw e_21.error;
                 }
               }
               state.replaceAndClearHistory(__assign2(__assign2({}, materializePath(state, initialPath)), { phase: "stage_select", availablePaths: [] }));
@@ -6437,7 +6479,7 @@
             }
             state.ui.updateBuffer(state);
             _loop_1 = function() {
-              var sameReplay_1, stage, gameSpec, startingBuffer, _e, score, potionsRemaining, history_1, macros, viewingMacros, usedPotions, persistedMacros, persistedViewingMacros, stageReplays, nextStage, paths, paths, path, _f, e_21, selectedChallenge, e_22, e_23, persistedMacros, persistedViewingMacros;
+              var sameReplay_1, stage, gameSpec, startingBuffer, _e, score, potionsRemaining, history_1, macros, viewingMacros, usedPotions, persistedMacros, persistedViewingMacros, stageReplays, stageTimelineEntry, nextStage, paths, paths, path, _f, e_22, selectedChallenge, e_23, e_24, persistedMacros, persistedViewingMacros;
               return __generator3(this, function(_g) {
                 switch (_g.label) {
                   case 0:
@@ -6492,16 +6534,17 @@
                       bufferBeforeCourse: startingBuffer,
                       bufferAfterCourse: state.data.buffer
                     };
+                    stageTimelineEntry = {
+                      kind: "stage",
+                      stage,
+                      challenge: challengeSummary(state.data.challenges[0]),
+                      score,
+                      par: gameSpec.par,
+                      usedPotions
+                    };
                     state.update({
                       stageReplays,
-                      timeline: __spreadArray5(__spreadArray5([], __read6(state.data.timeline), false), [{
-                        kind: "stage",
-                        stage,
-                        challenge: challengeSummary(state.data.challenges[0]),
-                        score,
-                        par: gameSpec.par,
-                        usedPotions
-                      }], false)
+                      timeline: upsertStageTimelineEntry(state.data.timeline, stageTimelineEntry)
                     });
                     nextStage = state.data.stage + 1;
                     state.update({ stage: nextStage });
@@ -6549,14 +6592,14 @@
                     path = _f;
                     return [3, 16];
                   case 12:
-                    e_21 = _g.sent();
-                    if (!(e_21 instanceof ReplayStage)) return [3, 14];
-                    return [4, replayCompletedStage(state, e_21.stage)];
+                    e_22 = _g.sent();
+                    if (!(e_22 instanceof ReplayStage)) return [3, 14];
+                    return [4, replayCompletedStage(state, e_22.stage)];
                   case 13:
                     _g.sent();
                     return [3, 7];
                   case 14:
-                    throw e_21;
+                    throw e_22;
                   case 15:
                     return [3, 7];
                   case 16:
@@ -6576,14 +6619,14 @@
                     selectedChallenge = _g.sent();
                     return [3, 25];
                   case 21:
-                    e_22 = _g.sent();
-                    if (!(e_22 instanceof ReplayStage)) return [3, 23];
-                    return [4, replayCompletedStage(state, e_22.stage)];
+                    e_23 = _g.sent();
+                    if (!(e_23 instanceof ReplayStage)) return [3, 23];
+                    return [4, replayCompletedStage(state, e_23.stage)];
                   case 22:
                     _g.sent();
                     return [3, 18];
                   case 23:
-                    throw e_22;
+                    throw e_23;
                   case 24:
                     return [3, 18];
                   case 25:
@@ -6602,22 +6645,22 @@
                   case 28:
                     return [3, 30];
                   case 29:
-                    e_23 = _g.sent();
-                    if (e_23 instanceof Undo2) {
-                      persistedMacros = (_b = e_23.macros) !== null && _b !== void 0 ? _b : state.global.macros;
-                      persistedViewingMacros = (_c = e_23.viewingMacros) !== null && _c !== void 0 ? _c : state.global.viewingMacros;
+                    e_24 = _g.sent();
+                    if (e_24 instanceof Undo2) {
+                      persistedMacros = (_b = e_24.macros) !== null && _b !== void 0 ? _b : state.global.macros;
+                      persistedViewingMacros = (_c = e_24.viewingMacros) !== null && _c !== void 0 ? _c : state.global.viewingMacros;
                       state.updateGlobal({
                         macros: persistedMacros,
                         viewingMacros: persistedViewingMacros
                       });
                       state.undo({
-                        gameHistory: e_23.gameHistory,
-                        gameRedo: e_23.gameRedo
+                        gameHistory: e_24.gameHistory,
+                        gameRedo: e_24.gameRedo
                       });
-                    } else if (e_23 instanceof Redo) {
+                    } else if (e_24 instanceof Redo) {
                       state.redo();
                     } else {
-                      throw e_23;
+                      throw e_24;
                     }
                     return [3, 30];
                   case 30:
@@ -16288,21 +16331,23 @@
       });
     });
   }
-  function timelineRowContent(entry) {
-    var _a;
+  function timelineRowContent(entry, stageScores, stagePars) {
+    var _a, _b, _c;
     if (entry.kind === "stage") {
+      var score = (_a = stageScores[entry.stage]) !== null && _a !== void 0 ? _a : entry.score;
+      var par = (_b = stagePars[entry.stage]) !== null && _b !== void 0 ? _b : entry.par;
       var usedText = entry.usedPotions && entry.usedPotions.length > 0 ? entry.usedPotions.map(function(name) {
         return "used ".concat(name);
       }).join(", ") : null;
       return {
-        primary: "Stage ".concat(entry.stage + 1, ": ").concat(entry.challenge, " \u2022 Score ").concat(entry.score, "/").concat(entry.par),
+        primary: "Stage ".concat(entry.stage + 1, ": ").concat(entry.challenge, " \u2022 Score ").concat(score, "/").concat(par),
         secondary: usedText
       };
     }
     if (entry.kind === "action") {
       return {
         primary: "Stage ".concat(entry.stage + 1, ": ").concat(entry.action),
-        secondary: (_a = entry.details) !== null && _a !== void 0 ? _a : null
+        secondary: (_c = entry.details) !== null && _c !== void 0 ? _c : null
       };
     }
     var secondaryParts = [];
@@ -16414,7 +16459,7 @@
         row.className = "timelineRow";
         var text = document.createElement("div");
         text.className = "timelineText";
-        var content = timelineRowContent(entry2);
+        var content = timelineRowContent(entry2, state.data.stageScores, state.data.stagePars);
         var primary = document.createElement("span");
         primary.className = "timelinePrimary";
         primary.textContent = content.primary;

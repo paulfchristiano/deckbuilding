@@ -518,6 +518,34 @@ export type MetaTimelineEntry =
         details?: string
     }
 
+function normalizeTimelineEntries(timeline: MetaTimelineEntry[]): MetaTimelineEntry[] {
+    const result: MetaTimelineEntry[] = []
+    const firstStageRowIndex = new Map<number, number>()
+    for (const entry of timeline) {
+        if (entry.kind !== 'stage') {
+            result.push(entry)
+            continue
+        }
+        const existing = firstStageRowIndex.get(entry.stage)
+        if (existing === undefined) {
+            firstStageRowIndex.set(entry.stage, result.length)
+            result.push(entry)
+        } else {
+            result[existing] = entry
+        }
+    }
+    return result
+}
+
+function upsertStageTimelineEntry(timeline: MetaTimelineEntry[], entry: Extract<MetaTimelineEntry, { kind: 'stage' }>): MetaTimelineEntry[] {
+    const normalized = normalizeTimelineEntries(timeline)
+    const existingIndex = normalized.findIndex(t => t.kind === 'stage' && t.stage === entry.stage)
+    if (existingIndex < 0) return [...normalized, entry]
+    const updated = [...normalized]
+    updated[existingIndex] = entry
+    return updated
+}
+
 // Get display name for a reward state
 export function getRewardName(rewardState: RewardState): string {
     if (rewardState.kind === 'encounter') {
@@ -1296,12 +1324,12 @@ function deserializeMetaStateData(data: SerializedMetaStateData): MetaStateData 
         potions: data.potions.map(card => deserializeCard(card)),
         relics: data.relics.map(card => deserializeCard(card) as Relic),
         nextID: data.nextID,
-        timeline: (data.timeline || []).map(entry => ({ ...entry })),
+        timeline: normalizeTimelineEntries((data.timeline || []).map(entry => ({ ...entry }))),
         gameHistory: [...data.gameHistory],
         gameRedo: [...data.gameRedo],
     }
     if (!data.timeline) {
-        result.timeline = result.stageReplays.flatMap(stageReplay => {
+        result.timeline = normalizeTimelineEntries(result.stageReplays.flatMap(stageReplay => {
             if (stageReplay === null) return []
             return [{
                 kind: 'stage' as const,
@@ -1311,7 +1339,7 @@ function deserializeMetaStateData(data: SerializedMetaStateData): MetaStateData 
                 par: stageReplay.par,
                 usedPotions: usedPotionNames(stageReplay.spec.potions, stageReplay.potionsRemaining),
             }]
-        })
+        }))
     }
     validateMetaStateData(result, 'deserialize')
     return result
@@ -2043,15 +2071,16 @@ async function replayCompletedStage(state: MetaState, stage: number): Promise<vo
     const bufferAdjustment = newBufferAfterCourse - replayData.bufferAfterCourse
     const usedPotions = usedPotionNames(replayData.spec.potions, replayResult.potionsRemaining)
     applyReplayResultToAllSnapshots(state, stage, updatedReplayData, bufferAdjustment)
+    const stageTimelineEntry: Extract<MetaTimelineEntry, { kind: 'stage' }> = {
+        kind: 'stage',
+        stage,
+        challenge: challengeSummary(updatedReplayData.challenge),
+        score: replayResult.score,
+        par: updatedReplayData.par,
+        usedPotions
+    }
     state.update({
-        timeline: [...state.data.timeline, {
-            kind: 'stage',
-            stage,
-            challenge: challengeSummary(updatedReplayData.challenge),
-            score: replayResult.score,
-            par: updatedReplayData.par,
-            usedPotions
-        }]
+        timeline: upsertStageTimelineEntry(state.data.timeline, stageTimelineEntry)
     })
     state.ui.updateBuffer(state)
 }
@@ -2228,16 +2257,17 @@ export async function playGame(
                     bufferBeforeCourse: startingBuffer,
                     bufferAfterCourse: state.data.buffer
                 }
+                const stageTimelineEntry: Extract<MetaTimelineEntry, { kind: 'stage' }> = {
+                    kind: 'stage',
+                    stage,
+                    challenge: challengeSummary(state.data.challenges[0]),
+                    score,
+                    par: gameSpec.par,
+                    usedPotions
+                }
                 state.update({
                     stageReplays,
-                    timeline: [...state.data.timeline, {
-                        kind: 'stage',
-                        stage,
-                        challenge: challengeSummary(state.data.challenges[0]),
-                        score,
-                        par: gameSpec.par,
-                        usedPotions
-                    }]
+                    timeline: upsertStageTimelineEntry(state.data.timeline, stageTimelineEntry)
                 })
                 const nextStage = state.data.stage + 1
                 state.update({ stage: nextStage })

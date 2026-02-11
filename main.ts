@@ -416,13 +416,19 @@ async function runReplayFromSnapshot(slot: SaveSlot, stage: number): Promise<voi
     }
 }
 
-function timelineRowContent(entry: MetaTimelineEntry): { primary: string, secondary: string | null } {
+function timelineRowContent(
+    entry: MetaTimelineEntry,
+    stageScores: (number | null)[],
+    stagePars: (number | null)[]
+): { primary: string, secondary: string | null } {
     if (entry.kind === 'stage') {
+        const score = stageScores[entry.stage] ?? entry.score
+        const par = stagePars[entry.stage] ?? entry.par
         const usedText = (entry.usedPotions && entry.usedPotions.length > 0)
             ? entry.usedPotions.map(name => `used ${name}`).join(', ')
             : null
         return {
-            primary: `Stage ${entry.stage + 1}: ${entry.challenge} • Score ${entry.score}/${entry.par}`,
+            primary: `Stage ${entry.stage + 1}: ${entry.challenge} • Score ${score}/${par}`,
             secondary: usedText
         }
     }
@@ -531,7 +537,7 @@ function openViewDialog(slot: SaveSlot): void {
             row.className = 'timelineRow'
             const text = document.createElement('div')
             text.className = 'timelineText'
-            const content = timelineRowContent(entry)
+            const content = timelineRowContent(entry, state.data.stageScores, state.data.stagePars)
             const primary = document.createElement('span')
             primary.className = 'timelinePrimary'
             primary.textContent = content.primary
