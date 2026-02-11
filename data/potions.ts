@@ -24,7 +24,8 @@ import {
     renderCost,
     leq,
     gainActions,
-    tick
+    tick,
+    artRule
 } from '../gameLogic.js'
 
 // Import cards that potions reference from base
@@ -390,6 +391,22 @@ export const potionOfPriority: CardSpec = {
     )]
 }
 potionRewards.push(potionOfPriority)
+
+export const artistsBrew: CardSpec = {
+    name: `Artist's Brew`,
+    isPotion: true,
+    simpleText: [
+        `Put 8 art tokens on a supply.`,
+        `Whenever you play a card with art tokens on its supply, remove art tokens instead of paying @.`
+    ],
+    rules: [artRule],
+    effects: [targetedEffect(
+        card => addToken(card, 'art', 8),
+        'Put 8 art tokens on a card in the supply.',
+        state => state.supply,
+    )]
+}
+potionRewards.push(artistsBrew)
 
 export const geminiBrew: CardSpec = {
     name: 'Gemini Brew',

@@ -22,9 +22,9 @@ import { Card, CardSpec, UndoPastBeginning } from './gameLogic.js'
 import type { TestSpec } from './metaLogic.js'
 import { banquet } from './data/cards.js'
 import { tactician } from './data/encounters.js'
-import { highwayPotion, royalNectar } from './data/potions.js'
+import { highwayPotion, royalNectar, artistsBrew } from './data/potions.js'
 
-let test: TestSpec | null = null
+let test: TestSpec | null = ['potion', artistsBrew]
 
 const SAVE_STORAGE_KEY = 'roguelike.ongoingSaves.v1'
 const MAX_LAUNCHER_SAVES = 10

@@ -35,6 +35,7 @@ import {
     echoRule,
     move, moveMany,
     fountainEffect,
+    artRule,
 } from '../gameLogic.js'
 
 const hallOfMirrors:CardSpec = {name: 'Hall of Mirrors',
@@ -305,34 +306,7 @@ const lostArts:CardSpec = {
         `Put eight art tokens on a card in the supply.`,
         s => s.supply
     )],
-    staticReplacers: [{
-        text: `Cards cost @ less to play for each art token on their supply.
-               Whenever this reduces a cost by one or more @,
-               remove that many art tokens.`,
-        kind: 'cost',
-        handles: (x, state, card) => (x.actionKind == 'play')
-            && nameHasToken(x.card, 'art', state),
-        replace: (x, state, card) => {
-            card = state.find(card)
-            const reduction = Math.min(
-                x.cost.energy,
-                countNameTokens(x.card, 'art', state)
-            )
-            return {...x, cost:{...x.cost,
-                energy:x.cost.energy-reduction,
-                effects:x.cost.effects.concat([repeat(
-                    applyToTarget(
-                        target => removeToken(target, 'art'),
-                        'Remove an art token from a supply.',
-                        state => state.supply.filter(
-                            c => c.name == x.card.name && c.count('art') > 0
-                        )
-                    )
-                    , reduction
-                )])
-            }}
-        }
-    }]
+    rules: [artRule],
 }
 eventRewards.push(lostArts)
 
