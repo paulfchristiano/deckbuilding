@@ -116,7 +116,7 @@ const till:CardSpec = {name: Till,
 cardRewards.push(till)
 
 
-const village:CardSpec = {name: 'Village',
+export const village:CardSpec = {name: 'Village',
     buyCost: coin(2),
     effects:  [actionsEffect(1), createInPlayEffect(villager)],
     relatedCards: [villager],

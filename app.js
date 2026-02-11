@@ -4667,18 +4667,23 @@
   var MetaState = (
     /** @class */
     (function() {
-      function MetaState2(ui, seed, onChange) {
+      function MetaState2(ui, seed, onChange, options) {
         if (seed === void 0) {
           seed = null;
         }
         if (onChange === void 0) {
           onChange = null;
         }
+        if (options === void 0) {
+          options = {};
+        }
+        var _a;
         this.ui = ui;
         this.redoStack = [];
         this.undoStack = [];
         this.generators = /* @__PURE__ */ new Map();
         this.onChange = onChange;
+        this.debugEnabled = (_a = options.debugEnabled) !== null && _a !== void 0 ? _a : false;
         if (seed === null) {
           this.seed = randomString();
         } else {
@@ -5364,15 +5369,18 @@
       global: encodeUnknown(state.global)
     };
   }
-  function deserializeMetaGame(ui, serialized, onChange) {
+  function deserializeMetaGame(ui, serialized, onChange, debugEnabled) {
     var _a, _b;
     if (onChange === void 0) {
       onChange = null;
     }
+    if (debugEnabled === void 0) {
+      debugEnabled = false;
+    }
     if (serialized.version !== 1) {
       throw new Error("Unsupported save version ".concat(serialized.version));
     }
-    var state = new MetaState(ui, serialized.seed, onChange);
+    var state = new MetaState(ui, serialized.seed, onChange, { debugEnabled });
     state.masterGenerator = Generator.fromState(serialized.masterGeneratorState);
     state.generators = new Map(serialized.generatorStates.map(function(entry) {
       return [entry.key, Generator.fromState(entry.state)];
@@ -5905,6 +5913,14 @@
     });
     cards.push.apply(cards, __spreadArray5([], __read6(sortedCollectedCards), false));
     events.push.apply(events, __spreadArray5([], __read6(sortedCollectedEvents), false));
+    if (state.debugEnabled) {
+      var cheatSpec_1 = getSpecByName("Cheat");
+      if (cheatSpec_1 !== null && !events.some(function(event) {
+        return event.name === cheatSpec_1.name;
+      })) {
+        events.push(cheatSpec_1);
+      }
+    }
     var gameSetupParams = applyMetaReplacers("gameSetup", {
       par,
       vpGoal: vpTarget,
@@ -6430,7 +6446,7 @@
     }
   }
   function playGame2(ui_1) {
-    return __awaiter3(this, arguments, void 0, function(ui, test2, seed, initialSnapshot, onStateChange) {
+    return __awaiter3(this, arguments, void 0, function(ui, test2, seed, initialSnapshot, onStateChange, debugEnabled) {
       var state, initialPath, tests, tests_1, tests_1_1, testSpec, _loop_1, state_1;
       var e_21, _a;
       var _b, _c;
@@ -6446,10 +6462,13 @@
       if (onStateChange === void 0) {
         onStateChange = null;
       }
+      if (debugEnabled === void 0) {
+        debugEnabled = false;
+      }
       return __generator3(this, function(_d) {
         switch (_d.label) {
           case 0:
-            state = initialSnapshot ? deserializeMetaGame(ui, initialSnapshot, null) : new MetaState(ui, seed, null);
+            state = initialSnapshot ? deserializeMetaGame(ui, initialSnapshot, null, debugEnabled) : new MetaState(ui, seed, null, { debugEnabled });
             state.setChangeListener(onStateChange ? function() {
               return onStateChange(serializeMetaGame(state));
             } : null);
@@ -9944,6 +9963,13 @@
     };
     throw new TypeError(s ? "Object is not iterable." : "Symbol.iterator is not defined.");
   };
+  var cheat = {
+    name: "Cheat",
+    fixedCost: free,
+    simpleText: ["+100 vp."],
+    effects: [pointsEffect(100)]
+  };
+  registerSpec(cheat);
   var hallOfMirrors = {
     name: "Hall of Mirrors",
     fixedCost: __assign5(__assign5({}, free), { energy: 1, coin: 5 }),
@@ -16070,7 +16096,7 @@
     };
     throw new TypeError(s ? "Object is not iterable." : "Symbol.iterator is not defined.");
   };
-  var test = null;
+  var test = ["potion", potionOfWealth];
   var SAVE_STORAGE_KEY = "roguelike.ongoingSaves.v1";
   var MAX_LAUNCHER_SAVES = 10;
   var summaryMetaUI = {
@@ -16129,6 +16155,10 @@
   }
   function normalizeSeed(seed) {
     return seed.replace(/\s+/g, "").toUpperCase();
+  }
+  function isDebugEnabledFromURL() {
+    var params = new URLSearchParams(window.location.search);
+    return params.has("debug");
   }
   function loadSaveSlots() {
     try {
@@ -16222,11 +16252,13 @@
   }
   function runGame(slotID, snapshot, seed) {
     return __awaiter13(this, void 0, void 0, function() {
-      var seedDisplay, metaUI, saveCallback, error_1;
+      var debugEnabled, activeTest, seedDisplay, metaUI, saveCallback, error_1;
       var _a;
       return __generator13(this, function(_b) {
         switch (_b.label) {
           case 0:
+            debugEnabled = isDebugEnabledFromURL();
+            activeTest = debugEnabled ? test : null;
             seedDisplay = document.getElementById("seedDisplay");
             if (seedDisplay)
               seedDisplay.textContent = "Seed: ".concat(seed);
@@ -16240,7 +16272,7 @@
             _b.label = 1;
           case 1:
             _b.trys.push([1, 3, 4, 5]);
-            return [4, playGame2(metaUI, test, seed, snapshot, saveCallback)];
+            return [4, playGame2(metaUI, activeTest, seed, snapshot, saveCallback, debugEnabled)];
           case 2:
             _b.sent();
             return [3, 5];

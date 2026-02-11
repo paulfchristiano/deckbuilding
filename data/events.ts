@@ -22,7 +22,7 @@ import {
     buysEffect,
     recycleEffect,
     refreshEffect,
-    coinsEffect, buyEffect,
+    coinsEffect, buyEffect, pointsEffect,
     createEffect,
     choice, asNumberedChoices, Option, allowNull, multichoice, asChoice,
     villager, fair, horse,
@@ -36,6 +36,15 @@ import {
     move, moveMany,
     fountainEffect,
 } from '../gameLogic.js'
+import { registerSpec } from '../registry.js'
+
+export const cheat: CardSpec = {
+    name: 'Cheat',
+    fixedCost: free,
+    simpleText: ['+100 vp.'],
+    effects: [pointsEffect(100)]
+}
+registerSpec(cheat)
 
 const hallOfMirrors:CardSpec = {name: 'Hall of Mirrors',
     fixedCost: {...free, energy:1, coin:5},

@@ -606,12 +606,17 @@ export interface MetaGlobalState {
 
 import { Generator, randomString } from './rng.js'
 
+interface MetaStateOptions {
+    debugEnabled?: boolean
+}
+
 export class MetaState {
 
     public checkpoint: MetaStateData
     public redoStack: MetaStateData[] = []
     public undoStack: MetaStateData[] = []
     public readonly seed: string
+    public readonly debugEnabled: boolean
     public masterGenerator: Generator
     public generators: Map<string, Generator> = new Map()
     public data: MetaStateData
@@ -622,8 +627,10 @@ export class MetaState {
         public readonly ui: MetaUI,
         seed: null | string = null,
         onChange: (() => void) | null = null,
+        options: MetaStateOptions = {},
     ) {
         this.onChange = onChange
+        this.debugEnabled = options.debugEnabled ?? false
         if (seed === null) {
             this.seed = randomString()
         } else {
@@ -1367,12 +1374,13 @@ export function serializeMetaGame(state: MetaState): SerializedMetaGame {
 export function deserializeMetaGame(
     ui: MetaUI,
     serialized: SerializedMetaGame,
-    onChange: (() => void) | null = null
+    onChange: (() => void) | null = null,
+    debugEnabled: boolean = false
 ): MetaState {
     if (serialized.version !== 1) {
         throw new Error(`Unsupported save version ${serialized.version}`)
     }
-    const state = new MetaState(ui, serialized.seed, onChange)
+    const state = new MetaState(ui, serialized.seed, onChange, { debugEnabled })
     state.masterGenerator = Generator.fromState(serialized.masterGeneratorState)
     state.generators = new Map(
         serialized.generatorStates.map(entry => [entry.key, Generator.fromState(entry.state)])
@@ -1708,6 +1716,12 @@ export function makeSpec(state: MetaState, challenge: ChallengeSpec): GameSpec {
     const sortedCollectedEvents = [...state.data.collectedEvents].sort((a, b) => energyEventKey(a) - energyEventKey(b))
     cards.push(...sortedCollectedCards)
     events.push(...sortedCollectedEvents)
+    if (state.debugEnabled) {
+        const cheatSpec = getSpecByName('Cheat')
+        if (cheatSpec !== null && !events.some(event => event.name === cheatSpec.name)) {
+            events.push(cheatSpec)
+        }
+    }
 
     const gameSetupParams = applyMetaReplacers('gameSetup', {
         par: par,
@@ -2171,11 +2185,12 @@ export async function playGame(
     test:null|TestSpec|TestSpec[] = null,
     seed: string | null = null,
     initialSnapshot: SerializedMetaGame | null = null,
-    onStateChange: ((snapshot: SerializedMetaGame) => void) | null = null
+    onStateChange: ((snapshot: SerializedMetaGame) => void) | null = null,
+    debugEnabled: boolean = false
 ): Promise<void> {
     const state: MetaState = initialSnapshot
-        ? deserializeMetaGame(ui, initialSnapshot, null)
-        : new MetaState(ui, seed, null)
+        ? deserializeMetaGame(ui, initialSnapshot, null, debugEnabled)
+        : new MetaState(ui, seed, null, { debugEnabled })
     state.setChangeListener(onStateChange ? () => onStateChange!(serializeMetaGame(state)) : null)
 
     if (!initialSnapshot) {

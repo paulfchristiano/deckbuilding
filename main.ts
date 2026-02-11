@@ -20,11 +20,9 @@ import { renderSpecNoRelated } from './cardRendering.js'
 import { Card, CardSpec, UndoPastBeginning } from './gameLogic.js'
 
 import type { TestSpec } from './metaLogic.js'
-import { banquet } from './data/cards.js'
-import { tactician } from './data/encounters.js'
-import { highwayPotion, royalNectar } from './data/potions.js'
+import { potionOfWealth } from './data/potions.js'
 
-let test: TestSpec | null = null
+let test: TestSpec | null = ['potion', potionOfWealth]
 
 const SAVE_STORAGE_KEY = 'roguelike.ongoingSaves.v1'
 const MAX_LAUNCHER_SAVES = 10
@@ -54,6 +52,11 @@ function resolveSeedFromURL(): string | null {
 
 function normalizeSeed(seed: string): string {
     return seed.replace(/\s+/g, '').toUpperCase()
+}
+
+function isDebugEnabledFromURL(): boolean {
+    const params = new URLSearchParams(window.location.search)
+    return params.has('debug')
 }
 
 function loadSaveSlots(): SaveSlot[] {
@@ -352,6 +355,8 @@ function ensureLauncherStyles(): void {
 }
 
 async function runGame(slotID: string, snapshot: SerializedMetaGame | null, seed: string): Promise<void> {
+    const debugEnabled = isDebugEnabledFromURL()
+    const activeTest: TestSpec | TestSpec[] | null = debugEnabled ? test : null
     const seedDisplay = document.getElementById('seedDisplay')
     if (seedDisplay) seedDisplay.textContent = `Seed: ${seed}`
     setCoreUIVisible(true)
@@ -364,7 +369,7 @@ async function runGame(slotID: string, snapshot: SerializedMetaGame | null, seed
     }
 
     try {
-        await playGame(metaUI, test, seed, snapshot, saveCallback)
+        await playGame(metaUI, activeTest, seed, snapshot, saveCallback, debugEnabled)
     } catch (error) {
         if (error instanceof ExitToLauncher) return
         console.error(error)
