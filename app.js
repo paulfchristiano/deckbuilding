@@ -2860,11 +2860,10 @@
     replacers: [{
       text: "Cards cost @ less to play for each art token on their supply.\n               Whenever this reduces a cost by one or more @,\n               remove that many art tokens.",
       kind: "cost",
-      handles: function(x, state, card) {
+      handles: function(x, state, _rule) {
         return x.actionKind == "play" && nameHasToken(x.card, "art", state);
       },
-      replace: function(x, state, card) {
-        card = state.find(card);
+      replace: function(x, state, _rule) {
         var reduction = Math.min(x.cost.energy, countNameTokens(x.card, "art", state));
         return __assign(__assign({}, x), { cost: __assign(__assign({}, x.cost), { energy: x.cost.energy - reduction, effects: x.cost.effects.concat([repeat(applyToTarget(function(target) {
           return removeToken(target, "art");

@@ -2129,10 +2129,9 @@ export const artRule: Rule = {
                Whenever this reduces a cost by one or more @,
                remove that many art tokens.`,
         kind: 'cost',
-        handles: (x, state, card) => (x.actionKind == 'play')
+        handles: (x, state, _rule) => (x.actionKind == 'play')
             && nameHasToken(x.card, 'art', state),
-        replace: (x, state, card) => {
-            card = state.find(card)
+        replace: (x, state, _rule) => {
             const reduction = Math.min(
                 x.cost.energy,
                 countNameTokens(x.card, 'art', state)
