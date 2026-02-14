@@ -2151,17 +2151,33 @@ function materializePath(state: MetaState, path: Path): Pick<MetaStateData, 'cha
     return { challenges: path.challenges, rewardStates }
 }
 
-// We can define test in order to get a given reward immediately, for testing purposes.
+// We can define staged tests in order to inject a given reward for a specific stage while debugging.
+// Stage is 1-based for readability (stage 1 = first stage shown to the player).
+type RewardTestSpec = ['potion', CardSpec] | ['relic', RelicSpec] | ['card', CardSpec] | ['event', CardSpec] | ['encounter', Encounter]
+export type TestSpec = [number, RewardTestSpec]
 
-export type TestSpec = ['potion', CardSpec] | ['relic', RelicSpec] | ['card', CardSpec] | ['event', CardSpec] | ['encounter', Encounter]
-
-function isTestSpec(value: unknown): value is TestSpec {
+function isRewardTestSpec(value: unknown): value is RewardTestSpec {
     return Array.isArray(value)
         && value.length === 2
         && typeof value[0] === 'string'
 }
 
-function makeTestReward(state: MetaState, spec: TestSpec): RewardState {
+function isTestSpec(value: unknown): value is TestSpec {
+    return Array.isArray(value)
+        && value.length === 2
+        && typeof value[0] === 'number'
+        && Number.isInteger(value[0])
+        && isRewardTestSpec(value[1])
+}
+
+function rewardTestsForStage(tests: TestSpec[], stageIndex: number): RewardTestSpec[] {
+    const stageNumber = stageIndex + 1
+    return tests
+        .filter(([stage]) => stage === stageNumber)
+        .map(([, spec]) => spec)
+}
+
+function makeTestReward(state: MetaState, spec: RewardTestSpec): RewardState {
     switch (spec[0]) {
         case 'potion':
         case 'event':
@@ -2194,6 +2210,9 @@ export async function playGame(
         ? deserializeMetaGame(ui, initialSnapshot, null, debugEnabled)
         : new MetaState(ui, seed, null, { debugEnabled })
     state.setChangeListener(onStateChange ? () => onStateChange!(serializeMetaGame(state)) : null)
+    const tests: TestSpec[] = test === null
+        ? []
+        : (isTestSpec(test) ? [test] : test)
 
     if (!initialSnapshot) {
         // Stage 0 offers two challenge options
@@ -2201,10 +2220,7 @@ export async function playGame(
             rewards: ['card', 'card', 'event', 'potion'] as RewardKind[],
             challenges: [randomChallenge(state), randomChallenge(state)]
         })
-        const tests: TestSpec[] = test === null
-            ? []
-            : (isTestSpec(test) ? [test] : test)
-        for (const testSpec of tests) {
+        for (const testSpec of rewardTestsForStage(tests, 0)) {
             initialPath.rewardStates.push(makeTestReward(state, testSpec))
         }
         state.replaceAndClearHistory({
@@ -2296,6 +2312,9 @@ export async function playGame(
                     return
                 }
                 const paths = (await makePaths(state)).map(skel => pathFromSkeleton(skel))
+                for (const testSpec of rewardTestsForStage(tests, nextStage)) {
+                    paths[0].rewardStates.push(makeTestReward(state, testSpec))
+                }
                 state.replaceAndClearHistory({
                     phase: 'path_select',
                     challenges: [],

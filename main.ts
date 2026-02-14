@@ -21,8 +21,14 @@ import { Card, CardSpec, UndoPastBeginning } from './gameLogic.js'
 
 import type { TestSpec } from './metaLogic.js'
 import { potionOfWealth } from './data/potions.js'
+import { sacredBark } from './data/relics.js'
+import { potionLab } from './data/encounters.js'
 
-let test: TestSpec | null = ['potion', potionOfWealth]
+let test: TestSpec[] | null = [
+    [1, ['potion', potionOfWealth]],
+    [2, ['relic', sacredBark]],
+    [2, ['encounter', potionLab]]
+]
 
 const SAVE_STORAGE_KEY = 'roguelike.ongoingSaves.v1'
 const MAX_LAUNCHER_SAVES = 10
