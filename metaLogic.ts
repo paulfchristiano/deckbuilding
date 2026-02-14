@@ -1980,9 +1980,15 @@ function sampleRewardOptionsByBaseName(
     count: number,
     collected: CardSpec[]
 ): CardSpec[] {
-    const collectedBaseNames = new Set(collected.map(spec => spec.name))
-    const eligible = allOptions.filter(spec => !collectedBaseNames.has(spec.name))
-    return generator.samples(eligible, count)
+    const blockedBaseNames = new Set(collected.map(spec => spec.name))
+    const result: CardSpec[] = []
+    for (const spec of generator.permute(allOptions)) {
+        if (blockedBaseNames.has(spec.name)) continue
+        result.push(spec)
+        blockedBaseNames.add(spec.name)
+        if (result.length >= count) break
+    }
+    return result
 }
 
 export function replaySpecForStage(state: MetaState, replayData: StageReplayData): GameSpec {

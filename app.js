@@ -6172,13 +6172,31 @@
     });
   }
   function sampleRewardOptionsByBaseName(generator, allOptions, count, collected) {
-    var collectedBaseNames = new Set(collected.map(function(spec) {
-      return spec.name;
+    var e_20, _a;
+    var blockedBaseNames = new Set(collected.map(function(spec2) {
+      return spec2.name;
     }));
-    var eligible = allOptions.filter(function(spec) {
-      return !collectedBaseNames.has(spec.name);
-    });
-    return generator.samples(eligible, count);
+    var result = [];
+    try {
+      for (var _b = __values4(generator.permute(allOptions)), _c = _b.next(); !_c.done; _c = _b.next()) {
+        var spec = _c.value;
+        if (blockedBaseNames.has(spec.name))
+          continue;
+        result.push(spec);
+        blockedBaseNames.add(spec.name);
+        if (result.length >= count)
+          break;
+      }
+    } catch (e_20_1) {
+      e_20 = { error: e_20_1 };
+    } finally {
+      try {
+        if (_c && !_c.done && (_a = _b.return)) _a.call(_b);
+      } finally {
+        if (e_20) throw e_20.error;
+      }
+    }
+    return result;
   }
   function replaySpecForStage(state, replayData) {
     return __assign2(__assign2({}, cloneGameSpec(replayData.spec)), { metaStage: state.data.stage, metaStageScores: __spreadArray5([], __read6(state.data.stageScores), false), metaStagePars: __spreadArray5([], __read6(state.data.stagePars), false), metaStageTooltips: stageTooltipTexts(state), previousScore: replayData.score, replayUsedPotionIDs: replayUsedPotionIDs(replayData), replayStage: replayData.stage });
@@ -6303,7 +6321,7 @@
   }
   function replayCompletedStage(state, stage) {
     return __awaiter3(this, void 0, void 0, function() {
-      var replayData, replayResult, e_20, macros, viewingMacros, newBufferAfterCourse, updatedReplayData, bufferAdjustment, usedPotions, stageTimelineEntry;
+      var replayData, replayResult, e_21, macros, viewingMacros, newBufferAfterCourse, updatedReplayData, bufferAdjustment, usedPotions, stageTimelineEntry;
       var _a, _b, _c, _d;
       return __generator3(this, function(_e) {
         switch (_e.label) {
@@ -6322,22 +6340,22 @@
             replayResult = _e.sent();
             return [3, 4];
           case 3:
-            e_20 = _e.sent();
-            if (e_20 instanceof Undo2) {
-              macros = (_a = e_20.macros) !== null && _a !== void 0 ? _a : state.global.macros;
-              viewingMacros = (_b = e_20.viewingMacros) !== null && _b !== void 0 ? _b : state.global.viewingMacros;
+            e_21 = _e.sent();
+            if (e_21 instanceof Undo2) {
+              macros = (_a = e_21.macros) !== null && _a !== void 0 ? _a : state.global.macros;
+              viewingMacros = (_b = e_21.viewingMacros) !== null && _b !== void 0 ? _b : state.global.viewingMacros;
               state.updateGlobal({ macros, viewingMacros });
               return [
                 2
                 /*return*/
               ];
             }
-            if (e_20 instanceof Redo)
+            if (e_21 instanceof Redo)
               return [
                 2
                 /*return*/
               ];
-            throw e_20;
+            throw e_21;
           case 4:
             state.updateGlobal({
               macros: (_c = replayResult.macros) !== null && _c !== void 0 ? _c : state.global.macros,
@@ -6475,7 +6493,7 @@
     return boon;
   }
   function challengeOverridesForStage(tests, stageIndex, pathIndex) {
-    var e_21, _a;
+    var e_22, _a;
     if (pathIndex !== 0)
       return {};
     var stageNumber = stageIndex + 1;
@@ -6495,13 +6513,13 @@
             overrides.boon = boon;
         }
       }
-    } catch (e_21_1) {
-      e_21 = { error: e_21_1 };
+    } catch (e_22_1) {
+      e_22 = { error: e_22_1 };
     } finally {
       try {
         if (tests_1_1 && !tests_1_1.done && (_a = tests_1.return)) _a.call(tests_1);
       } finally {
-        if (e_21) throw e_21.error;
+        if (e_22) throw e_22.error;
       }
     }
     return overrides;
@@ -6537,7 +6555,7 @@
   function playGame2(ui_1) {
     return __awaiter3(this, arguments, void 0, function(ui, test2, seed, initialSnapshot, onStateChange, debugEnabled) {
       var state, tests, initialPath, _a, _b, testSpec, _loop_1, state_1;
-      var e_22, _c;
+      var e_23, _c;
       var _d, _e;
       if (test2 === void 0) {
         test2 = null;
@@ -6576,13 +6594,13 @@
                   testSpec = _b.value;
                   initialPath.rewardStates.push(makeTestReward(state, testSpec));
                 }
-              } catch (e_22_1) {
-                e_22 = { error: e_22_1 };
+              } catch (e_23_1) {
+                e_23 = { error: e_23_1 };
               } finally {
                 try {
                   if (_b && !_b.done && (_c = _a.return)) _c.call(_a);
                 } finally {
-                  if (e_22) throw e_22.error;
+                  if (e_23) throw e_23.error;
                 }
               }
               state.replaceAndClearHistory(__assign2(__assign2({}, materializePath(state, initialPath)), { phase: "stage_select", availablePaths: [] }));
@@ -6591,8 +6609,8 @@
             }
             state.ui.updateBuffer(state);
             _loop_1 = function() {
-              var sameReplay_1, stage, gameSpec, startingBuffer, _g, score, potionsRemaining, history_1, macros, viewingMacros, usedPotions, persistedMacros, persistedViewingMacros, stageReplays, stageTimelineEntry, nextStage, paths, _h, _j, testSpec2, paths, path, _k, e_23, selectedChallenge, e_24, e_25, persistedMacros, persistedViewingMacros;
-              var e_26, _l;
+              var sameReplay_1, stage, gameSpec, startingBuffer, _g, score, potionsRemaining, history_1, macros, viewingMacros, usedPotions, persistedMacros, persistedViewingMacros, stageReplays, stageTimelineEntry, nextStage, paths, _h, _j, testSpec2, paths, path, _k, e_24, selectedChallenge, e_25, e_26, persistedMacros, persistedViewingMacros;
+              var e_27, _l;
               return __generator3(this, function(_m) {
                 switch (_m.label) {
                   case 0:
@@ -6674,17 +6692,17 @@
                       return pathFromSkeleton(skel);
                     });
                     try {
-                      for (_h = (e_26 = void 0, __values4(rewardTestsForStage(tests.rewards, nextStage))), _j = _h.next(); !_j.done; _j = _h.next()) {
+                      for (_h = (e_27 = void 0, __values4(rewardTestsForStage(tests.rewards, nextStage))), _j = _h.next(); !_j.done; _j = _h.next()) {
                         testSpec2 = _j.value;
                         paths[0].rewardStates.push(makeTestReward(state, testSpec2));
                       }
-                    } catch (e_26_1) {
-                      e_26 = { error: e_26_1 };
+                    } catch (e_27_1) {
+                      e_27 = { error: e_27_1 };
                     } finally {
                       try {
                         if (_j && !_j.done && (_l = _h.return)) _l.call(_h);
                       } finally {
-                        if (e_26) throw e_26.error;
+                        if (e_27) throw e_27.error;
                       }
                     }
                     state.replaceAndClearHistory({
@@ -6719,14 +6737,14 @@
                     path = _k;
                     return [3, 16];
                   case 12:
-                    e_23 = _m.sent();
-                    if (!(e_23 instanceof ReplayStage)) return [3, 14];
-                    return [4, replayCompletedStage(state, e_23.stage)];
+                    e_24 = _m.sent();
+                    if (!(e_24 instanceof ReplayStage)) return [3, 14];
+                    return [4, replayCompletedStage(state, e_24.stage)];
                   case 13:
                     _m.sent();
                     return [3, 7];
                   case 14:
-                    throw e_23;
+                    throw e_24;
                   case 15:
                     return [3, 7];
                   case 16:
@@ -6746,14 +6764,14 @@
                     selectedChallenge = _m.sent();
                     return [3, 25];
                   case 21:
-                    e_24 = _m.sent();
-                    if (!(e_24 instanceof ReplayStage)) return [3, 23];
-                    return [4, replayCompletedStage(state, e_24.stage)];
+                    e_25 = _m.sent();
+                    if (!(e_25 instanceof ReplayStage)) return [3, 23];
+                    return [4, replayCompletedStage(state, e_25.stage)];
                   case 22:
                     _m.sent();
                     return [3, 18];
                   case 23:
-                    throw e_24;
+                    throw e_25;
                   case 24:
                     return [3, 18];
                   case 25:
@@ -6772,22 +6790,22 @@
                   case 28:
                     return [3, 30];
                   case 29:
-                    e_25 = _m.sent();
-                    if (e_25 instanceof Undo2) {
-                      persistedMacros = (_d = e_25.macros) !== null && _d !== void 0 ? _d : state.global.macros;
-                      persistedViewingMacros = (_e = e_25.viewingMacros) !== null && _e !== void 0 ? _e : state.global.viewingMacros;
+                    e_26 = _m.sent();
+                    if (e_26 instanceof Undo2) {
+                      persistedMacros = (_d = e_26.macros) !== null && _d !== void 0 ? _d : state.global.macros;
+                      persistedViewingMacros = (_e = e_26.viewingMacros) !== null && _e !== void 0 ? _e : state.global.viewingMacros;
                       state.updateGlobal({
                         macros: persistedMacros,
                         viewingMacros: persistedViewingMacros
                       });
                       state.undo({
-                        gameHistory: e_25.gameHistory,
-                        gameRedo: e_25.gameRedo
+                        gameHistory: e_26.gameHistory,
+                        gameRedo: e_26.gameRedo
                       });
-                    } else if (e_25 instanceof Redo) {
+                    } else if (e_26 instanceof Redo) {
                       state.redo();
                     } else {
-                      throw e_25;
+                      throw e_26;
                     }
                     return [3, 30];
                   case 30:
