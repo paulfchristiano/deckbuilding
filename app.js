@@ -7410,8 +7410,50 @@
   relicRewards.push(giftBox);
   var emptyBottle = {
     name: "Empty Bottle",
-    simpleText: ["Whenever you gain an event, gain a potion that uses that event for free."],
+    simpleText: [
+      "When you gain this, choose an event you own and gain a potion that uses that event for free.",
+      "Whenever you gain an event, gain a potion that uses that event for free."
+    ],
     metaTriggers: [{
+      kind: "relic",
+      handles: function(e, _s, self) {
+        return self.id === e.relic.id;
+      },
+      transform: function() {
+        return function(state) {
+          return __awaiter4(this, void 0, void 0, function() {
+            var event;
+            return __generator4(this, function(_a) {
+              switch (_a.label) {
+                case 0:
+                  if (state.data.collectedEvents.length === 0)
+                    return [
+                      2
+                      /*return*/
+                    ];
+                  return [4, state.ui.chooseCard(state, "Choose an event to bottle:", __spreadArray6([], __read7(state.data.collectedEvents), false), true)];
+                case 1:
+                  event = _a.sent();
+                  if (!event)
+                    return [
+                      2
+                      /*return*/
+                    ];
+                  return [4, gainPotion(makeBottledEventPotion(event), {
+                    details: "Bottled ".concat(displayName(event))
+                  })(state)];
+                case 2:
+                  _a.sent();
+                  return [
+                    2
+                    /*return*/
+                  ];
+              }
+            });
+          });
+        };
+      }
+    }, {
       kind: "event",
       handles: function() {
         return true;
@@ -12152,7 +12194,6 @@
       var _this = this;
       var d = data;
       var hasCards = metaState.data.collectedCards.length > 0;
-      var hasEvents = metaState.data.collectedEvents.length > 0;
       return [
         {
           label: "Bottle a card",
@@ -12183,43 +12224,15 @@
           }
         },
         {
-          label: "Bottle an event",
-          description: "Choose an event from your deck, and gain a potion that uses that event for free.",
-          disabled: d.selectedIndex !== null || !hasEvents,
-          checked: d.selectedIndex === 1,
-          onClick: function() {
-            return __awaiter10(_this, void 0, void 0, function() {
-              var event;
-              return __generator10(this, function(_a) {
-                switch (_a.label) {
-                  case 0:
-                    return [4, metaState.ui.chooseCard(metaState, "Choose an event to bottle:", __spreadArray7([], __read12(metaState.data.collectedEvents), false), true)];
-                  case 1:
-                    event = _a.sent();
-                    if (!event) {
-                      return [2, { newData: data }];
-                    }
-                    return [2, {
-                      newData: { selectedIndex: 1 },
-                      transform: gainPotion(makeBottledEventPotion(event), {
-                        details: "Bottled event ".concat(displayName(event))
-                      })
-                    }];
-                }
-              });
-            });
-          }
-        },
-        {
           label: "Gift Box",
           spec: giftBox,
           disabled: d.selectedIndex !== null,
-          checked: d.selectedIndex === 2,
+          checked: d.selectedIndex === 1,
           onClick: function() {
             return __awaiter10(_this, void 0, void 0, function() {
               return __generator10(this, function(_a) {
                 return [2, {
-                  newData: { selectedIndex: 2 },
+                  newData: { selectedIndex: 1 },
                   transform: gainRelic(giftBox)
                 }];
               });
@@ -12230,12 +12243,12 @@
           label: "Empty Bottle",
           spec: emptyBottle,
           disabled: d.selectedIndex !== null,
-          checked: d.selectedIndex === 3,
+          checked: d.selectedIndex === 2,
           onClick: function() {
             return __awaiter10(_this, void 0, void 0, function() {
               return __generator10(this, function(_a) {
                 return [2, {
-                  newData: { selectedIndex: 3 },
+                  newData: { selectedIndex: 2 },
                   transform: gainRelic(emptyBottle)
                 }];
               });
@@ -16284,13 +16297,9 @@
   };
   var test = {
     rewards: [
-      [1, ["card", ruinedVillage]],
-      [1, ["relic", bagOfCoins]]
+      [1, ["encounter", distillery]]
     ],
-    challenges: [
-      [1, ["boon", "Populate"]],
-      [2, ["boon", "Duplication"]]
-    ]
+    challenges: []
   };
   var SAVE_STORAGE_KEY = "roguelike.ongoingSaves.v1";
   var MAX_LAUNCHER_SAVES = 10;

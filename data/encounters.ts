@@ -26,7 +26,7 @@ import { CardSpec, CardUpgrade,
 
 import { Generator } from '../rng.js'
 import { mirrorBrew } from './potions.js'
-import { makeBottledCardPotion, makeBottledEventPotion } from './specialSpecs.js'
+import { makeBottledCardPotion } from './specialSpecs.js'
 
 function registerUpgrade(id: string, upgrade: CardUpgrade): CardUpgrade {
     upgrade.id = id
@@ -309,7 +309,6 @@ export const distillery: Encounter = {
     getOptions(data: unknown, metaState: MetaState): RewardOption[] {
         const d = data as DistilleryData
         const hasCards = metaState.data.collectedCards.length > 0
-        const hasEvents = metaState.data.collectedEvents.length > 0
 
         return [
             {
@@ -336,35 +335,12 @@ export const distillery: Encounter = {
                 }
             },
             {
-                label: 'Bottle an event',
-                description: 'Choose an event from your deck, and gain a potion that uses that event for free.',
-                disabled: d.selectedIndex !== null || !hasEvents,
-                checked: d.selectedIndex === 1,
-                onClick: async () => {
-                    const event = await metaState.ui.chooseCard(
-                        metaState,
-                        'Choose an event to bottle:',
-                        [...metaState.data.collectedEvents],
-                        true
-                    )
-                    if (!event) {
-                        return { newData: data }
-                    }
-                    return {
-                        newData: { selectedIndex: 1 },
-                        transform: gainPotion(makeBottledEventPotion(event), {
-                            details: `Bottled event ${displayName(event)}`
-                        }),
-                    }
-                }
-            },
-            {
                 label: 'Gift Box',
                 spec: giftBox,
                 disabled: d.selectedIndex !== null,
-                checked: d.selectedIndex === 2,
+                checked: d.selectedIndex === 1,
                 onClick: async () => ({
-                    newData: { selectedIndex: 2 },
+                    newData: { selectedIndex: 1 },
                     transform: gainRelic(giftBox)
                 })
             },
@@ -372,9 +348,9 @@ export const distillery: Encounter = {
                 label: 'Empty Bottle',
                 spec: emptyBottle,
                 disabled: d.selectedIndex !== null,
-                checked: d.selectedIndex === 3,
+                checked: d.selectedIndex === 2,
                 onClick: async () => ({
-                    newData: { selectedIndex: 3 },
+                    newData: { selectedIndex: 2 },
                     transform: gainRelic(emptyBottle)
                 })
             }

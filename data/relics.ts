@@ -322,8 +322,27 @@ relicRewards.push(giftBox)
 
 export const emptyBottle: RelicSpec = {
     name: 'Empty Bottle',
-    simpleText: ['Whenever you gain an event, gain a potion that uses that event for free.'],
+    simpleText: [
+        'When you gain this, choose an event you own and gain a potion that uses that event for free.',
+        'Whenever you gain an event, gain a potion that uses that event for free.'
+    ],
     metaTriggers: [{
+        kind: 'relic',
+        handles: (e: GainRelicEvent, _s: MetaState, self: Relic) => self.id === e.relic.id,
+        transform: () => async function (state: MetaState) {
+            if (state.data.collectedEvents.length === 0) return
+            const event = await state.ui.chooseCard(
+                state,
+                'Choose an event to bottle:',
+                [...state.data.collectedEvents],
+                true
+            )
+            if (!event) return
+            await gainPotion(makeBottledEventPotion(event), {
+                details: `Bottled ${displayName(event)}`
+            })(state)
+        }
+    }, {
         kind: 'event',
         handles: () => true,
         transform: (e: GainEventEvent) => gainPotion(makeBottledEventPotion(e.event), {

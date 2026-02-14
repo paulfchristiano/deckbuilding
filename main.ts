@@ -20,18 +20,13 @@ import { renderSpecNoRelated } from './cardRendering.js'
 import { Card, CardSpec, UndoPastBeginning } from './gameLogic.js'
 
 import type { DebugTestConfig } from './metaLogic.js'
-import { ruinedVillage } from './data/cards.js'
-import { bagOfCoins } from './data/relics.js'
+import { distillery } from './data/encounters.js'
 
 let test: DebugTestConfig | null = {
     rewards: [
-        [1, ['card', ruinedVillage]],
-        [1, ['relic', bagOfCoins]],
+        [1, ['encounter', distillery]],
     ],
-    challenges: [
-        [1, ['boon', 'Populate']],
-        [2, ['boon', 'Duplication']],
-    ]
+    challenges: []
 }
 
 const SAVE_STORAGE_KEY = 'roguelike.ongoingSaves.v1'
