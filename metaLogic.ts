@@ -1821,20 +1821,57 @@ interface ChallengeOverrides {
     boon?: Boon
 }
 
-function randomChallenge(state: MetaState, overrides: ChallengeOverrides = {}): ChallengeSpec {
+function nextDistinctByName<T extends { name: string }>(
+    ordered: T[],
+    used: Set<string>,
+    fallbackIndex: { value: number }
+): T {
+    const next = ordered.find(item => !used.has(item.name))
+    if (next !== undefined) {
+        used.add(next.name)
+        return next
+    }
+    const fallback = ordered[fallbackIndex.value % ordered.length]
+    fallbackIndex.value += 1
+    return fallback
+}
+
+function sampleChallengesForStage(
+    state: MetaState,
+    count: number,
+    challengeTests: ChallengeTestSpec[] = []
+): ChallengeSpec[] {
     const stage = state.data.stage
     const generator = state.generator(`challenges${stage}`)
-    const vpMode = overrides.vpMode ?? generator.sample(vpModes)
+    const vpModeOrder = generator.permute(vpModes)
     const isFinalStage = stage === TOTAL_STAGES - 1
-    const challengeBoons = overrides.boon
-        ? [overrides.boon]
-        : (isFinalStage ? [] : [generator.sample(boons)])
-    // For now, no replacement effects
-    return {
-        stage: stage,
-        vpMode: vpMode,
-        boons: challengeBoons,
+    const boonOrder = isFinalStage ? [] : generator.permute(boons)
+    const usedVPModes = new Set<string>()
+    const usedBoons = new Set<string>()
+    const vpFallbackIndex = { value: 0 }
+    const boonFallbackIndex = { value: 0 }
+    const result: ChallengeSpec[] = []
+
+    for (let pathIndex = 0; pathIndex < count; pathIndex++) {
+        const overrides = challengeOverridesForStage(challengeTests, stage, pathIndex)
+        const vpMode = overrides.vpMode ?? nextDistinctByName(vpModeOrder, usedVPModes, vpFallbackIndex)
+        usedVPModes.add(vpMode.name)
+
+        let challengeBoons: Boon[] = []
+        if (!isFinalStage) {
+            const boon = overrides.boon ?? nextDistinctByName(boonOrder, usedBoons, boonFallbackIndex)
+            usedBoons.add(boon.name)
+            challengeBoons = [boon]
+        }
+
+        result.push({
+            stage,
+            vpMode,
+            boons: challengeBoons,
+        })
     }
+
+    return result
 }
 
 interface PathSkeleton {
@@ -1860,6 +1897,7 @@ async function makePaths(state: MetaState, challengeTests: ChallengeTestSpec[] =
     const rewardsPerPath = pathRewardParams.rewardsPerPath
     const pathLabels = pathRewardParams.paths
     const pathCount = pathLabels.length
+    const challenges = sampleChallengesForStage(state, pathCount, challengeTests)
     const rewardsPerSet = 6
     const fullSet: RewardKind[] = ['card', 'card', 'event', 'encounter', 'potion', 'relic']
     const totalRewards = pathCount * rewardsPerPath
@@ -1875,11 +1913,10 @@ async function makePaths(state: MetaState, challengeTests: ChallengeTestSpec[] =
     for (let pathIndex = 0; pathIndex < pathCount; pathIndex++) {
         const start = pathIndex * rewardsPerPath
         const end = start + rewardsPerPath
-        const challengeOverrides = challengeOverridesForStage(challengeTests, stage, pathIndex)
         paths.push({
             label: pathLabels[pathIndex] ?? 'Path',
             rewards: shuffledRewards.slice(start, end),
-            challenges: [randomChallenge(state, challengeOverrides)]
+            challenges: [challenges[pathIndex]]
         })
     }
     return paths
@@ -2353,13 +2390,11 @@ export async function playGame(
 
     if (!initialSnapshot) {
         // Stage 0 offers two challenge options
+        const initialChallenges = sampleChallengesForStage(state, 2, tests.challenges)
         const initialPath = pathFromSkeleton({
             label: 'Go left',
             rewards: ['card', 'card', 'event', 'potion'] as RewardKind[],
-            challenges: [
-                randomChallenge(state, challengeOverridesForStage(tests.challenges, 0, 0)),
-                randomChallenge(state, challengeOverridesForStage(tests.challenges, 0, 1))
-            ]
+            challenges: initialChallenges
         })
         for (const testSpec of rewardTestsForStage(tests.rewards, 0)) {
             initialPath.rewardStates.push(makeTestReward(state, testSpec))

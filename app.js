@@ -6053,25 +6053,54 @@
     }
     return { cards, events };
   }
-  function randomChallenge(state, overrides) {
-    var _a;
-    if (overrides === void 0) {
-      overrides = {};
+  function nextDistinctByName(ordered, used, fallbackIndex) {
+    var next = ordered.find(function(item) {
+      return !used.has(item.name);
+    });
+    if (next !== void 0) {
+      used.add(next.name);
+      return next;
+    }
+    var fallback = ordered[fallbackIndex.value % ordered.length];
+    fallbackIndex.value += 1;
+    return fallback;
+  }
+  function sampleChallengesForStage(state, count, challengeTests) {
+    var _a, _b;
+    if (challengeTests === void 0) {
+      challengeTests = [];
     }
     var stage = state.data.stage;
     var generator = state.generator("challenges".concat(stage));
-    var vpMode = (_a = overrides.vpMode) !== null && _a !== void 0 ? _a : generator.sample(vpModes);
+    var vpModeOrder = generator.permute(vpModes);
     var isFinalStage = stage === TOTAL_STAGES - 1;
-    var challengeBoons = overrides.boon ? [overrides.boon] : isFinalStage ? [] : [generator.sample(boons)];
-    return {
-      stage,
-      vpMode,
-      boons: challengeBoons
-    };
+    var boonOrder = isFinalStage ? [] : generator.permute(boons);
+    var usedVPModes = /* @__PURE__ */ new Set();
+    var usedBoons = /* @__PURE__ */ new Set();
+    var vpFallbackIndex = { value: 0 };
+    var boonFallbackIndex = { value: 0 };
+    var result = [];
+    for (var pathIndex = 0; pathIndex < count; pathIndex++) {
+      var overrides = challengeOverridesForStage(challengeTests, stage, pathIndex);
+      var vpMode = (_a = overrides.vpMode) !== null && _a !== void 0 ? _a : nextDistinctByName(vpModeOrder, usedVPModes, vpFallbackIndex);
+      usedVPModes.add(vpMode.name);
+      var challengeBoons = [];
+      if (!isFinalStage) {
+        var boon = (_b = overrides.boon) !== null && _b !== void 0 ? _b : nextDistinctByName(boonOrder, usedBoons, boonFallbackIndex);
+        usedBoons.add(boon.name);
+        challengeBoons = [boon];
+      }
+      result.push({
+        stage,
+        vpMode,
+        boons: challengeBoons
+      });
+    }
+    return result;
   }
   function makePaths(state_1) {
     return __awaiter3(this, arguments, void 0, function(state, challengeTests) {
-      var stage, generator, baseRewardsPerPath, basePaths, pathRewardParams, rewardsPerPath, pathLabels, pathCount, rewardsPerSet, fullSet, totalRewards, completeSets, partialSetRewards, rewardPool, i, shuffledRewards, paths, pathIndex, start, end, challengeOverrides;
+      var stage, generator, baseRewardsPerPath, basePaths, pathRewardParams, rewardsPerPath, pathLabels, pathCount, challenges, rewardsPerSet, fullSet, totalRewards, completeSets, partialSetRewards, rewardPool, i, shuffledRewards, paths, pathIndex, start, end;
       var _a;
       if (challengeTests === void 0) {
         challengeTests = [];
@@ -6097,6 +6126,7 @@
             rewardsPerPath = pathRewardParams.rewardsPerPath;
             pathLabels = pathRewardParams.paths;
             pathCount = pathLabels.length;
+            challenges = sampleChallengesForStage(state, pathCount, challengeTests);
             rewardsPerSet = 6;
             fullSet = ["card", "card", "event", "encounter", "potion", "relic"];
             totalRewards = pathCount * rewardsPerPath;
@@ -6112,11 +6142,10 @@
             for (pathIndex = 0; pathIndex < pathCount; pathIndex++) {
               start = pathIndex * rewardsPerPath;
               end = start + rewardsPerPath;
-              challengeOverrides = challengeOverridesForStage(challengeTests, stage, pathIndex);
               paths.push({
                 label: (_a = pathLabels[pathIndex]) !== null && _a !== void 0 ? _a : "Path",
                 rewards: shuffledRewards.slice(start, end),
-                challenges: [randomChallenge(state, challengeOverrides)]
+                challenges: [challenges[pathIndex]]
               });
             }
             return [2, paths];
@@ -6627,7 +6656,7 @@
   }
   function playGame2(ui_1) {
     return __awaiter3(this, arguments, void 0, function(ui, test2, seed, initialSnapshot, onStateChange, debugEnabled) {
-      var state, tests, initialPath, _a, _b, testSpec, _loop_1, state_1;
+      var state, tests, initialChallenges, initialPath, _a, _b, testSpec, _loop_1, state_1;
       var e_23, _c;
       var _d, _e;
       if (test2 === void 0) {
@@ -6654,13 +6683,11 @@
             } : null);
             tests = state.debugEnabled ? normalizeTests(test2) : { rewards: [], challenges: [] };
             if (!initialSnapshot) {
+              initialChallenges = sampleChallengesForStage(state, 2, tests.challenges);
               initialPath = pathFromSkeleton({
                 label: "Go left",
                 rewards: ["card", "card", "event", "potion"],
-                challenges: [
-                  randomChallenge(state, challengeOverridesForStage(tests.challenges, 0, 0)),
-                  randomChallenge(state, challengeOverridesForStage(tests.challenges, 0, 1))
-                ]
+                challenges: initialChallenges
               });
               try {
                 for (_a = __values4(rewardTestsForStage(tests.rewards, 0)), _b = _a.next(); !_b.done; _b = _a.next()) {
