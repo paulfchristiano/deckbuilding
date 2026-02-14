@@ -2204,25 +2204,74 @@
     });
   }
   function choice(state_1, prompt_1, options_1) {
-    return __awaiter(this, arguments, void 0, function(state, prompt, options, info, chosen) {
-      var index, indices, newState;
-      var _a;
+    return __awaiter(this, arguments, void 0, function(state, prompt, options, info, chosen, presentedIndices) {
+      var index, visibleIndices, boundedVisibleIndices, visibleOptions, canonicalToVisible, _a, _b, _c, visibleIndex, canonicalIndex, visibleChosen, newState;
+      var e_37, _d, _e;
+      var _this = this;
       if (info === void 0) {
         info = [];
       }
       if (chosen === void 0) {
         chosen = [];
       }
-      return __generator(this, function(_b) {
-        switch (_b.label) {
+      if (presentedIndices === void 0) {
+        presentedIndices = null;
+      }
+      return __generator(this, function(_f) {
+        switch (_f.label) {
           case 0:
             if (options.length == 0 && info.indexOf("actChoice") == -1)
               return [2, [state, null]];
+            visibleIndices = presentedIndices !== null && presentedIndices !== void 0 ? presentedIndices : options.map(function(_, i) {
+              return i;
+            });
+            boundedVisibleIndices = visibleIndices.filter(function(i) {
+              return i >= 0 && i < options.length;
+            });
+            visibleOptions = boundedVisibleIndices.map(function(i) {
+              return options[i];
+            });
+            canonicalToVisible = /* @__PURE__ */ new Map();
+            try {
+              for (_a = __values(boundedVisibleIndices.entries()), _b = _a.next(); !_b.done; _b = _a.next()) {
+                _c = __read(_b.value, 2), visibleIndex = _c[0], canonicalIndex = _c[1];
+                canonicalToVisible.set(canonicalIndex, visibleIndex);
+              }
+            } catch (e_37_1) {
+              e_37 = { error: e_37_1 };
+            } finally {
+              try {
+                if (_b && !_b.done && (_d = _a.return)) _d.call(_a);
+              } finally {
+                if (e_37) throw e_37.error;
+              }
+            }
+            visibleChosen = chosen.map(function(canonicalIndex2) {
+              return canonicalToVisible.get(canonicalIndex2);
+            }).filter(function(visibleIndex2) {
+              return visibleIndex2 !== void 0;
+            });
+            if (state.future.length === 0 && visibleOptions.length === 0)
+              return [2, [state, null]];
             return [4, doOrReplay(state, function() {
-              return state.ui.choice(state, prompt, options, info, chosen);
+              return __awaiter(_this, void 0, void 0, function() {
+                var visibleIndex2;
+                return __generator(this, function(_a2) {
+                  switch (_a2.label) {
+                    case 0:
+                      return [4, state.ui.choice(state, prompt, visibleOptions, info, visibleChosen)];
+                    case 1:
+                      visibleIndex2 = _a2.sent();
+                      if (visibleIndex2 >= boundedVisibleIndices.length || visibleIndex2 < 0) {
+                        throw new InvalidHistory(visibleIndex2, state);
+                      }
+                      return [2, boundedVisibleIndices[visibleIndex2]];
+                  }
+                });
+              });
             })];
           case 1:
-            _a = __read.apply(void 0, [_b.sent(), 2]), newState = _a[0], index = _a[1];
+            _e = __read.apply(void 0, [_f.sent(), 2]), newState = _e[0], index = _e[1];
             if (index >= options.length || index < 0)
               throw new InvalidHistory(index, state);
             return [2, [newState, options[index].value]];
@@ -2447,6 +2496,7 @@
     });
   }
   function actChoice(state) {
+    var e_38, _a;
     function asActChoice(kind) {
       return function(c) {
         return { render: { kind: "card", card: c }, value: [c, kind] };
@@ -2461,12 +2511,35 @@
     var supply = state.supply.filter(available("buy")).map(asActChoice("buy"));
     var events = state.events.filter(available("use")).map(asActChoice("use"));
     var play = state.play.filter(available("activate")).map(asActChoice("activate"));
+    var potions = state.potions.filter(available("potion")).map(asActChoice("potion"));
+    var nonPotionOptions = hand.concat(supply).concat(events).concat(play);
+    var options = nonPotionOptions.concat(potions);
     var replayUsedPotions = state.spec.replayUsedPotionIDs;
-    var allowedPotion = function(card) {
-      return replayUsedPotions === void 0 || replayUsedPotions.includes(card.id);
-    };
-    var potions = state.potions.filter(allowedPotion).filter(available("potion")).map(asActChoice("potion"));
-    return choice(state, "Buy a card (costs 1 buy),\n        play a card from your hand (costs 1 action),\n        use an event, or drink a potion.", hand.concat(supply).concat(events).concat(play).concat(potions), ["actChoice"]);
+    if (replayUsedPotions === void 0) {
+      return choice(state, "Buy a card (costs 1 buy),\n        play a card from your hand (costs 1 action),\n        use an event, or drink a potion.", options, ["actChoice"]);
+    }
+    var allowedPotionIDs = new Set(replayUsedPotions);
+    var presentedIndices = nonPotionOptions.map(function(_, i) {
+      return i;
+    });
+    try {
+      for (var _b = __values(potions.entries()), _c = _b.next(); !_c.done; _c = _b.next()) {
+        var _d = __read(_c.value, 2), potionIndex = _d[0], option = _d[1];
+        var _e = __read(option.value, 1), card = _e[0];
+        if (allowedPotionIDs.has(card.id)) {
+          presentedIndices.push(nonPotionOptions.length + potionIndex);
+        }
+      }
+    } catch (e_38_1) {
+      e_38 = { error: e_38_1 };
+    } finally {
+      try {
+        if (_c && !_c.done && (_a = _b.return)) _a.call(_b);
+      } finally {
+        if (e_38) throw e_38.error;
+      }
+    }
+    return choice(state, "Buy a card (costs 1 buy),\n        play a card from your hand (costs 1 action),\n        use an event, or drink a potion.", options, ["actChoice"], [], presentedIndices);
   }
   function coinKey(spec) {
     var cost = cardSpecCost(spec, "buy");
@@ -2490,7 +2563,7 @@
   }
   function lexical(comps) {
     return function(a2, b) {
-      var e_37, _a;
+      var e_39, _a;
       try {
         for (var comps_1 = __values(comps), comps_1_1 = comps_1.next(); !comps_1_1.done; comps_1_1 = comps_1.next()) {
           var comp = comps_1_1.value;
@@ -2498,13 +2571,13 @@
           if (result != 0)
             return result;
         }
-      } catch (e_37_1) {
-        e_37 = { error: e_37_1 };
+      } catch (e_39_1) {
+        e_39 = { error: e_39_1 };
       } finally {
         try {
           if (comps_1_1 && !comps_1_1.done && (_a = comps_1.return)) _a.call(comps_1);
         } finally {
-          if (e_37) throw e_37.error;
+          if (e_39) throw e_39.error;
         }
       }
       return 0;
@@ -2520,7 +2593,7 @@
     nameComp
   ]);
   function maxID(cards) {
-    var e_38, _a;
+    var e_40, _a;
     var max = 0;
     try {
       for (var cards_1 = __values(cards), cards_1_1 = cards_1.next(); !cards_1_1.done; cards_1_1 = cards_1.next()) {
@@ -2528,32 +2601,32 @@
         if (card.id > max)
           max = card.id;
       }
-    } catch (e_38_1) {
-      e_38 = { error: e_38_1 };
+    } catch (e_40_1) {
+      e_40 = { error: e_40_1 };
     } finally {
       try {
         if (cards_1_1 && !cards_1_1.done && (_a = cards_1.return)) _a.call(cards_1);
       } finally {
-        if (e_38) throw e_38.error;
+        if (e_40) throw e_40.error;
       }
     }
     return max;
   }
   function initialState(spec, ui) {
-    var e_39, _a, e_40, _b;
+    var e_41, _a, e_42, _b;
     var state = new State(spec, ui);
     try {
       for (var _c = __values(spec.potions), _d = _c.next(); !_d.done; _d = _c.next()) {
         var potion = _d.value;
         state = state.addToZone(potion, "potions");
       }
-    } catch (e_39_1) {
-      e_39 = { error: e_39_1 };
+    } catch (e_41_1) {
+      e_41 = { error: e_41_1 };
     } finally {
       try {
         if (_d && !_d.done && (_a = _c.return)) _a.call(_c);
       } finally {
-        if (e_39) throw e_39.error;
+        if (e_41) throw e_41.error;
       }
     }
     try {
@@ -2561,13 +2634,13 @@
         var relic = _f.value;
         state = state.addToZone(relic, "relics");
       }
-    } catch (e_40_1) {
-      e_40 = { error: e_40_1 };
+    } catch (e_42_1) {
+      e_42 = { error: e_42_1 };
     } finally {
       try {
         if (_f && !_f.done && (_b = _e.return)) _b.call(_e);
       } finally {
-        if (e_40) throw e_40.error;
+        if (e_42) throw e_42.error;
       }
     }
     state = state.update({ nextID: maxID(spec.potions.concat(spec.relics)) + 1 });
@@ -2582,7 +2655,7 @@
     return xs.values();
   }
   function undoOrSet(to, from) {
-    var e_41, _a;
+    var e_43, _a;
     var newHistory = to.origin().future;
     var oldHistory = from.origin().future;
     var newRedo = from.redo.slice();
@@ -2597,13 +2670,13 @@
             predecessor = false;
           }
         }
-      } catch (e_41_1) {
-        e_41 = { error: e_41_1 };
+      } catch (e_43_1) {
+        e_43 = { error: e_43_1 };
       } finally {
         try {
           if (_c && !_c.done && (_a = _b.return)) _a.call(_b);
         } finally {
-          if (e_41) throw e_41.error;
+          if (e_43) throw e_43.error;
         }
       }
     }
@@ -2913,7 +2986,7 @@
     throw new Error("Unexpected: ".concat(x));
   }
   function countDistinct(xs) {
-    var e_42, _a;
+    var e_44, _a;
     var distinct = /* @__PURE__ */ new Set();
     var result = 0;
     try {
@@ -2924,13 +2997,13 @@
           distinct.add(x);
         }
       }
-    } catch (e_42_1) {
-      e_42 = { error: e_42_1 };
+    } catch (e_44_1) {
+      e_44 = { error: e_44_1 };
     } finally {
       try {
         if (xs_1_1 && !xs_1_1.done && (_a = xs_1.return)) _a.call(xs_1);
       } finally {
-        if (e_42) throw e_42.error;
+        if (e_44) throw e_44.error;
       }
     }
     return result;

@@ -1603,12 +1603,31 @@ export async function choice<T>(
     options:Option<T>[],
     info:string[] = [],
     chosen:number[] = [],
+    presentedIndices:number[]|null = null,
 ): Promise<[State, T|null]> {
     let index:number;
     if (options.length == 0 && info.indexOf('actChoice') == -1) return [state, null];
-    let indices:number[], newState:State; [newState, index] = await doOrReplay(
+    const visibleIndices = presentedIndices ?? options.map((_, i) => i)
+    const boundedVisibleIndices = visibleIndices.filter(i => i >= 0 && i < options.length)
+    const visibleOptions = boundedVisibleIndices.map(i => options[i])
+    const canonicalToVisible = new Map<number, number>()
+    for (const [visibleIndex, canonicalIndex] of boundedVisibleIndices.entries()) {
+        canonicalToVisible.set(canonicalIndex, visibleIndex)
+    }
+    const visibleChosen = chosen
+        .map(canonicalIndex => canonicalToVisible.get(canonicalIndex))
+        .filter((visibleIndex): visibleIndex is number => visibleIndex !== undefined)
+    if (state.future.length === 0 && visibleOptions.length === 0) return [state, null]
+
+    let newState:State; [newState, index] = await doOrReplay(
         state,
-        () => state.ui.choice(state, prompt, options, info, chosen)
+        async () => {
+            const visibleIndex = await state.ui.choice(state, prompt, visibleOptions, info, visibleChosen)
+            if (visibleIndex >= boundedVisibleIndices.length || visibleIndex < 0) {
+                throw new InvalidHistory(visibleIndex, state)
+            }
+            return boundedVisibleIndices[visibleIndex]
+        }
     )
     if (index >= options.length || index < 0)
         throw new InvalidHistory(index, state)
@@ -1784,14 +1803,28 @@ function actChoice(state:State): Promise<[State, [Card, ActionKind]|null]> {
     const supply = state.supply.filter(available('buy')).map(asActChoice('buy'))
     const events = state.events.filter(available('use')).map(asActChoice('use'))
     const play = state.play.filter(available('activate')).map(asActChoice('activate'))
+    const potions = state.potions.filter(available('potion')).map(asActChoice('potion'))
+    const nonPotionOptions = hand.concat(supply).concat(events).concat(play)
+    const options = nonPotionOptions.concat(potions)
     const replayUsedPotions = state.spec.replayUsedPotionIDs
-    const allowedPotion = (card: Card) =>
-        replayUsedPotions === undefined || replayUsedPotions.includes(card.id)
-    const potions = state.potions.filter(allowedPotion).filter(available('potion')).map(asActChoice('potion'))
+    if (replayUsedPotions === undefined) {
+        return choice(state, `Buy a card (costs 1 buy),
+        play a card from your hand (costs 1 action),
+        use an event, or drink a potion.`,
+        options, ['actChoice'])
+    }
+    const allowedPotionIDs = new Set(replayUsedPotions)
+    const presentedIndices = nonPotionOptions.map((_, i) => i)
+    for (const [potionIndex, option] of potions.entries()) {
+        const [card] = option.value
+        if (allowedPotionIDs.has(card.id)) {
+            presentedIndices.push(nonPotionOptions.length + potionIndex)
+        }
+    }
     return choice(state, `Buy a card (costs 1 buy),
         play a card from your hand (costs 1 action),
         use an event, or drink a potion.`,
-        hand.concat(supply).concat(events).concat(play).concat(potions), ['actChoice'])
+        options, ['actChoice'], [], presentedIndices)
     /*
     return choice(state, `Use an event or card in play,
         pay a buy to buy a card from the supply,
