@@ -7023,14 +7023,14 @@
   relicRewards.push(inkwell);
   var elegantQuill = {
     name: "Elegant Quill",
-    simpleText: ["+3@ buffer when you gain this."],
+    simpleText: ["+2@ buffer when you gain this."],
     metaTriggers: [{
       kind: "relic",
       handles: function(e, s, self) {
         return self.id == e.relic.id;
       },
       transform: function(e) {
-        return addBuffer(3);
+        return addBuffer(2);
       }
     }]
   };

@@ -80,14 +80,14 @@ export const inkwell: RelicSpec = {
 }
 relicRewards.push(inkwell)
 
-// Elegant Quill: Gain 3@ buffer (one-time effect on acquisition)
+// Elegant Quill: Gain 2@ buffer (one-time effect on acquisition)
 export const elegantQuill: RelicSpec = {
     name: 'Elegant Quill',
-    simpleText: [`+3@ buffer when you gain this.`],
+    simpleText: [`+2@ buffer when you gain this.`],
     metaTriggers: [{
         kind: 'relic',
         handles: (e: GainRelicEvent, s: MetaState, self: Relic) => self.id == e.relic.id,
-        transform: (e: GainRelicEvent) => addBuffer(3)
+        transform: (e: GainRelicEvent) => addBuffer(2)
     }]
 }
 relicRewards.push(elegantQuill)
