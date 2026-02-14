@@ -8893,59 +8893,38 @@
     name: "Ritual",
     buyCost: coin(4),
     effects: [{
-      text: ["Play then trash up to three cards from your hand.", "Choose a card in the supply whose cost is less than or equal to the sum of their costs, and create a copy in your discard."],
+      text: ["Play then trash two cards from your hand.", "If you do, choose a card in the supply whose cost is less than or equal to the sum of their costs, and create a copy in your discard."],
       transform: function(s, card) {
         return function(state) {
           return __awaiter5(this, void 0, void 0, function() {
-            function doCardPlayAndTrash(target2) {
-              return function(state2) {
-                return __awaiter5(this, void 0, void 0, function() {
-                  return __generator5(this, function(_a2) {
-                    switch (_a2.label) {
-                      case 0:
-                        return [4, target2.play(card)(state2)];
-                      case 1:
-                        state2 = _a2.sent();
-                        return [4, trash(target2)(state2)];
-                      case 2:
-                        state2 = _a2.sent();
-                        targets.push(target2);
-                        return [2, state2];
-                    }
-                  });
-                });
-              };
-            }
-            var targets, cost, i, target;
+            var cost, i, target;
             var _a;
             return __generator5(this, function(_b) {
               switch (_b.label) {
                 case 0:
-                  targets = [];
                   cost = __assign4(__assign4({}, free), { buys: 1 });
                   i = 0;
                   _b.label = 1;
                 case 1:
-                  if (!(i < 3)) return [3, 7];
+                  if (!(i < 2)) return [3, 6];
                   target = void 0;
-                  return [4, choice(state, "Choose a card to play then trash (".concat(3 - i, " remaining, $").concat(cost.coin, " total cost so far)"), allowNull(state.hand.map(asChoice)))];
+                  return [4, choice(state, "Choose a card to play then trash (".concat(2 - i, " remaining, $").concat(cost.coin, " total cost so far)"), state.hand.map(asChoice))];
                 case 2:
                   _a = __read8.apply(void 0, [_b.sent(), 2]), state = _a[0], target = _a[1];
-                  if (!(target === null)) return [3, 3];
-                  return [3, 6];
-                case 3:
+                  if (target === null)
+                    return [2, state];
                   return [4, target.play(card)(state)];
-                case 4:
+                case 3:
                   state = _b.sent();
                   return [4, trash(target)(state)];
-                case 5:
+                case 4:
                   state = _b.sent();
                   cost = addCosts(cost, target.cost("buy", state));
-                  _b.label = 6;
-                case 6:
+                  _b.label = 5;
+                case 5:
                   i++;
                   return [3, 1];
-                case 7:
+                case 6:
                   return [4, applyToTarget(function(copyTarget) {
                     return create(copyTarget.spec, "discard");
                   }, "Choose a card to copy.", function(s2) {
@@ -8953,7 +8932,7 @@
                       return leq(c.cost("buy", state), cost);
                     });
                   })(state)];
-                case 8:
+                case 7:
                   state = _b.sent();
                   return [2, state];
               }
@@ -16210,7 +16189,7 @@
   };
   var test = {
     rewards: [
-      [1, ["encounter", distillery]]
+      [1, ["card", ritual]]
     ],
     challenges: []
   };

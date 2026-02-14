@@ -1181,37 +1181,25 @@ const stables:CardSpec = {
 }
 cardRewards.push(stables)
 
-const ritual:CardSpec = {
+export const ritual:CardSpec = {
     name: 'Ritual',
     buyCost: coin(4),
     effects: [{
-        text: [`Play then trash up to three cards from your hand.`,
-                `Choose a card in the supply whose cost is less than or equal to the sum of their costs, and create a copy in your discard.`],
+        text: [`Play then trash two cards from your hand.`,
+                `If you do, choose a card in the supply whose cost is less than or equal to the sum of their costs, and create a copy in your discard.`],
         transform: (s, card) => async function(state) {
-            const targets:Card[] = []
-            function doCardPlayAndTrash(target:Card):Transform {
-                return async function(state:State) {
-                    state = await target.play(card)(state)
-                    state = await trash(target)(state)
-                    targets.push(target)
-                    return state
-                }
-            }
             let cost:Cost = {...free, buys:1}
-            for (let i = 0; i < 3; i++) {
+            for (let i = 0; i < 2; i++) {
                 let target:Card|null; [state, target] = await choice(
                     state,
-                    `Choose a card to play then trash (${3-i} remaining, $${cost.coin} total cost so far)`,
-                    allowNull(state.hand.map(asChoice))
+                    `Choose a card to play then trash (${2-i} remaining, $${cost.coin} total cost so far)`,
+                    state.hand.map(asChoice)
                 )
-                if (target === null) {
-                    continue
-                } else {
-                    state = await target.play(card)(state)
-                    state = await trash(target)(state)
-                    cost = addCosts(cost, target.cost('buy', state))
+                if (target === null) return state
+                state = await target.play(card)(state)
+                state = await trash(target)(state)
+                cost = addCosts(cost, target.cost('buy', state))
                 }
-            }
             state = await applyToTarget(
                 copyTarget => create(copyTarget.spec, 'discard'),
                 'Choose a card to copy.',
