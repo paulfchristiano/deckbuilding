@@ -11741,6 +11741,17 @@
     }
     return to.concat(ar || Array.prototype.slice.call(from));
   };
+  var __values9 = function(o) {
+    var s = typeof Symbol === "function" && Symbol.iterator, m = s && o[s], i = 0;
+    if (m) return m.call(o);
+    if (o && typeof o.length === "number") return {
+      next: function() {
+        if (o && i >= o.length) o = void 0;
+        return { value: o && o[i++], done: !o };
+      }
+    };
+    throw new TypeError(s ? "Object is not iterable." : "Symbol.iterator is not defined.");
+  };
   function registerUpgrade(id, upgrade) {
     upgrade.id = id;
     registerEncounterUpgrade(id, upgrade);
@@ -12741,16 +12752,74 @@
           }
         },
         {
-          label: "Mirror brew",
-          spec: mirrorBrew,
+          label: "Duplicate your potions",
+          description: "For each potion you have, gain a copy of that potion.",
           disabled: d.selectedIndex !== null,
           checked: d.selectedIndex === 1,
           onClick: function() {
             return __awaiter10(_this, void 0, void 0, function() {
+              var copiedPotionNames, details;
+              var _this2 = this;
               return __generator10(this, function(_a) {
+                copiedPotionNames = metaState.data.potions.map(function(p) {
+                  return displayName(p.spec);
+                });
+                details = copiedPotionNames.length > 0 ? "Copied: ".concat(copiedPotionNames.join(", ")) : "Copied: none";
                 return [2, {
                   newData: __assign8(__assign8({}, d), { selectedIndex: 1 }),
-                  transform: gainPotion(mirrorBrew, { details: "Potion Lab" })
+                  transform: function(state) {
+                    return __awaiter10(_this2, void 0, void 0, function() {
+                      var potionSpecs, potionSpecs_1, potionSpecs_1_1, spec, e_1_1;
+                      var e_1, _a2;
+                      return __generator10(this, function(_b) {
+                        switch (_b.label) {
+                          case 0:
+                            return [4, addTimelineAction("Potion Lab", details)(state)];
+                          case 1:
+                            _b.sent();
+                            potionSpecs = state.data.potions.map(function(p) {
+                              return p.spec;
+                            });
+                            _b.label = 2;
+                          case 2:
+                            _b.trys.push([2, 7, 8, 9]);
+                            potionSpecs_1 = __values9(potionSpecs), potionSpecs_1_1 = potionSpecs_1.next();
+                            _b.label = 3;
+                          case 3:
+                            if (!!potionSpecs_1_1.done) return [3, 6];
+                            spec = potionSpecs_1_1.value;
+                            return [4, gainPotion(spec, { silent: true })(state)];
+                          case 4:
+                            _b.sent();
+                            _b.label = 5;
+                          case 5:
+                            potionSpecs_1_1 = potionSpecs_1.next();
+                            return [3, 3];
+                          case 6:
+                            return [3, 9];
+                          case 7:
+                            e_1_1 = _b.sent();
+                            e_1 = { error: e_1_1 };
+                            return [3, 9];
+                          case 8:
+                            try {
+                              if (potionSpecs_1_1 && !potionSpecs_1_1.done && (_a2 = potionSpecs_1.return)) _a2.call(potionSpecs_1);
+                            } finally {
+                              if (e_1) throw e_1.error;
+                            }
+                            return [
+                              7
+                              /*endfinally*/
+                            ];
+                          case 9:
+                            return [
+                              2
+                              /*return*/
+                            ];
+                        }
+                      });
+                    });
+                  }
                 }];
               });
             });
@@ -13125,7 +13194,7 @@
   registerEncounter(callYourShot, { maxStage: 4 });
 
   // public/progressSidebar.js
-  var __values9 = function(o) {
+  var __values10 = function(o) {
     var s = typeof Symbol === "function" && Symbol.iterator, m = s && o[s], i = 0;
     if (m) return m.call(o);
     if (o && typeof o.length === "number") return {
@@ -13148,7 +13217,7 @@
     var circles = document.querySelectorAll("".concat(selector, " .progressCircle"));
     var byStage = /* @__PURE__ */ new Map();
     try {
-      for (var stages_1 = __values9(stages), stages_1_1 = stages_1.next(); !stages_1_1.done; stages_1_1 = stages_1.next()) {
+      for (var stages_1 = __values10(stages), stages_1_1 = stages_1.next(); !stages_1_1.done; stages_1_1 = stages_1.next()) {
         var stage = stages_1_1.value;
         byStage.set(stage.stage, stage);
       }
@@ -13310,7 +13379,7 @@
       return { value: op[0] ? op[1] : void 0, done: true };
     }
   };
-  var __values10 = function(o) {
+  var __values11 = function(o) {
     var s = typeof Symbol === "function" && Symbol.iterator, m = s && o[s], i = 0;
     if (m) return m.call(o);
     if (o && typeof o.length === "number") return {
@@ -13668,7 +13737,7 @@
     var e_1, _a;
     var counts = /* @__PURE__ */ new Map();
     try {
-      for (var cards_1 = __values10(cards), cards_1_1 = cards_1.next(); !cards_1_1.done; cards_1_1 = cards_1.next()) {
+      for (var cards_1 = __values11(cards), cards_1_1 = cards_1.next(); !cards_1_1.done; cards_1_1 = cards_1.next()) {
         var card = cards_1_1.value;
         counts.set(card.name, (counts.get(card.name) || 0) + 1);
       }
@@ -13687,7 +13756,7 @@
     var e_2, _a;
     var names = new Set(__spreadArray8(__spreadArray8([], __read13(start.keys()), false), __read13(current.keys()), false));
     try {
-      for (var names_1 = __values10(names), names_1_1 = names_1.next(); !names_1_1.done; names_1_1 = names_1.next()) {
+      for (var names_1 = __values11(names), names_1_1 = names_1.next(); !names_1_1.done; names_1_1 = names_1.next()) {
         var name_1 = names_1_1.value;
         var decrease = (start.get(name_1) || 0) - (current.get(name_1) || 0);
         if (decrease > 0) {
@@ -13737,7 +13806,7 @@
   function hasRequiredCounts(required, current) {
     var e_3, _a;
     try {
-      for (var required_1 = __values10(required), required_1_1 = required_1.next(); !required_1_1.done; required_1_1 = required_1.next()) {
+      for (var required_1 = __values11(required), required_1_1 = required_1.next(); !required_1_1.done; required_1_1 = required_1.next()) {
         var _b = __read13(required_1_1.value, 2), name_2 = _b[0], minimum = _b[1];
         if ((current.get(name_2) || 0) < minimum)
           return false;
@@ -13835,7 +13904,7 @@
           var seenGroups = /* @__PURE__ */ new Set();
           var groupRank = 0;
           try {
-            for (var cards_2 = __values10(cards), cards_2_1 = cards_2.next(); !cards_2_1.done; cards_2_1 = cards_2.next()) {
+            for (var cards_2 = __values11(cards), cards_2_1 = cards_2.next(); !cards_2_1.done; cards_2_1 = cards_2.next()) {
               var card = cards_2_1.value;
               var groupKey = cardGroupKey(card);
               if (seenGroups.has(groupKey))
@@ -13862,7 +13931,7 @@
         setFrom(state.play, supplyAndPlayHotkeys);
         setFrom(state.potions, potionHotkeys);
         try {
-          for (var options_1 = __values10(options), options_1_1 = options_1.next(); !options_1_1.done; options_1_1 = options_1.next()) {
+          for (var options_1 = __values11(options), options_1_1 = options_1.next(); !options_1_1.done; options_1_1 = options_1.next()) {
             var option = options_1_1.value;
             var hint = interpretHint(option.hotkeyHint);
             if (hint && !result.has(renderKey(option.render)) && !takenByPickable(hint)) {
@@ -13880,7 +13949,7 @@
         }
         var index = 0;
         try {
-          for (var options_2 = __values10(options), options_2_1 = options_2.next(); !options_2_1.done; options_2_1 = options_2.next()) {
+          for (var options_2 = __values11(options), options_2_1 = options_2.next(); !options_2_1.done; options_2_1 = options_2.next()) {
             var option = options_2_1.value;
             if (!result.has(renderKey(option.render))) {
               while (index < hotkeys.length && takenByPickable(hotkeys[index])) {
@@ -13924,7 +13993,7 @@
         var e_7, _a;
         var parts = [];
         try {
-          for (var tokens_1 = __values10(tokens), tokens_1_1 = tokens_1.next(); !tokens_1_1.done; tokens_1_1 = tokens_1.next()) {
+          for (var tokens_1 = __values11(tokens), tokens_1_1 = tokens_1.next(); !tokens_1_1.done; tokens_1_1 = tokens_1.next()) {
             var _b = __read13(tokens_1_1.value, 2), token = _b[0], count = _b[1];
             if (count > 0) {
               var idx = this.getTokenIndex(token);
@@ -13948,7 +14017,7 @@
         var e_8, _a;
         var parts = [];
         try {
-          for (var tokens_2 = __values10(tokens), tokens_2_1 = tokens_2.next(); !tokens_2_1.done; tokens_2_1 = tokens_2.next()) {
+          for (var tokens_2 = __values11(tokens), tokens_2_1 = tokens_2.next(); !tokens_2_1.done; tokens_2_1 = tokens_2.next()) {
             var _b = __read13(tokens_2_1.value, 2), token = _b[0], count = _b[1];
             if (count > 0) {
               parts.push(count === 1 ? token : "".concat(token, " (").concat(count, ")"));
@@ -13993,7 +14062,7 @@
     var e_9, _a;
     var parts = [];
     try {
-      for (var _b = __values10(cardSpecEffects(spec)), _c = _b.next(); !_c.done; _c = _b.next()) {
+      for (var _b = __values11(cardSpecEffects(spec)), _c = _b.next(); !_c.done; _c = _b.next()) {
         var effect = _c.value;
         parts.push.apply(parts, __spreadArray8([], __read13(effect.text), false));
       }
@@ -14014,7 +14083,7 @@
     var e_10, _a;
     var parts = [];
     try {
-      for (var _b = __values10(spec.ability || []), _c = _b.next(); !_c.done; _c = _b.next()) {
+      for (var _b = __values11(spec.ability || []), _c = _b.next(); !_c.done; _c = _b.next()) {
         var effect = _c.value;
         parts.push.apply(parts, __spreadArray8([], __read13(effect.text.map(function(x) {
           return "<div>(ability) ".concat(x, "</div>");
@@ -14057,7 +14126,7 @@
     var e_11, _a, e_12, _b;
     var parts = [];
     try {
-      for (var _c = __values10(rule.triggers || []), _d = _c.next(); !_d.done; _d = _c.next()) {
+      for (var _c = __values11(rule.triggers || []), _d = _c.next(); !_d.done; _d = _c.next()) {
         var trigger3 = _d.value;
         parts.push("<div>(rule) ".concat(trigger3.text, "</div>"));
       }
@@ -14071,7 +14140,7 @@
       }
     }
     try {
-      for (var _e = __values10(rule.replacers || []), _f = _e.next(); !_f.done; _f = _e.next()) {
+      for (var _e = __values11(rule.replacers || []), _f = _e.next(); !_f.done; _f = _e.next()) {
         var replacer = _f.value;
         parts.push("<div>(rule) ".concat(replacer.text, "</div>"));
       }
@@ -14234,7 +14303,7 @@
     var first = /* @__PURE__ */ new Map();
     var last = /* @__PURE__ */ new Map();
     try {
-      for (var cards_3 = __values10(cards), cards_3_1 = cards_3.next(); !cards_3_1.done; cards_3_1 = cards_3.next()) {
+      for (var cards_3 = __values11(cards), cards_3_1 = cards_3.next(); !cards_3_1.done; cards_3_1 = cards_3.next()) {
         var card = cards_3_1.value;
         var s = sketchCard(card, settings);
         if (!counts.has(s)) {
@@ -14331,7 +14400,7 @@
       return renderCard(c, state, "resolving", {}, globalRendererState.tokenRenderer);
     }).join("");
     try {
-      for (var zoneNames_1 = __values10(zoneNames), zoneNames_1_1 = zoneNames_1.next(); !zoneNames_1_1.done; zoneNames_1_1 = zoneNames_1.next()) {
+      for (var zoneNames_1 = __values11(zoneNames), zoneNames_1_1 = zoneNames_1.next(); !zoneNames_1_1.done; zoneNames_1_1 = zoneNames_1.next()) {
         var zone = zoneNames_1_1.value;
         renderZone(state, zone, settings);
       }
@@ -14361,7 +14430,7 @@
   function setVisibleLog(state, logType, ui) {
     var e_15, _a;
     try {
-      for (var logTypes_1 = __values10(logTypes), logTypes_1_1 = logTypes_1.next(); !logTypes_1_1.done; logTypes_1_1 = logTypes_1.next()) {
+      for (var logTypes_1 = __values11(logTypes), logTypes_1_1 = logTypes_1.next(); !logTypes_1_1.done; logTypes_1_1 = logTypes_1.next()) {
         var lt = logTypes_1_1.value;
         var el = querySelector(".logOption[option=".concat(lt, "]"));
         if (el) {
@@ -14403,7 +14472,7 @@
       }
     };
     try {
-      for (var _b = __values10(logs.entries()), _c = _b.next(); !_c.done; _c = _b.next()) {
+      for (var _b = __values11(logs.entries()), _c = _b.next(); !_c.done; _c = _b.next()) {
         var _d = __read13(_c.value, 2), i = _d[0], _e = __read13(_d[1], 2), _ = _e[0], state = _e[1];
         _loop_2(i, _, state);
       }
@@ -14444,7 +14513,7 @@
     var optionsMap = /* @__PURE__ */ new Map();
     var stringOptions = [];
     try {
-      for (var options_3 = __values10(options), options_3_1 = options_3.next(); !options_3_1.done; options_3_1 = options_3.next()) {
+      for (var options_3 = __values11(options), options_3_1 = options_3.next(); !options_3_1.done; options_3_1 = options_3.next()) {
         var option = options_3_1.value;
         var rendered = option.render;
         if (rendered.kind === "string") {
@@ -14464,7 +14533,7 @@
     }
     var pickMap = /* @__PURE__ */ new Map();
     try {
-      for (var _d = __values10(picks.entries()), _e = _d.next(); !_e.done; _e = _d.next()) {
+      for (var _d = __values11(picks.entries()), _e = _d.next(); !_e.done; _e = _d.next()) {
         var _f = __read13(_e.value, 2), i = _f[0], x = _f[1];
         pickMap.set(renderKey(x), i);
       }
@@ -14487,7 +14556,7 @@
     var optionsEl = getElement("options");
     clearElement(optionsEl);
     try {
-      for (var stringOptions_1 = __values10(stringOptions), stringOptions_1_1 = stringOptions_1.next(); !stringOptions_1_1.done; stringOptions_1_1 = stringOptions_1.next()) {
+      for (var stringOptions_1 = __values11(stringOptions), stringOptions_1_1 = stringOptions_1.next(); !stringOptions_1_1.done; stringOptions_1_1 = stringOptions_1.next()) {
         var option = stringOptions_1_1.value;
         var hotkey = hotkeyMap.get(option.render);
         optionsEl.appendChild(renderStringOption(option, hotkey, pickMap.get(option.render)));
@@ -14779,7 +14848,7 @@
     var e_20, _a, e_21, _b;
     var result = 0;
     try {
-      for (var _c = __values10(card.tokens), _d = _c.next(); !_d.done; _d = _c.next()) {
+      for (var _c = __values11(card.tokens), _d = _c.next(); !_d.done; _d = _c.next()) {
         var _e = __read13(_d.value, 2), token = _e[0], count = _e[1];
         if ((macroCard.tokens.get(token) || 0) < count)
           result++;
@@ -14794,7 +14863,7 @@
       }
     }
     try {
-      for (var _f = __values10(macroCard.tokens), _g = _f.next(); !_g.done; _g = _f.next()) {
+      for (var _f = __values11(macroCard.tokens), _g = _f.next(); !_g.done; _g = _f.next()) {
         var _h = __read13(_g.value, 2), token = _h[0], count = _h[1];
         if ((card.tokens.get(token) || 0) < count)
           result++;
@@ -15186,7 +15255,7 @@
       return { value: op[0] ? op[1] : void 0, done: true };
     }
   };
-  var __values11 = function(o) {
+  var __values12 = function(o) {
     var s = typeof Symbol === "function" && Symbol.iterator, m = s && o[s], i = 0;
     if (m) return m.call(o);
     if (o && typeof o.length === "number") return {
@@ -15259,7 +15328,7 @@
       gameOver: "gameOverScreen"
     };
     try {
-      for (var _b = __values11(Object.entries(screens)), _c = _b.next(); !_c.done; _c = _b.next()) {
+      for (var _b = __values12(Object.entries(screens)), _c = _b.next(); !_c.done; _c = _b.next()) {
         var _d = __read14(_c.value, 2), name_1 = _d[0], id = _d[1];
         var el = getElement2(id);
         if (name_1 === screen) {
@@ -15429,7 +15498,7 @@
       return "";
     var lines = [];
     try {
-      for (var options_1 = __values11(options), options_1_1 = options_1.next(); !options_1_1.done; options_1_1 = options_1.next()) {
+      for (var options_1 = __values12(options), options_1_1 = options_1.next(); !options_1_1.done; options_1_1 = options_1.next()) {
         var option = options_1_1.value;
         var text = option.description ? "".concat(option.label, ": ").concat(option.description) : option.label;
         lines.push(text);
@@ -15487,7 +15556,7 @@
       container.appendChild(optionEl);
     };
     try {
-      for (var options_2 = __values11(options), options_2_1 = options_2.next(); !options_2_1.done; options_2_1 = options_2.next()) {
+      for (var options_2 = __values12(options), options_2_1 = options_2.next(); !options_2_1.done; options_2_1 = options_2.next()) {
         var card = options_2_1.value;
         _loop_2(card);
       }
@@ -15579,7 +15648,7 @@
       container.appendChild(optionDiv);
     };
     try {
-      for (var options_3 = __values11(options), options_3_1 = options_3.next(); !options_3_1.done; options_3_1 = options_3.next()) {
+      for (var options_3 = __values12(options), options_3_1 = options_3.next(); !options_3_1.done; options_3_1 = options_3.next()) {
         var option = options_3_1.value;
         _loop_3(option);
       }
@@ -15689,7 +15758,7 @@
       challengeContainer.appendChild(playBtn);
     };
     try {
-      for (var _b = __values11(state.data.challenges), _c = _b.next(); !_c.done; _c = _b.next()) {
+      for (var _b = __values12(state.data.challenges), _c = _b.next(); !_c.done; _c = _b.next()) {
         var challenge = _c.value;
         _loop_4(challenge);
       }
@@ -15723,7 +15792,7 @@
     var rewardsContainer = getElement2("".concat(side, "Rewards"));
     clearElement2(rewardsContainer);
     try {
-      for (var _b = __values11(path.rewardStates), _c = _b.next(); !_c.done; _c = _b.next()) {
+      for (var _b = __values12(path.rewardStates), _c = _b.next(); !_c.done; _c = _b.next()) {
         var rewardState = _c.value;
         var rewardDiv = createDiv("pathReward");
         rewardDiv.textContent = getRewardName(rewardState);
@@ -15758,7 +15827,7 @@
     ];
     var hasContent = false;
     try {
-      for (var sections_1 = __values11(sections), sections_1_1 = sections_1.next(); !sections_1_1.done; sections_1_1 = sections_1.next()) {
+      for (var sections_1 = __values12(sections), sections_1_1 = sections_1.next(); !sections_1_1.done; sections_1_1 = sections_1.next()) {
         var section = sections_1_1.value;
         if (section.items.length > 0) {
           hasContent = true;
@@ -15768,7 +15837,7 @@
           sectionDiv.appendChild(header);
           var itemsRow = createDiv("deckSectionItems");
           try {
-            for (var _c = (e_8 = void 0, __values11(section.items)), _d = _c.next(); !_d.done; _d = _c.next()) {
+            for (var _c = (e_8 = void 0, __values12(section.items)), _d = _c.next(); !_d.done; _d = _c.next()) {
               var spec = _d.value;
               itemsRow.appendChild(createElementFromHTML2(renderSpecNoRelated(spec)));
             }
@@ -16140,7 +16209,7 @@
       return { value: op[0] ? op[1] : void 0, done: true };
     }
   };
-  var __values12 = function(o) {
+  var __values13 = function(o) {
     var s = typeof Symbol === "function" && Symbol.iterator, m = s && o[s], i = 0;
     if (m) return m.call(o);
     if (o && typeof o.length === "number") return {
@@ -16280,7 +16349,7 @@
       "seedDisplay"
     ];
     try {
-      for (var ids_1 = __values12(ids), ids_1_1 = ids_1.next(); !ids_1_1.done; ids_1_1 = ids_1.next()) {
+      for (var ids_1 = __values13(ids), ids_1_1 = ids_1.next(); !ids_1_1.done; ids_1_1 = ids_1.next()) {
         var id = ids_1_1.value;
         var el = document.getElementById(id);
         if (!el)
@@ -16469,7 +16538,7 @@
       cards.appendChild(empty);
     } else {
       try {
-        for (var specs_1 = __values12(specs), specs_1_1 = specs_1.next(); !specs_1_1.done; specs_1_1 = specs_1.next()) {
+        for (var specs_1 = __values13(specs), specs_1_1 = specs_1.next(); !specs_1_1.done; specs_1_1 = specs_1.next()) {
           var spec = specs_1_1.value;
           var wrap = document.createElement("div");
           wrap.innerHTML = renderSpecNoRelated(spec);
@@ -16588,7 +16657,7 @@
         timeline.appendChild(row);
       };
       try {
-        for (var _b = __values12(state.data.timeline), _c = _b.next(); !_c.done; _c = _b.next()) {
+        for (var _b = __values13(state.data.timeline), _c = _b.next(); !_c.done; _c = _b.next()) {
           var entry = _c.value;
           _loop_1(entry);
         }
@@ -16697,7 +16766,7 @@
         }));
       };
       try {
-        for (var slots_1 = __values12(slots), slots_1_1 = slots_1.next(); !slots_1_1.done; slots_1_1 = slots_1.next()) {
+        for (var slots_1 = __values13(slots), slots_1_1 = slots_1.next(); !slots_1_1.done; slots_1_1 = slots_1.next()) {
           var slot = slots_1_1.value;
           _loop_2(slot);
         }
@@ -16848,7 +16917,7 @@
         }));
       };
       try {
-        for (var slots_2 = __values12(slots), slots_2_1 = slots_2.next(); !slots_2_1.done; slots_2_1 = slots_2.next()) {
+        for (var slots_2 = __values13(slots), slots_2_1 = slots_2.next(); !slots_2_1.done; slots_2_1 = slots_2.next()) {
           var slot = slots_2_1.value;
           _loop_3(slot);
         }

@@ -776,14 +776,26 @@ export const potionLab: Encounter = {
                 })
             },
             {
-                label: 'Mirror brew',
-                spec: mirrorBrew,
+                label: 'Duplicate your potions',
+                description: 'For each potion you have, gain a copy of that potion.',
                 disabled: d.selectedIndex !== null,
                 checked: d.selectedIndex === 1,
-                onClick: async () => ({
-                    newData: { ...d, selectedIndex: 1 },
-                    transform: gainPotion(mirrorBrew, { details: 'Potion Lab' }),
-                })
+                onClick: async () => {
+                    const copiedPotionNames = metaState.data.potions.map(p => displayName(p.spec))
+                    const details = copiedPotionNames.length > 0
+                        ? `Copied: ${copiedPotionNames.join(', ')}`
+                        : 'Copied: none'
+                    return {
+                        newData: { ...d, selectedIndex: 1 },
+                        transform: async (state: MetaState) => {
+                            await addTimelineAction('Potion Lab', details)(state)
+                            const potionSpecs = state.data.potions.map(p => p.spec)
+                            for (const spec of potionSpecs) {
+                                await gainPotion(spec, { silent: true })(state)
+                            }
+                        },
+                    }
+                }
             },
             {
                 label: 'Sacred bark',
