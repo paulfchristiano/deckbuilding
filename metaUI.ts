@@ -187,7 +187,8 @@ function exitModalDialog(): void {
 // ----------------------------- Progress & Buffer Display
 
 function updateBufferDisplay(state: MetaState): void {
-    getElement('bufferDisplay').textContent = `Buffer: ${state.data.buffer}`
+    const debugTag = state.debugEnabled ? ' [Debug]' : ''
+    getElement('bufferDisplay').textContent = `Buffer: ${state.data.buffer}${debugTag}`
 }
 
 function updateProgressSidebar(state: MetaState, onReplayStage?: (stage: number) => void): void {
@@ -419,7 +420,8 @@ function renderStageScreen(
     showScreen('stage')
     renderCommonUI(state, onReplayStage)
 
-    getElement('stageTitle').textContent = `Stage ${state.data.stage + 1}`
+    const debugTag = state.debugEnabled ? ' [Debug]' : ''
+    getElement('stageTitle').textContent = `Stage ${state.data.stage + 1}${debugTag}`
 
     // Render rewards with inline options
     const rewardContainer = getElement('rewardButtons')
@@ -527,7 +529,8 @@ function renderPathSelectionScreen(
     showScreen('path')
     renderCommonUI(state, onReplayStage)
 
-    getElement('pathTitle').textContent = `Stage ${state.data.stage + 1} - Choose Your Path`
+    const debugTag = state.debugEnabled ? ' [Debug]' : ''
+    getElement('pathTitle').textContent = `Stage ${state.data.stage + 1}${debugTag} - Choose Your Path`
 
     const columns = getElement('pathColumns')
     clearElement(columns)

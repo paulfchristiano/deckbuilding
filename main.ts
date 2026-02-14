@@ -59,9 +59,8 @@ function normalizeSeed(seed: string): string {
     return seed.replace(/\s+/g, '').toUpperCase()
 }
 
-function isDebugEnabledFromURL(): boolean {
-    const params = new URLSearchParams(window.location.search)
-    return params.has('debug')
+function isDebugGame(snapshot: SerializedMetaGame): boolean {
+    return snapshot.debugEnabled === true
 }
 
 function loadSaveSlots(): SaveSlot[] {
@@ -359,8 +358,13 @@ function ensureLauncherStyles(): void {
     document.head.appendChild(style)
 }
 
-async function runGame(slotID: string, snapshot: SerializedMetaGame | null, seed: string): Promise<void> {
-    const debugEnabled = isDebugEnabledFromURL()
+async function runGame(
+    slotID: string,
+    snapshot: SerializedMetaGame | null,
+    seed: string,
+    newGameDebugEnabled: boolean = false
+): Promise<void> {
+    const debugEnabled = snapshot ? isDebugGame(snapshot) : newGameDebugEnabled
     const activeTest: DebugTestConfig | null = debugEnabled ? test : null
     const seedDisplay = document.getElementById('seedDisplay')
     if (seedDisplay) seedDisplay.textContent = `Seed: ${seed}`
@@ -405,7 +409,8 @@ async function runReplayFromSnapshot(slot: SaveSlot, stage: number): Promise<voi
         }
         const bufferDisplay = document.getElementById('bufferDisplay')
         if (bufferDisplay) {
-            bufferDisplay.textContent = `Buffer: ${replayData.bufferBeforeCourse}`
+            const debugTag = state.debugEnabled ? ' [Debug]' : ''
+            bufferDisplay.textContent = `Buffer: ${replayData.bufferBeforeCourse}${debugTag}`
         }
         await startGame(
             replaySpecForStage(state, replayData),
@@ -516,7 +521,8 @@ function openViewDialog(slot: SaveSlot): void {
 
     const status = document.createElement('div')
     const done = state.data.phase === 'game_over' || state.data.stage >= 8
-    status.textContent = `${done ? 'Victory!' : `Stage ${state.data.stage + 1}`} • Buffer ${state.data.buffer} • Seed ${slot.seed}`
+    const statusDebugTag = state.debugEnabled ? ' [Debug]' : ''
+    status.textContent = `${done ? 'Victory!' : `Stage ${state.data.stage + 1}`} • Buffer ${state.data.buffer}${statusDebugTag} • Seed ${slot.seed}`
     if (state.data.buffer < 0) status.className = 'negativeBuffer'
     card.appendChild(status)
     const relicDisplaySpecs = state.data.relics.map(relic => relic.spec)
@@ -586,9 +592,10 @@ function createSaveRow(slot: SaveSlot, onAbandon: () => void): HTMLElement {
     meta.className = 'saveMeta'
     const primary = document.createElement('div')
     const done = slot.snapshot.data.phase === 'game_over' || slot.snapshot.data.stage >= 8
+    const debugTag = isDebugGame(slot.snapshot) ? ' [Debug]' : ''
     primary.textContent = done
-        ? `Victory! • Buffer ${slot.snapshot.data.buffer}`
-        : `Stage ${slot.snapshot.data.stage + 1} • Buffer ${slot.snapshot.data.buffer}`
+        ? `Victory! • Buffer ${slot.snapshot.data.buffer}${debugTag}`
+        : `Stage ${slot.snapshot.data.stage + 1} • Buffer ${slot.snapshot.data.buffer}${debugTag}`
     if (slot.snapshot.data.buffer < 0) {
         primary.className = 'negativeBuffer'
     }
@@ -693,7 +700,8 @@ function renderLauncher(): void {
     const newButton = document.createElement('button')
     newButton.className = 'launcherBtn'
     newButton.textContent = 'new game'
-    newButton.onclick = () => {
+    newButton.onclick = (event: MouseEvent) => {
+        const debugNewGame = event.shiftKey
         clearLauncherDialogs()
         const dialog = document.createElement('div')
         dialog.id = 'newGameDialog'
@@ -724,7 +732,7 @@ function renderLauncher(): void {
         const startNewGame = async () => {
             const seed = normalizeSeed(seedInput.value) || randomString()
             const slotID = `${Date.now()}-${Math.floor(Math.random() * 1_000_000)}`
-            await runGame(slotID, null, seed)
+            await runGame(slotID, null, seed, debugNewGame)
         }
         startButton.onclick = startNewGame
         seedInput.addEventListener('keydown', async (event: KeyboardEvent) => {

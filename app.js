@@ -5316,6 +5316,7 @@
     return {
       version: 1,
       seed: state.seed,
+      debugEnabled: state.debugEnabled,
       masterGeneratorState: state.masterGenerator.exportState(),
       generatorStates: __spreadArray5([], __read6(state.generators.entries()), false).map(function(_a) {
         var _b = __read6(_a, 2), key = _b[0], generator = _b[1];
@@ -5333,17 +5334,15 @@
       global: encodeUnknown(state.global)
     };
   }
-  function deserializeMetaGame(ui, serialized, onChange, debugEnabled) {
-    var _a, _b;
+  function deserializeMetaGame(ui, serialized, onChange) {
+    var _a, _b, _c;
     if (onChange === void 0) {
       onChange = null;
-    }
-    if (debugEnabled === void 0) {
-      debugEnabled = false;
     }
     if (serialized.version !== 1) {
       throw new Error("Unsupported save version ".concat(serialized.version));
     }
+    var debugEnabled = (_a = serialized.debugEnabled) !== null && _a !== void 0 ? _a : false;
     var state = new MetaState(ui, serialized.seed, onChange, { debugEnabled });
     state.masterGenerator = Generator.fromState(serialized.masterGeneratorState);
     state.generators = new Map(serialized.generatorStates.map(function(entry) {
@@ -5370,8 +5369,8 @@
     }
     var restoredGlobal = decodeUnknown(serialized.global);
     state.global = {
-      macros: (_a = restoredGlobal.macros) !== null && _a !== void 0 ? _a : [],
-      viewingMacros: (_b = restoredGlobal.viewingMacros) !== null && _b !== void 0 ? _b : false
+      macros: (_b = restoredGlobal.macros) !== null && _b !== void 0 ? _b : [],
+      viewingMacros: (_c = restoredGlobal.viewingMacros) !== null && _c !== void 0 ? _c : false
     };
     return state;
   }
@@ -6558,11 +6557,11 @@
       return __generator3(this, function(_f) {
         switch (_f.label) {
           case 0:
-            state = initialSnapshot ? deserializeMetaGame(ui, initialSnapshot, null, debugEnabled) : new MetaState(ui, seed, null, { debugEnabled });
+            state = initialSnapshot ? deserializeMetaGame(ui, initialSnapshot, null) : new MetaState(ui, seed, null, { debugEnabled });
             state.setChangeListener(onStateChange ? function() {
               return onStateChange(serializeMetaGame(state));
             } : null);
-            tests = debugEnabled ? normalizeTests(test2) : { rewards: [], challenges: [] };
+            tests = state.debugEnabled ? normalizeTests(test2) : { rewards: [], challenges: [] };
             if (!initialSnapshot) {
               initialPath = pathFromSkeleton({
                 label: "Go left",
@@ -15411,7 +15410,8 @@
     refreshUndoRedoButtons();
   }
   function updateBufferDisplay(state) {
-    getElement2("bufferDisplay").textContent = "Buffer: ".concat(state.data.buffer);
+    var debugTag = state.debugEnabled ? " [Debug]" : "";
+    getElement2("bufferDisplay").textContent = "Buffer: ".concat(state.data.buffer).concat(debugTag);
   }
   function updateProgressSidebar(state, onReplayStage) {
     var renderLine = function(selector, inGameSidebar) {
@@ -15660,7 +15660,8 @@
     var e_5, _a;
     showScreen("stage");
     renderCommonUI(state, onReplayStage);
-    getElement2("stageTitle").textContent = "Stage ".concat(state.data.stage + 1);
+    var debugTag = state.debugEnabled ? " [Debug]" : "";
+    getElement2("stageTitle").textContent = "Stage ".concat(state.data.stage + 1).concat(debugTag);
     var rewardContainer = getElement2("rewardButtons");
     clearElement2(rewardContainer);
     state.data.rewardStates.forEach(function(rewardState, rewardIndex) {
@@ -15755,7 +15756,8 @@
     var e_6, _a;
     showScreen("path");
     renderCommonUI(state, onReplayStage);
-    getElement2("pathTitle").textContent = "Stage ".concat(state.data.stage + 1, " - Choose Your Path");
+    var debugTag = state.debugEnabled ? " [Debug]" : "";
+    getElement2("pathTitle").textContent = "Stage ".concat(state.data.stage + 1).concat(debugTag, " - Choose Your Path");
     var columns = getElement2("pathColumns");
     clearElement2(columns);
     try {
@@ -16271,9 +16273,8 @@
   function normalizeSeed(seed) {
     return seed.replace(/\s+/g, "").toUpperCase();
   }
-  function isDebugEnabledFromURL() {
-    var params = new URLSearchParams(window.location.search);
-    return params.has("debug");
+  function isDebugGame(snapshot) {
+    return snapshot.debugEnabled === true;
   }
   function loadSaveSlots() {
     try {
@@ -16365,14 +16366,17 @@
     style.textContent = "\n        #saveLauncher {\n            min-height: 100vh;\n            display: flex;\n            align-items: center;\n            justify-content: center;\n            background: #f6f6f8;\n            color: #222;\n            font-family: system-ui, -apple-system, sans-serif;\n        }\n        #saveLauncherCard {\n            width: min(760px, 92vw);\n            background: white;\n            border: 1px solid #ddd;\n            border-radius: 12px;\n            padding: 20px;\n            box-shadow: 0 8px 30px rgba(0,0,0,0.08);\n        }\n        #saveLauncherHeader {\n            display: flex;\n            align-items: center;\n            justify-content: space-between;\n            margin-bottom: 12px;\n        }\n        #saveList {\n            display: flex;\n            flex-direction: column;\n            gap: 10px;\n            margin-top: 14px;\n        }\n        .saveRow {\n            border: 1px solid #ddd;\n            border-radius: 8px;\n            padding: 10px 12px;\n            display: flex;\n            align-items: center;\n            justify-content: space-between;\n            gap: 10px;\n            background: #fcfcfd;\n        }\n        .saveMeta {\n            display: flex;\n            flex-direction: column;\n            gap: 2px;\n        }\n        .saveSeed {\n            font-size: 0.8em;\n            color: #777;\n        }\n        .saveActions {\n            display: flex;\n            gap: 8px;\n        }\n        .launcherBtn {\n            border: 1px solid #bbb;\n            border-radius: 6px;\n            padding: 6px 10px;\n            background: #fff;\n            cursor: pointer;\n        }\n        .launcherBtn:hover {\n            border-color: #777;\n        }\n        .dangerBtn {\n            border-color: #d33;\n            color: #b11;\n        }\n        #newGameDialog {\n            position: fixed;\n            inset: 0;\n            display: flex;\n            align-items: center;\n            justify-content: center;\n            background: rgba(0,0,0,0.25);\n        }\n        #allSavesDialog {\n            position: fixed;\n            inset: 0;\n            display: flex;\n            align-items: center;\n            justify-content: center;\n            background: rgba(0,0,0,0.25);\n            z-index: 45;\n        }\n        #allSavesCard {\n            width: min(900px, 95vw);\n            max-height: 90vh;\n            overflow: hidden;\n            background: white;\n            border: 1px solid #ddd;\n            border-radius: 10px;\n            padding: 16px;\n            box-sizing: border-box;\n            display: flex;\n            flex-direction: column;\n            gap: 12px;\n        }\n        #allSavesList {\n            overflow-y: auto;\n            display: flex;\n            flex-direction: column;\n            gap: 10px;\n            padding-right: 4px;\n        }\n        #newGameCard {\n            background: white;\n            border-radius: 10px;\n            border: 1px solid #ddd;\n            padding: 16px 28px 16px 16px;\n            width: auto;\n            max-width: 92vw;\n            box-sizing: border-box;\n            overflow: hidden;\n            display: flex;\n            flex-direction: column;\n            gap: 10px;\n        }\n        #newGameCard label {\n            font-size: 0.9em;\n            color: #555;\n        }\n        #newGameSeedInput {\n            display: block;\n            font-size: 1.1em;\n            padding: 8px;\n            border: 1px solid #ccc;\n            border-radius: 6px;\n            width: 260px;\n            max-width: 100%;\n            box-sizing: border-box;\n            align-self: flex-start;\n        }\n        #emptySaves {\n            font-size: 0.95em;\n            color: #666;\n            padding: 8px 2px;\n        }\n        .saveFootnote {\n            margin-top: 10px;\n            font-size: 0.85em;\n            color: #777;\n        }\n        .negativeBuffer {\n            color: #b00020;\n            font-weight: 700;\n        }\n        #viewGameDialog {\n            position: fixed;\n            inset: 0;\n            display: flex;\n            align-items: center;\n            justify-content: center;\n            background: rgba(0,0,0,0.3);\n            z-index: 50;\n            padding: 20px 0;\n        }\n        #viewGameCard {\n            width: min(1100px, 96vw);\n            max-height: calc(100vh - 40px);\n            overflow-y: auto;\n            background: white;\n            border: 1px solid #ddd;\n            border-radius: 10px;\n            padding: 16px;\n            box-sizing: border-box;\n            display: flex;\n            flex-direction: column;\n            gap: 12px;\n        }\n        .viewHeader {\n            display: flex;\n            justify-content: space-between;\n            align-items: center;\n            gap: 10px;\n        }\n        .viewDeckSection {\n            border: 1px solid #ddd;\n            border-radius: 8px;\n            padding: 8px;\n            background: #fcfcfd;\n        }\n        .viewDeckTitle {\n            font-weight: 600;\n            margin-bottom: 6px;\n            color: #333;\n        }\n        .viewDeckCards {\n            display: flex;\n            flex-wrap: wrap;\n            gap: 6px;\n        }\n        #viewTimeline {\n            border: 1px solid #ddd;\n            border-radius: 8px;\n            padding: 8px;\n            background: #fcfcfd;\n            display: flex;\n            flex-direction: column;\n            gap: 6px;\n        }\n        .timelineRow {\n            display: flex;\n            justify-content: space-between;\n            align-items: center;\n            gap: 10px;\n            border-bottom: 1px solid #eee;\n            padding: 4px 0;\n        }\n        .timelineText {\n            display: flex;\n            align-items: baseline;\n            gap: 8px;\n            flex-wrap: wrap;\n        }\n        .timelinePrimary {\n            font-size: 0.95em;\n            color: #333;\n        }\n        .timelineSecondary {\n            font-size: 0.82em;\n            color: #777;\n        }\n    ";
     document.head.appendChild(style);
   }
-  function runGame(slotID, snapshot, seed) {
-    return __awaiter13(this, void 0, void 0, function() {
+  function runGame(slotID_1, snapshot_1, seed_1) {
+    return __awaiter13(this, arguments, void 0, function(slotID, snapshot, seed, newGameDebugEnabled) {
       var debugEnabled, activeTest, seedDisplay, metaUI, saveCallback, error_1;
       var _a;
+      if (newGameDebugEnabled === void 0) {
+        newGameDebugEnabled = false;
+      }
       return __generator13(this, function(_b) {
         switch (_b.label) {
           case 0:
-            debugEnabled = isDebugEnabledFromURL();
+            debugEnabled = snapshot ? isDebugGame(snapshot) : newGameDebugEnabled;
             activeTest = debugEnabled ? test : null;
             seedDisplay = document.getElementById("seedDisplay");
             if (seedDisplay)
@@ -16424,7 +16428,7 @@
   }
   function runReplayFromSnapshot(slot, stage) {
     return __awaiter13(this, void 0, void 0, function() {
-      var seedDisplay, state, replayData, bufferDisplay, error_2;
+      var seedDisplay, state, replayData, bufferDisplay, debugTag, error_2;
       var _a;
       return __generator13(this, function(_b) {
         switch (_b.label) {
@@ -16449,7 +16453,8 @@
             }
             bufferDisplay = document.getElementById("bufferDisplay");
             if (bufferDisplay) {
-              bufferDisplay.textContent = "Buffer: ".concat(replayData.bufferBeforeCourse);
+              debugTag = state.debugEnabled ? " [Debug]" : "";
+              bufferDisplay.textContent = "Buffer: ".concat(replayData.bufferBeforeCourse).concat(debugTag);
             }
             return [4, startGame(replaySpecForStage(state, replayData), replayData.history, [], state.global.macros, state.global.viewingMacros, null, "nothing")];
           case 2:
@@ -16576,7 +16581,8 @@
     card.appendChild(header);
     var status = document.createElement("div");
     var done = state.data.phase === "game_over" || state.data.stage >= 8;
-    status.textContent = "".concat(done ? "Victory!" : "Stage ".concat(state.data.stage + 1), " \u2022 Buffer ").concat(state.data.buffer, " \u2022 Seed ").concat(slot.seed);
+    var statusDebugTag = state.debugEnabled ? " [Debug]" : "";
+    status.textContent = "".concat(done ? "Victory!" : "Stage ".concat(state.data.stage + 1), " \u2022 Buffer ").concat(state.data.buffer).concat(statusDebugTag, " \u2022 Seed ").concat(slot.seed);
     if (state.data.buffer < 0)
       status.className = "negativeBuffer";
     card.appendChild(status);
@@ -16674,7 +16680,8 @@
     meta.className = "saveMeta";
     var primary = document.createElement("div");
     var done = slot.snapshot.data.phase === "game_over" || slot.snapshot.data.stage >= 8;
-    primary.textContent = done ? "Victory! \u2022 Buffer ".concat(slot.snapshot.data.buffer) : "Stage ".concat(slot.snapshot.data.stage + 1, " \u2022 Buffer ").concat(slot.snapshot.data.buffer);
+    var debugTag = isDebugGame(slot.snapshot) ? " [Debug]" : "";
+    primary.textContent = done ? "Victory! \u2022 Buffer ".concat(slot.snapshot.data.buffer).concat(debugTag) : "Stage ".concat(slot.snapshot.data.stage + 1, " \u2022 Buffer ").concat(slot.snapshot.data.buffer).concat(debugTag);
     if (slot.snapshot.data.buffer < 0) {
       primary.className = "negativeBuffer";
     }
@@ -16797,7 +16804,8 @@
     var newButton = document.createElement("button");
     newButton.className = "launcherBtn";
     newButton.textContent = "new game";
-    newButton.onclick = function() {
+    newButton.onclick = function(event) {
+      var debugNewGame = event.shiftKey;
       clearLauncherDialogs();
       var dialog = document.createElement("div");
       dialog.id = "newGameDialog";
@@ -16829,7 +16837,7 @@
               case 0:
                 seed = normalizeSeed(seedInput.value) || randomString();
                 slotID = "".concat(Date.now(), "-").concat(Math.floor(Math.random() * 1e6));
-                return [4, runGame(slotID, null, seed)];
+                return [4, runGame(slotID, null, seed, debugNewGame)];
               case 1:
                 _a2.sent();
                 return [
@@ -16841,17 +16849,17 @@
         });
       };
       startButton.onclick = startNewGame;
-      seedInput.addEventListener("keydown", function(event) {
+      seedInput.addEventListener("keydown", function(event2) {
         return __awaiter13(_this, void 0, void 0, function() {
           return __generator13(this, function(_a2) {
             switch (_a2.label) {
               case 0:
-                if (event.key !== "Enter")
+                if (event2.key !== "Enter")
                   return [
                     2
                     /*return*/
                   ];
-                event.preventDefault();
+                event2.preventDefault();
                 return [4, startNewGame()];
               case 1:
                 _a2.sent();

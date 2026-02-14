@@ -949,6 +949,7 @@ interface SerializedMetaHistory {
 export interface SerializedMetaGame {
     version: 1
     seed: string
+    debugEnabled?: boolean
     masterGeneratorState: number
     generatorStates: Array<{ key: string, state: number }>
     data: SerializedMetaStateData
@@ -1368,6 +1369,7 @@ export function serializeMetaGame(state: MetaState): SerializedMetaGame {
     return {
         version: 1,
         seed: state.seed,
+        debugEnabled: state.debugEnabled,
         masterGeneratorState: state.masterGenerator.exportState(),
         generatorStates: [...state.generators.entries()].map(([key, generator]) => ({
             key,
@@ -1386,12 +1388,12 @@ export function serializeMetaGame(state: MetaState): SerializedMetaGame {
 export function deserializeMetaGame(
     ui: MetaUI,
     serialized: SerializedMetaGame,
-    onChange: (() => void) | null = null,
-    debugEnabled: boolean = false
+    onChange: (() => void) | null = null
 ): MetaState {
     if (serialized.version !== 1) {
         throw new Error(`Unsupported save version ${serialized.version}`)
     }
+    const debugEnabled = serialized.debugEnabled ?? false
     const state = new MetaState(ui, serialized.seed, onChange, { debugEnabled })
     state.masterGenerator = Generator.fromState(serialized.masterGeneratorState)
     state.generators = new Map(
@@ -2336,10 +2338,10 @@ export async function playGame(
     debugEnabled: boolean = false
 ): Promise<void> {
     const state: MetaState = initialSnapshot
-        ? deserializeMetaGame(ui, initialSnapshot, null, debugEnabled)
+        ? deserializeMetaGame(ui, initialSnapshot, null)
         : new MetaState(ui, seed, null, { debugEnabled })
     state.setChangeListener(onStateChange ? () => onStateChange!(serializeMetaGame(state)) : null)
-    const tests = debugEnabled
+    const tests = state.debugEnabled
         ? normalizeTests(test)
         : { rewards: [], challenges: [] } as ParsedTests
 
