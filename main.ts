@@ -20,17 +20,17 @@ import { renderSpecNoRelated } from './cardRendering.js'
 import { Card, CardSpec, UndoPastBeginning } from './gameLogic.js'
 
 import type { DebugTestConfig } from './metaLogic.js'
-import { wingedBoots, matryoshkaDoll } from './data/relics.js'
+import { ruinedVillage } from './data/cards.js'
+import { bagOfCoins } from './data/relics.js'
 
 let test: DebugTestConfig | null = {
     rewards: [
-        [1, ['relic', wingedBoots]],
-        [1, ['relic', wingedBoots]],
-        [1, ['relic', matryoshkaDoll]],
+        [1, ['card', ruinedVillage]],
+        [1, ['relic', bagOfCoins]],
     ],
     challenges: [
         [1, ['boon', 'Populate']],
-        [1, ['vpMode', 'Monument']],
+        [2, ['boon', 'Duplication']],
     ]
 }
 

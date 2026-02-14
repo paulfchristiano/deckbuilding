@@ -41,7 +41,7 @@ const escalate:CardSpec = {name: 'Escalate',
     ],
     staticTriggers: [{
         text: 'At the start of the game put a charge token on this.',
-        kind: 'gameStart',
+        kind: 'afterStart',
         handles: () => true,
         transform: (e, s, c) => addToken(c!, 'cost')
     }]
@@ -155,7 +155,7 @@ const populate:CardSpec = {name: 'Populate',
     restrictions: [cannotUse],
     simpleText: ['At the start of the game, buy every card in the supply.'],
     staticTriggers: [{
-        kind: 'gameStart',
+        kind: 'afterStart',
         text: 'At the start of the game, buy every card in the supply.',
         handles: () => true,
         transform: (e, state, card) => async function(state) {
@@ -234,7 +234,7 @@ const flourish:CardSpec = {name: flourishName,
         }
     ],
     staticTriggers: [{
-        kind: 'gameStart',
+        kind: 'afterStart',
         text: 'At the start of the game, put 16 charge tokens on this.',
         handles: () => true,
         transform: (e, state, card) => charge(card!, 16)
@@ -406,7 +406,7 @@ const windfall:CardSpec = {
     simpleText: ['At the start of the game, +$15 and +5 buys.'],
     restrictions: [cannotUse],
     staticTriggers: [{
-        kind: 'gameStart',
+        kind: 'afterStart',
         text: 'At the start of the game, +$15 and +5 buys.',
         handles: () => true,
         transform: (e, state, card) => doAll([gainCoins(15, card), gainBuys(5, card)])
@@ -426,7 +426,7 @@ const duplicateStart:CardSpec = {
     simpleText: ['At the start of the game, put a duplicate token on each card in the supply.'],
     restrictions: [cannotUse],
     staticTriggers: [{
-        kind: 'gameStart',
+        kind: 'afterStart',
         text: 'At the start of the game, put a duplicate token on each card in the supply.',
         handles: () => true,
         transform: (e, state, card) => async function(state) {
@@ -452,7 +452,7 @@ const priorityStart:CardSpec = {
     simpleText: ['At the start of the game, put a priority token on each card in the supply.'],
     restrictions: [cannotUse],
     staticTriggers: [{
-        kind: 'gameStart',
+        kind: 'afterStart',
         text: 'At the start of the game, put a priority token on each card in the supply.',
         handles: () => true,
         transform: (e, state, card) => async function(state) {

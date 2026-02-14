@@ -422,7 +422,7 @@ export const ruinedVillage:CardSpec = {
     buyCost: coin(2),
     relatedCards: [ruinedLab, ruinedMarket, villager],
     staticTriggers: [{
-        kind: 'gameStart',
+        kind: 'beforeStart',
         text: `At the start of the game, add ${ruinedLab.name} and ${ruinedMarket.name} to the supply.`,
         handles: () => true,
         transform: (e, s, c) => async function (state: State) {
@@ -1441,7 +1441,7 @@ const werewolf:CardSpec = {
             : doAll([gainBuys(1, c), gainActions(3, c)])
     }],
     staticTriggers: [{
-        kind: 'gameStart',
+        kind: 'afterStart',
         text: `At the start of the game, create ${a(moon.name)} in play with a charge token.`,
         handles: () => true,   
         transform: () => create(moon, 'play', card => charge(card, 1))

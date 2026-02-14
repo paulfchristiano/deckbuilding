@@ -164,7 +164,7 @@ export const tacticianStrengthUpgrade: CardUpgrade = registerUpgrade('tacticianS
     name: name => `${name}+`,
     staticTriggers: [
         {
-            kind: 'gameStart',
+            kind: 'afterStart',
             text: 'This starts with 4 reflect tokens.',
             handles: (_e, state, sourceCard) => true,
             transform: (_e, _state, sourceCard) => addToken(sourceCard!, 'reflect', 4),
@@ -188,7 +188,7 @@ export const tacticianStrengthUpgrade: CardUpgrade = registerUpgrade('tacticianS
 export const tacticianAgilityUpgrade: CardUpgrade = registerUpgrade('tacticianAgility', {
     name: name => `${name}+`,
     staticTriggers: [{
-        kind: 'gameStart',
+        kind: 'afterStart',
         text: 'This starts with 2 reduction tokens on it.',
         handles: (_e, state, sourceCard) => state.find(sourceCard!).count('reduce') === 0,
         transform: (_e, _state, sourceCard) => addToken(sourceCard!, 'reduce', 2),

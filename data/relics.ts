@@ -29,7 +29,7 @@ export const bagOfCoins: RelicSpec = {
     name: 'Bag of Coins',
     simpleText: ['Start with an extra copper.'],
     triggers: [{
-        kind: 'gameStart',
+        kind: 'beforeStart',
         text: 'At the start of the game, create two coppers in your discard.',
         handles: () => true,
         transform: () => repeat(create(copper, 'discard'), 2)
@@ -50,7 +50,7 @@ export const bagOfPreparation: RelicSpec = {
         replace: p => ({ ...p, amount: 0 })
     }],
     triggers: [{
-        kind: 'gameStart',
+        kind: 'afterStart',
         handles: () => true,
         text: 'At the start of the game, +10 actions.',
         transform: (_e, _s, c) => gainActions(10, c)
@@ -293,7 +293,7 @@ export const giftBox: RelicSpec = {
         'start the next course with a copy in hand.'
     ],
     mutableTriggers: (relic: Relic) => [{
-        kind: 'gameStart',
+        kind: 'afterStart',
         text: 'At the start of the game, create a copy of each bottled card in your hand.',
         handles: () => true,
         transform: () => async function (state: State) {

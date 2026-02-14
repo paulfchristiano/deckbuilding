@@ -6,7 +6,7 @@ export function makeCardInABoxRelic(spec: CardSpec): RelicSpec {
     return {
         name: `${cardName} in a Box`,
         triggers: [{
-            kind: 'gameStart',
+            kind: 'afterStart',
             text: `Start each course with a copy of ${cardName} in hand.`,
             handles: () => true,
             transform: () => async function (state: State) {

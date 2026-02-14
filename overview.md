@@ -252,7 +252,7 @@ interface Trigger<T extends GameEvent> {
 }
 ```
 
-Trigger kinds include: `play`, `afterPlay`, `buy`, `afterBuy`, `use`, `afterUse`, `activate`, `move`, `discard`, `create`, `cost`, `resource`, `gainCharge`, `removeTokens`, `addToken`, `gameStart`.
+Trigger kinds include: `play`, `afterPlay`, `buy`, `afterBuy`, `use`, `afterUse`, `activate`, `move`, `discard`, `create`, `cost`, `resource`, `gainCharge`, `removeTokens`, `addToken`, `beforeStart`, `afterStart`.
 
 Like replacers, triggers can be:
 - **Normal triggers**: Active only when the card is in play

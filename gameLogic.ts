@@ -945,20 +945,21 @@ export interface ResourceEvent {kind:'resource', resource:ResourceName, amount:n
 export interface GainChargeEvent {kind:'gainCharge', card:Card, oldCharge:number, newCharge:number, cost:boolean}
 export interface RemoveTokensEvent { kind:'removeTokens', card:Card, token:string, removed:number }
 export interface AddTokenEvent {kind: 'addToken', card:Card, token:Token, amount:number}
-export interface GameStartEvent {kind:'gameStart' }
+export interface BeforeStartEvent {kind:'beforeStart' }
+export interface AfterStartEvent {kind:'afterStart' }
 
 export type GameEvent = BuyEvent | AfterBuyEvent | PlayEvent | AfterPlayEvent |
     UseEvent | AfterUseEvent | ActivateEvent |
     CreateEvent | MoveEvent | DiscardEvent |
     CostEvent | ResourceEvent |
     GainChargeEvent | RemoveTokensEvent | AddTokenEvent |
-    GameStartEvent
+    BeforeStartEvent | AfterStartEvent
 export type TypedTrigger = Trigger<BuyEvent> | Trigger<AfterBuyEvent> | Trigger<PlayEvent> | Trigger<AfterPlayEvent> |
     Trigger<UseEvent> | Trigger<AfterUseEvent> | Trigger<ActivateEvent> |
     Trigger<CreateEvent> | Trigger<MoveEvent> | Trigger<DiscardEvent> |
     Trigger<CostEvent> | Trigger<ResourceEvent> |
     Trigger<GainChargeEvent> | Trigger<RemoveTokensEvent> | Trigger<AddTokenEvent> |
-    Trigger<GameStartEvent>
+    Trigger<BeforeStartEvent> | Trigger<AfterStartEvent>
 
 //e is an event that just happened
 //each card in play and aura can have a followup
@@ -1895,7 +1896,8 @@ export async function playGame(
     if (initialRedo.length > 0) {
         state = state.update({ redo: initialRedo })
     }
-    state = await trigger({kind:'gameStart'})(state)
+    state = await trigger({kind:'beforeStart'})(state)
+    state = await trigger({kind:'afterStart'})(state)
     let victorious:boolean = false
     while (true) {
         state = state.setCheckpoint()

@@ -2628,34 +2628,37 @@
             if (initialRedo.length > 0) {
               state = state.update({ redo: initialRedo });
             }
-            return [4, trigger({ kind: "gameStart" })(state)];
+            return [4, trigger({ kind: "beforeStart" })(state)];
           case 1:
             state = _a.sent();
-            victorious = false;
-            _a.label = 2;
+            return [4, trigger({ kind: "afterStart" })(state)];
           case 2:
-            if (false) return [3, 10];
-            state = state.setCheckpoint();
+            state = _a.sent();
+            victorious = false;
             _a.label = 3;
           case 3:
-            _a.trys.push([3, 8, , 9]);
-            if (!victorious) return [3, 5];
-            return [4, state.ui.victory(state)];
+            if (false) return [3, 11];
+            state = state.setCheckpoint();
+            _a.label = 4;
           case 4:
+            _a.trys.push([4, 9, , 10]);
+            if (!victorious) return [3, 6];
+            return [4, state.ui.victory(state)];
+          case 5:
             _a.sent();
             return [2, {
               score: state.energy,
               potionsRemaining: state.potions,
               history: state.origin().future
             }];
-          case 5:
-            return [4, act(state)];
           case 6:
-            state = _a.sent();
-            _a.label = 7;
+            return [4, act(state)];
           case 7:
-            return [3, 9];
+            state = _a.sent();
+            _a.label = 8;
           case 8:
+            return [3, 10];
+          case 9:
             error_2 = _a.sent();
             victorious = false;
             if (error_2 instanceof Undo) {
@@ -2668,10 +2671,10 @@
             } else {
               throw error_2;
             }
-            return [3, 9];
-          case 9:
-            return [3, 2];
+            return [3, 10];
           case 10:
+            return [3, 3];
+          case 11:
             return [
               2
               /*return*/
@@ -3881,7 +3884,7 @@
     return {
       name: "".concat(cardName, " in a Box"),
       triggers: [{
-        kind: "gameStart",
+        kind: "afterStart",
         text: "Start each course with a copy of ".concat(cardName, " in hand."),
         handles: function() {
           return true;
@@ -6957,7 +6960,7 @@
     name: "Bag of Coins",
     simpleText: ["Start with an extra copper."],
     triggers: [{
-      kind: "gameStart",
+      kind: "beforeStart",
       text: "At the start of the game, create two coppers in your discard.",
       handles: function() {
         return true;
@@ -6985,7 +6988,7 @@
       }
     }],
     triggers: [{
-      kind: "gameStart",
+      kind: "afterStart",
       handles: function() {
         return true;
       },
@@ -7309,7 +7312,7 @@
     ],
     mutableTriggers: function(relic) {
       return [{
-        kind: "gameStart",
+        kind: "afterStart",
         text: "At the start of the game, create a copy of each bottled card in your hand.",
         handles: function() {
           return true;
@@ -8012,7 +8015,7 @@
     buyCost: coin(2),
     relatedCards: [ruinedLab, ruinedMarket, villager],
     staticTriggers: [{
-      kind: "gameStart",
+      kind: "beforeStart",
       text: "At the start of the game, add ".concat(ruinedLab.name, " and ").concat(ruinedMarket.name, " to the supply."),
       handles: function() {
         return true;
@@ -9290,7 +9293,7 @@
       }
     }],
     staticTriggers: [{
-      kind: "gameStart",
+      kind: "afterStart",
       text: "At the start of the game, create ".concat(a(moon.name), " in play with a charge token."),
       handles: function() {
         return true;
@@ -10857,7 +10860,7 @@
     ],
     staticTriggers: [{
       text: "At the start of the game put a charge token on this.",
-      kind: "gameStart",
+      kind: "afterStart",
       handles: function() {
         return true;
       },
@@ -10951,7 +10954,7 @@
     restrictions: [cannotUse],
     simpleText: ["At the start of the game, buy every card in the supply."],
     staticTriggers: [{
-      kind: "gameStart",
+      kind: "afterStart",
       text: "At the start of the game, buy every card in the supply.",
       handles: function() {
         return true;
@@ -11068,7 +11071,7 @@
       }
     ],
     staticTriggers: [{
-      kind: "gameStart",
+      kind: "afterStart",
       text: "At the start of the game, put 16 charge tokens on this.",
       handles: function() {
         return true;
@@ -11292,7 +11295,7 @@
     simpleText: ["At the start of the game, +$15 and +5 buys."],
     restrictions: [cannotUse],
     staticTriggers: [{
-      kind: "gameStart",
+      kind: "afterStart",
       text: "At the start of the game, +$15 and +5 buys.",
       handles: function() {
         return true;
@@ -11315,7 +11318,7 @@
     simpleText: ["At the start of the game, put a duplicate token on each card in the supply."],
     restrictions: [cannotUse],
     staticTriggers: [{
-      kind: "gameStart",
+      kind: "afterStart",
       text: "At the start of the game, put a duplicate token on each card in the supply.",
       handles: function() {
         return true;
@@ -12021,7 +12024,7 @@
     },
     staticTriggers: [
       {
-        kind: "gameStart",
+        kind: "afterStart",
         text: "This starts with 4 reflect tokens.",
         handles: function(_e, state, sourceCard) {
           return true;
@@ -12052,7 +12055,7 @@
       return "".concat(name, "+");
     },
     staticTriggers: [{
-      kind: "gameStart",
+      kind: "afterStart",
       text: "This starts with 2 reduction tokens on it.",
       handles: function(_e, state, sourceCard) {
         return state.find(sourceCard).count("reduce") === 0;
@@ -16281,13 +16284,12 @@
   };
   var test = {
     rewards: [
-      [1, ["relic", wingedBoots]],
-      [1, ["relic", wingedBoots]],
-      [1, ["relic", matryoshkaDoll]]
+      [1, ["card", ruinedVillage]],
+      [1, ["relic", bagOfCoins]]
     ],
     challenges: [
       [1, ["boon", "Populate"]],
-      [1, ["vpMode", "Monument"]]
+      [2, ["boon", "Duplication"]]
     ]
   };
   var SAVE_STORAGE_KEY = "roguelike.ongoingSaves.v1";
