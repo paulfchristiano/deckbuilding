@@ -19,14 +19,20 @@ import { startGame } from './gameUI.js'
 import { renderSpecNoRelated } from './cardRendering.js'
 import { Card, CardSpec, UndoPastBeginning } from './gameLogic.js'
 
-import type { TestSpec } from './metaLogic.js'
+import type { DebugTestConfig } from './metaLogic.js'
 import { wingedBoots, matryoshkaDoll } from './data/relics.js'
 
-let test: TestSpec[] | null = [
-    [1, ['relic', wingedBoots]],
-    [1, ['relic', wingedBoots]],
-    [1, ['relic', matryoshkaDoll]]
-]
+let test: DebugTestConfig | null = {
+    rewards: [
+        [1, ['relic', wingedBoots]],
+        [1, ['relic', wingedBoots]],
+        [1, ['relic', matryoshkaDoll]],
+    ],
+    challenges: [
+        [1, ['boon', 'Populate']],
+        [1, ['vpMode', 'Monument']],
+    ]
+}
 
 const SAVE_STORAGE_KEY = 'roguelike.ongoingSaves.v1'
 const MAX_LAUNCHER_SAVES = 10
@@ -360,7 +366,7 @@ function ensureLauncherStyles(): void {
 
 async function runGame(slotID: string, snapshot: SerializedMetaGame | null, seed: string): Promise<void> {
     const debugEnabled = isDebugEnabledFromURL()
-    const activeTest: TestSpec | TestSpec[] | null = debugEnabled ? test : null
+    const activeTest: DebugTestConfig | null = debugEnabled ? test : null
     const seedDisplay = document.getElementById('seedDisplay')
     if (seedDisplay) seedDisplay.textContent = `Seed: ${seed}`
     setCoreUIVisible(true)

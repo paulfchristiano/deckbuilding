@@ -1814,12 +1814,19 @@ function sampleLookingGlassRoundRewards(
 
 // ----------------------- Generate data
 
-function randomChallenge(state: MetaState): ChallengeSpec {
+interface ChallengeOverrides {
+    vpMode?: VPMode
+    boon?: Boon
+}
+
+function randomChallenge(state: MetaState, overrides: ChallengeOverrides = {}): ChallengeSpec {
     const stage = state.data.stage
     const generator = state.generator(`challenges${stage}`)
-    const vpMode = generator.sample(vpModes)
+    const vpMode = overrides.vpMode ?? generator.sample(vpModes)
     const isFinalStage = stage === TOTAL_STAGES - 1
-    const challengeBoons = isFinalStage ? [] : [generator.sample(boons)]
+    const challengeBoons = overrides.boon
+        ? [overrides.boon]
+        : (isFinalStage ? [] : [generator.sample(boons)])
     // For now, no replacement effects
     return {
         stage: stage,
@@ -1834,7 +1841,7 @@ interface PathSkeleton {
     challenges: ChallengeSpec[]
 }
 
-async function makePaths(state: MetaState): Promise<PathSkeleton[]> {
+async function makePaths(state: MetaState, challengeTests: ChallengeTestSpec[] = []): Promise<PathSkeleton[]> {
     const stage = state.data.stage
     const generator = state.generator(`paths${stage}`).newGenerator()
     const baseRewardsPerPath = 2
@@ -1866,10 +1873,11 @@ async function makePaths(state: MetaState): Promise<PathSkeleton[]> {
     for (let pathIndex = 0; pathIndex < pathCount; pathIndex++) {
         const start = pathIndex * rewardsPerPath
         const end = start + rewardsPerPath
+        const challengeOverrides = challengeOverridesForStage(challengeTests, stage, pathIndex)
         paths.push({
             label: pathLabels[pathIndex] ?? 'Path',
             rewards: shuffledRewards.slice(start, end),
-            challenges: [randomChallenge(state)]
+            challenges: [randomChallenge(state, challengeOverrides)]
         })
     }
     return paths
@@ -2179,6 +2187,19 @@ function materializePath(state: MetaState, path: Path): Pick<MetaStateData, 'cha
 // Stage is 1-based for readability (stage 1 = first stage shown to the player).
 type RewardTestSpec = ['potion', CardSpec] | ['relic', RelicSpec] | ['card', CardSpec] | ['event', CardSpec] | ['encounter', Encounter]
 export type TestSpec = [number, RewardTestSpec]
+type VPModeTestRef = VPMode | string
+type BoonTestRef = Boon | string
+type ChallengeStageTest = ['vpMode', VPModeTestRef] | ['boon', BoonTestRef]
+export type ChallengeTestSpec = [number, ChallengeStageTest]
+export interface DebugTestConfig {
+    rewards?: TestSpec[]
+    challenges?: ChallengeTestSpec[]
+}
+
+interface ParsedTests {
+    rewards: TestSpec[]
+    challenges: ChallengeTestSpec[]
+}
 
 function isRewardTestSpec(value: unknown): value is RewardTestSpec {
     return Array.isArray(value)
@@ -2192,6 +2213,90 @@ function isTestSpec(value: unknown): value is TestSpec {
         && typeof value[0] === 'number'
         && Number.isInteger(value[0])
         && isRewardTestSpec(value[1])
+}
+
+function isChallengeStageTest(value: unknown): value is ChallengeStageTest {
+    return Array.isArray(value)
+        && value.length === 2
+        && (value[0] === 'vpMode' || value[0] === 'boon')
+        && (typeof value[1] === 'string' || (value[1] !== null && typeof value[1] === 'object'))
+}
+
+function isChallengeTestSpec(value: unknown): value is ChallengeTestSpec {
+    return Array.isArray(value)
+        && value.length === 2
+        && typeof value[0] === 'number'
+        && Number.isInteger(value[0])
+        && isChallengeStageTest(value[1])
+}
+
+function isDebugTestConfig(value: unknown): value is DebugTestConfig {
+    if (value === null || typeof value !== 'object' || Array.isArray(value)) return false
+    const record = value as Record<string, unknown>
+    const rewards = record.rewards
+    const challenges = record.challenges
+    const rewardsValid = rewards === undefined || (Array.isArray(rewards) && rewards.every(isTestSpec))
+    const challengesValid = challenges === undefined || (Array.isArray(challenges) && challenges.every(isChallengeTestSpec))
+    return rewardsValid && challengesValid
+}
+
+function normalizeTests(test: null | TestSpec | TestSpec[] | DebugTestConfig): ParsedTests {
+    if (test === null) return { rewards: [], challenges: [] }
+    if (isDebugTestConfig(test)) {
+        return {
+            rewards: test.rewards ? [...test.rewards] : [],
+            challenges: test.challenges ? [...test.challenges] : [],
+        }
+    }
+    if (isTestSpec(test)) return { rewards: [test], challenges: [] }
+    if (Array.isArray(test) && test.every(isTestSpec)) {
+        return { rewards: [...test], challenges: [] }
+    }
+    throw new Error('Invalid debug test specification')
+}
+
+const warnedUnknownVPModeTests = new Set<string>()
+const warnedUnknownBoonTests = new Set<string>()
+
+function resolveVPModeTestRef(ref: VPModeTestRef): VPMode | null {
+    if (typeof ref !== 'string') return ref
+    const mode = vpModes.find(vpMode => vpMode.name === ref) ?? null
+    if (mode === null && !warnedUnknownVPModeTests.has(ref)) {
+        warnedUnknownVPModeTests.add(ref)
+        console.warn(`Unknown vp mode in debug test config: ${ref}`)
+    }
+    return mode
+}
+
+function resolveBoonTestRef(ref: BoonTestRef): Boon | null {
+    if (typeof ref !== 'string') return ref
+    const boon = boons.find(candidate => candidate.name === ref) ?? null
+    if (boon === null && !warnedUnknownBoonTests.has(ref)) {
+        warnedUnknownBoonTests.add(ref)
+        console.warn(`Unknown boon in debug test config: ${ref}`)
+    }
+    return boon
+}
+
+function challengeOverridesForStage(
+    tests: ChallengeTestSpec[],
+    stageIndex: number,
+    pathIndex: number
+): ChallengeOverrides {
+    if (pathIndex !== 0) return {}
+    const stageNumber = stageIndex + 1
+    const overrides: ChallengeOverrides = {}
+    for (const [stage, stageTest] of tests) {
+        if (stage !== stageNumber) continue
+        if (stageTest[0] === 'vpMode') {
+            const mode = resolveVPModeTestRef(stageTest[1])
+            if (mode !== null) overrides.vpMode = mode
+        } else {
+            const boon = resolveBoonTestRef(stageTest[1])
+            if (boon !== null) overrides.boon = boon
+        }
+    }
+    return overrides
 }
 
 function rewardTestsForStage(tests: TestSpec[], stageIndex: number): RewardTestSpec[] {
@@ -2224,7 +2329,7 @@ function makeTestReward(state: MetaState, spec: RewardTestSpec): RewardState {
 // Note that all checkpoints are at a point where you want to back into the main loop in this method.
 export async function playGame(
     ui: MetaUI,
-    test:null|TestSpec|TestSpec[] = null,
+    test: null | TestSpec | TestSpec[] | DebugTestConfig = null,
     seed: string | null = null,
     initialSnapshot: SerializedMetaGame | null = null,
     onStateChange: ((snapshot: SerializedMetaGame) => void) | null = null,
@@ -2234,18 +2339,21 @@ export async function playGame(
         ? deserializeMetaGame(ui, initialSnapshot, null, debugEnabled)
         : new MetaState(ui, seed, null, { debugEnabled })
     state.setChangeListener(onStateChange ? () => onStateChange!(serializeMetaGame(state)) : null)
-    const tests: TestSpec[] = test === null
-        ? []
-        : (isTestSpec(test) ? [test] : test)
+    const tests = debugEnabled
+        ? normalizeTests(test)
+        : { rewards: [], challenges: [] } as ParsedTests
 
     if (!initialSnapshot) {
         // Stage 0 offers two challenge options
         const initialPath = pathFromSkeleton({
             label: 'Go left',
             rewards: ['card', 'card', 'event', 'potion'] as RewardKind[],
-            challenges: [randomChallenge(state), randomChallenge(state)]
+            challenges: [
+                randomChallenge(state, challengeOverridesForStage(tests.challenges, 0, 0)),
+                randomChallenge(state, challengeOverridesForStage(tests.challenges, 0, 1))
+            ]
         })
-        for (const testSpec of rewardTestsForStage(tests, 0)) {
+        for (const testSpec of rewardTestsForStage(tests.rewards, 0)) {
             initialPath.rewardStates.push(makeTestReward(state, testSpec))
         }
         state.replaceAndClearHistory({
@@ -2336,8 +2444,8 @@ export async function playGame(
                     await state.ui.showMessage(state, 'Congratulations! You have completed all stages!')
                     return
                 }
-                const paths = (await makePaths(state)).map(skel => pathFromSkeleton(skel))
-                for (const testSpec of rewardTestsForStage(tests, nextStage)) {
+                const paths = (await makePaths(state, tests.challenges)).map(skel => pathFromSkeleton(skel))
+                for (const testSpec of rewardTestsForStage(tests.rewards, nextStage)) {
                     paths[0].rewardStates.push(makeTestReward(state, testSpec))
                 }
                 state.replaceAndClearHistory({

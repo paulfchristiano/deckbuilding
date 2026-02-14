@@ -5971,22 +5971,29 @@
     }
     return { cards, events };
   }
-  function randomChallenge(state) {
+  function randomChallenge(state, overrides) {
+    var _a;
+    if (overrides === void 0) {
+      overrides = {};
+    }
     var stage = state.data.stage;
     var generator = state.generator("challenges".concat(stage));
-    var vpMode = generator.sample(vpModes);
+    var vpMode = (_a = overrides.vpMode) !== null && _a !== void 0 ? _a : generator.sample(vpModes);
     var isFinalStage = stage === TOTAL_STAGES - 1;
-    var challengeBoons = isFinalStage ? [] : [generator.sample(boons)];
+    var challengeBoons = overrides.boon ? [overrides.boon] : isFinalStage ? [] : [generator.sample(boons)];
     return {
       stage,
       vpMode,
       boons: challengeBoons
     };
   }
-  function makePaths(state) {
-    return __awaiter3(this, void 0, void 0, function() {
-      var stage, generator, baseRewardsPerPath, basePaths, pathRewardParams, rewardsPerPath, pathLabels, pathCount, rewardsPerSet, fullSet, totalRewards, completeSets, partialSetRewards, rewardPool, i, shuffledRewards, paths, pathIndex, start, end;
+  function makePaths(state_1) {
+    return __awaiter3(this, arguments, void 0, function(state, challengeTests) {
+      var stage, generator, baseRewardsPerPath, basePaths, pathRewardParams, rewardsPerPath, pathLabels, pathCount, rewardsPerSet, fullSet, totalRewards, completeSets, partialSetRewards, rewardPool, i, shuffledRewards, paths, pathIndex, start, end, challengeOverrides;
       var _a;
+      if (challengeTests === void 0) {
+        challengeTests = [];
+      }
       return __generator3(this, function(_b) {
         switch (_b.label) {
           case 0:
@@ -6023,10 +6030,11 @@
             for (pathIndex = 0; pathIndex < pathCount; pathIndex++) {
               start = pathIndex * rewardsPerPath;
               end = start + rewardsPerPath;
+              challengeOverrides = challengeOverridesForStage(challengeTests, stage, pathIndex);
               paths.push({
                 label: (_a = pathLabels[pathIndex]) !== null && _a !== void 0 ? _a : "Path",
                 rewards: shuffledRewards.slice(start, end),
-                challenges: [randomChallenge(state)]
+                challenges: [randomChallenge(state, challengeOverrides)]
               });
             }
             return [2, paths];
@@ -6397,6 +6405,98 @@
   function isTestSpec(value) {
     return Array.isArray(value) && value.length === 2 && typeof value[0] === "number" && Number.isInteger(value[0]) && isRewardTestSpec(value[1]);
   }
+  function isChallengeStageTest(value) {
+    return Array.isArray(value) && value.length === 2 && (value[0] === "vpMode" || value[0] === "boon") && (typeof value[1] === "string" || value[1] !== null && typeof value[1] === "object");
+  }
+  function isChallengeTestSpec(value) {
+    return Array.isArray(value) && value.length === 2 && typeof value[0] === "number" && Number.isInteger(value[0]) && isChallengeStageTest(value[1]);
+  }
+  function isDebugTestConfig(value) {
+    if (value === null || typeof value !== "object" || Array.isArray(value))
+      return false;
+    var record = value;
+    var rewards = record.rewards;
+    var challenges = record.challenges;
+    var rewardsValid = rewards === void 0 || Array.isArray(rewards) && rewards.every(isTestSpec);
+    var challengesValid = challenges === void 0 || Array.isArray(challenges) && challenges.every(isChallengeTestSpec);
+    return rewardsValid && challengesValid;
+  }
+  function normalizeTests(test2) {
+    if (test2 === null)
+      return { rewards: [], challenges: [] };
+    if (isDebugTestConfig(test2)) {
+      return {
+        rewards: test2.rewards ? __spreadArray5([], __read6(test2.rewards), false) : [],
+        challenges: test2.challenges ? __spreadArray5([], __read6(test2.challenges), false) : []
+      };
+    }
+    if (isTestSpec(test2))
+      return { rewards: [test2], challenges: [] };
+    if (Array.isArray(test2) && test2.every(isTestSpec)) {
+      return { rewards: __spreadArray5([], __read6(test2), false), challenges: [] };
+    }
+    throw new Error("Invalid debug test specification");
+  }
+  var warnedUnknownVPModeTests = /* @__PURE__ */ new Set();
+  var warnedUnknownBoonTests = /* @__PURE__ */ new Set();
+  function resolveVPModeTestRef(ref) {
+    var _a;
+    if (typeof ref !== "string")
+      return ref;
+    var mode = (_a = vpModes.find(function(vpMode) {
+      return vpMode.name === ref;
+    })) !== null && _a !== void 0 ? _a : null;
+    if (mode === null && !warnedUnknownVPModeTests.has(ref)) {
+      warnedUnknownVPModeTests.add(ref);
+      console.warn("Unknown vp mode in debug test config: ".concat(ref));
+    }
+    return mode;
+  }
+  function resolveBoonTestRef(ref) {
+    var _a;
+    if (typeof ref !== "string")
+      return ref;
+    var boon = (_a = boons.find(function(candidate) {
+      return candidate.name === ref;
+    })) !== null && _a !== void 0 ? _a : null;
+    if (boon === null && !warnedUnknownBoonTests.has(ref)) {
+      warnedUnknownBoonTests.add(ref);
+      console.warn("Unknown boon in debug test config: ".concat(ref));
+    }
+    return boon;
+  }
+  function challengeOverridesForStage(tests, stageIndex, pathIndex) {
+    var e_21, _a;
+    if (pathIndex !== 0)
+      return {};
+    var stageNumber = stageIndex + 1;
+    var overrides = {};
+    try {
+      for (var tests_1 = __values4(tests), tests_1_1 = tests_1.next(); !tests_1_1.done; tests_1_1 = tests_1.next()) {
+        var _b = __read6(tests_1_1.value, 2), stage = _b[0], stageTest = _b[1];
+        if (stage !== stageNumber)
+          continue;
+        if (stageTest[0] === "vpMode") {
+          var mode = resolveVPModeTestRef(stageTest[1]);
+          if (mode !== null)
+            overrides.vpMode = mode;
+        } else {
+          var boon = resolveBoonTestRef(stageTest[1]);
+          if (boon !== null)
+            overrides.boon = boon;
+        }
+      }
+    } catch (e_21_1) {
+      e_21 = { error: e_21_1 };
+    } finally {
+      try {
+        if (tests_1_1 && !tests_1_1.done && (_a = tests_1.return)) _a.call(tests_1);
+      } finally {
+        if (e_21) throw e_21.error;
+      }
+    }
+    return overrides;
+  }
   function rewardTestsForStage(tests, stageIndex) {
     var stageNumber = stageIndex + 1;
     return tests.filter(function(_a) {
@@ -6428,7 +6528,7 @@
   function playGame2(ui_1) {
     return __awaiter3(this, arguments, void 0, function(ui, test2, seed, initialSnapshot, onStateChange, debugEnabled) {
       var state, tests, initialPath, _a, _b, testSpec, _loop_1, state_1;
-      var e_21, _c;
+      var e_22, _c;
       var _d, _e;
       if (test2 === void 0) {
         test2 = null;
@@ -6452,25 +6552,28 @@
             state.setChangeListener(onStateChange ? function() {
               return onStateChange(serializeMetaGame(state));
             } : null);
-            tests = test2 === null ? [] : isTestSpec(test2) ? [test2] : test2;
+            tests = debugEnabled ? normalizeTests(test2) : { rewards: [], challenges: [] };
             if (!initialSnapshot) {
               initialPath = pathFromSkeleton({
                 label: "Go left",
                 rewards: ["card", "card", "event", "potion"],
-                challenges: [randomChallenge(state), randomChallenge(state)]
+                challenges: [
+                  randomChallenge(state, challengeOverridesForStage(tests.challenges, 0, 0)),
+                  randomChallenge(state, challengeOverridesForStage(tests.challenges, 0, 1))
+                ]
               });
               try {
-                for (_a = __values4(rewardTestsForStage(tests, 0)), _b = _a.next(); !_b.done; _b = _a.next()) {
+                for (_a = __values4(rewardTestsForStage(tests.rewards, 0)), _b = _a.next(); !_b.done; _b = _a.next()) {
                   testSpec = _b.value;
                   initialPath.rewardStates.push(makeTestReward(state, testSpec));
                 }
-              } catch (e_21_1) {
-                e_21 = { error: e_21_1 };
+              } catch (e_22_1) {
+                e_22 = { error: e_22_1 };
               } finally {
                 try {
                   if (_b && !_b.done && (_c = _a.return)) _c.call(_a);
                 } finally {
-                  if (e_21) throw e_21.error;
+                  if (e_22) throw e_22.error;
                 }
               }
               state.replaceAndClearHistory(__assign2(__assign2({}, materializePath(state, initialPath)), { phase: "stage_select", availablePaths: [] }));
@@ -6479,8 +6582,8 @@
             }
             state.ui.updateBuffer(state);
             _loop_1 = function() {
-              var sameReplay_1, stage, gameSpec, startingBuffer, _g, score, potionsRemaining, history_1, macros, viewingMacros, usedPotions, persistedMacros, persistedViewingMacros, stageReplays, stageTimelineEntry, nextStage, paths, _h, _j, testSpec2, paths, path, _k, e_22, selectedChallenge, e_23, e_24, persistedMacros, persistedViewingMacros;
-              var e_25, _l;
+              var sameReplay_1, stage, gameSpec, startingBuffer, _g, score, potionsRemaining, history_1, macros, viewingMacros, usedPotions, persistedMacros, persistedViewingMacros, stageReplays, stageTimelineEntry, nextStage, paths, _h, _j, testSpec2, paths, path, _k, e_23, selectedChallenge, e_24, e_25, persistedMacros, persistedViewingMacros;
+              var e_26, _l;
               return __generator3(this, function(_m) {
                 switch (_m.label) {
                   case 0:
@@ -6556,23 +6659,23 @@
                     _m.sent();
                     return [2, { value: void 0 }];
                   case 4:
-                    return [4, makePaths(state)];
+                    return [4, makePaths(state, tests.challenges)];
                   case 5:
                     paths = _m.sent().map(function(skel) {
                       return pathFromSkeleton(skel);
                     });
                     try {
-                      for (_h = (e_25 = void 0, __values4(rewardTestsForStage(tests, nextStage))), _j = _h.next(); !_j.done; _j = _h.next()) {
+                      for (_h = (e_26 = void 0, __values4(rewardTestsForStage(tests.rewards, nextStage))), _j = _h.next(); !_j.done; _j = _h.next()) {
                         testSpec2 = _j.value;
                         paths[0].rewardStates.push(makeTestReward(state, testSpec2));
                       }
-                    } catch (e_25_1) {
-                      e_25 = { error: e_25_1 };
+                    } catch (e_26_1) {
+                      e_26 = { error: e_26_1 };
                     } finally {
                       try {
                         if (_j && !_j.done && (_l = _h.return)) _l.call(_h);
                       } finally {
-                        if (e_25) throw e_25.error;
+                        if (e_26) throw e_26.error;
                       }
                     }
                     state.replaceAndClearHistory({
@@ -6607,14 +6710,14 @@
                     path = _k;
                     return [3, 16];
                   case 12:
-                    e_22 = _m.sent();
-                    if (!(e_22 instanceof ReplayStage)) return [3, 14];
-                    return [4, replayCompletedStage(state, e_22.stage)];
+                    e_23 = _m.sent();
+                    if (!(e_23 instanceof ReplayStage)) return [3, 14];
+                    return [4, replayCompletedStage(state, e_23.stage)];
                   case 13:
                     _m.sent();
                     return [3, 7];
                   case 14:
-                    throw e_22;
+                    throw e_23;
                   case 15:
                     return [3, 7];
                   case 16:
@@ -6634,14 +6737,14 @@
                     selectedChallenge = _m.sent();
                     return [3, 25];
                   case 21:
-                    e_23 = _m.sent();
-                    if (!(e_23 instanceof ReplayStage)) return [3, 23];
-                    return [4, replayCompletedStage(state, e_23.stage)];
+                    e_24 = _m.sent();
+                    if (!(e_24 instanceof ReplayStage)) return [3, 23];
+                    return [4, replayCompletedStage(state, e_24.stage)];
                   case 22:
                     _m.sent();
                     return [3, 18];
                   case 23:
-                    throw e_23;
+                    throw e_24;
                   case 24:
                     return [3, 18];
                   case 25:
@@ -6660,22 +6763,22 @@
                   case 28:
                     return [3, 30];
                   case 29:
-                    e_24 = _m.sent();
-                    if (e_24 instanceof Undo2) {
-                      persistedMacros = (_d = e_24.macros) !== null && _d !== void 0 ? _d : state.global.macros;
-                      persistedViewingMacros = (_e = e_24.viewingMacros) !== null && _e !== void 0 ? _e : state.global.viewingMacros;
+                    e_25 = _m.sent();
+                    if (e_25 instanceof Undo2) {
+                      persistedMacros = (_d = e_25.macros) !== null && _d !== void 0 ? _d : state.global.macros;
+                      persistedViewingMacros = (_e = e_25.viewingMacros) !== null && _e !== void 0 ? _e : state.global.viewingMacros;
                       state.updateGlobal({
                         macros: persistedMacros,
                         viewingMacros: persistedViewingMacros
                       });
                       state.undo({
-                        gameHistory: e_24.gameHistory,
-                        gameRedo: e_24.gameRedo
+                        gameHistory: e_25.gameHistory,
+                        gameRedo: e_25.gameRedo
                       });
-                    } else if (e_24 instanceof Redo) {
+                    } else if (e_25 instanceof Redo) {
                       state.redo();
                     } else {
-                      throw e_24;
+                      throw e_25;
                     }
                     return [3, 30];
                   case 30:
@@ -16176,11 +16279,17 @@
     };
     throw new TypeError(s ? "Object is not iterable." : "Symbol.iterator is not defined.");
   };
-  var test = [
-    [1, ["relic", wingedBoots]],
-    [1, ["relic", wingedBoots]],
-    [1, ["relic", matryoshkaDoll]]
-  ];
+  var test = {
+    rewards: [
+      [1, ["relic", wingedBoots]],
+      [1, ["relic", wingedBoots]],
+      [1, ["relic", matryoshkaDoll]]
+    ],
+    challenges: [
+      [1, ["boon", "Populate"]],
+      [1, ["vpMode", "Monument"]]
+    ]
+  };
   var SAVE_STORAGE_KEY = "roguelike.ongoingSaves.v1";
   var MAX_LAUNCHER_SAVES = 10;
   var summaryMetaUI = {
