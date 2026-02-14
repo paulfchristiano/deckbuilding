@@ -2204,74 +2204,25 @@
     });
   }
   function choice(state_1, prompt_1, options_1) {
-    return __awaiter(this, arguments, void 0, function(state, prompt, options, info, chosen, presentedIndices) {
-      var index, visibleIndices, boundedVisibleIndices, visibleOptions, canonicalToVisible, _a, _b, _c, visibleIndex, canonicalIndex, visibleChosen, newState;
-      var e_37, _d, _e;
-      var _this = this;
+    return __awaiter(this, arguments, void 0, function(state, prompt, options, info, chosen) {
+      var index, indices, newState;
+      var _a;
       if (info === void 0) {
         info = [];
       }
       if (chosen === void 0) {
         chosen = [];
       }
-      if (presentedIndices === void 0) {
-        presentedIndices = null;
-      }
-      return __generator(this, function(_f) {
-        switch (_f.label) {
+      return __generator(this, function(_b) {
+        switch (_b.label) {
           case 0:
             if (options.length == 0 && info.indexOf("actChoice") == -1)
               return [2, [state, null]];
-            visibleIndices = presentedIndices !== null && presentedIndices !== void 0 ? presentedIndices : options.map(function(_, i) {
-              return i;
-            });
-            boundedVisibleIndices = visibleIndices.filter(function(i) {
-              return i >= 0 && i < options.length;
-            });
-            visibleOptions = boundedVisibleIndices.map(function(i) {
-              return options[i];
-            });
-            canonicalToVisible = /* @__PURE__ */ new Map();
-            try {
-              for (_a = __values(boundedVisibleIndices.entries()), _b = _a.next(); !_b.done; _b = _a.next()) {
-                _c = __read(_b.value, 2), visibleIndex = _c[0], canonicalIndex = _c[1];
-                canonicalToVisible.set(canonicalIndex, visibleIndex);
-              }
-            } catch (e_37_1) {
-              e_37 = { error: e_37_1 };
-            } finally {
-              try {
-                if (_b && !_b.done && (_d = _a.return)) _d.call(_a);
-              } finally {
-                if (e_37) throw e_37.error;
-              }
-            }
-            visibleChosen = chosen.map(function(canonicalIndex2) {
-              return canonicalToVisible.get(canonicalIndex2);
-            }).filter(function(visibleIndex2) {
-              return visibleIndex2 !== void 0;
-            });
-            if (state.future.length === 0 && visibleOptions.length === 0)
-              return [2, [state, null]];
             return [4, doOrReplay(state, function() {
-              return __awaiter(_this, void 0, void 0, function() {
-                var visibleIndex2;
-                return __generator(this, function(_a2) {
-                  switch (_a2.label) {
-                    case 0:
-                      return [4, state.ui.choice(state, prompt, visibleOptions, info, visibleChosen)];
-                    case 1:
-                      visibleIndex2 = _a2.sent();
-                      if (visibleIndex2 >= boundedVisibleIndices.length || visibleIndex2 < 0) {
-                        throw new InvalidHistory(visibleIndex2, state);
-                      }
-                      return [2, boundedVisibleIndices[visibleIndex2]];
-                  }
-                });
-              });
+              return state.ui.choice(state, prompt, options, info, chosen);
             })];
           case 1:
-            _e = __read.apply(void 0, [_f.sent(), 2]), newState = _e[0], index = _e[1];
+            _a = __read.apply(void 0, [_b.sent(), 2]), newState = _a[0], index = _a[1];
             if (index >= options.length || index < 0)
               throw new InvalidHistory(index, state);
             return [2, [newState, options[index].value]];
@@ -2496,7 +2447,6 @@
     });
   }
   function actChoice(state) {
-    var e_38, _a;
     function asActChoice(kind) {
       return function(c) {
         return { render: { kind: "card", card: c }, value: [c, kind] };
@@ -2511,35 +2461,12 @@
     var supply = state.supply.filter(available("buy")).map(asActChoice("buy"));
     var events = state.events.filter(available("use")).map(asActChoice("use"));
     var play = state.play.filter(available("activate")).map(asActChoice("activate"));
-    var potions = state.potions.filter(available("potion")).map(asActChoice("potion"));
-    var nonPotionOptions = hand.concat(supply).concat(events).concat(play);
-    var options = nonPotionOptions.concat(potions);
     var replayUsedPotions = state.spec.replayUsedPotionIDs;
-    if (replayUsedPotions === void 0) {
-      return choice(state, "Buy a card (costs 1 buy),\n        play a card from your hand (costs 1 action),\n        use an event, or drink a potion.", options, ["actChoice"]);
-    }
-    var allowedPotionIDs = new Set(replayUsedPotions);
-    var presentedIndices = nonPotionOptions.map(function(_, i) {
-      return i;
-    });
-    try {
-      for (var _b = __values(potions.entries()), _c = _b.next(); !_c.done; _c = _b.next()) {
-        var _d = __read(_c.value, 2), potionIndex = _d[0], option = _d[1];
-        var _e = __read(option.value, 1), card = _e[0];
-        if (allowedPotionIDs.has(card.id)) {
-          presentedIndices.push(nonPotionOptions.length + potionIndex);
-        }
-      }
-    } catch (e_38_1) {
-      e_38 = { error: e_38_1 };
-    } finally {
-      try {
-        if (_c && !_c.done && (_a = _b.return)) _a.call(_b);
-      } finally {
-        if (e_38) throw e_38.error;
-      }
-    }
-    return choice(state, "Buy a card (costs 1 buy),\n        play a card from your hand (costs 1 action),\n        use an event, or drink a potion.", options, ["actChoice"], [], presentedIndices);
+    var allowedPotion = function(card) {
+      return replayUsedPotions === void 0 || replayUsedPotions.includes(card.id);
+    };
+    var potions = state.potions.filter(allowedPotion).filter(available("potion")).map(asActChoice("potion"));
+    return choice(state, "Buy a card (costs 1 buy),\n        play a card from your hand (costs 1 action),\n        use an event, or drink a potion.", hand.concat(supply).concat(events).concat(play).concat(potions), ["actChoice"]);
   }
   function coinKey(spec) {
     var cost = cardSpecCost(spec, "buy");
@@ -2563,7 +2490,7 @@
   }
   function lexical(comps) {
     return function(a2, b) {
-      var e_39, _a;
+      var e_37, _a;
       try {
         for (var comps_1 = __values(comps), comps_1_1 = comps_1.next(); !comps_1_1.done; comps_1_1 = comps_1.next()) {
           var comp = comps_1_1.value;
@@ -2571,13 +2498,13 @@
           if (result != 0)
             return result;
         }
-      } catch (e_39_1) {
-        e_39 = { error: e_39_1 };
+      } catch (e_37_1) {
+        e_37 = { error: e_37_1 };
       } finally {
         try {
           if (comps_1_1 && !comps_1_1.done && (_a = comps_1.return)) _a.call(comps_1);
         } finally {
-          if (e_39) throw e_39.error;
+          if (e_37) throw e_37.error;
         }
       }
       return 0;
@@ -2593,7 +2520,7 @@
     nameComp
   ]);
   function maxID(cards) {
-    var e_40, _a;
+    var e_38, _a;
     var max = 0;
     try {
       for (var cards_1 = __values(cards), cards_1_1 = cards_1.next(); !cards_1_1.done; cards_1_1 = cards_1.next()) {
@@ -2601,32 +2528,32 @@
         if (card.id > max)
           max = card.id;
       }
-    } catch (e_40_1) {
-      e_40 = { error: e_40_1 };
+    } catch (e_38_1) {
+      e_38 = { error: e_38_1 };
     } finally {
       try {
         if (cards_1_1 && !cards_1_1.done && (_a = cards_1.return)) _a.call(cards_1);
       } finally {
-        if (e_40) throw e_40.error;
+        if (e_38) throw e_38.error;
       }
     }
     return max;
   }
   function initialState(spec, ui) {
-    var e_41, _a, e_42, _b;
+    var e_39, _a, e_40, _b;
     var state = new State(spec, ui);
     try {
       for (var _c = __values(spec.potions), _d = _c.next(); !_d.done; _d = _c.next()) {
         var potion = _d.value;
         state = state.addToZone(potion, "potions");
       }
-    } catch (e_41_1) {
-      e_41 = { error: e_41_1 };
+    } catch (e_39_1) {
+      e_39 = { error: e_39_1 };
     } finally {
       try {
         if (_d && !_d.done && (_a = _c.return)) _a.call(_c);
       } finally {
-        if (e_41) throw e_41.error;
+        if (e_39) throw e_39.error;
       }
     }
     try {
@@ -2634,13 +2561,13 @@
         var relic = _f.value;
         state = state.addToZone(relic, "relics");
       }
-    } catch (e_42_1) {
-      e_42 = { error: e_42_1 };
+    } catch (e_40_1) {
+      e_40 = { error: e_40_1 };
     } finally {
       try {
         if (_f && !_f.done && (_b = _e.return)) _b.call(_e);
       } finally {
-        if (e_42) throw e_42.error;
+        if (e_40) throw e_40.error;
       }
     }
     state = state.update({ nextID: maxID(spec.potions.concat(spec.relics)) + 1 });
@@ -2655,7 +2582,7 @@
     return xs.values();
   }
   function undoOrSet(to, from) {
-    var e_43, _a;
+    var e_41, _a;
     var newHistory = to.origin().future;
     var oldHistory = from.origin().future;
     var newRedo = from.redo.slice();
@@ -2670,13 +2597,13 @@
             predecessor = false;
           }
         }
-      } catch (e_43_1) {
-        e_43 = { error: e_43_1 };
+      } catch (e_41_1) {
+        e_41 = { error: e_41_1 };
       } finally {
         try {
           if (_c && !_c.done && (_a = _b.return)) _a.call(_b);
         } finally {
-          if (e_43) throw e_43.error;
+          if (e_41) throw e_41.error;
         }
       }
     }
@@ -2928,6 +2855,27 @@
     }]
   };
   registerRule(ferryRule);
+  var reductionRule = {
+    name: "Reduction",
+    replacers: [{
+      text: "Cards cost @ less to play for each reduction token on their supply.\n               Whenever this reduces a cost by one or more @,\n               remove that many reduction tokens.",
+      kind: "cost",
+      handles: function(x, state, _rule) {
+        return x.actionKind == "play" && nameHasToken(x.card, "reduction", state);
+      },
+      replace: function(x, state, _rule) {
+        var reduction = Math.min(x.cost.energy, countNameTokens(x.card, "reduction", state));
+        return __assign(__assign({}, x), { cost: __assign(__assign({}, x.cost), { energy: x.cost.energy - reduction, effects: x.cost.effects.concat([repeat(applyToTarget(function(target) {
+          return removeToken(target, "reduction");
+        }, "Remove a reduction token from a supply.", function(state2) {
+          return state2.supply.filter(function(c) {
+            return c.name == x.card.name && c.count("reduction") > 0;
+          });
+        }), reduction)]) }) });
+      }
+    }]
+  };
+  registerRule(reductionRule);
   var twinRule = {
     name: "Twin",
     triggers: [{
@@ -2962,7 +2910,7 @@
     throw new Error("Unexpected: ".concat(x));
   }
   function countDistinct(xs) {
-    var e_44, _a;
+    var e_42, _a;
     var distinct = /* @__PURE__ */ new Set();
     var result = 0;
     try {
@@ -2973,13 +2921,13 @@
           distinct.add(x);
         }
       }
-    } catch (e_44_1) {
-      e_44 = { error: e_44_1 };
+    } catch (e_42_1) {
+      e_42 = { error: e_42_1 };
     } finally {
       try {
         if (xs_1_1 && !xs_1_1.done && (_a = xs_1.return)) _a.call(xs_1);
       } finally {
-        if (e_44) throw e_44.error;
+        if (e_42) throw e_42.error;
       }
     }
     return result;
@@ -6907,12 +6855,12 @@
     simpleText: ["Start with an extra copper."],
     triggers: [{
       kind: "gameStart",
-      text: "At the start of the game, create a copper in your discard.",
+      text: "At the start of the game, create two coppers in your discard.",
       handles: function() {
         return true;
       },
       transform: function() {
-        return create(copper, "discard");
+        return repeat(create(copper, "discard"), 2);
       }
     }]
   };
@@ -6920,7 +6868,7 @@
   var bagOfPreparation = {
     name: "Bag of Preparation",
     simpleText: [
-      "At the start of the game, +5 actions.",
+      "At the start of the game, +10 actions.",
       "You can't lose actions except by paying costs."
     ],
     staticReplacers: [{
@@ -6938,24 +6886,24 @@
       handles: function() {
         return true;
       },
-      text: "At the start of the game, +5 actions.",
+      text: "At the start of the game, +10 actions.",
       transform: function(_e, _s, c) {
-        return gainActions(5, c);
+        return gainActions(10, c);
       }
     }]
   };
   relicRewards.push(bagOfPreparation);
   var courier = {
     name: "Courier",
-    simpleText: ["+2 buys each time you refresh."],
+    simpleText: ["+2 buys, +1 action each time you refresh."],
     triggers: [{
       kind: "afterUse",
-      text: "After using ".concat(refresh.name, ", +2 buys."),
+      text: "After using ".concat(refresh.name, ", +2 buys and +1 action."),
       handles: function(e, s, c) {
         return e.card.name === refresh.name;
       },
       transform: function(e, s, c) {
-        return gainBuys(2, c);
+        return doAll([gainBuys(2, c), gainActions(1, c)]);
       }
     }]
   };
@@ -6996,8 +6944,8 @@
     }]
   };
   relicRewards.push(brokenLever);
-  var cursedInkwell = {
-    name: "Cursed Inkwell",
+  var darkBanner = {
+    name: "Dark Banner",
     simpleText: [
       "Par is 4@ lower on each course.",
       "Gain 3@ buffer at the start of each course."
@@ -7018,7 +6966,7 @@
       }
     }]
   };
-  relicRewards.push(cursedInkwell);
+  relicRewards.push(darkBanner);
   var silverMirror = {
     name: "Silver Mirror",
     simpleText: [
@@ -8292,7 +8240,7 @@
   cardRewards.push(fountain);
   var grandMarket = {
     name: "Grand Market",
-    buyCost: coin(6),
+    buyCost: coin(7),
     effects: [actionsEffect(1), coinsEffect(3), buysEffect(2)]
   };
   cardRewards.push(grandMarket);
@@ -8635,9 +8583,9 @@
     rules: [ferryRule]
   };
   cardRewards.push(ferry);
-  var transmogrify = {
-    name: "Transmogrify",
-    buyCost: coin(3),
+  var develop = {
+    name: "Develop",
+    buyCost: coin(4),
     effects: [{
       text: ["Trash a card in your hand.", "Choose a card in the supply costing less and create a copy in your hand.", "Choose a card in the supply costing $1 or $2 more and create a copy in your hand."],
       transform: function(_, c) {
@@ -8680,7 +8628,7 @@
                         });
                       });
                     };
-                  }, "Choose a card to transmogrify.", function(s) {
+                  }, "Choose a card to develop.", function(s) {
                     return s.hand;
                   })(state)];
                 case 1:
@@ -8693,7 +8641,7 @@
       }
     }]
   };
-  cardRewards.push(transmogrify);
+  cardRewards.push(develop);
   var harrowName = "Harrow";
   var harrow = {
     name: harrowName,
@@ -9132,7 +9080,7 @@
     relatedCards: [fair],
     effects: [actionsEffect(1), buysEffect(1)],
     buyCost: coin(2),
-    staticTriggers: [afterBuyTrigger(createInPlayEffect(fair, 2))]
+    staticTriggers: [afterBuyTrigger(createInPlayEffect(fair))]
   };
   cardRewards.push(marketSquare);
   var greatFeastName = "Great Feast";
@@ -9575,8 +9523,8 @@
     }]
   };
   potionRewards.push(potionOfTransformation);
-  var sailorsBrew = {
-    name: "Sailor's Brew",
+  var ferryPotion = {
+    name: "Ferry Potion",
     isPotion: true,
     simpleText: [
       "Put two ferry tokens on a supply. It costs $2 less."
@@ -9588,7 +9536,7 @@
       return state.supply;
     })]
   };
-  potionRewards.push(sailorsBrew);
+  potionRewards.push(ferryPotion);
   var highwayPotion = {
     name: "Highway Potion",
     isPotion: true,
@@ -9604,8 +9552,7 @@
         };
       }
     }],
-    relatedCards: [highway],
-    rules: [echoRule]
+    relatedCards: [highway]
   };
   potionRewards.push(highwayPotion);
   var royalNectar = {
@@ -9842,6 +9789,21 @@
     })]
   };
   potionRewards.push(potionOfPriority);
+  var artistsBrew = {
+    name: "Artist's Brew",
+    isPotion: true,
+    simpleText: [
+      "Put 8 reduction tokens on a supply.",
+      "Whenever you play a card with reduction tokens on its supply, remove reduction tokens instead of paying @."
+    ],
+    rules: [reductionRule],
+    effects: [targetedEffect(function(card) {
+      return addToken(card, "reduction", 8);
+    }, "Put 8 reduction tokens on a card in the supply.", function(state) {
+      return state.supply;
+    })]
+  };
+  potionRewards.push(artistsBrew);
   var geminiBrew = {
     name: "Gemini Brew",
     isPotion: true,
@@ -10413,8 +10375,8 @@
   eventRewards.push(replicate);
   var lostArts = {
     simpleText: [
-      "Put 8 art tokens on a supply.",
-      "Whenever you play a card with art tokens on its supply, remove art tokens instead of paying @."
+      "Put 8 reduction tokens on a supply.",
+      "Whenever you play a card with reduction tokens on its supply, remove reduction tokens instead of paying @."
     ],
     fixedCost: __assign5(__assign5({}, free), { energy: 1, coin: 3 }),
     name: "Lost Arts",
@@ -10424,7 +10386,7 @@
           return __generator7(this, function(_a) {
             switch (_a.label) {
               case 0:
-                return [4, addToken(card, "art", 8)(state)];
+                return [4, addToken(card, "reduction", 8)(state)];
               case 1:
                 state = _a.sent();
                 return [2, state];
@@ -10432,27 +10394,10 @@
           });
         });
       };
-    }, "Put eight art tokens on a card in the supply.", function(s) {
+    }, "Put eight reduction tokens on a card in the supply.", function(s) {
       return s.supply;
     })],
-    staticReplacers: [{
-      text: "Cards cost @ less to play for each art token on their supply.\n               Whenever this reduces a cost by one or more @,\n               remove that many art tokens.",
-      kind: "cost",
-      handles: function(x, state, card) {
-        return x.actionKind == "play" && nameHasToken(x.card, "art", state);
-      },
-      replace: function(x, state, card) {
-        card = state.find(card);
-        var reduction = Math.min(x.cost.energy, countNameTokens(x.card, "art", state));
-        return __assign5(__assign5({}, x), { cost: __assign5(__assign5({}, x.cost), { energy: x.cost.energy - reduction, effects: x.cost.effects.concat([repeat(applyToTarget(function(target) {
-          return removeToken(target, "art");
-        }, "Remove an art token from a supply.", function(state2) {
-          return state2.supply.filter(function(c) {
-            return c.name == x.card.name && c.count("art") > 0;
-          });
-        }), reduction)]) }) });
-      }
-    }]
+    rules: [reductionRule]
   };
   eventRewards.push(lostArts);
   var polish = {
@@ -10537,6 +10482,24 @@
     }]
   };
   eventRewards.push(haggle);
+  var splay = {
+    name: "Splay",
+    fixedCost: __assign5(__assign5({}, free), { coin: 2 }),
+    effects: [{
+      text: ["Put a reduction token on each supply."],
+      transform: function(s) {
+        return doAll(s.supply.map(function(c) {
+          return addToken(c, "reduction");
+        }));
+      }
+    }],
+    simpleText: [
+      "Put a reduction token on each supply.",
+      "Whenever you play a card with a reduction token on its supply, remove reduction tokens instead of paying @."
+    ],
+    rules: [reductionRule]
+  };
+  eventRewards.push(splay);
   var summon = {
     name: "Summon",
     fixedCost: __assign5(__assign5({}, free), { energy: 1, coin: 4 }),
@@ -11451,20 +11414,12 @@
     effects: [pointsEffect(1), actionsEffect(1)],
     buyCost: coin(5)
   };
-  function chargeUpTo2(max) {
-    return {
-      text: ["Put a charge token on this if it has less than ".concat(max, ".")],
-      transform: function(state, card) {
-        return card.charge >= max ? noop : charge(card, 1);
-      }
-    };
-  }
   var frontierName = "Frontier";
   var frontier = {
     name: frontierName,
     simpleText: [
-      "+2 vp.",
-      "The vp gain increases by 1vp each time you play it, up to +6vp."
+      "+1 vp.",
+      "The vp gain increases by 1vp each time you play it."
     ],
     fixedCost: energy(1),
     buyCost: coin(6),
@@ -11473,8 +11428,8 @@
       transform: function(state, card) {
         return gainPoints(state.find(card).charge, card);
       }
-    }, chargeUpTo2(6)],
-    staticReplacers: [startsWithCharge(frontierName, 2)]
+    }, chargeEffect()],
+    staticReplacers: [startsWithCharge(frontierName, 1)]
   };
   var gardens = {
     name: "Gardens",
@@ -11546,32 +11501,10 @@
       }
     }]
   };
-  var philanthropy = {
-    name: "Philanthropy",
-    fixedCost: coin(10),
-    effects: [{
-      text: ["Pay all $.", "+1 vp per $ paid."],
-      transform: function(s, c) {
-        return function(state) {
-          return __awaiter9(this, void 0, void 0, function() {
-            var n;
-            return __generator9(this, function(_a) {
-              switch (_a.label) {
-                case 0:
-                  n = state.coin;
-                  return [4, payCost(__assign7(__assign7({}, free), { coin: n }), c)(state)];
-                case 1:
-                  state = _a.sent();
-                  return [4, gainPoints(n, c)(state)];
-                case 2:
-                  state = _a.sent();
-                  return [2, state];
-              }
-            });
-          });
-        };
-      }
-    }]
+  var monument = {
+    name: "Monument",
+    fixedCost: coin(50),
+    effects: [pointsEffect(50)]
   };
   var thoroughfare = {
     name: "Thoroughfare",
@@ -11589,17 +11522,16 @@
       }
     }]
   };
-  var monument = {
-    name: "Monument",
+  var foundation = {
+    name: "Foundation",
     fixedCost: coin(0),
     effects: [],
     restrictions: [cannotUse],
     staticTriggers: [{
       kind: "buy",
-      text: "Whenever you buy a card costing $3 or more, +1 vp.",
+      text: "Whenever you buy a card other than ".concat(copper.name, ", +1 vp."),
       handles: function(e, state) {
-        var cost = e.card.cost("buy", state);
-        return cost.coin >= 3;
+        return e.card.name != copper.name;
       },
       transform: function(e, state, card) {
         return gainPoints(1, card);
@@ -11633,7 +11565,7 @@
       }
     }]
   };
-  vpModes.push({ name: "Province", target: 10, cards: [province], events: [] }, { name: "Duchy", target: 15, cards: [duchy], events: [] }, { name: "Estate", target: 20, cards: [estate], events: [] }, { name: "Colony", target: 5, cards: [colony], events: [] }, { name: "Thoroughfare", target: 100, cards: [], events: [thoroughfare] }, { name: "Monument", target: 25, cards: [], events: [monument] }, { name: "Capitalization", target: 60, cards: [], events: [capitalization] }, { name: "Philanthropy", target: 40, cards: [], events: [philanthropy] }, { name: "Duke", target: 40, cards: [duchy, duke], events: [] }, { name: "Flower Market", target: 40, cards: [flowerMarket], events: [] }, { name: "Farmland", target: 5, cards: [farmland], events: [] }, { name: "Vibrant City", target: 20, cards: [vibrantCity], events: [] }, { name: "Palace", target: 20, cards: [palace], events: [] }, { name: "Territory", target: 20, cards: [territory], events: [] }, { name: "Frontier", target: 34, cards: [frontier], events: [] }, { name: "Gardens", target: 30, cards: [gardens], events: [] });
+  vpModes.push({ name: "Province", target: 10, cards: [province], events: [] }, { name: "Duchy", target: 15, cards: [duchy], events: [] }, { name: "Estate", target: 20, cards: [estate], events: [] }, { name: "Colony", target: 5, cards: [colony], events: [] }, { name: "Thoroughfare", target: 100, cards: [], events: [thoroughfare] }, { name: "Foundation", target: 25, cards: [], events: [foundation] }, { name: "Capitalization", target: 70, cards: [], events: [capitalization] }, { name: "Monument", target: 50, cards: [], events: [monument] }, { name: "Duke", target: 40, cards: [duchy, duke], events: [] }, { name: "Flower Market", target: 40, cards: [flowerMarket], events: [] }, { name: "Farmland", target: 5, cards: [farmland], events: [] }, { name: "Vibrant City", target: 20, cards: [vibrantCity], events: [] }, { name: "Palace", target: 20, cards: [palace], events: [] }, { name: "Territory", target: 20, cards: [territory], events: [] }, { name: "Frontier", target: 25, cards: [frontier], events: [] }, { name: "Gardens", target: 30, cards: [gardens], events: [] });
 
   // public/data/encounters.js
   var __assign8 = function() {
@@ -13173,7 +13105,7 @@
     }
   };
   registerEncounter(tradingPost, { minStage: 4 });
-  var cursedInkwell2 = {
+  var cursedInkwell = {
     name: "Cursed Inkwell",
     simpleText: ["Par is 1@ lower on each course."],
     metaReplacers: [{
@@ -13199,7 +13131,7 @@
       {
         label: "Use the cursed quill",
         description: "+5@ buffer, but par is 1@ lower on each course.",
-        transform: compose(addBuffer(5), gainRelic(cursedInkwell2))
+        transform: compose(addBuffer(5), gainRelic(cursedInkwell))
       }
     ]
   });

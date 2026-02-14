@@ -10,7 +10,9 @@ import {
     ResourceEvent,
     refresh, relicRewards,
     sourceHasName,
-    displayName
+    displayName,
+    doAll,
+    repeat
 } from '../gameLogic.js'
 import { registerSpec } from '../registry.js'
 
@@ -28,9 +30,9 @@ export const bagOfCoins: RelicSpec = {
     simpleText: ['Start with an extra copper.'],
     triggers: [{
         kind: 'gameStart',
-        text: 'At the start of the game, create a copper in your discard.',
+        text: 'At the start of the game, create two coppers in your discard.',
         handles: () => true,
-        transform: () => create(copper, 'discard')
+        transform: () => repeat(create(copper, 'discard'), 2)
     }]
 }
 relicRewards.push(bagOfCoins)
@@ -38,7 +40,7 @@ relicRewards.push(bagOfCoins)
 export const bagOfPreparation: RelicSpec = {
     name: 'Bag of Preparation',
     simpleText: [
-        'At the start of the game, +5 actions.',
+        'At the start of the game, +10 actions.',
         'You can\'t lose actions except by paying costs.'
     ],
     staticReplacers: [{
@@ -50,20 +52,20 @@ export const bagOfPreparation: RelicSpec = {
     triggers: [{
         kind: 'gameStart',
         handles: () => true,
-        text: 'At the start of the game, +5 actions.',
-        transform: (_e, _s, c) => gainActions(5, c)
+        text: 'At the start of the game, +10 actions.',
+        transform: (_e, _s, c) => gainActions(10, c)
     }]
 }
 relicRewards.push(bagOfPreparation)
 
 export const courier: RelicSpec = {
     name: 'Courier',
-    simpleText: ['+2 buys each time you refresh.'],
+    simpleText: ['+2 buys, +1 action each time you refresh.'],
     triggers: [{
         kind: 'afterUse',
-        text: `After using ${refresh.name}, +2 buys.`,
+        text: `After using ${refresh.name}, +2 buys and +1 action.`,
         handles: (e, s, c) => e.card.name === refresh.name,
-        transform: (e, s, c) => gainBuys(2, c)
+        transform: (e, s, c) => doAll([gainBuys(2, c), gainActions(1, c)])
     }],
 }
 relicRewards.push(courier)
@@ -102,9 +104,8 @@ export const brokenLever: RelicSpec = {
 }
 relicRewards.push(brokenLever)
 
-// Cursed Quill: Par is 6@ lower, gain 2@ buffer at start of each course
-export const cursedInkwell: RelicSpec = {
-    name: 'Cursed Inkwell',
+export const darkBanner: RelicSpec = {
+    name: 'Dark Banner',
     simpleText: [
         'Par is 4@ lower on each course.',
         'Gain 3@ buffer at the start of each course.'
@@ -119,7 +120,7 @@ export const cursedInkwell: RelicSpec = {
         transform: (e: CourseStartEvent) => addBuffer(3)
     }]
 }
-relicRewards.push(cursedInkwell)
+relicRewards.push(darkBanner)
 
 export const silverMirror: RelicSpec = {
     name: 'Silver Mirror',

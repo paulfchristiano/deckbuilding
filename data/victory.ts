@@ -10,7 +10,9 @@ import {
     noop,
     charge, startsWithCharge,
     a, payCost, free,
-    cannotUse
+    cannotUse,
+    chargeEffect,
+    copper
 } from '../gameLogic.js'
 
 // ========== VP CARDS ==========
@@ -65,16 +67,16 @@ const frontierName = 'Frontier'
 const frontier: CardSpec = {
     name: frontierName,
     simpleText: [
-        `+2 vp.`,
-        `The vp gain increases by 1vp each time you play it, up to +6vp.`
+        `+1 vp.`,
+        `The vp gain increases by 1vp each time you play it.`,
     ],
     fixedCost: energy(1),
     buyCost: coin(6),
     effects: [{
         text: ['+1 vp per charge token on this.'],
         transform: (state, card) => gainPoints(state.find(card).charge, card)
-    }, chargeUpTo(6)],
-    staticReplacers: [startsWithCharge(frontierName, 2)]
+    }, chargeEffect()],
+    staticReplacers: [startsWithCharge(frontierName, 1)]
 }
 
 export const gardens: CardSpec = {
@@ -144,18 +146,10 @@ export const duke: CardSpec = {
 
 // ========== VP EVENTS ==========
 
-export const philanthropy: CardSpec = {
-    name: 'Philanthropy',
-    fixedCost: coin(10),
-    effects: [{
-        text: ['Pay all $.', '+1 vp per $ paid.'],
-        transform: (s, c) => async function(state) {
-            const n = state.coin
-            state = await payCost({ ...free, coin: n }, c)(state)
-            state = await gainPoints(n, c)(state)
-            return state
-        }
-    }]
+export const monument: CardSpec = {
+    name: 'Monument',
+    fixedCost: coin(50),
+    effects: [pointsEffect(50)],
 }
 
 export const thoroughfare: CardSpec = {
@@ -171,17 +165,16 @@ export const thoroughfare: CardSpec = {
     }]
 }
 
-export const monument: CardSpec = {
-    name: 'Monument',
+export const foundation: CardSpec = {
+    name: 'Foundation',
     fixedCost: coin(0),
     effects: [],
     restrictions: [cannotUse],
     staticTriggers: [{
         kind: 'buy',
-        text: `Whenever you buy a card costing $3 or more, +1 vp.`,
+        text: `Whenever you buy a card other than ${copper.name}, +1 vp.`,
         handles: (e, state) => {
-            const cost = e.card.cost('buy', state)
-            return cost.coin >= 3
+            return e.card.name != copper.name
         },
         transform: (e, state, card) => gainPoints(1, card)
     }]
@@ -210,15 +203,15 @@ vpModes.push(
     { name: 'Estate', target: 20, cards: [estate], events: [] },
     { name: 'Colony', target: 5, cards: [colony], events: [] },
     { name: 'Thoroughfare', target: 100, cards: [], events: [thoroughfare] },
-    { name: 'Monument', target: 25, cards: [], events: [monument] },
-    { name: 'Capitalization', target: 60, cards: [], events: [capitalization] },
-    { name: 'Philanthropy', target: 40, cards: [], events: [philanthropy] },
+    { name: 'Foundation', target: 25, cards: [], events: [foundation] },
+    { name: 'Capitalization', target: 70, cards: [], events: [capitalization] },
+    { name: 'Monument', target: 50, cards: [], events: [monument] },
     { name: 'Duke', target: 40, cards: [duchy, duke], events: [] },
     { name: 'Flower Market', target: 40, cards: [flowerMarket], events: [] },
     { name: 'Farmland', target: 5, cards: [farmland], events: [] },
     { name: 'Vibrant City', target: 20, cards: [vibrantCity], events: [] },
     { name: 'Palace', target: 20, cards: [palace], events: [] },
     { name: 'Territory', target: 20, cards: [territory], events: [] },
-    { name: 'Frontier', target: 34, cards: [frontier], events: [] },
+    { name: 'Frontier', target: 25, cards: [frontier], events: [] },
     { name: 'Gardens', target: 30, cards: [gardens], events: [] },
 )
