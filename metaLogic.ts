@@ -142,13 +142,18 @@ function encounterRewardCompleted(rewardState: EncounterRewardState): boolean {
     return false
 }
 
+function relicGainRequirementSatisfied(relic: RelicSpec, state: MetaState): boolean {
+    return relic.gainRequirement ? relic.gainRequirement(state) : true
+}
+
 // Get options for a simple reward
 function getSimpleRewardOptions(state: SimpleRewardState, metaState: MetaState): RewardOption[] {
     const options = state.options as Array<CardSpec | RelicSpec>
     return options.map((option: CardSpec | RelicSpec, i: number) => ({
         label: displayName(option as CardSpec),
         spec: option as CardSpec,
-        disabled: state.selectedIndex !== null,
+        disabled: state.selectedIndex !== null
+            || (state.kind === 'relic' && !relicGainRequirementSatisfied(option as RelicSpec, metaState)),
         checked: state.selectedIndex === i || state.selectedIndex === PIGGY_BANK_SELECTED_INDEX,
         onClick: async () => {
             const skipped = options
@@ -352,6 +357,7 @@ export type GameSetupParams = {
 }
 
 export interface RelicSpec extends CardSpec {
+    gainRequirement?: (state: MetaState) => boolean
     metaReplacers?: MetaReplacer[]
     metaTriggers?: TypedMetaTrigger[]
     // Triggers and replacers that function within a game but depend on information only available to a Relic

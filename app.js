@@ -4327,6 +4327,9 @@
     }
     return false;
   }
+  function relicGainRequirementSatisfied(relic, state) {
+    return relic.gainRequirement ? relic.gainRequirement(state) : true;
+  }
   function getSimpleRewardOptions(state, metaState) {
     var _this = this;
     var options = state.options;
@@ -4334,7 +4337,7 @@
       return {
         label: displayName(option),
         spec: option,
-        disabled: state.selectedIndex !== null,
+        disabled: state.selectedIndex !== null || state.kind === "relic" && !relicGainRequirementSatisfied(option, metaState),
         checked: state.selectedIndex === i || state.selectedIndex === PIGGY_BANK_SELECTED_INDEX,
         onClick: function() {
           return __awaiter3(_this, void 0, void 0, function() {
@@ -6424,8 +6427,21 @@
     });
     return { challenges: path.challenges, rewardStates };
   }
-  function isTestSpec(value) {
+  function isRewardTestSpec(value) {
     return Array.isArray(value) && value.length === 2 && typeof value[0] === "string";
+  }
+  function isTestSpec(value) {
+    return Array.isArray(value) && value.length === 2 && typeof value[0] === "number" && Number.isInteger(value[0]) && isRewardTestSpec(value[1]);
+  }
+  function rewardTestsForStage(tests, stageIndex) {
+    var stageNumber = stageIndex + 1;
+    return tests.filter(function(_a) {
+      var _b = __read6(_a, 1), stage = _b[0];
+      return stage === stageNumber;
+    }).map(function(_a) {
+      var _b = __read6(_a, 2), spec = _b[1];
+      return spec;
+    });
   }
   function makeTestReward(state, spec) {
     switch (spec[0]) {
@@ -6447,9 +6463,9 @@
   }
   function playGame2(ui_1) {
     return __awaiter3(this, arguments, void 0, function(ui, test2, seed, initialSnapshot, onStateChange, debugEnabled) {
-      var state, initialPath, tests, tests_1, tests_1_1, testSpec, _loop_1, state_1;
-      var e_21, _a;
-      var _b, _c;
+      var state, tests, initialPath, _a, _b, testSpec, _loop_1, state_1;
+      var e_21, _c;
+      var _d, _e;
       if (test2 === void 0) {
         test2 = null;
       }
@@ -6465,29 +6481,29 @@
       if (debugEnabled === void 0) {
         debugEnabled = false;
       }
-      return __generator3(this, function(_d) {
-        switch (_d.label) {
+      return __generator3(this, function(_f) {
+        switch (_f.label) {
           case 0:
             state = initialSnapshot ? deserializeMetaGame(ui, initialSnapshot, null, debugEnabled) : new MetaState(ui, seed, null, { debugEnabled });
             state.setChangeListener(onStateChange ? function() {
               return onStateChange(serializeMetaGame(state));
             } : null);
+            tests = test2 === null ? [] : isTestSpec(test2) ? [test2] : test2;
             if (!initialSnapshot) {
               initialPath = pathFromSkeleton({
                 rewards: ["card", "card", "event", "potion"],
                 challenges: [randomChallenge(state), randomChallenge(state)]
               });
-              tests = test2 === null ? [] : isTestSpec(test2) ? [test2] : test2;
               try {
-                for (tests_1 = __values4(tests), tests_1_1 = tests_1.next(); !tests_1_1.done; tests_1_1 = tests_1.next()) {
-                  testSpec = tests_1_1.value;
+                for (_a = __values4(rewardTestsForStage(tests, 0)), _b = _a.next(); !_b.done; _b = _a.next()) {
+                  testSpec = _b.value;
                   initialPath.rewardStates.push(makeTestReward(state, testSpec));
                 }
               } catch (e_21_1) {
                 e_21 = { error: e_21_1 };
               } finally {
                 try {
-                  if (tests_1_1 && !tests_1_1.done && (_a = tests_1.return)) _a.call(tests_1);
+                  if (_b && !_b.done && (_c = _a.return)) _c.call(_a);
                 } finally {
                   if (e_21) throw e_21.error;
                 }
@@ -6498,11 +6514,12 @@
             }
             state.ui.updateBuffer(state);
             _loop_1 = function() {
-              var sameReplay_1, stage, gameSpec, startingBuffer, _e, score, potionsRemaining, history_1, macros, viewingMacros, usedPotions, persistedMacros, persistedViewingMacros, stageReplays, stageTimelineEntry, nextStage, paths, paths, path, _f, e_22, selectedChallenge, e_23, e_24, persistedMacros, persistedViewingMacros;
-              return __generator3(this, function(_g) {
-                switch (_g.label) {
+              var sameReplay_1, stage, gameSpec, startingBuffer, _g, score, potionsRemaining, history_1, macros, viewingMacros, usedPotions, persistedMacros, persistedViewingMacros, stageReplays, stageTimelineEntry, nextStage, paths, _h, _j, testSpec2, paths, path, _k, e_22, selectedChallenge, e_23, e_24, persistedMacros, persistedViewingMacros;
+              var e_25, _l;
+              return __generator3(this, function(_m) {
+                switch (_m.label) {
                   case 0:
-                    _g.trys.push([0, 29, , 30]);
+                    _m.trys.push([0, 29, , 30]);
                     if (!(state.data.phase === "in_game")) return [3, 6];
                     sameReplay_1 = function(a2, b) {
                       return a2.length === b.length && a2.every(function(value, index) {
@@ -6525,7 +6542,7 @@
                       });
                     }, "leave")];
                   case 1:
-                    _e = _g.sent(), score = _e.score, potionsRemaining = _e.potionsRemaining, history_1 = _e.history, macros = _e.macros, viewingMacros = _e.viewingMacros;
+                    _g = _m.sent(), score = _g.score, potionsRemaining = _g.potionsRemaining, history_1 = _g.history, macros = _g.macros, viewingMacros = _g.viewingMacros;
                     usedPotions = usedPotionNames(gameSpec.potions, potionsRemaining);
                     persistedMacros = macros !== null && macros !== void 0 ? macros : state.global.macros;
                     persistedViewingMacros = viewingMacros !== null && viewingMacros !== void 0 ? viewingMacros : state.global.viewingMacros;
@@ -6540,7 +6557,7 @@
                     });
                     return [4, endCourse(score, gameSpec.par, state)];
                   case 2:
-                    _g.sent();
+                    _m.sent();
                     stageReplays = __spreadArray5([], __read6(state.data.stageReplays), false);
                     stageReplays[stage] = {
                       stage,
@@ -6571,14 +6588,28 @@
                     state.update({ phase: "game_over" });
                     return [4, state.ui.showMessage(state, "Congratulations! You have completed all stages!")];
                   case 3:
-                    _g.sent();
+                    _m.sent();
                     return [2, { value: void 0 }];
                   case 4:
                     return [4, makePaths(state)];
                   case 5:
-                    paths = _g.sent().map(function(skel) {
+                    paths = _m.sent().map(function(skel) {
                       return pathFromSkeleton(skel);
                     });
+                    try {
+                      for (_h = (e_25 = void 0, __values4(rewardTestsForStage(tests, nextStage))), _j = _h.next(); !_j.done; _j = _h.next()) {
+                        testSpec2 = _j.value;
+                        paths[0].rewardStates.push(makeTestReward(state, testSpec2));
+                      }
+                    } catch (e_25_1) {
+                      e_25 = { error: e_25_1 };
+                    } finally {
+                      try {
+                        if (_j && !_j.done && (_l = _h.return)) _l.call(_h);
+                      } finally {
+                        if (e_25) throw e_25.error;
+                      }
+                    }
                     state.replaceAndClearHistory({
                       phase: "path_select",
                       challenges: [],
@@ -6593,29 +6624,29 @@
                       throw new Error("Invariant violation: path_select phase missing available paths");
                     }
                     path = void 0;
-                    _g.label = 7;
+                    _m.label = 7;
                   case 7:
                     if (false) return [3, 16];
-                    _g.label = 8;
+                    _m.label = 8;
                   case 8:
-                    _g.trys.push([8, 12, , 15]);
+                    _m.trys.push([8, 12, , 15]);
                     if (!(paths.length > 1)) return [3, 10];
                     return [4, state.ui.pickPath(state, paths)];
                   case 9:
-                    _f = _g.sent();
+                    _k = _m.sent();
                     return [3, 11];
                   case 10:
-                    _f = paths[0];
-                    _g.label = 11;
+                    _k = paths[0];
+                    _m.label = 11;
                   case 11:
-                    path = _f;
+                    path = _k;
                     return [3, 16];
                   case 12:
-                    e_22 = _g.sent();
+                    e_22 = _m.sent();
                     if (!(e_22 instanceof ReplayStage)) return [3, 14];
                     return [4, replayCompletedStage(state, e_22.stage)];
                   case 13:
-                    _g.sent();
+                    _m.sent();
                     return [3, 7];
                   case 14:
                     throw e_22;
@@ -6627,22 +6658,22 @@
                   case 17:
                     if (!(state.data.phase === "stage_select")) return [3, 27];
                     selectedChallenge = void 0;
-                    _g.label = 18;
+                    _m.label = 18;
                   case 18:
                     if (false) return [3, 25];
-                    _g.label = 19;
+                    _m.label = 19;
                   case 19:
-                    _g.trys.push([19, 21, , 24]);
+                    _m.trys.push([19, 21, , 24]);
                     return [4, state.ui.waitForChallenge(state)];
                   case 20:
-                    selectedChallenge = _g.sent();
+                    selectedChallenge = _m.sent();
                     return [3, 25];
                   case 21:
-                    e_23 = _g.sent();
+                    e_23 = _m.sent();
                     if (!(e_23 instanceof ReplayStage)) return [3, 23];
                     return [4, replayCompletedStage(state, e_23.stage)];
                   case 22:
-                    _g.sent();
+                    _m.sent();
                     return [3, 18];
                   case 23:
                     throw e_23;
@@ -6652,7 +6683,7 @@
                     state.update({ challenges: [selectedChallenge], availablePaths: [] });
                     return [4, trigger2({ kind: "start", stage: state.data.stage }, state)];
                   case 26:
-                    _g.sent();
+                    _m.sent();
                     state.updateAndSetCheckpoint({
                       phase: "in_game",
                       gameHistory: [],
@@ -6664,10 +6695,10 @@
                   case 28:
                     return [3, 30];
                   case 29:
-                    e_24 = _g.sent();
+                    e_24 = _m.sent();
                     if (e_24 instanceof Undo2) {
-                      persistedMacros = (_b = e_24.macros) !== null && _b !== void 0 ? _b : state.global.macros;
-                      persistedViewingMacros = (_c = e_24.viewingMacros) !== null && _c !== void 0 ? _c : state.global.viewingMacros;
+                      persistedMacros = (_d = e_24.macros) !== null && _d !== void 0 ? _d : state.global.macros;
+                      persistedViewingMacros = (_e = e_24.viewingMacros) !== null && _e !== void 0 ? _e : state.global.viewingMacros;
                       state.updateGlobal({
                         macros: persistedMacros,
                         viewingMacros: persistedViewingMacros
@@ -6690,12 +6721,12 @@
                 }
               });
             };
-            _d.label = 1;
+            _f.label = 1;
           case 1:
             if (false) return [3, 3];
             return [5, _loop_1()];
           case 2:
-            state_1 = _d.sent();
+            state_1 = _f.sent();
             if (typeof state_1 === "object")
               return [2, state_1.value];
             return [3, 1];
@@ -7010,6 +7041,18 @@
   var sacredBark = {
     name: "Sacred Bark",
     simpleText: ["Whenever you use a potion, repeat its effect."],
+    gainRequirement: function(state) {
+      return state.data.buffer >= 3;
+    },
+    metaTriggers: [{
+      kind: "relic",
+      handles: function(e, _s, self) {
+        return self.id === e.relic.id;
+      },
+      transform: function() {
+        return addBuffer(-3);
+      }
+    }],
     triggers: [{
       kind: "afterUse",
       text: "After using a potion other than with this, use it again.",
@@ -12675,7 +12718,7 @@
         offer: generator.sample(potionRewards)
       };
     },
-    getOptions: function(data) {
+    getOptions: function(data, metaState) {
       var _this = this;
       var d = data;
       var offerName = displayName(d.offer);
@@ -12716,7 +12759,7 @@
         {
           label: "Sacred bark",
           spec: sacredBark,
-          disabled: d.selectedIndex !== null,
+          disabled: d.selectedIndex !== null || metaState.data.buffer < 3,
           checked: d.selectedIndex === 2,
           onClick: function() {
             return __awaiter10(_this, void 0, void 0, function() {
@@ -16108,7 +16151,11 @@
     };
     throw new TypeError(s ? "Object is not iterable." : "Symbol.iterator is not defined.");
   };
-  var test = ["potion", potionOfWealth];
+  var test = [
+    [1, ["potion", potionOfWealth]],
+    [2, ["relic", sacredBark]],
+    [2, ["encounter", potionLab]]
+  ];
   var SAVE_STORAGE_KEY = "roguelike.ongoingSaves.v1";
   var MAX_LAUNCHER_SAVES = 10;
   var summaryMetaUI = {

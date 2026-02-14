@@ -756,7 +756,7 @@ export const potionLab: Encounter = {
             offer: generator.sample(potionRewards),
         }
     },
-    getOptions(data: unknown): RewardOption[] {
+    getOptions(data: unknown, metaState: MetaState): RewardOption[] {
         const d = data as PotionLabData
         const offerName = displayName(d.offer)
         return [
@@ -788,7 +788,7 @@ export const potionLab: Encounter = {
             {
                 label: 'Sacred bark',
                 spec: sacredBark,
-                disabled: d.selectedIndex !== null,
+                disabled: d.selectedIndex !== null || metaState.data.buffer < 3,
                 checked: d.selectedIndex === 2,
                 onClick: async () => ({
                     newData: { ...d, selectedIndex: 2 },

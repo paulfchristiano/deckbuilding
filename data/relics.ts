@@ -142,6 +142,12 @@ relicRewards.push(silverMirror)
 export const sacredBark: RelicSpec = {
     name: 'Sacred Bark',
     simpleText: ['Whenever you use a potion, repeat its effect.'],
+    gainRequirement: (state: MetaState) => state.data.buffer >= 3,
+    metaTriggers: [{
+        kind: 'relic',
+        handles: (e: GainRelicEvent, _s: MetaState, self: Relic) => self.id === e.relic.id,
+        transform: () => addBuffer(-3)
+    }],
     triggers: [{
         kind: 'afterUse',
         text: 'After using a potion other than with this, use it again.',
