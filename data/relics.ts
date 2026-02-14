@@ -98,7 +98,7 @@ export const brokenLever: RelicSpec = {
     simpleText: [`VP targets are 25% lower.`],
     metaReplacers: [{
         kind: 'gameSetup',
-        replace: (p: GameSetupParams) => ({ ...p, vpGoal: Math.floor(p.vpGoal * 0.75) })
+        replace: (p: GameSetupParams) => ({ ...p, vpGoal: Math.ceil(p.vpGoal * 0.75) })
     }]
 }
 relicRewards.push(brokenLever)
@@ -141,7 +141,10 @@ relicRewards.push(silverMirror)
 
 export const sacredBark: RelicSpec = {
     name: 'Sacred Bark',
-    simpleText: ['Whenever you use a potion, repeat its effect.'],
+    simpleText: [
+        'Whenever you use a potion, repeat its effect.',
+        'When you gain this, lose 3 buffer.'
+    ],
     gainRequirement: (state: MetaState) => state.data.buffer >= 3,
     metaTriggers: [{
         kind: 'relic',

@@ -7131,7 +7131,7 @@
     metaReplacers: [{
       kind: "gameSetup",
       replace: function(p) {
-        return __assign3(__assign3({}, p), { vpGoal: Math.floor(p.vpGoal * 0.75) });
+        return __assign3(__assign3({}, p), { vpGoal: Math.ceil(p.vpGoal * 0.75) });
       }
     }]
   };
@@ -7197,7 +7197,10 @@
   relicRewards.push(silverMirror);
   var sacredBark = {
     name: "Sacred Bark",
-    simpleText: ["Whenever you use a potion, repeat its effect."],
+    simpleText: [
+      "Whenever you use a potion, repeat its effect.",
+      "When you gain this, lose 3 buffer."
+    ],
     gainRequirement: function(state) {
       return state.data.buffer >= 3;
     },
@@ -16280,7 +16283,8 @@
   };
   var test = {
     rewards: [
-      [1, ["card", ritual]]
+      [1, ["relic", sacredBark]],
+      [1, ["relic", brokenLever]]
     ],
     challenges: []
   };
