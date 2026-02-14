@@ -205,6 +205,8 @@ export interface GameProgressData extends MacroPersistenceData {
     redo: Replayable[]
 }
 
+export type UndoAtBeginningMode = 'leave' | 'nothing'
+
 interface MacroMatchResult {
     option: number | null
     failed: boolean
@@ -1361,6 +1363,7 @@ function bindRedo(state: State, ui: GameUI): void {
 function bindUndo(state: State, ui: GameUI): void {
     function pick() {
         if (ui.choiceState) {
+            if (ui.undoAtBeginningMode === 'nothing' && !state.undoable()) return
             ui.choiceState.reject(new Undo(state))
         }
     }
@@ -1454,7 +1457,8 @@ export class GameUI implements UI {
 
     constructor(
         initialMacros: unknown = null,
-        private onProgress: ((progress: GameProgressData) => void) | null = null
+        private onProgress: ((progress: GameProgressData) => void) | null = null,
+        public readonly undoAtBeginningMode: UndoAtBeginningMode = 'leave'
     ) {
         this.macros = loadMacros(initialMacros)
     }
@@ -1655,13 +1659,14 @@ export async function startGame(
     initialRedo: Replayable[] = [],
     initialMacros: unknown = null,
     initialViewingMacros: boolean = false,
-    onProgress: ((progress: GameProgressData) => void) | null = null
+    onProgress: ((progress: GameProgressData) => void) | null = null,
+    undoAtBeginning: UndoAtBeginningMode = 'leave'
 ): Promise<VictoryData> {
     initHotkeys()
     resetGlobalRenderer()
     closeMacroDeleteMenu()
     globalRendererState.viewingMacros = initialViewingMacros
-    const ui = new GameUI(initialMacros, onProgress)
+    const ui = new GameUI(initialMacros, onProgress, undoAtBeginning)
 
     // Show game container
     showElement(getElement('gameContainer'))

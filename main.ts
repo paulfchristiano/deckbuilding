@@ -408,7 +408,8 @@ async function runReplayFromSnapshot(slot: SaveSlot, stage: number): Promise<voi
             [],
             state.global.macros,
             state.global.viewingMacros,
-            null
+            null,
+            'nothing'
         )
     } catch (error) {
         if (!(error instanceof UndoPastBeginning)) {

@@ -6333,7 +6333,7 @@
             _e.label = 1;
           case 1:
             _e.trys.push([1, 3, , 4]);
-            return [4, state.ui.playGame(replaySpecForStage(state, replayData), replayData.history, [], state.global.macros, state.global.viewingMacros, null)];
+            return [4, state.ui.playGame(replaySpecForStage(state, replayData), replayData.history, [], state.global.macros, state.global.viewingMacros, null, "nothing")];
           case 2:
             replayResult = _e.sent();
             return [3, 4];
@@ -6523,7 +6523,7 @@
                         macros: progress.macros,
                         viewingMacros: progress.viewingMacros
                       });
-                    })];
+                    }, "leave")];
                   case 1:
                     _e = _g.sent(), score = _e.score, potionsRemaining = _e.potionsRemaining, history_1 = _e.history, macros = _e.macros, viewingMacros = _e.viewingMacros;
                     usedPotions = usedPotionNames(gameSpec.potions, potionsRemaining);
@@ -14691,6 +14691,8 @@
   function bindUndo(state, ui) {
     function pick() {
       if (ui.choiceState) {
+        if (ui.undoAtBeginningMode === "nothing" && !state.undoable())
+          return;
         ui.choiceState.reject(new Undo(state));
       }
     }
@@ -14796,14 +14798,18 @@
   var GameUI = (
     /** @class */
     (function() {
-      function GameUI2(initialMacros, onProgress) {
+      function GameUI2(initialMacros, onProgress, undoAtBeginningMode) {
         if (initialMacros === void 0) {
           initialMacros = null;
         }
         if (onProgress === void 0) {
           onProgress = null;
         }
+        if (undoAtBeginningMode === void 0) {
+          undoAtBeginningMode = "leave";
+        }
         this.onProgress = onProgress;
+        this.undoAtBeginningMode = undoAtBeginningMode;
         this.undoing = false;
         this.macros = [];
         this.recordingMacro = null;
@@ -14986,7 +14992,7 @@
     })()
   );
   function startGame(spec_1) {
-    return __awaiter11(this, arguments, void 0, function(spec, initialHistory, initialRedo, initialMacros, initialViewingMacros, onProgress) {
+    return __awaiter11(this, arguments, void 0, function(spec, initialHistory, initialRedo, initialMacros, initialViewingMacros, onProgress, undoAtBeginning) {
       var ui, result;
       if (initialHistory === void 0) {
         initialHistory = [];
@@ -15003,6 +15009,9 @@
       if (onProgress === void 0) {
         onProgress = null;
       }
+      if (undoAtBeginning === void 0) {
+        undoAtBeginning = "leave";
+      }
       return __generator11(this, function(_a) {
         switch (_a.label) {
           case 0:
@@ -15010,7 +15019,7 @@
             resetGlobalRenderer();
             closeMacroDeleteMenu();
             globalRendererState.viewingMacros = initialViewingMacros;
-            ui = new GameUI(initialMacros, onProgress);
+            ui = new GameUI(initialMacros, onProgress, undoAtBeginning);
             showElement(getElement("gameContainer"));
             hideElement(getElement("stageScreen"));
             hideElement(getElement("pathSelectionScreen"));
@@ -15948,7 +15957,7 @@
       MetaGameUI2.prototype.updateBuffer = function(state) {
         updateBufferDisplay(state);
       };
-      MetaGameUI2.prototype.playGame = function(spec, gameHistory, gameRedo, macros, viewingMacros, onProgress) {
+      MetaGameUI2.prototype.playGame = function(spec, gameHistory, gameRedo, macros, viewingMacros, onProgress, undoAtBeginning) {
         if (gameHistory === void 0) {
           gameHistory = [];
         }
@@ -15964,7 +15973,10 @@
         if (onProgress === void 0) {
           onProgress = null;
         }
-        return startGame(spec, gameHistory, gameRedo, macros, viewingMacros, onProgress).catch(function(e) {
+        if (undoAtBeginning === void 0) {
+          undoAtBeginning = "leave";
+        }
+        return startGame(spec, gameHistory, gameRedo, macros, viewingMacros, onProgress, undoAtBeginning).catch(function(e) {
           var _a, _b;
           if (e instanceof UndoPastBeginning) {
             var persistence = e.macroPersistence;
@@ -16336,7 +16348,7 @@
             if (bufferDisplay) {
               bufferDisplay.textContent = "Buffer: ".concat(replayData.bufferBeforeCourse);
             }
-            return [4, startGame(replaySpecForStage(state, replayData), replayData.history, [], state.global.macros, state.global.viewingMacros, null)];
+            return [4, startGame(replaySpecForStage(state, replayData), replayData.history, [], state.global.macros, state.global.viewingMacros, null, "nothing")];
           case 2:
             _b.sent();
             return [3, 5];

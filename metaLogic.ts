@@ -46,7 +46,8 @@ export interface MetaUI {
         gameRedo?: number[],
         macros?: unknown,
         viewingMacros?: boolean,
-        onProgress?: ((progress: ActiveGameProgress) => void) | null
+        onProgress?: ((progress: ActiveGameProgress) => void) | null,
+        undoAtBeginning?: 'leave' | 'nothing'
     ): Promise<VictoryData>
 
     // Wait for user to select a challenge (reward options are handled inline)
@@ -2056,7 +2057,8 @@ async function replayCompletedStage(state: MetaState, stage: number): Promise<vo
             [],
             state.global.macros,
             state.global.viewingMacros,
-            null
+            null,
+            'nothing'
         )
     } catch (e) {
         if (e instanceof Undo) {
@@ -2241,7 +2243,8 @@ export async function playGame(
                             macros: progress.macros,
                             viewingMacros: progress.viewingMacros
                         })
-                    }
+                    },
+                    'leave'
                 )
                 const usedPotions = usedPotionNames(gameSpec.potions, potionsRemaining)
                 const persistedMacros = macros ?? state.global.macros
