@@ -1162,11 +1162,7 @@ function renderInGameDeckSection(title: string, specs: CardSpec[]): string {
 }
 
 function buildRelicDisplaySpecs(state: State): CardSpec[] {
-    return state.relics.map(relic => (
-        relic.name === 'Winged Boots'
-            ? { ...relic.spec, name: `${relic.spec.name} (${relic.count('charge')})` }
-            : relic.spec
-    ))
+    return state.relics.map(relic => relic.spec)
 }
 
 function showInGameDeckDialog(state: State): void {

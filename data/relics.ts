@@ -15,7 +15,7 @@ import {
 import { registerSpec } from '../registry.js'
 
 import {
-    GameSetupParams, RewardParams,
+    GameSetupParams, RewardParams, PathRewardParams,
     CourseEndEvent, CourseStartEvent, GainRelicEvent, GainCardEvent, GainEventEvent, PathGenerationEvent,
     MetaTransform, addBuffer, gainPotion, gainRelic, RelicSpec, Relic,
     MetaState,
@@ -185,6 +185,19 @@ export const piggyBank: RelicSpec = {
     simpleText: ['One time, you can take all of the rewards from a pack.'],
 }
 relicRewards.push(piggyBank)
+
+export const wingedBoots: RelicSpec = {
+    name: 'Winged Boots',
+    simpleText: ['Each stage has an additional path.'],
+    metaReplacers: [{
+        kind: 'pathRewards',
+        replace: (p: PathRewardParams) => ({
+            ...p,
+            paths: [...p.paths, 'Use Winged Boots']
+        })
+    }]
+}
+relicRewards.push(wingedBoots)
 
 export const matryoshkaDoll: RelicSpec = {
     name: 'Matryoshka Doll',

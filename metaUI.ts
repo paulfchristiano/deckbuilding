@@ -527,30 +527,40 @@ function renderPathSelectionScreen(
     showScreen('path')
     renderCommonUI(state, onReplayStage)
 
-    console.assert(paths.length === 2, 'Expected exactly two paths')
-    const [leftPath, rightPath] = paths
-
     getElement('pathTitle').textContent = `Stage ${state.data.stage + 1} - Choose Your Path`
 
-    renderPathColumn('left', leftPath, state)
-    renderPathColumn('right', rightPath, state)
-
-    getElement('goLeft').onclick = () => onSelect(leftPath)
-    getElement('goRight').onclick = () => onSelect(rightPath)
+    const columns = getElement('pathColumns')
+    clearElement(columns)
+    for (const [index, path] of paths.entries()) {
+        columns.appendChild(renderPathColumn(path, state, onSelect, index))
+    }
 }
 
-function renderPathColumn(side: 'left' | 'right', path: Path, state: MetaState): void {
-    const rewardsContainer = getElement(`${side}Rewards`)
-    clearElement(rewardsContainer)
+function renderPathColumn(path: Path, state: MetaState, onSelect: (path: Path) => void, index: number): HTMLDivElement {
+    const pathColumn = createDiv('pathColumn')
+    const pathChoice = createSpan('option pathChoice')
+    pathChoice.setAttribute('choosable', '')
+    const fallbackLabel = index < 2
+        ? (index === 0 ? 'Go left' : 'Go right')
+        : 'Use Winged Boots'
+    pathChoice.textContent = path.label === 'Path' ? fallbackLabel : path.label
+    pathChoice.onclick = () => onSelect(path)
+    pathColumn.appendChild(pathChoice)
+
+    const rewardsContainer = createDiv('pathRewards')
 
     for (const rewardState of path.rewardStates) {
         const rewardDiv = createDiv('pathReward')
         rewardDiv.textContent = getRewardName(rewardState)
         rewardsContainer.appendChild(rewardDiv)
     }
+    pathColumn.appendChild(rewardsContainer)
 
     // Each path has one challenge (singleton list for later stages)
-    getElement(`${side}Play`).innerHTML = renderChallenge(path.challenges[0], state)
+    const playDiv = createDiv('pathPlay')
+    playDiv.innerHTML = renderChallenge(path.challenges[0], state)
+    pathColumn.appendChild(playDiv)
+    return pathColumn
 }
 
 // ----------------------------- Deck Dialog
@@ -560,17 +570,12 @@ let deckDialogOpen = false
 function showDeckDialog(state: MetaState): void {
     const container = getElement('deckContents')
     clearElement(container)
-    const relicDisplaySpecs = state.data.relics.map(relic => (
-        relic.name === 'Winged Boots'
-            ? { ...relic.spec, name: `${relic.spec.name} (${relic.count('charge')})` }
-            : relic.spec
-    ))
 
     const sections: Array<{ title: string, items: CardSpec[] }> = [
         { title: 'Cards', items: state.data.collectedCards },
         { title: 'Events', items: state.data.collectedEvents },
         { title: 'Potions', items: state.data.potions.map(p => p.spec) },
-        { title: 'Relics', items: relicDisplaySpecs }
+        { title: 'Relics', items: state.data.relics.map(relic => relic.spec) }
     ]
 
     let hasContent = false

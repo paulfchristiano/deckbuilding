@@ -20,14 +20,12 @@ import { renderSpecNoRelated } from './cardRendering.js'
 import { Card, CardSpec, UndoPastBeginning } from './gameLogic.js'
 
 import type { TestSpec } from './metaLogic.js'
-import { potionOfWealth } from './data/potions.js'
-import { sacredBark } from './data/relics.js'
-import { potionLab } from './data/encounters.js'
+import { wingedBoots, matryoshkaDoll } from './data/relics.js'
 
 let test: TestSpec[] | null = [
-    [1, ['potion', potionOfWealth]],
-    [2, ['relic', sacredBark]],
-    [2, ['encounter', potionLab]]
+    [1, ['relic', wingedBoots]],
+    [1, ['relic', wingedBoots]],
+    [1, ['relic', matryoshkaDoll]]
 ]
 
 const SAVE_STORAGE_KEY = 'roguelike.ongoingSaves.v1'
@@ -520,11 +518,7 @@ function openViewDialog(slot: SaveSlot): void {
     status.textContent = `${done ? 'Victory!' : `Stage ${state.data.stage + 1}`} • Buffer ${state.data.buffer} • Seed ${slot.seed}`
     if (state.data.buffer < 0) status.className = 'negativeBuffer'
     card.appendChild(status)
-    const relicDisplaySpecs = state.data.relics.map(relic => (
-        relic.name === 'Winged Boots'
-            ? { ...relic.spec, name: `${relic.spec.name} (${relic.count('charge')})` }
-            : relic.spec
-    ))
+    const relicDisplaySpecs = state.data.relics.map(relic => relic.spec)
 
     card.appendChild(renderDeckSection('Cards', state.data.collectedCards))
     card.appendChild(renderDeckSection('Events', state.data.collectedEvents))

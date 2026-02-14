@@ -412,6 +412,7 @@ export interface RewardParams {
 
 export interface PathRewardParams {
     rewardsPerPath: number
+    paths: string[]
 }
 
 // TODO: render relics appropriately when you hold shift etc.
@@ -481,6 +482,7 @@ export type TypedMetaTrigger =
 
 // A path the player can choose (contains rewards + kingdom)
 export interface Path {
+    label: string
     rewardStates: RewardState[]
     challenges: ChallengeSpec[]
 }
@@ -884,6 +886,7 @@ interface SerializedChallengeSpec {
 }
 
 interface SerializedPath {
+    label?: string
     rewardStates: SerializedRewardState[]
     challenges: SerializedChallengeSpec[]
 }
@@ -1181,6 +1184,7 @@ function deserializeChallenge(challenge: SerializedChallengeSpec): ChallengeSpec
 
 function serializePath(path: Path): SerializedPath {
     return {
+        label: path.label,
         rewardStates: path.rewardStates.map(serializeRewardState),
         challenges: path.challenges.map(serializeChallenge)
     }
@@ -1188,6 +1192,7 @@ function serializePath(path: Path): SerializedPath {
 
 function deserializePath(path: SerializedPath): Path {
     return {
+        label: path.label ?? 'Path',
         rewardStates: path.rewardStates.map(deserializeRewardState),
         challenges: path.challenges.map(deserializeChallenge)
     }
@@ -1824,6 +1829,7 @@ function randomChallenge(state: MetaState): ChallengeSpec {
 }
 
 interface PathSkeleton {
+    label: string,
     rewards: RewardKind[],
     challenges: ChallengeSpec[]
 }
@@ -1832,29 +1838,41 @@ async function makePaths(state: MetaState): Promise<PathSkeleton[]> {
     const stage = state.data.stage
     const generator = state.generator(`paths${stage}`).newGenerator()
     const baseRewardsPerPath = 2
-    const pathRewardParams = applyMetaReplacers('pathRewards', { rewardsPerPath: baseRewardsPerPath }, state)
+    const basePaths = ['Go left', 'Go right']
+    const pathRewardParams = applyMetaReplacers('pathRewards', {
+        rewardsPerPath: baseRewardsPerPath,
+        paths: basePaths,
+    }, state)
     await trigger({
         kind: 'path',
         baseRewardsPerPath,
         rewardsPerPath: pathRewardParams.rewardsPerPath
     }, state)
-    const totalRewardsPerPath = pathRewardParams.rewardsPerPath
-    const leftRewards: RewardKind[] = []
-    const rightRewards: RewardKind[] = []
-    let remainingRewards = totalRewardsPerPath
-    while (remainingRewards > 0) {
-        const chunkSize = Math.min(3, remainingRewards)
-        const sampled: RewardKind[] = generator.permute(['card', 'card', 'event', 'potion', 'relic', 'encounter'])
-        leftRewards.push(...sampled.slice(0, chunkSize))
-        rightRewards.push(...sampled.slice(chunkSize, chunkSize * 2))
-        remainingRewards -= chunkSize
+    const rewardsPerPath = pathRewardParams.rewardsPerPath
+    const pathLabels = pathRewardParams.paths
+    const pathCount = pathLabels.length
+    const rewardsPerSet = 6
+    const fullSet: RewardKind[] = ['card', 'card', 'event', 'encounter', 'potion', 'relic']
+    const totalRewards = pathCount * rewardsPerPath
+    const completeSets = Math.floor(totalRewards / rewardsPerSet)
+    const partialSetRewards = totalRewards % rewardsPerSet
+
+    const rewardPool: RewardKind[] = []
+    for (let i = 0; i < completeSets; i++) rewardPool.push(...fullSet)
+    if (partialSetRewards > 0) rewardPool.push(...generator.samples(fullSet, partialSetRewards))
+
+    const shuffledRewards = generator.permute(rewardPool)
+    const paths: PathSkeleton[] = []
+    for (let pathIndex = 0; pathIndex < pathCount; pathIndex++) {
+        const start = pathIndex * rewardsPerPath
+        const end = start + rewardsPerPath
+        paths.push({
+            label: pathLabels[pathIndex] ?? 'Path',
+            rewards: shuffledRewards.slice(start, end),
+            challenges: [randomChallenge(state)]
+        })
     }
-    const challenge1 = randomChallenge(state)
-    const challenge2 = randomChallenge(state)
-    return [
-        { rewards: leftRewards, challenges: [challenge1] },
-        { rewards: rightRewards, challenges: [challenge2] },
-    ]
+    return paths
 }
 
 function pathFromSkeleton(skeleton: PathSkeleton): Path {
@@ -1872,7 +1890,7 @@ function pathFromSkeleton(skeleton: PathSkeleton): Path {
             rewardStates.push({ kind: 'potion', options: [] as CardSpec[], selectedIndex: null })
         }
     }
-    return { rewardStates, challenges: skeleton.challenges }
+    return { label: skeleton.label, rewardStates, challenges: skeleton.challenges }
 }
 
 // ------------------ Meta loop -------------------
@@ -2223,6 +2241,7 @@ export async function playGame(
     if (!initialSnapshot) {
         // Stage 0 offers two challenge options
         const initialPath = pathFromSkeleton({
+            label: 'Go left',
             rewards: ['card', 'card', 'event', 'potion'] as RewardKind[],
             challenges: [randomChallenge(state), randomChallenge(state)]
         })

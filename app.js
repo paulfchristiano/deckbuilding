@@ -5144,12 +5144,15 @@
   }
   function serializePath(path) {
     return {
+      label: path.label,
       rewardStates: path.rewardStates.map(serializeRewardState),
       challenges: path.challenges.map(serializeChallenge)
     };
   }
   function deserializePath(path) {
+    var _a;
     return {
+      label: (_a = path.label) !== null && _a !== void 0 ? _a : "Path",
       rewardStates: path.rewardStates.map(deserializeRewardState),
       challenges: path.challenges.map(deserializeChallenge)
     };
@@ -6034,38 +6037,51 @@
   }
   function makePaths(state) {
     return __awaiter3(this, void 0, void 0, function() {
-      var stage, generator, baseRewardsPerPath, pathRewardParams, totalRewardsPerPath, leftRewards, rightRewards, remainingRewards, chunkSize, sampled, challenge1, challenge2;
-      return __generator3(this, function(_a) {
-        switch (_a.label) {
+      var stage, generator, baseRewardsPerPath, basePaths, pathRewardParams, rewardsPerPath, pathLabels, pathCount, rewardsPerSet, fullSet, totalRewards, completeSets, partialSetRewards, rewardPool, i, shuffledRewards, paths, pathIndex, start, end;
+      var _a;
+      return __generator3(this, function(_b) {
+        switch (_b.label) {
           case 0:
             stage = state.data.stage;
             generator = state.generator("paths".concat(stage)).newGenerator();
             baseRewardsPerPath = 2;
-            pathRewardParams = applyMetaReplacers("pathRewards", { rewardsPerPath: baseRewardsPerPath }, state);
+            basePaths = ["Go left", "Go right"];
+            pathRewardParams = applyMetaReplacers("pathRewards", {
+              rewardsPerPath: baseRewardsPerPath,
+              paths: basePaths
+            }, state);
             return [4, trigger2({
               kind: "path",
               baseRewardsPerPath,
               rewardsPerPath: pathRewardParams.rewardsPerPath
             }, state)];
           case 1:
-            _a.sent();
-            totalRewardsPerPath = pathRewardParams.rewardsPerPath;
-            leftRewards = [];
-            rightRewards = [];
-            remainingRewards = totalRewardsPerPath;
-            while (remainingRewards > 0) {
-              chunkSize = Math.min(3, remainingRewards);
-              sampled = generator.permute(["card", "card", "event", "potion", "relic", "encounter"]);
-              leftRewards.push.apply(leftRewards, __spreadArray5([], __read6(sampled.slice(0, chunkSize)), false));
-              rightRewards.push.apply(rightRewards, __spreadArray5([], __read6(sampled.slice(chunkSize, chunkSize * 2)), false));
-              remainingRewards -= chunkSize;
+            _b.sent();
+            rewardsPerPath = pathRewardParams.rewardsPerPath;
+            pathLabels = pathRewardParams.paths;
+            pathCount = pathLabels.length;
+            rewardsPerSet = 6;
+            fullSet = ["card", "card", "event", "encounter", "potion", "relic"];
+            totalRewards = pathCount * rewardsPerPath;
+            completeSets = Math.floor(totalRewards / rewardsPerSet);
+            partialSetRewards = totalRewards % rewardsPerSet;
+            rewardPool = [];
+            for (i = 0; i < completeSets; i++)
+              rewardPool.push.apply(rewardPool, __spreadArray5([], __read6(fullSet), false));
+            if (partialSetRewards > 0)
+              rewardPool.push.apply(rewardPool, __spreadArray5([], __read6(generator.samples(fullSet, partialSetRewards)), false));
+            shuffledRewards = generator.permute(rewardPool);
+            paths = [];
+            for (pathIndex = 0; pathIndex < pathCount; pathIndex++) {
+              start = pathIndex * rewardsPerPath;
+              end = start + rewardsPerPath;
+              paths.push({
+                label: (_a = pathLabels[pathIndex]) !== null && _a !== void 0 ? _a : "Path",
+                rewards: shuffledRewards.slice(start, end),
+                challenges: [randomChallenge(state)]
+              });
             }
-            challenge1 = randomChallenge(state);
-            challenge2 = randomChallenge(state);
-            return [2, [
-              { rewards: leftRewards, challenges: [challenge1] },
-              { rewards: rightRewards, challenges: [challenge2] }
-            ]];
+            return [2, paths];
         }
       });
     });
@@ -6097,7 +6113,7 @@
         if (e_19) throw e_19.error;
       }
     }
-    return { rewardStates, challenges: skeleton.challenges };
+    return { label: skeleton.label, rewardStates, challenges: skeleton.challenges };
   }
   var Undo2 = (
     /** @class */
@@ -6491,6 +6507,7 @@
             tests = test2 === null ? [] : isTestSpec(test2) ? [test2] : test2;
             if (!initialSnapshot) {
               initialPath = pathFromSkeleton({
+                label: "Go left",
                 rewards: ["card", "card", "event", "potion"],
                 challenges: [randomChallenge(state), randomChallenge(state)]
               });
@@ -6848,17 +6865,6 @@
       return { value: op[0] ? op[1] : void 0, done: true };
     }
   };
-  var __values5 = function(o) {
-    var s = typeof Symbol === "function" && Symbol.iterator, m = s && o[s], i = 0;
-    if (m) return m.call(o);
-    if (o && typeof o.length === "number") return {
-      next: function() {
-        if (o && i >= o.length) o = void 0;
-        return { value: o && o[i++], done: !o };
-      }
-    };
-    throw new TypeError(s ? "Object is not iterable." : "Symbol.iterator is not defined.");
-  };
   var __read7 = function(o, n) {
     var m = typeof Symbol === "function" && o[Symbol.iterator];
     if (!m) return o;
@@ -6884,6 +6890,17 @@
       }
     }
     return to.concat(ar || Array.prototype.slice.call(from));
+  };
+  var __values5 = function(o) {
+    var s = typeof Symbol === "function" && Symbol.iterator, m = s && o[s], i = 0;
+    if (m) return m.call(o);
+    if (o && typeof o.length === "number") return {
+      next: function() {
+        if (o && i >= o.length) o = void 0;
+        return { value: o && o[i++], done: !o };
+      }
+    };
+    throw new TypeError(s ? "Object is not iterable." : "Symbol.iterator is not defined.");
   };
   var bagOfCoins = {
     name: "Bag of Coins",
@@ -7091,6 +7108,17 @@
     simpleText: ["One time, you can take all of the rewards from a pack."]
   };
   relicRewards.push(piggyBank);
+  var wingedBoots = {
+    name: "Winged Boots",
+    simpleText: ["Each stage has an additional path."],
+    metaReplacers: [{
+      kind: "pathRewards",
+      replace: function(p) {
+        return __assign3(__assign3({}, p), { paths: __spreadArray6(__spreadArray6([], __read7(p.paths), false), ["Use Winged Boots"], false) });
+      }
+    }]
+  };
+  relicRewards.push(wingedBoots);
   var matryoshkaDoll = {
     name: "Matryoshka Doll",
     simpleText: ["Your next two stages have an additional reward."],
@@ -14622,7 +14650,7 @@
   }
   function buildRelicDisplaySpecs(state) {
     return state.relics.map(function(relic) {
-      return relic.name === "Winged Boots" ? __assign9(__assign9({}, relic.spec), { name: "".concat(relic.spec.name, " (").concat(relic.count("charge"), ")") }) : relic.spec;
+      return relic.spec;
     });
   }
   function showInGameDeckDialog(state) {
@@ -15148,17 +15176,6 @@
   }
 
   // public/metaUI.js
-  var __assign10 = function() {
-    __assign10 = Object.assign || function(t) {
-      for (var s, i = 1, n = arguments.length; i < n; i++) {
-        s = arguments[i];
-        for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p))
-          t[p] = s[p];
-      }
-      return t;
-    };
-    return __assign10.apply(this, arguments);
-  };
   var __awaiter12 = function(thisArg, _arguments, P, generator) {
     function adopt(value) {
       return value instanceof P ? value : new P(function(resolve) {
@@ -15773,30 +15790,16 @@
     }
   }
   function renderPathSelectionScreen(state, paths, onSelect, onReplayStage) {
+    var e_6, _a;
     showScreen("path");
     renderCommonUI(state, onReplayStage);
-    console.assert(paths.length === 2, "Expected exactly two paths");
-    var _a = __read14(paths, 2), leftPath = _a[0], rightPath = _a[1];
     getElement2("pathTitle").textContent = "Stage ".concat(state.data.stage + 1, " - Choose Your Path");
-    renderPathColumn("left", leftPath, state);
-    renderPathColumn("right", rightPath, state);
-    getElement2("goLeft").onclick = function() {
-      return onSelect(leftPath);
-    };
-    getElement2("goRight").onclick = function() {
-      return onSelect(rightPath);
-    };
-  }
-  function renderPathColumn(side, path, state) {
-    var e_6, _a;
-    var rewardsContainer = getElement2("".concat(side, "Rewards"));
-    clearElement2(rewardsContainer);
+    var columns = getElement2("pathColumns");
+    clearElement2(columns);
     try {
-      for (var _b = __values12(path.rewardStates), _c = _b.next(); !_c.done; _c = _b.next()) {
-        var rewardState = _c.value;
-        var rewardDiv = createDiv("pathReward");
-        rewardDiv.textContent = getRewardName(rewardState);
-        rewardsContainer.appendChild(rewardDiv);
+      for (var _b = __values12(paths.entries()), _c = _b.next(); !_c.done; _c = _b.next()) {
+        var _d = __read14(_c.value, 2), index = _d[0], path = _d[1];
+        columns.appendChild(renderPathColumn(path, state, onSelect, index));
       }
     } catch (e_6_1) {
       e_6 = { error: e_6_1 };
@@ -15807,23 +15810,55 @@
         if (e_6) throw e_6.error;
       }
     }
-    getElement2("".concat(side, "Play")).innerHTML = renderChallenge(path.challenges[0], state);
+  }
+  function renderPathColumn(path, state, onSelect, index) {
+    var e_7, _a;
+    var pathColumn = createDiv("pathColumn");
+    var pathChoice = createSpan("option pathChoice");
+    pathChoice.setAttribute("choosable", "");
+    var fallbackLabel = index < 2 ? index === 0 ? "Go left" : "Go right" : "Use Winged Boots";
+    pathChoice.textContent = path.label === "Path" ? fallbackLabel : path.label;
+    pathChoice.onclick = function() {
+      return onSelect(path);
+    };
+    pathColumn.appendChild(pathChoice);
+    var rewardsContainer = createDiv("pathRewards");
+    try {
+      for (var _b = __values12(path.rewardStates), _c = _b.next(); !_c.done; _c = _b.next()) {
+        var rewardState = _c.value;
+        var rewardDiv = createDiv("pathReward");
+        rewardDiv.textContent = getRewardName(rewardState);
+        rewardsContainer.appendChild(rewardDiv);
+      }
+    } catch (e_7_1) {
+      e_7 = { error: e_7_1 };
+    } finally {
+      try {
+        if (_c && !_c.done && (_a = _b.return)) _a.call(_b);
+      } finally {
+        if (e_7) throw e_7.error;
+      }
+    }
+    pathColumn.appendChild(rewardsContainer);
+    var playDiv = createDiv("pathPlay");
+    playDiv.innerHTML = renderChallenge(path.challenges[0], state);
+    pathColumn.appendChild(playDiv);
+    return pathColumn;
   }
   var deckDialogOpen = false;
   function showDeckDialog(state) {
-    var e_7, _a, e_8, _b;
+    var e_8, _a, e_9, _b;
     var container = getElement2("deckContents");
     clearElement2(container);
-    var relicDisplaySpecs = state.data.relics.map(function(relic) {
-      return relic.name === "Winged Boots" ? __assign10(__assign10({}, relic.spec), { name: "".concat(relic.spec.name, " (").concat(relic.count("charge"), ")") }) : relic.spec;
-    });
     var sections = [
       { title: "Cards", items: state.data.collectedCards },
       { title: "Events", items: state.data.collectedEvents },
       { title: "Potions", items: state.data.potions.map(function(p) {
         return p.spec;
       }) },
-      { title: "Relics", items: relicDisplaySpecs }
+      { title: "Relics", items: state.data.relics.map(function(relic) {
+        return relic.spec;
+      }) }
     ];
     var hasContent = false;
     try {
@@ -15837,30 +15872,30 @@
           sectionDiv.appendChild(header);
           var itemsRow = createDiv("deckSectionItems");
           try {
-            for (var _c = (e_8 = void 0, __values12(section.items)), _d = _c.next(); !_d.done; _d = _c.next()) {
+            for (var _c = (e_9 = void 0, __values12(section.items)), _d = _c.next(); !_d.done; _d = _c.next()) {
               var spec = _d.value;
               itemsRow.appendChild(createElementFromHTML2(renderSpecNoRelated(spec)));
             }
-          } catch (e_8_1) {
-            e_8 = { error: e_8_1 };
+          } catch (e_9_1) {
+            e_9 = { error: e_9_1 };
           } finally {
             try {
               if (_d && !_d.done && (_b = _c.return)) _b.call(_c);
             } finally {
-              if (e_8) throw e_8.error;
+              if (e_9) throw e_9.error;
             }
           }
           sectionDiv.appendChild(itemsRow);
           container.appendChild(sectionDiv);
         }
       }
-    } catch (e_7_1) {
-      e_7 = { error: e_7_1 };
+    } catch (e_8_1) {
+      e_8 = { error: e_8_1 };
     } finally {
       try {
         if (sections_1_1 && !sections_1_1.done && (_a = sections_1.return)) _a.call(sections_1);
       } finally {
-        if (e_7) throw e_7.error;
+        if (e_8) throw e_8.error;
       }
     }
     if (!hasContent) {
@@ -16102,17 +16137,6 @@
   );
 
   // public/main.js
-  var __assign11 = function() {
-    __assign11 = Object.assign || function(t) {
-      for (var s, i = 1, n = arguments.length; i < n; i++) {
-        s = arguments[i];
-        for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p))
-          t[p] = s[p];
-      }
-      return t;
-    };
-    return __assign11.apply(this, arguments);
-  };
   var __awaiter13 = function(thisArg, _arguments, P, generator) {
     function adopt(value) {
       return value instanceof P ? value : new P(function(resolve) {
@@ -16221,9 +16245,9 @@
     throw new TypeError(s ? "Object is not iterable." : "Symbol.iterator is not defined.");
   };
   var test = [
-    [1, ["potion", potionOfWealth]],
-    [2, ["relic", sacredBark]],
-    [2, ["encounter", potionLab]]
+    [1, ["relic", wingedBoots]],
+    [1, ["relic", wingedBoots]],
+    [1, ["relic", matryoshkaDoll]]
   ];
   var SAVE_STORAGE_KEY = "roguelike.ongoingSaves.v1";
   var MAX_LAUNCHER_SAVES = 10;
@@ -16594,7 +16618,7 @@
       status.className = "negativeBuffer";
     card.appendChild(status);
     var relicDisplaySpecs = state.data.relics.map(function(relic) {
-      return relic.name === "Winged Boots" ? __assign11(__assign11({}, relic.spec), { name: "".concat(relic.spec.name, " (").concat(relic.count("charge"), ")") }) : relic.spec;
+      return relic.spec;
     });
     card.appendChild(renderDeckSection("Cards", state.data.collectedCards));
     card.appendChild(renderDeckSection("Events", state.data.collectedEvents));
