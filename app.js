@@ -3882,14 +3882,18 @@
   function makeCardInABoxRelic(spec) {
     var cardName = displayName(spec);
     return {
-      name: "".concat(cardName, " in a Box"),
+      name: "Boxed ".concat(cardName),
+      simpleText: [
+        "At the start of the game, create a copy of ".concat(cardName, " in your hand."),
+        "Trash this."
+      ],
       triggers: [{
-        kind: "afterStart",
-        text: "Start each course with a copy of ".concat(cardName, " in hand."),
-        handles: function() {
-          return true;
+        kind: "beforeStart",
+        text: "At the start of the game, create a copy of ".concat(cardName, " in your hand, then trash this."),
+        handles: function(_e, _s, sourceCard) {
+          return sourceCard !== null;
         },
-        transform: function() {
+        transform: function(_e, _s, sourceCard) {
           return function(state) {
             return __awaiter2(this, void 0, void 0, function() {
               return __generator2(this, function(_a) {
@@ -3897,6 +3901,9 @@
                   case 0:
                     return [4, create(spec, "hand")(state)];
                   case 1:
+                    state = _a.sent();
+                    return [4, trash(sourceCard)(state)];
+                  case 2:
                     state = _a.sent();
                     return [2, state];
                 }
@@ -6945,17 +6952,6 @@
     }
     return to.concat(ar || Array.prototype.slice.call(from));
   };
-  var __values5 = function(o) {
-    var s = typeof Symbol === "function" && Symbol.iterator, m = s && o[s], i = 0;
-    if (m) return m.call(o);
-    if (o && typeof o.length === "number") return {
-      next: function() {
-        if (o && i >= o.length) o = void 0;
-        return { value: o && o[i++], done: !o };
-      }
-    };
-    throw new TypeError(s ? "Object is not iterable." : "Symbol.iterator is not defined.");
-  };
   var bagOfCoins = {
     name: "Bag of Coins",
     simpleText: ["Start with an extra copper."],
@@ -7310,100 +7306,15 @@
       "When you add a card to your deck,",
       "start the next course with a copy in hand."
     ],
-    mutableTriggers: function(relic) {
-      return [{
-        kind: "afterStart",
-        text: "At the start of the game, create a copy of each bottled card in your hand.",
-        handles: function() {
-          return true;
-        },
-        transform: function() {
-          return function(state) {
-            return __awaiter4(this, void 0, void 0, function() {
-              var _a, _b, spec, e_1_1;
-              var e_1, _c;
-              return __generator4(this, function(_d) {
-                switch (_d.label) {
-                  case 0:
-                    _d.trys.push([0, 5, 6, 7]);
-                    _a = __values5(relic.notedCards || []), _b = _a.next();
-                    _d.label = 1;
-                  case 1:
-                    if (!!_b.done) return [3, 4];
-                    spec = _b.value;
-                    return [4, create(spec, "hand")(state)];
-                  case 2:
-                    state = _d.sent();
-                    _d.label = 3;
-                  case 3:
-                    _b = _a.next();
-                    return [3, 1];
-                  case 4:
-                    return [3, 7];
-                  case 5:
-                    e_1_1 = _d.sent();
-                    e_1 = { error: e_1_1 };
-                    return [3, 7];
-                  case 6:
-                    try {
-                      if (_b && !_b.done && (_c = _a.return)) _c.call(_a);
-                    } finally {
-                      if (e_1) throw e_1.error;
-                    }
-                    return [
-                      7
-                      /*endfinally*/
-                    ];
-                  case 7:
-                    return [2, state];
-                }
-              });
-            });
-          };
-        }
-      }];
-    },
     metaTriggers: [{
-      kind: "end",
-      handles: function() {
-        return true;
-      },
-      transform: function(e, s, relic) {
-        return function(state) {
-          return __awaiter4(this, void 0, void 0, function() {
-            return __generator4(this, function(_a) {
-              state.applyToRelic(function(r) {
-                return r.update({ notedCards: [] });
-              }, relic);
-              return [
-                2
-                /*return*/
-              ];
-            });
-          });
-        };
-      }
-    }, {
       kind: "card",
       handles: function() {
         return true;
       },
-      transform: function(e, s, relic) {
-        return function(state) {
-          return __awaiter4(this, void 0, void 0, function() {
-            var notedCards;
-            return __generator4(this, function(_a) {
-              notedCards = relic.notedCards || [];
-              state.applyToRelic(function(r) {
-                return r.update({ notedCards: __spreadArray6(__spreadArray6([], __read7(notedCards), false), [e.card], false) });
-              }, relic);
-              return [
-                2
-                /*return*/
-              ];
-            });
-          });
-        };
+      transform: function(e) {
+        return gainRelic(makeCardInABoxRelic(e.card), {
+          details: "Boxed ".concat(displayName(e.card))
+        });
       }
     }]
   };
@@ -7627,7 +7538,7 @@
     }
     return ar;
   };
-  var __values6 = function(o) {
+  var __values5 = function(o) {
     var s = typeof Symbol === "function" && Symbol.iterator, m = s && o[s], i = 0;
     if (m) return m.call(o);
     if (o && typeof o.length === "number") return {
@@ -7996,7 +7907,7 @@
               switch (_d.label) {
                 case 0:
                   _d.trys.push([0, 5, 6, 7]);
-                  _a = __values6(state2.play), _b = _a.next();
+                  _a = __values5(state2.play), _b = _a.next();
                   _d.label = 1;
                 case 1:
                   if (!!_b.done) return [3, 4];
@@ -10133,7 +10044,7 @@
     }
     return ar;
   };
-  var __values7 = function(o) {
+  var __values6 = function(o) {
     var s = typeof Symbol === "function" && Symbol.iterator, m = s && o[s], i = 0;
     if (m) return m.call(o);
     if (o && typeof o.length === "number") return {
@@ -10359,7 +10270,7 @@
                   _c.label = 2;
                 case 2:
                   _c.trys.push([2, 7, 8, 9]);
-                  cards_1 = __values7(cards), cards_1_1 = cards_1.next();
+                  cards_1 = __values6(cards), cards_1_1 = cards_1.next();
                   _c.label = 3;
                 case 3:
                   if (!!cards_1_1.done) return [3, 6];
@@ -10855,7 +10766,7 @@
       return { value: op[0] ? op[1] : void 0, done: true };
     }
   };
-  var __values8 = function(o) {
+  var __values7 = function(o) {
     var s = typeof Symbol === "function" && Symbol.iterator, m = s && o[s], i = 0;
     if (m) return m.call(o);
     if (o && typeof o.length === "number") return {
@@ -11010,7 +10921,7 @@
               switch (_d.label) {
                 case 0:
                   _d.trys.push([0, 5, 6, 7]);
-                  _a = __values8(state2.supply), _b = _a.next();
+                  _a = __values7(state2.supply), _b = _a.next();
                   _d.label = 1;
                 case 1:
                   if (!!_b.done) return [3, 4];
@@ -11374,7 +11285,7 @@
               switch (_d.label) {
                 case 0:
                   _d.trys.push([0, 5, 6, 7]);
-                  _a = __values8(state2.supply), _b = _a.next();
+                  _a = __values7(state2.supply), _b = _a.next();
                   _d.label = 1;
                 case 1:
                   if (!!_b.done) return [3, 4];
@@ -11849,7 +11760,7 @@
     }
     return to.concat(ar || Array.prototype.slice.call(from));
   };
-  var __values9 = function(o) {
+  var __values8 = function(o) {
     var s = typeof Symbol === "function" && Symbol.iterator, m = s && o[s], i = 0;
     if (m) return m.call(o);
     if (o && typeof o.length === "number") return {
@@ -12862,7 +12773,7 @@
                             _b.label = 2;
                           case 2:
                             _b.trys.push([2, 7, 8, 9]);
-                            potionSpecs_1 = __values9(potionSpecs), potionSpecs_1_1 = potionSpecs_1.next();
+                            potionSpecs_1 = __values8(potionSpecs), potionSpecs_1_1 = potionSpecs_1.next();
                             _b.label = 3;
                           case 3:
                             if (!!potionSpecs_1_1.done) return [3, 6];
@@ -13273,7 +13184,7 @@
   registerEncounter(callYourShot, { maxStage: 4 });
 
   // public/progressSidebar.js
-  var __values10 = function(o) {
+  var __values9 = function(o) {
     var s = typeof Symbol === "function" && Symbol.iterator, m = s && o[s], i = 0;
     if (m) return m.call(o);
     if (o && typeof o.length === "number") return {
@@ -13296,7 +13207,7 @@
     var circles = document.querySelectorAll("".concat(selector, " .progressCircle"));
     var byStage = /* @__PURE__ */ new Map();
     try {
-      for (var stages_1 = __values10(stages), stages_1_1 = stages_1.next(); !stages_1_1.done; stages_1_1 = stages_1.next()) {
+      for (var stages_1 = __values9(stages), stages_1_1 = stages_1.next(); !stages_1_1.done; stages_1_1 = stages_1.next()) {
         var stage = stages_1_1.value;
         byStage.set(stage.stage, stage);
       }
@@ -13458,7 +13369,7 @@
       return { value: op[0] ? op[1] : void 0, done: true };
     }
   };
-  var __values11 = function(o) {
+  var __values10 = function(o) {
     var s = typeof Symbol === "function" && Symbol.iterator, m = s && o[s], i = 0;
     if (m) return m.call(o);
     if (o && typeof o.length === "number") return {
@@ -13816,7 +13727,7 @@
     var e_1, _a;
     var counts = /* @__PURE__ */ new Map();
     try {
-      for (var cards_1 = __values11(cards), cards_1_1 = cards_1.next(); !cards_1_1.done; cards_1_1 = cards_1.next()) {
+      for (var cards_1 = __values10(cards), cards_1_1 = cards_1.next(); !cards_1_1.done; cards_1_1 = cards_1.next()) {
         var card = cards_1_1.value;
         counts.set(card.name, (counts.get(card.name) || 0) + 1);
       }
@@ -13835,7 +13746,7 @@
     var e_2, _a;
     var names = new Set(__spreadArray8(__spreadArray8([], __read13(start.keys()), false), __read13(current.keys()), false));
     try {
-      for (var names_1 = __values11(names), names_1_1 = names_1.next(); !names_1_1.done; names_1_1 = names_1.next()) {
+      for (var names_1 = __values10(names), names_1_1 = names_1.next(); !names_1_1.done; names_1_1 = names_1.next()) {
         var name_1 = names_1_1.value;
         var decrease = (start.get(name_1) || 0) - (current.get(name_1) || 0);
         if (decrease > 0) {
@@ -13885,7 +13796,7 @@
   function hasRequiredCounts(required, current) {
     var e_3, _a;
     try {
-      for (var required_1 = __values11(required), required_1_1 = required_1.next(); !required_1_1.done; required_1_1 = required_1.next()) {
+      for (var required_1 = __values10(required), required_1_1 = required_1.next(); !required_1_1.done; required_1_1 = required_1.next()) {
         var _b = __read13(required_1_1.value, 2), name_2 = _b[0], minimum = _b[1];
         if ((current.get(name_2) || 0) < minimum)
           return false;
@@ -13983,7 +13894,7 @@
           var seenGroups = /* @__PURE__ */ new Set();
           var groupRank = 0;
           try {
-            for (var cards_2 = __values11(cards), cards_2_1 = cards_2.next(); !cards_2_1.done; cards_2_1 = cards_2.next()) {
+            for (var cards_2 = __values10(cards), cards_2_1 = cards_2.next(); !cards_2_1.done; cards_2_1 = cards_2.next()) {
               var card = cards_2_1.value;
               var groupKey = cardGroupKey(card);
               if (seenGroups.has(groupKey))
@@ -14010,7 +13921,7 @@
         setFrom(state.play, supplyAndPlayHotkeys);
         setFrom(state.potions, potionHotkeys);
         try {
-          for (var options_1 = __values11(options), options_1_1 = options_1.next(); !options_1_1.done; options_1_1 = options_1.next()) {
+          for (var options_1 = __values10(options), options_1_1 = options_1.next(); !options_1_1.done; options_1_1 = options_1.next()) {
             var option = options_1_1.value;
             var hint = interpretHint(option.hotkeyHint);
             if (hint && !result.has(renderKey(option.render)) && !takenByPickable(hint)) {
@@ -14028,7 +13939,7 @@
         }
         var index = 0;
         try {
-          for (var options_2 = __values11(options), options_2_1 = options_2.next(); !options_2_1.done; options_2_1 = options_2.next()) {
+          for (var options_2 = __values10(options), options_2_1 = options_2.next(); !options_2_1.done; options_2_1 = options_2.next()) {
             var option = options_2_1.value;
             if (!result.has(renderKey(option.render))) {
               while (index < hotkeys.length && takenByPickable(hotkeys[index])) {
@@ -14072,7 +13983,7 @@
         var e_7, _a;
         var parts = [];
         try {
-          for (var tokens_1 = __values11(tokens), tokens_1_1 = tokens_1.next(); !tokens_1_1.done; tokens_1_1 = tokens_1.next()) {
+          for (var tokens_1 = __values10(tokens), tokens_1_1 = tokens_1.next(); !tokens_1_1.done; tokens_1_1 = tokens_1.next()) {
             var _b = __read13(tokens_1_1.value, 2), token = _b[0], count = _b[1];
             if (count > 0) {
               var idx = this.getTokenIndex(token);
@@ -14096,7 +14007,7 @@
         var e_8, _a;
         var parts = [];
         try {
-          for (var tokens_2 = __values11(tokens), tokens_2_1 = tokens_2.next(); !tokens_2_1.done; tokens_2_1 = tokens_2.next()) {
+          for (var tokens_2 = __values10(tokens), tokens_2_1 = tokens_2.next(); !tokens_2_1.done; tokens_2_1 = tokens_2.next()) {
             var _b = __read13(tokens_2_1.value, 2), token = _b[0], count = _b[1];
             if (count > 0) {
               parts.push(count === 1 ? token : "".concat(token, " (").concat(count, ")"));
@@ -14141,7 +14052,7 @@
     var e_9, _a;
     var parts = [];
     try {
-      for (var _b = __values11(cardSpecEffects(spec)), _c = _b.next(); !_c.done; _c = _b.next()) {
+      for (var _b = __values10(cardSpecEffects(spec)), _c = _b.next(); !_c.done; _c = _b.next()) {
         var effect = _c.value;
         parts.push.apply(parts, __spreadArray8([], __read13(effect.text), false));
       }
@@ -14162,7 +14073,7 @@
     var e_10, _a;
     var parts = [];
     try {
-      for (var _b = __values11(spec.ability || []), _c = _b.next(); !_c.done; _c = _b.next()) {
+      for (var _b = __values10(spec.ability || []), _c = _b.next(); !_c.done; _c = _b.next()) {
         var effect = _c.value;
         parts.push.apply(parts, __spreadArray8([], __read13(effect.text.map(function(x) {
           return "<div>(ability) ".concat(x, "</div>");
@@ -14205,7 +14116,7 @@
     var e_11, _a, e_12, _b;
     var parts = [];
     try {
-      for (var _c = __values11(rule.triggers || []), _d = _c.next(); !_d.done; _d = _c.next()) {
+      for (var _c = __values10(rule.triggers || []), _d = _c.next(); !_d.done; _d = _c.next()) {
         var trigger3 = _d.value;
         parts.push("<div>(rule) ".concat(trigger3.text, "</div>"));
       }
@@ -14219,7 +14130,7 @@
       }
     }
     try {
-      for (var _e = __values11(rule.replacers || []), _f = _e.next(); !_f.done; _f = _e.next()) {
+      for (var _e = __values10(rule.replacers || []), _f = _e.next(); !_f.done; _f = _e.next()) {
         var replacer = _f.value;
         parts.push("<div>(rule) ".concat(replacer.text, "</div>"));
       }
@@ -14382,7 +14293,7 @@
     var first = /* @__PURE__ */ new Map();
     var last = /* @__PURE__ */ new Map();
     try {
-      for (var cards_3 = __values11(cards), cards_3_1 = cards_3.next(); !cards_3_1.done; cards_3_1 = cards_3.next()) {
+      for (var cards_3 = __values10(cards), cards_3_1 = cards_3.next(); !cards_3_1.done; cards_3_1 = cards_3.next()) {
         var card = cards_3_1.value;
         var s = sketchCard(card, settings);
         if (!counts.has(s)) {
@@ -14479,7 +14390,7 @@
       return renderCard(c, state, "resolving", {}, globalRendererState.tokenRenderer);
     }).join("");
     try {
-      for (var zoneNames_1 = __values11(zoneNames), zoneNames_1_1 = zoneNames_1.next(); !zoneNames_1_1.done; zoneNames_1_1 = zoneNames_1.next()) {
+      for (var zoneNames_1 = __values10(zoneNames), zoneNames_1_1 = zoneNames_1.next(); !zoneNames_1_1.done; zoneNames_1_1 = zoneNames_1.next()) {
         var zone = zoneNames_1_1.value;
         renderZone(state, zone, settings);
       }
@@ -14509,7 +14420,7 @@
   function setVisibleLog(state, logType, ui) {
     var e_15, _a;
     try {
-      for (var logTypes_1 = __values11(logTypes), logTypes_1_1 = logTypes_1.next(); !logTypes_1_1.done; logTypes_1_1 = logTypes_1.next()) {
+      for (var logTypes_1 = __values10(logTypes), logTypes_1_1 = logTypes_1.next(); !logTypes_1_1.done; logTypes_1_1 = logTypes_1.next()) {
         var lt = logTypes_1_1.value;
         var el = querySelector(".logOption[option=".concat(lt, "]"));
         if (el) {
@@ -14551,7 +14462,7 @@
       }
     };
     try {
-      for (var _b = __values11(logs.entries()), _c = _b.next(); !_c.done; _c = _b.next()) {
+      for (var _b = __values10(logs.entries()), _c = _b.next(); !_c.done; _c = _b.next()) {
         var _d = __read13(_c.value, 2), i = _d[0], _e = __read13(_d[1], 2), _ = _e[0], state = _e[1];
         _loop_2(i, _, state);
       }
@@ -14592,7 +14503,7 @@
     var optionsMap = /* @__PURE__ */ new Map();
     var stringOptions = [];
     try {
-      for (var options_3 = __values11(options), options_3_1 = options_3.next(); !options_3_1.done; options_3_1 = options_3.next()) {
+      for (var options_3 = __values10(options), options_3_1 = options_3.next(); !options_3_1.done; options_3_1 = options_3.next()) {
         var option = options_3_1.value;
         var rendered = option.render;
         if (rendered.kind === "string") {
@@ -14612,7 +14523,7 @@
     }
     var pickMap = /* @__PURE__ */ new Map();
     try {
-      for (var _d = __values11(picks.entries()), _e = _d.next(); !_e.done; _e = _d.next()) {
+      for (var _d = __values10(picks.entries()), _e = _d.next(); !_e.done; _e = _d.next()) {
         var _f = __read13(_e.value, 2), i = _f[0], x = _f[1];
         pickMap.set(renderKey(x), i);
       }
@@ -14635,7 +14546,7 @@
     var optionsEl = getElement("options");
     clearElement(optionsEl);
     try {
-      for (var stringOptions_1 = __values11(stringOptions), stringOptions_1_1 = stringOptions_1.next(); !stringOptions_1_1.done; stringOptions_1_1 = stringOptions_1.next()) {
+      for (var stringOptions_1 = __values10(stringOptions), stringOptions_1_1 = stringOptions_1.next(); !stringOptions_1_1.done; stringOptions_1_1 = stringOptions_1.next()) {
         var option = stringOptions_1_1.value;
         var hotkey = hotkeyMap.get(option.render);
         optionsEl.appendChild(renderStringOption(option, hotkey, pickMap.get(option.render)));
@@ -14927,7 +14838,7 @@
     var e_20, _a, e_21, _b;
     var result = 0;
     try {
-      for (var _c = __values11(card.tokens), _d = _c.next(); !_d.done; _d = _c.next()) {
+      for (var _c = __values10(card.tokens), _d = _c.next(); !_d.done; _d = _c.next()) {
         var _e = __read13(_d.value, 2), token = _e[0], count = _e[1];
         if ((macroCard.tokens.get(token) || 0) < count)
           result++;
@@ -14942,7 +14853,7 @@
       }
     }
     try {
-      for (var _f = __values11(macroCard.tokens), _g = _f.next(); !_g.done; _g = _f.next()) {
+      for (var _f = __values10(macroCard.tokens), _g = _f.next(); !_g.done; _g = _f.next()) {
         var _h = __read13(_g.value, 2), token = _h[0], count = _h[1];
         if ((card.tokens.get(token) || 0) < count)
           result++;
@@ -15323,7 +15234,7 @@
       return { value: op[0] ? op[1] : void 0, done: true };
     }
   };
-  var __values12 = function(o) {
+  var __values11 = function(o) {
     var s = typeof Symbol === "function" && Symbol.iterator, m = s && o[s], i = 0;
     if (m) return m.call(o);
     if (o && typeof o.length === "number") return {
@@ -15396,7 +15307,7 @@
       gameOver: "gameOverScreen"
     };
     try {
-      for (var _b = __values12(Object.entries(screens)), _c = _b.next(); !_c.done; _c = _b.next()) {
+      for (var _b = __values11(Object.entries(screens)), _c = _b.next(); !_c.done; _c = _b.next()) {
         var _d = __read14(_c.value, 2), name_1 = _d[0], id = _d[1];
         var el = getElement2(id);
         if (name_1 === screen) {
@@ -15566,7 +15477,7 @@
       return "";
     var lines = [];
     try {
-      for (var options_1 = __values12(options), options_1_1 = options_1.next(); !options_1_1.done; options_1_1 = options_1.next()) {
+      for (var options_1 = __values11(options), options_1_1 = options_1.next(); !options_1_1.done; options_1_1 = options_1.next()) {
         var option = options_1_1.value;
         var text = option.description ? "".concat(option.label, ": ").concat(option.description) : option.label;
         lines.push(text);
@@ -15624,7 +15535,7 @@
       container.appendChild(optionEl);
     };
     try {
-      for (var options_2 = __values12(options), options_2_1 = options_2.next(); !options_2_1.done; options_2_1 = options_2.next()) {
+      for (var options_2 = __values11(options), options_2_1 = options_2.next(); !options_2_1.done; options_2_1 = options_2.next()) {
         var card = options_2_1.value;
         _loop_2(card);
       }
@@ -15716,7 +15627,7 @@
       container.appendChild(optionDiv);
     };
     try {
-      for (var options_3 = __values12(options), options_3_1 = options_3.next(); !options_3_1.done; options_3_1 = options_3.next()) {
+      for (var options_3 = __values11(options), options_3_1 = options_3.next(); !options_3_1.done; options_3_1 = options_3.next()) {
         var option = options_3_1.value;
         _loop_3(option);
       }
@@ -15826,7 +15737,7 @@
       challengeContainer.appendChild(playBtn);
     };
     try {
-      for (var _b = __values12(state.data.challenges), _c = _b.next(); !_c.done; _c = _b.next()) {
+      for (var _b = __values11(state.data.challenges), _c = _b.next(); !_c.done; _c = _b.next()) {
         var challenge = _c.value;
         _loop_4(challenge);
       }
@@ -15848,7 +15759,7 @@
     var columns = getElement2("pathColumns");
     clearElement2(columns);
     try {
-      for (var _b = __values12(paths.entries()), _c = _b.next(); !_c.done; _c = _b.next()) {
+      for (var _b = __values11(paths.entries()), _c = _b.next(); !_c.done; _c = _b.next()) {
         var _d = __read14(_c.value, 2), index = _d[0], path = _d[1];
         columns.appendChild(renderPathColumn(path, state, onSelect, index));
       }
@@ -15875,7 +15786,7 @@
     pathColumn.appendChild(pathChoice);
     var rewardsContainer = createDiv("pathRewards");
     try {
-      for (var _b = __values12(path.rewardStates), _c = _b.next(); !_c.done; _c = _b.next()) {
+      for (var _b = __values11(path.rewardStates), _c = _b.next(); !_c.done; _c = _b.next()) {
         var rewardState = _c.value;
         var rewardDiv = createDiv("pathReward");
         rewardDiv.textContent = getRewardName(rewardState);
@@ -15913,7 +15824,7 @@
     ];
     var hasContent = false;
     try {
-      for (var sections_1 = __values12(sections), sections_1_1 = sections_1.next(); !sections_1_1.done; sections_1_1 = sections_1.next()) {
+      for (var sections_1 = __values11(sections), sections_1_1 = sections_1.next(); !sections_1_1.done; sections_1_1 = sections_1.next()) {
         var section = sections_1_1.value;
         if (section.items.length > 0) {
           hasContent = true;
@@ -15923,7 +15834,7 @@
           sectionDiv.appendChild(header);
           var itemsRow = createDiv("deckSectionItems");
           try {
-            for (var _c = (e_9 = void 0, __values12(section.items)), _d = _c.next(); !_d.done; _d = _c.next()) {
+            for (var _c = (e_9 = void 0, __values11(section.items)), _d = _c.next(); !_d.done; _d = _c.next()) {
               var spec = _d.value;
               itemsRow.appendChild(createElementFromHTML2(renderSpecNoRelated(spec)));
             }
@@ -16284,7 +16195,7 @@
       return { value: op[0] ? op[1] : void 0, done: true };
     }
   };
-  var __values13 = function(o) {
+  var __values12 = function(o) {
     var s = typeof Symbol === "function" && Symbol.iterator, m = s && o[s], i = 0;
     if (m) return m.call(o);
     if (o && typeof o.length === "number") return {
@@ -16425,7 +16336,7 @@
       "seedDisplay"
     ];
     try {
-      for (var ids_1 = __values13(ids), ids_1_1 = ids_1.next(); !ids_1_1.done; ids_1_1 = ids_1.next()) {
+      for (var ids_1 = __values12(ids), ids_1_1 = ids_1.next(); !ids_1_1.done; ids_1_1 = ids_1.next()) {
         var id = ids_1_1.value;
         var el = document.getElementById(id);
         if (!el)
@@ -16614,7 +16525,7 @@
       cards.appendChild(empty);
     } else {
       try {
-        for (var specs_1 = __values13(specs), specs_1_1 = specs_1.next(); !specs_1_1.done; specs_1_1 = specs_1.next()) {
+        for (var specs_1 = __values12(specs), specs_1_1 = specs_1.next(); !specs_1_1.done; specs_1_1 = specs_1.next()) {
           var spec = specs_1_1.value;
           var wrap = document.createElement("div");
           wrap.innerHTML = renderSpecNoRelated(spec);
@@ -16733,7 +16644,7 @@
         timeline.appendChild(row);
       };
       try {
-        for (var _b = __values13(state.data.timeline), _c = _b.next(); !_c.done; _c = _b.next()) {
+        for (var _b = __values12(state.data.timeline), _c = _b.next(); !_c.done; _c = _b.next()) {
           var entry = _c.value;
           _loop_1(entry);
         }
@@ -16842,7 +16753,7 @@
         }));
       };
       try {
-        for (var slots_1 = __values13(slots), slots_1_1 = slots_1.next(); !slots_1_1.done; slots_1_1 = slots_1.next()) {
+        for (var slots_1 = __values12(slots), slots_1_1 = slots_1.next(); !slots_1_1.done; slots_1_1 = slots_1.next()) {
           var slot = slots_1_1.value;
           _loop_2(slot);
         }
@@ -16993,7 +16904,7 @@
         }));
       };
       try {
-        for (var slots_2 = __values13(slots), slots_2_1 = slots_2.next(); !slots_2_1.done; slots_2_1 = slots_2.next()) {
+        for (var slots_2 = __values12(slots), slots_2_1 = slots_2.next(); !slots_2_1.done; slots_2_1 = slots_2.next()) {
           var slot = slots_2_1.value;
           _loop_3(slot);
         }

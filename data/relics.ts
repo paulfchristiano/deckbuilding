@@ -1,6 +1,5 @@
 import {
-    CardSpec, Card, State, Transform,
-    TypedTrigger,
+    CardSpec, Card,
     gainActions, gainBuys,
     addCosts,
     create,
@@ -22,7 +21,7 @@ import {
     MetaTransform, addBuffer, gainPotion, gainRelic, RelicSpec, Relic,
     MetaState,
 } from '../metaLogic.js'
-import { makeBottledEventPotion } from './specialSpecs.js'
+import { makeBottledEventPotion, makeCardInABoxRelic } from './specialSpecs.js'
 
 // Bag of Coins: Start with an extra copper
 export const bagOfCoins: RelicSpec = {
@@ -292,30 +291,12 @@ export const giftBox: RelicSpec = {
         'When you add a card to your deck,',
         'start the next course with a copy in hand.'
     ],
-    mutableTriggers: (relic: Relic) => [{
-        kind: 'afterStart',
-        text: 'At the start of the game, create a copy of each bottled card in your hand.',
-        handles: () => true,
-        transform: () => async function (state: State) {
-            for (const spec of relic.notedCards || []) {
-                state = await create(spec, 'hand')(state)
-            }
-            return state
-        }
-    }],
     metaTriggers: [{
-        kind: 'end',
-        handles: () => true,
-        transform: (e, s, relic: Relic) => async function (state: MetaState) {
-            state.applyToRelic((r:Relic) => r.update({notedCards: []}), relic)
-        },
-    }, {
         kind: 'card',
         handles: () => true,
-        transform: (e: GainCardEvent, s: MetaState, relic: Relic) => async function (state: MetaState) {
-            const notedCards = relic.notedCards || []
-            state.applyToRelic((r:Relic) => r.update({notedCards: [...notedCards, e.card]}), relic)
-        },
+        transform: (e: GainCardEvent) => gainRelic(makeCardInABoxRelic(e.card), {
+            details: `Boxed ${displayName(e.card)}`
+        })
     }]
 }
 relicRewards.push(giftBox)

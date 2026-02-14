@@ -1,16 +1,21 @@
-import { Card, CardSpec, State, cardSpecEffects, create, displayName } from '../gameLogic.js'
+import { Card, CardSpec, State, cardSpecEffects, create, displayName, trash } from '../gameLogic.js'
 import type { RelicSpec } from '../metaLogic.js'
 
 export function makeCardInABoxRelic(spec: CardSpec): RelicSpec {
     const cardName = displayName(spec)
     return {
-        name: `${cardName} in a Box`,
+        name: `Boxed ${cardName}`,
+        simpleText: [
+            `At the start of the game, create a copy of ${cardName} in your hand.`,
+            'Trash this.'
+        ],
         triggers: [{
-            kind: 'afterStart',
-            text: `Start each course with a copy of ${cardName} in hand.`,
-            handles: () => true,
-            transform: () => async function (state: State) {
+            kind: 'beforeStart',
+            text: `At the start of the game, create a copy of ${cardName} in your hand, then trash this.`,
+            handles: (_e, _s, sourceCard) => sourceCard !== null,
+            transform: (_e, _s, sourceCard) => async function (state: State) {
                 state = await create(spec, 'hand')(state)
+                state = await trash(sourceCard)(state)
                 return state
             }
         }],
