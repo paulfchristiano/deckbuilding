@@ -16424,6 +16424,9 @@
     });
     persistSaveSlots(slots);
   }
+  function removeAllSaveSlots() {
+    persistSaveSlots([]);
+  }
   function setCoreUIVisible(visible) {
     var e_1, _a;
     var hidden = !visible;
@@ -16835,14 +16838,28 @@
     var title = document.createElement("h3");
     title.style.margin = "0";
     title.textContent = "All Saved Games (".concat(slots.length, ")");
+    var headerActions = document.createElement("div");
+    headerActions.className = "saveActions";
+    var deleteAll = document.createElement("button");
+    deleteAll.className = "launcherBtn dangerBtn";
+    deleteAll.textContent = "Delete all games";
+    deleteAll.onclick = function() {
+      if (!window.confirm("Really delete all of your games?"))
+        return;
+      removeAllSaveSlots();
+      dialog.remove();
+      renderLauncher();
+    };
     var close = document.createElement("button");
     close.className = "launcherBtn";
     close.textContent = "Close";
     close.onclick = function() {
       return dialog.remove();
     };
+    headerActions.appendChild(deleteAll);
+    headerActions.appendChild(close);
     header.appendChild(title);
-    header.appendChild(close);
+    header.appendChild(headerActions);
     card.appendChild(header);
     var list = document.createElement("div");
     list.id = "allSavesList";

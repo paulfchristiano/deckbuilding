@@ -106,6 +106,10 @@ function removeSaveSlot(id: string): void {
     persistSaveSlots(slots)
 }
 
+function removeAllSaveSlots(): void {
+    persistSaveSlots([])
+}
+
 function setCoreUIVisible(visible: boolean): void {
     const hidden = !visible
     const ids = [
@@ -645,12 +649,25 @@ function openAllSavesDialog(): void {
     const title = document.createElement('h3')
     title.style.margin = '0'
     title.textContent = `All Saved Games (${slots.length})`
+    const headerActions = document.createElement('div')
+    headerActions.className = 'saveActions'
+    const deleteAll = document.createElement('button')
+    deleteAll.className = 'launcherBtn dangerBtn'
+    deleteAll.textContent = 'Delete all games'
+    deleteAll.onclick = () => {
+        if (!window.confirm('Really delete all of your games?')) return
+        removeAllSaveSlots()
+        dialog.remove()
+        renderLauncher()
+    }
     const close = document.createElement('button')
     close.className = 'launcherBtn'
     close.textContent = 'Close'
     close.onclick = () => dialog.remove()
+    headerActions.appendChild(deleteAll)
+    headerActions.appendChild(close)
     header.appendChild(title)
-    header.appendChild(close)
+    header.appendChild(headerActions)
     card.appendChild(header)
 
     const list = document.createElement('div')
