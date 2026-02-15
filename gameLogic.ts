@@ -24,6 +24,9 @@ export interface CardSpec {
     }
 }
 
+export type ExtraOption = 'singingBowl' | 'takeItAll'
+export const extraOptions: ExtraOption[] = ['singingBowl', 'takeItAll']
+
 export interface CardUpgrade {
     id?: string;
     name?: (name: string) => string;

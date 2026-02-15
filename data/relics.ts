@@ -16,7 +16,7 @@ import {
 import { registerSpec } from '../registry.js'
 
 import {
-    GameSetupParams, RewardParams, PathRewardParams,
+    GameSetupParams, RewardParams, ExtraOptionsParams, PathRewardParams,
     CourseEndEvent, CourseStartEvent, GainRelicEvent, GainCardEvent, GainEventEvent, PathGenerationEvent,
     MetaTransform, addBuffer, gainPotion, gainRelic, RelicSpec, Relic,
     MetaState,
@@ -180,12 +180,20 @@ relicRewards.push(discountCard)
 export const singingBowl: RelicSpec = {
     name: 'Singing Bowl',
     simpleText: ['Whenever you are offered a reward, you may gain 2@ buffer instead.'],
+    metaReplacers: [{
+        kind: 'extraOptions',
+        replace: (p: ExtraOptionsParams) => ({ ...p, options: p.options.concat(['singingBowl']) })
+    }]
 }
 relicRewards.push(singingBowl)
 
 export const piggyBank: RelicSpec = {
     name: 'Piggy Bank',
     simpleText: ['One time, you can take all of the rewards from a pack.'],
+    metaReplacers: [{
+        kind: 'extraOptions',
+        replace: (p: ExtraOptionsParams) => ({ ...p, options: p.options.concat(['takeItAll']) })
+    }]
 }
 relicRewards.push(piggyBank)
 

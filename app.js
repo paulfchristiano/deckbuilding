@@ -164,6 +164,7 @@
     };
     throw new TypeError(s ? "Object is not iterable." : "Symbol.iterator is not defined.");
   };
+  var extraOptions = ["singingBowl", "takeItAll"];
   function appendUpgrades(base, upgrades, getter) {
     var e_1, _a;
     var result = base ? __spreadArray([], __read(base), false) : [];
@@ -4328,16 +4329,6 @@
     return to.concat(ar || Array.prototype.slice.call(from));
   };
   var PIGGY_BANK_SELECTED_INDEX = -2;
-  function singingBowlCount(state) {
-    return state.data.relics.filter(function(relic) {
-      return relic.name === "Singing Bowl";
-    }).length;
-  }
-  function piggyBankCount(state) {
-    return state.data.relics.filter(function(relic) {
-      return relic.name === "Piggy Bank";
-    }).length;
-  }
   function hasRelicNamed(state, name) {
     return state.data.relics.some(function(relic) {
       return relic.name === name;
@@ -4360,6 +4351,13 @@
   }
   function relicGainRequirementSatisfied(relic, state) {
     return relic.gainRequirement ? relic.gainRequirement(state) : true;
+  }
+  function enabledExtraOptions(state) {
+    var allowed = new Set(extraOptions);
+    var params = applyMetaReplacers("extraOptions", { options: [] }, state);
+    return new Set(params.options.filter(function(option) {
+      return allowed.has(option);
+    }));
   }
   function getSimpleRewardOptions(state, metaState) {
     var _this = this;
@@ -4395,7 +4393,8 @@
     var baseOptions = rewardState.kind === "encounter" ? !rewardState.encounter ? [] : rewardState.encounter.getOptions(rewardState.data, metaState) : getSimpleRewardOptions(rewardState, metaState);
     var alreadySelected = rewardState.kind === "encounter" ? encounterRewardCompleted(rewardState) : rewardState.selectedIndex !== null;
     var piggySelected = rewardState.kind !== "encounter" && rewardState.selectedIndex === PIGGY_BANK_SELECTED_INDEX;
-    var hasSingingBowl = rewardState.kind !== "encounter" && singingBowlCount(metaState) > 0;
+    var extraOptionSet = rewardState.kind === "encounter" ? /* @__PURE__ */ new Set() : enabledExtraOptions(metaState);
+    var hasSingingBowl = rewardState.kind !== "encounter" && extraOptionSet.has("singingBowl");
     if (hasSingingBowl) {
       var optionIndex_1 = baseOptions.length;
       var skippedLabels = baseOptions.map(function(option) {
@@ -4421,7 +4420,7 @@
         }
       });
     }
-    var hasPiggyBank = rewardState.kind !== "encounter" && (piggyBankCount(metaState) > 0 || piggySelected);
+    var hasPiggyBank = rewardState.kind !== "encounter" && (extraOptionSet.has("takeItAll") || piggySelected);
     if (hasPiggyBank) {
       var takenNames = rewardState.options.map(function(option) {
         return displayName(option);
@@ -7281,12 +7280,24 @@
   relicRewards.push(discountCard);
   var singingBowl = {
     name: "Singing Bowl",
-    simpleText: ["Whenever you are offered a reward, you may gain 2@ buffer instead."]
+    simpleText: ["Whenever you are offered a reward, you may gain 2@ buffer instead."],
+    metaReplacers: [{
+      kind: "extraOptions",
+      replace: function(p) {
+        return __assign3(__assign3({}, p), { options: p.options.concat(["singingBowl"]) });
+      }
+    }]
   };
   relicRewards.push(singingBowl);
   var piggyBank = {
     name: "Piggy Bank",
-    simpleText: ["One time, you can take all of the rewards from a pack."]
+    simpleText: ["One time, you can take all of the rewards from a pack."],
+    metaReplacers: [{
+      kind: "extraOptions",
+      replace: function(p) {
+        return __assign3(__assign3({}, p), { options: p.options.concat(["takeItAll"]) });
+      }
+    }]
   };
   relicRewards.push(piggyBank);
   var wingedBoots = {
@@ -16594,7 +16605,8 @@
   };
   var test = {
     rewards: [
-      [1, ["relic", giftBox]]
+      [1, ["relic", piggyBank]],
+      [1, ["relic", singingBowl]]
     ],
     challenges: []
   };

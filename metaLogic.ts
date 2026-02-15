@@ -10,6 +10,7 @@ import { CardSpec, Card, State, vpModes,
     Token,
     cardRewards, eventRewards, potionRewards, relicRewards,
     coinKey, energyEventKey, displayName,
+    ExtraOption, extraOptions,
     VictoryData,
     Replayable
  } from './gameLogic.js'
@@ -117,14 +118,6 @@ export interface EncounterRewardState {
 export type RewardState = SimpleRewardState | EncounterRewardState
 const PIGGY_BANK_SELECTED_INDEX = -2
 
-function singingBowlCount(state: MetaState): number {
-    return state.data.relics.filter(relic => relic.name === 'Singing Bowl').length
-}
-
-function piggyBankCount(state: MetaState): number {
-    return state.data.relics.filter(relic => relic.name === 'Piggy Bank').length
-}
-
 function hasRelicNamed(state: MetaState, name: string): boolean {
     return state.data.relics.some(relic => relic.name === name)
 }
@@ -144,6 +137,12 @@ function encounterRewardCompleted(rewardState: EncounterRewardState): boolean {
 
 function relicGainRequirementSatisfied(relic: RelicSpec, state: MetaState): boolean {
     return relic.gainRequirement ? relic.gainRequirement(state) : true
+}
+
+function enabledExtraOptions(state: MetaState): Set<ExtraOption> {
+    const allowed = new Set<ExtraOption>(extraOptions)
+    const params = applyMetaReplacers('extraOptions', { options: [] as ExtraOption[] }, state)
+    return new Set(params.options.filter(option => allowed.has(option)))
 }
 
 // Get options for a simple reward
@@ -182,7 +181,8 @@ export function getRewardOptions(rewardState: RewardState, metaState: MetaState)
         ? encounterRewardCompleted(rewardState)
         : rewardState.selectedIndex !== null
     const piggySelected = rewardState.kind !== 'encounter' && rewardState.selectedIndex === PIGGY_BANK_SELECTED_INDEX
-    const hasSingingBowl = rewardState.kind !== 'encounter' && singingBowlCount(metaState) > 0
+    const extraOptionSet = rewardState.kind === 'encounter' ? new Set<ExtraOption>() : enabledExtraOptions(metaState)
+    const hasSingingBowl = rewardState.kind !== 'encounter' && extraOptionSet.has('singingBowl')
     if (hasSingingBowl) {
         const optionIndex = baseOptions.length
         const skippedLabels = baseOptions.map(option => option.label)
@@ -205,7 +205,7 @@ export function getRewardOptions(rewardState: RewardState, metaState: MetaState)
         })
     }
 
-    const hasPiggyBank = rewardState.kind !== 'encounter' && (piggyBankCount(metaState) > 0 || piggySelected)
+    const hasPiggyBank = rewardState.kind !== 'encounter' && (extraOptionSet.has('takeItAll') || piggySelected)
     if (hasPiggyBank) {
         const takenNames = rewardState.options.map(option => displayName(option as CardSpec))
         const details = takenNames.length > 0 ? `Taken: ${takenNames.join(', ')}` : undefined
@@ -410,6 +410,10 @@ export interface RewardParams {
     optionCount: number
 }
 
+export interface ExtraOptionsParams {
+    options: ExtraOption[]
+}
+
 export interface PathRewardParams {
     rewardsPerPath: number
     paths: string[]
@@ -419,6 +423,7 @@ export interface PathRewardParams {
 export type MetaReplacer =
     | { kind: 'gameSetup', replace: (params: GameSetupParams, self: Relic) => GameSetupParams }
     | { kind: 'reward', replace: (params: RewardParams, self: Relic) => RewardParams }
+    | { kind: 'extraOptions', replace: (params: ExtraOptionsParams, self: Relic) => ExtraOptionsParams }
     | { kind: 'pathRewards', replace: (params: PathRewardParams, self: Relic) => PathRewardParams }
 
 // Meta trigger event types
@@ -1609,6 +1614,7 @@ export async function endCourse(score: number, par: number, state:MetaState): Pr
 type MetaReplacerParamMap = {
     'gameSetup': GameSetupParams
     'reward': RewardParams
+    'extraOptions': ExtraOptionsParams
     'pathRewards': PathRewardParams
 }
 
