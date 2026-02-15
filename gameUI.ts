@@ -1750,7 +1750,14 @@ export class GameUI implements UI {
                 reject(reason)
             }
 
-            const options: Option<null>[] = [{
+            const isReplay = state.spec.replayStage !== null && state.spec.replayStage !== undefined
+            const overPar = Math.max(0, state.energy - state.spec.par)
+            const buffer = state.spec.buffer ?? 0
+            const blockedByBuffer = !isReplay && overPar > buffer
+            const choicePrompt = blockedByBuffer
+                ? `You went ${overPar} over par, but only have ${buffer} buffer`
+                : `You won using ${state.energy} energy!`
+            const options: Option<null>[] = blockedByBuffer ? [] : [{
                 render: { kind: 'string', string: 'Done' },
                 value: null,
                 hotkeyHint: { kind: 'key', val: '!' }
@@ -1758,7 +1765,7 @@ export class GameUI implements UI {
 
             ui.choiceState = {
                 state,
-                choicePrompt: `You won using ${state.energy} energy!`,
+                choicePrompt,
                 options,
                 info: ['victory'],
                 chosen: [],

@@ -878,6 +878,7 @@ interface SerializedPath {
 interface SerializedGameSpec {
     vp: number
     par: number
+    buffer?: number
     cards: SerializedSpecRef[]
     events: SerializedSpecRef[]
     potions: SerializedCard[]
@@ -1222,6 +1223,7 @@ function serializeGameSpec(spec: GameSpec): SerializedGameSpec {
     return {
         vp: spec.vp,
         par: spec.par,
+        buffer: spec.buffer,
         cards: spec.cards.map(card => serializeSpec(card, 'card')),
         events: spec.events.map(event => serializeSpec(event, 'event')),
         potions: spec.potions.map(potion => serializeCard(potion)),
@@ -1240,6 +1242,7 @@ function deserializeGameSpec(spec: SerializedGameSpec): GameSpec {
     return {
         vp: spec.vp,
         par: spec.par,
+        buffer: spec.buffer,
         cards: spec.cards.map(card => deserializeSpec(card)),
         events: spec.events.map(event => deserializeSpec(event)),
         potions: spec.potions.map(card => deserializeCard(card)),
@@ -1734,6 +1737,7 @@ export function makeSpec(state: MetaState, challenge: ChallengeSpec): GameSpec {
     return {
         vp: gameSetupParams.vpGoal,
         par: finalPar,
+        buffer: state.data.buffer,
         cards: finalCards,
         events: finalEvents,
         potions: state.data.potions,
@@ -1916,6 +1920,7 @@ export class ExitToLauncher extends Error {
 function cloneGameSpec(spec: GameSpec): GameSpec {
     return {
         ...spec,
+        buffer: spec.buffer,
         cards: [...spec.cards],
         events: [...spec.events],
         potions: [...spec.potions],
@@ -1973,6 +1978,7 @@ function sampleRewardOptionsByBaseName(
 export function replaySpecForStage(state: MetaState, replayData: StageReplayData): GameSpec {
     return {
         ...cloneGameSpec(replayData.spec),
+        buffer: replayData.bufferBeforeCourse,
         metaStage: state.data.stage,
         metaStageScores: [...state.data.stageScores],
         metaStagePars: [...state.data.stagePars],

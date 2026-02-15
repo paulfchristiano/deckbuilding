@@ -5254,6 +5254,7 @@
     return {
       vp: spec.vp,
       par: spec.par,
+      buffer: spec.buffer,
       cards: spec.cards.map(function(card) {
         return serializeSpec(card, "card");
       }),
@@ -5279,6 +5280,7 @@
     return {
       vp: spec.vp,
       par: spec.par,
+      buffer: spec.buffer,
       cards: spec.cards.map(function(card) {
         return deserializeSpec(card);
       }),
@@ -6000,6 +6002,7 @@
     return {
       vp: gameSetupParams.vpGoal,
       par: finalPar,
+      buffer: state.data.buffer,
       cards: finalCards,
       events: finalEvents,
       potions: state.data.potions,
@@ -6212,7 +6215,7 @@
     })(Error)
   );
   function cloneGameSpec(spec) {
-    return __assign2(__assign2({}, spec), { cards: __spreadArray5([], __read6(spec.cards), false), events: __spreadArray5([], __read6(spec.events), false), potions: __spreadArray5([], __read6(spec.potions), false), relics: __spreadArray5([], __read6(spec.relics), false), metaStageScores: spec.metaStageScores ? __spreadArray5([], __read6(spec.metaStageScores), false) : void 0, metaStagePars: spec.metaStagePars ? __spreadArray5([], __read6(spec.metaStagePars), false) : void 0, metaStageTooltips: spec.metaStageTooltips ? __spreadArray5([], __read6(spec.metaStageTooltips), false) : void 0, replayUsedPotionIDs: spec.replayUsedPotionIDs ? __spreadArray5([], __read6(spec.replayUsedPotionIDs), false) : void 0 });
+    return __assign2(__assign2({}, spec), { buffer: spec.buffer, cards: __spreadArray5([], __read6(spec.cards), false), events: __spreadArray5([], __read6(spec.events), false), potions: __spreadArray5([], __read6(spec.potions), false), relics: __spreadArray5([], __read6(spec.relics), false), metaStageScores: spec.metaStageScores ? __spreadArray5([], __read6(spec.metaStageScores), false) : void 0, metaStagePars: spec.metaStagePars ? __spreadArray5([], __read6(spec.metaStagePars), false) : void 0, metaStageTooltips: spec.metaStageTooltips ? __spreadArray5([], __read6(spec.metaStageTooltips), false) : void 0, replayUsedPotionIDs: spec.replayUsedPotionIDs ? __spreadArray5([], __read6(spec.replayUsedPotionIDs), false) : void 0 });
   }
   function cloneStageReplayData(replayData) {
     return __assign2(__assign2({}, replayData), { challenge: __assign2(__assign2({}, replayData.challenge), { boons: __spreadArray5([], __read6(replayData.challenge.boons), false) }), spec: cloneGameSpec(replayData.spec), history: __spreadArray5([], __read6(replayData.history), false), potionsRemaining: __spreadArray5([], __read6(replayData.potionsRemaining), false) });
@@ -6265,7 +6268,7 @@
     return result;
   }
   function replaySpecForStage(state, replayData) {
-    return __assign2(__assign2({}, cloneGameSpec(replayData.spec)), { metaStage: state.data.stage, metaStageScores: __spreadArray5([], __read6(state.data.stageScores), false), metaStagePars: __spreadArray5([], __read6(state.data.stagePars), false), metaStageTooltips: stageTooltipTexts(state), previousScore: replayData.score, replayUsedPotionIDs: replayUsedPotionIDs(replayData), replayStage: replayData.stage });
+    return __assign2(__assign2({}, cloneGameSpec(replayData.spec)), { buffer: replayData.bufferBeforeCourse, metaStage: state.data.stage, metaStageScores: __spreadArray5([], __read6(state.data.stageScores), false), metaStagePars: __spreadArray5([], __read6(state.data.stagePars), false), metaStageTooltips: stageTooltipTexts(state), previousScore: replayData.score, replayUsedPotionIDs: replayUsedPotionIDs(replayData), replayStage: replayData.stage });
   }
   var replaySimulationUI = {
     chooseCard: function(_state, _prompt, _options) {
@@ -15426,6 +15429,7 @@
           return __generator11(this, function(_a) {
             ui = this;
             return [2, new Promise(function(resolve, reject) {
+              var _a2;
               ui.undoing = true;
               function newReject(reason) {
                 if (reason instanceof Undo)
@@ -15433,14 +15437,19 @@
                 ui.clearChoice();
                 reject(reason);
               }
-              var options = [{
+              var isReplay = state.spec.replayStage !== null && state.spec.replayStage !== void 0;
+              var overPar = Math.max(0, state.energy - state.spec.par);
+              var buffer = (_a2 = state.spec.buffer) !== null && _a2 !== void 0 ? _a2 : 0;
+              var blockedByBuffer = !isReplay && overPar > buffer;
+              var choicePrompt = blockedByBuffer ? "You went ".concat(overPar, " over par, but only have ").concat(buffer, " buffer") : "You won using ".concat(state.energy, " energy!");
+              var options = blockedByBuffer ? [] : [{
                 render: { kind: "string", string: "Done" },
                 value: null,
                 hotkeyHint: { kind: "key", val: "!" }
               }];
               ui.choiceState = {
                 state,
-                choicePrompt: "You won using ".concat(state.energy, " energy!"),
+                choicePrompt,
                 options,
                 info: ["victory"],
                 chosen: [],

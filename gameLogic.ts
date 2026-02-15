@@ -573,6 +573,7 @@ export interface Kingdom {
 export type GameSpec = {
     vp: number,
     par: number,
+    buffer?: number,
     cards:CardSpec[],
     events:CardSpec[],
     potions: Card[],
