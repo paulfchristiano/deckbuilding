@@ -2416,16 +2416,6 @@ export async function playGame(
                 const stage = state.data.stage
                 // challenges[0] is the selected challenge (set when user clicks a challenge button)
                 const gameSpec = makeSpec(state, state.data.challenges[0])
-                const boxedRelicIDs = new Set(
-                    state.data.relics
-                        .filter(relic => relic.spec.persistence?.kind === 'cardInABoxRelic')
-                        .map(relic => relic.id)
-                )
-                if (boxedRelicIDs.size > 0) {
-                    state.update({
-                        relics: state.data.relics.filter(relic => !boxedRelicIDs.has(relic.id))
-                    })
-                }
                 const startingBuffer = state.data.buffer
                 // Pass saved game state for replay (from previous redo)
                 const { score, potionsRemaining, history, macros, viewingMacros } = await state.ui.playGame(
