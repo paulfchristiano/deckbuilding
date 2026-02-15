@@ -11,9 +11,12 @@ import {
     sourceHasName,
     displayName,
     doAll,
-    repeat
+    repeat,
+    cardRewards,
+    eventRewards
 } from '../gameLogic.js'
 import { registerSpec } from '../registry.js'
+import { Generator } from '../rng.js'
 
 import {
     GameSetupParams, RewardParams, ExtraOptionsParams, PathRewardParams,
@@ -396,8 +399,57 @@ export const questionCard: RelicSpec = {
 }
 relicRewards.push(questionCard)
 
+// If called multiple times we generate the same permutations, but index further into them.
+function lookingGlassNewKingdom(
+    state: MetaState,
+    cards: CardSpec[],
+    events: CardSpec[],
+): { cards: CardSpec[], events: CardSpec[] } {
+    const result = {cards: cards.slice(), events: events.slice()}
+
+    const neededCards = 2
+    const neededEvents = 1
+    const skipCardNames = new Set(cards.map(card => card.name))
+    const skipEventNames = new Set(events.map(event => event.name))
+
+    const generator = new Generator(`${state.seed}-LOOKINGGLASS-${state.data.stage}`)
+
+    const allCards = generator.permute([...cardRewards])
+    const addedCards = []
+    for (const card of allCards) {
+        if (addedCards.length >= neededCards) break
+        if (skipCardNames.has(card.name)) continue
+        addedCards.push(card)
+    }
+    const allEvents = generator.permute([...eventRewards])
+    const addedEvents = []
+    for (const event of allEvents) {
+        if (addedEvents.length >= neededEvents) break
+        if (skipEventNames.has(event.name)) continue
+        addedEvents.push(event)
+    }
+
+    return { cards: cards.concat(addedCards), events: events.concat(addedEvents) }
+}
+
+
 export const lookingGlass: RelicSpec = {
     name: 'Looking Glass',
-    simpleText: ['2 random cards and 1 random event are added to each kingdom.']
+    metaReplacers: [{
+        kind: 'gameSetup',
+        text: '2 random cards and 1 random event are added to each kingdom.',
+        replace: function (p: GameSetupParams, state: MetaState, self: Relic): GameSetupParams {
+            const newKingdom = lookingGlassNewKingdom(
+                state,
+                p.cardSpecs,
+                p.eventSpecs,
+            )
+            return {
+                ...p,
+                cardSpecs: newKingdom.cards,
+                eventSpecs: newKingdom.events
+            }
+        }
+    }]
 }
 relicRewards.push(lookingGlass)

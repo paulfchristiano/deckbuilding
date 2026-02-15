@@ -3597,6 +3597,121 @@
     })), false), __read2(extraSpecsByName.values()), false);
   }
 
+  // public/rng.js
+  var __read3 = function(o, n) {
+    var m = typeof Symbol === "function" && o[Symbol.iterator];
+    if (!m) return o;
+    var i = m.call(o), r, ar = [], e;
+    try {
+      while ((n === void 0 || n-- > 0) && !(r = i.next()).done) ar.push(r.value);
+    } catch (error) {
+      e = { error };
+    } finally {
+      try {
+        if (r && !r.done && (m = i["return"])) m.call(i);
+      } finally {
+        if (e) throw e.error;
+      }
+    }
+    return ar;
+  };
+  var ALPHANUM = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+  function randomString() {
+    var result = "";
+    for (var i = 0; i < 8; i++) {
+      var idx = Math.floor(Math.random() * ALPHANUM.length);
+      result += ALPHANUM[idx];
+    }
+    return result;
+  }
+  var Generator = (
+    /** @class */
+    (function() {
+      function Generator2(seedString, state) {
+        if (state === void 0) {
+          state = null;
+        }
+        this.state = state === null ? makeSeedFromString(seedString) : state;
+      }
+      Generator2.fromState = function(state) {
+        return new Generator2("A", state);
+      };
+      Generator2.prototype.exportState = function() {
+        return this.state;
+      };
+      Generator2.prototype.next = function() {
+        this.state |= 0;
+        this.state = this.state + 1831565813 | 0;
+        var t = Math.imul(this.state ^ this.state >>> 15, 1 | this.state);
+        t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+        return ((t ^ t >>> 14) >>> 0) / 4294967296;
+      };
+      Generator2.prototype.newGenerator = function() {
+        var result = "";
+        for (var i = 0; i < 8; i++) {
+          var idx = Math.floor(this.next() * ALPHANUM.length);
+          result += ALPHANUM[idx];
+        }
+        return new Generator2(result);
+      };
+      Generator2.prototype.permute = function(list) {
+        var _a;
+        var result = list.slice();
+        for (var i = result.length - 1; i > 0; i--) {
+          var j = Math.floor(this.next() * (i + 1));
+          _a = __read3([result[j], result[i]], 2), result[i] = _a[0], result[j] = _a[1];
+        }
+        return result;
+      };
+      Generator2.prototype.samples = function(list, k, excludes) {
+        if (excludes === void 0) {
+          excludes = [];
+        }
+        if (k == 0)
+          return [];
+        var arr = this.permute(list);
+        var result = [];
+        var _loop_1 = function(i2) {
+          var candidate = arr[i2];
+          if (excludes.every(function(t) {
+            return t !== candidate;
+          })) {
+            result.push(candidate);
+          }
+          if (result.length >= k) {
+            return { value: result };
+          }
+        };
+        for (var i = 0; i < list.length; i++) {
+          var state_1 = _loop_1(i);
+          if (typeof state_1 === "object")
+            return state_1.value;
+        }
+        console.log("Ran out of items!");
+        return result;
+      };
+      Generator2.prototype.sample = function(list, excludes) {
+        if (excludes === void 0) {
+          excludes = [];
+        }
+        return this.samples(list, 1, excludes)[0];
+      };
+      return Generator2;
+    })()
+  );
+  function makeSeedFromString(s) {
+    var str = normalizeSeedString(s);
+    var hash = 2166136261;
+    for (var i = 0; i < str.length; i++) {
+      hash ^= str.charCodeAt(i);
+      hash = Math.imul(hash, 16777619);
+    }
+    return hash >>> 0;
+  }
+  function normalizeSeedString(s) {
+    return s.toUpperCase();
+  }
+
   // public/cardRendering.js
   var __values3 = function(o) {
     var s = typeof Symbol === "function" && Symbol.iterator, m = s && o[s], i = 0;
@@ -3609,7 +3724,7 @@
     };
     throw new TypeError(s ? "Object is not iterable." : "Symbol.iterator is not defined.");
   };
-  var __read3 = function(o, n) {
+  var __read4 = function(o, n) {
     var m = typeof Symbol === "function" && o[Symbol.iterator];
     if (!m) return o;
     var i = m.call(o), r, ar = [], e;
@@ -3660,7 +3775,7 @@
     try {
       for (var _b = __values3(cardSpecEffects(spec)), _c = _b.next(); !_c.done; _c = _b.next()) {
         var effect = _c.value;
-        parts.push.apply(parts, __spreadArray3([], __read3(effect.text), false));
+        parts.push.apply(parts, __spreadArray3([], __read4(effect.text), false));
       }
     } catch (e_1_1) {
       e_1 = { error: e_1_1 };
@@ -3681,7 +3796,7 @@
     try {
       for (var _b = __values3(spec.ability || []), _c = _b.next(); !_c.done; _c = _b.next()) {
         var effect = _c.value;
-        parts.push.apply(parts, __spreadArray3([], __read3(effect.text.map(function(x) {
+        parts.push.apply(parts, __spreadArray3([], __read4(effect.text.map(function(x) {
           return plain ? "<div>".concat(x, "</div>") : "<div>(ability) ".concat(x, "</div>");
         })), false));
       }
@@ -3983,7 +4098,7 @@
       return { value: op[0] ? op[1] : void 0, done: true };
     }
   };
-  var __read4 = function(o, n) {
+  var __read5 = function(o, n) {
     var m = typeof Symbol === "function" && o[Symbol.iterator];
     if (!m) return o;
     var i = m.call(o), r, ar = [], e;
@@ -4097,127 +4212,12 @@
       isPotion: true,
       simpleText: ["Use ".concat(cardName, ".")],
       relatedCards: [spec],
-      rules: spec.rules ? __spreadArray4([], __read4(spec.rules), false) : void 0,
+      rules: spec.rules ? __spreadArray4([], __read5(spec.rules), false) : void 0,
       persistence: {
         kind: "bottledEventPotion"
       },
       effects
     };
-  }
-
-  // public/rng.js
-  var __read5 = function(o, n) {
-    var m = typeof Symbol === "function" && o[Symbol.iterator];
-    if (!m) return o;
-    var i = m.call(o), r, ar = [], e;
-    try {
-      while ((n === void 0 || n-- > 0) && !(r = i.next()).done) ar.push(r.value);
-    } catch (error) {
-      e = { error };
-    } finally {
-      try {
-        if (r && !r.done && (m = i["return"])) m.call(i);
-      } finally {
-        if (e) throw e.error;
-      }
-    }
-    return ar;
-  };
-  var ALPHANUM = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-  function randomString() {
-    var result = "";
-    for (var i = 0; i < 8; i++) {
-      var idx = Math.floor(Math.random() * ALPHANUM.length);
-      result += ALPHANUM[idx];
-    }
-    return result;
-  }
-  var Generator = (
-    /** @class */
-    (function() {
-      function Generator2(seedString, state) {
-        if (state === void 0) {
-          state = null;
-        }
-        this.state = state === null ? makeSeedFromString(seedString) : state;
-      }
-      Generator2.fromState = function(state) {
-        return new Generator2("A", state);
-      };
-      Generator2.prototype.exportState = function() {
-        return this.state;
-      };
-      Generator2.prototype.next = function() {
-        this.state |= 0;
-        this.state = this.state + 1831565813 | 0;
-        var t = Math.imul(this.state ^ this.state >>> 15, 1 | this.state);
-        t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
-        return ((t ^ t >>> 14) >>> 0) / 4294967296;
-      };
-      Generator2.prototype.newGenerator = function() {
-        var result = "";
-        for (var i = 0; i < 8; i++) {
-          var idx = Math.floor(this.next() * ALPHANUM.length);
-          result += ALPHANUM[idx];
-        }
-        return new Generator2(result);
-      };
-      Generator2.prototype.permute = function(list) {
-        var _a;
-        var result = list.slice();
-        for (var i = result.length - 1; i > 0; i--) {
-          var j = Math.floor(this.next() * (i + 1));
-          _a = __read5([result[j], result[i]], 2), result[i] = _a[0], result[j] = _a[1];
-        }
-        return result;
-      };
-      Generator2.prototype.samples = function(list, k, excludes) {
-        if (excludes === void 0) {
-          excludes = [];
-        }
-        if (k == 0)
-          return [];
-        var arr = this.permute(list);
-        var result = [];
-        var _loop_1 = function(i2) {
-          var candidate = arr[i2];
-          if (excludes.every(function(t) {
-            return t !== candidate;
-          })) {
-            result.push(candidate);
-          }
-          if (result.length >= k) {
-            return { value: result };
-          }
-        };
-        for (var i = 0; i < list.length; i++) {
-          var state_1 = _loop_1(i);
-          if (typeof state_1 === "object")
-            return state_1.value;
-        }
-        console.log("Ran out of items!");
-        return result;
-      };
-      Generator2.prototype.sample = function(list, excludes) {
-        if (excludes === void 0) {
-          excludes = [];
-        }
-        return this.samples(list, 1, excludes)[0];
-      };
-      return Generator2;
-    })()
-  );
-  function makeSeedFromString(s) {
-    var str = normalizeSeedString(s);
-    var hash = 2166136261;
-    for (var i = 0; i < str.length; i++) {
-      hash ^= str.charCodeAt(i);
-      hash = Math.imul(hash, 16777619);
-    }
-    return hash >>> 0;
-  }
-  function normalizeSeedString(s) {
-    return s.toUpperCase();
   }
 
   // public/metaLogic.js
@@ -4385,16 +4385,6 @@
     return to.concat(ar || Array.prototype.slice.call(from));
   };
   var PIGGY_BANK_SELECTED_INDEX = -2;
-  function hasRelicNamed(state, name) {
-    return state.data.relics.some(function(relic) {
-      return relic.name === name;
-    });
-  }
-  function lookingGlassCount(state) {
-    return state.data.relics.filter(function(relic) {
-      return relic.name === "Looking Glass";
-    }).length;
-  }
   function encounterRewardCompleted(rewardState) {
     var data = rewardState.data;
     if (data && typeof data === "object") {
@@ -4631,20 +4621,6 @@
     var tooltipParts = [];
     if (relatedCards.length > 0) {
       tooltipParts.push(relatedCards.map(buildSpecTooltip).join(""));
-    }
-    if (hasRelicNamed(state, "Looking Glass") && state.data.phase !== "path_select") {
-      var lookingGlassRewards = sampleLookingGlassRoundRewards(state, lookingGlassCount(state));
-      var lines = [];
-      if (lookingGlassRewards.cards.length > 0) {
-        lines.push("Added cards: ".concat(lookingGlassRewards.cards.map(displayName).join(", ")));
-      }
-      if (lookingGlassRewards.events.length > 0) {
-        lines.push("Added events: ".concat(lookingGlassRewards.events.map(displayName).join(", ")));
-      }
-      if (lines.length > 0) {
-        var lookingGlassDetails = '<div style="margin-top:6px;">'.concat(lines.join("<br>"), "</div>");
-        tooltipParts.push(lookingGlassDetails);
-      }
     }
     if (tooltipParts.length === 0)
       return label;
@@ -5778,7 +5754,7 @@
             var replacer = metaReplacers_1_1.value;
             if (replacer.kind === kind) {
               var replaceFn = replacer.replace;
-              params = replaceFn(params, relic);
+              params = replaceFn(params, state, relic);
             }
           }
         } catch (e_10_1) {
@@ -5805,7 +5781,7 @@
   function signedAmount(amount) {
     return amount > 0 ? "+".concat(amount) : "".concat(amount);
   }
-  function describeParCalculation(stage, challenge, relicCards) {
+  function describeParCalculation(stage, challenge, relicCards, state) {
     var e_11, _a, e_12, _b, e_13, _c;
     var _d;
     var basePar = BASE_PARS[stage];
@@ -5850,7 +5826,7 @@
             if (replacer.kind !== "gameSetup")
               continue;
             var replaceFn = replacer.replace;
-            var nextParams = replaceFn(params, relicCard);
+            var nextParams = replaceFn(params, state, relicCard);
             var parDelta = nextParams.par - params.par;
             if (parDelta !== 0) {
               parts.push("".concat(signedAmount(parDelta), " for ").concat(relicCard.name));
@@ -5887,11 +5863,11 @@
       if (stage < state.data.stage) {
         var replayData = state.data.stageReplays[stage];
         if (replayData !== null) {
-          return describeParCalculation(stage, replayData.challenge, replayData.spec.relics);
+          return describeParCalculation(stage, replayData.challenge, replayData.spec.relics, state);
         }
       }
       if (stage === state.data.stage && state.data.challenges.length === 1) {
-        return describeParCalculation(stage, state.data.challenges[0], state.data.relics);
+        return describeParCalculation(stage, state.data.challenges[0], state.data.relics, state);
       }
       return "".concat(basePar, " (base)");
     });
@@ -6018,9 +5994,8 @@
       cardSpecs: cards,
       eventSpecs: events
     }, state);
-    var lookingGlassRewards = sampleLookingGlassRoundRewards(state, lookingGlassCount(state));
-    var finalCards = __spreadArray5(__spreadArray5([], __read6(gameSetupParams.cardSpecs), false), __read6(lookingGlassRewards.cards), false);
-    var finalEvents = __spreadArray5(__spreadArray5([], __read6(gameSetupParams.eventSpecs), false), __read6(lookingGlassRewards.events), false);
+    var finalCards = gameSetupParams.cardSpecs;
+    var finalEvents = gameSetupParams.eventSpecs;
     var finalPar = Math.max(0, gameSetupParams.par);
     return {
       vp: gameSetupParams.vpGoal,
@@ -6041,72 +6016,6 @@
   }
   function standardRelicRewards() {
     return relicRewards;
-  }
-  function sampleLookingGlassRoundRewards(state, targetCopies) {
-    var e_17, _a, e_18, _b;
-    if (state.data.phase === "path_select") {
-      return { cards: [], events: [] };
-    }
-    var cards = [];
-    var events = [];
-    if (targetCopies <= 0) {
-      return { cards, events };
-    }
-    var neededCards = 2 * targetCopies;
-    var neededEvents = targetCopies;
-    var ownedCardNames = new Set(state.data.collectedCards.map(function(card2) {
-      return card2.name;
-    }));
-    var ownedEventNames = new Set(state.data.collectedEvents.map(function(event) {
-      return event.name;
-    }));
-    var selectedCardNames = /* @__PURE__ */ new Set();
-    var selectedEventNames = /* @__PURE__ */ new Set();
-    var cardOrder = new Generator("".concat(state.seed, "-LOOKINGGLASS-CARDS-").concat(state.data.stage)).permute(__spreadArray5([], __read6(cardRewards), false));
-    try {
-      for (var cardOrder_1 = __values4(cardOrder), cardOrder_1_1 = cardOrder_1.next(); !cardOrder_1_1.done; cardOrder_1_1 = cardOrder_1.next()) {
-        var card = cardOrder_1_1.value;
-        if (cards.length >= neededCards)
-          break;
-        if (ownedCardNames.has(card.name))
-          continue;
-        if (selectedCardNames.has(card.name))
-          continue;
-        cards.push(card);
-        selectedCardNames.add(card.name);
-      }
-    } catch (e_17_1) {
-      e_17 = { error: e_17_1 };
-    } finally {
-      try {
-        if (cardOrder_1_1 && !cardOrder_1_1.done && (_a = cardOrder_1.return)) _a.call(cardOrder_1);
-      } finally {
-        if (e_17) throw e_17.error;
-      }
-    }
-    var eventOrder = new Generator("".concat(state.seed, "-LOOKINGGLASS-EVENTS-").concat(state.data.stage)).permute(__spreadArray5([], __read6(eventRewards), false));
-    try {
-      for (var eventOrder_1 = __values4(eventOrder), eventOrder_1_1 = eventOrder_1.next(); !eventOrder_1_1.done; eventOrder_1_1 = eventOrder_1.next()) {
-        var event_1 = eventOrder_1_1.value;
-        if (events.length >= neededEvents)
-          break;
-        if (ownedEventNames.has(event_1.name))
-          continue;
-        if (selectedEventNames.has(event_1.name))
-          continue;
-        events.push(event_1);
-        selectedEventNames.add(event_1.name);
-      }
-    } catch (e_18_1) {
-      e_18 = { error: e_18_1 };
-    } finally {
-      try {
-        if (eventOrder_1_1 && !eventOrder_1_1.done && (_b = eventOrder_1.return)) _b.call(eventOrder_1);
-      } finally {
-        if (e_18) throw e_18.error;
-      }
-    }
-    return { cards, events };
   }
   function nextDistinctByName(ordered, used, fallbackIndex) {
     var next = ordered.find(function(item) {
@@ -6209,7 +6118,7 @@
     });
   }
   function pathFromSkeleton(skeleton) {
-    var e_19, _a;
+    var e_17, _a;
     var rewardStates = [];
     try {
       for (var _b = __values4(skeleton.rewards), _c = _b.next(); !_c.done; _c = _b.next()) {
@@ -6226,13 +6135,13 @@
           rewardStates.push({ kind: "potion", options: [], selectedIndex: null });
         }
       }
-    } catch (e_19_1) {
-      e_19 = { error: e_19_1 };
+    } catch (e_17_1) {
+      e_17 = { error: e_17_1 };
     } finally {
       try {
         if (_c && !_c.done && (_a = _b.return)) _a.call(_b);
       } finally {
-        if (e_19) throw e_19.error;
+        if (e_17) throw e_17.error;
       }
     }
     return { label: skeleton.label, rewardStates, challenges: skeleton.challenges };
@@ -6329,7 +6238,7 @@
     });
   }
   function sampleRewardOptionsByBaseName(generator, allOptions, count, collected) {
-    var e_20, _a;
+    var e_18, _a;
     var blockedBaseNames = new Set(collected.map(function(spec2) {
       return spec2.name;
     }));
@@ -6344,13 +6253,13 @@
         if (result.length >= count)
           break;
       }
-    } catch (e_20_1) {
-      e_20 = { error: e_20_1 };
+    } catch (e_18_1) {
+      e_18 = { error: e_18_1 };
     } finally {
       try {
         if (_c && !_c.done && (_a = _b.return)) _a.call(_b);
       } finally {
-        if (e_20) throw e_20.error;
+        if (e_18) throw e_18.error;
       }
     }
     return result;
@@ -6478,7 +6387,7 @@
   }
   function replayCompletedStage(state, stage) {
     return __awaiter3(this, void 0, void 0, function() {
-      var replayData, replayResult, e_21, macros, viewingMacros, newBufferAfterCourse, updatedReplayData, bufferAdjustment, usedPotions, stageTimelineEntry;
+      var replayData, replayResult, e_19, macros, viewingMacros, newBufferAfterCourse, updatedReplayData, bufferAdjustment, usedPotions, stageTimelineEntry;
       var _a, _b, _c, _d;
       return __generator3(this, function(_e) {
         switch (_e.label) {
@@ -6497,22 +6406,22 @@
             replayResult = _e.sent();
             return [3, 4];
           case 3:
-            e_21 = _e.sent();
-            if (e_21 instanceof Undo2) {
-              macros = (_a = e_21.macros) !== null && _a !== void 0 ? _a : state.global.macros;
-              viewingMacros = (_b = e_21.viewingMacros) !== null && _b !== void 0 ? _b : state.global.viewingMacros;
+            e_19 = _e.sent();
+            if (e_19 instanceof Undo2) {
+              macros = (_a = e_19.macros) !== null && _a !== void 0 ? _a : state.global.macros;
+              viewingMacros = (_b = e_19.viewingMacros) !== null && _b !== void 0 ? _b : state.global.viewingMacros;
               state.updateGlobal({ macros, viewingMacros });
               return [
                 2
                 /*return*/
               ];
             }
-            if (e_21 instanceof Redo)
+            if (e_19 instanceof Redo)
               return [
                 2
                 /*return*/
               ];
-            throw e_21;
+            throw e_19;
           case 4:
             state.updateGlobal({
               macros: (_c = replayResult.macros) !== null && _c !== void 0 ? _c : state.global.macros,
@@ -6650,7 +6559,7 @@
     return boon;
   }
   function challengeOverridesForStage(tests, stageIndex, pathIndex) {
-    var e_22, _a;
+    var e_20, _a;
     if (pathIndex !== 0)
       return {};
     var stageNumber = stageIndex + 1;
@@ -6670,13 +6579,13 @@
             overrides.boon = boon;
         }
       }
-    } catch (e_22_1) {
-      e_22 = { error: e_22_1 };
+    } catch (e_20_1) {
+      e_20 = { error: e_20_1 };
     } finally {
       try {
         if (tests_1_1 && !tests_1_1.done && (_a = tests_1.return)) _a.call(tests_1);
       } finally {
-        if (e_22) throw e_22.error;
+        if (e_20) throw e_20.error;
       }
     }
     return overrides;
@@ -6712,7 +6621,7 @@
   function playGame2(ui_1) {
     return __awaiter3(this, arguments, void 0, function(ui, test2, seed, initialSnapshot, onStateChange, debugEnabled) {
       var state, tests, initialChallenges, initialPath, _a, _b, testSpec, _loop_1, state_1;
-      var e_23, _c;
+      var e_21, _c;
       var _d, _e;
       if (test2 === void 0) {
         test2 = null;
@@ -6749,13 +6658,13 @@
                   testSpec = _b.value;
                   initialPath.rewardStates.push(makeTestReward(state, testSpec));
                 }
-              } catch (e_23_1) {
-                e_23 = { error: e_23_1 };
+              } catch (e_21_1) {
+                e_21 = { error: e_21_1 };
               } finally {
                 try {
                   if (_b && !_b.done && (_c = _a.return)) _c.call(_a);
                 } finally {
-                  if (e_23) throw e_23.error;
+                  if (e_21) throw e_21.error;
                 }
               }
               state.replaceAndClearHistory(__assign2(__assign2({}, materializePath(state, initialPath)), { phase: "stage_select", availablePaths: [] }));
@@ -6764,8 +6673,8 @@
             }
             state.ui.updateBuffer(state);
             _loop_1 = function() {
-              var sameReplay_1, stage, gameSpec, startingBuffer, _g, score, potionsRemaining, history_1, macros, viewingMacros, usedPotions, persistedMacros, persistedViewingMacros, stageReplays, stageTimelineEntry, nextStage, paths, _h, _j, testSpec2, paths, path, _k, e_24, selectedChallenge, e_25, e_26, persistedMacros, persistedViewingMacros;
-              var e_27, _l;
+              var sameReplay_1, stage, gameSpec, startingBuffer, _g, score, potionsRemaining, history_1, macros, viewingMacros, usedPotions, persistedMacros, persistedViewingMacros, stageReplays, stageTimelineEntry, nextStage, paths, _h, _j, testSpec2, paths, path, _k, e_22, selectedChallenge, e_23, e_24, persistedMacros, persistedViewingMacros;
+              var e_25, _l;
               return __generator3(this, function(_m) {
                 switch (_m.label) {
                   case 0:
@@ -6847,17 +6756,17 @@
                       return pathFromSkeleton(skel);
                     });
                     try {
-                      for (_h = (e_27 = void 0, __values4(rewardTestsForStage(tests.rewards, nextStage))), _j = _h.next(); !_j.done; _j = _h.next()) {
+                      for (_h = (e_25 = void 0, __values4(rewardTestsForStage(tests.rewards, nextStage))), _j = _h.next(); !_j.done; _j = _h.next()) {
                         testSpec2 = _j.value;
                         paths[0].rewardStates.push(makeTestReward(state, testSpec2));
                       }
-                    } catch (e_27_1) {
-                      e_27 = { error: e_27_1 };
+                    } catch (e_25_1) {
+                      e_25 = { error: e_25_1 };
                     } finally {
                       try {
                         if (_j && !_j.done && (_l = _h.return)) _l.call(_h);
                       } finally {
-                        if (e_27) throw e_27.error;
+                        if (e_25) throw e_25.error;
                       }
                     }
                     state.replaceAndClearHistory({
@@ -6892,14 +6801,14 @@
                     path = _k;
                     return [3, 16];
                   case 12:
-                    e_24 = _m.sent();
-                    if (!(e_24 instanceof ReplayStage)) return [3, 14];
-                    return [4, replayCompletedStage(state, e_24.stage)];
+                    e_22 = _m.sent();
+                    if (!(e_22 instanceof ReplayStage)) return [3, 14];
+                    return [4, replayCompletedStage(state, e_22.stage)];
                   case 13:
                     _m.sent();
                     return [3, 7];
                   case 14:
-                    throw e_24;
+                    throw e_22;
                   case 15:
                     return [3, 7];
                   case 16:
@@ -6919,14 +6828,14 @@
                     selectedChallenge = _m.sent();
                     return [3, 25];
                   case 21:
-                    e_25 = _m.sent();
-                    if (!(e_25 instanceof ReplayStage)) return [3, 23];
-                    return [4, replayCompletedStage(state, e_25.stage)];
+                    e_23 = _m.sent();
+                    if (!(e_23 instanceof ReplayStage)) return [3, 23];
+                    return [4, replayCompletedStage(state, e_23.stage)];
                   case 22:
                     _m.sent();
                     return [3, 18];
                   case 23:
-                    throw e_25;
+                    throw e_23;
                   case 24:
                     return [3, 18];
                   case 25:
@@ -6945,22 +6854,22 @@
                   case 28:
                     return [3, 30];
                   case 29:
-                    e_26 = _m.sent();
-                    if (e_26 instanceof Undo2) {
-                      persistedMacros = (_d = e_26.macros) !== null && _d !== void 0 ? _d : state.global.macros;
-                      persistedViewingMacros = (_e = e_26.viewingMacros) !== null && _e !== void 0 ? _e : state.global.viewingMacros;
+                    e_24 = _m.sent();
+                    if (e_24 instanceof Undo2) {
+                      persistedMacros = (_d = e_24.macros) !== null && _d !== void 0 ? _d : state.global.macros;
+                      persistedViewingMacros = (_e = e_24.viewingMacros) !== null && _e !== void 0 ? _e : state.global.viewingMacros;
                       state.updateGlobal({
                         macros: persistedMacros,
                         viewingMacros: persistedViewingMacros
                       });
                       state.undo({
-                        gameHistory: e_26.gameHistory,
-                        gameRedo: e_26.gameRedo
+                        gameHistory: e_24.gameHistory,
+                        gameRedo: e_24.gameRedo
                       });
-                    } else if (e_26 instanceof Redo) {
+                    } else if (e_24 instanceof Redo) {
                       state.redo();
                     } else {
-                      throw e_26;
+                      throw e_24;
                     }
                     return [3, 30];
                   case 30:
@@ -7697,9 +7606,70 @@
     }]
   };
   relicRewards.push(questionCard);
+  function lookingGlassNewKingdom(state, cards, events) {
+    var e_2, _a, e_3, _b;
+    var result = { cards: cards.slice(), events: events.slice() };
+    var neededCards = 2;
+    var neededEvents = 1;
+    var skipCardNames = new Set(cards.map(function(card2) {
+      return card2.name;
+    }));
+    var skipEventNames = new Set(events.map(function(event) {
+      return event.name;
+    }));
+    var generator = new Generator("".concat(state.seed, "-LOOKINGGLASS-").concat(state.data.stage));
+    var allCards = generator.permute(__spreadArray6([], __read7(cardRewards), false));
+    var addedCards = [];
+    try {
+      for (var allCards_1 = __values5(allCards), allCards_1_1 = allCards_1.next(); !allCards_1_1.done; allCards_1_1 = allCards_1.next()) {
+        var card = allCards_1_1.value;
+        if (addedCards.length >= neededCards)
+          break;
+        if (skipCardNames.has(card.name))
+          continue;
+        addedCards.push(card);
+      }
+    } catch (e_2_1) {
+      e_2 = { error: e_2_1 };
+    } finally {
+      try {
+        if (allCards_1_1 && !allCards_1_1.done && (_a = allCards_1.return)) _a.call(allCards_1);
+      } finally {
+        if (e_2) throw e_2.error;
+      }
+    }
+    var allEvents = generator.permute(__spreadArray6([], __read7(eventRewards), false));
+    var addedEvents = [];
+    try {
+      for (var allEvents_1 = __values5(allEvents), allEvents_1_1 = allEvents_1.next(); !allEvents_1_1.done; allEvents_1_1 = allEvents_1.next()) {
+        var event_1 = allEvents_1_1.value;
+        if (addedEvents.length >= neededEvents)
+          break;
+        if (skipEventNames.has(event_1.name))
+          continue;
+        addedEvents.push(event_1);
+      }
+    } catch (e_3_1) {
+      e_3 = { error: e_3_1 };
+    } finally {
+      try {
+        if (allEvents_1_1 && !allEvents_1_1.done && (_b = allEvents_1.return)) _b.call(allEvents_1);
+      } finally {
+        if (e_3) throw e_3.error;
+      }
+    }
+    return { cards: cards.concat(addedCards), events: events.concat(addedEvents) };
+  }
   var lookingGlass = {
     name: "Looking Glass",
-    simpleText: ["2 random cards and 1 random event are added to each kingdom."]
+    metaReplacers: [{
+      kind: "gameSetup",
+      text: "2 random cards and 1 random event are added to each kingdom.",
+      replace: function(p, state, self) {
+        var newKingdom = lookingGlassNewKingdom(state, p.cardSpecs, p.eventSpecs);
+        return __assign3(__assign3({}, p), { cardSpecs: newKingdom.cards, eventSpecs: newKingdom.events });
+      }
+    }]
   };
   relicRewards.push(lookingGlass);
 
@@ -15820,10 +15790,10 @@
         if (stage2 < state.data.stage) {
           var replayData = state.data.stageReplays[stage2];
           if (replayData !== null) {
-            tooltip = describeParCalculation(stage2, replayData.challenge, replayData.spec.relics);
+            tooltip = describeParCalculation(stage2, replayData.challenge, replayData.spec.relics, state);
           }
         } else if (stage2 === state.data.stage && currentStagePar !== null) {
-          tooltip = describeParCalculation(stage2, state.data.challenges[0], state.data.relics);
+          tooltip = describeParCalculation(stage2, state.data.challenges[0], state.data.relics, state);
         }
         display.tooltipText = tooltip.replace(/, /g, "\n");
         if (stage2 < state.data.stage) {
@@ -16606,8 +16576,8 @@
   };
   var test = {
     rewards: [
-      [1, ["relic", piggyBank]],
-      [1, ["relic", singingBowl]]
+      [1, ["relic", lookingGlass]],
+      [1, ["relic", lookingGlass]]
     ],
     challenges: []
   };

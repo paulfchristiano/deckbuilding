@@ -208,10 +208,10 @@ function updateProgressSidebar(state: MetaState, onReplayStage?: (stage: number)
             if (stage < state.data.stage) {
                 const replayData = state.data.stageReplays[stage]
                 if (replayData !== null) {
-                    tooltip = describeParCalculation(stage, replayData.challenge, replayData.spec.relics)
+                    tooltip = describeParCalculation(stage, replayData.challenge, replayData.spec.relics, state)
                 }
             } else if (stage === state.data.stage && currentStagePar !== null) {
-                tooltip = describeParCalculation(stage, state.data.challenges[0], state.data.relics)
+                tooltip = describeParCalculation(stage, state.data.challenges[0], state.data.relics, state)
             }
             display.tooltipText = tooltip.replace(/, /g, '\n')
 

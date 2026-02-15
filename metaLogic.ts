@@ -118,14 +118,6 @@ export interface EncounterRewardState {
 export type RewardState = SimpleRewardState | EncounterRewardState
 const PIGGY_BANK_SELECTED_INDEX = -2
 
-function hasRelicNamed(state: MetaState, name: string): boolean {
-    return state.data.relics.some(relic => relic.name === name)
-}
-
-function lookingGlassCount(state: MetaState): number {
-    return state.data.relics.filter(relic => relic.name === 'Looking Glass').length
-}
-
 function encounterRewardCompleted(rewardState: EncounterRewardState): boolean {
     const data = rewardState.data as Record<string, unknown> | null
     if (data && typeof data === 'object') {
@@ -324,20 +316,6 @@ export function renderChallenge(spec: ChallengeSpec, state: MetaState): string {
     if (relatedCards.length > 0) {
         tooltipParts.push(relatedCards.map(buildSpecTooltip).join(''))
     }
-    if (hasRelicNamed(state, 'Looking Glass') && state.data.phase !== 'path_select') {
-        const lookingGlassRewards = sampleLookingGlassRoundRewards(state, lookingGlassCount(state))
-        const lines: string[] = []
-        if (lookingGlassRewards.cards.length > 0) {
-            lines.push(`Added cards: ${lookingGlassRewards.cards.map(displayName).join(', ')}`)
-        }
-        if (lookingGlassRewards.events.length > 0) {
-            lines.push(`Added events: ${lookingGlassRewards.events.map(displayName).join(', ')}`)
-        }
-        if (lines.length > 0) {
-            const lookingGlassDetails = `<div style="margin-top:6px;">${lines.join('<br>')}</div>`
-            tooltipParts.push(lookingGlassDetails)
-        }
-    }
     if (tooltipParts.length === 0) return label
     const tooltipContent = tooltipParts.join('')
     return `${label}<span class='tooltip'>${tooltipContent}</span>`
@@ -421,10 +399,10 @@ export interface PathRewardParams {
 
 // TODO: render relics appropriately when you hold shift etc.
 export type MetaReplacer =
-    | { kind: 'gameSetup', text: string, replace: (params: GameSetupParams, self: Relic) => GameSetupParams }
-    | { kind: 'reward', text: string, replace: (params: RewardParams, self: Relic) => RewardParams }
-    | { kind: 'extraOptions', text: string, replace: (params: ExtraOptionsParams, self: Relic) => ExtraOptionsParams }
-    | { kind: 'pathRewards', text: string, replace: (params: PathRewardParams, self: Relic) => PathRewardParams }
+    | { kind: 'gameSetup', text: string, replace: (params: GameSetupParams, state: MetaState, self: Relic) => GameSetupParams }
+    | { kind: 'reward', text: string, replace: (params: RewardParams, state: MetaState, self: Relic) => RewardParams }
+    | { kind: 'extraOptions', text: string, replace: (params: ExtraOptionsParams, state: MetaState, self: Relic) => ExtraOptionsParams }
+    | { kind: 'pathRewards', text: string, replace: (params: PathRewardParams, state: MetaState, self: Relic) => PathRewardParams }
 
 // Meta trigger event types
 export interface CourseEndEvent {
@@ -1630,8 +1608,8 @@ export function applyMetaReplacers<K extends keyof MetaReplacerParamMap>(
         for (const replacer of metaReplacers) {
             if (replacer.kind === kind) {
                 // Type assertion via unknown needed due to TypeScript limitations with discriminated unions
-                const replaceFn = replacer.replace as unknown as (p: MetaReplacerParamMap[K], self: Relic) => MetaReplacerParamMap[K]
-                params = replaceFn(params, relic)
+                const replaceFn = replacer.replace as unknown as (p: MetaReplacerParamMap[K], s: MetaState, self: Relic) => MetaReplacerParamMap[K]
+                params = replaceFn(params, state, relic)
             }
         }
     }
@@ -1642,7 +1620,7 @@ function signedAmount(amount: number): string {
     return amount > 0 ? `+${amount}` : `${amount}`
 }
 
-export function describeParCalculation(stage: number, challenge: ChallengeSpec | null | undefined, relicCards: Card[]): string {
+export function describeParCalculation(stage: number, challenge: ChallengeSpec | null | undefined, relicCards: Card[], state: MetaState): string {
     const basePar = BASE_PARS[stage]
     if (basePar === undefined) return ''
 
@@ -1668,8 +1646,8 @@ export function describeParCalculation(stage: number, challenge: ChallengeSpec |
         const metaReplacers = relicCard.metaReplacers() as MetaReplacer[]
         for (const replacer of metaReplacers) {
             if (replacer.kind !== 'gameSetup') continue
-            const replaceFn = replacer.replace as unknown as (p: GameSetupParams, self: Relic) => GameSetupParams
-            const nextParams = replaceFn(params, relicCard)
+            const replaceFn = replacer.replace as unknown as (p: GameSetupParams, s: MetaState, self: Relic) => GameSetupParams
+            const nextParams = replaceFn(params, state, relicCard)
             const parDelta = nextParams.par - params.par
             if (parDelta !== 0) {
                 parts.push(`${signedAmount(parDelta)} for ${relicCard.name}`)
@@ -1689,11 +1667,11 @@ function stageTooltipTexts(state: MetaState): (string | null)[] {
         if (stage < state.data.stage) {
             const replayData = state.data.stageReplays[stage]
             if (replayData !== null) {
-                return describeParCalculation(stage, replayData.challenge, replayData.spec.relics)
+                return describeParCalculation(stage, replayData.challenge, replayData.spec.relics, state)
             }
         }
         if (stage === state.data.stage && state.data.challenges.length === 1) {
-            return describeParCalculation(stage, state.data.challenges[0], state.data.relics)
+            return describeParCalculation(stage, state.data.challenges[0], state.data.relics, state)
         }
         return `${basePar} (base)`
     })
@@ -1750,9 +1728,8 @@ export function makeSpec(state: MetaState, challenge: ChallengeSpec): GameSpec {
         cardSpecs: cards,
         eventSpecs: events
     }, state)
-    const lookingGlassRewards = sampleLookingGlassRoundRewards(state, lookingGlassCount(state))
-    const finalCards = [...gameSetupParams.cardSpecs, ...lookingGlassRewards.cards]
-    const finalEvents = [...gameSetupParams.eventSpecs, ...lookingGlassRewards.events]
+    const finalCards = gameSetupParams.cardSpecs
+    const finalEvents = gameSetupParams.eventSpecs
     const finalPar = Math.max(0, gameSetupParams.par)
     return {
         vp: gameSetupParams.vpGoal,
@@ -1776,49 +1753,6 @@ export function getRewardOptionCount(state: MetaState): number {
 
 function standardRelicRewards(): RelicSpec[] {
     return relicRewards as RelicSpec[]
-}
-
-function sampleLookingGlassRoundRewards(
-    state: MetaState,
-    targetCopies: number
-): { cards: CardSpec[], events: CardSpec[] } {
-    if (state.data.phase === 'path_select') {
-        return { cards: [], events: [] }
-    }
-    const cards: CardSpec[] = []
-    const events: CardSpec[] = []
-    if (targetCopies <= 0) {
-        return { cards, events }
-    }
-
-    const neededCards = 2 * targetCopies
-    const neededEvents = targetCopies
-    const ownedCardNames = new Set(state.data.collectedCards.map(card => card.name))
-    const ownedEventNames = new Set(state.data.collectedEvents.map(event => event.name))
-    const selectedCardNames = new Set<string>()
-    const selectedEventNames = new Set<string>()
-
-    const cardOrder = new Generator(`${state.seed}-LOOKINGGLASS-CARDS-${state.data.stage}`)
-        .permute([...cardRewards])
-    for (const card of cardOrder) {
-        if (cards.length >= neededCards) break
-        if (ownedCardNames.has(card.name)) continue
-        if (selectedCardNames.has(card.name)) continue
-        cards.push(card)
-        selectedCardNames.add(card.name)
-    }
-
-    const eventOrder = new Generator(`${state.seed}-LOOKINGGLASS-EVENTS-${state.data.stage}`)
-        .permute([...eventRewards])
-    for (const event of eventOrder) {
-        if (events.length >= neededEvents) break
-        if (ownedEventNames.has(event.name)) continue
-        if (selectedEventNames.has(event.name)) continue
-        events.push(event)
-        selectedEventNames.add(event.name)
-    }
-
-    return { cards, events }
 }
 
 // ----------------------- Generate data
@@ -2035,6 +1969,7 @@ function sampleRewardOptionsByBaseName(
     return result
 }
 
+// TODO: I think there is probably a bug where you are passing in the wrong state here.
 export function replaySpecForStage(state: MetaState, replayData: StageReplayData): GameSpec {
     return {
         ...cloneGameSpec(replayData.spec),
