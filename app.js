@@ -12813,14 +12813,15 @@
     createInitialData: function(_metaState, generator) {
       return {
         selectedIndex: null,
-        offers: generator.samples(potionRewards, 4)
+        offers: generator.samples(potionRewards, 3)
       };
     },
     getOptions: function(data, metaState) {
       var _this = this;
       var d = data;
-      var _a = __read12(d.offers, 4), first = _a[0], second = _a[1], third = _a[2], fourth = _a[3];
-      var bundleDetail = "Potion Shop bundle for 3@: with ".concat(displayName(third), " and ").concat(displayName(fourth));
+      var _a = __read12(d.offers, 3), first = _a[0], second = _a[1], third = _a[2];
+      var bundleDetail = "Potion Shop bundle for 3@: with ".concat(displayName(second), " and ").concat(displayName(third));
+      var bundleTooltipSpec = __assign8(__assign8({}, second), { relatedCards: __spreadArray7(__spreadArray7([], __read12(second.relatedCards || []), false), [third], false) });
       return [
         {
           label: "Take ".concat(displayName(first)),
@@ -12840,34 +12841,54 @@
           }
         },
         {
-          label: "Buy ".concat(displayName(second)),
-          description: "Spend 1@ to take this potion.",
-          tooltipSpec: second,
-          disabled: d.selectedIndex !== null || metaState.data.buffer < 1,
+          label: "Buy ".concat(displayName(second), " + ").concat(displayName(third)),
+          description: "Lose 3@ buffer to buy both potions.",
+          tooltipSpec: bundleTooltipSpec,
+          disabled: d.selectedIndex !== null || metaState.data.buffer < 3,
           checked: d.selectedIndex === 1,
           onClick: function() {
             return __awaiter9(_this, void 0, void 0, function() {
               return __generator9(this, function(_a2) {
                 return [2, {
                   newData: __assign8(__assign8({}, d), { selectedIndex: 1 }),
-                  transform: compose(addBuffer(-1), gainPotion(second, { details: "Potion Shop: paid 1@" }))
+                  transform: compose(addBuffer(-3), gainPotion(second, { details: bundleDetail }), gainPotion(third, { details: bundleDetail }))
                 }];
               });
             });
           }
         },
         {
-          label: "Buy ".concat(displayName(third), " + ").concat(displayName(fourth)),
-          description: "Spend 3@ to take both potions.",
-          disabled: d.selectedIndex !== null || metaState.data.buffer < 3,
+          label: "Sell a potion",
+          description: "Lose a potion and gain 4@ buffer.",
+          disabled: d.selectedIndex !== null || metaState.data.potions.length === 0,
           checked: d.selectedIndex === 2,
           onClick: function() {
             return __awaiter9(_this, void 0, void 0, function() {
+              var potion;
+              var _this2 = this;
               return __generator9(this, function(_a2) {
-                return [2, {
-                  newData: __assign8(__assign8({}, d), { selectedIndex: 2 }),
-                  transform: compose(addBuffer(-3), gainPotion(third, { details: bundleDetail }), gainPotion(fourth, { details: bundleDetail }))
-                }];
+                switch (_a2.label) {
+                  case 0:
+                    return [4, metaState.ui.chooseCard(metaState, "Choose a potion to give up:", __spreadArray7([], __read12(metaState.data.potions), false), true)];
+                  case 1:
+                    potion = _a2.sent();
+                    if (!potion)
+                      return [2, { newData: data }];
+                    return [2, {
+                      newData: __assign8(__assign8({}, d), { selectedIndex: 2 }),
+                      transform: compose(function(state) {
+                        return __awaiter9(_this2, void 0, void 0, function() {
+                          return __generator9(this, function(_a3) {
+                            state.removePotion(potion.id);
+                            return [
+                              2
+                              /*return*/
+                            ];
+                          });
+                        });
+                      }, addBuffer(4), addTimelineAction("Potion Shop", "Gave up ".concat(displayName(potion.spec), " for 4@")))
+                    }];
+                }
               });
             });
           }
@@ -13321,13 +13342,13 @@
       },
       {
         label: "Use the quill",
-        description: "+3@ buffer.",
-        transform: addBuffer(3)
+        description: "+2@ buffer.",
+        transform: addBuffer(2)
       },
       {
         label: "Use the cursed quill",
-        description: "+5@ buffer, but par is 1@ lower on each course.",
-        transform: compose(addBuffer(5), gainRelic(cursedInkwell))
+        description: "+4@ buffer, but par is 1@ lower on each course.",
+        transform: compose(addBuffer(4), gainRelic(cursedInkwell))
       }
     ]
   });
@@ -16510,8 +16531,7 @@
   };
   var test = {
     rewards: [
-      [1, ["card", ferry]],
-      [1, ["event", swap]]
+      [2, ["encounter", potionShop]]
     ],
     challenges: []
   };
