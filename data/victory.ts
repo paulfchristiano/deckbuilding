@@ -174,18 +174,10 @@ export const foundation: CardSpec = {
     }]
 }
 
-export const capitalization: CardSpec = {
-    name: 'Capitalization',
-    fixedCost: free,
-    effects: [{
-        text: ['Pay all $.', '+1 vp per $ paid.'],
-        transform: (s, c) => async function(state) {
-            const n = state.coin
-            state = await payCost({ ...free, coin: n }, c)(state)
-            state = await gainPoints(n, c)(state)
-            return state
-        }
-    }]
+export const capitalize: CardSpec = {
+    name: 'Capitalize',
+    fixedCost: coin(1),
+    effects: [pointsEffect(1)],
 }
 
 
@@ -196,9 +188,9 @@ vpModes.push(
     { name: 'Duchy', target: 15, cards: [duchy], events: [] },
     { name: 'Estate', target: 20, cards: [estate], events: [] },
     { name: 'Colony', target: 5, cards: [colony], events: [] },
-    { name: 'Thoroughfare', target: 100, cards: [], events: [thoroughfare] },
+    { name: 'Thoroughfare', target: 80, cards: [], events: [thoroughfare] },
     { name: 'Foundation', target: 25, cards: [], events: [foundation] },
-    { name: 'Capitalization', target: 70, cards: [], events: [capitalization] },
+    { name: 'Capitalize', target: 70, cards: [], events: [capitalize] },
     { name: 'Monument', target: 50, cards: [], events: [monument] },
     { name: 'Duke', target: 40, cards: [duchy, duke], events: [] },
     { name: 'Flower Market', target: 40, cards: [flowerMarket], events: [] },

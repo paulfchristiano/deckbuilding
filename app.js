@@ -3052,14 +3052,24 @@
   var shelterRule = {
     name: "Shelter",
     replacers: [{
-      text: ["Whenever a card with a shelter token would leave play, remove a shelter token instead."],
+      text: ["Whenever a card with a shelter token would be trashed, remove a shelter token instead."],
       kind: "move",
       handles: function(p, state) {
-        return state.find(p.card).count("shelter") > 0 && p.fromZone == "play" && p.toZone != "play";
+        return state.find(p.card).count("shelter") > 0 && p.fromZone == "play" && p.toZone == "void";
       },
       replace: function(p, state) {
         var card = state.find(p.card);
         return __assign(__assign({}, p), { skip: true, effects: [removeToken(card, "shelter")] });
+      }
+    }, {
+      text: ["Whenever a card with a shelter token would move to your hand, leave it there instead."],
+      simpleText: ["Cards with shelter tokens can't move to your hand."],
+      kind: "move",
+      handles: function(p, state) {
+        return state.find(p.card).count("shelter") > 0 && p.toZone == "hand";
+      },
+      replace: function(p, state) {
+        return __assign(__assign({}, p), { skip: true });
       }
     }]
   };
@@ -3352,12 +3362,9 @@
       }
     };
   }
-  function createInPlayEffect(spec, n, tokens, simpleText) {
+  function createInPlayEffect(spec, n, simpleText) {
     if (n === void 0) {
       n = 1;
-    }
-    if (tokens === void 0) {
-      tokens = null;
     }
     return {
       text: ["Create ".concat(aOrNum(n, spec.name), " in play.")],
@@ -3365,7 +3372,7 @@
       transform: function() {
         return repeat(create(spec, "play", function(c) {
           return noop;
-        }, tokens ? tokens : /* @__PURE__ */ new Map()), n);
+        }, /* @__PURE__ */ new Map()), n);
       }
     };
   }
@@ -3442,15 +3449,18 @@
   function buyEffect() {
     return buysEffect(1);
   }
-  function chargeEffect(simpleText) {
+  function chargeEffect(n, simpleText) {
+    if (n === void 0) {
+      n = 1;
+    }
     if (simpleText === void 0) {
       simpleText = true;
     }
     return {
-      text: ["Put a charge token on this."],
-      simpleText: simpleText ? ["Increase X by 1."] : [],
+      text: ["Put ".concat(aOrNum(n, "charge token"), " on this.")],
+      simpleText: simpleText ? ["Increase X by ".concat(n, ".")] : [],
       transform: function(s, card) {
-        return charge(card, 1);
+        return charge(card, n);
       }
     };
   }
@@ -3492,6 +3502,33 @@
         }
       }
     }, trashOnLeavePlay()]
+  };
+  var bounty = {
+    name: "Bounty",
+    triggers: [{
+      text: ["Whenever you buy a card, trash this to buy the card again."],
+      simpleText: ["The next time you buy a card, buy it again."],
+      kind: "buy",
+      handles: function(e, state, card) {
+        return state.find(card).place == "play";
+      },
+      transform: function(e, state, card) {
+        return function(state2) {
+          return __awaiter(this, void 0, void 0, function() {
+            return __generator(this, function(_a) {
+              switch (_a.label) {
+                case 0:
+                  return [4, trash(card)(state2)];
+                case 1:
+                  state2 = _a.sent();
+                  return [2, e.card.buy(card)(state2)];
+              }
+            });
+          });
+        };
+      }
+    }],
+    replacers: [trashOnLeavePlay()]
   };
   function playReplacer(text, condition, cost, simpleText) {
     return {
@@ -8276,33 +8313,7 @@
     name: "Shipping Lane",
     buyCost: coin(3),
     fixedCost: energy(1),
-    effects: [coinsEffect(2)],
-    triggers: [{
-      text: ["Whenever you buy a card,\n            discard this to buy the card again."],
-      simpleText: ["The next time you buy a card, buy it again for free."],
-      kind: "buy",
-      handles: function(e, state, card) {
-        return state.find(card).place == "play";
-      },
-      transform: function(e, state, card) {
-        return function(state2) {
-          return __awaiter5(this, void 0, void 0, function() {
-            return __generator5(this, function(_a) {
-              switch (_a.label) {
-                case 0:
-                  if (!(state2.find(card).place == "play")) return [3, 2];
-                  return [4, move(card, "discard")(state2)];
-                case 1:
-                  state2 = _a.sent();
-                  return [2, e.card.buy(card)(state2)];
-                case 2:
-                  return [2, state2];
-              }
-            });
-          });
-        };
-      }
-    }]
+    effects: [coinsEffect(2), createInPlayEffect(bounty)]
   };
   cardRewards.push(shippingLane);
   var factoryName = "Factory";
@@ -8901,10 +8912,10 @@
       }
     }],
     ability: [{
-      text: ["If you have no cards in your hand, discard this and remove all charge tokens for +$1 per charge token on it."],
+      text: ["If you have no cards in your hand, discard this for +$1 per charge token on it."],
       simpleText: ["Once you have no cards in your hand, you can discard this to gain +$X."],
       transform: function(state, card) {
-        return payToDo(doAll([discardFromPlay(card), discharge(card, card.charge)]), gainCoins(card.charge, card));
+        return payToDo(discardFromPlay(card), gainCoins(card.charge, card));
       }
     }]
   };
@@ -9239,7 +9250,7 @@
   cardRewards.push(harrow);
   var tavern = {
     name: "Tavern",
-    buyCost: coin(2),
+    buyCost: coin(3),
     relatedCards: [villager, fair],
     effects: [createInPlayEffect(fair), createInPlayEffect(villager)]
   };
@@ -9932,38 +9943,11 @@
     }]
   };
   potionRewards.push(potionOfCopper);
-  var bounty = {
-    name: "Bounty",
-    triggers: [{
-      text: ["Whenever you buy a card, trash this to buy the card again."],
-      simpleText: ["The next time you buy a card, buy it again."],
-      kind: "buy",
-      handles: function(e, state, card) {
-        return state.find(card).place == "play";
-      },
-      transform: function(e, state, card) {
-        return function(state2) {
-          return __awaiter6(this, void 0, void 0, function() {
-            return __generator6(this, function(_a) {
-              switch (_a.label) {
-                case 0:
-                  return [4, trash(card)(state2)];
-                case 1:
-                  state2 = _a.sent();
-                  return [2, e.card.buy(card)(state2)];
-              }
-            });
-          });
-        };
-      }
-    }],
-    replacers: [trashOnLeavePlay()]
-  };
   var potionOfBounty = {
     name: "Potion of Bounty",
     isPotion: true,
     relatedCards: [bounty],
-    effects: [createInPlayEffect(bounty, 3, null, ["The next time you buy a card, buy it three more times for free."])]
+    effects: [createInPlayEffect(bounty, 3)]
   };
   potionRewards.push(potionOfBounty);
   var potionOfTransformation = {
@@ -10056,18 +10040,20 @@
     name: "Highway Potion",
     isPotion: true,
     effects: [{
-      text: ["Create a ".concat(highway.name, " in play.")],
+      text: ["Put a ferry token on each supply."],
       transform: function(state, card) {
         return function(state2) {
           return __awaiter6(this, void 0, void 0, function() {
             return __generator6(this, function(_a) {
-              return [2, create(highway, "play")(state2)];
+              return [2, doAll(state2.supply.map(function(s) {
+                return addToken(s, "ferry", 1);
+              }))(state2)];
             });
           });
         };
       }
     }],
-    relatedCards: [highway]
+    rules: [ferryRule]
   };
   potionRewards.push(highwayPotion);
   var royalNectar = {
@@ -10160,9 +10146,14 @@
     simpleText: [],
     relatedCards: [fair],
     rules: [shelterRule],
-    effects: [
-      createInPlayEffect(fair, 1, /* @__PURE__ */ new Map([["shelter", 16]]), ["Create a ".concat(fair.name, " in play with 16 shelter tokens on it.")])
-    ]
+    effects: [{
+      text: ["Create a ".concat(fair.name, " in play with 15 shelter tokens on it.")],
+      transform: function(state, card) {
+        return create(fair, "play", function(c) {
+          return noop;
+        }, /* @__PURE__ */ new Map([["shelter", 15]]));
+      }
+    }]
   };
   potionRewards.push(potionOfFairs);
   var potionOfInsight = {
@@ -10665,7 +10656,7 @@
   var expedite = {
     name: "Expedite",
     fixedCost: energy(1),
-    effects: [chargeEffect(false)],
+    effects: [chargeEffect(1, false)],
     staticReplacers: [playReplacer(["Whenever you would create a card in your discard,\n            if this has a charge token then instead\n            remove a charge token to set the card aside.\n            Then play it if it is set aside."], function(p, s, c) {
       return s.find(c).charge > 0;
     }, function(p, s, c) {
@@ -10689,7 +10680,7 @@
   }
   var synergy = {
     name: "Synergy",
-    fixedCost: __assign5(__assign5({}, free), { coin: 1, energy: 1 }),
+    fixedCost: __assign5(__assign5({}, free), { energy: 1 }),
     effects: [removeAllSupplyTokens("synergy"), {
       text: ["Put synergy tokens on two cards in the supply."],
       simpleText: [
@@ -10855,7 +10846,7 @@
   var replicate = {
     name: "Replicate",
     fixedCost: energy(1),
-    effects: [chargeEffect(false)],
+    effects: [chargeEffect(1, false)],
     staticTriggers: [{
       text: ["After buying a card other than with this,\n            remove a charge token from this to to buy the card again."],
       kind: "afterBuy",
@@ -10960,13 +10951,13 @@
   var haggle = {
     name: "Haggle",
     fixedCost: energy(1),
-    effects: [chargeEffect(false)],
+    effects: [chargeEffect(2, false)],
     staticTriggers: [{
       kind: "afterBuy",
-      text: ["After buying a card, remove a charge token from this to buy a card\n        in the supply that costs at least $1 less."],
-      simpleText: ["The next time you buy a card, immediately buy a cheaper card."],
+      text: ["After buying a card costing $1 or more, remove a charge token from this to buy a card\n        in the supply that costs at least $1 less."],
+      simpleText: ["The next two times you buy a card, immediately buy a cheaper card."],
       handles: function(e, s, c) {
-        return s.find(c).charge > 0;
+        return s.find(c).charge > 0 && e.card.cost("buy", s) >= coin(1);
       },
       transform: function(e, s, c) {
         return payToDo(discharge(c, 1), buyCheaper(e.card, s, c));
@@ -11728,102 +11719,6 @@
     };
     return __assign7.apply(this, arguments);
   };
-  var __awaiter9 = function(thisArg, _arguments, P, generator) {
-    function adopt(value) {
-      return value instanceof P ? value : new P(function(resolve) {
-        resolve(value);
-      });
-    }
-    return new (P || (P = Promise))(function(resolve, reject) {
-      function fulfilled(value) {
-        try {
-          step(generator.next(value));
-        } catch (e) {
-          reject(e);
-        }
-      }
-      function rejected(value) {
-        try {
-          step(generator["throw"](value));
-        } catch (e) {
-          reject(e);
-        }
-      }
-      function step(result) {
-        result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected);
-      }
-      step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-  };
-  var __generator9 = function(thisArg, body) {
-    var _ = { label: 0, sent: function() {
-      if (t[0] & 1) throw t[1];
-      return t[1];
-    }, trys: [], ops: [] }, f, y, t, g = Object.create((typeof Iterator === "function" ? Iterator : Object).prototype);
-    return g.next = verb(0), g["throw"] = verb(1), g["return"] = verb(2), typeof Symbol === "function" && (g[Symbol.iterator] = function() {
-      return this;
-    }), g;
-    function verb(n) {
-      return function(v) {
-        return step([n, v]);
-      };
-    }
-    function step(op) {
-      if (f) throw new TypeError("Generator is already executing.");
-      while (g && (g = 0, op[0] && (_ = 0)), _) try {
-        if (f = 1, y && (t = op[0] & 2 ? y["return"] : op[0] ? y["throw"] || ((t = y["return"]) && t.call(y), 0) : y.next) && !(t = t.call(y, op[1])).done) return t;
-        if (y = 0, t) op = [op[0] & 2, t.value];
-        switch (op[0]) {
-          case 0:
-          case 1:
-            t = op;
-            break;
-          case 4:
-            _.label++;
-            return { value: op[1], done: false };
-          case 5:
-            _.label++;
-            y = op[1];
-            op = [0];
-            continue;
-          case 7:
-            op = _.ops.pop();
-            _.trys.pop();
-            continue;
-          default:
-            if (!(t = _.trys, t = t.length > 0 && t[t.length - 1]) && (op[0] === 6 || op[0] === 2)) {
-              _ = 0;
-              continue;
-            }
-            if (op[0] === 3 && (!t || op[1] > t[0] && op[1] < t[3])) {
-              _.label = op[1];
-              break;
-            }
-            if (op[0] === 6 && _.label < t[1]) {
-              _.label = t[1];
-              t = op;
-              break;
-            }
-            if (t && _.label < t[2]) {
-              _.label = t[2];
-              _.ops.push(op);
-              break;
-            }
-            if (t[2]) _.ops.pop();
-            _.trys.pop();
-            continue;
-        }
-        op = body.call(thisArg, _);
-      } catch (e) {
-        op = [6, e];
-        y = 0;
-      } finally {
-        f = t = 0;
-      }
-      if (op[0] & 5) throw op[1];
-      return { value: op[0] ? op[1] : void 0, done: true };
-    }
-  };
   var estate = {
     name: "Estate",
     buyCost: coin(1),
@@ -11977,34 +11872,12 @@
       }
     }]
   };
-  var capitalization = {
-    name: "Capitalization",
-    fixedCost: free,
-    effects: [{
-      text: ["Pay all $.", "+1 vp per $ paid."],
-      transform: function(s, c) {
-        return function(state) {
-          return __awaiter9(this, void 0, void 0, function() {
-            var n;
-            return __generator9(this, function(_a) {
-              switch (_a.label) {
-                case 0:
-                  n = state.coin;
-                  return [4, payCost(__assign7(__assign7({}, free), { coin: n }), c)(state)];
-                case 1:
-                  state = _a.sent();
-                  return [4, gainPoints(n, c)(state)];
-                case 2:
-                  state = _a.sent();
-                  return [2, state];
-              }
-            });
-          });
-        };
-      }
-    }]
+  var capitalize = {
+    name: "Capitalize",
+    fixedCost: coin(1),
+    effects: [pointsEffect(1)]
   };
-  vpModes.push({ name: "Province", target: 10, cards: [province], events: [] }, { name: "Duchy", target: 15, cards: [duchy], events: [] }, { name: "Estate", target: 20, cards: [estate], events: [] }, { name: "Colony", target: 5, cards: [colony], events: [] }, { name: "Thoroughfare", target: 100, cards: [], events: [thoroughfare] }, { name: "Foundation", target: 25, cards: [], events: [foundation] }, { name: "Capitalization", target: 70, cards: [], events: [capitalization] }, { name: "Monument", target: 50, cards: [], events: [monument] }, { name: "Duke", target: 40, cards: [duchy, duke], events: [] }, { name: "Flower Market", target: 40, cards: [flowerMarket], events: [] }, { name: "Farmland", target: 5, cards: [farmland], events: [] }, { name: "Vibrant City", target: 20, cards: [vibrantCity], events: [] }, { name: "Palace", target: 20, cards: [palace], events: [] }, { name: "Territory", target: 20, cards: [territory], events: [] }, { name: "Frontier", target: 25, cards: [frontier], events: [] }, { name: "Gardens", target: 30, cards: [gardens], events: [] });
+  vpModes.push({ name: "Province", target: 10, cards: [province], events: [] }, { name: "Duchy", target: 15, cards: [duchy], events: [] }, { name: "Estate", target: 20, cards: [estate], events: [] }, { name: "Colony", target: 5, cards: [colony], events: [] }, { name: "Thoroughfare", target: 80, cards: [], events: [thoroughfare] }, { name: "Foundation", target: 25, cards: [], events: [foundation] }, { name: "Capitalize", target: 70, cards: [], events: [capitalize] }, { name: "Monument", target: 50, cards: [], events: [monument] }, { name: "Duke", target: 40, cards: [duchy, duke], events: [] }, { name: "Flower Market", target: 40, cards: [flowerMarket], events: [] }, { name: "Farmland", target: 5, cards: [farmland], events: [] }, { name: "Vibrant City", target: 20, cards: [vibrantCity], events: [] }, { name: "Palace", target: 20, cards: [palace], events: [] }, { name: "Territory", target: 20, cards: [territory], events: [] }, { name: "Frontier", target: 25, cards: [frontier], events: [] }, { name: "Gardens", target: 30, cards: [gardens], events: [] });
 
   // public/data/encounters.js
   var __assign8 = function() {
@@ -12018,7 +11891,7 @@
     };
     return __assign8.apply(this, arguments);
   };
-  var __awaiter10 = function(thisArg, _arguments, P, generator) {
+  var __awaiter9 = function(thisArg, _arguments, P, generator) {
     function adopt(value) {
       return value instanceof P ? value : new P(function(resolve) {
         resolve(value);
@@ -12045,7 +11918,7 @@
       step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
   };
-  var __generator10 = function(thisArg, body) {
+  var __generator9 = function(thisArg, body) {
     var _ = { label: 0, sent: function() {
       if (t[0] & 1) throw t[1];
       return t[1];
@@ -12179,7 +12052,7 @@
     },
     effects: [actionsEffect(1)]
   });
-  var redesignUpgrade = registerUpgrade("redesign", {
+  var streamlineUpgrade = registerUpgrade("streamline", {
     name: function(name) {
       return "".concat(name, "+");
     },
@@ -12198,9 +12071,9 @@
       ],
       transform: function(_state, sourceCard) {
         return function(state) {
-          return __awaiter10(this, void 0, void 0, function() {
+          return __awaiter9(this, void 0, void 0, function() {
             var maxCost;
-            return __generator10(this, function(_a) {
+            return __generator9(this, function(_a) {
               switch (_a.label) {
                 case 0:
                   maxCost = addCosts(sourceCard.cost("buy", state), coin(2));
@@ -12236,9 +12109,9 @@
       },
       transform: function(e, _state, _card) {
         return function(state) {
-          return __awaiter10(this, void 0, void 0, function() {
+          return __awaiter9(this, void 0, void 0, function() {
             var trashedCard, trashedCost, minCoin, maxCoin;
-            return __generator10(this, function(_a) {
+            return __generator9(this, function(_a) {
               switch (_a.label) {
                 case 0:
                   trashedCard = state.find(e.card);
@@ -12274,8 +12147,8 @@
       ],
       transform: function(_state, _sourceCard) {
         return function(state) {
-          return __awaiter10(this, void 0, void 0, function() {
-            return __generator10(this, function(_a) {
+          return __awaiter9(this, void 0, void 0, function() {
+            return __generator9(this, function(_a) {
               switch (_a.label) {
                 case 0:
                   if (state.hand.length === 0) {
@@ -12283,9 +12156,9 @@
                   }
                   return [4, applyToTarget(function(trashed) {
                     return function(state2) {
-                      return __awaiter10(this, void 0, void 0, function() {
+                      return __awaiter9(this, void 0, void 0, function() {
                         var maxCost;
-                        return __generator10(this, function(_a2) {
+                        return __generator9(this, function(_a2) {
                           switch (_a2.label) {
                             case 0:
                               maxCost = addCosts(trashed.cost("buy", state2), coin(2));
@@ -12319,13 +12192,23 @@
       }
     })]
   });
-  var bulkPurchaseUpgrade = registerUpgrade("bulkPurchase", {
+  var buyOneGetOneUpgrade = registerUpgrade("buyOneGetOne", {
     name: function(name) {
       return "".concat(name, "+");
     },
-    staticTriggers: [afterBuyTrigger(buysEffect(1))]
+    staticTriggers: [{
+      kind: "beforeStart",
+      text: ["At the start of the game, put a duplicate token on this."],
+      simpleText: ["The first time you buy this each stage, buy it again for free."],
+      handles: function() {
+        return true;
+      },
+      transform: function(_e, _s, card) {
+        return addToken(card, "duplicate", 1);
+      }
+    }]
   });
-  var streetFairUpgrade = registerUpgrade("streetFair", {
+  var rushOrderUpgrade = registerUpgrade("rushOrder", {
     name: function(name) {
       return "".concat(name, "+");
     },
@@ -12424,9 +12307,9 @@
       },
       transform: function(_e, _state, sourceCard) {
         return function(state) {
-          return __awaiter10(this, void 0, void 0, function() {
+          return __awaiter9(this, void 0, void 0, function() {
             var source;
-            return __generator10(this, function(_a) {
+            return __generator9(this, function(_a) {
               source = state.find(sourceCard);
               return [2, applyToTarget(function(target) {
                 return target.use(source);
@@ -12462,8 +12345,8 @@
             disabled: selectedIndex !== null || (opt.disabled ? opt.disabled(metaState) : false),
             checked: selectedIndex === i,
             onClick: function() {
-              return __awaiter10(_this, void 0, void 0, function() {
-                return __generator10(this, function(_a) {
+              return __awaiter9(_this, void 0, void 0, function() {
+                return __generator9(this, function(_a) {
                   return [2, {
                     newData: { selectedIndex: i },
                     transform: opt.transform
@@ -12492,9 +12375,9 @@
           disabled: d.selectedIndex !== null || !hasCards,
           checked: d.selectedIndex === 0,
           onClick: function() {
-            return __awaiter10(_this, void 0, void 0, function() {
+            return __awaiter9(_this, void 0, void 0, function() {
               var card;
-              return __generator10(this, function(_a) {
+              return __generator9(this, function(_a) {
                 switch (_a.label) {
                   case 0:
                     return [4, metaState.ui.chooseCard(metaState, "Choose a card to bottle:", __spreadArray7([], __read12(metaState.data.collectedCards), false), true)];
@@ -12520,8 +12403,8 @@
           disabled: d.selectedIndex !== null,
           checked: d.selectedIndex === 1,
           onClick: function() {
-            return __awaiter10(_this, void 0, void 0, function() {
-              return __generator10(this, function(_a) {
+            return __awaiter9(_this, void 0, void 0, function() {
+              return __generator9(this, function(_a) {
                 return [2, {
                   newData: { selectedIndex: 1 },
                   transform: gainRelic(giftBox)
@@ -12536,8 +12419,8 @@
           disabled: d.selectedIndex !== null,
           checked: d.selectedIndex === 2,
           onClick: function() {
-            return __awaiter10(_this, void 0, void 0, function() {
-              return __generator10(this, function(_a) {
+            return __awaiter9(_this, void 0, void 0, function() {
+              return __generator9(this, function(_a) {
                 return [2, {
                   newData: { selectedIndex: 2 },
                   transform: gainRelic(emptyBottle)
@@ -12566,8 +12449,8 @@
           disabled: selectedIndex !== null,
           checked: selectedIndex === 0,
           onClick: function() {
-            return __awaiter10(_this, void 0, void 0, function() {
-              return __generator10(this, function(_a) {
+            return __awaiter9(_this, void 0, void 0, function() {
+              return __generator9(this, function(_a) {
                 return [2, {
                   newData: { selectedIndex: 0 },
                   transform: gainPotion(mirrorBrew)
@@ -12582,9 +12465,9 @@
           disabled: selectedIndex !== null || !hasRelics,
           checked: selectedIndex === 1,
           onClick: function() {
-            return __awaiter10(_this, void 0, void 0, function() {
+            return __awaiter9(_this, void 0, void 0, function() {
               var relicSpecs, relic;
-              return __generator10(this, function(_a) {
+              return __generator9(this, function(_a) {
                 switch (_a.label) {
                   case 0:
                     relicSpecs = metaState.data.relics.map(function(r) {
@@ -12613,8 +12496,8 @@
           disabled: selectedIndex !== null,
           checked: selectedIndex === 2,
           onClick: function() {
-            return __awaiter10(_this, void 0, void 0, function() {
-              return __generator10(this, function(_a) {
+            return __awaiter9(_this, void 0, void 0, function() {
+              return __generator9(this, function(_a) {
                 return [2, {
                   newData: { selectedIndex: 2 },
                   transform: gainRelic(silverMirror)
@@ -12637,10 +12520,10 @@
       var selectedIndex = data.selectedIndex;
       var hasCards = metaState.data.collectedCards.length > 0;
       var chooseUpgrade = function(upgrade, index, upgradeName) {
-        return __awaiter10(_this, void 0, void 0, function() {
+        return __awaiter9(_this, void 0, void 0, function() {
           var card, chosenName;
           var _this2 = this;
-          return __generator10(this, function(_a) {
+          return __generator9(this, function(_a) {
             switch (_a.label) {
               case 0:
                 return [4, metaState.ui.chooseCard(metaState, "Choose a card to upgrade:", __spreadArray7([], __read12(metaState.data.collectedCards), false), true)];
@@ -12653,9 +12536,9 @@
                 return [2, {
                   newData: { selectedIndex: index },
                   transform: function(state) {
-                    return __awaiter10(_this2, void 0, void 0, function() {
+                    return __awaiter9(_this2, void 0, void 0, function() {
                       var updated, cards, cardIndex;
-                      return __generator10(this, function(_a2) {
+                      return __generator9(this, function(_a2) {
                         switch (_a2.label) {
                           case 0:
                             updated = upgradeCardSpec(card, upgrade);
@@ -12689,8 +12572,8 @@
           disabled: selectedIndex !== null || !hasCards,
           checked: selectedIndex === 0,
           onClick: function() {
-            return __awaiter10(_this, void 0, void 0, function() {
-              return __generator10(this, function(_a) {
+            return __awaiter9(_this, void 0, void 0, function() {
+              return __generator9(this, function(_a) {
                 return [2, chooseUpgrade(polishUpgrade, 0, "Polish")];
               });
             });
@@ -12702,22 +12585,22 @@
           disabled: selectedIndex !== null || !hasCards,
           checked: selectedIndex === 1,
           onClick: function() {
-            return __awaiter10(_this, void 0, void 0, function() {
-              return __generator10(this, function(_a) {
+            return __awaiter9(_this, void 0, void 0, function() {
+              return __generator9(this, function(_a) {
                 return [2, chooseUpgrade(sharpenUpgrade, 1, "Sharpen")];
               });
             });
           }
         },
         {
-          label: "Redesign",
+          label: "Streamline",
           description: "Reduce the play cost of a card by @.",
           disabled: selectedIndex !== null || !hasCards,
           checked: selectedIndex === 2,
           onClick: function() {
-            return __awaiter10(_this, void 0, void 0, function() {
-              return __generator10(this, function(_a) {
-                return [2, chooseUpgrade(redesignUpgrade, 2, "Redesign")];
+            return __awaiter9(_this, void 0, void 0, function() {
+              return __generator9(this, function(_a) {
+                return [2, chooseUpgrade(streamlineUpgrade, 2, "Streamline")];
               });
             });
           }
@@ -12726,105 +12609,6 @@
     }
   };
   registerEncounter(blacksmith);
-  var enchantress = {
-    name: "Enchantress",
-    createInitialData: function() {
-      return { selectedIndex: null };
-    },
-    getOptions: function(data, metaState) {
-      var _this = this;
-      var selectedIndex = data.selectedIndex;
-      var hasCards = metaState.data.collectedCards.length > 0;
-      var chooseUpgrade = function(upgrade, index, upgradeName) {
-        return __awaiter10(_this, void 0, void 0, function() {
-          var card, chosenName;
-          var _this2 = this;
-          return __generator10(this, function(_a) {
-            switch (_a.label) {
-              case 0:
-                return [4, metaState.ui.chooseCard(metaState, "Choose a card to enchant:", __spreadArray7([], __read12(metaState.data.collectedCards), false), true)];
-              case 1:
-                card = _a.sent();
-                if (!card) {
-                  return [2, { newData: data }];
-                }
-                chosenName = displayName(card);
-                return [2, {
-                  newData: { selectedIndex: index },
-                  transform: function(state) {
-                    return __awaiter10(_this2, void 0, void 0, function() {
-                      var updated, cards, cardIndex;
-                      return __generator10(this, function(_a2) {
-                        switch (_a2.label) {
-                          case 0:
-                            updated = upgradeCardSpec(card, upgrade);
-                            cards = __spreadArray7([], __read12(state.data.collectedCards), false);
-                            cardIndex = cards.indexOf(card);
-                            if (!(cardIndex >= 0)) return [3, 2];
-                            cards[cardIndex] = updated;
-                            state.update({ collectedCards: cards });
-                            return [4, addTimelineAction("Enchantress: Upgraded ".concat(chosenName, " with ").concat(upgradeName))(state)];
-                          case 1:
-                            _a2.sent();
-                            _a2.label = 2;
-                          case 2:
-                            return [
-                              2
-                              /*return*/
-                            ];
-                        }
-                      });
-                    });
-                  }
-                }];
-            }
-          });
-        });
-      };
-      return [
-        {
-          label: "Transmute",
-          description: "After playing this, trash it and buy a card costing up to $2 more.",
-          disabled: selectedIndex !== null || !hasCards,
-          checked: selectedIndex === 0,
-          onClick: function() {
-            return __awaiter10(_this, void 0, void 0, function() {
-              return __generator10(this, function(_a) {
-                return [2, chooseUpgrade(transmuteUpgrade, 0, "Transmute")];
-              });
-            });
-          }
-        },
-        {
-          label: "Fortify",
-          description: "When this is trashed, create a card costing $1, $2, or $3 more in your hand.",
-          disabled: selectedIndex !== null || !hasCards,
-          checked: selectedIndex === 1,
-          onClick: function() {
-            return __awaiter10(_this, void 0, void 0, function() {
-              return __generator10(this, function(_a) {
-                return [2, chooseUpgrade(fortifyUpgrade, 1, "Fortify")];
-              });
-            });
-          }
-        },
-        {
-          label: "Possess",
-          description: "When you buy this, trash a card in hand and copy one costing up to $2 more into hand.",
-          disabled: selectedIndex !== null || !hasCards,
-          checked: selectedIndex === 2,
-          onClick: function() {
-            return __awaiter10(_this, void 0, void 0, function() {
-              return __generator10(this, function(_a) {
-                return [2, chooseUpgrade(possessUpgrade, 2, "Possess")];
-              });
-            });
-          }
-        }
-      ];
-    }
-  };
-  registerEncounter(enchantress);
   var shopkeeper = {
     name: "Shopkeeper",
     createInitialData: function() {
@@ -12835,10 +12619,10 @@
       var selectedIndex = data.selectedIndex;
       var hasCards = metaState.data.collectedCards.length > 0;
       var chooseUpgrade = function(upgrade, index, upgradeName) {
-        return __awaiter10(_this, void 0, void 0, function() {
+        return __awaiter9(_this, void 0, void 0, function() {
           var card, chosenName;
           var _this2 = this;
-          return __generator10(this, function(_a) {
+          return __generator9(this, function(_a) {
             switch (_a.label) {
               case 0:
                 return [4, metaState.ui.chooseCard(metaState, "Choose a card to upgrade:", __spreadArray7([], __read12(metaState.data.collectedCards), false), true)];
@@ -12851,9 +12635,9 @@
                 return [2, {
                   newData: { selectedIndex: index },
                   transform: function(state) {
-                    return __awaiter10(_this2, void 0, void 0, function() {
+                    return __awaiter9(_this2, void 0, void 0, function() {
                       var updated, cards, cardIndex;
-                      return __generator10(this, function(_a2) {
+                      return __generator9(this, function(_a2) {
                         switch (_a2.label) {
                           case 0:
                             updated = upgradeCardSpec(card, upgrade);
@@ -12882,39 +12666,39 @@
       };
       return [
         {
-          label: "Bulk purchase",
-          description: "Add: whenever you buy this, +1 buy.",
+          label: "Buy one get one",
+          description: "Choose a card. The first time you buy it each stage, buy it again for free.",
           disabled: selectedIndex !== null || !hasCards,
           checked: selectedIndex === 0,
           onClick: function() {
-            return __awaiter10(_this, void 0, void 0, function() {
-              return __generator10(this, function(_a) {
-                return [2, chooseUpgrade(bulkPurchaseUpgrade, 0, "Bulk purchase")];
+            return __awaiter9(_this, void 0, void 0, function() {
+              return __generator9(this, function(_a) {
+                return [2, chooseUpgrade(buyOneGetOneUpgrade, 0, "Buy one get one")];
               });
             });
           }
         },
         {
-          label: "Street fair",
-          description: "Add: whenever this would be created in discard, create it in hand instead.",
+          label: "Rush order",
+          description: "Choose a card. Whenever it would be created in discard, create it in hand instead.",
           disabled: selectedIndex !== null || !hasCards,
           checked: selectedIndex === 1,
           onClick: function() {
-            return __awaiter10(_this, void 0, void 0, function() {
-              return __generator10(this, function(_a) {
-                return [2, chooseUpgrade(streetFairUpgrade, 1, "Street fair")];
+            return __awaiter9(_this, void 0, void 0, function() {
+              return __generator9(this, function(_a) {
+                return [2, chooseUpgrade(rushOrderUpgrade, 1, "Rush order")];
               });
             });
           }
         },
         {
           label: "Sale",
-          description: "Reduce buy cost by $2 (not below $1).",
+          description: "Choose a card. Reduce its buy cost by $2 (but not less than $1).",
           disabled: selectedIndex !== null || !hasCards,
           checked: selectedIndex === 2,
           onClick: function() {
-            return __awaiter10(_this, void 0, void 0, function() {
-              return __generator10(this, function(_a) {
+            return __awaiter9(_this, void 0, void 0, function() {
+              return __generator9(this, function(_a) {
                 return [2, chooseUpgrade(saleUpgrade, 2, "Sale")];
               });
             });
@@ -12934,10 +12718,10 @@
       var selectedIndex = data.selectedIndex;
       var hasEvents = metaState.data.collectedEvents.length > 0;
       var chooseUpgrade = function(upgrade, index, upgradeName) {
-        return __awaiter10(_this, void 0, void 0, function() {
+        return __awaiter9(_this, void 0, void 0, function() {
           var event, chosenName;
           var _this2 = this;
-          return __generator10(this, function(_a) {
+          return __generator9(this, function(_a) {
             switch (_a.label) {
               case 0:
                 return [4, metaState.ui.chooseCard(metaState, "Choose an event to upgrade:", __spreadArray7([], __read12(metaState.data.collectedEvents), false), true)];
@@ -12950,9 +12734,9 @@
                 return [2, {
                   newData: { selectedIndex: index },
                   transform: function(state) {
-                    return __awaiter10(_this2, void 0, void 0, function() {
+                    return __awaiter9(_this2, void 0, void 0, function() {
                       var updated, events, eventIndex;
-                      return __generator10(this, function(_a2) {
+                      return __generator9(this, function(_a2) {
                         switch (_a2.label) {
                           case 0:
                             updated = upgradeCardSpec(event, upgrade);
@@ -12986,8 +12770,8 @@
           disabled: selectedIndex !== null || !hasEvents,
           checked: selectedIndex === 0,
           onClick: function() {
-            return __awaiter10(_this, void 0, void 0, function() {
-              return __generator10(this, function(_a) {
+            return __awaiter9(_this, void 0, void 0, function() {
+              return __generator9(this, function(_a) {
                 return [2, chooseUpgrade(tacticianStrengthUpgrade, 0, "Brute Force")];
               });
             });
@@ -12999,8 +12783,8 @@
           disabled: selectedIndex !== null || !hasEvents,
           checked: selectedIndex === 1,
           onClick: function() {
-            return __awaiter10(_this, void 0, void 0, function() {
-              return __generator10(this, function(_a) {
+            return __awaiter9(_this, void 0, void 0, function() {
+              return __generator9(this, function(_a) {
                 return [2, chooseUpgrade(tacticianAgilityUpgrade, 1, "Finesse")];
               });
             });
@@ -13012,8 +12796,8 @@
           disabled: selectedIndex !== null || !hasEvents,
           checked: selectedIndex === 2,
           onClick: function() {
-            return __awaiter10(_this, void 0, void 0, function() {
-              return __generator10(this, function(_a) {
+            return __awaiter9(_this, void 0, void 0, function() {
+              return __generator9(this, function(_a) {
                 return [2, chooseUpgrade(tacticianCooperationUpgrade, 2, "Teamwork")];
               });
             });
@@ -13044,8 +12828,8 @@
           disabled: d.selectedIndex !== null,
           checked: d.selectedIndex === 0,
           onClick: function() {
-            return __awaiter10(_this, void 0, void 0, function() {
-              return __generator10(this, function(_a2) {
+            return __awaiter9(_this, void 0, void 0, function() {
+              return __generator9(this, function(_a2) {
                 return [2, {
                   newData: __assign8(__assign8({}, d), { selectedIndex: 0 }),
                   transform: gainPotion(first, { details: "Potion Shop: free sample" })
@@ -13061,8 +12845,8 @@
           disabled: d.selectedIndex !== null || metaState.data.buffer < 1,
           checked: d.selectedIndex === 1,
           onClick: function() {
-            return __awaiter10(_this, void 0, void 0, function() {
-              return __generator10(this, function(_a2) {
+            return __awaiter9(_this, void 0, void 0, function() {
+              return __generator9(this, function(_a2) {
                 return [2, {
                   newData: __assign8(__assign8({}, d), { selectedIndex: 1 }),
                   transform: compose(addBuffer(-1), gainPotion(second, { details: "Potion Shop: paid 1@" }))
@@ -13077,8 +12861,8 @@
           disabled: d.selectedIndex !== null || metaState.data.buffer < 3,
           checked: d.selectedIndex === 2,
           onClick: function() {
-            return __awaiter10(_this, void 0, void 0, function() {
-              return __generator10(this, function(_a2) {
+            return __awaiter9(_this, void 0, void 0, function() {
+              return __generator9(this, function(_a2) {
                 return [2, {
                   newData: __assign8(__assign8({}, d), { selectedIndex: 2 }),
                   transform: compose(addBuffer(-3), gainPotion(third, { details: bundleDetail }), gainPotion(fourth, { details: bundleDetail }))
@@ -13111,8 +12895,8 @@
           disabled: d.selectedIndex !== null,
           checked: d.selectedIndex === 0,
           onClick: function() {
-            return __awaiter10(_this, void 0, void 0, function() {
-              return __generator10(this, function(_a) {
+            return __awaiter9(_this, void 0, void 0, function() {
+              return __generator9(this, function(_a) {
                 return [2, {
                   newData: __assign8(__assign8({}, d), { selectedIndex: 0 }),
                   transform: compose(addTimelineAction("Potion Lab: House special", "Gained two ".concat(offerName)), gainPotion(d.offer, { silent: true }), gainPotion(d.offer, { silent: true }))
@@ -13127,10 +12911,10 @@
           disabled: d.selectedIndex !== null,
           checked: d.selectedIndex === 1,
           onClick: function() {
-            return __awaiter10(_this, void 0, void 0, function() {
+            return __awaiter9(_this, void 0, void 0, function() {
               var copiedPotionNames, details;
               var _this2 = this;
-              return __generator10(this, function(_a) {
+              return __generator9(this, function(_a) {
                 copiedPotionNames = metaState.data.potions.map(function(p) {
                   return displayName(p.spec);
                 });
@@ -13138,10 +12922,10 @@
                 return [2, {
                   newData: __assign8(__assign8({}, d), { selectedIndex: 1 }),
                   transform: function(state) {
-                    return __awaiter10(_this2, void 0, void 0, function() {
+                    return __awaiter9(_this2, void 0, void 0, function() {
                       var potionSpecs, potionSpecs_1, potionSpecs_1_1, spec, e_1_1;
                       var e_1, _a2;
-                      return __generator10(this, function(_b) {
+                      return __generator9(this, function(_b) {
                         switch (_b.label) {
                           case 0:
                             return [4, addTimelineAction("Potion Lab", details)(state)];
@@ -13201,8 +12985,8 @@
           disabled: d.selectedIndex !== null || metaState.data.buffer < 3,
           checked: d.selectedIndex === 2,
           onClick: function() {
-            return __awaiter10(_this, void 0, void 0, function() {
-              return __generator10(this, function(_a) {
+            return __awaiter9(_this, void 0, void 0, function() {
+              return __generator9(this, function(_a) {
                 return [2, {
                   newData: __assign8(__assign8({}, d), { selectedIndex: 2 }),
                   transform: gainRelic(sacredBark, { details: "Potion Lab" })
@@ -13243,8 +13027,8 @@
           disabled: selectedIndex !== null,
           checked: selectedIndex === 0,
           onClick: function() {
-            return __awaiter10(_this, void 0, void 0, function() {
-              return __generator10(this, function(_a2) {
+            return __awaiter9(_this, void 0, void 0, function() {
+              return __generator9(this, function(_a2) {
                 return [2, {
                   newData: __assign8(__assign8({}, currentData), { selectedIndex: 0 }),
                   transform: gainCard(offerCard, { skipped: allOptionNames.filter(function(_, i) {
@@ -13261,8 +13045,8 @@
           disabled: selectedIndex !== null,
           checked: selectedIndex === 1,
           onClick: function() {
-            return __awaiter10(_this, void 0, void 0, function() {
-              return __generator10(this, function(_a2) {
+            return __awaiter9(_this, void 0, void 0, function() {
+              return __generator9(this, function(_a2) {
                 return [2, {
                   newData: __assign8(__assign8({}, currentData), { selectedIndex: 1 }),
                   transform: gainEvent(offerEvent, { skipped: allOptionNames.filter(function(_, i) {
@@ -13279,8 +13063,8 @@
           disabled: selectedIndex !== null,
           checked: selectedIndex === 2,
           onClick: function() {
-            return __awaiter10(_this, void 0, void 0, function() {
-              return __generator10(this, function(_a2) {
+            return __awaiter9(_this, void 0, void 0, function() {
+              return __generator9(this, function(_a2) {
                 return [2, {
                   newData: __assign8(__assign8({}, currentData), { selectedIndex: 2 }),
                   transform: gainPotion(offerPotion, { skipped: allOptionNames.filter(function(_, i) {
@@ -13297,8 +13081,8 @@
           disabled: selectedIndex !== null,
           checked: selectedIndex === 3,
           onClick: function() {
-            return __awaiter10(_this, void 0, void 0, function() {
-              return __generator10(this, function(_a2) {
+            return __awaiter9(_this, void 0, void 0, function() {
+              return __generator9(this, function(_a2) {
                 return [2, {
                   newData: __assign8(__assign8({}, currentData), { selectedIndex: 3 }),
                   transform: gainRelic(offerRelic, { skipped: allOptionNames.filter(function(_, i) {
@@ -13338,10 +13122,10 @@
           disabled: d.cardTraded || metaState.data.collectedCards.length === 0,
           checked: d.cardTraded,
           onClick: function() {
-            return __awaiter10(_this, void 0, void 0, function() {
+            return __awaiter9(_this, void 0, void 0, function() {
               var card;
               var _this2 = this;
-              return __generator10(this, function(_a) {
+              return __generator9(this, function(_a) {
                 switch (_a.label) {
                   case 0:
                     return [4, metaState.ui.chooseCard(metaState, "Choose a card to trade away:", __spreadArray7([], __read12(metaState.data.collectedCards), false), true)];
@@ -13352,8 +13136,8 @@
                     return [2, {
                       newData: __assign8(__assign8({}, d), { cardTraded: true }),
                       transform: function(state) {
-                        return __awaiter10(_this2, void 0, void 0, function() {
-                          return __generator10(this, function(_a2) {
+                        return __awaiter9(_this2, void 0, void 0, function() {
+                          return __generator9(this, function(_a2) {
                             switch (_a2.label) {
                               case 0:
                                 state.removeCard(card.name);
@@ -13383,10 +13167,10 @@
           disabled: d.eventTraded || metaState.data.collectedEvents.length === 0,
           checked: d.eventTraded,
           onClick: function() {
-            return __awaiter10(_this, void 0, void 0, function() {
+            return __awaiter9(_this, void 0, void 0, function() {
               var event;
               var _this2 = this;
-              return __generator10(this, function(_a) {
+              return __generator9(this, function(_a) {
                 switch (_a.label) {
                   case 0:
                     return [4, metaState.ui.chooseCard(metaState, "Choose an event to trade away:", __spreadArray7([], __read12(metaState.data.collectedEvents), false), true)];
@@ -13397,8 +13181,8 @@
                     return [2, {
                       newData: __assign8(__assign8({}, d), { eventTraded: true }),
                       transform: function(state) {
-                        return __awaiter10(_this2, void 0, void 0, function() {
-                          return __generator10(this, function(_a2) {
+                        return __awaiter9(_this2, void 0, void 0, function() {
+                          return __generator9(this, function(_a2) {
                             switch (_a2.label) {
                               case 0:
                                 state.removeEvent(event.name);
@@ -13428,10 +13212,10 @@
           disabled: d.potionTraded || metaState.data.potions.length === 0,
           checked: d.potionTraded,
           onClick: function() {
-            return __awaiter10(_this, void 0, void 0, function() {
+            return __awaiter9(_this, void 0, void 0, function() {
               var potion;
               var _this2 = this;
-              return __generator10(this, function(_a) {
+              return __generator9(this, function(_a) {
                 switch (_a.label) {
                   case 0:
                     return [4, metaState.ui.chooseCard(metaState, "Choose a potion to trade away:", __spreadArray7([], __read12(metaState.data.potions), false), true)];
@@ -13442,8 +13226,8 @@
                     return [2, {
                       newData: __assign8(__assign8({}, d), { potionTraded: true }),
                       transform: function(state) {
-                        return __awaiter10(_this2, void 0, void 0, function() {
-                          return __generator10(this, function(_a2) {
+                        return __awaiter9(_this2, void 0, void 0, function() {
+                          return __generator9(this, function(_a2) {
                             switch (_a2.label) {
                               case 0:
                                 state.removePotion(potion.id);
@@ -13473,10 +13257,10 @@
           disabled: d.relicTraded || metaState.data.relics.length === 0,
           checked: d.relicTraded,
           onClick: function() {
-            return __awaiter10(_this, void 0, void 0, function() {
+            return __awaiter9(_this, void 0, void 0, function() {
               var relic;
               var _this2 = this;
-              return __generator10(this, function(_a) {
+              return __generator9(this, function(_a) {
                 switch (_a.label) {
                   case 0:
                     return [4, metaState.ui.chooseCard(metaState, "Choose a relic to trade away:", metaState.data.relics, true)];
@@ -13487,8 +13271,8 @@
                     return [2, {
                       newData: __assign8(__assign8({}, d), { relicTraded: true }),
                       transform: function(state) {
-                        return __awaiter10(_this2, void 0, void 0, function() {
-                          return __generator10(this, function(_a2) {
+                        return __awaiter9(_this2, void 0, void 0, function() {
+                          return __generator9(this, function(_a2) {
                             switch (_a2.label) {
                               case 0:
                                 state.removeRelic(relic.id);
@@ -13673,7 +13457,7 @@
     };
     return __assign9.apply(this, arguments);
   };
-  var __awaiter11 = function(thisArg, _arguments, P, generator) {
+  var __awaiter10 = function(thisArg, _arguments, P, generator) {
     function adopt(value) {
       return value instanceof P ? value : new P(function(resolve) {
         resolve(value);
@@ -13700,7 +13484,7 @@
       step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
   };
-  var __generator11 = function(thisArg, body) {
+  var __generator10 = function(thisArg, body) {
     var _ = { label: 0, sent: function() {
       if (t[0] & 1) throw t[1];
       return t[1];
@@ -14269,9 +14053,9 @@
     })(Error)
   );
   function buildReplayMacroFromState(targetState) {
-    return __awaiter11(this, void 0, void 0, function() {
+    return __awaiter10(this, void 0, void 0, function() {
       var history, steps, recordingStates, startPrompt, cursor, captureUI, error_1;
-      return __generator11(this, function(_a) {
+      return __generator10(this, function(_a) {
         switch (_a.label) {
           case 0:
             history = __spreadArray8([], __read13(targetState.origin().future), false);
@@ -14283,9 +14067,9 @@
             cursor = 0;
             captureUI = {
               choice: function(state, prompt, options, info, chosen) {
-                return __awaiter11(this, void 0, void 0, function() {
+                return __awaiter10(this, void 0, void 0, function() {
                   var index;
-                  return __generator11(this, function(_a2) {
+                  return __generator10(this, function(_a2) {
                     if (cursor >= history.length)
                       throw new ReplayMacroCaptureComplete();
                     index = history[cursor];
@@ -14304,8 +14088,8 @@
                 });
               },
               victory: function() {
-                return __awaiter11(this, void 0, void 0, function() {
-                  return __generator11(this, function(_a2) {
+                return __awaiter10(this, void 0, void 0, function() {
+                  return __generator10(this, function(_a2) {
                     if (cursor >= history.length)
                       throw new ReplayMacroCaptureComplete();
                     throw new Error("Unable to save replay: replay reached victory before consuming history.");
@@ -15122,9 +14906,9 @@
     if (!el)
       return;
     el.onclick = function() {
-      return __awaiter11(_this, void 0, void 0, function() {
+      return __awaiter10(_this, void 0, void 0, function() {
         var macro;
-        return __generator11(this, function(_a) {
+        return __generator10(this, function(_a) {
           switch (_a.label) {
             case 0:
               if (!saveReplayEnabled(state, ui))
@@ -15564,9 +15348,9 @@
         return null;
       };
       GameUI2.prototype.victory = function(state) {
-        return __awaiter11(this, void 0, void 0, function() {
+        return __awaiter10(this, void 0, void 0, function() {
           var ui;
-          return __generator11(this, function(_a) {
+          return __generator10(this, function(_a) {
             ui = this;
             return [2, new Promise(function(resolve, reject) {
               var _a2;
@@ -15608,7 +15392,7 @@
     })()
   );
   function startGame(spec_1) {
-    return __awaiter11(this, arguments, void 0, function(spec, initialHistory, initialRedo, initialMacros, initialViewingMacros, onProgress, undoAtBeginning) {
+    return __awaiter10(this, arguments, void 0, function(spec, initialHistory, initialRedo, initialMacros, initialViewingMacros, onProgress, undoAtBeginning) {
       var ui, result;
       if (initialHistory === void 0) {
         initialHistory = [];
@@ -15628,7 +15412,7 @@
       if (undoAtBeginning === void 0) {
         undoAtBeginning = "leave";
       }
-      return __generator11(this, function(_a) {
+      return __generator10(this, function(_a) {
         switch (_a.label) {
           case 0:
             initHotkeys();
@@ -15652,7 +15436,7 @@
   }
 
   // public/metaUI.js
-  var __awaiter12 = function(thisArg, _arguments, P, generator) {
+  var __awaiter11 = function(thisArg, _arguments, P, generator) {
     function adopt(value) {
       return value instanceof P ? value : new P(function(resolve) {
         resolve(value);
@@ -15679,7 +15463,7 @@
       step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
   };
-  var __generator12 = function(thisArg, body) {
+  var __generator11 = function(thisArg, body) {
     var _ = { label: 0, sent: function() {
       if (t[0] & 1) throw t[1];
       return t[1];
@@ -16397,11 +16181,11 @@
         initHotkeys();
       }
       MetaGameUI2.prototype.chooseCard = function(state_1, prompt_1, options_4) {
-        return __awaiter12(this, arguments, void 0, function(state, prompt, options, canCancel) {
+        return __awaiter11(this, arguments, void 0, function(state, prompt, options, canCancel) {
           if (canCancel === void 0) {
             canCancel = true;
           }
-          return __generator12(this, function(_a) {
+          return __generator11(this, function(_a) {
             return [2, new Promise(function(resolve, reject) {
               bindUndoRedoButtons(state, function() {
                 return reject(new Undo2());
@@ -16418,11 +16202,11 @@
         });
       };
       MetaGameUI2.prototype.chooseOption = function(state_1, prompt_1, options_4) {
-        return __awaiter12(this, arguments, void 0, function(state, prompt, options, canCancel) {
+        return __awaiter11(this, arguments, void 0, function(state, prompt, options, canCancel) {
           if (canCancel === void 0) {
             canCancel = true;
           }
-          return __generator12(this, function(_a) {
+          return __generator11(this, function(_a) {
             return [2, new Promise(function(resolve, reject) {
               bindUndoRedoButtons(state, function() {
                 return reject(new Undo2());
@@ -16439,9 +16223,9 @@
         });
       };
       MetaGameUI2.prototype.waitForChallenge = function(state) {
-        return __awaiter12(this, void 0, void 0, function() {
+        return __awaiter11(this, void 0, void 0, function() {
           var _this = this;
-          return __generator12(this, function(_a) {
+          return __generator11(this, function(_a) {
             return [2, new Promise(function(resolve, reject) {
               var escapeListener = function() {
                 return finishReject(new ExitToLauncher());
@@ -16478,9 +16262,9 @@
                   },
                   // onOptionClick
                   function(rewardIndex, optionIndex) {
-                    return __awaiter12(_this, void 0, void 0, function() {
+                    return __awaiter11(_this, void 0, void 0, function() {
                       var rewardState, options, option, _a2, newData, transform, noOpCancel, newRewardState;
-                      return __generator12(this, function(_b) {
+                      return __generator11(this, function(_b) {
                         switch (_b.label) {
                           case 0:
                             rewardState = state.data.rewardStates[rewardIndex];
@@ -16535,8 +16319,8 @@
         });
       };
       MetaGameUI2.prototype.pickPath = function(state, paths) {
-        return __awaiter12(this, void 0, void 0, function() {
-          return __generator12(this, function(_a) {
+        return __awaiter11(this, void 0, void 0, function() {
+          return __generator11(this, function(_a) {
             return [2, new Promise(function(resolve, reject) {
               var escapeListener = function() {
                 return finishReject(new ExitToLauncher());
@@ -16570,8 +16354,8 @@
         });
       };
       MetaGameUI2.prototype.showMessage = function(state, message) {
-        return __awaiter12(this, void 0, void 0, function() {
-          return __generator12(this, function(_a) {
+        return __awaiter11(this, void 0, void 0, function() {
+          return __generator11(this, function(_a) {
             console.log("[MetaUI]: ".concat(message));
             return [
               2
@@ -16616,7 +16400,7 @@
   );
 
   // public/main.js
-  var __awaiter13 = function(thisArg, _arguments, P, generator) {
+  var __awaiter12 = function(thisArg, _arguments, P, generator) {
     function adopt(value) {
       return value instanceof P ? value : new P(function(resolve) {
         resolve(value);
@@ -16643,7 +16427,7 @@
       step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
   };
-  var __generator13 = function(thisArg, body) {
+  var __generator12 = function(thisArg, body) {
     var _ = { label: 0, sent: function() {
       if (t[0] & 1) throw t[1];
       return t[1];
@@ -16725,7 +16509,7 @@
   };
   var test = {
     rewards: [
-      [1, ["card", fairyGold]]
+      [1, ["encounter", shopkeeper]]
     ],
     challenges: []
   };
@@ -16733,43 +16517,43 @@
   var MAX_LAUNCHER_SAVES = 10;
   var summaryMetaUI = {
     chooseCard: function() {
-      return __awaiter13(void 0, void 0, void 0, function() {
-        return __generator13(this, function(_a) {
+      return __awaiter12(void 0, void 0, void 0, function() {
+        return __generator12(this, function(_a) {
           return [2, null];
         });
       });
     },
     playGame: function() {
-      return __awaiter13(void 0, void 0, void 0, function() {
-        return __generator13(this, function(_a) {
+      return __awaiter12(void 0, void 0, void 0, function() {
+        return __generator12(this, function(_a) {
           throw new Error("Summary UI does not support playGame");
         });
       });
     },
     waitForChallenge: function() {
-      return __awaiter13(void 0, void 0, void 0, function() {
-        return __generator13(this, function(_a) {
+      return __awaiter12(void 0, void 0, void 0, function() {
+        return __generator12(this, function(_a) {
           throw new Error("Summary UI does not support waitForChallenge");
         });
       });
     },
     pickPath: function() {
-      return __awaiter13(void 0, void 0, void 0, function() {
-        return __generator13(this, function(_a) {
+      return __awaiter12(void 0, void 0, void 0, function() {
+        return __generator12(this, function(_a) {
           throw new Error("Summary UI does not support pickPath");
         });
       });
     },
     chooseOption: function() {
-      return __awaiter13(void 0, void 0, void 0, function() {
-        return __generator13(this, function(_a) {
+      return __awaiter12(void 0, void 0, void 0, function() {
+        return __generator12(this, function(_a) {
           return [2, null];
         });
       });
     },
     showMessage: function() {
-      return __awaiter13(void 0, void 0, void 0, function() {
-        return __generator13(this, function(_a) {
+      return __awaiter12(void 0, void 0, void 0, function() {
+        return __generator12(this, function(_a) {
           return [
             2
             /*return*/
@@ -16885,13 +16669,13 @@
     document.head.appendChild(style);
   }
   function runGame(slotID_1, snapshot_1, seed_1) {
-    return __awaiter13(this, arguments, void 0, function(slotID, snapshot, seed, newGameDebugEnabled) {
+    return __awaiter12(this, arguments, void 0, function(slotID, snapshot, seed, newGameDebugEnabled) {
       var debugEnabled, activeTest, seedDisplay, metaUI, saveCallback, error_1;
       var _a;
       if (newGameDebugEnabled === void 0) {
         newGameDebugEnabled = false;
       }
-      return __generator13(this, function(_b) {
+      return __generator12(this, function(_b) {
         switch (_b.label) {
           case 0:
             debugEnabled = snapshot ? isDebugGame(snapshot) : newGameDebugEnabled;
@@ -16945,10 +16729,10 @@
     (_c = document.getElementById("allSavesDialog")) === null || _c === void 0 ? void 0 : _c.remove();
   }
   function runReplayFromSnapshot(slot, stage) {
-    return __awaiter13(this, void 0, void 0, function() {
+    return __awaiter12(this, void 0, void 0, function() {
       var seedDisplay, state, replayData, bufferDisplay, debugTag, error_2;
       var _a;
-      return __generator13(this, function(_b) {
+      return __generator12(this, function(_b) {
         switch (_b.label) {
           case 0:
             seedDisplay = document.getElementById("seedDisplay");
@@ -17147,8 +16931,8 @@
           replayButton.className = "launcherBtn";
           replayButton.textContent = "View replay";
           replayButton.onclick = function() {
-            return __awaiter13(_this, void 0, void 0, function() {
-              return __generator13(this, function(_a2) {
+            return __awaiter12(_this, void 0, void 0, function() {
+              return __generator12(this, function(_a2) {
                 switch (_a2.label) {
                   case 0:
                     dialog.remove();
@@ -17215,8 +16999,8 @@
       continueButton.className = "launcherBtn";
       continueButton.textContent = "Continue";
       continueButton.onclick = function() {
-        return __awaiter13(_this, void 0, void 0, function() {
-          return __generator13(this, function(_a) {
+        return __awaiter12(_this, void 0, void 0, function() {
+          return __generator12(this, function(_a) {
             return [2, runGame(slot.id, slot.snapshot, slot.seed)];
           });
         });
@@ -17362,9 +17146,9 @@
       startButton.className = "launcherBtn";
       startButton.textContent = "start";
       var startNewGame = function() {
-        return __awaiter13(_this, void 0, void 0, function() {
+        return __awaiter12(_this, void 0, void 0, function() {
           var seed, slotID;
-          return __generator13(this, function(_a2) {
+          return __generator12(this, function(_a2) {
             switch (_a2.label) {
               case 0:
                 seed = normalizeSeed(seedInput.value) || randomString();
@@ -17382,8 +17166,8 @@
       };
       startButton.onclick = startNewGame;
       seedInput.addEventListener("keydown", function(event2) {
-        return __awaiter13(_this, void 0, void 0, function() {
-          return __generator13(this, function(_a2) {
+        return __awaiter12(_this, void 0, void 0, function() {
+          return __generator12(this, function(_a2) {
             switch (_a2.label) {
               case 0:
                 if (event2.key !== "Enter")
@@ -17479,8 +17263,8 @@
     document.body.appendChild(root);
   }
   window.addEventListener("load", function() {
-    return __awaiter13(void 0, void 0, void 0, function() {
-      return __generator13(this, function(_a) {
+    return __awaiter12(void 0, void 0, void 0, function() {
+      return __generator12(this, function(_a) {
         renderLauncher();
         return [
           2

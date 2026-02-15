@@ -2113,10 +2113,10 @@ registerRule(echoRule)
 export const shelterRule: Rule = {
     name: 'Shelter',
     replacers: [{
-        text: [`Whenever a card with a shelter token would leave play, remove a shelter token instead.`],
+        text: [`Whenever a card with a shelter token would be trashed, remove a shelter token instead.`],
         kind: 'move',
         handles: (p, state) => state.find(p.card).count('shelter') > 0
-            && p.fromZone == 'play' && p.toZone != 'play',
+            && p.fromZone == 'play' && p.toZone == 'void',
         replace: (p, state) => {
             const card = state.find(p.card)
             return {
@@ -2125,6 +2125,13 @@ export const shelterRule: Rule = {
                 effects: [removeToken(card, 'shelter')]
             }
         }
+    }, {
+        text: [`Whenever a card with a shelter token would move to your hand, leave it there instead.`],
+        simpleText: [`Cards with shelter tokens can't move to your hand.`],
+        kind: 'move',
+        handles: (p, state) => state.find(p.card).count('shelter') > 0
+            && p.toZone == 'hand',
+        replace: (p, state) => ({...p, skip: true})
     }]
 }
 registerRule(shelterRule)
@@ -2511,13 +2518,12 @@ export function startsWithCharge(name:string, n:number, hideSimple:boolean=false
 
 export function createInPlayEffect(
     spec:CardSpec, n:number=1,
-    tokens: Map<Token, number>|null=null,
     simpleText?: string[]
 ): Effect {
     return {
         text: [`Create ${aOrNum(n, spec.name)} in play.`],
         simpleText: simpleText,
-        transform: () => repeat(create(spec, 'play', (c:Card) => noop, tokens ? tokens : new Map()), n)
+        transform: () => repeat(create(spec, 'play', (c:Card) => noop, new Map()), n)
     }
 }
 
@@ -2614,11 +2620,11 @@ export function buysEffect(n:number): Effect {
 }
 export function buyEffect() { return buysEffect(1) }
 
-export function chargeEffect(simpleText: boolean = true): Effect {
+export function chargeEffect(n:number = 1, simpleText: boolean = true): Effect {
     return {
-        text: [`Put a charge token on this.`],
-        simpleText: simpleText ? [`Increase X by 1.`] : [],
-        transform: (s, card) => charge(card, 1)
+        text: [`Put ${aOrNum(n, 'charge token')} on this.`],
+        simpleText: simpleText ? [`Increase X by ${n}.`] : [],
+        transform: (s, card) => charge(card, n)
     }
 }
 
@@ -2676,6 +2682,21 @@ export const villager:CardSpec = {
             }
         }
     }, trashOnLeavePlay()]
+}
+
+export const bounty: CardSpec = {
+    name: 'Bounty',
+    triggers: [{
+        text: [`Whenever you buy a card, trash this to buy the card again.`],
+        simpleText: ['The next time you buy a card, buy it again.'],
+        kind: 'buy',
+        handles: (e, state, card) => state.find(card!).place == 'play',
+        transform: (e, state, card) => async function(state) {
+            state = await trash(card!)(state)
+            return e.card.buy(card)(state)
+        }
+    }],
+    replacers: [trashOnLeavePlay()]
 }
 
 export function playReplacer<S extends Source>(

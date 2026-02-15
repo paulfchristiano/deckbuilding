@@ -21,7 +21,8 @@ import { CardSpec, CardUpgrade,
     actionsEffect,
     addCosts, coin, trash, applyToTarget,
     create, buyTrigger, afterBuyTrigger, buysEffect, sourceHasName, addToken, removeToken,
-    doAll
+    doAll,
+    duplicateRule
 } from '../gameLogic.js'
 
 import { Generator } from '../rng.js'
@@ -54,7 +55,7 @@ export const sharpenUpgrade: CardUpgrade = registerUpgrade('sharpen', {
     effects: [actionsEffect(1)],
 })
 
-export const redesignUpgrade: CardUpgrade = registerUpgrade('redesign', {
+export const streamlineUpgrade: CardUpgrade = registerUpgrade('streamline', {
     name: name => `${name}+`,
     cost: (cost, kind) => kind === 'play'
         ? { ...cost, energy: Math.max(cost.energy - 1, 0) }
@@ -135,12 +136,18 @@ export const possessUpgrade: CardUpgrade = registerUpgrade('possess', {
     })]
 })
 
-export const bulkPurchaseUpgrade: CardUpgrade = registerUpgrade('bulkPurchase', {
+export const buyOneGetOneUpgrade: CardUpgrade = registerUpgrade('buyOneGetOne', {
     name: name => `${name}+`,
-    staticTriggers: [afterBuyTrigger(buysEffect(1))]
+    staticTriggers: [{
+        kind: 'beforeStart',
+        text: ['At the start of the game, put a duplicate token on this.'],
+        simpleText: ['The first time you buy this each stage, buy it again for free.'],
+        handles: () => true,
+        transform: (_e, _s, card) => addToken(card!, 'duplicate', 1),
+    }]
 })
 
-export const streetFairUpgrade: CardUpgrade = registerUpgrade('streetFair', {
+export const rushOrderUpgrade: CardUpgrade = registerUpgrade('rushOrder', {
     name: name => `${name}+`,
     staticReplacers: [{
         kind: 'create',
@@ -240,12 +247,12 @@ export const tacticianCooperationUpgrade: CardUpgrade = registerUpgrade('tactici
 export const allEncounterUpgrades: CardUpgrade[] = [
     polishUpgrade,
     sharpenUpgrade,
-    redesignUpgrade,
+    streamlineUpgrade,
     transmuteUpgrade,
     fortifyUpgrade,
     possessUpgrade,
-    bulkPurchaseUpgrade,
-    streetFairUpgrade,
+    buyOneGetOneUpgrade,
+    rushOrderUpgrade,
     saleUpgrade,
     tacticianStrengthUpgrade,
     tacticianAgilityUpgrade,
@@ -466,17 +473,18 @@ export const blacksmith: Encounter = {
                 onClick: async () => chooseUpgrade(sharpenUpgrade, 1, 'Sharpen'),
             },
             {
-                label: 'Redesign',
+                label: 'Streamline',
                 description: 'Reduce the play cost of a card by @.',
                 disabled: selectedIndex !== null || !hasCards,
                 checked: selectedIndex === 2,
-                onClick: async () => chooseUpgrade(redesignUpgrade, 2, 'Redesign'),
+                onClick: async () => chooseUpgrade(streamlineUpgrade, 2, 'Streamline'),
             }
         ]
     }
 }
 registerEncounter(blacksmith)
 
+/*
 export const enchantress: Encounter = {
     name: 'Enchantress',
     createInitialData: () => ({ selectedIndex: null as number | null }),
@@ -536,6 +544,7 @@ export const enchantress: Encounter = {
     }
 }
 registerEncounter(enchantress)
+*/
 
 export const shopkeeper: Encounter = {
     name: 'Shopkeeper',
@@ -572,22 +581,22 @@ export const shopkeeper: Encounter = {
 
         return [
             {
-                label: 'Bulk purchase',
-                description: 'Add: whenever you buy this, +1 buy.',
+                label: 'Buy one get one',
+                description: 'Choose a card. The first time you buy it each stage, buy it again for free.',
                 disabled: selectedIndex !== null || !hasCards,
                 checked: selectedIndex === 0,
-                onClick: async () => chooseUpgrade(bulkPurchaseUpgrade, 0, 'Bulk purchase'),
+                onClick: async () => chooseUpgrade(buyOneGetOneUpgrade, 0, 'Buy one get one'),
             },
             {
-                label: 'Street fair',
-                description: 'Add: whenever this would be created in discard, create it in hand instead.',
+                label: 'Rush order',
+                description: 'Choose a card. Whenever it would be created in discard, create it in hand instead.',
                 disabled: selectedIndex !== null || !hasCards,
                 checked: selectedIndex === 1,
-                onClick: async () => chooseUpgrade(streetFairUpgrade, 1, 'Street fair'),
+                onClick: async () => chooseUpgrade(rushOrderUpgrade, 1, 'Rush order'),
             },
             {
                 label: 'Sale',
-                description: 'Reduce buy cost by $2 (not below $1).',
+                description: 'Choose a card. Reduce its buy cost by $2 (but not less than $1).',
                 disabled: selectedIndex !== null || !hasCards,
                 checked: selectedIndex === 2,
                 onClick: async () => chooseUpgrade(saleUpgrade, 2, 'Sale'),

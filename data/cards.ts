@@ -41,6 +41,7 @@ import {
   startInPlay,
   discard,
   fountainTransform,
+  bounty,
 } from '../gameLogic.js'
 
 function toPlay(): Effect {
@@ -262,25 +263,10 @@ export const workshop:CardSpec = {name: workshopName,
 }
 cardRewards.push(workshop)
 
-const shippingLane:CardSpec = {name: 'Shipping Lane',
+export const shippingLane:CardSpec = {name: 'Shipping Lane',
     buyCost: coin(3),
     fixedCost: energy(1),
-    effects: [coinsEffect(2)],
-    triggers: [{
-        text: [`Whenever you buy a card,
-            discard this to buy the card again.`],
-        simpleText: [`The next time you buy a card, buy it again for free.`],
-        kind: 'buy',
-        handles: (e, state, card) => state.find(card!).place == 'play',
-        transform: (e, state, card) => async function(state) {
-            if (state.find(card!).place == 'play') {
-                state = await move(card!, 'discard')(state)
-                return e.card.buy(card)(state)
-            } else {
-                return state
-            }
-        }
-    }]
+    effects: [coinsEffect(2), createInPlayEffect(bounty)],
 }
 cardRewards.push(shippingLane)
 
@@ -808,9 +794,9 @@ export const banquet:CardSpec = {
         replace: (p, state, card) => ({...p, effects: p.effects.concat([discharge(card, p.card.charge)])})
     }],
     ability: [{
-        text: [`If you have no cards in your hand, discard this and remove all charge tokens for +$1 per charge token on it.`],
+        text: [`If you have no cards in your hand, discard this for +$1 per charge token on it.`],
         simpleText: [`Once you have no cards in your hand, you can discard this to gain +$X.`],
-        transform: (state, card) => payToDo(doAll([discardFromPlay(card), discharge(card, card.charge)]), gainCoins(card.charge, card))
+        transform: (state, card) => payToDo(discardFromPlay(card), gainCoins(card.charge, card))
     }]
     
 }
@@ -1039,7 +1025,7 @@ cardRewards.push(harrow)
 
 export const tavern:CardSpec = {
     name: 'Tavern',
-    buyCost: coin(2),
+    buyCost: coin(3),
     relatedCards: [villager, fair],
     effects: [createInPlayEffect(fair), createInPlayEffect(villager)]
 }

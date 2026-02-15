@@ -162,7 +162,7 @@ eventRewards.push(twin)
 const expedite: CardSpec = {
     name: 'Expedite',
     fixedCost: energy(1),
-    effects: [chargeEffect(false)],
+    effects: [chargeEffect(1, false)],
     staticReplacers: [playReplacer(
         [`Whenever you would create a card in your discard,
             if this has a charge token then instead
@@ -184,7 +184,7 @@ function removeAllSupplyTokens(token:Token, hideSimpleText=true): Effect {
 }
 
 const synergy:CardSpec = {name: 'Synergy',
-    fixedCost: {...free, coin:1, energy:1},
+    fixedCost: {...free, energy:1},
     effects: [removeAllSupplyTokens('synergy'), {
         text: ['Put synergy tokens on two cards in the supply.'],
         simpleText: [
@@ -280,7 +280,7 @@ eventRewards.push(reflect)
 
 const replicate:CardSpec = {name: 'Replicate',
     fixedCost: energy(1),
-    effects: [chargeEffect(false)],
+    effects: [chargeEffect(1, false)],
     staticTriggers: [{
         text: [`After buying a card other than with this,
             remove a charge token from this to to buy the card again.`],
@@ -370,16 +370,16 @@ function buyCheaper(card:Card, s:State, source:Source): Transform {
     )
 }
 
-const haggle:CardSpec = {
+export const haggle:CardSpec = {
     name: 'Haggle',
     fixedCost: energy(1),
-    effects: [chargeEffect(false)],
+    effects: [chargeEffect(2, false)],
     staticTriggers: [{
         kind: 'afterBuy',
-        text: [`After buying a card, remove a charge token from this to buy a card
+        text: [`After buying a card costing $1 or more, remove a charge token from this to buy a card
         in the supply that costs at least $1 less.`],
-        simpleText: [`The next time you buy a card, immediately buy a cheaper card.`],
-        handles: (e, s, c) => s.find(c!).charge > 0,
+        simpleText: [`The next two times you buy a card, immediately buy a cheaper card.`],
+        handles: (e, s, c) => s.find(c!).charge > 0 && e.card.cost('buy', s) >= coin(1),
         transform: (e, s, c) => payToDo(discharge(c!, 1), buyCheaper(e.card, s, c)),
     }]
 }

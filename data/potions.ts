@@ -15,8 +15,7 @@ import {
     sortHand,
     echoRule, priorityRule, reflectRule, ferryRule, twinRule,
     // Card specs used by potions
-    fair, villager,  move,
-    trashOnLeavePlay,
+    fair, villager, bounty,
     potionRewards,
     shelterRule,
     coin,
@@ -25,7 +24,8 @@ import {
     leq,
     gainActions,
     tick,
-    reductionRule
+    reductionRule,
+    noop
 } from '../gameLogic.js'
 
 // Import cards that potions reference from base
@@ -88,26 +88,11 @@ export const celebratoryBrew: CardSpec = {
 potionRewards.push(celebratoryBrew)
 */
 
-const bounty: CardSpec = {
-    name: 'Bounty',
-    triggers: [{
-        text: [`Whenever you buy a card, trash this to buy the card again.`],
-        simpleText: ['The next time you buy a card, buy it again.'],
-        kind: 'buy',
-        handles: (e, state, card) => state.find(card!).place == 'play',
-        transform: (e, state, card) => async function(state) {
-            state = await trash(card!)(state)
-            return e.card.buy(card)(state)
-        }
-    }],
-    replacers: [trashOnLeavePlay()]
-}
-
 export const potionOfBounty: CardSpec = {
     name: 'Potion of Bounty',
     isPotion: true,
     relatedCards: [bounty],
-    effects: [createInPlayEffect(bounty,3, null, ['The next time you buy a card, buy it three more times for free.'])]
+    effects: [createInPlayEffect(bounty,3)]
 }
 potionRewards.push(potionOfBounty)
 
@@ -160,12 +145,12 @@ export const highwayPotion: CardSpec = {
     name: 'Highway Potion',
     isPotion: true,
     effects: [{
-        text: [`Create a ${highway.name} in play.`],
+        text: [`Put a ferry token on each supply.`],
         transform: (state, card) => async function(state) {
-            return create(highway, 'play',)(state)
+            return doAll(state.supply.map(s => addToken(s, 'ferry', 1)))(state)
         }
     }],
-    relatedCards: [highway],
+    rules: [ferryRule]
 }
 potionRewards.push(highwayPotion)
 
@@ -235,10 +220,10 @@ export const potionOfFairs: CardSpec = {
     simpleText: [],
     relatedCards: [fair],
     rules: [shelterRule],
-    effects: [
-        createInPlayEffect(fair, 1, new Map([['shelter', 16]]),
-        [`Create a ${fair.name} in play with 16 shelter tokens on it.`]),
-    ]
+    effects: [{
+        text: [`Create a ${fair.name} in play with 15 shelter tokens on it.`],
+        transform: (state, card) => create(fair, 'play', (c:Card) => noop, new Map([['shelter', 15]]))
+    }]
 }
 potionRewards.push(potionOfFairs)
 
