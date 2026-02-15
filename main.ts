@@ -20,8 +20,14 @@ import { renderSpecNoRelated } from './cardRendering.js'
 import { Card, CardSpec, UndoPastBeginning } from './gameLogic.js'
 
 import type { DebugTestConfig } from './metaLogic.js'
+import { giftBox } from './data/relics.js'
 
-let test: DebugTestConfig | null = null
+let test: DebugTestConfig | null = {
+    rewards: [
+        [1, ['relic', giftBox]],
+    ],
+    challenges: []
+}
 
 const SAVE_STORAGE_KEY = 'roguelike.ongoingSaves.v1'
 const MAX_LAUNCHER_SAVES = 10

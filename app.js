@@ -6709,7 +6709,7 @@
             }
             state.ui.updateBuffer(state);
             _loop_1 = function() {
-              var sameReplay_1, stage, gameSpec, startingBuffer, _g, score, potionsRemaining, history_1, macros, viewingMacros, usedPotions, persistedMacros, persistedViewingMacros, stageReplays, stageTimelineEntry, nextStage, paths, _h, _j, testSpec2, paths, path, _k, e_24, selectedChallenge, e_25, e_26, persistedMacros, persistedViewingMacros;
+              var sameReplay_1, stage, gameSpec, boxedRelicIDs_1, startingBuffer, _g, score, potionsRemaining, history_1, macros, viewingMacros, usedPotions, persistedMacros, persistedViewingMacros, stageReplays, stageTimelineEntry, nextStage, paths, _h, _j, testSpec2, paths, path, _k, e_24, selectedChallenge, e_25, e_26, persistedMacros, persistedViewingMacros;
               var e_27, _l;
               return __generator3(this, function(_m) {
                 switch (_m.label) {
@@ -6723,6 +6723,19 @@
                     };
                     stage = state.data.stage;
                     gameSpec = makeSpec(state, state.data.challenges[0]);
+                    boxedRelicIDs_1 = new Set(state.data.relics.filter(function(relic) {
+                      var _a2;
+                      return ((_a2 = relic.spec.persistence) === null || _a2 === void 0 ? void 0 : _a2.kind) === "cardInABoxRelic";
+                    }).map(function(relic) {
+                      return relic.id;
+                    }));
+                    if (boxedRelicIDs_1.size > 0) {
+                      state.update({
+                        relics: state.data.relics.filter(function(relic) {
+                          return !boxedRelicIDs_1.has(relic.id);
+                        })
+                      });
+                    }
                     startingBuffer = state.data.buffer;
                     return [4, state.ui.playGame(gameSpec, state.data.gameHistory, state.data.gameRedo, state.global.macros, state.global.viewingMacros, function(progress) {
                       if (!sameReplay_1(state.data.gameHistory, progress.history) || !sameReplay_1(state.data.gameRedo, progress.redo)) {
@@ -16308,7 +16321,12 @@
     };
     throw new TypeError(s ? "Object is not iterable." : "Symbol.iterator is not defined.");
   };
-  var test = null;
+  var test = {
+    rewards: [
+      [1, ["relic", giftBox]]
+    ],
+    challenges: []
+  };
   var SAVE_STORAGE_KEY = "roguelike.ongoingSaves.v1";
   var MAX_LAUNCHER_SAVES = 10;
   var summaryMetaUI = {
