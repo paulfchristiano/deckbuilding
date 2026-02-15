@@ -66,14 +66,11 @@ function chargeUpTo(max: number): Effect {
 const frontierName = 'Frontier'
 const frontier: CardSpec = {
     name: frontierName,
-    simpleText: [
-        `+1 vp.`,
-        `The vp gain increases by 1vp each time you play it.`,
-    ],
     fixedCost: energy(1),
     buyCost: coin(6),
     effects: [{
         text: ['+1 vp per charge token on this.'],
+        simpleText: [`+X vp`],
         transform: (state, card) => gainPoints(state.find(card).charge, card)
     }, chargeEffect()],
     staticReplacers: [startsWithCharge(frontierName, 1)]
@@ -95,17 +92,14 @@ export const gardens: CardSpec = {
 
 const territoryName = 'Territory'
 export const territory: CardSpec = {
-    simpleText: [
-        `+1 vp.`,
-        `Leave this in your hand when you play it.`
-    ],
     name: territoryName,
     buyCost: coin(10),
     fixedCost: energy(1),
     effects: [pointsEffect(1)],
     staticReplacers: [{
         kind: 'move',
-        text: `When you play a ${territoryName} from your hand, leave it there.`,
+        text: [`When you play a ${territoryName} from your hand, leave it there.`],
+        simpleText: [`Leave this in your hand when you play it.`],
         handles: p => p.card.name == territoryName && p.toZone == 'resolving' && p.fromZone == 'hand',
         replace: p => ({ ...p, skip: true })
     }]
@@ -113,13 +107,13 @@ export const territory: CardSpec = {
 
 const farmlandName = 'Farmland'
 export const farmland: CardSpec = {
-    simpleText: [`+1 vp if you played this the normal way from your hand.`],
     name: farmlandName,
     fixedCost: energy(3),
     buyCost: coin(8),
     staticTriggers: [{
         kind: 'play',
-        text: `Whenever you play a ${farmlandName} the normal way, +1 vp.`,
+        text: [`Whenever you play a ${farmlandName} the normal way, +1 vp.`],
+        simpleText: [`+1 vp if you played this the normal way (paying its cost from your hand).`],
         handles: e => e.source == 'act' && e.card.name == farmlandName,
         transform: (e, s, c) => gainPoints(1, c)
     }],
@@ -137,7 +131,7 @@ export const duke: CardSpec = {
     buyCost: coin(4),
     effects: [],
     triggers: [{
-        text: `Whenever you play ${a(duchy.name)}, +1 vp.`,
+        text: [`Whenever you play ${a(duchy.name)}, +1 vp.`],
         kind: 'play',
         handles: e => e.card.name == duchy.name,
         transform: (e, state, card) => gainPoints(1, card)
@@ -159,7 +153,7 @@ export const thoroughfare: CardSpec = {
     restrictions: [cannotUse],
     staticTriggers: [{
         kind: 'play',
-        text: `Whenever you play a card, +1 vp.`,
+        text: [`Whenever you play a card, +1 vp.`],
         handles: () => true,
         transform: (e, state, card) => gainPoints(1, card)
     }]
@@ -172,7 +166,7 @@ export const foundation: CardSpec = {
     restrictions: [cannotUse],
     staticTriggers: [{
         kind: 'buy',
-        text: `Whenever you buy a card other than ${copper.name}, +1 vp.`,
+        text: [`Whenever you buy a card other than ${copper.name}, +1 vp.`],
         handles: (e, state) => {
             return e.card.name != copper.name
         },

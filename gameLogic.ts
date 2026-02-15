@@ -18,6 +18,10 @@ export interface CardSpec {
     simpleText?: string[]; // Short description for card selector/deck view (one line per array element)
     isPotion?: boolean; // If true, trash after playing
     rules?: Rule[]; // Rules this card references (for tooltip display)
+    simpleRules?: Rule[]; // Optional rules used only in simple display text
+    // Meta-game text entries (typed concretely in metaLogic.ts)
+    metaReplacers?: { text: string[]; simpleText?: string[] }[];
+    metaTriggers?: { text: string[]; simpleText?: string[] }[];
     persistence?: {
         kind: 'cardInABoxRelic' | 'bottledCardPotion' | 'bottledEventPotion'
         useUnderlyingEvent?: boolean
@@ -64,6 +68,51 @@ export function displayName(spec: CardSpec): string {
 
 export function cardSpecEffects(spec: CardSpec): Effect[] {
     return appendUpgrades(spec.effects, spec.upgrades, upgrade => upgrade.effects)
+}
+
+export function cardSpecSimpleLines(spec: CardSpec): string[] {
+    const lines: string[] = []
+    if (spec.simpleText !== undefined) {
+        lines.push(...spec.simpleText)
+    }
+    for (const restriction of (spec.restrictions || [])) {
+        const restrictionLines = restriction.simpleText !== undefined ? restriction.simpleText : restriction.text
+        if (restrictionLines !== undefined) lines.push(...restrictionLines)
+    }
+    for (const effect of cardSpecEffects(spec)) {
+        lines.push(...(effect.simpleText ?? effect.text))
+    }
+    for (const abilityEffect of (spec.ability || [])) {
+        lines.push(...(abilityEffect.simpleText ?? abilityEffect.text))
+    }
+    for (const trigger of cardSpecTriggers(spec)) {
+        lines.push(...(trigger.simpleText ?? trigger.text))
+    }
+    for (const replacer of cardSpecReplacers(spec)) {
+        lines.push(...(replacer.simpleText ?? replacer.text))
+    }
+    for (const trigger of cardSpecStaticTriggers(spec)) {
+        lines.push(...(trigger.simpleText ?? trigger.text))
+    }
+    for (const replacer of cardSpecStaticReplacers(spec)) {
+        lines.push(...(replacer.simpleText ?? replacer.text))
+    }
+    const simpleRules = spec.simpleRules !== undefined ? spec.simpleRules : (spec.rules || [])
+    for (const rule of simpleRules) {
+        for (const trigger of (rule.triggers || [])) {
+            lines.push(...(trigger.simpleText ?? trigger.text))
+        }
+        for (const replacer of (rule.replacers || [])) {
+            lines.push(...(replacer.simpleText ?? replacer.text))
+        }
+    }
+    for (const metaReplacer of (spec.metaReplacers || [])) {
+        lines.push(...(metaReplacer.simpleText ?? metaReplacer.text))
+    }
+    for (const metaTrigger of (spec.metaTriggers || [])) {
+        lines.push(...(metaTrigger.simpleText ?? metaTrigger.text))
+    }
+    return lines
 }
 
 export function cardSpecTriggers(spec: CardSpec): TypedTrigger[] {
@@ -125,29 +174,33 @@ export const free:Cost = {coin:0, energy:0, actions:0, buys:0, effects: [], test
 export type ActionKind = 'play' | 'use' | 'buy' | 'activate' | 'potion'
 
 interface Restriction {
-    text?: string;
+    text?: string[];
+    simpleText?: string[];
     test: (card:Card, state:State, kind:ActionKind) => boolean;
 }
 
 export interface VariableCost {
     calculate: (card:Card, state:State) => Partial<Cost>;
-    text: string;
+    text: string[];
 }
 
 export interface Effect {
     text: string[];
+    simpleText?: string[];
     transform: (s:State, c:Card) => Transform;
 }
 
 export interface Trigger <T extends GameEvent = any> {
-    text: string;
+    text: string[];
+    simpleText?: string[];
     kind: T['kind'];
     handles: (e:T, s:State, source:Card|null) => boolean;
     transform: (e:T, s:State, source:Card|null) => Transform;
 }
 
 export interface Replacer <T extends Params = any, S = Card> {
-    text: string;
+    text: string[];
+    simpleText?: string[];
     kind: T['kind'];
     handles: (p:T, s:State, source:S) => boolean;
     replace: (p:T, s:State, source:S) => T;
@@ -2047,7 +2100,8 @@ core.cards.push(gold)
 export const echoRule: Rule = {
     name: 'Echo',
     replacers: [{
-        text: `Whenever a card with an echo token would move to your hand or discard, trash it instead.`,
+        text: [`Whenever a card with an echo token would move to your hand or discard, trash it instead.`],
+        simpleText: [`Cards with echo tokens are trashed instead of moving to your hand or discard.`],
         kind: 'move',
         handles: (p, state) => state.find(p.card).count('echo') > 0
             && (p.toZone == 'hand' || p.toZone == 'discard'),
@@ -2059,7 +2113,7 @@ registerRule(echoRule)
 export const shelterRule: Rule = {
     name: 'Shelter',
     replacers: [{
-        text: `Whenever a card with a shelter token would leave play, remove a shelter token instead.`,
+        text: [`Whenever a card with a shelter token would leave play, remove a shelter token instead.`],
         kind: 'move',
         handles: (p, state) => state.find(p.card).count('shelter') > 0
             && p.fromZone == 'play' && p.toZone != 'play',
@@ -2079,13 +2133,14 @@ registerRule(shelterRule)
 export const priorityRule: Rule = {
     name: 'Priority',
     replacers: [playReplacer(
-        `Whenever you would create a card in your discard whose supply has a priority token, instead remove a priority token and set the card aside. Then play it if it is still set aside.`,
+        [`Whenever you would create a card in your discard whose supply has a priority token, instead remove a priority token and set the card aside. Then play it if it is still set aside.`],
         (p, s, c) => p.zone == 'discard' && nameHasToken(p.spec, 'priority', s),
         (p, s, c) => applyToTarget(
             t => removeToken(t, 'priority', 1, true),
             'Remove a priority token.',
             state => state.supply.filter(t => t.name == p.spec.name)
-        )
+        ),
+        [`Whenever you create a card in your discard, remove a priority token from its supply to play it immediately.`],
     )]
 }
 registerRule(priorityRule)
@@ -2094,7 +2149,8 @@ registerRule(priorityRule)
 export const reflectRule: Rule = {
     name: 'Reflect',
     triggers: [{
-        text: `After playing a card with a reflect token on it, remove the reflect token and play it again.`,
+        text: [`After playing a card with a reflect token on it other than with this rule, remove the reflect token and play it again.`],
+        simpleText: [`When you play a card with a reflect token on it, remove the token to play it again.`],
         kind: 'afterPlay',
         handles: (e, state, card) => {
             const played: Card = state.find(e.card)
@@ -2153,7 +2209,7 @@ export const hagglerRule: Rule = {
 export const ferryRule: Rule = {
     name: 'Ferry',
     replacers: [{
-        text: `Cards cost $1 less to buy per ferry token on them, but not less than $1.`,
+        text: [`Cards cost $1 less to buy per ferry token on them, but not less than $1.`],
         kind: 'cost',
         handles: (p, state) => p.actionKind == 'buy' && state.find(p.card).count('ferry') > 0,
         replace: (p, state) => ({...p, cost: reducedCost(p.cost, coin(state.find(p.card).count('ferry')), true)})
@@ -2164,9 +2220,10 @@ registerRule(ferryRule)
 export const reductionRule: Rule = {
     name: 'Reduction',
     replacers: [{
-        text: `Cards cost @ less to play for each reduction token on their supply.
+        text: [`Cards cost @ less to play for each reduction token on their supply.
                Whenever this reduces a cost by one or more @,
-               remove that many reduction tokens.`,
+               remove that many reduction tokens.`],
+        simpleText: [`Whenever you play a card with a reduction token on its supply, remove reduction tokens instead of paying @.`],
         kind: 'cost',
         handles: (x, state, _rule) => (x.actionKind == 'play')
             && nameHasToken(x.card, 'reduction', state),
@@ -2197,7 +2254,8 @@ registerRule(reductionRule)
 export const twinRule: Rule = {
     name: 'Twin',
     triggers: [{
-        text: `After playing a card with a twin token other than with this effect, play it again.`,
+        text: [`After playing a card with a twin token other than with this rule, play it again.`],
+        simpleText: [`When you play a card with a twin token on it, play it twice instead.`],
         kind: 'afterPlay',
         handles: (e, state, card) => {
             const played: Card = state.find(e.card)
@@ -2212,13 +2270,14 @@ registerRule(twinRule)
 export const duplicateRule: Rule = {
     name: 'Duplicate',
     triggers: [{
-        text: `After buying a card with a duplicate token on it other than with this effect, remove a duplicate token from it to buy it again.`,
+        text: [`After buying a card with a duplicate token on it other than with this effect, remove a duplicate token from it to buy it again.`],
         kind: 'afterBuy',
         handles: (e, state, card) => {
             const target: Card = state.find(e.card)
             return target.count('duplicate') > 0 && !sourceHasName(e.source, 'Duplicate')
         },
         transform: (e, state, card) => payToDo(removeToken(e.card, 'duplicate'), e.card.buy(duplicateRule)),
+        simpleText: [`After buying a card with a duplicate token on it, remove a duplicate token from it to buy it again.`],
     }]
 }
 registerRule(duplicateRule)
@@ -2343,8 +2402,8 @@ export function discardCost(card:Card): Cost {
 
 export function fragileEcho(t:Token = 'echo'): Replacer<MoveParams> {
     return {
-        text: `Whenever a card with ${a(t)} token would move to your hand or discard,
-               trash it instead.`,
+        text: [`Whenever a card with ${a(t)} token would move to your hand or discard,
+               trash it instead.`],
         kind: 'move',
         handles: (p, state) => state.find(p.card).count(t) > 0
             && (p.toZone == 'hand' || p.toZone == 'discard'),
@@ -2418,13 +2477,14 @@ export function costPer(increment:Partial<Cost>): VariableCost {
         calculate: function(card:Card, state:State) {
             return multiplyCosts(increment, state.find(card).count('cost'))
         },
-        text: extraStr,
+        text: [extraStr],
     }
 }
 
 export function incrementCost(): Effect {
     return {
         text: ['Put a cost token on this.'],
+        simpleText: [`This costs $1 more each time you use it.`],
         transform: (s:State, c:Card) => addToken(c, 'cost')
     }
 }
@@ -2433,9 +2493,10 @@ export function incrementMap<K>(m:Map<K, number>, k:K, n:number): void {
     m.set(k, (m.get(k) || 0) + n)
 }
 
-export function startsWithCharge(name:string, n:number):Replacer<CreateParams> {
+export function startsWithCharge(name:string, n:number, hideSimple:boolean=false):Replacer<CreateParams> {
     return {
-        text: `Each ${name} is created with ${aOrNum(n, 'charge token')} on it.`,
+        text: [`Each ${name} is created with ${aOrNum(n, 'charge token')} on it.`],
+        simpleText: hideSimple ? [] : [`X starts at ${n}.`],
         kind: 'create',
         handles: p => p.spec.name == name,
         replace: function(p:CreateParams) {
@@ -2448,9 +2509,14 @@ export function startsWithCharge(name:string, n:number):Replacer<CreateParams> {
 
 // ----------------------- Uncategorized
 
-export function createInPlayEffect(spec:CardSpec, n:number=1, tokens: Map<Token, number>|null=null): Effect {
+export function createInPlayEffect(
+    spec:CardSpec, n:number=1,
+    tokens: Map<Token, number>|null=null,
+    simpleText?: string[]
+): Effect {
     return {
         text: [`Create ${aOrNum(n, spec.name)} in play.`],
+        simpleText: simpleText,
         transform: () => repeat(create(spec, 'play', (c:Card) => noop, tokens ? tokens : new Map()), n)
     }
 }
@@ -2458,7 +2524,7 @@ export function createInPlayEffect(spec:CardSpec, n:number=1, tokens: Map<Token,
 export function startInPlay(cardName: string): Replacer {
     return {
         kind: 'create',
-        text: `When you would create ${a(cardName)} in your discard, instead create it in play.`,
+        text: [`When you would create ${a(cardName)} in your discard, instead create it in play.`],
         handles: p => p.spec.name == cardName,
         replace: p => ({ ...p, zone: 'play' })
     }
@@ -2548,10 +2614,11 @@ export function buysEffect(n:number): Effect {
 }
 export function buyEffect() { return buysEffect(1) }
 
-export function chargeEffect(n:number=1): Effect {
+export function chargeEffect(simpleText: boolean = true): Effect {
     return {
-        text: [`Put ${aOrNum(n, 'charge token')} on this.`],
-        transform: (s, card) => charge(card, n)
+        text: [`Put a charge token on this.`],
+        simpleText: simpleText ? [`Increase X by 1.`] : [],
+        transform: (s, card) => charge(card, 1)
     }
 }
 
@@ -2560,9 +2627,10 @@ export function chargeEffect(n:number=1): Effect {
 // ------ CORE CREATED CARDS ------
 //
 
-export function trashOnLeavePlay():Replacer<MoveParams> {
+export function trashOnLeavePlay(hideWhenSimple=true):Replacer<MoveParams> {
     return {
-        text: `Whenever this would leave play, trash it.`,
+        text: [`Whenever this would leave play, trash it.`],
+        simpleText: hideWhenSimple ? [] : undefined,
         kind: 'move',
         handles: (x, state, card) => x.card.id == card.id && x.fromZone == 'play',
         replace: x => ({...x, toZone:'void'})
@@ -2571,7 +2639,7 @@ export function trashOnLeavePlay():Replacer<MoveParams> {
 
 export function stayInPlay():Replacer<MoveParams> {
     return {
-        text: `This doesn't move to your hand.`,
+        text: [`This doesn't move to your hand.`],
         kind: 'move',
         handles: (x, state, card) => x.card.id == card.id && x.fromZone == 'play' && x.toZone == 'hand',
         replace: x => ({...x, skip: true})
@@ -2593,7 +2661,8 @@ export const horse:CardSpec = {
 export const villager:CardSpec = {
     name: 'Villager',
     replacers: [{
-        text: `Cards cost @ less to play. Whenever this reduces a cost, trash it.`,
+        text: [`Cards cost @ less to play. Whenever this reduces a cost, trash it.`],
+        simpleText: [`Whenever you would pay @ for a card, trash this instead.`],
         kind: 'cost',
         handles: x => x.actionKind == 'play',
         replace: function(x:CostParams, state:State, card:Card) {
@@ -2610,14 +2679,15 @@ export const villager:CardSpec = {
 }
 
 export function playReplacer<S extends Source>(
-    text:string,
+    text:string[],
     condition: (p: CreateParams, s:State, source:S) => boolean,
-    cost: (p:CreateParams, s:State, source:S) => Transform
+    cost: (p:CreateParams, s:State, source:S) => Transform,
+    simpleText?: string[],
 ): Replacer<CreateParams, S> {
     return {
         kind: 'create',
         text: text,
-        handles: (p, s, source) => (p.zone == 'discard' || p.zone == 'hand') && condition(p, s, source),
+        handles: (p, s, source) => p.zone == 'discard' && condition(p, s, source),
         replace: (p, s, source) => ({...p, zone: 'void', effects: p.effects.concat([
             () => cost(p, s, source),
             t => async function(state) {
@@ -2627,7 +2697,8 @@ export function playReplacer<S extends Source>(
                 }
                 return state
             }
-        ])})
+        ])}),
+        simpleText: simpleText
     }
 }
 
@@ -2635,8 +2706,9 @@ export function playReplacer<S extends Source>(
 export const fair:CardSpec = {
     name: 'Fair',
     replacers: [{
-        text: `Whenever you would create a card in your discard,
-        instead create the card in your hand and trash this.`,
+        text: [`Whenever you would create a card in your discard,
+        instead create the card in your hand and trash this.`],
+        simpleText: [`The next time you create a card in your discard, put it in your hand.`],
         kind: 'create',
         handles: (e, state, card) => e.zone == 'discard'
             && state.find(card).place == 'play',
@@ -2690,7 +2762,7 @@ export function costReduce(
     nonzero:boolean=false,
 ): Replacer<CostParams> {
     return {
-        text: costReduceDescriptor(kind, reduction, nonzero),
+        text: [costReduceDescriptor(kind, reduction, nonzero)],
         kind: 'cost',
         handles: x => x.actionKind == kind,
         replace: function(x:CostParams, state:State) {
@@ -2706,8 +2778,8 @@ export function costReduceNext(
     nonzero:boolean=false
 ): Replacer<CostParams> {
     return {
-        text: costReduceDescriptor(kind, reduction, nonzero) +
-            ' Whenever this reduces a cost, discard it',
+        text: [costReduceDescriptor(kind, reduction, nonzero) +
+            ' Whenever this reduces a cost, discard it'],
         kind: 'cost',
         handles: x => x.actionKind == kind,
         replace: function(x:CostParams, state:State, card:Card) {
@@ -2738,7 +2810,8 @@ export function applyToTarget(
 export function targetedEffect(
     f:(target:Card, card:Card) => Transform,
     text:string,
-    options:(s:State) => Card[]
+    options:(s:State) => Card[],
+    simpleText?: string[]
 ): Effect {
     return {
         text: [text],
@@ -2746,7 +2819,8 @@ export function targetedEffect(
             target => f(target, c),
             text,
             options,
-        )
+        ),
+        simpleText: simpleText
     }
 }
 
@@ -2785,7 +2859,7 @@ export function buyTrigger(effect:Effect): Trigger<BuyEvent> {
         kind: 'buy',
         handles: (e, s, c) => e.card.id == c!.id,
         transform: (e, s, c) => effect.transform(s, c!),
-        text: `When you buy this, ${effect.text.map(lowercaseFirst).join('; then ')}`
+        text: [`When you buy this, ${effect.text.map(lowercaseFirst).join('; then ')}`]
     }
 }
 
@@ -2794,7 +2868,7 @@ export function afterBuyTrigger(effect:Effect): Trigger<AfterBuyEvent> {
         kind: 'afterBuy',
         handles: (e, s, c) => e.card.id == c!.id,
         transform: (e, s, c) => effect.transform(s, c!),
-        text: `After buying this, ${effect.text.map(lowercaseFirst).join('; then ')}`
+        text: [`After buying this, ${effect.text.map(lowercaseFirst).join('; then ')}`]
     }
 }
 
@@ -2867,7 +2941,6 @@ function makeCard(card:CardSpec, cost:Cost, selfdestruct:boolean=false):CardSpec
 // Boons - stage modifiers that affect gameplay
 export interface Boon {
     name: string
-    description: string
     // Signed par adjustment applied additively to base par.
     parAdjustment: number
     cards: CardSpec[]

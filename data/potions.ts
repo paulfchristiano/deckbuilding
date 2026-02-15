@@ -53,7 +53,6 @@ potionRewards.push(potionOfInspiration)
 export const potionOfWealth: CardSpec = {
     name: 'Potion of Wealth',
     isPotion: true,
-    simpleText: ['Double your money and buys.'],
     effects: [{
         text: ['Double your $ and buys.'],
         transform: (state, card) => async function(state) {
@@ -68,7 +67,6 @@ potionRewards.push(potionOfWealth)
 export const potionOfCopper: CardSpec = {
     name: 'Potion of Copper',
     isPotion: true,
-    simpleText: ['Create 8 coppers in your hand.'],
     effects: [{
         text: ['Create 8 Coppers in your hand.'],
         transform: () => repeat(create(copper, 'hand'), 8)
@@ -92,13 +90,13 @@ potionRewards.push(celebratoryBrew)
 
 const bounty: CardSpec = {
     name: 'Bounty',
-    simpleText: ['The next time you buy a card, buy it again.'],
     triggers: [{
-        text: `Whenever you buy a card, discard this to buy the card again.`,
+        text: [`Whenever you buy a card, trash this to buy the card again.`],
+        simpleText: ['The next time you buy a card, buy it again.'],
         kind: 'buy',
         handles: (e, state, card) => state.find(card!).place == 'play',
         transform: (e, state, card) => async function(state) {
-            state = await move(card!, 'discard')(state)
+            state = await trash(card!)(state)
             return e.card.buy(card)(state)
         }
     }],
@@ -108,18 +106,17 @@ const bounty: CardSpec = {
 export const potionOfBounty: CardSpec = {
     name: 'Potion of Bounty',
     isPotion: true,
-    simpleText: ['The next time you buy a card, buy it three more times for free.'],
     relatedCards: [bounty],
-    effects: [createInPlayEffect(bounty,3)]
+    effects: [createInPlayEffect(bounty,3, null, ['The next time you buy a card, buy it three more times for free.'])]
 }
 potionRewards.push(potionOfBounty)
 
 export const potionOfTransformation: CardSpec = {
     name: 'Potion of Transformation',
     isPotion: true,
-    simpleText: ['Trash any number of cards in your hand. For each one, buy a card costing up to double its cost.'],
     effects: [{
-        text: ['Repeat this any number of times: trash a card in your hand that was there at the start of this process, then buy a card costing up to double its cost.'],
+        text: ['Repeat this any number of times: trash a card in your hand that was there at the start of this process, then choose a card in the supply costing up to double its cost and create a copy in your hand.'],
+        simpleText: ['Trash any number of cards in your hand. For each one, create a card in your hand with up to double the cost.'],
         transform: (state, card) => async function(state) {
             const options = asNumberedChoices(state.hand)
             while (true) {
@@ -150,9 +147,6 @@ potionRewards.push(potionOfTransformation)
 export const ferryPotion: CardSpec = {
     name: `Ferry Potion`,
     isPotion: true,
-    simpleText: [
-        'Put two ferry tokens on a supply. It costs $2 less.',
-    ],
     rules: [ferryRule],
     effects: [targetedEffect(
         target => addToken(target, 'ferry', 2),
@@ -186,7 +180,7 @@ export const royalNectar: CardSpec = {
             tick(card),
             target.play(card),
         ]),
-        'Choose a card in your hand to play three times.',
+        'Play a card in your hand three times.',
         state => state.hand
     )],
 }
@@ -206,9 +200,9 @@ potionRewards.push(potionOfRecovery)
 
 export const potionOfReuse: CardSpec = {
     name: 'Potion of Reuse',
-    simpleText: ['Play each card in your discard.'],
     isPotion: true,
     effects: [{
+        simpleText: ['Play each card in your discard.'],
         text: [`Repeat any number of times:
                 choose a card in your discard
                 that was also there at the start of this effect.
@@ -238,11 +232,12 @@ potionRewards.push(potionOfReuse)
 export const potionOfFairs: CardSpec = {
     name: 'Potion of Fairs',
     isPotion: true,
-    simpleText: [`Create a ${fair.name} in play with 16 shelter tokens on it (the first 16 times it would leave play, instead remove a shelter token.).`],
+    simpleText: [],
     relatedCards: [fair],
     rules: [shelterRule],
     effects: [
-        createInPlayEffect(fair, 1, new Map([['shelter', 16]])),
+        createInPlayEffect(fair, 1, new Map([['shelter', 16]]),
+        [`Create a ${fair.name} in play with 16 shelter tokens on it.`]),
     ]
 }
 potionRewards.push(potionOfFairs)
@@ -250,10 +245,6 @@ potionRewards.push(potionOfFairs)
 export const potionOfInsight: CardSpec = {
     name: 'Potion of Insight',
     isPotion: true,
-    simpleText: [
-        '+$1, +1 action, +1 buy.',
-        'Create a Fair and a Villager in play.'
-    ],
     relatedCards: [fair, villager],
     effects: [
         coinsEffect(1),
@@ -335,7 +326,6 @@ potionRewards.push(potionOfTransmogrify)
 export const potionOfReflection: CardSpec = {
     name: 'Potion of Reflection',
     isPotion: true,
-    simpleText: ['Put a reflect token on each card in your hand.'],
     rules: [reflectRule],
     effects: [{
         text: ['Put a reflect token on each card in your hand.'],
@@ -348,11 +338,11 @@ potionRewards.push(potionOfReflection)
 export const sanguineElixir: CardSpec = {
     name: 'Sanguine Elixir',
     isPotion: true,
-    simpleText: ['Play any number of cards in your hand.'],
     effects: [{
         text: [`Repeat any number of times: play a card in your hand
             that was also there at the start of this effect
             and that you haven't played yet.`],
+        simpleText: ['Play any number of cards in your hand.'],
         transform: (state, card) => async function(state) {
             const cards: Card[] = state.hand;
             let options: Option<Card>[] = asNumberedChoices(cards)
@@ -378,10 +368,6 @@ potionRewards.push(sanguineElixir)
 export const potionOfPriority: CardSpec = {
     name: 'Potion of Priority',
     isPotion: true,
-    simpleText: [
-        'Put 8 priority tokens on a supply.',
-        'The next 8 times you create a card from it, play it immediately.'
-    ],
     rules: [priorityRule],
     effects: [targetedEffect(
         card => addToken(card, 'priority', 8),
@@ -394,10 +380,6 @@ potionRewards.push(potionOfPriority)
 export const artistsBrew: CardSpec = {
     name: `Artist's Brew`,
     isPotion: true,
-    simpleText: [
-        `Put 8 reduction tokens on a supply.`,
-        `Whenever you play a card with reduction tokens on its supply, remove reduction tokens instead of paying @.`
-    ],
     rules: [reductionRule],
     effects: [targetedEffect(
         card => addToken(card, 'reduction', 8),
@@ -410,10 +392,6 @@ potionRewards.push(artistsBrew)
 export const geminiBrew: CardSpec = {
     name: 'Gemini Brew',
     isPotion: true,
-    simpleText: [
-        'Put a twin token on a card in your hand.',
-        'Whenever you would play it, play it twice instead.'
-    ],
     rules: [twinRule],
     effects: [targetedEffect(
         target => addToken(target, 'twin'),
@@ -422,13 +400,15 @@ export const geminiBrew: CardSpec = {
 }
 potionRewards.push(geminiBrew)
 
+const mirrorBrewName = 'Mirror Brew'
 export const mirrorBrew: CardSpec = {
-    name: 'Mirror Brew',
+    name: mirrorBrewName,
     isPotion: true,
     effects: [{
-        text: ['Choose another potion you have. Create a copy of it and drink it immediately.'],
+        text: [`Choose another potion you have other than ${mirrorBrewName}. Create a copy of it and use it immediately.`],
+        simpleText: [`Copy the effect of another one of your potions.`],
         transform: (state, card) => async function(state) {
-            const otherPotions = state.potions.filter(p => p.id !== card.id)
+            const otherPotions = state.potions.filter(p => p.name !== mirrorBrewName)
             if (otherPotions.length === 0) {
                 return state
             }

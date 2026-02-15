@@ -2,7 +2,7 @@
 // Shared between gameUI and metaUI for consistent card display.
 
 import { CardSpec, Cost, VariableCost, Trigger, Replacer, Rule } from './gameLogic.js'
-import { cardSpecCost, cardSpecEffects, displayName, cardSpecReplacers, cardSpecStaticReplacers, cardSpecStaticTriggers, cardSpecTriggers, relicRewards, renderCost } from './gameLogic.js'
+import { cardSpecCost, cardSpecEffects, cardSpecSimpleLines, displayName, cardSpecReplacers, cardSpecStaticReplacers, cardSpecStaticTriggers, cardSpecTriggers, relicRewards, renderCost } from './gameLogic.js'
 
 // ----------------------------- Helper Functions
 
@@ -14,7 +14,7 @@ function actionCostKindForSpec(spec: CardSpec): 'play' | 'use' {
     return spec.buyCost === undefined ? 'use' : 'play'
 }
 
-type MetaTextEntry = { text: string }
+type MetaTextEntry = { text: string[] }
 type MetaTextSpec = CardSpec & {
     metaReplacers?: MetaTextEntry[]
     metaTriggers?: MetaTextEntry[]
@@ -44,6 +44,11 @@ function renderEffects(spec: CardSpec): string {
     return parts.map(x => `<div>${x}</div>`).join('')
 }
 
+function renderLines(lines: string[], prefix: string | null = null): string {
+    if (prefix === null) return lines.map(line => `<div>${line}</div>`).join('')
+    return lines.map(line => `<div>${prefix} ${line}</div>`).join('')
+}
+
 function renderAbility(spec: CardSpec, plain: boolean): string {
     const parts: string[] = []
     for (const effect of spec.ability || []) {
@@ -53,28 +58,39 @@ function renderAbility(spec: CardSpec, plain: boolean): string {
 }
 
 function renderTrigger(x: Trigger | Replacer, staticTrigger: boolean, plain: boolean): string {
-    if (plain) return `<div>${x.text}</div>`
+    if (plain) return renderLines(x.text)
     const desc = staticTrigger ? '(static)' : '(effect)'
-    return `<div>${desc} ${x.text}</div>`
+    return renderLines(x.text, desc)
 }
 
 function renderVariableCosts(cs: VariableCost[], plain: boolean): string {
-    return cs.map(c => plain ? `<div>+${c.text}</div>` : `<div>(cost) +${c.text}</div>`).join('')
+    const parts: string[] = []
+    for (const variableCost of cs) {
+        for (const line of variableCost.text) {
+            parts.push(plain ? `<div>+${line}</div>` : `<div>(cost) +${line}</div>`)
+        }
+    }
+    return parts.join('')
 }
 
-function renderBuyable(bs: { text?: string }[], plain: boolean): string {
-    return bs.map(
-        b => b.text === undefined ? '' : (plain ? `<div>${b.text}</div>` : `<div>(req) ${b.text}</div>`)
-    ).join('')
+function renderBuyable(bs: { text?: string[] }[], plain: boolean): string {
+    const parts: string[] = []
+    for (const restriction of bs) {
+        if (restriction.text === undefined) continue
+        for (const line of restriction.text) {
+            parts.push(plain ? `<div>${line}</div>` : `<div>(req) ${line}</div>`)
+        }
+    }
+    return parts.join('')
 }
 
 function renderRuleText(rule: Rule, plain: boolean): string {
     const parts: string[] = []
     for (const trigger of (rule.triggers || [])) {
-        parts.push(plain ? `<div>${trigger.text}</div>` : `<div>(rule) ${trigger.text}</div>`)
+        parts.push(plain ? renderLines(trigger.text) : renderLines(trigger.text, '(rule)'))
     }
     for (const replacer of (rule.replacers || [])) {
-        parts.push(plain ? `<div>${replacer.text}</div>` : `<div>(rule) ${replacer.text}</div>`)
+        parts.push(plain ? renderLines(replacer.text) : renderLines(replacer.text, '(rule)'))
     }
     return parts.join('')
 }
@@ -83,10 +99,10 @@ function renderMetaText(spec: CardSpec, plain: boolean): string {
     const x = asMetaTextSpec(spec)
     const parts: string[] = []
     for (const replacer of (x.metaReplacers || [])) {
-        parts.push(plain ? `<div>${replacer.text}</div>` : `<div>(meta) ${replacer.text}</div>`)
+        parts.push(plain ? renderLines(replacer.text) : renderLines(replacer.text, '(meta)'))
     }
     for (const trigger of (x.metaTriggers || [])) {
-        parts.push(plain ? `<div>${trigger.text}</div>` : `<div>(meta) ${trigger.text}</div>`)
+        parts.push(plain ? renderLines(trigger.text) : renderLines(trigger.text, '(meta)'))
     }
     return parts.join('')
 }
@@ -115,9 +131,7 @@ export function cardText(spec: CardSpec): string {
 // ----------------------------- Spec Rendering
 
 function renderSpecSimpleBody(spec: CardSpec): string {
-    return (spec.simpleText && (spec.upgrades || []).length === 0)
-        ? spec.simpleText.map(line => `<div>${line}</div>`).join('')
-        : cardText(spec)
+    return cardSpecSimpleLines(spec).map(line => `<div>${line}</div>`).join('')
 }
 
 function buildSimpleTooltipForSingleSpec(spec: CardSpec): string {
@@ -153,7 +167,8 @@ export function buildSpecTooltipSimple(spec: CardSpec): string {
 }
 
 export function buildSpecTooltipOnlyRelatedSimple(spec: CardSpec): string {
-    const rules = (spec.rules || []).map(rule => renderRuleText(rule, false)).join('')
+    const simpleRules = spec.simpleRules !== undefined ? spec.simpleRules : (spec.rules || [])
+    const rules = simpleRules.map(rule => renderRuleText(rule, false)).join('')
     const related = (spec.relatedCards || []).map(buildSimpleTooltipForSingleSpec).join('')
     return `${rules}${related}`
 }
@@ -173,9 +188,7 @@ export function renderSpecNoRelated(spec: CardSpec, tooltipMode: SpecTooltipMode
     const displayText = renderSpecSimpleBody(spec)
 
     const hasRelatedCards = (spec.relatedCards || []).length > 0
-    const hasRelatedRules = (spec.rules || []).length > 0
-    const hasRelatedContent = hasRelatedCards || hasRelatedRules
-    if (tooltipMode === 'onlyRelated' && hasRelatedContent) {
+    if (tooltipMode === 'onlyRelated' && hasRelatedCards) {
         const tooltipSimple = buildSpecTooltipOnlyRelatedSimple(spec)
         const tooltipFull = buildSpecTooltipFull(spec)
         return `<div class='spec has-related-only'>${header}${displayText}<span class='tooltip tooltip-simple'>${tooltipSimple}</span><span class='tooltip tooltip-full'>${tooltipFull}</span></div>`

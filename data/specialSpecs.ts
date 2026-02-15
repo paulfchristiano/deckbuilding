@@ -11,7 +11,7 @@ export function makeCardInABoxRelic(spec: CardSpec): RelicSpec {
         ],
         triggers: [{
             kind: 'beforeStart',
-            text: `At the start of the game, create a copy of ${cardName} in your hand, then trash this.`,
+            text: [`At the start of the game, create a copy of ${cardName} in your hand, then trash this.`],
             handles: (_e, _s, sourceCard) => sourceCard !== null,
             transform: (_e, _s, sourceCard) => async function (state: State) {
                 state = await create(spec, 'hand')(state)

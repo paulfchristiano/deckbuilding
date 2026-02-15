@@ -399,10 +399,10 @@ export interface PathRewardParams {
 
 // TODO: render relics appropriately when you hold shift etc.
 export type MetaReplacer =
-    | { kind: 'gameSetup', text: string, replace: (params: GameSetupParams, state: MetaState, self: Relic) => GameSetupParams }
-    | { kind: 'reward', text: string, replace: (params: RewardParams, state: MetaState, self: Relic) => RewardParams }
-    | { kind: 'extraOptions', text: string, replace: (params: ExtraOptionsParams, state: MetaState, self: Relic) => ExtraOptionsParams }
-    | { kind: 'pathRewards', text: string, replace: (params: PathRewardParams, state: MetaState, self: Relic) => PathRewardParams }
+    | { kind: 'gameSetup', text: string[], simpleText?: string[], replace: (params: GameSetupParams, state: MetaState, self: Relic) => GameSetupParams }
+    | { kind: 'reward', text: string[], simpleText?: string[], replace: (params: RewardParams, state: MetaState, self: Relic) => RewardParams }
+    | { kind: 'extraOptions', text: string[], simpleText?: string[], replace: (params: ExtraOptionsParams, state: MetaState, self: Relic) => ExtraOptionsParams }
+    | { kind: 'pathRewards', text: string[], simpleText?: string[], replace: (params: PathRewardParams, state: MetaState, self: Relic) => PathRewardParams }
 
 // Meta trigger event types
 export interface CourseEndEvent {
@@ -446,7 +446,8 @@ export type MetaGameEvent = CourseEndEvent | CourseStartEvent | PathGenerationEv
 
 export interface MetaTrigger<T extends MetaGameEvent> {
     kind: T['kind'];
-    text: string;
+    text: string[];
+    simpleText?: string[];
     handles: (e:T, s:MetaState, self:Relic) => boolean;
     transform: (e:T, s:MetaState, self:Relic) => MetaTransform;
 }

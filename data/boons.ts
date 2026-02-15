@@ -22,25 +22,21 @@ import { doAll, Boon, boons,
     Token,
     removeToken,
     incrementCost,
-    move
+    move,
+    duplicateRule
 } from '../gameLogic.js'
 
 const escalate:CardSpec = {name: 'Escalate',
     fixedCost: free,
-    simpleText: [
-        `Use Refresh.`,
-        `The cost of this event doubles each time you use it.`
-    ],
     variableCosts: [costPer(coin(1))],
-    effects: [
-        {
+    effects: [useRefresh(), {
             text: ['Double the number of cost tokens on this.'],
+            simpleText: ['The cost of this event doubles each time you use it.'],
             transform: (s:State, c:Card) => addToken(c, 'cost', s.find(c).tokens.get('cost'))
         },
-        useRefresh()
     ],
     staticTriggers: [{
-        text: 'At the start of the game put a charge token on this.',
+        text: ['At the start of the game put a charge token on this.'],
         kind: 'afterStart',
         handles: () => true,
         transform: (e, s, c) => addToken(c!, 'cost')
@@ -48,7 +44,6 @@ const escalate:CardSpec = {name: 'Escalate',
 }
 boons.push({
         name: 'Escalate',
-        description: 'Add Escalate as an event',
         parAdjustment: -9,
         cards: [],
         events: [escalate],
@@ -56,16 +51,11 @@ boons.push({
 
 const travelingFair:CardSpec = {name:'Traveling Fair',
     fixedCost: coin(1),
-    simpleText: [
-        '+1 buy.',
-        'Create a Fair in play.'
-    ],
     effects: [buyEffect(), createInPlayEffect(fair)],
     relatedCards: [fair],
 }
 boons.push(    {
         name: 'Traveling Fair',
-        description: 'Add Traveling Fair as an event (no scaling cost)',
         parAdjustment: 0,
         cards: [],
         events: [travelingFair],
@@ -74,7 +64,7 @@ boons.push(    {
 const vault:CardSpec = {name: 'Vault',
     restrictions: [cannotUse],
     staticReplacers: [{
-        text: `You can't lose actions, $, or buys (other than by paying costs).`,
+        text: [`You can't lose actions, $, or buys (other than by paying costs).`],
         kind: 'resource',
         handles: p => p.amount < 0 && (
             p.resource == 'coin' ||
@@ -86,7 +76,6 @@ const vault:CardSpec = {name: 'Vault',
 }
 boons.push({
     name: 'Vault',
-    description: 'Add Vault as an event',
     parAdjustment: 3,
     cards: [],
     events: [vault],
@@ -103,7 +92,7 @@ const logistics:CardSpec = {
         transform: s => doAll(s.events.map(e => addToken(e, 'logistics')))
     }],
     staticReplacers: [{
-        text: `Events cost @ less for each logistics token on them, but ${refresh.name} can't cost 0. Whenever this reduces a cost, remove a logistics token.`,
+        text: [`Events cost @ less for each logistics token on them, but ${refresh.name} can't cost 0. Whenever this reduces a cost, remove a logistics token.`],
         kind: 'cost',
         handles: p => (p.actionKind == 'use' && p.card.count('logistics') > 0),
         replace: (p, state) => {
@@ -119,7 +108,6 @@ const logistics:CardSpec = {
 }
 boons.push({
     name: 'Logistics',
-    description: 'Add Logistics as a card',
     parAdjustment: -1,
     cards: [logistics],
     events: [],
@@ -153,10 +141,9 @@ boons.push({
 const populate:CardSpec = {name: 'Populate',
     fixedCost: free,
     restrictions: [cannotUse],
-    simpleText: ['At the start of the game, buy every card in the supply.'],
     staticTriggers: [{
         kind: 'afterStart',
-        text: 'At the start of the game, buy every card in the supply.',
+        text: ['At the start of the game, buy every card in the supply.'],
         handles: () => true,
         transform: (e, state, card) => async function(state) {
             for (const supplyCard of state.supply) {
@@ -168,7 +155,6 @@ const populate:CardSpec = {name: 'Populate',
 }
 boons.push(   {
     name: 'Populate',
-    description: 'Buy all cards at the start of the game.',
     parAdjustment: -9,
     cards: [],
     events: [populate],
@@ -178,10 +164,6 @@ import { multitargetedEffect } from '../gameLogic.js'
 
 const recover:CardSpec = {
     name: 'Recover',
-    simpleText: [
-        `Put up to two cards from your discard into your hand.`,
-        `This costs $1 more each time you use it.`
-    ],
     fixedCost: coin(1),
     variableCosts: [costPer(coin(1))],
     effects: [multitargetedEffect(
@@ -193,7 +175,6 @@ const recover:CardSpec = {
 }
 boons.push({
     name: 'Recover',
-    description: 'Add Recover as an event',
     parAdjustment: -1,
     cards: [],
     events: [recover],
@@ -205,7 +186,6 @@ const recycle:CardSpec = {name: 'Recycle',
 }
 boons.push(    {
         name: 'Recycle',
-        description: 'Add Recycle as an event',
         parAdjustment: -4,
         cards: [],
         events: [recycle],
@@ -214,18 +194,16 @@ boons.push(    {
 const flourishName = 'Flourish'
 const flourish:CardSpec = {name: flourishName,
     fixedCost: free,
-    simpleText: [
-        `Once you have 1/16 of the vp requirement, you can use this to Refresh for free.`,
-        `You can repeat once you reach 1/8, 1/4, and 1/2 of the requirement.`
-    ],
     restrictions: [{
-        text: 'You cannot use this if your score times the number of charge tokens on this is less than the vp goal.',
+        text: ['You cannot use this if your score times the number of charge tokens on this is less than the vp goal.'],
+        simpleText: [`You cannot use this unless you have 1/16 of the points needed to win.`],
         test: (card, state) => state.points * state.find(card).charge < state.vp_goal
     }],
     effects: [
         useRefresh(),
         {
             text: ['Remove half of the charge tokens from this (rounded down).'],
+            simpleText: [`The vp requirement doubles each time you use this event.`],
             transform: (s:State, c:Card) => {
                 const currentCharge = s.find(c).charge
                 const toRemove = Math.floor(currentCharge / 2)
@@ -235,14 +213,14 @@ const flourish:CardSpec = {name: flourishName,
     ],
     staticTriggers: [{
         kind: 'afterStart',
-        text: 'At the start of the game, put 16 charge tokens on this.',
+        text: ['At the start of the game, put 16 charge tokens on this.'],
+        simpleText: [],
         handles: () => true,
         transform: (e, state, card) => charge(card!, 16)
     }]
 }
 boons.push(    {
         name: 'Flourish',
-        description: 'Add Flourish as an event',
         parAdjustment: -6,
         cards: [],
         events: [flourish],
@@ -252,7 +230,7 @@ const publicWorks:CardSpec = {name: 'Public Works',
     buyCost: coin(6),
     effects: [],
     replacers: [{
-        text: `Events cost @ less, but ${refresh.name} can't cost 0. Whenever this reduces a cost, discard it.`,
+        text: [`Events cost @ less, but ${refresh.name} can't cost 0. Whenever this reduces a cost, discard it.`],
         kind: 'cost',
         handles: p => (p.actionKind == 'use'),
         replace: (p, state, pworks) => {
@@ -269,7 +247,6 @@ const publicWorks:CardSpec = {name: 'Public Works',
 }
 boons.push({
         name: 'Public Works',
-        description: 'Add Public Works as a card',
         parAdjustment: -2,
         cards: [publicWorks],
         events: [],
@@ -278,16 +255,16 @@ boons.push({
 const reuse:CardSpec = {
     name: 'Reuse',
     fixedCost: energy(1),
-    simpleText: [
-        `Play any number of cards in your discard that don't have a reuse token on them.`,
-        `Put a reuse token on each card played this way.`
-    ],
     effects: [{
         text: [`Repeat any number of times:
                 choose a card in your discard without a reuse token
                 that was also there at the start of this effect.
                 Play it then put a reuse token on it.`],
-            transform: (state, card) => async function(state) {
+        simpleText: [
+            `Play any number of cards in your discard that don't have a reuse token on them.`,
+            `Put a reuse token on each card played this way.`
+        ],
+        transform: (state, card) => async function(state) {
             const cards:Card[] = state.discard.filter(c => c.count('reuse') == 0)
             let options:Option<Card>[] = asNumberedChoices(cards)
             while (true) {
@@ -310,7 +287,6 @@ const reuse:CardSpec = {
 }
 boons.push(    {
         name: 'Reuse',
-        description: 'Add Reuse as an event',
         parAdjustment: -4,
         cards: [],
         events: [reuse],
@@ -318,10 +294,6 @@ boons.push(    {
 
 
 const prioritize:CardSpec = {
-    simpleText: [
-        `Choose a supply.`,
-        `The next 8 times you create a card from that supply, play it immediately.`
-    ],
     name: 'Prioritize',
     fixedCost: {...free, energy:1, coin:3},
     effects: [targetedEffect(
@@ -333,7 +305,6 @@ const prioritize:CardSpec = {
 }
 boons.push(   {
         name: 'Prioritize',
-        description: 'Add Prioritize as an event',
         parAdjustment: -2,
         cards: [],
         events: [prioritize],
@@ -348,8 +319,8 @@ const composting:CardSpec = {
     effects: [],
     triggers: [{
         kind: 'cost',
-        text: `Whenever you pay @,
-        you may put a card from your discard into your hand.`,
+        text: [`Whenever you pay @,
+        you may put a card from your discard into your hand.`],
         handles: e => e.cost.energy > 0,
         transform: e => async function(state) {
             const n = e.cost.energy;
@@ -361,7 +332,7 @@ const composting:CardSpec = {
     }],
     replacers: [{
         kind: 'move',
-        text: `Whenever Composting would move to your hand, instead leave it in play.`,
+        text: [`Whenever Composting would move to your hand, instead leave it in play.`],
         handles: (p, s, c) => p.toZone == 'hand' && p.card.id == c.id,
         replace: p => ({ ...p, skip: true})
     }],
@@ -369,7 +340,6 @@ const composting:CardSpec = {
 }
 boons.push({
         name: 'Composting',
-        description: 'Add Composting as a card',
         parAdjustment: 0,
         cards: [composting],
         events: [],
@@ -379,10 +349,6 @@ boons.push({
 const insight:CardSpec = {
     name: 'Insight',
     fixedCost: energy(1),
-    simpleText: [
-        '+1 action, +1 buy, +$1.',
-        'Create a Villager and a Fair in play.'
-    ],
     relatedCards: [villager, fair],
     effects: [
         actionsEffect(1),
@@ -394,7 +360,6 @@ const insight:CardSpec = {
 }
 boons.push(    {
         name: 'Insight',
-        description: 'Add Insight as an event',
         parAdjustment: 0,
         cards: [],
         events: [insight],
@@ -403,18 +368,16 @@ boons.push(    {
 const windfall:CardSpec = {
     name: 'Windfall',
     fixedCost: free,
-    simpleText: ['At the start of the game, +$15 and +5 buys.'],
     restrictions: [cannotUse],
     staticTriggers: [{
         kind: 'afterStart',
-        text: 'At the start of the game, +$15 and +5 buys.',
+        text: ['At the start of the game, +$15 and +5 buys.'],
         handles: () => true,
         transform: (e, state, card) => doAll([gainCoins(15, card), gainBuys(5, card)])
     }]
 }
 boons.push({
         name: 'Windfall',
-        description: 'Gain $15 and 5 buys at the start of the game',
         parAdjustment: -7,
         cards: [],
         events: [windfall],
@@ -423,11 +386,11 @@ boons.push({
 const duplicateStart:CardSpec = {
     name: 'Duplication',
     fixedCost: free,
-    simpleText: ['At the start of the game, put a duplicate token on each card in the supply.'],
     restrictions: [cannotUse],
     staticTriggers: [{
         kind: 'afterStart',
-        text: 'At the start of the game, put a duplicate token on each card in the supply.',
+        text: ['At the start of the game, put a duplicate token on each card in the supply.'],
+        simpleText: [`The first time you buy each card, buy it again.`],
         handles: () => true,
         transform: (e, state, card) => async function(state) {
             for (const supply of state.supply) {
@@ -435,11 +398,12 @@ const duplicateStart:CardSpec = {
             }
             return state
         }
-    }]
+    }],
+    rules: [duplicateRule],
+    simpleRules: [],
 }
 boons.push({
         name: 'Duplication',
-        description: 'Start with a duplicate token on each supply.',
         parAdjustment: 0,
         cards: [],
         events: [duplicateStart],

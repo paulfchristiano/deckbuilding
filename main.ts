@@ -20,12 +20,12 @@ import { renderSpecNoRelated } from './cardRendering.js'
 import { Card, CardSpec, UndoPastBeginning } from './gameLogic.js'
 
 import type { DebugTestConfig } from './metaLogic.js'
+import { fairyGold } from './data/cards.js'
 import { piggyBank, singingBowl, lookingGlass } from './data/relics.js'
 
 let test: DebugTestConfig | null = {
     rewards: [
-        [1, ['relic', lookingGlass]],
-        [1, ['relic', lookingGlass]],
+        [1, ['card', fairyGold]],
     ],
     challenges: []
 }

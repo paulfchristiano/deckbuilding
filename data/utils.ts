@@ -55,7 +55,7 @@ export function literalOptions(xs: string[], keys: Key[]): Option<string>[] {
 // Trigger that trashes card when it leaves play
 export function fragile(card: Card): Trigger<MoveEvent> {
     return {
-        text: 'Whenever this leaves play, trash it.',
+        text: ['Whenever this leaves play, trash it.'],
         kind: 'move',
         handles: x => x.card.id == card.id,
         transform: x => trash(x.card)
@@ -65,7 +65,7 @@ export function fragile(card: Card): Trigger<MoveEvent> {
 // Replacer that keeps card in play
 export function robust(card: Card): Replacer<MoveParams> {
     return {
-        text: 'Whenever this would move, leave it in play instead.',
+        text: ['Whenever this would move, leave it in play instead.'],
         kind: 'move',
         handles: x => (x.card.id == card.id && x.toZone != null && x.fromZone == 'play'),
         replace: x => ({ ...x, skip: true })

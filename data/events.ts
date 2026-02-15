@@ -62,11 +62,11 @@ eventRewards.push(hallOfMirrors)
 const volley:CardSpec = {
     name: 'Volley',
     fixedCost: energy(1),
-    simpleText: [`Play then trash any number of cards in your hand.`],
     effects: [{
         text: [`Repeat any number of times:
         play then trash a card in your hand that was also there
         at the start of this effect and that you haven't played yet.`],
+        simpleText: [`Play then trash any number of cards in your hand.`], 
         transform: (state, card) => async function(state) {
             const cards:Card[] = state.hand;
             let options:Option<Card>[] = asNumberedChoices(cards)
@@ -90,18 +90,16 @@ eventRewards.push(volley)
 
 const parallelize:CardSpec = {name: 'Parallelize',
     fixedCost: {...free, coin:1, energy:1},
-    simpleText: [
-        `Put a parallelize token on each card in your hand.`,
-        `Cards cost @ less to play for each parallelize token on them.`
-    ],
     effects: [{
         text: [`Put a parallelize token on each card in your hand.`],
+        simpleText: [`Put a parallelize token on each card in your hand. They cost @ less the next time you play them.`],
         transform: state => doAll(state.hand.map(c => addToken(c, 'parallelize')))
     }],
     staticReplacers: [{
-        text: `Cards cost @ less to play for each parallelize token on them.
+        text: [`Cards cost @ less to play for each parallelize token on them.
             Whenever this reduces a card's cost by one or more @,
-            remove that many parallelize tokens from it.`,
+            remove that many parallelize tokens from it.`],
+        simpleText: [], // Already described under the first effect.
         kind: 'cost',
         handles: (x, state, card) => x.actionKind == 'play'&& x.card.count('parallelize') > 0,
         replace: (x, state, card) => {
@@ -133,13 +131,14 @@ const finance:CardSpec = {name: 'Finance',
 eventRewards.push(finance)
 
 export const duplicate:CardSpec = {name: 'Duplicate',
-    simpleText: [`For each card in the supply, the next time you buy that card buy it again for free.`],
     fixedCost: {...free, coin:3, energy:1},
     effects: [{
         text: [`Put a duplicate token on each card in the supply.`],
+        simpleText: [`For each card in the supply, the next time you buy that card buy it again for free.`],
         transform: (state, card) => doAll(state.supply.map(c => addToken(c, 'duplicate')))
     }],
     rules: [duplicateRule],
+    simpleRules: [],
 }
 eventRewards.push(duplicate)
 
@@ -152,10 +151,6 @@ eventRewards.push(toil)
 
 const twin:CardSpec = {name: 'Twin',
     fixedCost: {...free, energy:1, coin:3},
-    simpleText: [
-        `Put a twin token on a card in your hand.`,
-        `Whenever you would play it, play it twice instead.`
-    ],
     effects: [targetedEffect(
         target => addToken(target, 'twin'),
         'Put a twin token on a card in your hand.',
@@ -165,36 +160,37 @@ const twin:CardSpec = {name: 'Twin',
 eventRewards.push(twin)
 
 const expedite: CardSpec = {
-    simpleText: [`The next time you create a card, play it immediately.`],
     name: 'Expedite',
     fixedCost: energy(1),
-    effects: [chargeEffect()],
+    effects: [chargeEffect(false)],
     staticReplacers: [playReplacer(
-        `Whenever you would create a card in your discard,
+        [`Whenever you would create a card in your discard,
             if this has a charge token then instead
             remove a charge token to set the card aside.
-            Then play it if it is set aside.`,
+            Then play it if it is set aside.`],
         (p, s, c) => s.find(c).charge > 0,
-        (p, s, c) => charge(c, -1)
+        (p, s, c) => charge(c, -1),
+        [`The next time you create a card, play it immediately.`],
     )]
 }
 eventRewards.push(expedite)
 
-function removeAllSupplyTokens(token:Token): Effect {
+function removeAllSupplyTokens(token:Token, hideSimpleText=true): Effect {
     return {
         text: [`Remove all ${token} tokens from cards in the supply.`],
+        simpleText: hideSimpleText ? [] : undefined,
         transform: (state, card) => doAll(state.supply.map(s => removeToken(s, token, 'all')))
     }
 }
 
 const synergy:CardSpec = {name: 'Synergy',
     fixedCost: {...free, coin:1, energy:1},
-    simpleText: [
-        `Put synergy tokens on two cards in the supply.`,
-        `Whenever you buy the more expensive one (or either if they are tied), you can buy the other one for free.`
-    ],
     effects: [removeAllSupplyTokens('synergy'), {
         text: ['Put synergy tokens on two cards in the supply.'],
+        simpleText: [
+          `Put synergy tokens on two cards in the supply.`,
+        `Whenever you buy the more expensive one (or either if they are tied), you can buy the other one for free.`
+        ], 
         transform: () => async function(state) {
             let cards:Card[]; [state, cards] = await multichoice(state,
                 'Choose two cards to synergize.',
@@ -204,8 +200,9 @@ const synergy:CardSpec = {name: 'Synergy',
         }
     }],
     staticTriggers: [{
-        text: 'After buying a card with a synergy token other than with this,'
-        + ' buy a different card with a synergy token with equal or lesser cost.',
+        text: ['After buying a card with a synergy token other than with this,'
+        + ' buy a different card with a synergy token with equal or lesser cost.'],
+        simpleText: [], // Already described under the first effect.
         kind:'afterBuy',
         handles: (e, state, card) => (!sourceHasName(e.source, card!.name) && e.card.count('synergy') > 0),
         transform: (e, state, card) => applyToTarget(
@@ -230,11 +227,11 @@ eventRewards.push(focus)
 
 const onslaught:CardSpec = {name: 'Onslaught',
     fixedCost: {...free, coin:6, energy:1},
-    simpleText: [`Play any number of cards in your hand.`],
     effects: [{
         text: [`Repeat any number of times: play a card in your hand
             that was also there at the start of this effect
             and that you haven't played yet.`],
+        simpleText: [`Play any number of cards in your hand.`],
         transform: (state, card) => async function(state) {
             const cards:Card[] = state.hand;
             let options:Option<Card>[] = asNumberedChoices(cards)
@@ -270,30 +267,25 @@ eventRewards.push(resume)
 */
 
 const reflect:CardSpec = {name: 'Reflect',
-    simpleText: [
-        `Put a reflect token on a card in your hand.`,
-        `The next time you play that card, play it twice.`,
-        `This costs $1 more each time you use it.`
-    ],
     fixedCost: coin(1),
     variableCosts: [costPer({coin:1})],
-    effects: [incrementCost(), targetedEffect(
+    effects: [targetedEffect(
     	(target, card) => addToken(target, 'reflect'),
     	'Put a reflect token on a card in your hand',
-    	state => state.hand
-	)],
+    	state => state.hand,
+	), incrementCost()],
     rules: [reflectRule],
 }
 eventRewards.push(reflect)
 
 const replicate:CardSpec = {name: 'Replicate',
     fixedCost: energy(1),
-    effects: [chargeEffect()],
-    simpleText: [`The next time you buy a card, buy it again.`],
+    effects: [chargeEffect(false)],
     staticTriggers: [{
-        text: `After buying a card other than with this,
-            remove a charge token from this to to buy the card again.`,
+        text: [`After buying a card other than with this,
+            remove a charge token from this to to buy the card again.`],
         kind: 'afterBuy',
+        simpleText: [`The next time you buy a card, buy it again.`],
         handles: (e, s, c) => s.find(c!).charge > 0 && !sourceHasName(e.source, c!.name),
         transform: (e, s, c) => payToDo(discharge(c!, 1), e.card.buy(c))
     }]
@@ -301,10 +293,6 @@ const replicate:CardSpec = {name: 'Replicate',
 eventRewards.push(replicate)
 
 const lostArts:CardSpec = {
-    simpleText: [
-        `Put 8 reduction tokens on a supply.`,
-        `Whenever you play a card with reduction tokens on its supply, remove reduction tokens instead of paying @.`
-    ],
     fixedCost: {...free, energy:1, coin:3},
     name: 'Lost Arts',
     effects: [targetedEffect(
@@ -312,7 +300,7 @@ const lostArts:CardSpec = {
             state = await addToken(card, 'reduction', 8)(state)
             return state
         },
-        `Put eight reduction tokens on a card in the supply.`,
+        `Put 8 reduction tokens on a card in the supply.`,
         s => s.supply
     )],
     rules: [reductionRule],
@@ -327,8 +315,8 @@ const polish:CardSpec = {
         transform: state => doAll(state.hand.map(c => addToken(c, 'polish')))
     }],
     staticTriggers: [{
-        text: `Whenever you play a card with a polish token on it,
-        remove a polish token from it and +$1.`,
+        text: [`Whenever you play a card with a polish token on it,
+        remove a polish token from it and +$1.`],
         kind: 'play',
         handles: (e, state) => (e.card.count('polish') > 0),
         transform: (e, s, c) => doAll([removeToken(e.card, 'polish'), gainCoins(1, c)])
@@ -384,13 +372,13 @@ function buyCheaper(card:Card, s:State, source:Source): Transform {
 
 const haggle:CardSpec = {
     name: 'Haggle',
-    simpleText: [`The next time you buy a card, immediately buy a cheaper card.`],
     fixedCost: energy(1),
-    effects: [chargeEffect()],
+    effects: [chargeEffect(false)],
     staticTriggers: [{
         kind: 'afterBuy',
-        text: `After buying a card, remove a charge token from this to buy a card
-        in the supply that costs at least $1 less.`,
+        text: [`After buying a card, remove a charge token from this to buy a card
+        in the supply that costs at least $1 less.`],
+        simpleText: [`The next time you buy a card, immediately buy a cheaper card.`],
         handles: (e, s, c) => s.find(c!).charge > 0,
         transform: (e, s, c) => payToDo(discharge(c!, 1), buyCheaper(e.card, s, c)),
     }]
@@ -427,10 +415,6 @@ export const splay:CardSpec = {
         text: [`Put a reduction token on each supply.`],
         transform: s => doAll(s.supply.map(c => addToken(c, 'reduction')))
     }],
-    simpleText: [
-        `Put a reduction token on each supply.`,
-        `Whenever you play a card with a reduction token on its supply, remove reduction tokens instead of paying @.`
-    ],
     rules: [reductionRule]
 }
 eventRewards.push(splay)
@@ -477,10 +461,6 @@ eventRewards.push(reprise)
 
 export const accelerate:CardSpec = {
     name: 'Accelerate',
-    simpleText: [
-        `Put a priority token on each card in the supply.`,
-        `Whenever you create a card with a priority token on it, remove the token to play the card immediately.`
-    ],
     fixedCost: {...free, energy:1, coin:1},
     effects: [{
         text: [`Put a priority token on each card in the supply.`],
@@ -525,10 +505,6 @@ eventRewards.push(hallOfEchoes)
 const bulkOrder:CardSpec = {
     name: 'Bulk Order',
     fixedCost: {...free, coin:2, energy:1},
-    simpleText: [
-        `Choose a card in the supply.`,
-        `The next 5 times you buy that card, buy it again for free.`
-    ],
     effects: [targetedEffect(
         card => addToken(card, 'duplicate', 5),
         'Put five duplicate tokens on a card in the supply.',

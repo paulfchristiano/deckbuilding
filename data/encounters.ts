@@ -85,7 +85,7 @@ export const fortifyUpgrade: CardUpgrade = registerUpgrade('fortify', {
     name: name => `${name}+`,
     staticTriggers: [{
         kind: 'move',
-        text: 'Whenever a card that shares a name with this is trashed, create a card costing $1, $2, or $3 more in your hand.',
+        text: ['Whenever a card that shares a name with this is trashed, create a card costing $1, $2, or $3 more in your hand.'],
         handles: (e, _state, card) => e.toZone === 'void' && card !== null && e.card.name === card.name,
         transform: (e, _state, _card) => async function (state: State) {
             const trashedCard = state.find(e.card)
@@ -144,7 +144,7 @@ export const streetFairUpgrade: CardUpgrade = registerUpgrade('streetFair', {
     name: name => `${name}+`,
     staticReplacers: [{
         kind: 'create',
-        text: 'Whenever you would create this in your discard, instead create it in your hand.',
+        text: ['Whenever you would create this in your discard, instead create it in your hand.'],
         handles: (p, _state, card) => p.zone === 'discard' && p.spec.name === card.name,
         replace: p => ({ ...p, zone: 'hand' }),
     }]
@@ -165,11 +165,11 @@ export const tacticianStrengthUpgrade: CardUpgrade = registerUpgrade('tacticianS
     staticTriggers: [
         {
             kind: 'afterStart',
-            text: 'This starts with 4 reflect tokens.',
+            text: ['This starts with 4 reflect tokens.'],
             handles: (_e, state, sourceCard) => true,
             transform: (_e, _state, sourceCard) => addToken(sourceCard!, 'reflect', 4),
         }, {
-                text: `After using this other than with this ability, if it has a reflect token on it remove the token to use it again.`,
+                text: [`After using this other than with this ability, if it has a reflect token on it remove the token to use it again.`],
                 kind: 'afterUse',
                 handles: (e, state, card) => {
                     const played: Card = state.find(e.card)
@@ -189,13 +189,13 @@ export const tacticianAgilityUpgrade: CardUpgrade = registerUpgrade('tacticianAg
     name: name => `${name}+`,
     staticTriggers: [{
         kind: 'afterStart',
-        text: 'This starts with 2 reduction tokens on it.',
+        text: ['This starts with 2 reduction tokens on it.'],
         handles: (_e, state, sourceCard) => state.find(sourceCard!).count('reduce') === 0,
         transform: (_e, _state, sourceCard) => addToken(sourceCard!, 'reduce', 2),
     }],
     staticReplacers: [{
         kind: 'cost',
-        text: 'This costs @ less to use for each reduction token on it. Whenever this reduces a cost, remove that many reduction tokens.',
+        text: ['This costs @ less to use for each reduction token on it. Whenever this reduces a cost, remove that many reduction tokens.'],
         handles: (params, state, sourceCard) =>
             params.actionKind === 'use' &&
             params.card.id === sourceCard!.id &&
@@ -220,7 +220,7 @@ export const tacticianCooperationUpgrade: CardUpgrade = registerUpgrade('tactici
     name: name => `${name}+`,
     staticTriggers: [{
         kind: 'afterUse',
-        text: "Every time you use this, use another event that's cheaper or equal for free.",
+        text: ["Every time you use this, use another event that's cheaper or equal for free."],
         handles: (e, state, sourceCard) =>
             e.card.id === sourceCard!.id &&
             !sourceHasName(e.source, sourceCard!.name) &&
@@ -467,7 +467,7 @@ export const blacksmith: Encounter = {
             },
             {
                 label: 'Redesign',
-                description: 'Reduce the play cost by @1 (not below @0).',
+                description: 'Reduce the play cost of a card by @.',
                 disabled: selectedIndex !== null || !hasCards,
                 checked: selectedIndex === 2,
                 onClick: async () => chooseUpgrade(redesignUpgrade, 2, 'Redesign'),
@@ -1003,7 +1003,7 @@ const cursedInkwell: RelicSpec = {
     simpleText: ['Par is 1@ lower on each course.'],
     metaReplacers: [{
         kind: 'gameSetup',
-        text: 'Par is 1@ lower on each course.',
+        text: ['Par is 1@ lower on each course.'],
         replace: (p: GameSetupParams) => ({ ...p, par: p.par - 1 })
     }]
 }

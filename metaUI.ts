@@ -450,7 +450,7 @@ function renderStageScreen(
 
             if (option.spec) {
                 // Render as card
-                const hasRelatedContent = (option.spec.relatedCards || []).length > 0 || (option.spec.rules || []).length > 0
+                const hasRelatedContent = (option.spec.relatedCards || []).length > 0
                 const useRelatedTooltipMode =
                     rewardState.kind === 'card' ||
                     rewardState.kind === 'potion' ||

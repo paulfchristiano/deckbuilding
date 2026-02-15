@@ -4,7 +4,7 @@
 import { Cost, Shadow, State, Card, CardSpec, PlaceName, Rule, ID, VictoryData, UndoPastBeginning } from './gameLogic.js'
 import { GameSpec, SlotSpec } from './gameLogic.js'
 import { Trigger, Replacer, VariableCost, Token } from './gameLogic.js'
-import { cardSpecCost, cardSpecEffects, displayName, cardSpecReplacers, cardSpecStaticReplacers, cardSpecStaticTriggers, cardSpecTriggers } from './gameLogic.js'
+import { cardSpecCost, cardSpecEffects, cardSpecSimpleLines, displayName, cardSpecReplacers, cardSpecStaticReplacers, cardSpecStaticTriggers, cardSpecTriggers } from './gameLogic.js'
 import { renderCost, renderEnergy } from './gameLogic.js'
 import { LogType, logTypes } from './gameLogic.js'
 import { Option, OptionRender, HotkeyHint } from './gameLogic.js'
@@ -713,15 +713,28 @@ function renderAbility(spec: CardSpec): string {
 
 function renderTrigger(x: Trigger | Replacer, staticTrigger: boolean): string {
     const desc = staticTrigger ? '(static)' : '(effect)'
-    return `<div>${desc} ${x.text}</div>`
+    return x.text.map(line => `<div>${desc} ${line}</div>`).join('')
 }
 
 function renderVariableCosts(cs: VariableCost[]): string {
-    return cs.map(c => `<div>(cost) +${c.text}</div>`).join('')
+    const parts: string[] = []
+    for (const variableCost of cs) {
+        for (const line of variableCost.text) {
+            parts.push(`<div>(cost) +${line}</div>`)
+        }
+    }
+    return parts.join('')
 }
 
-function renderBuyable(bs: { text?: string }[]): string {
-    return bs.filter(b => b.text).map(b => `<div>(req) ${b.text}</div>`).join('')
+function renderBuyable(bs: { text?: string[] }[]): string {
+    const parts: string[] = []
+    for (const restriction of bs) {
+        if (restriction.text === undefined) continue
+        for (const line of restriction.text) {
+            parts.push(`<div>(req) ${line}</div>`)
+        }
+    }
+    return parts.join('')
 }
 
 function isZero(c: Cost | undefined): boolean {
@@ -735,10 +748,10 @@ function actionCostKindForSpec(spec: CardSpec): 'play' | 'use' {
 function renderRuleText(rule: Rule): string {
     const parts: string[] = []
     for (const trigger of rule.triggers || []) {
-        parts.push(`<div>(rule) ${trigger.text}</div>`)
+        parts.push(...trigger.text.map(line => `<div>(rule) ${line}</div>`))
     }
     for (const replacer of rule.replacers || []) {
-        parts.push(`<div>(rule) ${replacer.text}</div>`)
+        parts.push(...replacer.text.map(line => `<div>(rule) ${line}</div>`))
     }
     return parts.join('')
 }
@@ -756,9 +769,7 @@ function renderTooltipSimple(card: Card, state: State, tokenRenderer: TokenRende
         const relatedBuyStr = !isZero(relatedBuyCost) ? `(${renderCost(relatedBuyCost!)})` : '---'
         const relatedCostStr = !isZero(relatedActionCost) ? `(${renderCost(relatedActionCost!)})` : '---'
         const relatedHeader = `<div>---${relatedBuyStr} ${displayName(spec)} ${relatedCostStr}---</div>`
-        const relatedBody = (spec.simpleText && (spec.upgrades || []).length === 0)
-            ? spec.simpleText.map(line => `<div>${line}</div>`).join('')
-            : cardText(spec)
+        const relatedBody = cardSpecSimpleLines(spec).map(line => `<div>${line}</div>`).join('')
         const nested = (spec.relatedCards || []).map(renderRelatedSimple).join('')
         return relatedHeader + relatedBody + nested
     }
@@ -770,9 +781,7 @@ function renderTooltipSimple(card: Card, state: State, tokenRenderer: TokenRende
     const costStr = !isZero(playCost) ? `(${renderCost(playCost!)})` : '---'
     const header = `<div>---${buyStr} ${displayName(card.spec)} ${costStr}---</div>`
     const tokensHtml = tokenRenderer.renderTooltip(card.tokens)
-    const bodyText = (card.spec.simpleText && (card.spec.upgrades || []).length === 0)
-        ? card.spec.simpleText.map(line => `<div>${line}</div>`).join('')
-        : cardText(card.spec)
+    const bodyText = cardSpecSimpleLines(card.spec).map(line => `<div>${line}</div>`).join('')
     const relatedSimple = card.relatedCards().map(renderRelatedSimple).join('')
     return header + bodyText + tokensHtml + relatedSimple
 }
@@ -900,9 +909,7 @@ export function renderSpecNoRelated(spec: CardSpec): string {
     const buyText = isZero(buyCost) ? '' : `(${renderCost(buyCost!)})&nbsp;`
     const costText = isZero(actionCost) ? '' : `&nbsp;(${renderCost(actionCost!)})`
     const header = `<div>${buyText}<strong>${displayName(spec)}</strong>${costText}</div>`
-    const displayText = (spec.simpleText && (spec.upgrades || []).length === 0)
-        ? spec.simpleText.map(line => `<div>${line}</div>`).join('')
-        : cardText(spec)
+    const displayText = cardSpecSimpleLines(spec).map(line => `<div>${line}</div>`).join('')
     const tooltipHtml = buildSpecTooltip(spec)
     return `<div class='spec'>${header}${displayText}<span class='tooltip'>${tooltipHtml}</span></div>`
 }
