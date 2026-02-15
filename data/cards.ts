@@ -947,7 +947,7 @@ const fortune:CardSpec = {
 cardRewards.push(fortune)
 
 
-const ferry:CardSpec = {
+export const ferry:CardSpec = {
     name: 'Ferry',
     buyCost: coin(3),
     fixedCost: energy(1),

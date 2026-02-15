@@ -3112,13 +3112,14 @@
   var ferryRule = {
     name: "Ferry",
     replacers: [{
-      text: ["Cards cost $1 less to buy per ferry token on them, but not less than $1."],
+      text: ["Cards cost $1 less to buy per ferry token on them or their supply, but not less than $1."],
+      simpleText: ["Cards cost $1 less to buy per ferry token on them, but not less than $1."],
       kind: "cost",
       handles: function(p, state) {
-        return p.actionKind == "buy" && state.find(p.card).count("ferry") > 0;
+        return p.actionKind == "buy" && countNameTokens(p.card, "ferry", state) > 0;
       },
       replace: function(p, state) {
-        return __assign(__assign({}, p), { cost: reducedCost(p.cost, coin(state.find(p.card).count("ferry")), true) });
+        return __assign(__assign({}, p), { cost: reducedCost(p.cost, coin(countNameTokens(p.card, "ferry", state)), true) });
       }
     }]
   };
@@ -16509,7 +16510,8 @@
   };
   var test = {
     rewards: [
-      [1, ["encounter", shopkeeper]]
+      [1, ["card", ferry]],
+      [1, ["event", swap]]
     ],
     challenges: []
   };

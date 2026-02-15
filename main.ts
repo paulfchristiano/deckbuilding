@@ -20,15 +20,16 @@ import { renderSpecNoRelated } from './cardRendering.js'
 import { Card, CardSpec, UndoPastBeginning } from './gameLogic.js'
 
 import type { DebugTestConfig } from './metaLogic.js'
-import { banquet, fairyGold, shippingLane } from './data/cards.js'
+import { banquet, fairyGold, shippingLane, ferry } from './data/cards.js'
 import { piggyBank, singingBowl, lookingGlass } from './data/relics.js'
-import { haggle } from './data/events.js'
+import { haggle, swap } from './data/events.js'
 import { potionOfBounty } from './data/potions.js'
 import { shopkeeper } from './data/encounters.js'
 
 let test: DebugTestConfig | null = {
     rewards: [
-        [1, ['encounter', shopkeeper]]
+        [1, ['card', ferry]],
+        [1, ['event', swap]],
     ],
     challenges: []
 }

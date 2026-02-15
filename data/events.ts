@@ -470,7 +470,7 @@ export const accelerate:CardSpec = {
 }
 eventRewards.push(accelerate)
 
-const swap:CardSpec = {
+export const swap:CardSpec = {
     name: 'Swap',
     fixedCost: coin(1),
     effects: [targetedEffect(

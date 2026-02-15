@@ -2216,10 +2216,11 @@ export const hagglerRule: Rule = {
 export const ferryRule: Rule = {
     name: 'Ferry',
     replacers: [{
-        text: [`Cards cost $1 less to buy per ferry token on them, but not less than $1.`],
+        text: [`Cards cost $1 less to buy per ferry token on them or their supply, but not less than $1.`],
+        simpleText: [`Cards cost $1 less to buy per ferry token on them, but not less than $1.`],
         kind: 'cost',
-        handles: (p, state) => p.actionKind == 'buy' && state.find(p.card).count('ferry') > 0,
-        replace: (p, state) => ({...p, cost: reducedCost(p.cost, coin(state.find(p.card).count('ferry')), true)})
+        handles: (p, state) => p.actionKind == 'buy' && countNameTokens(p.card, 'ferry', state) > 0,
+        replace: (p, state) => ({...p, cost: reducedCost(p.cost, coin(countNameTokens(p.card, 'ferry', state)), true)})
     }]
 }
 registerRule(ferryRule)
@@ -2892,7 +2893,6 @@ export function afterBuyTrigger(effect:Effect): Trigger<AfterBuyEvent> {
         text: [`After buying this, ${effect.text.map(lowercaseFirst).join('; then ')}`]
     }
 }
-
 
 /*
 interface Extras {
