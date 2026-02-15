@@ -1314,14 +1314,14 @@ const bustlingVillage:CardSpec = {
     name: 'Bustling Village',
     buyCost: coin(3),
     relatedCards: [villager],
-    effects: [createInPlayEffect(villager), {
+    effects: [{
         text: [`+1 action for each card in play.`],
         transform: (state, card) => async function(state) {
             const n = state.play.length
             state = await gainActions(n, card)(state)
             return state
         }
-    }]
+    }, createInPlayEffect(villager)]
 }
 cardRewards.push(bustlingVillage)
 

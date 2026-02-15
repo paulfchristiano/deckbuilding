@@ -9191,7 +9191,7 @@
     name: "Bustling Village",
     buyCost: coin(3),
     relatedCards: [villager],
-    effects: [createInPlayEffect(villager), {
+    effects: [{
       text: ["+1 action for each card in play."],
       transform: function(state, card) {
         return function(state2) {
@@ -9210,7 +9210,7 @@
           });
         };
       }
-    }]
+    }, createInPlayEffect(villager)]
   };
   cardRewards.push(bustlingVillage);
   var governorName = "Governor";
@@ -16308,13 +16308,7 @@
     };
     throw new TypeError(s ? "Object is not iterable." : "Symbol.iterator is not defined.");
   };
-  var test = {
-    rewards: [
-      [1, ["relic", sacredBark]],
-      [1, ["relic", brokenLever]]
-    ],
-    challenges: []
-  };
+  var test = null;
   var SAVE_STORAGE_KEY = "roguelike.ongoingSaves.v1";
   var MAX_LAUNCHER_SAVES = 10;
   var summaryMetaUI = {
