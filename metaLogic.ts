@@ -421,10 +421,10 @@ export interface PathRewardParams {
 
 // TODO: render relics appropriately when you hold shift etc.
 export type MetaReplacer =
-    | { kind: 'gameSetup', replace: (params: GameSetupParams, self: Relic) => GameSetupParams }
-    | { kind: 'reward', replace: (params: RewardParams, self: Relic) => RewardParams }
-    | { kind: 'extraOptions', replace: (params: ExtraOptionsParams, self: Relic) => ExtraOptionsParams }
-    | { kind: 'pathRewards', replace: (params: PathRewardParams, self: Relic) => PathRewardParams }
+    | { kind: 'gameSetup', text: string, replace: (params: GameSetupParams, self: Relic) => GameSetupParams }
+    | { kind: 'reward', text: string, replace: (params: RewardParams, self: Relic) => RewardParams }
+    | { kind: 'extraOptions', text: string, replace: (params: ExtraOptionsParams, self: Relic) => ExtraOptionsParams }
+    | { kind: 'pathRewards', text: string, replace: (params: PathRewardParams, self: Relic) => PathRewardParams }
 
 // Meta trigger event types
 export interface CourseEndEvent {
@@ -468,6 +468,7 @@ export type MetaGameEvent = CourseEndEvent | CourseStartEvent | PathGenerationEv
 
 export interface MetaTrigger<T extends MetaGameEvent> {
     kind: T['kind'];
+    text: string;
     handles: (e:T, s:MetaState, self:Relic) => boolean;
     transform: (e:T, s:MetaState, self:Relic) => MetaTransform;
 }

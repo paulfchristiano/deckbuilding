@@ -3641,6 +3641,19 @@
   function actionCostKindForSpec(spec) {
     return spec.buyCost === void 0 ? "use" : "play";
   }
+  function asMetaTextSpec(spec) {
+    return spec;
+  }
+  function isRelicSpec(spec) {
+    var x = asMetaTextSpec(spec);
+    if (x.metaReplacers !== void 0 || x.metaTriggers !== void 0 || x.gainRequirement !== void 0)
+      return true;
+    if (x.mutableTriggers !== void 0 || x.mutableReplacers !== void 0)
+      return true;
+    return relicRewards.some(function(relic) {
+      return relic.name === spec.name;
+    });
+  }
   function renderEffects(spec) {
     var e_1, _a;
     var parts = [];
@@ -3662,14 +3675,14 @@
       return "<div>".concat(x, "</div>");
     }).join("");
   }
-  function renderAbility(spec) {
+  function renderAbility(spec, plain) {
     var e_2, _a;
     var parts = [];
     try {
       for (var _b = __values3(spec.ability || []), _c = _b.next(); !_c.done; _c = _b.next()) {
         var effect = _c.value;
         parts.push.apply(parts, __spreadArray3([], __read3(effect.text.map(function(x) {
-          return "<div>(ability) ".concat(x, "</div>");
+          return plain ? "<div>".concat(x, "</div>") : "<div>(ability) ".concat(x, "</div>");
         })), false));
       }
     } catch (e_2_1) {
@@ -3683,27 +3696,29 @@
     }
     return parts.join("");
   }
-  function renderTrigger(x, staticTrigger) {
+  function renderTrigger(x, staticTrigger, plain) {
+    if (plain)
+      return "<div>".concat(x.text, "</div>");
     var desc = staticTrigger ? "(static)" : "(effect)";
     return "<div>".concat(desc, " ").concat(x.text, "</div>");
   }
-  function renderVariableCosts(cs) {
+  function renderVariableCosts(cs, plain) {
     return cs.map(function(c) {
-      return "<div>(cost) +".concat(c.text, "</div>");
+      return plain ? "<div>+".concat(c.text, "</div>") : "<div>(cost) +".concat(c.text, "</div>");
     }).join("");
   }
-  function renderBuyable(bs) {
+  function renderBuyable(bs, plain) {
     return bs.map(function(b) {
-      return b.text === void 0 ? "" : "<div>(req) ".concat(b.text, "</div>");
+      return b.text === void 0 ? "" : plain ? "<div>".concat(b.text, "</div>") : "<div>(req) ".concat(b.text, "</div>");
     }).join("");
   }
-  function renderRuleText(rule) {
+  function renderRuleText(rule, plain) {
     var e_3, _a, e_4, _b;
     var parts = [];
     try {
       for (var _c = __values3(rule.triggers || []), _d = _c.next(); !_d.done; _d = _c.next()) {
         var trigger3 = _d.value;
-        parts.push("<div>(rule) ".concat(trigger3.text, "</div>"));
+        parts.push(plain ? "<div>".concat(trigger3.text, "</div>") : "<div>(rule) ".concat(trigger3.text, "</div>"));
       }
     } catch (e_3_1) {
       e_3 = { error: e_3_1 };
@@ -3717,7 +3732,7 @@
     try {
       for (var _e = __values3(rule.replacers || []), _f = _e.next(); !_f.done; _f = _e.next()) {
         var replacer = _f.value;
-        parts.push("<div>(rule) ".concat(replacer.text, "</div>"));
+        parts.push(plain ? "<div>".concat(replacer.text, "</div>") : "<div>(rule) ".concat(replacer.text, "</div>"));
       }
     } catch (e_4_1) {
       e_4 = { error: e_4_1 };
@@ -3730,24 +3745,62 @@
     }
     return parts.join("");
   }
+  function renderMetaText(spec, plain) {
+    var e_5, _a, e_6, _b;
+    var x = asMetaTextSpec(spec);
+    var parts = [];
+    try {
+      for (var _c = __values3(x.metaReplacers || []), _d = _c.next(); !_d.done; _d = _c.next()) {
+        var replacer = _d.value;
+        parts.push(plain ? "<div>".concat(replacer.text, "</div>") : "<div>(meta) ".concat(replacer.text, "</div>"));
+      }
+    } catch (e_5_1) {
+      e_5 = { error: e_5_1 };
+    } finally {
+      try {
+        if (_d && !_d.done && (_a = _c.return)) _a.call(_c);
+      } finally {
+        if (e_5) throw e_5.error;
+      }
+    }
+    try {
+      for (var _e = __values3(x.metaTriggers || []), _f = _e.next(); !_f.done; _f = _e.next()) {
+        var trigger3 = _f.value;
+        parts.push(plain ? "<div>".concat(trigger3.text, "</div>") : "<div>(meta) ".concat(trigger3.text, "</div>"));
+      }
+    } catch (e_6_1) {
+      e_6 = { error: e_6_1 };
+    } finally {
+      try {
+        if (_f && !_f.done && (_b = _e.return)) _b.call(_e);
+      } finally {
+        if (e_6) throw e_6.error;
+      }
+    }
+    return parts.join("");
+  }
   function cardText(spec) {
+    var plain = isRelicSpec(spec);
     var effectHtml = renderEffects(spec);
-    var buyableHtml = spec.restrictions ? renderBuyable(spec.restrictions) : "";
-    var costHtml = spec.variableCosts ? renderVariableCosts(spec.variableCosts) : "";
-    var abilitiesHtml = renderAbility(spec);
+    var buyableHtml = spec.restrictions ? renderBuyable(spec.restrictions, plain) : "";
+    var costHtml = spec.variableCosts ? renderVariableCosts(spec.variableCosts, plain) : "";
+    var abilitiesHtml = renderAbility(spec, plain);
     var triggerHtml = cardSpecTriggers(spec).map(function(x) {
-      return renderTrigger(x, false);
+      return renderTrigger(x, false, plain);
     }).join("");
     var replacerHtml = cardSpecReplacers(spec).map(function(x) {
-      return renderTrigger(x, false);
+      return renderTrigger(x, false, plain);
     }).join("");
     var staticTriggerHtml = cardSpecStaticTriggers(spec).map(function(x) {
-      return renderTrigger(x, true);
+      return renderTrigger(x, true, plain);
     }).join("");
     var staticReplacerHtml = cardSpecStaticReplacers(spec).map(function(x) {
-      return renderTrigger(x, true);
+      return renderTrigger(x, true, plain);
     }).join("");
-    var rulesHtml = (spec.rules || []).map(renderRuleText).join("");
+    var rulesHtml = (spec.rules || []).map(function(rule) {
+      return renderRuleText(rule, plain);
+    }).join("");
+    var metaHtml = renderMetaText(spec, plain);
     return [
       buyableHtml,
       costHtml,
@@ -3757,7 +3810,8 @@
       replacerHtml,
       staticTriggerHtml,
       staticReplacerHtml,
-      rulesHtml
+      rulesHtml,
+      metaHtml
     ].join("");
   }
   function renderSpecSimpleBody(spec) {
@@ -3793,7 +3847,9 @@
     return "".concat(mine).concat(related);
   }
   function buildSpecTooltipOnlyRelatedSimple(spec) {
-    var rules2 = (spec.rules || []).map(renderRuleText).join("");
+    var rules2 = (spec.rules || []).map(function(rule) {
+      return renderRuleText(rule, false);
+    }).join("");
     var related = (spec.relatedCards || []).map(buildSimpleTooltipForSingleSpec).join("");
     return "".concat(rules2).concat(related);
   }
@@ -7081,7 +7137,7 @@
   };
   var bagOfCoins = {
     name: "Bag of Coins",
-    simpleText: ["Start with an extra copper."],
+    simpleText: ["Start with two extra coppers."],
     triggers: [{
       kind: "beforeStart",
       text: "At the start of the game, create two coppers in your discard.",
@@ -7096,12 +7152,8 @@
   relicRewards.push(bagOfCoins);
   var bagOfPreparation = {
     name: "Bag of Preparation",
-    simpleText: [
-      "At the start of the game, +10 actions.",
-      "You can't lose actions except by paying costs."
-    ],
     staticReplacers: [{
-      text: "You can't lose actions (other than by paying costs).",
+      text: "You can't lose actions other than by playing cards.",
       kind: "resource",
       handles: function(p) {
         return p.amount < 0 && p.resource == "actions";
@@ -7124,10 +7176,9 @@
   relicRewards.push(bagOfPreparation);
   var courier = {
     name: "Courier",
-    simpleText: ["+2 buys, +1 action each time you refresh."],
     triggers: [{
       kind: "afterUse",
-      text: "After using ".concat(refresh.name, ", +2 buys and +1 action."),
+      text: "+2 buys, +1 action each time you use ".concat(refresh.name, "."),
       handles: function(e, s, c) {
         return e.card.name === refresh.name;
       },
@@ -7139,9 +7190,9 @@
   relicRewards.push(courier);
   var inkwell = {
     name: "Inkwell",
-    simpleText: ["Par is 1@ higher on each course."],
     metaReplacers: [{
       kind: "gameSetup",
+      text: "Par is 1@ higher on each course.",
       replace: function(p) {
         return __assign3(__assign3({}, p), { par: p.par + 1 });
       }
@@ -7150,9 +7201,9 @@
   relicRewards.push(inkwell);
   var elegantQuill = {
     name: "Elegant Quill",
-    simpleText: ["+2@ buffer when you gain this."],
     metaTriggers: [{
       kind: "relic",
+      text: "When you gain this, gain 2@ buffer.",
       handles: function(e, s, self) {
         return self.id == e.relic.id;
       },
@@ -7167,6 +7218,7 @@
     simpleText: ["VP targets are 25% lower."],
     metaReplacers: [{
       kind: "gameSetup",
+      text: "VP targets are 25% lower (rounded up).",
       replace: function(p) {
         return __assign3(__assign3({}, p), { vpGoal: Math.ceil(p.vpGoal * 0.75) });
       }
@@ -7175,18 +7227,16 @@
   relicRewards.push(brokenLever);
   var darkBanner = {
     name: "Dark Banner",
-    simpleText: [
-      "Par is 4@ lower on each course.",
-      "Gain 3@ buffer at the start of each course."
-    ],
     metaReplacers: [{
       kind: "gameSetup",
+      text: "Par is 4@ lower on each course.",
       replace: function(p) {
         return __assign3(__assign3({}, p), { par: p.par - 4 });
       }
     }],
     metaTriggers: [{
       kind: "start",
+      text: "At the start of each course, gain 3@ buffer.",
       handles: function(e) {
         return true;
       },
@@ -7198,12 +7248,9 @@
   relicRewards.push(darkBanner);
   var silverMirror = {
     name: "Silver Mirror",
-    simpleText: [
-      "The next time you gain a relic,",
-      "gain two additional copies of that relic."
-    ],
     metaTriggers: [{
       kind: "relic",
+      text: "The next time you gain a relic, gain two additional copies of it.",
       handles: function(e, _s, relic) {
         return e.relic.id !== relic.id && e.relic.name !== "Silver Mirror";
       },
@@ -7243,6 +7290,7 @@
     },
     metaTriggers: [{
       kind: "relic",
+      text: "When you gain this, lose 3 buffer.",
       handles: function(e, _s, self) {
         return self.id === e.relic.id;
       },
@@ -7264,7 +7312,6 @@
   relicRewards.push(sacredBark);
   var discountCard = {
     name: "Discount card",
-    simpleText: ["Silver and Gold cost $2 less to buy (but not less than $1)."],
     staticReplacers: [{
       text: "Silver and Gold cost $2 less to buy, but not less than $1.",
       kind: "cost",
@@ -7280,9 +7327,9 @@
   relicRewards.push(discountCard);
   var singingBowl = {
     name: "Singing Bowl",
-    simpleText: ["Whenever you are offered a reward, you may gain 2@ buffer instead."],
     metaReplacers: [{
       kind: "extraOptions",
+      text: "Whenever you are offered a reward, you may gain 2@ buffer instead.",
       replace: function(p) {
         return __assign3(__assign3({}, p), { options: p.options.concat(["singingBowl"]) });
       }
@@ -7291,9 +7338,9 @@
   relicRewards.push(singingBowl);
   var piggyBank = {
     name: "Piggy Bank",
-    simpleText: ["One time, you can take all of the rewards from a pack."],
     metaReplacers: [{
       kind: "extraOptions",
+      text: "One time, you can take all of the rewards from a pack.",
       replace: function(p) {
         return __assign3(__assign3({}, p), { options: p.options.concat(["takeItAll"]) });
       }
@@ -7302,9 +7349,9 @@
   relicRewards.push(piggyBank);
   var wingedBoots = {
     name: "Winged Boots",
-    simpleText: ["Each stage has an additional path."],
     metaReplacers: [{
       kind: "pathRewards",
+      text: "Each stage has an additional path.",
       replace: function(p) {
         return __assign3(__assign3({}, p), { paths: __spreadArray6(__spreadArray6([], __read7(p.paths), false), ["Use Winged Boots"], false) });
       }
@@ -7316,12 +7363,14 @@
     simpleText: ["Your next two stages have an additional reward."],
     metaReplacers: [{
       kind: "pathRewards",
+      text: "Each stage has an additional reward.",
       replace: function(p, self) {
-        return self.count("charge") > 0 ? __assign3(__assign3({}, p), { rewardsPerPath: p.rewardsPerPath + 1 }) : p;
+        return __assign3(__assign3({}, p), { rewardsPerPath: p.rewardsPerPath + 1 });
       }
     }],
     metaTriggers: [{
       kind: "relic",
+      text: "When you gain this, put 2 charge tokens on it.",
       handles: function(e, _s, self) {
         return self.id === e.relic.id;
       },
@@ -7345,8 +7394,9 @@
       }
     }, {
       kind: "path",
+      text: "After generating a path, remove a charge token from this. Then if it has no charge tokens destroy it.",
       handles: function(_e, _s, self) {
-        return self.count("charge") > 0;
+        return true;
       },
       transform: function(_e, _s, self) {
         return function(state) {
@@ -7356,16 +7406,21 @@
               current = state.data.relics.find(function(r) {
                 return r.id === self.id;
               });
-              if (!current || current.count("charge") <= 0)
+              if (!current)
                 return [
                   2
                   /*return*/
                 ];
               tokens = new Map(current.tokens);
-              tokens.set("charge", current.count("charge") - 1);
-              state.applyToRelic(function(r) {
-                return r.update({ tokens });
-              }, current);
+              if (current.charge > 0) {
+                tokens.set("charge", current.count("charge") - 1);
+                state.applyToRelic(function(r) {
+                  return r.update({ tokens });
+                }, current);
+              }
+              if (tokens.get("charge") === 0) {
+                state.removeRelic(current.id);
+              }
               return [
                 2
                 /*return*/
@@ -7382,6 +7437,7 @@
     simpleText: ["At end of the next course, gain 1 buffer for each @ you beat par."],
     metaTriggers: [{
       kind: "end",
+      text: "At end of the next course, gain 1 buffer for each @ you beat par, then destroy this.",
       handles: function(_e, _s, _self) {
         return true;
       },
@@ -7413,15 +7469,17 @@
   };
   var delayedGratification = {
     name: "Delayed Gratification",
-    simpleText: ["Your next path has an additional reward."],
+    simpleText: ["Each path has an additional reward."],
     metaReplacers: [{
       kind: "pathRewards",
+      text: "Each path has an additional reward.",
       replace: function(p) {
         return __assign3(__assign3({}, p), { rewardsPerPath: p.rewardsPerPath + 1 });
       }
     }],
     metaTriggers: [{
       kind: "path",
+      text: "When a path is generated, destroy this.",
       handles: function(_e, _s, _self) {
         return true;
       },
@@ -7451,7 +7509,7 @@
     mutableTriggers: function(relic) {
       return [{
         kind: "afterStart",
-        text: "At the start of the game, create a copy of each bottled card in your hand.",
+        text: "At the start of the game, create a copy of each boxed card in your hand.",
         handles: function() {
           return true;
         },
@@ -7503,6 +7561,7 @@
     },
     metaTriggers: [{
       kind: "end",
+      text: "At end of each course, remove all boxed cards.",
       handles: function() {
         return true;
       },
@@ -7523,6 +7582,7 @@
       }
     }, {
       kind: "card",
+      text: "Whenever you add a card to your deck, box it on this.",
       handles: function() {
         return true;
       },
@@ -7554,6 +7614,7 @@
     ],
     metaTriggers: [{
       kind: "relic",
+      text: "When you gain this, choose an event and gain a potion that uses it for free.",
       handles: function(e, _s, self) {
         return self.id === e.relic.id;
       },
@@ -7593,6 +7654,7 @@
       }
     }, {
       kind: "event",
+      text: "Whenever you gain an event, gain a potion that uses it for free.",
       handles: function() {
         return true;
       },
@@ -7612,6 +7674,7 @@
     ],
     metaTriggers: [{
       kind: "end",
+      text: "At end of course, for each 2@ you beat par, gain 1@ buffer.",
       handles: function(e) {
         return e.score < e.par;
       },
@@ -7625,9 +7688,9 @@
   relicRewards.push(banner);
   var questionCard = {
     name: "Question Card",
-    simpleText: ["Future rewards have 2 more options."],
     metaReplacers: [{
       kind: "reward",
+      text: "Future rewards have 2 more options.",
       replace: function(p) {
         return __assign3(__assign3({}, p), { optionCount: p.optionCount + 2 });
       }
@@ -13346,6 +13409,7 @@
     simpleText: ["Par is 1@ lower on each course."],
     metaReplacers: [{
       kind: "gameSetup",
+      text: "Par is 1@ lower on each course.",
       replace: function(p) {
         return __assign8(__assign8({}, p), { par: p.par - 1 });
       }
@@ -14412,77 +14476,14 @@
     var desc = staticTrigger ? "(static)" : "(effect)";
     return "<div>".concat(desc, " ").concat(x.text, "</div>");
   }
-  function renderVariableCosts2(cs) {
-    return cs.map(function(c) {
-      return "<div>(cost) +".concat(c.text, "</div>");
-    }).join("");
-  }
-  function renderBuyable2(bs) {
-    return bs.filter(function(b) {
-      return b.text;
-    }).map(function(b) {
-      return "<div>(req) ".concat(b.text, "</div>");
-    }).join("");
-  }
   function isZero2(c) {
     return !c || renderCost(c) === "";
   }
   function actionCostKindForSpec2(spec) {
     return spec.buyCost === void 0 ? "use" : "play";
   }
-  function renderRuleText2(rule) {
-    var e_11, _a, e_12, _b;
-    var parts = [];
-    try {
-      for (var _c = __values11(rule.triggers || []), _d = _c.next(); !_d.done; _d = _c.next()) {
-        var trigger3 = _d.value;
-        parts.push("<div>(rule) ".concat(trigger3.text, "</div>"));
-      }
-    } catch (e_11_1) {
-      e_11 = { error: e_11_1 };
-    } finally {
-      try {
-        if (_d && !_d.done && (_a = _c.return)) _a.call(_c);
-      } finally {
-        if (e_11) throw e_11.error;
-      }
-    }
-    try {
-      for (var _e = __values11(rule.replacers || []), _f = _e.next(); !_f.done; _f = _e.next()) {
-        var replacer = _f.value;
-        parts.push("<div>(rule) ".concat(replacer.text, "</div>"));
-      }
-    } catch (e_12_1) {
-      e_12 = { error: e_12_1 };
-    } finally {
-      try {
-        if (_f && !_f.done && (_b = _e.return)) _b.call(_e);
-      } finally {
-        if (e_12) throw e_12.error;
-      }
-    }
-    return parts.join("");
-  }
   function cardText2(spec) {
-    return [
-      spec.restrictions ? renderBuyable2(spec.restrictions) : "",
-      spec.variableCosts ? renderVariableCosts2(spec.variableCosts) : "",
-      renderEffects2(spec),
-      renderAbility2(spec),
-      cardSpecTriggers(spec).map(function(x) {
-        return renderTrigger2(x, false);
-      }).join(""),
-      cardSpecReplacers(spec).map(function(x) {
-        return renderTrigger2(x, false);
-      }).join(""),
-      cardSpecStaticTriggers(spec).map(function(x) {
-        return renderTrigger2(x, true);
-      }).join(""),
-      cardSpecStaticReplacers(spec).map(function(x) {
-        return renderTrigger2(x, true);
-      }).join(""),
-      (spec.rules || []).map(renderRuleText2).join("")
-    ].join("");
+    return cardText(spec);
   }
   function renderTooltipSimple(card, state, tokenRenderer) {
     function renderRelatedSimple(spec) {

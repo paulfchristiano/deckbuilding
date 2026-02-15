@@ -1003,6 +1003,7 @@ const cursedInkwell: RelicSpec = {
     simpleText: ['Par is 1@ lower on each course.'],
     metaReplacers: [{
         kind: 'gameSetup',
+        text: 'Par is 1@ lower on each course.',
         replace: (p: GameSetupParams) => ({ ...p, par: p.par - 1 })
     }]
 }

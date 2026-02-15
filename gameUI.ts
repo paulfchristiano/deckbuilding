@@ -13,6 +13,7 @@ import { playGame, initialState, Replayable } from './gameLogic.js'
 import { refresh } from './gameLogic.js'
 import { BASE_PARS } from './metaLogic.js'
 import { ProgressStageDisplay, renderProgressSidebar } from './progressSidebar.js'
+import { cardText as renderCardText } from './cardRendering.js'
 
 // ----------------------------- DOM Helpers
 
@@ -743,17 +744,7 @@ function renderRuleText(rule: Rule): string {
 }
 
 export function cardText(spec: CardSpec): string {
-    return [
-        spec.restrictions ? renderBuyable(spec.restrictions) : '',
-        spec.variableCosts ? renderVariableCosts(spec.variableCosts) : '',
-        renderEffects(spec),
-        renderAbility(spec),
-        cardSpecTriggers(spec).map(x => renderTrigger(x, false)).join(''),
-        cardSpecReplacers(spec).map(x => renderTrigger(x, false)).join(''),
-        cardSpecStaticTriggers(spec).map(x => renderTrigger(x, true)).join(''),
-        cardSpecStaticReplacers(spec).map(x => renderTrigger(x, true)).join(''),
-        (spec.rules || []).map(renderRuleText).join('')
-    ].join('')
+    return renderCardText(spec)
 }
 
 // ----------------------------- Tooltip Rendering

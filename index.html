@@ -445,11 +445,8 @@ input {
 }
 
 /* Preserve the old "greyed out" look without fading tooltip content */
-.rewardOption[disabled] > :not(.tooltip):not(.checkmark) {
+.rewardOption[disabled] > :not(.tooltip) {
     opacity: 0.5;
-}
-.rewardOption[disabled] .checkmark {
-    opacity: 1;
 }
 
 /* Reward tooltips should render above fixed UI elements */
