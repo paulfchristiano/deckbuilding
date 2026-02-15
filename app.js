@@ -13457,6 +13457,25 @@
   }
 
   // public/gameUI.js
+  var __extends3 = /* @__PURE__ */ (function() {
+    var extendStatics = function(d, b) {
+      extendStatics = Object.setPrototypeOf || { __proto__: [] } instanceof Array && function(d2, b2) {
+        d2.__proto__ = b2;
+      } || function(d2, b2) {
+        for (var p in b2) if (Object.prototype.hasOwnProperty.call(b2, p)) d2[p] = b2[p];
+      };
+      return extendStatics(d, b);
+    };
+    return function(d, b) {
+      if (typeof b !== "function" && b !== null)
+        throw new TypeError("Class extends value " + String(b) + " is not a constructor or null");
+      extendStatics(d, b);
+      function __() {
+        this.constructor = d;
+      }
+      d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
+    };
+  })();
   var __assign9 = function() {
     __assign9 = Object.assign || function(t) {
       for (var s, i = 1, n = arguments.length; i < n; i++) {
@@ -13898,7 +13917,10 @@
         hand: new Map(macro.requirements.hand),
         discard: new Map(macro.requirements.discard)
       },
-      startPrompt: macro.startPrompt
+      startPrompt: macro.startPrompt,
+      displayLabelMain: macro.displayLabelMain,
+      displayLabelMeta: macro.displayLabelMeta,
+      resetFirst: macro.resetFirst === true
     };
   }
   function cloneMacros(macros) {
@@ -14008,6 +14030,9 @@
     return true;
   }
   function canPlayMacro(macro, state, choiceState) {
+    if (macro.resetFirst === true) {
+      return choiceState !== null && macro.steps.length > 0;
+    }
     if (state.coin < macro.requirements.coin)
       return false;
     if (state.actions < macro.requirements.actions)
@@ -14044,6 +14069,93 @@
     return macro.steps.map(function(step) {
       return "<div>".concat(macroStepVerb(step), " ").concat(macroStepLabel(step), "</div>");
     }).join("");
+  }
+  var ReplayMacroCaptureComplete = (
+    /** @class */
+    (function(_super) {
+      __extends3(ReplayMacroCaptureComplete2, _super);
+      function ReplayMacroCaptureComplete2() {
+        var _this = _super.call(this, "ReplayMacroCaptureComplete") || this;
+        Object.setPrototypeOf(_this, ReplayMacroCaptureComplete2.prototype);
+        return _this;
+      }
+      return ReplayMacroCaptureComplete2;
+    })(Error)
+  );
+  function buildReplayMacroFromState(targetState) {
+    return __awaiter11(this, void 0, void 0, function() {
+      var history, steps, recordingStates, startPrompt, cursor, captureUI, error_1;
+      return __generator11(this, function(_a) {
+        switch (_a.label) {
+          case 0:
+            history = __spreadArray8([], __read13(targetState.origin().future), false);
+            if (history.length === 0)
+              return [2, null];
+            steps = [];
+            recordingStates = [];
+            startPrompt = null;
+            cursor = 0;
+            captureUI = {
+              choice: function(state, prompt, options, info, chosen) {
+                return __awaiter11(this, void 0, void 0, function() {
+                  var index;
+                  return __generator11(this, function(_a2) {
+                    if (cursor >= history.length)
+                      throw new ReplayMacroCaptureComplete();
+                    index = history[cursor];
+                    if (index < 0 || index >= options.length) {
+                      throw new Error("Unable to save replay: history index ".concat(index, " is invalid at step ").concat(cursor, "."));
+                    }
+                    if (recordingStates.length === 0)
+                      recordingStates.push(state);
+                    recordingStates.push(state);
+                    steps.push(macroStepFromChoice(options[index].render, chosen.includes(index), info));
+                    if (startPrompt === null)
+                      startPrompt = prompt;
+                    cursor += 1;
+                    return [2, index];
+                  });
+                });
+              },
+              victory: function() {
+                return __awaiter11(this, void 0, void 0, function() {
+                  return __generator11(this, function(_a2) {
+                    if (cursor >= history.length)
+                      throw new ReplayMacroCaptureComplete();
+                    throw new Error("Unable to save replay: replay reached victory before consuming history.");
+                  });
+                });
+              }
+            };
+            _a.label = 1;
+          case 1:
+            _a.trys.push([1, 3, , 4]);
+            return [4, playGame(targetState.spec, captureUI)];
+          case 2:
+            _a.sent();
+            return [3, 4];
+          case 3:
+            error_1 = _a.sent();
+            if (!(error_1 instanceof ReplayMacroCaptureComplete))
+              throw error_1;
+            return [3, 4];
+          case 4:
+            if (cursor !== history.length) {
+              throw new Error("Unable to save replay: consumed ".concat(cursor, " of ").concat(history.length, " steps."));
+            }
+            if (steps.length === 0)
+              return [2, null];
+            return [2, {
+              steps,
+              requirements: computeMacroRequirements(recordingStates, steps),
+              startPrompt,
+              displayLabelMain: "Replay",
+              displayLabelMeta: "".concat(targetState.energy, "@"),
+              resetFirst: true
+            }];
+        }
+      });
+    });
   }
   var HotkeyMapper = (
     /** @class */
@@ -14733,10 +14845,8 @@
     }
     var hotkeyMap = globalRendererState.hotkeysOn ? globalRendererState.hotkeyMapper.map(state, options) : /* @__PURE__ */ new Map();
     renderState(state, { hotkeyMap, optionsMap, pickMap, updateURL: false });
-    if (ui) {
-      setVisibleLog(state, globalRendererState.logType, ui);
-      bindLogTypeButtons(state, ui);
-    }
+    setVisibleLog(state, globalRendererState.logType, ui);
+    bindLogTypeButtons(state, ui);
     getElement("choicePrompt").innerHTML = choicePrompt;
     var optionsEl = getElement("options");
     clearElement(optionsEl);
@@ -14755,17 +14865,20 @@
         if (e_19) throw e_19.error;
       }
     }
-    getElement("undoArea").innerHTML = renderSpecials(state);
-    if (ui)
-      bindSpecials(state, ui);
+    getElement("undoArea").innerHTML = renderSpecials(state, ui);
+    bindSpecials(state, ui);
   }
-  function renderSpecials(state) {
+  function saveReplayEnabled(state, ui) {
+    return state.hasHistory() && state.spec.replayUsedPotionIDs === void 0 && ui.recordingMacro === null && ui.playingMacro.length === 0;
+  }
+  function renderSpecials(state, ui) {
     return [
       renderBack(),
       renderUndo(state.undoable()),
       renderRedo(state.redo.length > 0),
       renderHotkeyToggle(),
       renderMacroToggle(),
+      renderSaveReplay(saveReplayEnabled(state, ui)),
       renderRestart()
     ].join("");
   }
@@ -14777,6 +14890,11 @@
   }
   function renderMacroToggle() {
     return "<span id='macroToggle' class='option' option='macroToggle' choosable chosen='false'>Macros</span>";
+  }
+  function renderSaveReplay(enabled) {
+    var statusAttr = enabled ? "choosable" : "disabled='disabled'";
+    var styleAttr = enabled ? "" : "style='cursor:default;opacity:0.5;'";
+    return "<span id='saveReplay' class='option' option='saveReplay' ".concat(statusAttr, " chosen='false' ").concat(styleAttr, ">Save replay</span>");
   }
   function renderHotkeyToggle() {
     return "<span class='option' option='hotkeyToggle' choosable chosen='false'>".concat(renderHotkey("/"), " Hotkeys</span>");
@@ -14793,6 +14911,7 @@
     bindUndo(state, ui);
     bindRedo(state, ui);
     bindMacroToggle(state, ui);
+    bindSaveReplay(state, ui);
     bindInGameDeckDialog(state);
     bindBack(ui);
   }
@@ -14872,6 +14991,41 @@
       };
     }
   }
+  function bindSaveReplay(state, ui) {
+    var _this = this;
+    var el = querySelector("[option='saveReplay']");
+    if (!el)
+      return;
+    el.onclick = function() {
+      return __awaiter11(_this, void 0, void 0, function() {
+        var macro;
+        return __generator11(this, function(_a) {
+          switch (_a.label) {
+            case 0:
+              if (!saveReplayEnabled(state, ui))
+                return [
+                  2
+                  /*return*/
+                ];
+              globalRendererState.viewingMacros = true;
+              return [4, buildReplayMacroFromState(state)];
+            case 1:
+              macro = _a.sent();
+              if (macro !== null) {
+                ui.macros.push(cloneMacro(macro));
+              }
+              if (globalRendererState.viewingMacros) {
+                makeMacroButtons(ui, getElement("macroSpot"), ui.choiceState ? ui.choiceState.state : state);
+              }
+              return [
+                2
+                /*return*/
+              ];
+          }
+        });
+      });
+    };
+  }
   function makeMacroButtons(ui, container, state) {
     closeMacroDeleteMenu();
     var macroButtons = ui.macros.map(function(macro, index) {
@@ -14889,10 +15043,18 @@
   function renderPlayMacroButton(macro, index, enabled) {
     var firstStep = macro.steps[0];
     var firstStepText = firstStep ? macroStepLabel(firstStep) : "(empty)";
-    var buttonText = "".concat(firstStepText, " (").concat(macro.steps.length, ")");
+    var fallbackLabel = firstStepText;
+    var fallbackMeta = "(".concat(macro.steps.length, ")");
+    var labelText = fallbackLabel;
+    var labelMeta = fallbackMeta;
+    if (macro.displayLabelMain !== void 0) {
+      labelText = macro.displayLabelMain;
+      labelMeta = macro.displayLabelMeta ? "(".concat(macro.displayLabelMeta, ")") : "";
+    }
     var statusAttr = enabled ? "choosable" : "disabled='disabled'";
     var styleAttr = enabled ? "" : "style='cursor:default;'";
-    return "<span id='playMacro' class='option macroOption' option='macro".concat(index, "' ").concat(statusAttr, " chosen='false' ").concat(styleAttr, "><span class='macroOptionLabel'>").concat(buttonText, "</span><span class='tooltip'>").concat(renderMacroTooltip(macro), "</span></span>");
+    var metaHTML = labelMeta ? "<span style='color:#888;font-weight:normal;'> ".concat(labelMeta, "</span>") : "";
+    return "<span id='playMacro' class='option macroOption' option='macro".concat(index, "' ").concat(statusAttr, " chosen='false' ").concat(styleAttr, "><span class='macroOptionLabel'><span class='macroOptionLabelPrimary'>").concat(labelText, "</span>").concat(metaHTML, "</span><span class='tooltip'>").concat(renderMacroTooltip(macro), "</span></span>");
   }
   function bindRecordMacroButton(ui, state) {
     var el = querySelector("[option='recordMacro']");
@@ -14902,7 +15064,9 @@
           ui.recordingMacro = {
             steps: [],
             requirements: emptyMacroRequirements(),
-            startPrompt: ui.choiceState ? ui.choiceState.choicePrompt : null
+            startPrompt: ui.choiceState ? ui.choiceState.choicePrompt : null,
+            displayLabelMain: void 0,
+            displayLabelMeta: void 0
           };
           ui.recordingStates = [state];
         } else if (ui.choiceState === null || ui.recordingMacro.steps.length === 0) {
@@ -14940,9 +15104,17 @@
       macroButton.onclick = function(e) {
         closeMacroDeleteMenu();
         if (ui.choiceState && ui.playingMacro.length === 0) {
-          ui.playingMacro = repeat2(ui.macros[i2].steps, e.shiftKey ? 10 : 1);
-          ui.macroStartState = ui.choiceState.state;
-          ui.resolveWithMacro();
+          var macro = ui.macros[i2];
+          ui.playingMacro = repeat2(macro.steps, e.shiftKey ? 10 : 1);
+          if (macro.resetFirst === true) {
+            var reset = startState(ui.choiceState.state);
+            ui.macroStartState = reset;
+            ui.preserveMacroOnNextSetState = true;
+            ui.choiceState.reject(new SetState(reset));
+          } else {
+            ui.macroStartState = ui.choiceState.state;
+            ui.resolveWithMacro();
+          }
         }
       };
     };
@@ -15113,9 +15285,22 @@
         this.recordingStates = [];
         this.playingMacro = [];
         this.macroStartState = null;
+        this.preserveMacroOnNextSetState = false;
         this.choiceState = null;
         this.macros = loadMacros(initialMacros);
       }
+      GameUI2.prototype.recordResolvedChoice = function(state, choicePrompt, options, info, chosen, index) {
+        if (this.recordingMacro === null)
+          return;
+        if (index < 0 || index >= options.length)
+          return;
+        this.observeRecordingState(state);
+        var macroStep = macroStepFromChoice(options[index].render, chosen.includes(index), info);
+        this.recordStep(macroStep);
+        if (this.recordingMacro.startPrompt === null) {
+          this.recordingMacro.startPrompt = choicePrompt;
+        }
+      };
       GameUI2.prototype.exportPersistenceData = function() {
         return {
           macros: cloneMacros(this.macros),
@@ -15192,9 +15377,8 @@
         return new Promise(function(resolve, reject) {
           function newResolve(n, shifted) {
             ui.clearChoice();
+            ui.recordResolvedChoice(state, choicePrompt, options, info, chosen, n);
             var macroStep = macroStepFromChoice(options[n].render, chosen.includes(n), info);
-            ui.observeRecordingState(state);
-            ui.recordStep(macroStep);
             if (shifted)
               ui.playingMacro = repeat2([macroStep], 9);
             if (ui.playingMacro.length === 0) {
@@ -15208,8 +15392,12 @@
               ui.eraseStep();
             }
             if (reason instanceof SetState) {
-              ui.playingMacro = [];
-              ui.macroStartState = null;
+              if (ui.preserveMacroOnNextSetState) {
+                ui.preserveMacroOnNextSetState = false;
+              } else {
+                ui.playingMacro = [];
+                ui.macroStartState = null;
+              }
             }
             ui.clearChoice();
             reject(reason);

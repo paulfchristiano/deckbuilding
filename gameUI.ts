@@ -193,6 +193,9 @@ interface Macro {
     steps: MacroStep[]
     requirements: MacroRequirements
     startPrompt: string | null
+    displayLabelMain?: string
+    displayLabelMeta?: string
+    resetFirst?: boolean
 }
 
 export type MacroPersistenceData = {
@@ -354,7 +357,10 @@ function cloneMacro(macro: Macro): Macro {
             hand: new Map(macro.requirements.hand),
             discard: new Map(macro.requirements.discard)
         },
-        startPrompt: macro.startPrompt
+        startPrompt: macro.startPrompt,
+        displayLabelMain: macro.displayLabelMain,
+        displayLabelMeta: macro.displayLabelMeta,
+        resetFirst: macro.resetFirst === true
     }
 }
 
@@ -446,6 +452,9 @@ function hasRequiredCounts(
 }
 
 function canPlayMacro(macro: Macro, state: State, choiceState: ChoiceState | null): boolean {
+    if (macro.resetFirst === true) {
+        return choiceState !== null && macro.steps.length > 0
+    }
     if (state.coin < macro.requirements.coin) return false
     if (state.actions < macro.requirements.actions) return false
     if (state.buys < macro.requirements.buys) return false
@@ -471,6 +480,63 @@ function macroStepLabel(step: MacroStep): string {
 function renderMacroTooltip(macro: Macro): string {
     if (macro.steps.length === 0) return '<div>No actions recorded.</div>'
     return macro.steps.map(step => `<div>${macroStepVerb(step)} ${macroStepLabel(step)}</div>`).join('')
+}
+
+class ReplayMacroCaptureComplete extends Error {
+    constructor() {
+        super('ReplayMacroCaptureComplete')
+        Object.setPrototypeOf(this, ReplayMacroCaptureComplete.prototype)
+    }
+}
+
+async function buildReplayMacroFromState(targetState: State): Promise<Macro | null> {
+    const history = [...targetState.origin().future]
+    if (history.length === 0) return null
+
+    const steps: MacroStep[] = []
+    const recordingStates: State[] = []
+    let startPrompt: string | null = null
+    let cursor = 0
+
+    const captureUI: UI = {
+        async choice<T>(state: State, prompt: string, options: Option<T>[], info: string[], chosen: number[]): Promise<number> {
+            if (cursor >= history.length) throw new ReplayMacroCaptureComplete()
+            const index = history[cursor]
+            if (index < 0 || index >= options.length) {
+                throw new Error(`Unable to save replay: history index ${index} is invalid at step ${cursor}.`)
+            }
+            if (recordingStates.length === 0) recordingStates.push(state)
+            recordingStates.push(state)
+            steps.push(macroStepFromChoice(options[index].render, chosen.includes(index), info))
+            if (startPrompt === null) startPrompt = prompt
+            cursor += 1
+            return index
+        },
+        async victory(): Promise<void> {
+            if (cursor >= history.length) throw new ReplayMacroCaptureComplete()
+            throw new Error('Unable to save replay: replay reached victory before consuming history.')
+        }
+    }
+
+    try {
+        await playGame(targetState.spec, captureUI)
+    } catch (error) {
+        if (!(error instanceof ReplayMacroCaptureComplete)) throw error
+    }
+
+    if (cursor !== history.length) {
+        throw new Error(`Unable to save replay: consumed ${cursor} of ${history.length} steps.`)
+    }
+    if (steps.length === 0) return null
+
+    return {
+        steps,
+        requirements: computeMacroRequirements(recordingStates, steps),
+        startPrompt,
+        displayLabelMain: 'Replay',
+        displayLabelMeta: `${targetState.energy}@`,
+        resetFirst: true
+    }
 }
 
 // ----------------------------- Hotkey Mapper
@@ -1045,7 +1111,7 @@ function renderStringOption(option: StringOption, hotkey?: Key, pick?: number): 
 }
 
 function renderChoice(
-    ui: GameUI | null,
+    ui: GameUI,
     state: State,
     choicePrompt: string,
     options: Option<(shifted: boolean) => void>[],
@@ -1074,10 +1140,8 @@ function renderChoice(
 
     renderState(state, { hotkeyMap, optionsMap, pickMap, updateURL: false })
 
-    if (ui) {
-        setVisibleLog(state, globalRendererState.logType, ui)
-        bindLogTypeButtons(state, ui)
-    }
+    setVisibleLog(state, globalRendererState.logType, ui)
+    bindLogTypeButtons(state, ui)
 
     getElement('choicePrompt').innerHTML = choicePrompt
     const optionsEl = getElement('options')
@@ -1088,19 +1152,27 @@ function renderChoice(
         optionsEl.appendChild(renderStringOption(option, hotkey, pickMap.get(option.render)))
     }
 
-    getElement('undoArea').innerHTML = renderSpecials(state)
-    if (ui) bindSpecials(state, ui)
+    getElement('undoArea').innerHTML = renderSpecials(state, ui)
+    bindSpecials(state, ui)
 }
 
 // ----------------------------- Special Buttons
 
-function renderSpecials(state: State): string {
+function saveReplayEnabled(state: State, ui: GameUI): boolean {
+    return state.hasHistory() &&
+        state.spec.replayUsedPotionIDs === undefined &&
+        ui.recordingMacro === null &&
+        ui.playingMacro.length === 0
+}
+
+function renderSpecials(state: State, ui: GameUI): string {
     return [
         renderBack(),
         renderUndo(state.undoable()),
         renderRedo(state.redo.length > 0),
         renderHotkeyToggle(),
         renderMacroToggle(),
+        renderSaveReplay(saveReplayEnabled(state, ui)),
         renderRestart(),
     ].join('')
 }
@@ -1119,6 +1191,12 @@ function renderKingdomViewer(): string {
 
 function renderMacroToggle(): string {
     return `<span id='macroToggle' class='option' option='macroToggle' choosable chosen='false'>Macros</span>`
+}
+
+function renderSaveReplay(enabled: boolean): string {
+    const statusAttr = enabled ? 'choosable' : `disabled='disabled'`
+    const styleAttr = enabled ? '' : `style='cursor:default;opacity:0.5;'`
+    return `<span id='saveReplay' class='option' option='saveReplay' ${statusAttr} chosen='false' ${styleAttr}>Save replay</span>`
 }
 
 function renderHotkeyToggle(): string {
@@ -1149,6 +1227,7 @@ function bindSpecials(state: State, ui: GameUI): void {
     bindUndo(state, ui)
     bindRedo(state, ui)
     bindMacroToggle(state, ui)
+    bindSaveReplay(state, ui)
     bindInGameDeckDialog(state)
     bindBack(ui)
 }
@@ -1243,6 +1322,22 @@ function bindMacroToggle(state: State, ui: GameUI): void {
     }
 }
 
+function bindSaveReplay(state: State, ui: GameUI): void {
+    const el = querySelector(`[option='saveReplay']`)
+    if (!el) return
+    ;(el as HTMLElement).onclick = async () => {
+        if (!saveReplayEnabled(state, ui)) return
+        globalRendererState.viewingMacros = true
+        const macro = await buildReplayMacroFromState(state)
+        if (macro !== null) {
+            ui.macros.push(cloneMacro(macro))
+        }
+        if (globalRendererState.viewingMacros) {
+            makeMacroButtons(ui, getElement('macroSpot'), ui.choiceState ? ui.choiceState.state : state)
+        }
+    }
+}
+
 function makeMacroButtons(ui: GameUI, container: HTMLElement, state: State): void {
     closeMacroDeleteMenu()
     const macroButtons = ui.macros.map((macro, index) => renderPlayMacroButton(macro, index, canPlayMacro(macro, state, ui.choiceState)))
@@ -1260,10 +1355,18 @@ function renderRecordMacroButton(ui: GameUI): string {
 function renderPlayMacroButton(macro: Macro, index: number, enabled: boolean): string {
     const firstStep = macro.steps[0]
     const firstStepText = firstStep ? macroStepLabel(firstStep) : '(empty)'
-    const buttonText = `${firstStepText} (${macro.steps.length})`
+    const fallbackLabel = firstStepText
+    const fallbackMeta = `(${macro.steps.length})`
+    let labelText = fallbackLabel
+    let labelMeta = fallbackMeta
+    if (macro.displayLabelMain !== undefined) {
+        labelText = macro.displayLabelMain
+        labelMeta = macro.displayLabelMeta ? `(${macro.displayLabelMeta})` : ''
+    }
     const statusAttr = enabled ? 'choosable' : `disabled='disabled'`
     const styleAttr = enabled ? '' : `style='cursor:default;'`
-    return `<span id='playMacro' class='option macroOption' option='macro${index}' ${statusAttr} chosen='false' ${styleAttr}><span class='macroOptionLabel'>${buttonText}</span><span class='tooltip'>${renderMacroTooltip(macro)}</span></span>`
+    const metaHTML = labelMeta ? `<span style='color:#888;font-weight:normal;'> ${labelMeta}</span>` : ''
+    return `<span id='playMacro' class='option macroOption' option='macro${index}' ${statusAttr} chosen='false' ${styleAttr}><span class='macroOptionLabel'><span class='macroOptionLabelPrimary'>${labelText}</span>${metaHTML}</span><span class='tooltip'>${renderMacroTooltip(macro)}</span></span>`
 }
 
 function bindRecordMacroButton(ui: GameUI, state: State): void {
@@ -1274,7 +1377,9 @@ function bindRecordMacroButton(ui: GameUI, state: State): void {
                 ui.recordingMacro = {
                     steps: [],
                     requirements: emptyMacroRequirements(),
-                    startPrompt: ui.choiceState ? ui.choiceState.choicePrompt : null
+                    startPrompt: ui.choiceState ? ui.choiceState.choicePrompt : null,
+                    displayLabelMain: undefined,
+                    displayLabelMeta: undefined
                 }
                 ui.recordingStates = [state]
             } else if (ui.choiceState === null || ui.recordingMacro.steps.length === 0) {
@@ -1311,9 +1416,17 @@ function bindPlayMacroButtons(ui: GameUI, state: State): void {
         macroButton.onclick = (e) => {
             closeMacroDeleteMenu()
             if (ui.choiceState && ui.playingMacro.length === 0) {
-                ui.playingMacro = repeat(ui.macros[i].steps, (e as MouseEvent).shiftKey ? 10 : 1)
-                ui.macroStartState = ui.choiceState.state
-                ui.resolveWithMacro()
+                const macro = ui.macros[i]
+                ui.playingMacro = repeat(macro.steps, (e as MouseEvent).shiftKey ? 10 : 1)
+                if (macro.resetFirst === true) {
+                    const reset = startState(ui.choiceState.state)
+                    ui.macroStartState = reset
+                    ui.preserveMacroOnNextSetState = true
+                    ui.choiceState.reject(new SetState(reset))
+                } else {
+                    ui.macroStartState = ui.choiceState.state
+                    ui.resolveWithMacro()
+                }
             }
         }
     }
@@ -1449,6 +1562,7 @@ export class GameUI implements UI {
     public recordingStates: State[] = []
     public playingMacro: MacroStep[] = []
     public macroStartState: State | null = null
+    public preserveMacroOnNextSetState = false
     public choiceState: ChoiceState | null = null
 
     constructor(
@@ -1457,6 +1571,24 @@ export class GameUI implements UI {
         public readonly undoAtBeginningMode: UndoAtBeginningMode = 'leave'
     ) {
         this.macros = loadMacros(initialMacros)
+    }
+
+    private recordResolvedChoice<T>(
+        state: State,
+        choicePrompt: string,
+        options: Option<T>[],
+        info: string[],
+        chosen: number[],
+        index: number
+    ): void {
+        if (this.recordingMacro === null) return
+        if (index < 0 || index >= options.length) return
+        this.observeRecordingState(state)
+        const macroStep = macroStepFromChoice(options[index].render, chosen.includes(index), info)
+        this.recordStep(macroStep)
+        if (this.recordingMacro.startPrompt === null) {
+            this.recordingMacro.startPrompt = choicePrompt
+        }
     }
 
     exportPersistenceData(): MacroPersistenceData {
@@ -1552,9 +1684,8 @@ export class GameUI implements UI {
         return new Promise((resolve, reject) => {
             function newResolve(n: number, shifted: boolean) {
                 ui.clearChoice()
+                ui.recordResolvedChoice(state, choicePrompt, options, info, chosen, n)
                 const macroStep = macroStepFromChoice(options[n].render, chosen.includes(n), info)
-                ui.observeRecordingState(state)
-                ui.recordStep(macroStep)
                 if (shifted) ui.playingMacro = repeat([macroStep], 9)
                 if (ui.playingMacro.length === 0) {
                     ui.macroStartState = null
@@ -1568,8 +1699,12 @@ export class GameUI implements UI {
                     ui.eraseStep()
                 }
                 if (reason instanceof SetState) {
-                    ui.playingMacro = []
-                    ui.macroStartState = null
+                    if (ui.preserveMacroOnNextSetState) {
+                        ui.preserveMacroOnNextSetState = false
+                    } else {
+                        ui.playingMacro = []
+                        ui.macroStartState = null
+                    }
                 }
                 ui.clearChoice()
                 reject(reason)
