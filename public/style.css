@@ -5,9 +5,18 @@
 }
 #seedDisplay {
     position: fixed;
-    right: 0;
-    bottom: 0;
+    right: 8px;
+    bottom: 6px;
     font-size: 1.2em;
+    color: rgba(0, 0, 0, 0.35);
+    user-select: text;
+    z-index: 5;
+}
+#runTimerDisplay {
+    position: fixed;
+    right: 8px;
+    bottom: 30px;
+    font-size: 1.3em;
     color: rgba(0, 0, 0, 0.35);
     user-select: text;
     z-index: 5;

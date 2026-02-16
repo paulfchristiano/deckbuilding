@@ -15701,6 +15701,12 @@
   function hideElement2(el) {
     el.setAttribute("hidden", "");
   }
+  function setBufferDisplayText(text) {
+    var bufferDisplay = document.getElementById("bufferDisplay");
+    if (!bufferDisplay)
+      return;
+    bufferDisplay.textContent = text;
+  }
   function showScreen(screen) {
     var e_1, _a;
     var screens = {
@@ -15816,7 +15822,7 @@
   }
   function updateBufferDisplay(state) {
     var debugTag = state.debugEnabled ? " [Debug]" : "";
-    getElement2("bufferDisplay").textContent = "Buffer: ".concat(state.data.buffer).concat(debugTag);
+    setBufferDisplayText("Buffer: ".concat(state.data.buffer).concat(debugTag));
   }
   function updateProgressSidebar(state, onReplayStage) {
     var renderLine = function(selector, inGameSidebar) {
@@ -16618,7 +16624,83 @@
     challenges: []
   };
   var SAVE_STORAGE_KEY = "roguelike.ongoingSaves.v1";
+  var RUN_TIMER_STORAGE_KEY = "roguelike.runTimerSeconds.v1";
   var MAX_LAUNCHER_SAVES = 10;
+  var runTimerSeconds = 0;
+  var activeRunSlotID = null;
+  var runTimerIntervalID = null;
+  function loadRunTimerSeconds() {
+    try {
+      var raw = localStorage.getItem(RUN_TIMER_STORAGE_KEY);
+      if (!raw)
+        return 0;
+      var parsedJSON = JSON.parse(raw);
+      if (typeof parsedJSON.elapsedSeconds === "number" && Number.isFinite(parsedJSON.elapsedSeconds) && parsedJSON.elapsedSeconds >= 0) {
+        return parsedJSON.elapsedSeconds;
+      }
+      var parsed = Number.parseInt(raw, 10);
+      return Number.isFinite(parsed) && parsed >= 0 ? parsed : 0;
+    } catch (_a) {
+      return 0;
+    }
+  }
+  function persistRunTimerSeconds() {
+    var payload = {
+      slotID: activeRunSlotID,
+      elapsedSeconds: runTimerSeconds
+    };
+    localStorage.setItem(RUN_TIMER_STORAGE_KEY, JSON.stringify(payload));
+  }
+  function formatRunTimer(totalSeconds) {
+    var seconds = totalSeconds % 60;
+    var minutesTotal = Math.floor(totalSeconds / 60);
+    if (minutesTotal >= 60) {
+      var hours = Math.floor(minutesTotal / 60);
+      var minutes = minutesTotal % 60;
+      return "".concat(hours.toString().padStart(2, "0"), ":").concat(minutes.toString().padStart(2, "0"), ":").concat(seconds.toString().padStart(2, "0"));
+    }
+    return "".concat(minutesTotal, ":").concat(seconds.toString().padStart(2, "0"));
+  }
+  function renderRunTimer() {
+    var runTimerDisplay = document.getElementById("runTimerDisplay");
+    if (!runTimerDisplay)
+      return;
+    if (activeRunSlotID === null) {
+      runTimerDisplay.setAttribute("hidden", "");
+      return;
+    }
+    runTimerDisplay.removeAttribute("hidden");
+    var formatted = formatRunTimer(runTimerSeconds);
+    runTimerDisplay.textContent = formatted;
+  }
+  function runTimerActive() {
+    return document.visibilityState === "visible" && document.hasFocus();
+  }
+  function tickRunTimer() {
+    if (activeRunSlotID === null || !runTimerActive())
+      return;
+    runTimerSeconds += 1;
+    persistRunTimerSeconds();
+    var slots = loadSaveSlots();
+    var index = slots.findIndex(function(slot) {
+      return slot.id === activeRunSlotID;
+    });
+    if (index >= 0) {
+      slots[index].elapsedSeconds = runTimerSeconds;
+      persistSaveSlots(slots);
+    }
+    renderRunTimer();
+  }
+  function initRunTimer() {
+    runTimerSeconds = loadRunTimerSeconds();
+    renderRunTimer();
+    if (runTimerIntervalID === null) {
+      runTimerIntervalID = window.setInterval(tickRunTimer, 1e3);
+    }
+    document.addEventListener("visibilitychange", renderRunTimer);
+    window.addEventListener("focus", renderRunTimer);
+    window.addEventListener("blur", renderRunTimer);
+  }
   var summaryMetaUI = {
     chooseCard: function() {
       return __awaiter12(void 0, void 0, void 0, function() {
@@ -16688,7 +16770,15 @@
       if (!Array.isArray(parsed))
         return [];
       return parsed.filter(function(slot) {
-        return slot && slot.id && slot.snapshot && slot.seed;
+        return slot && typeof slot.id === "string" && slot.snapshot && typeof slot.seed === "string";
+      }).map(function(slot) {
+        return {
+          id: slot.id,
+          seed: slot.seed,
+          snapshot: slot.snapshot,
+          updatedAt: typeof slot.updatedAt === "number" && Number.isFinite(slot.updatedAt) ? slot.updatedAt : 0,
+          elapsedSeconds: typeof slot.elapsedSeconds === "number" && Number.isFinite(slot.elapsedSeconds) && slot.elapsedSeconds >= 0 ? slot.elapsedSeconds : 0
+        };
       }).sort(function(a2, b) {
         return b.updatedAt - a2.updatedAt;
       });
@@ -16702,12 +16792,14 @@
     });
     localStorage.setItem(SAVE_STORAGE_KEY, JSON.stringify(sorted));
   }
-  function upsertSaveSlot(id, snapshot) {
+  function upsertSaveSlot(id, snapshot, elapsedSeconds) {
     var slots = loadSaveSlots();
+    var normalizedElapsed = Number.isFinite(elapsedSeconds) && elapsedSeconds >= 0 ? Math.floor(elapsedSeconds) : 0;
     var updated = {
       id,
       updatedAt: Date.now(),
       seed: snapshot.seed,
+      elapsedSeconds: normalizedElapsed,
       snapshot
     };
     var index = slots.findIndex(function(slot) {
@@ -16773,17 +16865,24 @@
     document.head.appendChild(style);
   }
   function runGame(slotID_1, snapshot_1, seed_1) {
-    return __awaiter12(this, arguments, void 0, function(slotID, snapshot, seed, newGameDebugEnabled) {
+    return __awaiter12(this, arguments, void 0, function(slotID, snapshot, seed, newGameDebugEnabled, initialElapsedSeconds) {
       var debugEnabled, activeTest, seedDisplay, metaUI, saveCallback, error_1;
       var _a;
       if (newGameDebugEnabled === void 0) {
         newGameDebugEnabled = false;
+      }
+      if (initialElapsedSeconds === void 0) {
+        initialElapsedSeconds = 0;
       }
       return __generator12(this, function(_b) {
         switch (_b.label) {
           case 0:
             debugEnabled = snapshot ? isDebugGame(snapshot) : newGameDebugEnabled;
             activeTest = debugEnabled ? test : null;
+            activeRunSlotID = slotID;
+            runTimerSeconds = Math.max(0, Math.floor(initialElapsedSeconds));
+            persistRunTimerSeconds();
+            renderRunTimer();
             seedDisplay = document.getElementById("seedDisplay");
             if (seedDisplay)
               seedDisplay.textContent = "Seed: ".concat(seed);
@@ -16792,7 +16891,7 @@
             clearLauncherDialogs();
             metaUI = new MetaGameUI();
             saveCallback = function(nextSnapshot) {
-              upsertSaveSlot(slotID, nextSnapshot);
+              upsertSaveSlot(slotID, nextSnapshot, runTimerSeconds);
             };
             _b.label = 1;
           case 1:
@@ -16812,6 +16911,8 @@
             alert("Failed to load or run this game. You can abandon it from the launcher.");
             return [3, 5];
           case 4:
+            activeRunSlotID = null;
+            renderRunTimer();
             renderLauncher();
             return [
               7
@@ -16860,7 +16961,7 @@
             bufferDisplay = document.getElementById("bufferDisplay");
             if (bufferDisplay) {
               debugTag = state.debugEnabled ? " [Debug]" : "";
-              bufferDisplay.textContent = "Buffer: ".concat(replayData.bufferBeforeCourse).concat(debugTag);
+              setBufferDisplayText("Buffer: ".concat(replayData.bufferBeforeCourse).concat(debugTag));
             }
             return [4, startGame(replaySpecForStage(state, replayData), replayData.history, [], state.global.macros, state.global.viewingMacros, null, "nothing")];
           case 2:
@@ -17087,7 +17188,8 @@
     var primary = document.createElement("div");
     var done = slot.snapshot.data.phase === "game_over" || slot.snapshot.data.stage >= 8;
     var debugTag = isDebugGame(slot.snapshot) ? " [Debug]" : "";
-    primary.textContent = done ? "Victory! \u2022 Buffer ".concat(slot.snapshot.data.buffer).concat(debugTag) : "Stage ".concat(slot.snapshot.data.stage + 1, " \u2022 Buffer ").concat(slot.snapshot.data.buffer).concat(debugTag);
+    var timerSummary = formatRunTimer(slot.elapsedSeconds);
+    primary.textContent = done ? "Victory! \u2022 Buffer ".concat(slot.snapshot.data.buffer).concat(debugTag, " \u2022 ").concat(timerSummary) : "Stage ".concat(slot.snapshot.data.stage + 1, " \u2022 Buffer ").concat(slot.snapshot.data.buffer).concat(debugTag, " \u2022 ").concat(timerSummary);
     if (slot.snapshot.data.buffer < 0) {
       primary.className = "negativeBuffer";
     }
@@ -17105,7 +17207,7 @@
       continueButton.onclick = function() {
         return __awaiter12(_this, void 0, void 0, function() {
           return __generator12(this, function(_a) {
-            return [2, runGame(slot.id, slot.snapshot, slot.seed)];
+            return [2, runGame(slot.id, slot.snapshot, slot.seed, false, slot.elapsedSeconds)];
           });
         });
       };
@@ -17257,7 +17359,7 @@
               case 0:
                 seed = normalizeSeed(seedInput.value) || randomString();
                 slotID = "".concat(Date.now(), "-").concat(Math.floor(Math.random() * 1e6));
-                return [4, runGame(slotID, null, seed, debugNewGame)];
+                return [4, runGame(slotID, null, seed, debugNewGame, 0)];
               case 1:
                 _a2.sent();
                 return [
@@ -17369,6 +17471,7 @@
   window.addEventListener("load", function() {
     return __awaiter12(void 0, void 0, void 0, function() {
       return __generator12(this, function(_a) {
+        initRunTimer();
         renderLauncher();
         return [
           2

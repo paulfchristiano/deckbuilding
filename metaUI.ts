@@ -59,6 +59,12 @@ function hideElement(el: HTMLElement): void {
     el.setAttribute('hidden', '')
 }
 
+export function setBufferDisplayText(text: string): void {
+    const bufferDisplay = document.getElementById('bufferDisplay')
+    if (!bufferDisplay) return
+    bufferDisplay.textContent = text
+}
+
 // ----------------------------- Screen Management
 
 type Screen = 'stage' | 'path' | 'game' | 'victory' | 'gameOver'
@@ -188,7 +194,7 @@ function exitModalDialog(): void {
 
 function updateBufferDisplay(state: MetaState): void {
     const debugTag = state.debugEnabled ? ' [Debug]' : ''
-    getElement('bufferDisplay').textContent = `Buffer: ${state.data.buffer}${debugTag}`
+    setBufferDisplayText(`Buffer: ${state.data.buffer}${debugTag}`)
 }
 
 function updateProgressSidebar(state: MetaState, onReplayStage?: (stage: number) => void): void {
