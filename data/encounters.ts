@@ -3,7 +3,7 @@
 
 import { Encounter, registerEncounter, RewardOption,
     MetaState, MetaTransform,
-    addBuffer, gainCard, gainEvent, gainPotion, gainRelic,
+    addBuffer, gainCard, gainEvent, gainPotion, gainRelic, removeRelic,
     addTimelineAction,
     RelicSpec,
     standardRelicRewards,
@@ -1004,7 +1004,7 @@ const tradingPost: Encounter = {
                     return {
                         newData: { ...d, relicTraded: true },
                         transform: async (state: MetaState) => {
-                            state.removeRelic(relic.id)
+                            await removeRelic(state, relic.id)
                             await gainRelic(d.offerRelic, {
                                 details: `Traded away ${displayName(relic.spec)}`
                             })(state)

@@ -4796,51 +4796,55 @@
                         piggyBank2 = state.data.relics.find(function(relic) {
                           return relic.name === "Piggy Bank";
                         });
-                        if (piggyBank2)
-                          state.removeRelic(piggyBank2.id);
-                        return [4, addTimelineAction("Take it all", details_2)(state)];
+                        if (!piggyBank2) return [3, 2];
+                        return [4, removeRelic(state, piggyBank2.id)];
                       case 1:
                         _d.sent();
                         _d.label = 2;
                       case 2:
-                        _d.trys.push([2, 13, 14, 15]);
-                        _a2 = __values4(rewardState.options), _b = _a2.next();
-                        _d.label = 3;
+                        return [4, addTimelineAction("Take it all", details_2)(state)];
                       case 3:
-                        if (!!_b.done) return [3, 12];
-                        option = _b.value;
-                        if (!(rewardState.kind === "card")) return [3, 5];
-                        return [4, gainCard(option, { silent: true })(state)];
-                      case 4:
                         _d.sent();
-                        return [3, 11];
+                        _d.label = 4;
+                      case 4:
+                        _d.trys.push([4, 15, 16, 17]);
+                        _a2 = __values4(rewardState.options), _b = _a2.next();
+                        _d.label = 5;
                       case 5:
-                        if (!(rewardState.kind === "event")) return [3, 7];
-                        return [4, gainEvent(option, { silent: true })(state)];
+                        if (!!_b.done) return [3, 14];
+                        option = _b.value;
+                        if (!(rewardState.kind === "card")) return [3, 7];
+                        return [4, gainCard(option, { silent: true })(state)];
                       case 6:
                         _d.sent();
-                        return [3, 11];
+                        return [3, 13];
                       case 7:
-                        if (!(rewardState.kind === "potion")) return [3, 9];
-                        return [4, gainPotion(option, { silent: true })(state)];
+                        if (!(rewardState.kind === "event")) return [3, 9];
+                        return [4, gainEvent(option, { silent: true })(state)];
                       case 8:
                         _d.sent();
-                        return [3, 11];
+                        return [3, 13];
                       case 9:
-                        return [4, gainRelic(option, { silent: true })(state)];
+                        if (!(rewardState.kind === "potion")) return [3, 11];
+                        return [4, gainPotion(option, { silent: true })(state)];
                       case 10:
                         _d.sent();
-                        _d.label = 11;
+                        return [3, 13];
                       case 11:
-                        _b = _a2.next();
-                        return [3, 3];
+                        return [4, gainRelic(option, { silent: true })(state)];
                       case 12:
-                        return [3, 15];
+                        _d.sent();
+                        _d.label = 13;
                       case 13:
+                        _b = _a2.next();
+                        return [3, 5];
+                      case 14:
+                        return [3, 17];
+                      case 15:
                         e_1_1 = _d.sent();
                         e_1 = { error: e_1_1 };
-                        return [3, 15];
-                      case 14:
+                        return [3, 17];
+                      case 16:
                         try {
                           if (_b && !_b.done && (_c = _a2.return)) _c.call(_a2);
                         } finally {
@@ -4850,7 +4854,7 @@
                           7
                           /*endfinally*/
                         ];
-                      case 15:
+                      case 17:
                         return [
                           2
                           /*return*/
@@ -6012,6 +6016,32 @@
         });
       });
     };
+  }
+  function removeRelic(state, id) {
+    return __awaiter3(this, void 0, void 0, function() {
+      var relic;
+      return __generator3(this, function(_a) {
+        switch (_a.label) {
+          case 0:
+            relic = state.data.relics.find(function(r) {
+              return r.id === id;
+            });
+            if (!relic)
+              return [
+                2
+                /*return*/
+              ];
+            return [4, trigger2({ kind: "loseRelic", relic }, state)];
+          case 1:
+            _a.sent();
+            state.removeRelic(id);
+            return [
+              2
+              /*return*/
+            ];
+        }
+      });
+    });
   }
   function updateRewardAtIndex(state, index, newRewardState) {
     var rewardStates = __spreadArray5([], __read6(state.data.rewardStates), false);
@@ -7425,16 +7455,28 @@
   relicRewards.push(inkwell);
   var elegantQuill = {
     name: "Elegant Quill",
-    metaTriggers: [{
-      kind: "relic",
-      text: ["When you gain this, gain 2@ buffer."],
-      handles: function(e, s, self) {
-        return self.id == e.relic.id;
+    metaTriggers: [
+      {
+        kind: "relic",
+        text: ["When you gain this, gain 2@ buffer."],
+        handles: function(e, _s, self) {
+          return self.id === e.relic.id;
+        },
+        transform: function(_e) {
+          return addBuffer(2);
+        }
       },
-      transform: function(e) {
-        return addBuffer(2);
+      {
+        kind: "loseRelic",
+        text: ["When you lose this, lose 2@ buffer."],
+        handles: function(e, _s, self) {
+          return self.id === e.relic.id;
+        },
+        transform: function(_e) {
+          return addBuffer(-2);
+        }
       }
-    }]
+    ]
   };
   relicRewards.push(elegantQuill);
   var brokenLever = {
@@ -7488,12 +7530,14 @@
             return __generator4(this, function(_a) {
               switch (_a.label) {
                 case 0:
-                  state.removeRelic(relic.id);
-                  return [4, gainRelic(e.relic.spec)(state)];
+                  return [4, removeRelic(state, relic.id)];
                 case 1:
                   _a.sent();
                   return [4, gainRelic(e.relic.spec)(state)];
                 case 2:
+                  _a.sent();
+                  return [4, gainRelic(e.relic.spec)(state)];
+                case 3:
                   _a.sent();
                   return [
                     2
@@ -7718,28 +7762,34 @@
           return __awaiter4(this, void 0, void 0, function() {
             var current, tokens;
             return __generator4(this, function(_a) {
-              current = state.data.relics.find(function(r) {
-                return r.id === self.id;
-              });
-              if (!current)
-                return [
-                  2
-                  /*return*/
-                ];
-              tokens = new Map(current.tokens);
-              if (current.charge > 0) {
-                tokens.set("charge", current.count("charge") - 1);
-                state.applyToRelic(function(r) {
-                  return r.update({ tokens });
-                }, current);
+              switch (_a.label) {
+                case 0:
+                  current = state.data.relics.find(function(r) {
+                    return r.id === self.id;
+                  });
+                  if (!current)
+                    return [
+                      2
+                      /*return*/
+                    ];
+                  tokens = new Map(current.tokens);
+                  if (current.charge > 0) {
+                    tokens.set("charge", current.count("charge") - 1);
+                    state.applyToRelic(function(r) {
+                      return r.update({ tokens });
+                    }, current);
+                  }
+                  if (!(tokens.get("charge") === 0)) return [3, 2];
+                  return [4, removeRelic(state, current.id)];
+                case 1:
+                  _a.sent();
+                  _a.label = 2;
+                case 2:
+                  return [
+                    2
+                    /*return*/
+                  ];
               }
-              if (tokens.get("charge") === 0) {
-                state.removeRelic(current.id);
-              }
-              return [
-                2
-                /*return*/
-              ];
             });
           });
         };
@@ -7765,13 +7815,15 @@
               switch (_a.label) {
                 case 0:
                   gain = Math.max(0, e.par - e.score);
-                  state.removeRelic(self.id);
-                  if (!(gain > 0)) return [3, 2];
-                  return [4, addBuffer(gain)(state)];
+                  return [4, removeRelic(state, self.id)];
                 case 1:
                   _a.sent();
-                  _a.label = 2;
+                  if (!(gain > 0)) return [3, 3];
+                  return [4, addBuffer(gain)(state)];
                 case 2:
+                  _a.sent();
+                  _a.label = 3;
+                case 3:
                   return [
                     2
                     /*return*/
@@ -7804,11 +7856,16 @@
         return function(state) {
           return __awaiter4(this, void 0, void 0, function() {
             return __generator4(this, function(_a) {
-              state.removeRelic(self.id);
-              return [
-                2
-                /*return*/
-              ];
+              switch (_a.label) {
+                case 0:
+                  return [4, removeRelic(state, self.id)];
+                case 1:
+                  _a.sent();
+                  return [
+                    2
+                    /*return*/
+                  ];
+              }
             });
           });
         };
@@ -13394,11 +13451,13 @@
                           return __generator9(this, function(_a2) {
                             switch (_a2.label) {
                               case 0:
-                                state.removeRelic(relic.id);
+                                return [4, removeRelic(state, relic.id)];
+                              case 1:
+                                _a2.sent();
                                 return [4, gainRelic(d.offerRelic, {
                                   details: "Traded away ".concat(displayName(relic.spec))
                                 })(state)];
-                              case 1:
+                              case 2:
                                 _a2.sent();
                                 return [
                                   2

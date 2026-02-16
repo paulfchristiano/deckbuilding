@@ -22,8 +22,8 @@ import { Generator } from '../rng.js'
 
 import {
     GameSetupParams, RewardParams, ExtraOptionsParams, PathRewardParams,
-    CourseEndEvent, CourseStartEvent, GainRelicEvent, GainCardEvent, GainEventEvent, PathGenerationEvent,
-    MetaTransform, addBuffer, gainPotion, gainRelic, RelicSpec, Relic,
+    CourseEndEvent, CourseStartEvent, GainRelicEvent, LoseRelicEvent, GainCardEvent, GainEventEvent, PathGenerationEvent,
+    MetaTransform, addBuffer, gainPotion, gainRelic, removeRelic, RelicSpec, Relic,
     MetaState,
 } from '../metaLogic.js'
 import { makeBottledEventPotion } from './specialSpecs.js'
@@ -83,12 +83,20 @@ relicRewards.push(inkwell)
 // Elegant Quill: Gain 2@ buffer (one-time effect on acquisition)
 export const elegantQuill: RelicSpec = {
     name: 'Elegant Quill',
-    metaTriggers: [{
-        kind: 'relic',
-        text: ['When you gain this, gain 2@ buffer.'],
-        handles: (e: GainRelicEvent, s: MetaState, self: Relic) => self.id == e.relic.id,
-        transform: (e: GainRelicEvent) => addBuffer(2)
-    }]
+    metaTriggers: [
+        {
+            kind: 'relic',
+            text: ['When you gain this, gain 2@ buffer.'],
+            handles: (e: GainRelicEvent, _s: MetaState, self: Relic) => self.id === e.relic.id,
+            transform: (_e: GainRelicEvent) => addBuffer(2)
+        },
+        {
+            kind: 'loseRelic',
+            text: ['When you lose this, lose 2@ buffer.'],
+            handles: (e: LoseRelicEvent, _s: MetaState, self: Relic) => self.id === e.relic.id,
+            transform: (_e: LoseRelicEvent) => addBuffer(-2)
+        }
+    ]
 }
 relicRewards.push(elegantQuill)
 
@@ -131,7 +139,7 @@ export const silverMirror: RelicSpec = {
         text: [`Whenever you gain a relic other than ${mirrorName}, gain two additional copies of that relic and destroy this.`],
         handles: (e: GainRelicEvent, _s: MetaState, relic: Relic) => e.relic.id !== relic.id && e.relic.name !== mirrorName,
         transform: (e: GainRelicEvent, _s: MetaState, relic: Relic) => async function (state: MetaState) {
-            state.removeRelic(relic.id)
+            await removeRelic(state, relic.id)
             await gainRelic(e.relic.spec)(state)
             await gainRelic(e.relic.spec)(state)
         },
@@ -285,7 +293,7 @@ export const matryoshkaDoll: RelicSpec = {
                 state.applyToRelic(r => r.update({ tokens }), current)
             }
             if (tokens.get('charge') === 0) {
-                state.removeRelic(current.id)
+                await removeRelic(state, current.id)
             }
         }
     }]
@@ -302,7 +310,7 @@ export const calledShot: RelicSpec = {
         handles: (_e: CourseEndEvent, _s: MetaState, _self: Relic) => true,
         transform: (e: CourseEndEvent, _s: MetaState, self: Relic) => async function (state: MetaState) {
             const gain = Math.max(0, e.par - e.score)
-            state.removeRelic(self.id)
+            await removeRelic(state, self.id)
             if (gain > 0) await addBuffer(gain)(state)
         }
     }]
@@ -322,7 +330,7 @@ export const delayedGratification: RelicSpec = {
         simpleText: [],
         handles: (_e: PathGenerationEvent, _s: MetaState, _self: Relic) => true,
         transform: (_e: PathGenerationEvent, _s: MetaState, self: Relic) => async function (state: MetaState) {
-            state.removeRelic(self.id)
+            await removeRelic(state, self.id)
         }
     }]
 }

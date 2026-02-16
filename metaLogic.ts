@@ -209,7 +209,7 @@ export function getRewardOptions(rewardState: RewardState, metaState: MetaState)
             onClick: async () => {
                 const transform: MetaTransform = async (state: MetaState) => {
                     const piggyBank = state.data.relics.find(relic => relic.name === 'Piggy Bank')
-                    if (piggyBank) state.removeRelic(piggyBank.id)
+                    if (piggyBank) await removeRelic(state, piggyBank.id)
                     await addTimelineAction('Take it all', details)(state)
                     for (const option of rewardState.options) {
                         if (rewardState.kind === 'card') await gainCard(option as CardSpec, { silent: true })(state)
@@ -429,6 +429,11 @@ export interface GainRelicEvent {
     relic: Relic
 }
 
+export interface LoseRelicEvent {
+    kind: 'loseRelic'
+    relic: Relic
+}
+
 export interface GainPotionEvent {
     kind: 'card'
     potion: Card
@@ -444,7 +449,7 @@ export interface GainEventEvent {
     event: CardSpec
 }
 
-export type MetaGameEvent = CourseEndEvent | CourseStartEvent | PathGenerationEvent | GainRelicEvent | GainPotionEvent | GainCardEvent | GainEventEvent
+export type MetaGameEvent = CourseEndEvent | CourseStartEvent | PathGenerationEvent | GainRelicEvent | LoseRelicEvent | GainPotionEvent | GainCardEvent | GainEventEvent
 
 export interface MetaTrigger<T extends MetaGameEvent> {
     kind: T['kind'];
@@ -460,6 +465,7 @@ export type TypedMetaTrigger =
     | MetaTrigger<CourseStartEvent>
     | MetaTrigger<PathGenerationEvent>
     | MetaTrigger<GainRelicEvent>
+    | MetaTrigger<LoseRelicEvent>
     | MetaTrigger<GainPotionEvent>
     | MetaTrigger<GainCardEvent>
     | MetaTrigger<GainEventEvent>
@@ -1562,7 +1568,10 @@ export function removeCard(state: MetaState, name: string) {
     })
 }
 
-export function removeRelic(state: MetaState, id: number) {
+export async function removeRelic(state: MetaState, id: number) {
+    const relic = state.data.relics.find(r => r.id === id)
+    if (!relic) return
+    await trigger({ kind: 'loseRelic', relic }, state)
     state.removeRelic(id)
 }
 
