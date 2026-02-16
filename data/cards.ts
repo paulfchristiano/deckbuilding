@@ -304,7 +304,8 @@ cardRewards.push(feast)
 
 const researcher:CardSpec = {name: 'Researcher',
     effects: [{
-        text: [`+X actions`],
+        text: [`+1 action for each charge token on this.`],
+        simpleText: [`+3 actions.`],
         transform: (state, card) => async function(state) {
             const n = state.find(card).charge
             state = await gainActions(n, card)(state)
@@ -328,9 +329,13 @@ const researcher:CardSpec = {name: 'Researcher',
             return state
             */
         }
-    }, chargeEffect()],
+    }, {
+        text: [`Put a charge token on this.`],
+        simpleText: [`This gets +1 action each time you play it.`],
+        transform: (state, card) => charge(card, 1)
+    }],
     buyCost: coin(5),
-    staticReplacers: [startsWithCharge('Researcher', 3)],
+    staticReplacers: [startsWithCharge('Researcher', 3, true)],
 }
 cardRewards.push(researcher)
 
