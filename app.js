@@ -17277,14 +17277,13 @@
     var primary = document.createElement("div");
     var done = slot.snapshot.data.phase === "game_over" || slot.snapshot.data.stage >= 8;
     var debugTag = isDebugGame(slot.snapshot) ? " [Debug]" : "";
-    var timerSummary = formatRunTimer(slot.elapsedSeconds);
-    primary.textContent = done ? "Victory! \u2022 Buffer ".concat(slot.snapshot.data.buffer).concat(debugTag, " \u2022 ").concat(timerSummary) : "Stage ".concat(slot.snapshot.data.stage + 1, " \u2022 Buffer ").concat(slot.snapshot.data.buffer).concat(debugTag, " \u2022 ").concat(timerSummary);
+    primary.textContent = done ? "Victory! \u2022 Buffer ".concat(slot.snapshot.data.buffer).concat(debugTag) : "Stage ".concat(slot.snapshot.data.stage + 1, " \u2022 Buffer ").concat(slot.snapshot.data.buffer).concat(debugTag);
     if (slot.snapshot.data.buffer < 0) {
       primary.className = "negativeBuffer";
     }
     var seedLine = document.createElement("div");
     seedLine.className = "saveSeed";
-    seedLine.textContent = "Seed: ".concat(slot.seed);
+    seedLine.textContent = "Seed: ".concat(slot.seed, " \u2022 ").concat(formatRunTimer(slot.elapsedSeconds));
     meta.appendChild(primary);
     meta.appendChild(seedLine);
     var actions = document.createElement("div");

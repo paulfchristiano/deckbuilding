@@ -823,16 +823,15 @@ function createSaveRow(slot: SaveSlot, onAbandon: () => void): HTMLElement {
     const primary = document.createElement('div')
     const done = slot.snapshot.data.phase === 'game_over' || slot.snapshot.data.stage >= 8
     const debugTag = isDebugGame(slot.snapshot) ? ' [Debug]' : ''
-    const timerSummary = formatRunTimer(slot.elapsedSeconds)
     primary.textContent = done
-        ? `Victory! • Buffer ${slot.snapshot.data.buffer}${debugTag} • ${timerSummary}`
-        : `Stage ${slot.snapshot.data.stage + 1} • Buffer ${slot.snapshot.data.buffer}${debugTag} • ${timerSummary}`
+        ? `Victory! • Buffer ${slot.snapshot.data.buffer}${debugTag}`
+        : `Stage ${slot.snapshot.data.stage + 1} • Buffer ${slot.snapshot.data.buffer}${debugTag}`
     if (slot.snapshot.data.buffer < 0) {
         primary.className = 'negativeBuffer'
     }
     const seedLine = document.createElement('div')
     seedLine.className = 'saveSeed'
-    seedLine.textContent = `Seed: ${slot.seed}`
+    seedLine.textContent = `Seed: ${slot.seed} • ${formatRunTimer(slot.elapsedSeconds)}`
     meta.appendChild(primary)
     meta.appendChild(seedLine)
 
