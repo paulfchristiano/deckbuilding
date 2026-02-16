@@ -16286,6 +16286,9 @@
     hideDialog("deckDialog");
     deckDialogOpen = false;
   }
+  function isDeckDialogOpen() {
+    return deckDialogOpen;
+  }
   var MetaGameUI = (
     /** @class */
     (function() {
@@ -16340,7 +16343,11 @@
           return __generator11(this, function(_a) {
             return [2, new Promise(function(resolve, reject) {
               var escapeListener = function() {
-                return finishReject(new ExitToLauncher());
+                if (isDeckDialogOpen()) {
+                  hideDeckDialog();
+                  return;
+                }
+                finishReject(new ExitToLauncher());
               };
               var cleanupEscapeListener = function() {
                 if (keyListeners.get("Escape") === escapeListener)
@@ -16435,7 +16442,11 @@
           return __generator11(this, function(_a) {
             return [2, new Promise(function(resolve, reject) {
               var escapeListener = function() {
-                return finishReject(new ExitToLauncher());
+                if (isDeckDialogOpen()) {
+                  hideDeckDialog();
+                  return;
+                }
+                finishReject(new ExitToLauncher());
               };
               var cleanupEscapeListener = function() {
                 if (keyListeners.get("Escape") === escapeListener)

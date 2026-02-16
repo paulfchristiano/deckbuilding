@@ -223,16 +223,19 @@
             width: 96vw;
             max-width: 96vw;
             max-height: calc(100vh - 10em);
-            overflow-y: auto;
-            overflow-x: hidden;
+            overflow: visible;
             font-size: 1em;
             box-sizing: border-box;
+            z-index: 30;
         }
         #deckContents {
             display: flex;
             flex-direction: column;
             gap: 10px;
             margin-top: 10px;
+        }
+        #deckDialog .tooltip {
+            z-index: 120;
         }
         .deckSection {
             display: flex;

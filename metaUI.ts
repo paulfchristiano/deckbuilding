@@ -686,7 +686,13 @@ export class MetaGameUI implements MetaUI {
 
     async waitForChallenge(state: MetaState): Promise<ChallengeSpec> {
         return new Promise((resolve, reject) => {
-            const escapeListener = () => finishReject(new ExitToLauncher())
+            const escapeListener = () => {
+                if (isDeckDialogOpen()) {
+                    hideDeckDialog()
+                    return
+                }
+                finishReject(new ExitToLauncher())
+            }
             const cleanupEscapeListener = () => {
                 if (keyListeners.get('Escape') === escapeListener) keyListeners.delete('Escape')
                 if (keyListeners.get('Esc') === escapeListener) keyListeners.delete('Esc')
@@ -757,7 +763,13 @@ export class MetaGameUI implements MetaUI {
 
     async pickPath(state: MetaState, paths: Path[]): Promise<Path> {
         return new Promise((resolve, reject) => {
-            const escapeListener = () => finishReject(new ExitToLauncher())
+            const escapeListener = () => {
+                if (isDeckDialogOpen()) {
+                    hideDeckDialog()
+                    return
+                }
+                finishReject(new ExitToLauncher())
+            }
             const cleanupEscapeListener = () => {
                 if (keyListeners.get('Escape') === escapeListener) keyListeners.delete('Escape')
                 if (keyListeners.get('Esc') === escapeListener) keyListeners.delete('Esc')
