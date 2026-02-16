@@ -236,7 +236,7 @@ function chargeUpTo(max: number, simpleText?: string[]): Effect {
 }
 
 const investmentName = 'Investment'
-const investment:CardSpec = {name: investmentName,
+export const investment:CardSpec = {name: investmentName,
     buyCost: coin(3),
     fixedCost: energy(0),
     effects: [{
@@ -244,7 +244,7 @@ const investment:CardSpec = {name: investmentName,
         simpleText: ['+$2'],
         transform: (state, card) => gainCoins(state.find(card).charge, card),
     }, chargeUpTo(6, [`This creates $1 more each time you play it up to a max of $6.`])],
-    staticReplacers: [startsWithCharge(investmentName, 2)]
+    staticReplacers: [startsWithCharge(investmentName, 2, true)]
 }
 cardRewards.push(investment)
 
@@ -302,10 +302,10 @@ const feast:CardSpec = {name: 'Feast',
 cardRewards.push(feast)
 
 
-const researcher:CardSpec = {name: 'Researcher',
+export const researcher:CardSpec = {name: 'Researcher',
     effects: [{
         text: [`+1 action for each charge token on this.`],
-        simpleText: [`+3 actions.`],
+        simpleText: [`+3 actions`],
         transform: (state, card) => async function(state) {
             const n = state.find(card).charge
             state = await gainActions(n, card)(state)
@@ -684,7 +684,7 @@ const coven:CardSpec = {
 cardRewards.push(coven)
 
 const Traveler = 'Traveler'
-const traveler:CardSpec = {
+export const traveler:CardSpec = {
     name: 'Traveler',
     fixedCost: energy(1),
     effects: [{
@@ -702,7 +702,7 @@ const traveler:CardSpec = {
             `Choose a card to play with ${Traveler}.`,
             s => s.hand
         ))
-    }, chargeUpTo(3)],
+    }, chargeUpTo(3, ['X increases by 1 each time you play this, up to 3.'])],
     buyCost: coin(4),
     staticReplacers: [startsWithCharge(Traveler, 1)],
 }

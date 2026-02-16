@@ -8428,10 +8428,10 @@
     }]
   };
   cardRewards.push(construction);
-  function chargeUpTo(max) {
+  function chargeUpTo(max, simpleText) {
     return {
       text: ["Put a charge token on this if it has less than ".concat(max, ".")],
-      simpleText: ["Increase X by 1 (max ".concat(max, ").")],
+      simpleText,
       transform: function(state, card) {
         return card.charge >= max ? noop : charge(card, 1);
       }
@@ -8444,12 +8444,12 @@
     fixedCost: energy(0),
     effects: [{
       text: ["+$1 per charge token on this."],
-      simpleText: ["+$X"],
+      simpleText: ["+$2"],
       transform: function(state, card) {
         return gainCoins(state.find(card).charge, card);
       }
-    }, chargeUpTo(6)],
-    staticReplacers: [startsWithCharge(investmentName, 2)]
+    }, chargeUpTo(6, ["This creates $1 more each time you play it up to a max of $6."])],
+    staticReplacers: [startsWithCharge(investmentName, 2, true)]
   };
   cardRewards.push(investment);
   var royalSeal = {
@@ -8471,7 +8471,8 @@
     name: "Shipping Lane",
     buyCost: coin(3),
     fixedCost: energy(1),
-    effects: [coinsEffect(2), createInPlayEffect(bounty)]
+    effects: [coinsEffect(2), createInPlayEffect(bounty)],
+    relatedCards: [bounty]
   };
   cardRewards.push(shippingLane);
   var factoryName = "Factory";
@@ -8510,7 +8511,8 @@
   var researcher = {
     name: "Researcher",
     effects: [{
-      text: ["+X actions"],
+      text: ["+1 action for each charge token on this."],
+      simpleText: ["+3 actions"],
       transform: function(state, card) {
         return function(state2) {
           return __awaiter5(this, void 0, void 0, function() {
@@ -8549,9 +8551,15 @@
           });
         };
       }
-    }, chargeEffect()],
+    }, {
+      text: ["Put a charge token on this."],
+      simpleText: ["This gets +1 action each time you play it."],
+      transform: function(state, card) {
+        return charge(card, 1);
+      }
+    }],
     buyCost: coin(5),
-    staticReplacers: [startsWithCharge("Researcher", 3)]
+    staticReplacers: [startsWithCharge("Researcher", 3, true)]
   };
   cardRewards.push(researcher);
   var lackeys = {
@@ -8950,7 +8958,7 @@
           return s.hand;
         }));
       }
-    }, chargeUpTo(3)],
+    }, chargeUpTo(3, ["X increases by 1 each time you play this, up to 3."])],
     buyCost: coin(4),
     staticReplacers: [startsWithCharge(Traveler, 1)]
   };
@@ -11919,12 +11927,18 @@
     buyCost: coin(6),
     effects: [{
       text: ["+1 vp per charge token on this."],
-      simpleText: ["+X vp"],
+      simpleText: ["+1 vp"],
       transform: function(state, card) {
         return gainPoints(state.find(card).charge, card);
       }
-    }, chargeEffect()],
-    staticReplacers: [startsWithCharge(frontierName, 1)]
+    }, {
+      text: ["Put a charge token on this."],
+      simpleText: ["This gets +1 vp each time you play it."],
+      transform: function(state, card) {
+        return charge(card, 1);
+      }
+    }],
+    staticReplacers: [startsWithCharge(frontierName, 1, true)]
   };
   var gardens = {
     name: "Gardens",
@@ -12035,7 +12049,8 @@
     fixedCost: coin(1),
     effects: [pointsEffect(1)]
   };
-  vpModes.push({ name: "Province", target: 10, cards: [province], events: [] }, { name: "Duchy", target: 15, cards: [duchy], events: [] }, { name: "Estate", target: 20, cards: [estate], events: [] }, { name: "Colony", target: 5, cards: [colony], events: [] }, { name: "Thoroughfare", target: 80, cards: [], events: [thoroughfare] }, { name: "Foundation", target: 25, cards: [], events: [foundation] }, { name: "Capitalize", target: 70, cards: [], events: [capitalize] }, { name: "Monument", target: 50, cards: [], events: [monument] }, { name: "Duke", target: 40, cards: [duchy, duke], events: [] }, { name: "Flower Market", target: 40, cards: [flowerMarket], events: [] }, { name: "Farmland", target: 5, cards: [farmland], events: [] }, { name: "Vibrant City", target: 20, cards: [vibrantCity], events: [] }, { name: "Palace", target: 20, cards: [palace], events: [] }, { name: "Territory", target: 20, cards: [territory], events: [] }, { name: "Frontier", target: 25, cards: [frontier], events: [] }, { name: "Gardens", target: 30, cards: [gardens], events: [] });
+  var frontierVPMode = { name: "Frontier", target: 25, cards: [frontier], events: [] };
+  vpModes.push({ name: "Province", target: 10, cards: [province], events: [] }, { name: "Duchy", target: 15, cards: [duchy], events: [] }, { name: "Estate", target: 20, cards: [estate], events: [] }, { name: "Colony", target: 5, cards: [colony], events: [] }, { name: "Thoroughfare", target: 80, cards: [], events: [thoroughfare] }, { name: "Foundation", target: 25, cards: [], events: [foundation] }, { name: "Capitalize", target: 70, cards: [], events: [capitalize] }, { name: "Monument", target: 50, cards: [], events: [monument] }, { name: "Duke", target: 40, cards: [duchy, duke], events: [] }, { name: "Flower Market", target: 40, cards: [flowerMarket], events: [] }, { name: "Farmland", target: 5, cards: [farmland], events: [] }, { name: "Vibrant City", target: 20, cards: [vibrantCity], events: [] }, { name: "Palace", target: 20, cards: [palace], events: [] }, { name: "Territory", target: 20, cards: [territory], events: [] }, frontierVPMode, { name: "Gardens", target: 30, cards: [gardens], events: [] });
 
   // public/data/encounters.js
   var __assign8 = function() {

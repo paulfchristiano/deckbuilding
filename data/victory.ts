@@ -184,6 +184,8 @@ export const capitalize: CardSpec = {
     effects: [pointsEffect(1)],
 }
 
+export const frontierVPMode: VPMode = { name: 'Frontier', target: 25, cards: [frontier], events: [] }
+
 
 // ========== VP MODES ==========
 
@@ -202,6 +204,6 @@ vpModes.push(
     { name: 'Vibrant City', target: 20, cards: [vibrantCity], events: [] },
     { name: 'Palace', target: 20, cards: [palace], events: [] },
     { name: 'Territory', target: 20, cards: [territory], events: [] },
-    { name: 'Frontier', target: 25, cards: [frontier], events: [] },
+    frontierVPMode,
     { name: 'Gardens', target: 30, cards: [gardens], events: [] },
 )
