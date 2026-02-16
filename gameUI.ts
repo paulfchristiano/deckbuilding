@@ -11,7 +11,7 @@ import { Option, OptionRender, HotkeyHint } from './gameLogic.js'
 import { UI, Undo, SetState } from './gameLogic.js'
 import { playGame, initialState, Replayable } from './gameLogic.js'
 import { refresh } from './gameLogic.js'
-import { BASE_PARS } from './metaLogic.js'
+import { BASE_PARS, MINOR_CURSE_STAGE, MAJOR_CURSE_STAGE } from './metaLogic.js'
 import { ProgressStageDisplay, renderProgressSidebar } from './progressSidebar.js'
 import { cardText as renderCardText } from './cardRendering.js'
 
@@ -55,6 +55,13 @@ function updateGameProgressSidebar(spec: GameSpec): void {
     const stageTooltips = spec.metaStageTooltips || []
     const replayStage = spec.replayStage
     const displays: ProgressStageDisplay[] = []
+    const parMarker = (stage: number): string => {
+        if (spec.metaCursesEnabled !== true) return ''
+        if (stage === MINOR_CURSE_STAGE) return '*'
+        if (stage === MAJOR_CURSE_STAGE) return '**'
+        return ''
+    }
+    const formatPar = (stage: number, par: number): string => `${par}${parMarker(stage)}`
 
     for (let stage = 0; stage < BASE_PARS.length; stage++) {
         const display: ProgressStageDisplay = { stage }
@@ -67,21 +74,21 @@ function updateGameProgressSidebar(spec: GameSpec): void {
             const score = stageScores[stage]
             const par = stagePars[stage]
             if (score !== null && score !== undefined && par !== null && par !== undefined) {
-                display.scoreText = `${score}/${par}`
+                display.scoreText = `${score}/${formatPar(stage, par)}`
                 if (score > par) display.scoreColor = 'red'
                 else if (score < par) display.scoreColor = 'green'
             }
         } else if (currentStage !== undefined && stage === currentStage) {
             display.current = true
             if (basePar !== undefined) {
-                display.scoreText = `${basePar}`
+                display.scoreText = formatPar(stage, basePar)
             }
         } else if (basePar !== undefined) {
-            display.scoreText = `${basePar}`
+            display.scoreText = formatPar(stage, basePar)
         }
 
         if (activeStage !== null && activeStage !== undefined && stage === activeStage) {
-            display.scoreText = `?/${spec.par}`
+            display.scoreText = `?/${formatPar(stage, spec.par)}`
         }
         if (replayStage !== null && replayStage !== undefined && stage === replayStage) {
             display.replaying = true

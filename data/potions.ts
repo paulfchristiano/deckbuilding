@@ -25,7 +25,8 @@ import {
     gainActions,
     tick,
     reductionRule,
-    noop
+    noop,
+    canCreate
 } from '../gameLogic.js'
 import { registerSpec } from '../registry.js'
 
@@ -270,7 +271,7 @@ export const potionOfCreation: CardSpec = {
         (target, card) => target.buy(card),
         `Buy a card in the supply costing up to $4.`,
         state => state.supply.filter(
-            x => leq(x.cost('buy', state), coin(4))
+            x => leq(x.cost('buy', state), coin(4)) && canCreate(x.spec, state)
         )
     )]
 }

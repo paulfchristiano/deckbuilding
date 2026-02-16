@@ -19,6 +19,7 @@ import { getSpecByName } from './registry.js'
 
 import { buildSpecTooltip } from './cardRendering.js'
 import { makeBottledCardPotion, makeBottledEventPotion, makeCardInABoxRelic } from './data/specialSpecs.js'
+import { allMajorCurses, allMinorCurses } from './data/curses.js'
 
 // ----------------------------- MetaUI Interface
 
@@ -397,6 +398,8 @@ export function getEncounterByName(name: string): Encounter | null {
 
 export const TOTAL_STAGES = 8
 export const INITIAL_BUFFER = 10
+export const MINOR_CURSE_STAGE = 3
+export const MAJOR_CURSE_STAGE = 6
 
 // Base par values for each stage
 export const BASE_PARS: number[] = [26, 24, 22, 20, 18, 16, 14, 4]
@@ -408,16 +411,23 @@ export interface ChallengeSpec {
     stage: number,
     vpMode: VPMode,
     boons: Boon[],
+    curse?: CardSpec | null,
+}
+
+function displayCurseName(spec: CardSpec): string {
+    return spec.name.replace(/ \(Major\)$/, '')
 }
 
 export function renderChallenge(spec: ChallengeSpec, state: MetaState): string {
     const gameSpec:GameSpec = makeSpec(state, spec)
-    const label = `${challengeSummary(spec)} (${gameSpec.vp}vp in ${gameSpec.par}@)`
+    const label = `${challengeSummaryWithState(spec, state)} (${gameSpec.vp}vp in ${gameSpec.par}@)`
+    const stageCurse = selectedCurseForChallenge(spec, state)
 
     // Build tooltip with all related cards from VP mode and boons
     const relatedCards: CardSpec[] = [
         ...spec.vpMode.cards,
         ...spec.vpMode.events,
+        ...(stageCurse ? [stageCurse] : []),
         ...spec.boons.flatMap(b => [...b.cards, ...b.events])
     ]
     const tooltipParts: string[] = []
@@ -430,8 +440,20 @@ export function renderChallenge(spec: ChallengeSpec, state: MetaState): string {
 }
 
 export function challengeSummary(challenge: ChallengeSpec): string {
-    const boonSummary = challenge.boons.map(b => b.name).join(' + ')
-    return boonSummary.length > 0 ? `${challenge.vpMode.name} + ${boonSummary}` : challenge.vpMode.name
+    const parts = [challenge.vpMode.name, ...challenge.boons.map(boon => boon.name)]
+    if (challenge.curse !== undefined && challenge.curse !== null) {
+        parts.push(displayCurseName(challenge.curse))
+    }
+    return parts.join(' + ')
+}
+
+export function challengeSummaryWithState(challenge: ChallengeSpec, state: MetaState): string {
+    const parts = [challenge.vpMode.name, ...challenge.boons.map(boon => boon.name)]
+    const stageCurse = selectedCurseForChallenge(challenge, state)
+    if (stageCurse !== null) {
+        parts.push(displayCurseName(stageCurse))
+    }
+    return parts.join(' + ')
 }
 
 // Meta replacer types - modify game setup parameters
@@ -726,6 +748,7 @@ interface MetaStateOptions {
     debugEnabled?: boolean
     burdensEnabled?: boolean
     scarcityEnabled?: boolean
+    cursesEnabled?: boolean
 }
 
 export class MetaState {
@@ -737,6 +760,7 @@ export class MetaState {
     public readonly debugEnabled: boolean
     public readonly burdensEnabled: boolean
     public readonly scarcityEnabled: boolean
+    public readonly cursesEnabled: boolean
     public masterGenerator: Generator
     public generators: Map<string, Generator> = new Map()
     public data: MetaStateData
@@ -753,6 +777,7 @@ export class MetaState {
         this.debugEnabled = options.debugEnabled ?? false
         this.burdensEnabled = options.burdensEnabled ?? false
         this.scarcityEnabled = options.scarcityEnabled ?? false
+        this.cursesEnabled = options.cursesEnabled ?? false
         if (seed === null) {
             this.seed = randomString()
         } else {
@@ -1010,6 +1035,7 @@ interface SerializedChallengeSpec {
     stage: number
     vpModeName: string
     boonNames: string[]
+    curseName?: string
 }
 
 interface SerializedPath {
@@ -1031,6 +1057,7 @@ interface SerializedGameSpec {
     metaStageScores?: (number | null)[]
     metaStagePars?: (number | null)[]
     metaStageTooltips?: (string | null)[]
+    metaCursesEnabled?: boolean
     previousScore?: number | null
     replayUsedPotionIDs?: number[]
     replayStage?: number | null
@@ -1082,6 +1109,7 @@ export interface SerializedMetaGame {
     debugEnabled?: boolean
     burdensEnabled?: boolean
     scarcityEnabled?: boolean
+    cursesEnabled?: boolean
     masterGeneratorState: number
     generatorStates: Array<{ key: string, state: number }>
     data: SerializedMetaStateData
@@ -1303,7 +1331,8 @@ function serializeChallenge(challenge: ChallengeSpec): SerializedChallengeSpec {
     return {
         stage: challenge.stage,
         vpModeName: challenge.vpMode.name,
-        boonNames: challenge.boons.map(boon => boon.name)
+        boonNames: challenge.boons.map(boon => boon.name),
+        curseName: challenge.curse?.name
     }
 }
 
@@ -1315,10 +1344,14 @@ function deserializeChallenge(challenge: SerializedChallengeSpec): ChallengeSpec
         if (!boon) throw new Error(`Unknown boon "${name}"`)
         return boon
     })
+    const curse = challenge.curseName === undefined
+        ? null
+        : findBaseSpec(challenge.curseName)
     return {
         stage: challenge.stage,
         vpMode,
-        boons: resolvedBoons
+        boons: resolvedBoons,
+        curse
     }
 }
 
@@ -1414,6 +1447,7 @@ function serializeGameSpec(spec: GameSpec): SerializedGameSpec {
         metaStageScores: spec.metaStageScores ? [...spec.metaStageScores] : undefined,
         metaStagePars: spec.metaStagePars ? [...spec.metaStagePars] : undefined,
         metaStageTooltips: spec.metaStageTooltips ? [...spec.metaStageTooltips] : undefined,
+        metaCursesEnabled: spec.metaCursesEnabled,
         previousScore: spec.previousScore,
         replayUsedPotionIDs: spec.replayUsedPotionIDs ? [...spec.replayUsedPotionIDs] : undefined,
         replayStage: spec.replayStage
@@ -1433,6 +1467,7 @@ function deserializeGameSpec(spec: SerializedGameSpec): GameSpec {
         metaStageScores: spec.metaStageScores ? [...spec.metaStageScores] : undefined,
         metaStagePars: spec.metaStagePars ? [...spec.metaStagePars] : undefined,
         metaStageTooltips: spec.metaStageTooltips ? [...spec.metaStageTooltips] : undefined,
+        metaCursesEnabled: spec.metaCursesEnabled,
         previousScore: spec.previousScore,
         replayUsedPotionIDs: spec.replayUsedPotionIDs ? [...spec.replayUsedPotionIDs] : undefined,
         replayStage: spec.replayStage
@@ -1543,6 +1578,7 @@ export function serializeMetaGame(state: MetaState): SerializedMetaGame {
         debugEnabled: state.debugEnabled,
         burdensEnabled: state.burdensEnabled,
         scarcityEnabled: state.scarcityEnabled,
+        cursesEnabled: state.cursesEnabled,
         masterGeneratorState: state.masterGenerator.exportState(),
         generatorStates: [...state.generators.entries()].map(([key, generator]) => ({
             key,
@@ -1569,7 +1605,8 @@ export function deserializeMetaGame(
     const debugEnabled = serialized.debugEnabled ?? false
     const burdensEnabled = serialized.burdensEnabled ?? false
     const scarcityEnabled = serialized.scarcityEnabled ?? false
-    const state = new MetaState(ui, serialized.seed, onChange, { debugEnabled, burdensEnabled, scarcityEnabled })
+    const cursesEnabled = serialized.cursesEnabled ?? false
+    const state = new MetaState(ui, serialized.seed, onChange, { debugEnabled, burdensEnabled, scarcityEnabled, cursesEnabled })
     state.masterGenerator = Generator.fromState(serialized.masterGeneratorState)
     state.generators = new Map(
         serialized.generatorStates.map(entry => [entry.key, Generator.fromState(entry.state)])
@@ -1853,6 +1890,42 @@ function scarcityParAdjustment(stage: number, state: MetaState): number {
     return state.scarcityEnabled && stage < TOTAL_STAGES - 1 ? -1 : 0
 }
 
+type CurseLevel = 'minor' | 'major'
+
+function stageCurseLevel(stage: number, state: MetaState): CurseLevel | null {
+    if (!state.cursesEnabled) return null
+    if (stage === MINOR_CURSE_STAGE) return 'minor'
+    if (stage === MAJOR_CURSE_STAGE) return 'major'
+    return null
+}
+
+function sampledCurseForStage(stage: number, state: MetaState): CardSpec | null {
+    const level = stageCurseLevel(stage, state)
+    if (level === null) return null
+    const pool = level === 'minor' ? allMinorCurses() : allMajorCurses()
+    if (pool.length === 0) {
+        throw new Error(`No ${level} curses registered`)
+    }
+    const generator = new Generator(`${state.seed}-CURSE-${stage + 1}-${level.toUpperCase()}`)
+    return generator.sample(pool)
+}
+
+function selectedCurseForChallenge(challenge: ChallengeSpec, state: MetaState): CardSpec | null {
+    if (challenge.curse !== undefined && challenge.curse !== null) return challenge.curse
+    return sampledCurseForStage(challenge.stage, state)
+}
+
+export function stageParMarker(stage: number, state: MetaState): string {
+    const level = stageCurseLevel(stage, state)
+    if (level === 'minor') return '*'
+    if (level === 'major') return '**'
+    return ''
+}
+
+export function formatParDisplay(stage: number, par: number, state: MetaState): string {
+    return `${par}${stageParMarker(stage, state)}`
+}
+
 export function displayBasePar(stage: number, state: MetaState): number | null {
     const basePar = BASE_PARS[stage]
     if (basePar === undefined) return null
@@ -1960,6 +2033,10 @@ export function makeSpec(state: MetaState, challenge: ChallengeSpec): GameSpec {
     const vpTarget = challenge.vpMode.target
     const cards = challenge.vpMode.cards.slice()
     const events = challenge.vpMode.events.slice()
+    const stageCurse = selectedCurseForChallenge(challenge, state)
+    if (stageCurse !== null) {
+        events.push(stageCurse)
+    }
     for (const boon of challenge.boons) {
         par += boon.parAdjustment
         cards.push(...boon.cards)
@@ -1998,6 +2075,7 @@ export function makeSpec(state: MetaState, challenge: ChallengeSpec): GameSpec {
         metaStageScores: [...state.data.stageScores],
         metaStagePars: [...state.data.stagePars],
         metaStageTooltips: stageTooltipTexts(state),
+        metaCursesEnabled: state.cursesEnabled,
     }
 }
 
@@ -2024,6 +2102,7 @@ export function standardRelicRewards(stage: number): RelicSpec[] {
 interface ChallengeOverrides {
     vpMode?: VPMode
     boon?: Boon
+    curse?: CardSpec | null
 }
 
 function nextDistinctByName<T extends { name: string }>(
@@ -2073,6 +2152,7 @@ function sampleChallengesForStage(
             stage,
             vpMode,
             boons: challengeBoons,
+            curse: overrides.curse ?? null,
         })
     }
 
@@ -2423,7 +2503,7 @@ async function replayCompletedStage(state: MetaState, stage: number): Promise<vo
     const stageTimelineEntry: Extract<MetaTimelineEntry, { kind: 'stage' }> = {
         kind: 'stage',
         stage,
-        challenge: challengeSummary(updatedReplayData.challenge),
+        challenge: challengeSummaryWithState(updatedReplayData.challenge, state),
         score: replayResult.score,
         par: updatedReplayData.par,
         usedPotions
@@ -2502,8 +2582,9 @@ type RewardTestSpec =
 export type TestSpec = [number, RewardTestSpec]
 type VPModeTestRef = VPMode | string
 type BoonTestRef = Boon | string
+type CurseTestRef = CardSpec | string
 type BurdenTestRef = string
-type ChallengeStageTest = ['vpMode', VPModeTestRef] | ['boon', BoonTestRef]
+type ChallengeStageTest = ['vpMode', VPModeTestRef] | ['boon', BoonTestRef] | ['curse', CurseTestRef]
 export type ChallengeTestSpec = [number, ChallengeStageTest]
 export type BurdenTestSpec = [number, BurdenTestRef]
 export interface DebugTestConfig {
@@ -2540,7 +2621,7 @@ function isTestSpec(value: unknown): value is TestSpec {
 function isChallengeStageTest(value: unknown): value is ChallengeStageTest {
     return Array.isArray(value)
         && value.length === 2
-        && (value[0] === 'vpMode' || value[0] === 'boon')
+        && (value[0] === 'vpMode' || value[0] === 'boon' || value[0] === 'curse')
         && (typeof value[1] === 'string' || (value[1] !== null && typeof value[1] === 'object'))
 }
 
@@ -2632,6 +2713,7 @@ function normalizeTests(test: null | TestSpec | TestSpec[] | DebugTestConfig): P
 
 const warnedUnknownVPModeTests = new Set<string>()
 const warnedUnknownBoonTests = new Set<string>()
+const warnedUnknownCurseTests = new Set<string>()
 const warnedUnknownBurdenTests = new Set<string>()
 
 function resolveVPModeTestRef(ref: VPModeTestRef): VPMode | null {
@@ -2652,6 +2734,17 @@ function resolveBoonTestRef(ref: BoonTestRef): Boon | null {
         console.warn(`Unknown boon in debug test config: ${ref}`)
     }
     return boon
+}
+
+function resolveCurseTestRef(ref: CurseTestRef): CardSpec | null {
+    if (typeof ref !== 'string') return ref
+    const curse = getSpecByName(ref)
+    if (curse !== null) return curse
+    if (!warnedUnknownCurseTests.has(ref)) {
+        warnedUnknownCurseTests.add(ref)
+        console.warn(`Unknown curse in debug test config: ${ref}`)
+    }
+    return null
 }
 
 function resolveBurdenTestRef(ref: BurdenTestRef): BurdenDefinition | null {
@@ -2676,9 +2769,12 @@ function challengeOverridesForStage(
         if (stageTest[0] === 'vpMode') {
             const mode = resolveVPModeTestRef(stageTest[1])
             if (mode !== null) overrides.vpMode = mode
-        } else {
+        } else if (stageTest[0] === 'boon') {
             const boon = resolveBoonTestRef(stageTest[1])
             if (boon !== null) overrides.boon = boon
+        } else {
+            const curse = resolveCurseTestRef(stageTest[1])
+            if (curse !== null) overrides.curse = curse
         }
     }
     return overrides
@@ -2749,11 +2845,12 @@ export async function playGame(
     onStateChange: ((snapshot: SerializedMetaGame) => void) | null = null,
     debugEnabled: boolean = false,
     burdensEnabled: boolean = false,
-    scarcityEnabled: boolean = false
+    scarcityEnabled: boolean = false,
+    cursesEnabled: boolean = false
 ): Promise<void> {
     const state: MetaState = initialSnapshot
         ? deserializeMetaGame(ui, initialSnapshot, null)
-        : new MetaState(ui, seed, null, { debugEnabled, burdensEnabled, scarcityEnabled })
+        : new MetaState(ui, seed, null, { debugEnabled, burdensEnabled, scarcityEnabled, cursesEnabled })
     state.setChangeListener(onStateChange ? () => onStateChange!(serializeMetaGame(state)) : null)
     const tests = state.debugEnabled
         ? normalizeTests(test)
@@ -2846,7 +2943,7 @@ export async function playGame(
                 const stageTimelineEntry: Extract<MetaTimelineEntry, { kind: 'stage' }> = {
                     kind: 'stage',
                     stage,
-                    challenge: challengeSummary(state.data.challenges[0]),
+                    challenge: challengeSummaryWithState(state.data.challenges[0], state),
                     score,
                     par: gameSpec.par,
                     usedPotions

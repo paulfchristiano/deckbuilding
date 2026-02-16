@@ -5,7 +5,7 @@ import { Card, CardSpec, GameSpec, UndoPastBeginning, VictoryData } from './game
 import {
     MetaState, RewardState, Path, ChallengeSpec,
     MetaUI, MetaOption,
-    BASE_PARS, describeParCalculation, describeBasePar, displayBasePar,
+    BASE_PARS, describeParCalculation, describeBasePar, displayBasePar, formatParDisplay,
     makeSpec,
     ActiveGameProgress,
     renderChallenge,
@@ -227,7 +227,7 @@ function updateProgressSidebar(state: MetaState, onReplayStage?: (stage: number)
                 const score = state.data.stageScores[stage]
                 const par = state.data.stagePars[stage]
                 if (score !== null && par !== null) {
-                    display.scoreText = `${score}/${par}`
+                    display.scoreText = `${score}/${formatParDisplay(stage, par, state)}`
                     if (score > par) display.scoreColor = 'red'
                     else if (score < par) display.scoreColor = 'green'
                 }
@@ -237,10 +237,10 @@ function updateProgressSidebar(state: MetaState, onReplayStage?: (stage: number)
                 }
             } else if (stage === state.data.stage) {
                 display.current = true
-                if (state.data.phase === 'in_game' && currentStagePar !== null) display.scoreText = `?/${currentStagePar}`
-                else if (shownBasePar !== null) display.scoreText = `${shownBasePar}`
+                if (state.data.phase === 'in_game' && currentStagePar !== null) display.scoreText = `?/${formatParDisplay(stage, currentStagePar, state)}`
+                else if (shownBasePar !== null) display.scoreText = formatParDisplay(stage, shownBasePar, state)
             } else {
-                if (shownBasePar !== null) display.scoreText = `${shownBasePar}`
+                if (shownBasePar !== null) display.scoreText = formatParDisplay(stage, shownBasePar, state)
             }
             displays.push(display)
         }

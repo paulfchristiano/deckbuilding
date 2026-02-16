@@ -28,6 +28,7 @@ const RUN_TIMER_STORAGE_KEY = 'roguelike.runTimerSeconds.v1'
 const HELP_SEEN_STORAGE_KEY = 'roguelike.helpSeen.v1'
 const BURDENS_SETTING_STORAGE_KEY = 'roguelike.newGameBurdensEnabled.v1'
 const SCARCITY_SETTING_STORAGE_KEY = 'roguelike.newGameScarcityEnabled.v1'
+const CURSES_SETTING_STORAGE_KEY = 'roguelike.newGameCursesEnabled.v1'
 const MAX_LAUNCHER_SAVES = 10
 
 let runTimerSeconds = 0
@@ -36,6 +37,7 @@ let runTimerIntervalID: number | null = null
 let removeHelpEscapeHandler: (() => void) | null = null
 let newGameBurdensEnabled = false
 let newGameScarcityEnabled = false
+let newGameCursesEnabled = false
 
 const HELP_ITEMS: string[] = [
     'Click new game to start a game. You can press escape to return to this screen, and resume games at any time.',
@@ -165,6 +167,10 @@ function isScarcityGame(snapshot: SerializedMetaGame): boolean {
     return snapshot.scarcityEnabled === true
 }
 
+function isCursesGame(snapshot: SerializedMetaGame): boolean {
+    return snapshot.cursesEnabled === true
+}
+
 function loadNewGameBurdensEnabled(): boolean {
     try {
         return localStorage.getItem(BURDENS_SETTING_STORAGE_KEY) === '1'
@@ -176,6 +182,14 @@ function loadNewGameBurdensEnabled(): boolean {
 function loadNewGameScarcityEnabled(): boolean {
     try {
         return localStorage.getItem(SCARCITY_SETTING_STORAGE_KEY) === '1'
+    } catch {
+        return false
+    }
+}
+
+function loadNewGameCursesEnabled(): boolean {
+    try {
+        return localStorage.getItem(CURSES_SETTING_STORAGE_KEY) === '1'
     } catch {
         return false
     }
@@ -197,6 +211,14 @@ function persistNewGameScarcityEnabled(): void {
     }
 }
 
+function persistNewGameCursesEnabled(): void {
+    try {
+        localStorage.setItem(CURSES_SETTING_STORAGE_KEY, newGameCursesEnabled ? '1' : '0')
+    } catch {
+        // no-op
+    }
+}
+
 function updateLauncherBurdensTag(): void {
     const tag = document.getElementById('launcherBurdensTag')
     if (!tag) return
@@ -211,6 +233,16 @@ function updateLauncherScarcityTag(): void {
     const tag = document.getElementById('launcherScarcityTag')
     if (!tag) return
     if (newGameScarcityEnabled) {
+        tag.removeAttribute('hidden')
+    } else {
+        tag.setAttribute('hidden', '')
+    }
+}
+
+function updateLauncherCursesTag(): void {
+    const tag = document.getElementById('launcherCursesTag')
+    if (!tag) return
+    if (newGameCursesEnabled) {
         tag.removeAttribute('hidden')
     } else {
         tag.setAttribute('hidden', '')
@@ -371,6 +403,11 @@ function ensureLauncherStyles(): void {
         .scarcityTag {
             font-size: 0.8em;
             color: #c53838;
+            margin-left: 6px;
+        }
+        .cursesTag {
+            font-size: 0.8em;
+            color: #2f9f4a;
             margin-left: 6px;
         }
         .saveActions {
@@ -635,11 +672,13 @@ async function runGame(
     newGameDebugEnabled: boolean = false,
     initialElapsedSeconds: number = 0,
     newGameBurdensSetting: boolean = false,
-    newGameScarcitySetting: boolean = false
+    newGameScarcitySetting: boolean = false,
+    newGameCursesSetting: boolean = false
 ): Promise<void> {
     const debugEnabled = snapshot ? isDebugGame(snapshot) : newGameDebugEnabled
     const burdensEnabled = snapshot ? isBurdensGame(snapshot) : newGameBurdensSetting
     const scarcityEnabled = snapshot ? isScarcityGame(snapshot) : newGameScarcitySetting
+    const cursesEnabled = snapshot ? isCursesGame(snapshot) : newGameCursesSetting
     const activeTest: DebugTestConfig | null = debugEnabled ? test : null
     activeRunSlotID = slotID
     runTimerSeconds = Math.max(0, Math.floor(initialElapsedSeconds))
@@ -657,7 +696,7 @@ async function runGame(
     }
 
     try {
-        await playGame(metaUI, activeTest, seed, snapshot, saveCallback, debugEnabled, burdensEnabled, scarcityEnabled)
+        await playGame(metaUI, activeTest, seed, snapshot, saveCallback, debugEnabled, burdensEnabled, scarcityEnabled, cursesEnabled)
     } catch (error) {
         if (error instanceof ExitToLauncher) return
         console.error(error)
@@ -790,6 +829,29 @@ function openChallengesDialog(): void {
     scarcityRow.appendChild(scarcityCheckbox)
     scarcityRow.appendChild(scarcityLabel)
     card.appendChild(scarcityRow)
+
+    const cursesRow = document.createElement('label')
+    cursesRow.className = 'challengeSettingRow'
+    const cursesCheckbox = document.createElement('input')
+    cursesCheckbox.type = 'checkbox'
+    cursesCheckbox.checked = newGameCursesEnabled
+    cursesCheckbox.onchange = () => {
+        newGameCursesEnabled = cursesCheckbox.checked
+        persistNewGameCursesEnabled()
+        updateLauncherCursesTag()
+    }
+    const cursesLabel = document.createElement('div')
+    cursesLabel.className = 'challengeSettingLabel'
+    const cursesName = document.createElement('span')
+    cursesName.textContent = 'Curses'
+    const cursesHint = document.createElement('span')
+    cursesHint.className = 'challengeSettingHint'
+    cursesHint.textContent = 'Add a minor curse on stage 4 and a major curse on stage 7.'
+    cursesLabel.appendChild(cursesName)
+    cursesLabel.appendChild(cursesHint)
+    cursesRow.appendChild(cursesCheckbox)
+    cursesRow.appendChild(cursesLabel)
+    card.appendChild(cursesRow)
 
     const actions = document.createElement('div')
     actions.className = 'saveActions'
@@ -948,6 +1010,12 @@ function openViewDialog(slot: SaveSlot): void {
         scarcityTag.textContent = '(scarcity)'
         status.appendChild(scarcityTag)
     }
+    if (isCursesGame(slot.snapshot)) {
+        const cursesTag = document.createElement('span')
+        cursesTag.className = 'cursesTag'
+        cursesTag.textContent = '(curses)'
+        status.appendChild(cursesTag)
+    }
     if (state.data.buffer < 0) status.className = 'negativeBuffer'
     card.appendChild(status)
     const relicDisplaySpecs = state.data.relics.map(relic => relic.spec)
@@ -1032,6 +1100,12 @@ function createSaveRow(slot: SaveSlot, onAbandon: () => void): HTMLElement {
         scarcityTag.className = 'scarcityTag'
         scarcityTag.textContent = '(scarcity)'
         primary.appendChild(scarcityTag)
+    }
+    if (isCursesGame(slot.snapshot)) {
+        const cursesTag = document.createElement('span')
+        cursesTag.className = 'cursesTag'
+        cursesTag.textContent = '(curses)'
+        primary.appendChild(cursesTag)
     }
     if (slot.snapshot.data.buffer < 0) {
         primary.className = 'negativeBuffer'
@@ -1161,9 +1235,17 @@ function renderLauncher(): void {
     if (!newGameScarcityEnabled) {
         scarcityTag.setAttribute('hidden', '')
     }
+    const cursesTag = document.createElement('span')
+    cursesTag.id = 'launcherCursesTag'
+    cursesTag.className = 'cursesTag'
+    cursesTag.textContent = '(curses)'
+    if (!newGameCursesEnabled) {
+        cursesTag.setAttribute('hidden', '')
+    }
     titleRow.appendChild(title)
     titleRow.appendChild(burdenTag)
     titleRow.appendChild(scarcityTag)
+    titleRow.appendChild(cursesTag)
     const headerActions = document.createElement('div')
     headerActions.className = 'saveActions'
     const newButton = document.createElement('button')
@@ -1201,7 +1283,7 @@ function renderLauncher(): void {
         const startNewGame = async () => {
             const seed = normalizeSeed(seedInput.value) || randomString()
             const slotID = `${Date.now()}-${Math.floor(Math.random() * 1_000_000)}`
-            await runGame(slotID, null, seed, debugNewGame, 0, newGameBurdensEnabled, newGameScarcityEnabled)
+            await runGame(slotID, null, seed, debugNewGame, 0, newGameBurdensEnabled, newGameScarcityEnabled, newGameCursesEnabled)
         }
         startButton.onclick = startNewGame
         seedInput.addEventListener('keydown', async (event: KeyboardEvent) => {
@@ -1286,6 +1368,7 @@ function renderLauncher(): void {
     document.body.appendChild(root)
     updateLauncherBurdensTag()
     updateLauncherScarcityTag()
+    updateLauncherCursesTag()
     if (!hasSeenHelp()) {
         markHelpSeen()
         openHelpDialog()
@@ -1296,6 +1379,7 @@ function renderLauncher(): void {
 window.addEventListener('load', async () => {
     newGameBurdensEnabled = loadNewGameBurdensEnabled()
     newGameScarcityEnabled = loadNewGameScarcityEnabled()
+    newGameCursesEnabled = loadNewGameCursesEnabled()
     initRunTimer()
     renderLauncher()
 })
