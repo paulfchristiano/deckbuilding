@@ -2139,8 +2139,8 @@ registerRule(shelterRule)
 export const decayRule: Rule = {
     name: 'Decay',
     replacers: [{
-        text: ['Whenever a card with a decay token would move to your discard or leave play, remove a decay token from it. Then if it has no decay tokens, trash it.'],
-        simpleText: ['Cards with decay tokens lose one whenever they go to discard or leave play; if that removes the last one, trash the card.'],
+        text: ['Whenever a card with a decay token would move to your discard or leave play, remove a decay token from it. Then if it has no decay tokens, trash it instead.'],
+        simpleText: ['After playing a card remove a decay token. When the last is removed, trash the card.'],
         kind: 'move',
         handles: (params, state) =>
             state.find(params.card).count('decay') > 0

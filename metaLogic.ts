@@ -14,7 +14,7 @@ import { CardSpec, Card, State, vpModes,
     VictoryData,
     Replayable
  } from './gameLogic.js'
-import type { GameSpec } from './gameLogic.js'
+import type { GameSpec, Rule } from './gameLogic.js'
 import { getSpecByName } from './registry.js'
 
 import { buildSpecTooltip } from './cardRendering.js'
@@ -120,7 +120,7 @@ export type RewardState = SimpleRewardState | EncounterRewardState
 export interface BurdenOptionState {
     id: string
     title: string
-    description: string
+    description?: string
     spec: CardSpec | null
     data: unknown
 }
@@ -133,7 +133,8 @@ export interface BurdenState {
 export interface BurdenDefinition {
     id: string
     title: string
-    description: string
+    description?: string
+    rules?: Rule[]
     weight: number
     minStage: number
     maxStage: number
@@ -267,30 +268,54 @@ function burdenDefinitionById(id: string): BurdenDefinition | null {
     return burdenRegistry.find(definition => definition.id === id) ?? null
 }
 
+export function getRegisteredBurdenIds(): string[] {
+    return burdenRegistry.map(definition => definition.id)
+}
+
 export function getBurdenOptions(burdenState: BurdenState, metaState: MetaState): RewardOption[] {
-    return burdenState.options.map((option, index) => ({
-        label: option.title,
-        description: option.description,
-        spec: option.spec ?? undefined,
-        disabled: burdenState.selectedIndex !== null,
-        checked: burdenState.selectedIndex === index,
-        onClick: async () => {
-            const definition = burdenDefinitionById(option.id)
-            if (!definition) {
-                throw new Error(`Unknown burden option "${option.id}"`)
+    return burdenState.options.map((option, index) => {
+        const definition = burdenDefinitionById(option.id)
+        if (!definition) {
+            throw new Error(`Unknown burden option "${option.id}"`)
+        }
+        const applicable = definition.applies(metaState)
+        const ruleLines = (definition.rules || []).flatMap(rule => {
+            const lines: string[] = []
+            for (const trigger of (rule.triggers || [])) {
+                lines.push(...(trigger.simpleText ?? trigger.text))
             }
-            const transform = await definition.resolveTransform(option, metaState)
-            if (!transform) {
+            for (const replacer of (rule.replacers || [])) {
+                lines.push(...(replacer.simpleText ?? replacer.text))
+            }
+            return lines
+        })
+        const baseDescription = option.description || ''
+        const descriptionLines = baseDescription.length > 0
+            ? [baseDescription, ...ruleLines]
+            : ruleLines
+        return {
+            label: option.title,
+            description: descriptionLines.join('\n'),
+            spec: option.spec ?? undefined,
+            disabled: burdenState.selectedIndex !== null || !applicable,
+            checked: burdenState.selectedIndex === index,
+            onClick: async () => {
+                if (!definition.applies(metaState)) {
+                    return { newData: burdenState }
+                }
+                const transform = await definition.resolveTransform(option, metaState)
+                if (!transform) {
+                    return {
+                        newData: burdenState,
+                    }
+                }
                 return {
-                    newData: burdenState,
+                    newData: { ...burdenState, selectedIndex: index },
+                    transform
                 }
             }
-            return {
-                newData: { ...burdenState, selectedIndex: index },
-                transform
-            }
         }
-    }))
+    })
 }
 
 export function updateBurdenState(burdenState: BurdenState, newData: unknown): BurdenState {
@@ -960,7 +985,7 @@ interface SerializedSimpleRewardState {
 interface SerializedBurdenOptionState {
     id: string
     title: string
-    description: string
+    description?: string
     spec: unknown
     data: unknown
 }
@@ -1167,6 +1192,10 @@ function decodeUnknown(value: unknown): unknown {
 function findBaseSpec(name: string): CardSpec {
     const spec = getSpecByName(name)
     if (spec) return spec
+    if (name.startsWith('Frozen ')) {
+        const frozenRelic = getSpecByName('Frozen Relic')
+        if (frozenRelic) return { ...frozenRelic, name }
+    }
     throw new Error(`Unable to resolve spec "${name}"`)
 }
 
@@ -2432,20 +2461,34 @@ function materializePath(state: MetaState, path: Path): Pick<MetaStateData, 'cha
 
 // We can define staged tests in order to inject a given reward for a specific stage while debugging.
 // Stage is 1-based for readability (stage 1 = first stage shown to the player).
-type RewardTestSpec = ['potion', CardSpec] | ['relic', RelicSpec] | ['card', CardSpec] | ['event', CardSpec] | ['encounter', Encounter]
+type RewardTestSpec =
+    | ['potion', CardSpec | CardSpec[]]
+    | ['relic', RelicSpec | RelicSpec[]]
+    | ['card', CardSpec | CardSpec[]]
+    | ['event', CardSpec | CardSpec[]]
+    | ['encounter', Encounter]
 export type TestSpec = [number, RewardTestSpec]
 type VPModeTestRef = VPMode | string
 type BoonTestRef = Boon | string
+type BurdenTestRef = string
 type ChallengeStageTest = ['vpMode', VPModeTestRef] | ['boon', BoonTestRef]
 export type ChallengeTestSpec = [number, ChallengeStageTest]
+export type BurdenTestSpec = [number, BurdenTestRef]
 export interface DebugTestConfig {
     rewards?: TestSpec[]
     challenges?: ChallengeTestSpec[]
+    burdens?: BurdenTestSpec[]
+    allCards?: boolean
+    allEvents?: boolean
+    allPotions?: boolean
+    allRelics?: boolean
+    allBurdens?: boolean
 }
 
 interface ParsedTests {
     rewards: TestSpec[]
     challenges: ChallengeTestSpec[]
+    burdens: BurdenTestSpec[]
 }
 
 function isRewardTestSpec(value: unknown): value is RewardTestSpec {
@@ -2477,33 +2520,87 @@ function isChallengeTestSpec(value: unknown): value is ChallengeTestSpec {
         && isChallengeStageTest(value[1])
 }
 
+function isBurdenTestSpec(value: unknown): value is BurdenTestSpec {
+    return Array.isArray(value)
+        && value.length === 2
+        && typeof value[0] === 'number'
+        && Number.isInteger(value[0])
+        && typeof value[1] === 'string'
+}
+
 function isDebugTestConfig(value: unknown): value is DebugTestConfig {
     if (value === null || typeof value !== 'object' || Array.isArray(value)) return false
     const record = value as Record<string, unknown>
     const rewards = record.rewards
     const challenges = record.challenges
+    const burdens = record.burdens
+    const allCards = record.allCards
+    const allEvents = record.allEvents
+    const allPotions = record.allPotions
+    const allRelics = record.allRelics
+    const allBurdens = record.allBurdens
     const rewardsValid = rewards === undefined || (Array.isArray(rewards) && rewards.every(isTestSpec))
     const challengesValid = challenges === undefined || (Array.isArray(challenges) && challenges.every(isChallengeTestSpec))
-    return rewardsValid && challengesValid
+    const burdensValid = burdens === undefined || (Array.isArray(burdens) && burdens.every(isBurdenTestSpec))
+    const allCardsValid = allCards === undefined || typeof allCards === 'boolean'
+    const allEventsValid = allEvents === undefined || typeof allEvents === 'boolean'
+    const allPotionsValid = allPotions === undefined || typeof allPotions === 'boolean'
+    const allRelicsValid = allRelics === undefined || typeof allRelics === 'boolean'
+    const allBurdensValid = allBurdens === undefined || typeof allBurdens === 'boolean'
+    return rewardsValid
+        && challengesValid
+        && burdensValid
+        && allCardsValid
+        && allEventsValid
+        && allPotionsValid
+        && allRelicsValid
+        && allBurdensValid
 }
 
 function normalizeTests(test: null | TestSpec | TestSpec[] | DebugTestConfig): ParsedTests {
-    if (test === null) return { rewards: [], challenges: [] }
+    if (test === null) return { rewards: [], challenges: [], burdens: [] }
     if (isDebugTestConfig(test)) {
+        const rewards = test.rewards ? [...test.rewards] : []
+        const bulkStage = 1
+        if (test.allCards) {
+            rewards.push([bulkStage, ['card', [...cardRewards]]])
+        }
+        if (test.allEvents) {
+            rewards.push([bulkStage, ['event', [...eventRewards]]])
+        }
+        if (test.allPotions) {
+            rewards.push([bulkStage, ['potion', [...potionRewards]]])
+        }
+        if (test.allRelics) {
+            rewards.push([bulkStage, ['relic', [...(relicRewards as RelicSpec[])]]])
+        }
+
+        const burdens = test.burdens ? [...test.burdens] : []
+        if (test.allBurdens) {
+            const burdenKeys = new Set<string>(burdens.map(([stage, id]) => `${stage}|${id}`))
+            for (const id of getRegisteredBurdenIds()) {
+                const key = `${bulkStage}|${id}`
+                if (burdenKeys.has(key)) continue
+                burdenKeys.add(key)
+                burdens.push([bulkStage, id])
+            }
+        }
         return {
-            rewards: test.rewards ? [...test.rewards] : [],
+            rewards,
             challenges: test.challenges ? [...test.challenges] : [],
+            burdens,
         }
     }
-    if (isTestSpec(test)) return { rewards: [test], challenges: [] }
+    if (isTestSpec(test)) return { rewards: [test], challenges: [], burdens: [] }
     if (Array.isArray(test) && test.every(isTestSpec)) {
-        return { rewards: [...test], challenges: [] }
+        return { rewards: [...test], challenges: [], burdens: [] }
     }
     throw new Error('Invalid debug test specification')
 }
 
 const warnedUnknownVPModeTests = new Set<string>()
 const warnedUnknownBoonTests = new Set<string>()
+const warnedUnknownBurdenTests = new Set<string>()
 
 function resolveVPModeTestRef(ref: VPModeTestRef): VPMode | null {
     if (typeof ref !== 'string') return ref
@@ -2523,6 +2620,15 @@ function resolveBoonTestRef(ref: BoonTestRef): Boon | null {
         console.warn(`Unknown boon in debug test config: ${ref}`)
     }
     return boon
+}
+
+function resolveBurdenTestRef(ref: BurdenTestRef): BurdenDefinition | null {
+    const burden = burdenDefinitionById(ref)
+    if (burden === null && !warnedUnknownBurdenTests.has(ref)) {
+        warnedUnknownBurdenTests.add(ref)
+        console.warn(`Unknown burden in debug test config: ${ref}`)
+    }
+    return burden
 }
 
 function challengeOverridesForStage(
@@ -2553,14 +2659,43 @@ function rewardTestsForStage(tests: TestSpec[], stageIndex: number): RewardTestS
         .map(([, spec]) => spec)
 }
 
+function burdenTestsForStage(tests: BurdenTestSpec[], stageIndex: number): BurdenDefinition[] {
+    const stageNumber = stageIndex + 1
+    const seen = new Set<string>()
+    const result: BurdenDefinition[] = []
+    for (const [stage, ref] of tests) {
+        if (stage !== stageNumber) continue
+        const burden = resolveBurdenTestRef(ref)
+        if (burden === null || seen.has(burden.id)) continue
+        seen.add(burden.id)
+        result.push(burden)
+    }
+    return result
+}
+
+function makeTestBurdenState(state: MetaState, burdenDefinitions: BurdenDefinition[]): BurdenState {
+    const generator = state.generator('test')
+    const options = burdenDefinitions.map(definition => definition.createOption(state, generator))
+    return {
+        options,
+        selectedIndex: null
+    }
+}
+
 function makeTestReward(state: MetaState, spec: RewardTestSpec): RewardState {
     switch (spec[0]) {
         case 'potion':
         case 'event':
-        case 'card':
-            return { kind: spec[0], options: [spec[1] as CardSpec], selectedIndex: null }
+        case 'card': {
+            const options = Array.isArray(spec[1]) ? [...spec[1]] : [spec[1]]
+            return { kind: spec[0], options: options as CardSpec[], selectedIndex: null }
+        }
         case 'relic':
-            return { kind: 'relic', options: [spec[1] as RelicSpec], selectedIndex: null }
+            return {
+                kind: 'relic',
+                options: (Array.isArray(spec[1]) ? [...spec[1]] : [spec[1]]) as RelicSpec[],
+                selectedIndex: null
+            }
         case 'encounter':
             const generator = state.generator('test')
             const encounter = spec[1]
@@ -2589,7 +2724,7 @@ export async function playGame(
     state.setChangeListener(onStateChange ? () => onStateChange!(serializeMetaGame(state)) : null)
     const tests = state.debugEnabled
         ? normalizeTests(test)
-        : { rewards: [], challenges: [] } as ParsedTests
+        : { rewards: [], challenges: [], burdens: [] } as ParsedTests
 
     if (!initialSnapshot) {
         // Stage 0 offers two challenge options
@@ -2602,6 +2737,10 @@ export async function playGame(
         })
         for (const testSpec of rewardTestsForStage(tests.rewards, 0)) {
             initialPath.rewardStates.push(makeTestReward(state, testSpec))
+        }
+        const initialBurdenTests = burdenTestsForStage(tests.burdens, 0)
+        if (initialBurdenTests.length > 0) {
+            initialPath.burdenStates.push(makeTestBurdenState(state, initialBurdenTests))
         }
         state.replaceAndClearHistory({
             ...materializePath(state, initialPath),
@@ -2694,6 +2833,10 @@ export async function playGame(
                 const paths = (await makePaths(state, tests.challenges)).map(skel => pathFromSkeleton(skel))
                 for (const testSpec of rewardTestsForStage(tests.rewards, nextStage)) {
                     paths[0].rewardStates.push(makeTestReward(state, testSpec))
+                }
+                const pathBurdenTests = burdenTestsForStage(tests.burdens, nextStage)
+                if (pathBurdenTests.length > 0) {
+                    paths[0].burdenStates.push(makeTestBurdenState(state, pathBurdenTests))
                 }
                 state.replaceAndClearHistory({
                     phase: 'path_select',

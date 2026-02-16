@@ -532,9 +532,12 @@ function renderStageScreen(
                 nameDiv.textContent = option.label
                 optionEl.appendChild(nameDiv)
                 if (option.description) {
-                    const descDiv = createDiv('rewardOptionDescriptionText')
-                    descDiv.textContent = option.description
-                    optionEl.appendChild(descDiv)
+                    for (const line of option.description.split('\n')) {
+                        if (line.length === 0) continue
+                        const descDiv = createDiv('rewardOptionDescriptionText')
+                        descDiv.textContent = line
+                        optionEl.appendChild(descDiv)
+                    }
                 }
             }
 

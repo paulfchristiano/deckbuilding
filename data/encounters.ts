@@ -912,6 +912,7 @@ const tradingPost: Encounter = {
     getOptions(data: unknown, metaState: MetaState): RewardOption[] {
         const d = data as TradingPostData
         const tradableRelics = metaState.data.relics.filter(relic => relic.spec.burden !== true)
+        const offeredRelicIsBad = d.offerRelic.burden === true
 
         return [
             {
@@ -993,9 +994,10 @@ const tradingPost: Encounter = {
                 label: `Trade Relic for ${displayName(d.offerRelic)}`,
                 description: 'Give up one of your relics to receive this one.',
                 tooltipSpec: d.offerRelic,
-                disabled: d.relicTraded || tradableRelics.length === 0,
+                disabled: d.relicTraded || tradableRelics.length === 0 || offeredRelicIsBad,
                 checked: d.relicTraded,
                 onClick: async () => {
+                    if (offeredRelicIsBad) return { newData: data }
                     const relic = await metaState.ui.chooseCard(
                         metaState,
                         'Choose a relic to trade away:',
