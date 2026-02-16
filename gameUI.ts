@@ -1391,7 +1391,11 @@ function bindRecordMacroButton(ui: GameUI, state: State): void {
                 ui.recordingMacro = null
                 ui.recordingStates = []
             }
-            makeMacroButtons(ui, getElement('macroSpot'), state)
+            if (ui.choiceState !== null) {
+                ui.render()
+            } else {
+                makeMacroButtons(ui, getElement('macroSpot'), state)
+            }
         }
     }
 }
