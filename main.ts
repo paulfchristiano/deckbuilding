@@ -43,12 +43,12 @@ const HELP_ITEMS: string[] = [
     'Each stage has a par. You start with 10 buffer, and you lose buffer for all energy you go over the par.',
     'Each stage has a random choice of vp card, and a random event that’s added.',
     'The base pars are indicated on the left sidebar. The pars are adjusted based on the random event. You can mouseover the pars on the left side to see how they are calculated.',
-    'You can undo freely, including past the start of the game. The only times new information is revealed is when (i) you finish a game and click “done” and see the paths available for the next stage, or (ii) you pick which path to take for a stage and then see the actual rewards.',
+    'You can undo freely, including past the start of the game. Undoing only becomes impossible when you get new random information, which happens only when you finish a level or select a path.',
     'You can also click on a completed stage in the left sidebar to replay it and get a better score, which will increase your buffer accordingly. You have to use the same set of potions when you replay a stage, all you can change is getting a lower score.',
     'The final stage has a low par and no boon, so you’ll need to prepare.',
     'You can see the text of cards by hovering over them. If you hold shift you can see the exact rules rather than the simplified text that is displayed by default.',
     'If you shift+click on an item, you will use it 10 times.',
-    'You can record macros to replay comment events. You can also click “save replay” to record a macro from the beginning of the game to your current state. Right click a macro to delete it.'
+    'You can record macros to replay common sequences of actions, or you can click “save replay” to record a macro from the beginning of the game to your current state (for example if you want to save your state and experiment with different picks). Right click a macro to delete it.'
 ]
 
 function loadRunTimerSeconds(): number {
