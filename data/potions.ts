@@ -25,8 +25,10 @@ import {
     gainActions,
     tick,
     reductionRule,
-    noop
+    noop,
+    canCreate
 } from '../gameLogic.js'
+import { registerSpec } from '../registry.js'
 
 // Import cards that potions reference from base
 import {
@@ -73,6 +75,13 @@ export const potionOfCopper: CardSpec = {
     }]
 }
 potionRewards.push(potionOfCopper)
+
+export const beggarsBrew: CardSpec = {
+    name: "Beggar's Brew",
+    isPotion: true,
+    effects: [coinsEffect(1)]
+}
+registerSpec(beggarsBrew)
 
 /*
 export const celebratoryBrew: CardSpec = {
@@ -262,7 +271,7 @@ export const potionOfCreation: CardSpec = {
         (target, card) => target.buy(card),
         `Buy a card in the supply costing up to $4.`,
         state => state.supply.filter(
-            x => leq(x.cost('buy', state), coin(4))
+            x => leq(x.cost('buy', state), coin(4)) && canCreate(x.spec, state)
         )
     )]
 }

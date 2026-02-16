@@ -26,6 +26,7 @@ import {
   countNameTokens, nameHasToken,
   startsWithCharge,
   useRefresh, costReduce, reducedCost, applyToTarget,
+  canCreate,
   playTwice, payAction, sortHand, discardFromPlay,
   trashThis,
   copper, gold, silver,
@@ -284,7 +285,7 @@ const imitation:CardSpec = {name: 'Imitation',
     effects: [targetedEffect(
         (target, card) => create(target.spec, 'hand'),
         'Choose a card in your hand. Create a copy of it in your hand.',
-        state => state.hand,
+        state => state.hand.filter(card => canCreate(card.spec, state)),
     )],
     buyCost: coin(3),
 }
@@ -294,7 +295,9 @@ const feast:CardSpec = {name: 'Feast',
     fixedCost: energy(0),
     effects: [targetedEffect((target, card) => target.buy(card),
         'Buy a card in the supply costing up to $6.',
-        state => state.supply.filter(x => leq(x.cost('buy', state), coin(6)))
+        state => state.supply.filter(
+            x => leq(x.cost('buy', state), coin(6)) && canCreate(x.spec, state)
+        )
     ), trashThis()],
     buyCost: coin(3),
     staticTriggers: [buyTrigger(buyEffect())]
@@ -734,7 +737,9 @@ function industryTransform(n:number, except:string=Industry, source:Source):Tran
         target => target.buy(source),
         `Buy a card in the supply costing up to $${n} not named ${except}.`,
         state => state.supply.filter(
-            x => leq(x.cost('buy', state), coin(n)) && x.name != except
+            x => leq(x.cost('buy', state), coin(n))
+                && x.name != except
+                && canCreate(x.spec, state)
         )
     )
 }
@@ -768,7 +773,7 @@ const artificer:CardSpec = {
             let target; [state, target] = await choice(state,
                 `Choose a card costing $${n} to gain a copy of.`,
                 state.supply.filter(
-                    c => c.cost('buy', state).coin == n
+                    c => c.cost('buy', state).coin == n && canCreate(c.spec, state)
                 ).map(asChoice))
             if (target != null) {
                 state = await create(target.spec, 'hand')(state)
@@ -889,6 +894,7 @@ export const haggler:CardSpec = {
             `Buy a card in the supply costing less than $${e.card.cost('buy', state).coin}.`,
             state => state.supply.filter(
                 x => leq(x.cost('buy', state), coin(e.card.cost('buy', state).coin - 1))
+                    && canCreate(x.spec, state)
             )
         )
     }]
@@ -981,20 +987,24 @@ export const develop:CardSpec = {
                     state = await applyToTarget(
                         target2 => create(target2.spec, 'hand'),
                         'Choose a cheaper card to copy.',
-                        s => s.supply.filter(c => !leq(
-                            target.cost('buy', s), c.cost('buy', s)
-                        ))
+                        s => s.supply.filter(c =>
+                            !leq(target.cost('buy', s), c.cost('buy', s))
+                            && canCreate(c.spec, s)
+                        )
                     )(state)
                     state = await applyToTarget(
                         target2 => create(target2.spec, 'hand'),
                         'Choose a more expensive card to copy.',
-                        s => s.supply.filter(c => eq(
-                            c.cost('buy', s),
-                            addCosts(target.cost('buy', s), {coin:1})
-                        ) || eq(
-                            c.cost('buy', s),
-                            addCosts(target.cost('buy', s), {coin:2})
-                        ))
+                        s => s.supply.filter(c =>
+                            (eq(
+                                c.cost('buy', s),
+                                addCosts(target.cost('buy', s), {coin:1})
+                            ) || eq(
+                                c.cost('buy', s),
+                                addCosts(target.cost('buy', s), {coin:2})
+                            ))
+                            && canCreate(c.spec, s)
+                        )
                     )(state)
                     return state
                 }, 'Choose a card to develop.',
@@ -1090,7 +1100,7 @@ const sculpt:CardSpec = {
     effects: [actionsEffect(1), targetedEffect(
         target => doAll([move(target, 'discard'), repeat(create(target.spec, 'discard'), 2)]),
         'Discard a card in your hand to create two copies of it in your discard.',
-        state => state.hand,
+        state => state.hand.filter(card => canCreate(card.spec, state)),
     )]
 }
 cardRewards.push(sculpt)
@@ -1317,7 +1327,7 @@ const greatFeast:CardSpec = {
                     target => target.buy(card),
                     `Buy a card in the supply costing up to $8`,
                     s => s.supply.filter(
-                        x => leq(x.cost('buy', s), coin(8))
+                        x => leq(x.cost('buy', s), coin(8)) && canCreate(x.spec, s)
                     )
                 )(state)
                 state = tick(card)(state)

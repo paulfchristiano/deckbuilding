@@ -137,7 +137,10 @@ export const silverMirror: RelicSpec = {
         kind: 'relic',
         simpleText: ['The next time you gain a relic, gain two additional copies of it.'],
         text: [`Whenever you gain a relic other than ${mirrorName}, gain two additional copies of that relic and destroy this.`],
-        handles: (e: GainRelicEvent, _s: MetaState, relic: Relic) => e.relic.id !== relic.id && e.relic.name !== mirrorName,
+        handles: (e: GainRelicEvent, _s: MetaState, relic: Relic) =>
+            e.relic.id !== relic.id
+            && e.relic.name !== mirrorName
+            && e.relic.spec.burden !== true,
         transform: (e: GainRelicEvent, _s: MetaState, relic: Relic) => async function (state: MetaState) {
             await removeRelic(state, relic.id)
             await gainRelic(e.relic.spec)(state)
