@@ -27,6 +27,7 @@ import {
     reductionRule,
     noop
 } from '../gameLogic.js'
+import { registerSpec } from '../registry.js'
 
 // Import cards that potions reference from base
 import {
@@ -73,6 +74,13 @@ export const potionOfCopper: CardSpec = {
     }]
 }
 potionRewards.push(potionOfCopper)
+
+export const beggarsBrew: CardSpec = {
+    name: "Beggar's Brew",
+    isPotion: true,
+    effects: [coinsEffect(1)]
+}
+registerSpec(beggarsBrew)
 
 /*
 export const celebratoryBrew: CardSpec = {

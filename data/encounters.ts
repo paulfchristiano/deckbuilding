@@ -29,6 +29,7 @@ import { CardSpec, CardUpgrade,
 import { Generator } from '../rng.js'
 import { mirrorBrew } from './potions.js'
 import { makeBottledCardPotion } from './specialSpecs.js'
+import { registerSpec } from '../registry.js'
 
 function registerUpgrade(id: string, upgrade: CardUpgrade): CardUpgrade {
     upgrade.id = id
@@ -910,6 +911,7 @@ const tradingPost: Encounter = {
     },
     getOptions(data: unknown, metaState: MetaState): RewardOption[] {
         const d = data as TradingPostData
+        const tradableRelics = metaState.data.relics.filter(relic => relic.spec.burden !== true)
 
         return [
             {
@@ -991,13 +993,13 @@ const tradingPost: Encounter = {
                 label: `Trade Relic for ${displayName(d.offerRelic)}`,
                 description: 'Give up one of your relics to receive this one.',
                 tooltipSpec: d.offerRelic,
-                disabled: d.relicTraded || metaState.data.relics.length === 0,
+                disabled: d.relicTraded || tradableRelics.length === 0,
                 checked: d.relicTraded,
                 onClick: async () => {
                     const relic = await metaState.ui.chooseCard(
                         metaState,
                         'Choose a relic to trade away:',
-                        metaState.data.relics,
+                        tradableRelics,
                         true
                     )
                     if (!relic) return { newData: data }
@@ -1020,12 +1022,14 @@ registerEncounter(tradingPost, { minStage: 4 })
 // The Scribe encounter
 const cursedInkwell: RelicSpec = {
     name: 'Cursed Inkwell',
+    burden: true,
     metaReplacers: [{
         kind: 'gameSetup',
         text: ['Par is 1@ lower on each course.'],
         replace: (p: GameSetupParams) => ({ ...p, par: p.par - 1 })
     }]
 }
+registerSpec(cursedInkwell)
 
 const theScribe: Encounter = simpleEncounter({
     name: 'The Scribe',

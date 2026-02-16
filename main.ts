@@ -30,12 +30,14 @@ let test: DebugTestConfig | null = {
 const SAVE_STORAGE_KEY = 'roguelike.ongoingSaves.v1'
 const RUN_TIMER_STORAGE_KEY = 'roguelike.runTimerSeconds.v1'
 const HELP_SEEN_STORAGE_KEY = 'roguelike.helpSeen.v1'
+const BURDENS_SETTING_STORAGE_KEY = 'roguelike.newGameBurdensEnabled.v1'
 const MAX_LAUNCHER_SAVES = 10
 
 let runTimerSeconds = 0
 let activeRunSlotID: string | null = null
 let runTimerIntervalID: number | null = null
 let removeHelpEscapeHandler: (() => void) | null = null
+let newGameBurdensEnabled = false
 
 const HELP_ITEMS: string[] = [
     'Click new game to start a game. You can press escape to return to this screen, and resume games at any time.',
@@ -157,6 +159,36 @@ function isDebugGame(snapshot: SerializedMetaGame): boolean {
     return snapshot.debugEnabled === true
 }
 
+function isBurdensGame(snapshot: SerializedMetaGame): boolean {
+    return snapshot.burdensEnabled === true
+}
+
+function loadNewGameBurdensEnabled(): boolean {
+    try {
+        return localStorage.getItem(BURDENS_SETTING_STORAGE_KEY) === '1'
+    } catch {
+        return false
+    }
+}
+
+function persistNewGameBurdensEnabled(): void {
+    try {
+        localStorage.setItem(BURDENS_SETTING_STORAGE_KEY, newGameBurdensEnabled ? '1' : '0')
+    } catch {
+        // no-op
+    }
+}
+
+function updateLauncherBurdensTag(): void {
+    const tag = document.getElementById('launcherBurdensTag')
+    if (!tag) return
+    if (newGameBurdensEnabled) {
+        tag.removeAttribute('hidden')
+    } else {
+        tag.setAttribute('hidden', '')
+    }
+}
+
 function loadSaveSlots(): SaveSlot[] {
     try {
         const raw = localStorage.getItem(SAVE_STORAGE_KEY)
@@ -273,6 +305,11 @@ function ensureLauncherStyles(): void {
             justify-content: space-between;
             margin-bottom: 12px;
         }
+        .launcherTitleRow {
+            display: flex;
+            align-items: flex-end;
+            gap: 8px;
+        }
         #saveList {
             display: flex;
             flex-direction: column;
@@ -297,6 +334,11 @@ function ensureLauncherStyles(): void {
         .saveSeed {
             font-size: 0.8em;
             color: #777;
+        }
+        .burdenTag {
+            font-size: 0.8em;
+            color: #3d6fdc;
+            margin-left: 6px;
         }
         .saveActions {
             display: flex;
@@ -323,6 +365,39 @@ function ensureLauncherStyles(): void {
             align-items: center;
             justify-content: center;
             background: rgba(0,0,0,0.25);
+        }
+        #challengeSettingsDialog {
+            position: fixed;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(0,0,0,0.25);
+            z-index: 45;
+        }
+        #challengeSettingsCard {
+            background: #fff;
+            border: 1px solid #ddd;
+            border-radius: 10px;
+            padding: 16px;
+            min-width: 320px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .challengeSettingRow {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+        }
+        .challengeSettingLabel {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+        .challengeSettingHint {
+            font-size: 0.8em;
+            color: #777;
         }
         #allSavesDialog {
             position: fixed;
@@ -525,9 +600,11 @@ async function runGame(
     snapshot: SerializedMetaGame | null,
     seed: string,
     newGameDebugEnabled: boolean = false,
-    initialElapsedSeconds: number = 0
+    initialElapsedSeconds: number = 0,
+    newGameBurdensSetting: boolean = false
 ): Promise<void> {
     const debugEnabled = snapshot ? isDebugGame(snapshot) : newGameDebugEnabled
+    const burdensEnabled = snapshot ? isBurdensGame(snapshot) : newGameBurdensSetting
     const activeTest: DebugTestConfig | null = debugEnabled ? test : null
     activeRunSlotID = slotID
     runTimerSeconds = Math.max(0, Math.floor(initialElapsedSeconds))
@@ -545,7 +622,7 @@ async function runGame(
     }
 
     try {
-        await playGame(metaUI, activeTest, seed, snapshot, saveCallback, debugEnabled)
+        await playGame(metaUI, activeTest, seed, snapshot, saveCallback, debugEnabled, burdensEnabled)
     } catch (error) {
         if (error instanceof ExitToLauncher) return
         console.error(error)
@@ -559,6 +636,7 @@ async function runGame(
 
 function clearLauncherDialogs(): void {
     document.getElementById('newGameDialog')?.remove()
+    document.getElementById('challengeSettingsDialog')?.remove()
     document.getElementById('viewGameDialog')?.remove()
     document.getElementById('allSavesDialog')?.remove()
     document.getElementById('helpDialog')?.remove()
@@ -617,6 +695,57 @@ function openHelpDialog(): void {
     }
     document.addEventListener('keydown', onKeyDown, true)
     removeHelpEscapeHandler = () => document.removeEventListener('keydown', onKeyDown, true)
+    document.body.appendChild(dialog)
+}
+
+function openChallengesDialog(): void {
+    clearLauncherDialogs()
+    const dialog = document.createElement('div')
+    dialog.id = 'challengeSettingsDialog'
+    const card = document.createElement('div')
+    card.id = 'challengeSettingsCard'
+
+    const title = document.createElement('h3')
+    title.style.margin = '0'
+    title.textContent = 'Challenges'
+    card.appendChild(title)
+
+    const row = document.createElement('label')
+    row.className = 'challengeSettingRow'
+    const checkbox = document.createElement('input')
+    checkbox.type = 'checkbox'
+    checkbox.checked = newGameBurdensEnabled
+    checkbox.onchange = () => {
+        newGameBurdensEnabled = checkbox.checked
+        persistNewGameBurdensEnabled()
+        updateLauncherBurdensTag()
+    }
+    const label = document.createElement('div')
+    label.className = 'challengeSettingLabel'
+    const name = document.createElement('span')
+    name.textContent = 'Burdens'
+    const hint = document.createElement('span')
+    hint.className = 'challengeSettingHint'
+    hint.textContent = 'Add a mandatory burden in each round after the first.'
+    label.appendChild(name)
+    label.appendChild(hint)
+    row.appendChild(checkbox)
+    row.appendChild(label)
+    card.appendChild(row)
+
+    const actions = document.createElement('div')
+    actions.className = 'saveActions'
+    const close = document.createElement('button')
+    close.className = 'launcherBtn'
+    close.textContent = 'Close'
+    close.onclick = () => dialog.remove()
+    actions.appendChild(close)
+    card.appendChild(actions)
+
+    dialog.appendChild(card)
+    dialog.addEventListener('mousedown', (event: MouseEvent) => {
+        if (event.target === dialog) dialog.remove()
+    })
     document.body.appendChild(dialog)
 }
 
@@ -749,6 +878,12 @@ function openViewDialog(slot: SaveSlot): void {
     const done = state.data.phase === 'game_over' || state.data.stage >= 8
     const statusDebugTag = state.debugEnabled ? ' [Debug]' : ''
     status.textContent = `${done ? 'Victory!' : `Stage ${state.data.stage + 1}`} • Buffer ${state.data.buffer}${statusDebugTag} • Seed ${slot.seed}`
+    if (isBurdensGame(slot.snapshot)) {
+        const burdenTag = document.createElement('span')
+        burdenTag.className = 'burdenTag'
+        burdenTag.textContent = '(burdens)'
+        status.appendChild(burdenTag)
+    }
     if (state.data.buffer < 0) status.className = 'negativeBuffer'
     card.appendChild(status)
     const relicDisplaySpecs = state.data.relics.map(relic => relic.spec)
@@ -822,6 +957,12 @@ function createSaveRow(slot: SaveSlot, onAbandon: () => void): HTMLElement {
     primary.textContent = done
         ? `Victory! • Buffer ${slot.snapshot.data.buffer}${debugTag}`
         : `Stage ${slot.snapshot.data.stage + 1} • Buffer ${slot.snapshot.data.buffer}${debugTag}`
+    if (isBurdensGame(slot.snapshot)) {
+        const burdenTag = document.createElement('span')
+        burdenTag.className = 'burdenTag'
+        burdenTag.textContent = '(burdens)'
+        primary.appendChild(burdenTag)
+    }
     if (slot.snapshot.data.buffer < 0) {
         primary.className = 'negativeBuffer'
     }
@@ -931,9 +1072,20 @@ function renderLauncher(): void {
 
     const header = document.createElement('div')
     header.id = 'saveLauncherHeader'
+    const titleRow = document.createElement('div')
+    titleRow.className = 'launcherTitleRow'
     const title = document.createElement('h2')
     title.textContent = 'engine-roguelike'
     title.style.margin = '0'
+    const burdenTag = document.createElement('span')
+    burdenTag.id = 'launcherBurdensTag'
+    burdenTag.className = 'burdenTag'
+    burdenTag.textContent = '(burdens)'
+    if (!newGameBurdensEnabled) {
+        burdenTag.setAttribute('hidden', '')
+    }
+    titleRow.appendChild(title)
+    titleRow.appendChild(burdenTag)
     const headerActions = document.createElement('div')
     headerActions.className = 'saveActions'
     const newButton = document.createElement('button')
@@ -971,7 +1123,7 @@ function renderLauncher(): void {
         const startNewGame = async () => {
             const seed = normalizeSeed(seedInput.value) || randomString()
             const slotID = `${Date.now()}-${Math.floor(Math.random() * 1_000_000)}`
-            await runGame(slotID, null, seed, debugNewGame, 0)
+            await runGame(slotID, null, seed, debugNewGame, 0, newGameBurdensEnabled)
         }
         startButton.onclick = startNewGame
         seedInput.addEventListener('keydown', async (event: KeyboardEvent) => {
@@ -999,7 +1151,7 @@ function renderLauncher(): void {
         seedInput.select()
     }
     headerActions.appendChild(newButton)
-    header.appendChild(title)
+    header.appendChild(titleRow)
     header.appendChild(headerActions)
     card.appendChild(header)
 
@@ -1038,6 +1190,11 @@ function renderLauncher(): void {
         showAllButton.onclick = () => openAllSavesDialog()
         footerActions.appendChild(showAllButton)
     }
+    const challengesButton = document.createElement('button')
+    challengesButton.className = 'launcherBtn'
+    challengesButton.textContent = 'Challenges'
+    challengesButton.onclick = () => openChallengesDialog()
+    footerActions.appendChild(challengesButton)
     const helpButton = document.createElement('button')
     helpButton.className = 'launcherBtn'
     helpButton.textContent = 'Help'
@@ -1049,6 +1206,7 @@ function renderLauncher(): void {
     card.appendChild(footerActions)
     root.appendChild(card)
     document.body.appendChild(root)
+    updateLauncherBurdensTag()
     if (!hasSeenHelp()) {
         markHelpSeen()
         openHelpDialog()
@@ -1057,6 +1215,7 @@ function renderLauncher(): void {
 
 // Start the game when the page loads
 window.addEventListener('load', async () => {
+    newGameBurdensEnabled = loadNewGameBurdensEnabled()
     initRunTimer()
     renderLauncher()
 })

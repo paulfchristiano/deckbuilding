@@ -116,6 +116,31 @@ export interface EncounterRewardState {
 }
 
 export type RewardState = SimpleRewardState | EncounterRewardState
+
+export interface BurdenOptionState {
+    id: string
+    title: string
+    description: string
+    spec: CardSpec | null
+    data: unknown
+}
+
+export interface BurdenState {
+    options: BurdenOptionState[]
+    selectedIndex: number | null
+}
+
+export interface BurdenDefinition {
+    id: string
+    title: string
+    description: string
+    weight: number
+    minStage: number
+    maxStage: number
+    applies: (state: MetaState) => boolean
+    createOption: (state: MetaState, generator: Generator) => BurdenOptionState
+    resolveTransform: (option: BurdenOptionState, state: MetaState) => Promise<MetaTransform | null> | MetaTransform | null
+}
 const PIGGY_BANK_SELECTED_INDEX = -2
 
 function encounterRewardCompleted(rewardState: EncounterRewardState): boolean {
@@ -238,7 +263,41 @@ export function updateRewardState(rewardState: RewardState, newData: unknown): R
     }
 }
 
-// Encounter registration with stage constraints
+function burdenDefinitionById(id: string): BurdenDefinition | null {
+    return burdenRegistry.find(definition => definition.id === id) ?? null
+}
+
+export function getBurdenOptions(burdenState: BurdenState, metaState: MetaState): RewardOption[] {
+    return burdenState.options.map((option, index) => ({
+        label: option.title,
+        description: option.description,
+        spec: option.spec ?? undefined,
+        disabled: burdenState.selectedIndex !== null,
+        checked: burdenState.selectedIndex === index,
+        onClick: async () => {
+            const definition = burdenDefinitionById(option.id)
+            if (!definition) {
+                throw new Error(`Unknown burden option "${option.id}"`)
+            }
+            const transform = await definition.resolveTransform(option, metaState)
+            if (!transform) {
+                return {
+                    newData: burdenState,
+                }
+            }
+            return {
+                newData: { ...burdenState, selectedIndex: index },
+                transform
+            }
+        }
+    }))
+}
+
+export function updateBurdenState(burdenState: BurdenState, newData: unknown): BurdenState {
+    return newData as BurdenState
+}
+
+// Encounter and burden registration with stage constraints
 interface EncounterRegistration {
     encounter: Encounter
     minStage: number
@@ -247,6 +306,7 @@ interface EncounterRegistration {
 
 const encounterRegistry: EncounterRegistration[] = []
 const encounterUpgradeRegistry = new Map<string, CardUpgrade>()
+const burdenRegistry: BurdenDefinition[] = []
 
 export function registerEncounter(
     encounter: Encounter,
@@ -265,6 +325,29 @@ export function registerEncounterUpgrade(id: string, upgrade: CardUpgrade): void
 
 export function getEncounterUpgradeById(id: string): CardUpgrade | null {
     return encounterUpgradeRegistry.get(id) || null
+}
+
+export function registerBurden(definition: Omit<BurdenDefinition, 'weight' | 'minStage' | 'maxStage' | 'applies' | 'createOption'> & {
+    weight?: number
+    minStage?: number
+    maxStage?: number
+    applies?: (state: MetaState) => boolean
+    createOption?: (state: MetaState, generator: Generator) => BurdenOptionState
+}): void {
+    burdenRegistry.push({
+        ...definition,
+        weight: definition.weight ?? 1,
+        minStage: definition.minStage ?? 0,
+        maxStage: definition.maxStage ?? (TOTAL_STAGES - 1),
+        applies: definition.applies ?? (() => true),
+        createOption: definition.createOption ?? ((state, _generator) => ({
+            id: definition.id,
+            title: definition.title,
+            description: definition.description,
+            spec: null,
+            data: null,
+        })),
+    })
 }
 
 export function getEncounterState(state: MetaState, generator: Generator, stage: number): EncounterRewardState {
@@ -337,6 +420,7 @@ export type GameSetupParams = {
 export interface RelicSpec extends CardSpec {
     minStage?: number
     maxStage?: number
+    burden?: boolean
     gainRequirement?: (state: MetaState) => boolean
     metaReplacers?: MetaReplacer[]
     metaTriggers?: TypedMetaTrigger[]
@@ -397,6 +481,7 @@ export interface ExtraOptionsParams {
 export interface PathRewardParams {
     rewardsPerPath: number
     paths: string[]
+    numBurdens: number
 }
 
 // TODO: render relics appropriately when you hold shift etc.
@@ -422,6 +507,8 @@ export interface PathGenerationEvent {
     kind: 'path'
     baseRewardsPerPath: number
     rewardsPerPath: number
+    baseNumBurdens: number
+    numBurdens: number
 }
 
 export interface GainRelicEvent {
@@ -477,6 +564,7 @@ export type TypedMetaTrigger =
 export interface Path {
     label: string
     rewardStates: RewardState[]
+    burdenStates: BurdenState[]
     challenges: ChallengeSpec[]
 }
 
@@ -585,6 +673,7 @@ export interface MetaStateData {
 
     // Pending rewards for current stage
     rewardStates: RewardState[]
+    burdenStates: BurdenState[]
 
     // Collected cards/events (persist across stages)
     collectedCards: CardSpec[]
@@ -610,6 +699,7 @@ import { Generator, randomString } from './rng.js'
 
 interface MetaStateOptions {
     debugEnabled?: boolean
+    burdensEnabled?: boolean
 }
 
 export class MetaState {
@@ -619,6 +709,7 @@ export class MetaState {
     public undoStack: MetaStateData[] = []
     public readonly seed: string
     public readonly debugEnabled: boolean
+    public readonly burdensEnabled: boolean
     public masterGenerator: Generator
     public generators: Map<string, Generator> = new Map()
     public data: MetaStateData
@@ -633,6 +724,7 @@ export class MetaState {
     ) {
         this.onChange = onChange
         this.debugEnabled = options.debugEnabled ?? false
+        this.burdensEnabled = options.burdensEnabled ?? false
         if (seed === null) {
             this.seed = randomString()
         } else {
@@ -650,6 +742,7 @@ export class MetaState {
             challenges: [] as ChallengeSpec[],
             availablePaths: [] as Path[],
             rewardStates: [] as RewardState[],
+            burdenStates: [] as BurdenState[],
             collectedCards: [] as CardSpec[],
             collectedEvents: [] as CardSpec[],
             potions: [] as Card[],
@@ -864,6 +957,19 @@ interface SerializedSimpleRewardState {
     selectedIndex: number | null
 }
 
+interface SerializedBurdenOptionState {
+    id: string
+    title: string
+    description: string
+    spec: unknown
+    data: unknown
+}
+
+interface SerializedBurdenState {
+    options: SerializedBurdenOptionState[]
+    selectedIndex: number | null
+}
+
 interface SerializedEncounterRewardState {
     kind: 'encounter'
     encounterName: string | null
@@ -881,6 +987,7 @@ interface SerializedChallengeSpec {
 interface SerializedPath {
     label?: string
     rewardStates: SerializedRewardState[]
+    burdenStates?: SerializedBurdenState[]
     challenges: SerializedChallengeSpec[]
 }
 
@@ -923,6 +1030,7 @@ interface SerializedMetaStateData {
     stageReplays: (SerializedStageReplayData | null)[]
     buffer: number
     rewardStates: SerializedRewardState[]
+    burdenStates?: SerializedBurdenState[]
     collectedCards: SerializedSpecRef[]
     collectedEvents: SerializedSpecRef[]
     potions: SerializedCard[]
@@ -944,6 +1052,7 @@ export interface SerializedMetaGame {
     version: 1
     seed: string
     debugEnabled?: boolean
+    burdensEnabled?: boolean
     masterGeneratorState: number
     generatorStates: Array<{ key: string, state: number }>
     data: SerializedMetaStateData
@@ -963,6 +1072,9 @@ function validateMetaStateData(data: MetaStateData, context: string): void {
     }
     if (data.phase === 'in_game' && data.challenges.length !== 1) {
         throw new Error(`Invariant violation (${context}): in_game requires exactly one selected challenge`)
+    }
+    if (data.phase !== 'stage_select' && data.burdenStates.length > 0) {
+        throw new Error(`Invariant violation (${context}): burden selections only allowed in stage_select`)
     }
     if (data.phase !== 'in_game' && (data.gameHistory.length > 0 || data.gameRedo.length > 0)) {
         throw new Error(`Invariant violation (${context}): saved game history only allowed in in_game`)
@@ -1181,6 +1293,7 @@ function serializePath(path: Path): SerializedPath {
     return {
         label: path.label,
         rewardStates: path.rewardStates.map(serializeRewardState),
+        burdenStates: path.burdenStates.map(serializeBurdenState),
         challenges: path.challenges.map(serializeChallenge)
     }
 }
@@ -1189,7 +1302,34 @@ function deserializePath(path: SerializedPath): Path {
     return {
         label: path.label ?? 'Path',
         rewardStates: path.rewardStates.map(deserializeRewardState),
+        burdenStates: (path.burdenStates || []).map(deserializeBurdenState),
         challenges: path.challenges.map(deserializeChallenge)
+    }
+}
+
+function serializeBurdenState(burdenState: BurdenState): SerializedBurdenState {
+    return {
+        selectedIndex: burdenState.selectedIndex,
+        options: burdenState.options.map(option => ({
+            id: option.id,
+            title: option.title,
+            description: option.description,
+            spec: encodeUnknown(option.spec),
+            data: encodeUnknown(option.data)
+        }))
+    }
+}
+
+function deserializeBurdenState(burdenState: SerializedBurdenState): BurdenState {
+    return {
+        selectedIndex: burdenState.selectedIndex,
+        options: burdenState.options.map(option => ({
+            id: option.id,
+            title: option.title,
+            description: option.description,
+            spec: decodeUnknown(option.spec) as CardSpec | null,
+            data: decodeUnknown(option.data)
+        }))
     }
 }
 
@@ -1291,6 +1431,7 @@ function serializeMetaStateData(data: MetaStateData): SerializedMetaStateData {
         }),
         buffer: data.buffer,
         rewardStates: data.rewardStates.map(serializeRewardState),
+        burdenStates: data.burdenStates.map(serializeBurdenState),
         collectedCards: data.collectedCards.map(card => serializeSpec(card, 'card')),
         collectedEvents: data.collectedEvents.map(event => serializeSpec(event, 'event')),
         potions: data.potions.map(card => serializeCard(card)),
@@ -1335,6 +1476,7 @@ function deserializeMetaStateData(data: SerializedMetaStateData): MetaStateData 
         }),
         buffer: data.buffer,
         rewardStates: data.rewardStates.map(deserializeRewardState),
+        burdenStates: (data.burdenStates || []).map(deserializeBurdenState),
         collectedCards: data.collectedCards.map(card => deserializeSpec(card)),
         collectedEvents: data.collectedEvents.map(event => deserializeSpec(event)),
         potions: data.potions.map(card => deserializeCard(card)),
@@ -1366,6 +1508,7 @@ export function serializeMetaGame(state: MetaState): SerializedMetaGame {
         version: 1,
         seed: state.seed,
         debugEnabled: state.debugEnabled,
+        burdensEnabled: state.burdensEnabled,
         masterGeneratorState: state.masterGenerator.exportState(),
         generatorStates: [...state.generators.entries()].map(([key, generator]) => ({
             key,
@@ -1390,7 +1533,8 @@ export function deserializeMetaGame(
         throw new Error(`Unsupported save version ${serialized.version}`)
     }
     const debugEnabled = serialized.debugEnabled ?? false
-    const state = new MetaState(ui, serialized.seed, onChange, { debugEnabled })
+    const burdensEnabled = serialized.burdensEnabled ?? false
+    const state = new MetaState(ui, serialized.seed, onChange, { debugEnabled, burdensEnabled })
     state.masterGenerator = Generator.fromState(serialized.masterGeneratorState)
     state.generators = new Map(
         serialized.generatorStates.map(entry => [entry.key, Generator.fromState(entry.state)])
@@ -1561,6 +1705,33 @@ export function gainRelic(relic: RelicSpec, timelineDetails: GainTimelineDetails
     }
 }
 
+export function gainNotedRelic(
+    relic: RelicSpec,
+    notedCards: CardSpec[],
+    timelineDetails: GainTimelineDetails = {}
+): MetaTransform {
+    return async function(state: MetaState) {
+        const nextID = state.data.nextID
+        const relicCard:Relic = new Relic(relic, nextID, notedCards)
+        const nextData: Partial<MetaStateData> = {
+            relics: [...state.data.relics, relicCard],
+            nextID: nextID + 1,
+        }
+        if (!timelineDetails.silent) {
+            nextData.timeline = [...state.data.timeline, {
+                kind: 'gain',
+                stage: state.data.stage,
+                gainKind: 'relic',
+                name: displayName(relic),
+                skipped: timelineDetails.skipped ? [...timelineDetails.skipped] : undefined,
+                details: timelineDetails.details
+            }]
+        }
+        state.update(nextData)
+        await trigger({kind: 'relic', relic: relicCard}, state)
+    }
+}
+
 // Remove a card from collection by name
 export function removeCard(state: MetaState, name: string) {
     state.update({
@@ -1589,6 +1760,14 @@ export function updateRewardAtIndex(state: MetaState, index: number, newRewardSt
         rewardStates[index] = newRewardState
     }
     state.update({ rewardStates })
+}
+
+export function updateBurdenAtIndex(state: MetaState, index: number, newBurdenState: BurdenState) {
+    const burdenStates = [...state.data.burdenStates]
+    if (index >= 0 && index < burdenStates.length) {
+        burdenStates[index] = newBurdenState
+    }
+    state.update({ burdenStates })
 }
 
 export async function endCourse(score: number, par: number, state:MetaState): Promise<void> {
@@ -1774,7 +1953,9 @@ function relicAvailableOnStage(relic: RelicSpec, stage: number): boolean {
 }
 
 export function standardRelicRewards(stage: number): RelicSpec[] {
-    return (relicRewards as RelicSpec[]).filter(relic => relicAvailableOnStage(relic, stage))
+    return (relicRewards as RelicSpec[]).filter(relic =>
+        relicAvailableOnStage(relic, stage) && relic.burden !== true
+    )
 }
 
 // ----------------------- Generate data
@@ -1837,9 +2018,46 @@ function sampleChallengesForStage(
     return result
 }
 
+function orderedBurdenCandidates(
+    _state: MetaState,
+    generator: Generator
+): BurdenDefinition[] {
+    const weighted: BurdenDefinition[] = []
+    for (const definition of burdenRegistry) {
+        const weight = Math.max(1, definition.weight)
+        for (let index = 0; index < weight; index++) {
+            weighted.push(definition)
+        }
+    }
+    return generator.permute(weighted)
+}
+
+function sampleBurdenState(state: MetaState, generator: Generator): BurdenState {
+    const stage = state.data.stage
+    const ordered = orderedBurdenCandidates(state, generator)
+    const options: BurdenOptionState[] = []
+    const chosenIDs = new Set<string>()
+    for (const definition of ordered) {
+        if (chosenIDs.has(definition.id)) continue
+        if (definition.minStage > stage || stage > definition.maxStage) continue
+        if (!definition.applies(state)) continue
+        options.push(definition.createOption(state, generator))
+        chosenIDs.add(definition.id)
+        if (options.length === 2) break
+    }
+    if (options.length < 2) {
+        throw new Error(`No valid burden options for stage ${state.data.stage + 1}`)
+    }
+    return {
+        options,
+        selectedIndex: null
+    }
+}
+
 interface PathSkeleton {
     label: string,
     rewards: RewardKind[],
+    burdens: number,
     challenges: ChallengeSpec[]
 }
 
@@ -1848,18 +2066,23 @@ async function makePaths(state: MetaState, challengeTests: ChallengeTestSpec[] =
     const generator = state.generator(`paths${stage}`).newGenerator()
     const baseRewardsPerPath = 2
     const basePaths = ['Go left', 'Go right']
+    const baseNumBurdens = state.burdensEnabled && stage > 0 ? 1 : 0
     const pathRewardParams = applyMetaReplacers('pathRewards', {
         rewardsPerPath: baseRewardsPerPath,
         paths: basePaths,
+        numBurdens: baseNumBurdens
     }, state)
     await trigger({
         kind: 'path',
         baseRewardsPerPath,
-        rewardsPerPath: pathRewardParams.rewardsPerPath
+        rewardsPerPath: pathRewardParams.rewardsPerPath,
+        baseNumBurdens,
+        numBurdens: pathRewardParams.numBurdens
     }, state)
     const rewardsPerPath = pathRewardParams.rewardsPerPath
     const pathLabels = pathRewardParams.paths
     const pathCount = pathLabels.length
+    const numBurdens = Math.max(0, pathRewardParams.numBurdens)
     const challenges = sampleChallengesForStage(state, pathCount, challengeTests)
     const rewardsPerSet = 6
     const fullSet: RewardKind[] = ['card', 'card', 'event', 'encounter', 'potion', 'relic']
@@ -1879,6 +2102,7 @@ async function makePaths(state: MetaState, challengeTests: ChallengeTestSpec[] =
         paths.push({
             label: pathLabels[pathIndex] ?? 'Path',
             rewards: shuffledRewards.slice(start, end),
+            burdens: numBurdens,
             challenges: [challenges[pathIndex]]
         })
     }
@@ -1900,7 +2124,11 @@ function pathFromSkeleton(skeleton: PathSkeleton): Path {
             rewardStates.push({ kind: 'potion', options: [] as CardSpec[], selectedIndex: null })
         }
     }
-    return { label: skeleton.label, rewardStates, challenges: skeleton.challenges }
+    const burdenStates: BurdenState[] = []
+    for (let index = 0; index < skeleton.burdens; index++) {
+        burdenStates.push({ options: [], selectedIndex: null })
+    }
+    return { label: skeleton.label, rewardStates, burdenStates, challenges: skeleton.challenges }
 }
 
 // ------------------ Meta loop -------------------
@@ -2051,6 +2279,7 @@ async function computeReplayBufferAfterCourse(replayData: StageReplayData, score
         timeline: [],
         buffer: replayData.bufferBeforeCourse,
         rewardStates: [],
+        burdenStates: [],
         collectedCards: [],
         collectedEvents: [],
         potions: [...replayData.spec.potions],
@@ -2144,7 +2373,7 @@ async function replayCompletedStage(state: MetaState, stage: number): Promise<vo
     state.ui.updateBuffer(state)
 }
 
-function materializePath(state: MetaState, path: Path): Pick<MetaStateData, 'challenges' | 'rewardStates'> {
+function materializePath(state: MetaState, path: Path): Pick<MetaStateData, 'challenges' | 'rewardStates' | 'burdenStates'> {
     // Materialize rewards only when the path is actually selected.
     const rewardStates = path.rewardStates.map(rs => {
         if (rs.kind === 'encounter' && rs.encounter === null) {
@@ -2191,7 +2420,14 @@ function materializePath(state: MetaState, path: Path): Pick<MetaStateData, 'cha
         }
         return rs
     })
-    return { challenges: path.challenges, rewardStates }
+    const burdenGenerator = state.generator(`rewardsburden`).newGenerator()
+    const burdenStates = path.burdenStates.map(burdenState => {
+        if (burdenState.options.length === 0) {
+            return sampleBurdenState(state, burdenGenerator)
+        }
+        return burdenState
+    })
+    return { challenges: path.challenges, rewardStates, burdenStates }
 }
 
 // We can define staged tests in order to inject a given reward for a specific stage while debugging.
@@ -2344,11 +2580,12 @@ export async function playGame(
     seed: string | null = null,
     initialSnapshot: SerializedMetaGame | null = null,
     onStateChange: ((snapshot: SerializedMetaGame) => void) | null = null,
-    debugEnabled: boolean = false
+    debugEnabled: boolean = false,
+    burdensEnabled: boolean = false
 ): Promise<void> {
     const state: MetaState = initialSnapshot
         ? deserializeMetaGame(ui, initialSnapshot, null)
-        : new MetaState(ui, seed, null, { debugEnabled })
+        : new MetaState(ui, seed, null, { debugEnabled, burdensEnabled })
     state.setChangeListener(onStateChange ? () => onStateChange!(serializeMetaGame(state)) : null)
     const tests = state.debugEnabled
         ? normalizeTests(test)
@@ -2360,6 +2597,7 @@ export async function playGame(
         const initialPath = pathFromSkeleton({
             label: 'Go left',
             rewards: ['card', 'card', 'event', 'potion'] as RewardKind[],
+            burdens: 0,
             challenges: initialChallenges
         })
         for (const testSpec of rewardTestsForStage(tests.rewards, 0)) {
@@ -2461,6 +2699,7 @@ export async function playGame(
                     phase: 'path_select',
                     challenges: [],
                     rewardStates: [],
+                    burdenStates: [],
                     availablePaths: paths,
                 })
             } else if (state.data.phase === 'path_select') {
@@ -2504,8 +2743,13 @@ export async function playGame(
                 // Store the selected challenge as the only one
                 state.update({ challenges: [selectedChallenge], availablePaths: [] })
                 await trigger({kind: 'start', stage: state.data.stage}, state)
+                if (state.data.burdenStates.some(burden => burden.selectedIndex === null)) {
+                    throw new Error('Invariant violation: cannot start stage with unresolved burdens')
+                }
                 state.updateAndSetCheckpoint({
                     phase: 'in_game',
+                    rewardStates: [],
+                    burdenStates: [],
                     gameHistory: [],
                     gameRedo: [],
                 })

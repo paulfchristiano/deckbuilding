@@ -9,7 +9,7 @@ import {
     makeSpec,
     ActiveGameProgress,
     renderChallenge,
-    getRewardOptions, getRewardName, updateRewardState, updateRewardAtIndex,
+    getRewardOptions, getRewardName, getBurdenOptions, updateRewardState, updateRewardAtIndex, updateBurdenState, updateBurdenAtIndex,
     Undo, Redo, ReplayStage, ExitToLauncher
 } from './metaLogic.js'
 import { buildSpecTooltipFull, buildSpecTooltipSimple, renderSpecNoRelated } from './cardRendering.js'
@@ -421,6 +421,7 @@ function renderStageScreen(
     state: MetaState,
     onChallenge: (challenge: ChallengeSpec) => void,
     onOptionClick: (rewardIndex: number, optionIndex: number) => void,
+    onBurdenClick: (burdenIndex: number, optionIndex: number) => void,
     onReplayStage: (stage: number) => void
 ): void {
     showScreen('stage')
@@ -511,15 +512,67 @@ function renderStageScreen(
         rewardContainer.appendChild(rewardRow)
     })
 
+    state.data.burdenStates.forEach((burdenState, burdenIndex) => {
+        const burdenRow = createDiv('rewardRow')
+
+        const labelDiv = createDiv('rewardLabel')
+        labelDiv.textContent = `Burden ${burdenIndex + 1}`
+        burdenRow.appendChild(labelDiv)
+
+        const optionsDiv = createDiv('rewardOptions')
+        const options = getBurdenOptions(burdenState, state)
+        options.forEach((option, optionIndex) => {
+            let optionEl: HTMLElement
+            if (option.spec) {
+                optionEl = createElementFromHTML(renderSpecNoRelated(option.spec))
+                optionEl.classList.add('rewardOption')
+            } else {
+                optionEl = createDiv('rewardOption option')
+                const nameDiv = createDiv('rewardOptionNameText')
+                nameDiv.textContent = option.label
+                optionEl.appendChild(nameDiv)
+                if (option.description) {
+                    const descDiv = createDiv('rewardOptionDescriptionText')
+                    descDiv.textContent = option.description
+                    optionEl.appendChild(descDiv)
+                }
+            }
+
+            if (option.disabled) {
+                optionEl.setAttribute('disabled', 'disabled')
+                if (option.checked) {
+                    optionEl.classList.add('checked')
+                    const checkmark = createSpan('checkmark')
+                    checkmark.textContent = ' ✓'
+                    optionEl.appendChild(checkmark)
+                }
+            } else {
+                optionEl.setAttribute('choosable', '')
+                optionEl.style.cursor = 'pointer'
+                optionEl.onclick = () => onBurdenClick(burdenIndex, optionIndex)
+            }
+
+            optionsDiv.appendChild(optionEl)
+        })
+
+        burdenRow.appendChild(optionsDiv)
+        rewardContainer.appendChild(burdenRow)
+    })
+
     // Render challenge button(s)
     const challengeContainer = getElement('challengeButtons')
     clearElement(challengeContainer)
+    const unresolvedBurdens = state.data.burdenStates.some(burdenState => burdenState.selectedIndex === null)
 
     for (const challenge of state.data.challenges) {
         const playBtn = createSpan('option')
-        playBtn.setAttribute('choosable', '')
+        if (!unresolvedBurdens) playBtn.setAttribute('choosable', '')
         playBtn.innerHTML = renderChallenge(challenge, state)
-        playBtn.onclick = () => onChallenge(challenge)
+        if (unresolvedBurdens) {
+            playBtn.setAttribute('disabled', 'disabled')
+        } else {
+            playBtn.onclick = () => onChallenge(challenge)
+        }
         challengeContainer.appendChild(playBtn)
     }
 }
@@ -562,6 +615,11 @@ function renderPathColumn(path: Path, state: MetaState, onSelect: (path: Path) =
         const rewardDiv = createDiv('pathReward')
         rewardDiv.textContent = getRewardName(rewardState)
         rewardsContainer.appendChild(rewardDiv)
+    }
+    for (let burdenIndex = 0; burdenIndex < path.burdenStates.length; burdenIndex++) {
+        const burdenDiv = createDiv('pathReward')
+        burdenDiv.textContent = 'Burden'
+        rewardsContainer.appendChild(burdenDiv)
     }
     pathColumn.appendChild(rewardsContainer)
 
@@ -732,10 +790,10 @@ export class MetaGameUI implements MetaUI {
                         // Call the option's onClick handler
                         const { newData, transform } = await option.onClick()
 
-                        const noOpCancel =
-                            rewardState.kind === 'encounter' &&
-                            transform === undefined &&
-                            newData === rewardState.data
+                        const noOpCancel = transform === undefined && (
+                            newData === rewardState
+                            || (rewardState.kind === 'encounter' && newData === rewardState.data)
+                        )
                         if (noOpCancel) {
                             render()
                             return
@@ -752,6 +810,25 @@ export class MetaGameUI implements MetaUI {
                         state.setCheckpoint()
 
                         // Re-render
+                        render()
+                    },
+                    async (burdenIndex, optionIndex) => {
+                        const burdenState = state.data.burdenStates[burdenIndex]
+                        const options = getBurdenOptions(burdenState, state)
+                        const option = options[optionIndex]
+                        if (option.disabled) return
+
+                        const { newData, transform } = await option.onClick()
+                        const noOpCancel = transform === undefined && newData === burdenState
+                        if (noOpCancel) {
+                            render()
+                            return
+                        }
+
+                        const newBurdenState = updateBurdenState(burdenState, newData)
+                        updateBurdenAtIndex(state, burdenIndex, newBurdenState)
+                        if (transform) await transform(state)
+                        state.setCheckpoint()
                         render()
                     },
                     (stage) => finishReject(new ReplayStage(stage))

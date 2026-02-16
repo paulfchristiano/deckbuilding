@@ -2136,6 +2136,28 @@ export const shelterRule: Rule = {
 }
 registerRule(shelterRule)
 
+export const decayRule: Rule = {
+    name: 'Decay',
+    replacers: [{
+        text: ['Whenever a card with a decay token would move to your discard or leave play, remove a decay token from it. Then if it has no decay tokens, trash it.'],
+        simpleText: ['Cards with decay tokens lose one whenever they go to discard or leave play; if that removes the last one, trash the card.'],
+        kind: 'move',
+        handles: (params, state) =>
+            state.find(params.card).count('decay') > 0
+            && (params.toZone === 'discard' || params.fromZone === 'play'),
+        replace: (params, state) => {
+            const current = state.find(params.card)
+            const shouldTrash = current.count('decay') <= 1
+            return {
+                ...params,
+                toZone: shouldTrash ? 'void' : params.toZone,
+                effects: params.effects.concat([removeToken(current, 'decay', 1)])
+            }
+        }
+    }]
+}
+registerRule(decayRule)
+
 // Priority rule: cards created from supplies with priority tokens are played immediately
 export const priorityRule: Rule = {
     name: 'Priority',

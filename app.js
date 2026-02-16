@@ -3074,6 +3074,23 @@
     }]
   };
   registerRule(shelterRule);
+  var decayRule = {
+    name: "Decay",
+    replacers: [{
+      text: ["Whenever a card with a decay token would move to your discard or leave play, remove a decay token from it. Then if it has no decay tokens, trash it."],
+      simpleText: ["Cards with decay tokens lose one whenever they go to discard or leave play; if that removes the last one, trash the card."],
+      kind: "move",
+      handles: function(params, state) {
+        return state.find(params.card).count("decay") > 0 && (params.toZone === "discard" || params.fromZone === "play");
+      },
+      replace: function(params, state) {
+        var current = state.find(params.card);
+        var shouldTrash = current.count("decay") <= 1;
+        return __assign(__assign({}, params), { toZone: shouldTrash ? "void" : params.toZone, effects: params.effects.concat([removeToken(current, "decay", 1)]) });
+      }
+    }]
+  };
+  registerRule(decayRule);
   var priorityRule = {
     name: "Priority",
     replacers: [playReplacer(["Whenever you would create a card in your discard whose supply has a priority token, instead remove a priority token and set the card aside. Then play it if it is still set aside."], function(p, s, c) {
@@ -3998,6 +4015,8 @@
   }
   function isRelicSpec(spec) {
     var x = asMetaTextSpec(spec);
+    if (x.burden === true)
+      return true;
     if (x.metaReplacers !== void 0 || x.metaTriggers !== void 0 || x.gainRequirement !== void 0)
       return true;
     if (x.mutableTriggers !== void 0 || x.mutableReplacers !== void 0)
@@ -4881,8 +4900,57 @@
       return newData;
     }
   }
+  function burdenDefinitionById(id) {
+    var _a;
+    return (_a = burdenRegistry.find(function(definition) {
+      return definition.id === id;
+    })) !== null && _a !== void 0 ? _a : null;
+  }
+  function getBurdenOptions(burdenState, metaState) {
+    var _this = this;
+    return burdenState.options.map(function(option, index) {
+      var _a;
+      return {
+        label: option.title,
+        description: option.description,
+        spec: (_a = option.spec) !== null && _a !== void 0 ? _a : void 0,
+        disabled: burdenState.selectedIndex !== null,
+        checked: burdenState.selectedIndex === index,
+        onClick: function() {
+          return __awaiter3(_this, void 0, void 0, function() {
+            var definition, transform;
+            return __generator3(this, function(_a2) {
+              switch (_a2.label) {
+                case 0:
+                  definition = burdenDefinitionById(option.id);
+                  if (!definition) {
+                    throw new Error('Unknown burden option "'.concat(option.id, '"'));
+                  }
+                  return [4, definition.resolveTransform(option, metaState)];
+                case 1:
+                  transform = _a2.sent();
+                  if (!transform) {
+                    return [2, {
+                      newData: burdenState
+                    }];
+                  }
+                  return [2, {
+                    newData: __assign2(__assign2({}, burdenState), { selectedIndex: index }),
+                    transform
+                  }];
+              }
+            });
+          });
+        }
+      };
+    });
+  }
+  function updateBurdenState(burdenState, newData) {
+    return newData;
+  }
   var encounterRegistry = [];
   var encounterUpgradeRegistry = /* @__PURE__ */ new Map();
+  var burdenRegistry = [];
   function registerEncounter(encounter, options) {
     var _a, _b;
     encounterRegistry.push({
@@ -4896,6 +4964,20 @@
   }
   function getEncounterUpgradeById(id) {
     return encounterUpgradeRegistry.get(id) || null;
+  }
+  function registerBurden(definition) {
+    var _a, _b, _c, _d, _e;
+    burdenRegistry.push(__assign2(__assign2({}, definition), { weight: (_a = definition.weight) !== null && _a !== void 0 ? _a : 1, minStage: (_b = definition.minStage) !== null && _b !== void 0 ? _b : 0, maxStage: (_c = definition.maxStage) !== null && _c !== void 0 ? _c : TOTAL_STAGES - 1, applies: (_d = definition.applies) !== null && _d !== void 0 ? _d : (function() {
+      return true;
+    }), createOption: (_e = definition.createOption) !== null && _e !== void 0 ? _e : (function(state, _generator) {
+      return {
+        id: definition.id,
+        title: definition.title,
+        description: definition.description,
+        spec: null,
+        data: null
+      };
+    }) }));
   }
   function getEncounterState(state, generator, stage) {
     var ordered = generator.permute(encounterRegistry);
@@ -5050,13 +5132,14 @@
         if (options === void 0) {
           options = {};
         }
-        var _a;
+        var _a, _b;
         this.ui = ui;
         this.redoStack = [];
         this.undoStack = [];
         this.generators = /* @__PURE__ */ new Map();
         this.onChange = onChange;
         this.debugEnabled = (_a = options.debugEnabled) !== null && _a !== void 0 ? _a : false;
+        this.burdensEnabled = (_b = options.burdensEnabled) !== null && _b !== void 0 ? _b : false;
         if (seed === null) {
           this.seed = randomString();
         } else {
@@ -5074,6 +5157,7 @@
           challenges: [],
           availablePaths: [],
           rewardStates: [],
+          burdenStates: [],
           collectedCards: [],
           collectedEvents: [],
           potions: [],
@@ -5277,6 +5361,9 @@
     }
     if (data.phase === "in_game" && data.challenges.length !== 1) {
       throw new Error("Invariant violation (".concat(context, "): in_game requires exactly one selected challenge"));
+    }
+    if (data.phase !== "stage_select" && data.burdenStates.length > 0) {
+      throw new Error("Invariant violation (".concat(context, "): burden selections only allowed in stage_select"));
     }
     if (data.phase !== "in_game" && (data.gameHistory.length > 0 || data.gameRedo.length > 0)) {
       throw new Error("Invariant violation (".concat(context, "): saved game history only allowed in in_game"));
@@ -5516,6 +5603,7 @@
     return {
       label: path.label,
       rewardStates: path.rewardStates.map(serializeRewardState),
+      burdenStates: path.burdenStates.map(serializeBurdenState),
       challenges: path.challenges.map(serializeChallenge)
     };
   }
@@ -5524,7 +5612,36 @@
     return {
       label: (_a = path.label) !== null && _a !== void 0 ? _a : "Path",
       rewardStates: path.rewardStates.map(deserializeRewardState),
+      burdenStates: (path.burdenStates || []).map(deserializeBurdenState),
       challenges: path.challenges.map(deserializeChallenge)
+    };
+  }
+  function serializeBurdenState(burdenState) {
+    return {
+      selectedIndex: burdenState.selectedIndex,
+      options: burdenState.options.map(function(option) {
+        return {
+          id: option.id,
+          title: option.title,
+          description: option.description,
+          spec: encodeUnknown(option.spec),
+          data: encodeUnknown(option.data)
+        };
+      })
+    };
+  }
+  function deserializeBurdenState(burdenState) {
+    return {
+      selectedIndex: burdenState.selectedIndex,
+      options: burdenState.options.map(function(option) {
+        return {
+          id: option.id,
+          title: option.title,
+          description: option.description,
+          spec: decodeUnknown(option.spec),
+          data: decodeUnknown(option.data)
+        };
+      })
     };
   }
   function serializeRewardState(rewardState) {
@@ -5638,6 +5755,7 @@
       }),
       buffer: data.buffer,
       rewardStates: data.rewardStates.map(serializeRewardState),
+      burdenStates: data.burdenStates.map(serializeBurdenState),
       collectedCards: data.collectedCards.map(function(card) {
         return serializeSpec(card, "card");
       }),
@@ -5690,6 +5808,7 @@
       }),
       buffer: data.buffer,
       rewardStates: data.rewardStates.map(deserializeRewardState),
+      burdenStates: (data.burdenStates || []).map(deserializeBurdenState),
       collectedCards: data.collectedCards.map(function(card) {
         return deserializeSpec(card);
       }),
@@ -5731,6 +5850,7 @@
       version: 1,
       seed: state.seed,
       debugEnabled: state.debugEnabled,
+      burdensEnabled: state.burdensEnabled,
       masterGeneratorState: state.masterGenerator.exportState(),
       generatorStates: __spreadArray5([], __read6(state.generators.entries()), false).map(function(_a) {
         var _b = __read6(_a, 2), key = _b[0], generator = _b[1];
@@ -5749,7 +5869,7 @@
     };
   }
   function deserializeMetaGame(ui, serialized, onChange) {
-    var _a, _b, _c;
+    var _a, _b, _c, _d;
     if (onChange === void 0) {
       onChange = null;
     }
@@ -5757,7 +5877,8 @@
       throw new Error("Unsupported save version ".concat(serialized.version));
     }
     var debugEnabled = (_a = serialized.debugEnabled) !== null && _a !== void 0 ? _a : false;
-    var state = new MetaState(ui, serialized.seed, onChange, { debugEnabled });
+    var burdensEnabled = (_b = serialized.burdensEnabled) !== null && _b !== void 0 ? _b : false;
+    var state = new MetaState(ui, serialized.seed, onChange, { debugEnabled, burdensEnabled });
     state.masterGenerator = Generator.fromState(serialized.masterGeneratorState);
     state.generators = new Map(serialized.generatorStates.map(function(entry) {
       return [entry.key, Generator.fromState(entry.state)];
@@ -5783,8 +5904,8 @@
     }
     var restoredGlobal = decodeUnknown(serialized.global);
     state.global = {
-      macros: (_b = restoredGlobal.macros) !== null && _b !== void 0 ? _b : [],
-      viewingMacros: (_c = restoredGlobal.viewingMacros) !== null && _c !== void 0 ? _c : false
+      macros: (_c = restoredGlobal.macros) !== null && _c !== void 0 ? _c : [],
+      viewingMacros: (_d = restoredGlobal.viewingMacros) !== null && _d !== void 0 ? _d : false
     };
     return state;
   }
@@ -6017,6 +6138,45 @@
       });
     };
   }
+  function gainNotedRelic(relic, notedCards, timelineDetails) {
+    if (timelineDetails === void 0) {
+      timelineDetails = {};
+    }
+    return function(state) {
+      return __awaiter3(this, void 0, void 0, function() {
+        var nextID, relicCard, nextData;
+        return __generator3(this, function(_a) {
+          switch (_a.label) {
+            case 0:
+              nextID = state.data.nextID;
+              relicCard = new Relic(relic, nextID, notedCards);
+              nextData = {
+                relics: __spreadArray5(__spreadArray5([], __read6(state.data.relics), false), [relicCard], false),
+                nextID: nextID + 1
+              };
+              if (!timelineDetails.silent) {
+                nextData.timeline = __spreadArray5(__spreadArray5([], __read6(state.data.timeline), false), [{
+                  kind: "gain",
+                  stage: state.data.stage,
+                  gainKind: "relic",
+                  name: displayName(relic),
+                  skipped: timelineDetails.skipped ? __spreadArray5([], __read6(timelineDetails.skipped), false) : void 0,
+                  details: timelineDetails.details
+                }], false);
+              }
+              state.update(nextData);
+              return [4, trigger2({ kind: "relic", relic: relicCard }, state)];
+            case 1:
+              _a.sent();
+              return [
+                2
+                /*return*/
+              ];
+          }
+        });
+      });
+    };
+  }
   function removeRelic(state, id) {
     return __awaiter3(this, void 0, void 0, function() {
       var relic;
@@ -6049,6 +6209,13 @@
       rewardStates[index] = newRewardState;
     }
     state.update({ rewardStates });
+  }
+  function updateBurdenAtIndex(state, index, newBurdenState) {
+    var burdenStates = __spreadArray5([], __read6(state.data.burdenStates), false);
+    if (index >= 0 && index < burdenStates.length) {
+      burdenStates[index] = newBurdenState;
+    }
+    state.update({ burdenStates });
   }
   function endCourse(score, par, state) {
     return __awaiter3(this, void 0, void 0, function() {
@@ -6359,7 +6526,7 @@
   }
   function standardRelicRewards(stage) {
     return relicRewards.filter(function(relic) {
-      return relicAvailableOnStage(relic, stage);
+      return relicAvailableOnStage(relic, stage) && relic.burden !== true;
     });
   }
   function nextDistinctByName(ordered, used, fallbackIndex) {
@@ -6407,9 +6574,68 @@
     }
     return result;
   }
+  function orderedBurdenCandidates(_state, generator) {
+    var e_17, _a;
+    var weighted = [];
+    try {
+      for (var burdenRegistry_1 = __values4(burdenRegistry), burdenRegistry_1_1 = burdenRegistry_1.next(); !burdenRegistry_1_1.done; burdenRegistry_1_1 = burdenRegistry_1.next()) {
+        var definition = burdenRegistry_1_1.value;
+        var weight = Math.max(1, definition.weight);
+        for (var index = 0; index < weight; index++) {
+          weighted.push(definition);
+        }
+      }
+    } catch (e_17_1) {
+      e_17 = { error: e_17_1 };
+    } finally {
+      try {
+        if (burdenRegistry_1_1 && !burdenRegistry_1_1.done && (_a = burdenRegistry_1.return)) _a.call(burdenRegistry_1);
+      } finally {
+        if (e_17) throw e_17.error;
+      }
+    }
+    return generator.permute(weighted);
+  }
+  function sampleBurdenState(state, generator) {
+    var e_18, _a;
+    var stage = state.data.stage;
+    var ordered = orderedBurdenCandidates(state, generator);
+    var options = [];
+    var chosenIDs = /* @__PURE__ */ new Set();
+    try {
+      for (var ordered_1 = __values4(ordered), ordered_1_1 = ordered_1.next(); !ordered_1_1.done; ordered_1_1 = ordered_1.next()) {
+        var definition = ordered_1_1.value;
+        if (chosenIDs.has(definition.id))
+          continue;
+        if (definition.minStage > stage || stage > definition.maxStage)
+          continue;
+        if (!definition.applies(state))
+          continue;
+        options.push(definition.createOption(state, generator));
+        chosenIDs.add(definition.id);
+        if (options.length === 2)
+          break;
+      }
+    } catch (e_18_1) {
+      e_18 = { error: e_18_1 };
+    } finally {
+      try {
+        if (ordered_1_1 && !ordered_1_1.done && (_a = ordered_1.return)) _a.call(ordered_1);
+      } finally {
+        if (e_18) throw e_18.error;
+      }
+    }
+    if (options.length < 2) {
+      throw new Error("No valid burden options for stage ".concat(state.data.stage + 1));
+    }
+    return {
+      options,
+      selectedIndex: null
+    };
+  }
   function makePaths(state_1) {
     return __awaiter3(this, arguments, void 0, function(state, challengeTests) {
-      var stage, generator, baseRewardsPerPath, basePaths, pathRewardParams, rewardsPerPath, pathLabels, pathCount, challenges, rewardsPerSet, fullSet, totalRewards, completeSets, partialSetRewards, rewardPool, i, shuffledRewards, paths, pathIndex, start, end;
+      var stage, generator, baseRewardsPerPath, basePaths, baseNumBurdens, pathRewardParams, rewardsPerPath, pathLabels, pathCount, numBurdens, challenges, rewardsPerSet, fullSet, totalRewards, completeSets, partialSetRewards, rewardPool, i, shuffledRewards, paths, pathIndex, start, end;
       var _a;
       if (challengeTests === void 0) {
         challengeTests = [];
@@ -6421,20 +6647,25 @@
             generator = state.generator("paths".concat(stage)).newGenerator();
             baseRewardsPerPath = 2;
             basePaths = ["Go left", "Go right"];
+            baseNumBurdens = state.burdensEnabled && stage > 0 ? 1 : 0;
             pathRewardParams = applyMetaReplacers("pathRewards", {
               rewardsPerPath: baseRewardsPerPath,
-              paths: basePaths
+              paths: basePaths,
+              numBurdens: baseNumBurdens
             }, state);
             return [4, trigger2({
               kind: "path",
               baseRewardsPerPath,
-              rewardsPerPath: pathRewardParams.rewardsPerPath
+              rewardsPerPath: pathRewardParams.rewardsPerPath,
+              baseNumBurdens,
+              numBurdens: pathRewardParams.numBurdens
             }, state)];
           case 1:
             _b.sent();
             rewardsPerPath = pathRewardParams.rewardsPerPath;
             pathLabels = pathRewardParams.paths;
             pathCount = pathLabels.length;
+            numBurdens = Math.max(0, pathRewardParams.numBurdens);
             challenges = sampleChallengesForStage(state, pathCount, challengeTests);
             rewardsPerSet = 6;
             fullSet = ["card", "card", "event", "encounter", "potion", "relic"];
@@ -6454,6 +6685,7 @@
               paths.push({
                 label: (_a = pathLabels[pathIndex]) !== null && _a !== void 0 ? _a : "Path",
                 rewards: shuffledRewards.slice(start, end),
+                burdens: numBurdens,
                 challenges: [challenges[pathIndex]]
               });
             }
@@ -6463,7 +6695,7 @@
     });
   }
   function pathFromSkeleton(skeleton) {
-    var e_17, _a;
+    var e_19, _a;
     var rewardStates = [];
     try {
       for (var _b = __values4(skeleton.rewards), _c = _b.next(); !_c.done; _c = _b.next()) {
@@ -6480,16 +6712,20 @@
           rewardStates.push({ kind: "potion", options: [], selectedIndex: null });
         }
       }
-    } catch (e_17_1) {
-      e_17 = { error: e_17_1 };
+    } catch (e_19_1) {
+      e_19 = { error: e_19_1 };
     } finally {
       try {
         if (_c && !_c.done && (_a = _b.return)) _a.call(_b);
       } finally {
-        if (e_17) throw e_17.error;
+        if (e_19) throw e_19.error;
       }
     }
-    return { label: skeleton.label, rewardStates, challenges: skeleton.challenges };
+    var burdenStates = [];
+    for (var index = 0; index < skeleton.burdens; index++) {
+      burdenStates.push({ options: [], selectedIndex: null });
+    }
+    return { label: skeleton.label, rewardStates, burdenStates, challenges: skeleton.challenges };
   }
   var Undo2 = (
     /** @class */
@@ -6583,7 +6819,7 @@
     });
   }
   function sampleRewardOptionsByBaseName(generator, allOptions, count, collected) {
-    var e_18, _a;
+    var e_20, _a;
     var blockedBaseNames = new Set(collected.map(function(spec2) {
       return spec2.name;
     }));
@@ -6598,13 +6834,13 @@
         if (result.length >= count)
           break;
       }
-    } catch (e_18_1) {
-      e_18 = { error: e_18_1 };
+    } catch (e_20_1) {
+      e_20 = { error: e_20_1 };
     } finally {
       try {
         if (_c && !_c.done && (_a = _b.return)) _a.call(_b);
       } finally {
-        if (e_18) throw e_18.error;
+        if (e_20) throw e_20.error;
       }
     }
     return result;
@@ -6698,6 +6934,7 @@
               timeline: [],
               buffer: replayData.bufferBeforeCourse,
               rewardStates: [],
+              burdenStates: [],
               collectedCards: [],
               collectedEvents: [],
               potions: __spreadArray5([], __read6(replayData.spec.potions), false),
@@ -6732,7 +6969,7 @@
   }
   function replayCompletedStage(state, stage) {
     return __awaiter3(this, void 0, void 0, function() {
-      var replayData, replayResult, e_19, macros, viewingMacros, newBufferAfterCourse, updatedReplayData, bufferAdjustment, usedPotions, stageTimelineEntry;
+      var replayData, replayResult, e_21, macros, viewingMacros, newBufferAfterCourse, updatedReplayData, bufferAdjustment, usedPotions, stageTimelineEntry;
       var _a, _b, _c, _d;
       return __generator3(this, function(_e) {
         switch (_e.label) {
@@ -6751,22 +6988,22 @@
             replayResult = _e.sent();
             return [3, 4];
           case 3:
-            e_19 = _e.sent();
-            if (e_19 instanceof Undo2) {
-              macros = (_a = e_19.macros) !== null && _a !== void 0 ? _a : state.global.macros;
-              viewingMacros = (_b = e_19.viewingMacros) !== null && _b !== void 0 ? _b : state.global.viewingMacros;
+            e_21 = _e.sent();
+            if (e_21 instanceof Undo2) {
+              macros = (_a = e_21.macros) !== null && _a !== void 0 ? _a : state.global.macros;
+              viewingMacros = (_b = e_21.viewingMacros) !== null && _b !== void 0 ? _b : state.global.viewingMacros;
               state.updateGlobal({ macros, viewingMacros });
               return [
                 2
                 /*return*/
               ];
             }
-            if (e_19 instanceof Redo)
+            if (e_21 instanceof Redo)
               return [
                 2
                 /*return*/
               ];
-            throw e_19;
+            throw e_21;
           case 4:
             state.updateGlobal({
               macros: (_c = replayResult.macros) !== null && _c !== void 0 ? _c : state.global.macros,
@@ -6835,7 +7072,14 @@
       }
       return rs;
     });
-    return { challenges: path.challenges, rewardStates };
+    var burdenGenerator = state.generator("rewardsburden").newGenerator();
+    var burdenStates = path.burdenStates.map(function(burdenState) {
+      if (burdenState.options.length === 0) {
+        return sampleBurdenState(state, burdenGenerator);
+      }
+      return burdenState;
+    });
+    return { challenges: path.challenges, rewardStates, burdenStates };
   }
   function isRewardTestSpec(value) {
     return Array.isArray(value) && value.length === 2 && typeof value[0] === "string";
@@ -6904,7 +7148,7 @@
     return boon;
   }
   function challengeOverridesForStage(tests, stageIndex, pathIndex) {
-    var e_20, _a;
+    var e_22, _a;
     if (pathIndex !== 0)
       return {};
     var stageNumber = stageIndex + 1;
@@ -6924,13 +7168,13 @@
             overrides.boon = boon;
         }
       }
-    } catch (e_20_1) {
-      e_20 = { error: e_20_1 };
+    } catch (e_22_1) {
+      e_22 = { error: e_22_1 };
     } finally {
       try {
         if (tests_1_1 && !tests_1_1.done && (_a = tests_1.return)) _a.call(tests_1);
       } finally {
-        if (e_20) throw e_20.error;
+        if (e_22) throw e_22.error;
       }
     }
     return overrides;
@@ -6964,9 +7208,9 @@
     }
   }
   function playGame2(ui_1) {
-    return __awaiter3(this, arguments, void 0, function(ui, test2, seed, initialSnapshot, onStateChange, debugEnabled) {
+    return __awaiter3(this, arguments, void 0, function(ui, test2, seed, initialSnapshot, onStateChange, debugEnabled, burdensEnabled) {
       var state, tests, initialChallenges, initialPath, _a, _b, testSpec, _loop_1, state_1;
-      var e_21, _c;
+      var e_23, _c;
       var _d, _e;
       if (test2 === void 0) {
         test2 = null;
@@ -6983,10 +7227,13 @@
       if (debugEnabled === void 0) {
         debugEnabled = false;
       }
+      if (burdensEnabled === void 0) {
+        burdensEnabled = false;
+      }
       return __generator3(this, function(_f) {
         switch (_f.label) {
           case 0:
-            state = initialSnapshot ? deserializeMetaGame(ui, initialSnapshot, null) : new MetaState(ui, seed, null, { debugEnabled });
+            state = initialSnapshot ? deserializeMetaGame(ui, initialSnapshot, null) : new MetaState(ui, seed, null, { debugEnabled, burdensEnabled });
             state.setChangeListener(onStateChange ? function() {
               return onStateChange(serializeMetaGame(state));
             } : null);
@@ -6996,6 +7243,7 @@
               initialPath = pathFromSkeleton({
                 label: "Go left",
                 rewards: ["card", "card", "event", "potion"],
+                burdens: 0,
                 challenges: initialChallenges
               });
               try {
@@ -7003,13 +7251,13 @@
                   testSpec = _b.value;
                   initialPath.rewardStates.push(makeTestReward(state, testSpec));
                 }
-              } catch (e_21_1) {
-                e_21 = { error: e_21_1 };
+              } catch (e_23_1) {
+                e_23 = { error: e_23_1 };
               } finally {
                 try {
                   if (_b && !_b.done && (_c = _a.return)) _c.call(_a);
                 } finally {
-                  if (e_21) throw e_21.error;
+                  if (e_23) throw e_23.error;
                 }
               }
               state.replaceAndClearHistory(__assign2(__assign2({}, materializePath(state, initialPath)), { phase: "stage_select", availablePaths: [] }));
@@ -7018,8 +7266,8 @@
             }
             state.ui.updateBuffer(state);
             _loop_1 = function() {
-              var sameReplay_1, stage, gameSpec, startingBuffer, _g, score, potionsRemaining, history_1, macros, viewingMacros, usedPotions, persistedMacros, persistedViewingMacros, stageReplays, stageTimelineEntry, nextStage, paths, _h, _j, testSpec2, paths, path, _k, e_22, selectedChallenge, e_23, e_24, persistedMacros, persistedViewingMacros;
-              var e_25, _l;
+              var sameReplay_1, stage, gameSpec, startingBuffer, _g, score, potionsRemaining, history_1, macros, viewingMacros, usedPotions, persistedMacros, persistedViewingMacros, stageReplays, stageTimelineEntry, nextStage, paths, _h, _j, testSpec2, paths, path, _k, e_24, selectedChallenge, e_25, e_26, persistedMacros, persistedViewingMacros;
+              var e_27, _l;
               return __generator3(this, function(_m) {
                 switch (_m.label) {
                   case 0:
@@ -7101,23 +7349,24 @@
                       return pathFromSkeleton(skel);
                     });
                     try {
-                      for (_h = (e_25 = void 0, __values4(rewardTestsForStage(tests.rewards, nextStage))), _j = _h.next(); !_j.done; _j = _h.next()) {
+                      for (_h = (e_27 = void 0, __values4(rewardTestsForStage(tests.rewards, nextStage))), _j = _h.next(); !_j.done; _j = _h.next()) {
                         testSpec2 = _j.value;
                         paths[0].rewardStates.push(makeTestReward(state, testSpec2));
                       }
-                    } catch (e_25_1) {
-                      e_25 = { error: e_25_1 };
+                    } catch (e_27_1) {
+                      e_27 = { error: e_27_1 };
                     } finally {
                       try {
                         if (_j && !_j.done && (_l = _h.return)) _l.call(_h);
                       } finally {
-                        if (e_25) throw e_25.error;
+                        if (e_27) throw e_27.error;
                       }
                     }
                     state.replaceAndClearHistory({
                       phase: "path_select",
                       challenges: [],
                       rewardStates: [],
+                      burdenStates: [],
                       availablePaths: paths
                     });
                     return [3, 28];
@@ -7146,14 +7395,14 @@
                     path = _k;
                     return [3, 16];
                   case 12:
-                    e_22 = _m.sent();
-                    if (!(e_22 instanceof ReplayStage)) return [3, 14];
-                    return [4, replayCompletedStage(state, e_22.stage)];
+                    e_24 = _m.sent();
+                    if (!(e_24 instanceof ReplayStage)) return [3, 14];
+                    return [4, replayCompletedStage(state, e_24.stage)];
                   case 13:
                     _m.sent();
                     return [3, 7];
                   case 14:
-                    throw e_22;
+                    throw e_24;
                   case 15:
                     return [3, 7];
                   case 16:
@@ -7173,14 +7422,14 @@
                     selectedChallenge = _m.sent();
                     return [3, 25];
                   case 21:
-                    e_23 = _m.sent();
-                    if (!(e_23 instanceof ReplayStage)) return [3, 23];
-                    return [4, replayCompletedStage(state, e_23.stage)];
+                    e_25 = _m.sent();
+                    if (!(e_25 instanceof ReplayStage)) return [3, 23];
+                    return [4, replayCompletedStage(state, e_25.stage)];
                   case 22:
                     _m.sent();
                     return [3, 18];
                   case 23:
-                    throw e_23;
+                    throw e_25;
                   case 24:
                     return [3, 18];
                   case 25:
@@ -7188,8 +7437,15 @@
                     return [4, trigger2({ kind: "start", stage: state.data.stage }, state)];
                   case 26:
                     _m.sent();
+                    if (state.data.burdenStates.some(function(burden) {
+                      return burden.selectedIndex === null;
+                    })) {
+                      throw new Error("Invariant violation: cannot start stage with unresolved burdens");
+                    }
                     state.updateAndSetCheckpoint({
                       phase: "in_game",
+                      rewardStates: [],
+                      burdenStates: [],
                       gameHistory: [],
                       gameRedo: []
                     });
@@ -7199,22 +7455,22 @@
                   case 28:
                     return [3, 30];
                   case 29:
-                    e_24 = _m.sent();
-                    if (e_24 instanceof Undo2) {
-                      persistedMacros = (_d = e_24.macros) !== null && _d !== void 0 ? _d : state.global.macros;
-                      persistedViewingMacros = (_e = e_24.viewingMacros) !== null && _e !== void 0 ? _e : state.global.viewingMacros;
+                    e_26 = _m.sent();
+                    if (e_26 instanceof Undo2) {
+                      persistedMacros = (_d = e_26.macros) !== null && _d !== void 0 ? _d : state.global.macros;
+                      persistedViewingMacros = (_e = e_26.viewingMacros) !== null && _e !== void 0 ? _e : state.global.viewingMacros;
                       state.updateGlobal({
                         macros: persistedMacros,
                         viewingMacros: persistedViewingMacros
                       });
                       state.undo({
-                        gameHistory: e_24.gameHistory,
-                        gameRedo: e_24.gameRedo
+                        gameHistory: e_26.gameHistory,
+                        gameRedo: e_26.gameRedo
                       });
-                    } else if (e_24 instanceof Redo) {
+                    } else if (e_26 instanceof Redo) {
                       state.redo();
                     } else {
-                      throw e_24;
+                      throw e_26;
                     }
                     return [3, 30];
                   case 30:
@@ -7522,7 +7778,7 @@
       simpleText: ["The next time you gain a relic, gain two additional copies of it."],
       text: ["Whenever you gain a relic other than ".concat(mirrorName, ", gain two additional copies of that relic and destroy this.")],
       handles: function(e, _s, relic) {
-        return e.relic.id !== relic.id && e.relic.name !== mirrorName;
+        return e.relic.id !== relic.id && e.relic.name !== mirrorName && e.relic.spec.burden !== true;
       },
       transform: function(e, _s, relic) {
         return function(state) {
@@ -10109,6 +10365,12 @@
     }]
   };
   potionRewards.push(potionOfCopper);
+  var beggarsBrew = {
+    name: "Beggar's Brew",
+    isPotion: true,
+    effects: [coinsEffect(1)]
+  };
+  registerSpec(beggarsBrew);
   var potionOfBounty = {
     name: "Potion of Bounty",
     isPotion: true,
@@ -13305,6 +13567,9 @@
     getOptions: function(data, metaState) {
       var _this = this;
       var d = data;
+      var tradableRelics = metaState.data.relics.filter(function(relic) {
+        return relic.spec.burden !== true;
+      });
       return [
         {
           label: "Trade Card for ".concat(displayName(d.offerCard)),
@@ -13445,7 +13710,7 @@
           label: "Trade Relic for ".concat(displayName(d.offerRelic)),
           description: "Give up one of your relics to receive this one.",
           tooltipSpec: d.offerRelic,
-          disabled: d.relicTraded || metaState.data.relics.length === 0,
+          disabled: d.relicTraded || tradableRelics.length === 0,
           checked: d.relicTraded,
           onClick: function() {
             return __awaiter9(_this, void 0, void 0, function() {
@@ -13454,7 +13719,7 @@
               return __generator9(this, function(_a) {
                 switch (_a.label) {
                   case 0:
-                    return [4, metaState.ui.chooseCard(metaState, "Choose a relic to trade away:", metaState.data.relics, true)];
+                    return [4, metaState.ui.chooseCard(metaState, "Choose a relic to trade away:", tradableRelics, true)];
                   case 1:
                     relic = _a.sent();
                     if (!relic)
@@ -13494,6 +13759,7 @@
   registerEncounter(tradingPost, { minStage: 4 });
   var cursedInkwell = {
     name: "Cursed Inkwell",
+    burden: true,
     metaReplacers: [{
       kind: "gameSetup",
       text: ["Par is 1@ lower on each course."],
@@ -13502,6 +13768,7 @@
       }
     }]
   };
+  registerSpec(cursedInkwell);
   var theScribe = simpleEncounter({
     name: "The Scribe",
     options: [
@@ -13540,104 +13807,7 @@
   });
   registerEncounter(callYourShot, { maxStage: 4 });
 
-  // public/progressSidebar.js
-  var __values10 = function(o) {
-    var s = typeof Symbol === "function" && Symbol.iterator, m = s && o[s], i = 0;
-    if (m) return m.call(o);
-    if (o && typeof o.length === "number") return {
-      next: function() {
-        if (o && i >= o.length) o = void 0;
-        return { value: o && o[i++], done: !o };
-      }
-    };
-    throw new TypeError(s ? "Object is not iterable." : "Symbol.iterator is not defined.");
-  };
-  function createTooltip(text) {
-    var tooltip = document.createElement("span");
-    tooltip.className = "tooltip";
-    tooltip.style.whiteSpace = "pre-line";
-    tooltip.textContent = text;
-    return tooltip;
-  }
-  function renderProgressSidebar(selector, stages) {
-    var e_1, _a;
-    var circles = document.querySelectorAll("".concat(selector, " .progressCircle"));
-    var byStage = /* @__PURE__ */ new Map();
-    try {
-      for (var stages_1 = __values10(stages), stages_1_1 = stages_1.next(); !stages_1_1.done; stages_1_1 = stages_1.next()) {
-        var stage = stages_1_1.value;
-        byStage.set(stage.stage, stage);
-      }
-    } catch (e_1_1) {
-      e_1 = { error: e_1_1 };
-    } finally {
-      try {
-        if (stages_1_1 && !stages_1_1.done && (_a = stages_1.return)) _a.call(stages_1);
-      } finally {
-        if (e_1) throw e_1.error;
-      }
-    }
-    circles.forEach(function(circle) {
-      var el = circle;
-      var stage2 = parseInt(el.getAttribute("data-stage") || "-1");
-      var display = byStage.get(stage2);
-      el.classList.remove("completed", "current", "replayable", "replaying");
-      el.onclick = null;
-      var existingScore = el.querySelector(".progressScore");
-      if (existingScore)
-        existingScore.remove();
-      var existingTooltips = el.querySelectorAll(".tooltip");
-      existingTooltips.forEach(function(node) {
-        return node.remove();
-      });
-      if (!display)
-        return;
-      if (display.completed)
-        el.classList.add("completed");
-      if (display.current)
-        el.classList.add("current");
-      if (display.replayable)
-        el.classList.add("replayable");
-      if (display.replaying)
-        el.classList.add("replaying");
-      if (display.onClick)
-        el.onclick = display.onClick;
-      var tooltipTarget = el;
-      if (display.scoreText !== void 0) {
-        var scoreSpan = document.createElement("span");
-        scoreSpan.className = "progressScore";
-        scoreSpan.textContent = display.scoreText;
-        if (display.scoreColor)
-          scoreSpan.style.color = display.scoreColor;
-        el.appendChild(scoreSpan);
-        tooltipTarget = scoreSpan;
-      }
-      if (display.tooltipText && display.tooltipText.length > 0) {
-        tooltipTarget.appendChild(createTooltip(display.tooltipText));
-      }
-    });
-  }
-
-  // public/gameUI.js
-  var __extends3 = /* @__PURE__ */ (function() {
-    var extendStatics = function(d, b) {
-      extendStatics = Object.setPrototypeOf || { __proto__: [] } instanceof Array && function(d2, b2) {
-        d2.__proto__ = b2;
-      } || function(d2, b2) {
-        for (var p in b2) if (Object.prototype.hasOwnProperty.call(b2, p)) d2[p] = b2[p];
-      };
-      return extendStatics(d, b);
-    };
-    return function(d, b) {
-      if (typeof b !== "function" && b !== null)
-        throw new TypeError("Class extends value " + String(b) + " is not a constructor or null");
-      extendStatics(d, b);
-      function __() {
-        this.constructor = d;
-      }
-      d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
-    };
-  })();
+  // public/data/burdens.js
   var __assign9 = function() {
     __assign9 = Object.assign || function(t) {
       for (var s, i = 1, n = arguments.length; i < n; i++) {
@@ -13745,17 +13915,6 @@
       return { value: op[0] ? op[1] : void 0, done: true };
     }
   };
-  var __values11 = function(o) {
-    var s = typeof Symbol === "function" && Symbol.iterator, m = s && o[s], i = 0;
-    if (m) return m.call(o);
-    if (o && typeof o.length === "number") return {
-      next: function() {
-        if (o && i >= o.length) o = void 0;
-        return { value: o && o[i++], done: !o };
-      }
-    };
-    throw new TypeError(s ? "Object is not iterable." : "Symbol.iterator is not defined.");
-  };
   var __read13 = function(o, n) {
     var m = typeof Symbol === "function" && o[Symbol.iterator];
     if (!m) return o;
@@ -13774,6 +13933,1253 @@
     return ar;
   };
   var __spreadArray8 = function(to, from, pack) {
+    if (pack || arguments.length === 2) for (var i = 0, l = from.length, ar; i < l; i++) {
+      if (ar || !(i in from)) {
+        if (!ar) ar = Array.prototype.slice.call(from, 0, i);
+        ar[i] = from[i];
+      }
+    }
+    return to.concat(ar || Array.prototype.slice.call(from));
+  };
+  var __values10 = function(o) {
+    var s = typeof Symbol === "function" && Symbol.iterator, m = s && o[s], i = 0;
+    if (m) return m.call(o);
+    if (o && typeof o.length === "number") return {
+      next: function() {
+        if (o && i >= o.length) o = void 0;
+        return { value: o && o[i++], done: !o };
+      }
+    };
+    throw new TypeError(s ? "Object is not iterable." : "Symbol.iterator is not defined.");
+  };
+  function upgradeCardSpec2(spec, upgrade) {
+    return __assign9(__assign9({}, spec), { upgrades: __spreadArray8(__spreadArray8([], __read13(spec.upgrades || []), false), [upgrade], false) });
+  }
+  var frozenRelic = {
+    name: "Frozen Relic",
+    burden: true,
+    simpleText: [
+      "This starts with 3 charge tokens.",
+      "At the start of each course, remove a charge token.",
+      "When this has none, gain the frozen relic back and destroy this."
+    ],
+    metaTriggers: [{
+      kind: "relic",
+      text: ["When you gain this, put 3 charge tokens on it."],
+      handles: function(e, _s, self) {
+        return self.id === e.relic.id;
+      },
+      transform: function(_e, _s, self) {
+        return function(state) {
+          return __awaiter10(this, void 0, void 0, function() {
+            var tokens;
+            return __generator10(this, function(_a) {
+              if (!state.data.relics.some(function(r) {
+                return r.id === self.id;
+              }))
+                return [
+                  2
+                  /*return*/
+                ];
+              tokens = new Map(self.tokens);
+              tokens.set("charge", 3);
+              state.applyToRelic(function(r) {
+                return r.update({ tokens });
+              }, self);
+              return [
+                2
+                /*return*/
+              ];
+            });
+          });
+        };
+      }
+    }, {
+      kind: "start",
+      text: ["At the start of each course, remove a charge token from this. Then if it has no charge tokens, gain the frozen relic back and destroy this."],
+      handles: function(_e, _s, _self) {
+        return true;
+      },
+      transform: function(_e, _s, self) {
+        return function(state) {
+          return __awaiter10(this, void 0, void 0, function() {
+            var current, nextCharge, tokens, thawed;
+            var _a, _b;
+            return __generator10(this, function(_c) {
+              switch (_c.label) {
+                case 0:
+                  current = state.data.relics.find(function(r) {
+                    return r.id === self.id;
+                  });
+                  if (!current)
+                    return [
+                      2
+                      /*return*/
+                    ];
+                  nextCharge = Math.max(current.count("charge") - 1, 0);
+                  tokens = new Map(current.tokens);
+                  tokens.set("charge", nextCharge);
+                  state.applyToRelic(function(r) {
+                    return r.update({ tokens });
+                  }, current);
+                  if (nextCharge > 0)
+                    return [
+                      2
+                      /*return*/
+                    ];
+                  thawed = (_b = (_a = current.notedCards) === null || _a === void 0 ? void 0 : _a[0]) !== null && _b !== void 0 ? _b : null;
+                  return [4, removeRelic(state, current.id)];
+                case 1:
+                  _c.sent();
+                  if (!thawed) return [3, 3];
+                  return [4, gainRelic(thawed, { details: "Thawed ".concat(displayName(thawed)) })(state)];
+                case 2:
+                  _c.sent();
+                  _c.label = 3;
+                case 3:
+                  return [
+                    2
+                    /*return*/
+                  ];
+              }
+            });
+          });
+        };
+      }
+    }]
+  };
+  registerSpec(frozenRelic);
+  var fakeCoin = {
+    name: "Fake Coin",
+    burden: true,
+    triggers: [{
+      kind: "beforeStart",
+      text: ["At the start of the game, put a decay token on a Copper without decay tokens."],
+      handles: function() {
+        return true;
+      },
+      transform: function() {
+        return function(state) {
+          return __awaiter10(this, void 0, void 0, function() {
+            var target;
+            return __generator10(this, function(_a) {
+              target = state.supply.find(function(card) {
+                return card.name === copper.name && card.count("decay") === 0;
+              });
+              if (!target)
+                return [2, state];
+              return [2, addToken(target, "decay")(state)];
+            });
+          });
+        };
+      }
+    }]
+  };
+  registerSpec(fakeCoin);
+  var miserlyTouch = {
+    name: "Miserly Touch",
+    burden: true,
+    triggers: [{
+      kind: "beforeStart",
+      text: ["At the start of the game, put 3 decay tokens on each Copper without decay tokens."],
+      handles: function() {
+        return true;
+      },
+      transform: function() {
+        return function(state) {
+          return __awaiter10(this, void 0, void 0, function() {
+            var _a, _b, target, e_1_1;
+            var e_1, _c;
+            return __generator10(this, function(_d) {
+              switch (_d.label) {
+                case 0:
+                  _d.trys.push([0, 5, 6, 7]);
+                  _a = __values10(state.supply.filter(function(card) {
+                    return card.name === copper.name && card.count("decay") === 0;
+                  })), _b = _a.next();
+                  _d.label = 1;
+                case 1:
+                  if (!!_b.done) return [3, 4];
+                  target = _b.value;
+                  return [4, addToken(target, "decay", 3)(state)];
+                case 2:
+                  state = _d.sent();
+                  _d.label = 3;
+                case 3:
+                  _b = _a.next();
+                  return [3, 1];
+                case 4:
+                  return [3, 7];
+                case 5:
+                  e_1_1 = _d.sent();
+                  e_1 = { error: e_1_1 };
+                  return [3, 7];
+                case 6:
+                  try {
+                    if (_b && !_b.done && (_c = _a.return)) _c.call(_a);
+                  } finally {
+                    if (e_1) throw e_1.error;
+                  }
+                  return [
+                    7
+                    /*endfinally*/
+                  ];
+                case 7:
+                  return [2, state];
+              }
+            });
+          });
+        };
+      }
+    }]
+  };
+  registerSpec(miserlyTouch);
+  var heavyStone = {
+    name: "Heavy Stone",
+    burden: true,
+    staticReplacers: [{
+      kind: "resource",
+      text: ["Whenever you would gain actions from ".concat(refresh.name, ", gain 1 less action.")],
+      handles: function(params) {
+        return params.resource === "actions" && params.amount > 0 && params.source instanceof Card && params.source.name === refresh.name;
+      },
+      replace: function(params) {
+        return __assign9(__assign9({}, params), { amount: Math.max(0, params.amount - 1) });
+      }
+    }]
+  };
+  registerSpec(heavyStone);
+  var cursedHourglass = {
+    name: "Cursed Hourglass",
+    burden: true,
+    metaReplacers: [{
+      kind: "gameSetup",
+      text: ["Your next 3 stages have par 1 lower."],
+      replace: function(params, _state, self) {
+        return self.count("charge") > 0 ? __assign9(__assign9({}, params), { par: params.par - 1 }) : params;
+      }
+    }],
+    metaTriggers: [{
+      kind: "relic",
+      text: ["When you gain this, put 3 charge tokens on it."],
+      handles: function(e, _s, self) {
+        return self.id === e.relic.id;
+      },
+      transform: function(_e, _s, self) {
+        return function(state) {
+          return __awaiter10(this, void 0, void 0, function() {
+            var tokens;
+            return __generator10(this, function(_a) {
+              if (!state.data.relics.some(function(r) {
+                return r.id === self.id;
+              }))
+                return [
+                  2
+                  /*return*/
+                ];
+              tokens = new Map(self.tokens);
+              tokens.set("charge", 3);
+              state.applyToRelic(function(r) {
+                return r.update({ tokens });
+              }, self);
+              return [
+                2
+                /*return*/
+              ];
+            });
+          });
+        };
+      }
+    }, {
+      kind: "path",
+      text: ["After generating paths, remove a charge token from this. Then if it has no charge tokens, destroy it."],
+      handles: function(_e, _s, _self) {
+        return true;
+      },
+      transform: function(_e, _s, self) {
+        return function(state) {
+          return __awaiter10(this, void 0, void 0, function() {
+            var current, nextCharge, tokens;
+            return __generator10(this, function(_a) {
+              switch (_a.label) {
+                case 0:
+                  current = state.data.relics.find(function(r) {
+                    return r.id === self.id;
+                  });
+                  if (!current)
+                    return [
+                      2
+                      /*return*/
+                    ];
+                  nextCharge = Math.max(current.count("charge") - 1, 0);
+                  tokens = new Map(current.tokens);
+                  tokens.set("charge", nextCharge);
+                  state.applyToRelic(function(r) {
+                    return r.update({ tokens });
+                  }, current);
+                  if (!(nextCharge === 0)) return [3, 2];
+                  return [4, removeRelic(state, current.id)];
+                case 1:
+                  _a.sent();
+                  _a.label = 2;
+                case 2:
+                  return [
+                    2
+                    /*return*/
+                  ];
+              }
+            });
+          });
+        };
+      }
+    }]
+  };
+  registerSpec(cursedHourglass);
+  var cursedDoll = {
+    name: "Cursed Doll",
+    burden: true,
+    metaReplacers: [{
+      kind: "pathRewards",
+      text: ["Your next 2 stages have an additional burden on each path after the first."],
+      replace: function(params, _state, self) {
+        return self.count("charge") > 0 ? __assign9(__assign9({}, params), { numBurdens: params.numBurdens + 1 }) : params;
+      }
+    }],
+    metaTriggers: [{
+      kind: "relic",
+      text: ["When you gain this, put 2 charge tokens on it."],
+      handles: function(e, _s, self) {
+        return self.id === e.relic.id;
+      },
+      transform: function(_e, _s, self) {
+        return function(state) {
+          return __awaiter10(this, void 0, void 0, function() {
+            var tokens;
+            return __generator10(this, function(_a) {
+              if (!state.data.relics.some(function(r) {
+                return r.id === self.id;
+              }))
+                return [
+                  2
+                  /*return*/
+                ];
+              tokens = new Map(self.tokens);
+              tokens.set("charge", 2);
+              state.applyToRelic(function(r) {
+                return r.update({ tokens });
+              }, self);
+              return [
+                2
+                /*return*/
+              ];
+            });
+          });
+        };
+      }
+    }, {
+      kind: "path",
+      text: ["After generating paths, remove a charge token from this. Then if it has no charge tokens, destroy it."],
+      handles: function(_e, _s, _self) {
+        return true;
+      },
+      transform: function(_e, _s, self) {
+        return function(state) {
+          return __awaiter10(this, void 0, void 0, function() {
+            var current, nextCharge, tokens;
+            return __generator10(this, function(_a) {
+              switch (_a.label) {
+                case 0:
+                  current = state.data.relics.find(function(r) {
+                    return r.id === self.id;
+                  });
+                  if (!current)
+                    return [
+                      2
+                      /*return*/
+                    ];
+                  nextCharge = Math.max(current.count("charge") - 1, 0);
+                  tokens = new Map(current.tokens);
+                  tokens.set("charge", nextCharge);
+                  state.applyToRelic(function(r) {
+                    return r.update({ tokens });
+                  }, current);
+                  if (!(nextCharge === 0)) return [3, 2];
+                  return [4, removeRelic(state, current.id)];
+                case 1:
+                  _a.sent();
+                  _a.label = 2;
+                case 2:
+                  return [
+                    2
+                    /*return*/
+                  ];
+              }
+            });
+          });
+        };
+      }
+    }]
+  };
+  registerSpec(cursedDoll);
+  var cursedSozu = {
+    name: "Cursed Sozu",
+    burden: true,
+    staticReplacers: [{
+      kind: "cost",
+      text: ["Potions cost @ more to drink."],
+      handles: function(params) {
+        return params.card.spec.isPotion === true && (params.actionKind === "potion" || params.actionKind === "use");
+      },
+      replace: function(params) {
+        return __assign9(__assign9({}, params), { cost: addCosts(params.cost, energy(1)) });
+      }
+    }]
+  };
+  registerSpec(cursedSozu);
+  var expensiveSozu = {
+    name: "Expensive Sozu",
+    burden: true,
+    staticReplacers: [{
+      kind: "cost",
+      text: ["Potions cost $2 more to drink."],
+      handles: function(params) {
+        return params.card.spec.isPotion === true && (params.actionKind === "potion" || params.actionKind === "use");
+      },
+      replace: function(params) {
+        return __assign9(__assign9({}, params), { cost: addCosts(params.cost, coin(2)) });
+      }
+    }]
+  };
+  registerSpec(expensiveSozu);
+  var brokenCrown = {
+    name: "Broken Crown",
+    burden: true,
+    metaReplacers: [{
+      kind: "reward",
+      text: ["Future rewards have 1 less option."],
+      replace: function(params) {
+        return __assign9(__assign9({}, params), { optionCount: Math.max(1, params.optionCount - 1) });
+      }
+    }]
+  };
+  registerSpec(brokenCrown);
+  var taxCardUpgrade = {
+    id: "burden_tax_card",
+    name: function(name) {
+      return "".concat(name, "-");
+    },
+    cost: function(cost, kind) {
+      return kind === "buy" ? __assign9(__assign9({}, cost), { coin: cost.coin + 2 }) : cost;
+    }
+  };
+  registerEncounterUpgrade("burden_tax_card", taxCardUpgrade);
+  var decayCardUpgrade = {
+    id: "burden_decay_card",
+    name: function(name) {
+      return "".concat(name, "-");
+    },
+    staticReplacers: [{
+      kind: "create",
+      text: ["When you buy this, put 2 decay tokens on it."],
+      handles: function(params) {
+        return params.zone === "discard";
+      },
+      replace: function(params) {
+        var tokens = new Map(params.tokens || []);
+        incrementMap(tokens, "decay", 2);
+        return __assign9(__assign9({}, params), { tokens });
+      }
+    }]
+  };
+  registerEncounterUpgrade("burden_decay_card", decayCardUpgrade);
+  var taxEventUpgrade = {
+    id: "burden_tax_event",
+    name: function(name) {
+      return "".concat(name, "-");
+    },
+    cost: function(cost, kind) {
+      return kind === "use" ? __assign9(__assign9({}, cost), { coin: cost.coin + 2 }) : cost;
+    }
+  };
+  registerEncounterUpgrade("burden_tax_event", taxEventUpgrade);
+  function relicBurdenOption(id, spec, description, options) {
+    var _this = this;
+    if (options === void 0) {
+      options = {};
+    }
+    registerBurden(__assign9(__assign9({ id, title: displayName(spec), description }, options), { createOption: function() {
+      return {
+        id,
+        title: displayName(spec),
+        description,
+        spec,
+        data: null
+      };
+    }, resolveTransform: function() {
+      return __awaiter10(_this, void 0, void 0, function() {
+        return __generator10(this, function(_a) {
+          return [2, gainRelic(spec, { details: "Burden: ".concat(displayName(spec)) })];
+        });
+      });
+    } }));
+  }
+  relicBurdenOption("fake_coin", fakeCoin, "At the start of each course, put a decay token on a Copper.");
+  relicBurdenOption("miserly_touch", miserlyTouch, "At the start of each course, put 3 decay tokens on each Copper without decay.");
+  relicBurdenOption("heavy_stone", heavyStone, "Whenever you would gain actions from ".concat(refresh.name, ", gain 1 less action."));
+  relicBurdenOption("cursed_hourglass", cursedHourglass, "Your next 3 stages have par 1 lower.", { maxStage: 5 });
+  relicBurdenOption("cursed_doll", cursedDoll, "Your next 2 stages have an additional burden on each path after the first.", { maxStage: 5 });
+  relicBurdenOption("cursed_sozu", cursedSozu, "Potions cost @ more to drink.");
+  relicBurdenOption("expensive_sozu", expensiveSozu, "Potions cost $2 more to drink.");
+  relicBurdenOption("broken_crown", brokenCrown, "Future rewards have 1 less option.");
+  registerBurden({
+    id: "lose_anything",
+    title: "Give something up",
+    description: "Give up a card, event, potion, or relic.",
+    weight: 3,
+    applies: function(state) {
+      return state.data.collectedCards.length > 0 || state.data.collectedEvents.length > 0 || state.data.potions.length > 0 || state.data.relics.length > 0;
+    },
+    createOption: function() {
+      return {
+        id: "lose_anything",
+        title: "Give something up",
+        description: "Give up a card, event, potion, or relic.",
+        spec: null,
+        data: null
+      };
+    },
+    resolveTransform: function(_option, state) {
+      return __awaiter10(void 0, void 0, void 0, function() {
+        var options, _a, _b, card, _c, _d, event_1, _f, _g, potion, _h, _j, relic, picked, chosenName_1, chosenName_2, chosenName_3, chosenName;
+        var e_2, _k, e_3, _l, e_4, _m, e_5, _o;
+        return __generator10(this, function(_p) {
+          switch (_p.label) {
+            case 0:
+              options = [];
+              try {
+                for (_a = __values10(state.data.collectedCards), _b = _a.next(); !_b.done; _b = _a.next()) {
+                  card = _b.value;
+                  options.push({
+                    label: "Lose card: ".concat(displayName(card)),
+                    value: { kind: "card", card },
+                    spec: card
+                  });
+                }
+              } catch (e_2_1) {
+                e_2 = { error: e_2_1 };
+              } finally {
+                try {
+                  if (_b && !_b.done && (_k = _a.return)) _k.call(_a);
+                } finally {
+                  if (e_2) throw e_2.error;
+                }
+              }
+              try {
+                for (_c = __values10(state.data.collectedEvents), _d = _c.next(); !_d.done; _d = _c.next()) {
+                  event_1 = _d.value;
+                  options.push({
+                    label: "Lose event: ".concat(displayName(event_1)),
+                    value: { kind: "event", event: event_1 },
+                    spec: event_1
+                  });
+                }
+              } catch (e_3_1) {
+                e_3 = { error: e_3_1 };
+              } finally {
+                try {
+                  if (_d && !_d.done && (_l = _c.return)) _l.call(_c);
+                } finally {
+                  if (e_3) throw e_3.error;
+                }
+              }
+              try {
+                for (_f = __values10(state.data.potions), _g = _f.next(); !_g.done; _g = _f.next()) {
+                  potion = _g.value;
+                  options.push({
+                    label: "Lose potion: ".concat(displayName(potion.spec)),
+                    value: { kind: "potion", potion },
+                    spec: potion.spec
+                  });
+                }
+              } catch (e_4_1) {
+                e_4 = { error: e_4_1 };
+              } finally {
+                try {
+                  if (_g && !_g.done && (_m = _f.return)) _m.call(_f);
+                } finally {
+                  if (e_4) throw e_4.error;
+                }
+              }
+              try {
+                for (_h = __values10(state.data.relics), _j = _h.next(); !_j.done; _j = _h.next()) {
+                  relic = _j.value;
+                  options.push({
+                    label: "Lose relic: ".concat(displayName(relic.spec)),
+                    value: { kind: "relic", relic },
+                    spec: relic.spec
+                  });
+                }
+              } catch (e_5_1) {
+                e_5 = { error: e_5_1 };
+              } finally {
+                try {
+                  if (_j && !_j.done && (_o = _h.return)) _o.call(_h);
+                } finally {
+                  if (e_5) throw e_5.error;
+                }
+              }
+              if (options.length === 0)
+                return [2, null];
+              return [4, state.ui.chooseOption(state, "Choose what to give up:", options, true)];
+            case 1:
+              picked = _p.sent();
+              if (!picked)
+                return [2, null];
+              if (picked.kind === "card") {
+                chosenName_1 = displayName(picked.card);
+                return [2, function(innerState) {
+                  return __awaiter10(this, void 0, void 0, function() {
+                    return __generator10(this, function(_a2) {
+                      switch (_a2.label) {
+                        case 0:
+                          innerState.removeCard(picked.card.name);
+                          return [4, addTimelineAction("Burden: Lost a card", chosenName_1)(innerState)];
+                        case 1:
+                          _a2.sent();
+                          return [
+                            2
+                            /*return*/
+                          ];
+                      }
+                    });
+                  });
+                }];
+              }
+              if (picked.kind === "event") {
+                chosenName_2 = displayName(picked.event);
+                return [2, function(innerState) {
+                  return __awaiter10(this, void 0, void 0, function() {
+                    return __generator10(this, function(_a2) {
+                      switch (_a2.label) {
+                        case 0:
+                          innerState.removeEvent(picked.event.name);
+                          return [4, addTimelineAction("Burden: Lost an event", chosenName_2)(innerState)];
+                        case 1:
+                          _a2.sent();
+                          return [
+                            2
+                            /*return*/
+                          ];
+                      }
+                    });
+                  });
+                }];
+              }
+              if (picked.kind === "potion") {
+                chosenName_3 = displayName(picked.potion.spec);
+                return [2, function(innerState) {
+                  return __awaiter10(this, void 0, void 0, function() {
+                    return __generator10(this, function(_a2) {
+                      switch (_a2.label) {
+                        case 0:
+                          innerState.removePotion(picked.potion.id);
+                          return [4, addTimelineAction("Burden: Lost a potion", chosenName_3)(innerState)];
+                        case 1:
+                          _a2.sent();
+                          return [
+                            2
+                            /*return*/
+                          ];
+                      }
+                    });
+                  });
+                }];
+              }
+              chosenName = displayName(picked.relic.spec);
+              return [2, function(innerState) {
+                return __awaiter10(this, void 0, void 0, function() {
+                  return __generator10(this, function(_a2) {
+                    switch (_a2.label) {
+                      case 0:
+                        return [4, removeRelic(innerState, picked.relic.id)];
+                      case 1:
+                        _a2.sent();
+                        return [4, addTimelineAction("Burden: Lost a relic", chosenName)(innerState)];
+                      case 2:
+                        _a2.sent();
+                        return [
+                          2
+                          /*return*/
+                        ];
+                    }
+                  });
+                });
+              }];
+          }
+        });
+      });
+    }
+  });
+  registerBurden({
+    id: "lose_buffer",
+    title: "Lose 1 buffer",
+    description: "Lose 1 buffer.",
+    applies: function(state) {
+      return state.data.buffer > 0;
+    },
+    createOption: function() {
+      return {
+        id: "lose_buffer",
+        title: "Lose 1 buffer",
+        description: "Lose 1 buffer.",
+        spec: null,
+        data: null
+      };
+    },
+    resolveTransform: function() {
+      return __awaiter10(void 0, void 0, void 0, function() {
+        return __generator10(this, function(_a) {
+          return [2, function(state) {
+            return __awaiter10(this, void 0, void 0, function() {
+              return __generator10(this, function(_a2) {
+                switch (_a2.label) {
+                  case 0:
+                    return [4, addBuffer(-1)(state)];
+                  case 1:
+                    _a2.sent();
+                    return [4, addTimelineAction("Burden: Lost 1 buffer")(state)];
+                  case 2:
+                    _a2.sent();
+                    return [
+                      2
+                      /*return*/
+                    ];
+                }
+              });
+            });
+          }];
+        });
+      });
+    }
+  });
+  registerBurden({
+    id: "lose_potion_brew",
+    title: "Trade a potion",
+    description: "Give up a potion and gain ".concat(beggarsBrew.name, "."),
+    applies: function(state) {
+      return state.data.potions.length > 0;
+    },
+    createOption: function() {
+      return {
+        id: "lose_potion_brew",
+        title: "Trade a potion",
+        description: "Give up a potion and gain ".concat(beggarsBrew.name, "."),
+        spec: null,
+        data: null
+      };
+    },
+    resolveTransform: function(_option, state) {
+      return __awaiter10(void 0, void 0, void 0, function() {
+        var picked, chosenName;
+        return __generator10(this, function(_a) {
+          switch (_a.label) {
+            case 0:
+              return [4, state.ui.chooseCard(state, "Choose a potion to give up:", __spreadArray8([], __read13(state.data.potions), false), true)];
+            case 1:
+              picked = _a.sent();
+              if (!picked)
+                return [2, null];
+              chosenName = displayName(picked.spec);
+              return [2, function(innerState) {
+                return __awaiter10(this, void 0, void 0, function() {
+                  return __generator10(this, function(_a2) {
+                    switch (_a2.label) {
+                      case 0:
+                        innerState.removePotion(picked.id);
+                        return [4, gainPotion(beggarsBrew, { details: "Gave up ".concat(chosenName) })(innerState)];
+                      case 1:
+                        _a2.sent();
+                        return [
+                          2
+                          /*return*/
+                        ];
+                    }
+                  });
+                });
+              }];
+          }
+        });
+      });
+    }
+  });
+  registerBurden({
+    id: "freeze_relic",
+    title: "Freeze a relic",
+    description: "Give up a relic and gain a Frozen version of it.",
+    maxStage: 5,
+    applies: function(state) {
+      return state.data.relics.some(function(relic) {
+        return relic.spec.burden !== true;
+      });
+    },
+    createOption: function() {
+      return {
+        id: "freeze_relic",
+        title: "Freeze a relic",
+        description: "Give up a relic and gain a Frozen version of it.",
+        spec: null,
+        data: null
+      };
+    },
+    resolveTransform: function(_option, state) {
+      return __awaiter10(void 0, void 0, void 0, function() {
+        var options, picked, chosenName;
+        return __generator10(this, function(_a) {
+          switch (_a.label) {
+            case 0:
+              options = state.data.relics.filter(function(relic) {
+                return relic.spec.burden !== true;
+              });
+              if (options.length === 0)
+                return [2, null];
+              return [4, state.ui.chooseCard(state, "Choose a relic to freeze:", options, true)];
+            case 1:
+              picked = _a.sent();
+              if (!picked)
+                return [2, null];
+              chosenName = displayName(picked.spec);
+              return [2, function(innerState) {
+                return __awaiter10(this, void 0, void 0, function() {
+                  return __generator10(this, function(_a2) {
+                    switch (_a2.label) {
+                      case 0:
+                        return [4, removeRelic(innerState, picked.id)];
+                      case 1:
+                        _a2.sent();
+                        return [4, gainNotedRelic(frozenRelic, [picked.spec], {
+                          details: "Froze ".concat(chosenName)
+                        })(innerState)];
+                      case 2:
+                        _a2.sent();
+                        return [
+                          2
+                          /*return*/
+                        ];
+                    }
+                  });
+                });
+              }];
+          }
+        });
+      });
+    }
+  });
+  registerBurden({
+    id: "tax_card",
+    title: "Tax a card",
+    description: "Choose a card. It costs $2 more to buy.",
+    applies: function(state) {
+      return state.data.collectedCards.length > 0;
+    },
+    createOption: function() {
+      return {
+        id: "tax_card",
+        title: "Tax a card",
+        description: "Choose a card. It costs $2 more to buy.",
+        spec: null,
+        data: null
+      };
+    },
+    resolveTransform: function(_option, state) {
+      return __awaiter10(void 0, void 0, void 0, function() {
+        var picked, chosenName;
+        return __generator10(this, function(_a) {
+          switch (_a.label) {
+            case 0:
+              return [4, state.ui.chooseCard(state, "Choose a card to tax:", __spreadArray8([], __read13(state.data.collectedCards), false), true)];
+            case 1:
+              picked = _a.sent();
+              if (!picked)
+                return [2, null];
+              chosenName = displayName(picked);
+              return [2, function(innerState) {
+                return __awaiter10(this, void 0, void 0, function() {
+                  var cards, index;
+                  return __generator10(this, function(_a2) {
+                    switch (_a2.label) {
+                      case 0:
+                        cards = __spreadArray8([], __read13(innerState.data.collectedCards), false);
+                        index = cards.indexOf(picked);
+                        if (!(index >= 0)) return [3, 2];
+                        cards[index] = upgradeCardSpec2(cards[index], taxCardUpgrade);
+                        innerState.update({ collectedCards: cards });
+                        return [4, addTimelineAction("Burden: Taxed a card", chosenName)(innerState)];
+                      case 1:
+                        _a2.sent();
+                        _a2.label = 2;
+                      case 2:
+                        return [
+                          2
+                          /*return*/
+                        ];
+                    }
+                  });
+                });
+              }];
+          }
+        });
+      });
+    }
+  });
+  registerBurden({
+    id: "decay_card",
+    title: "Decay a card",
+    description: "Choose a card. It is bought with 2 decay tokens.",
+    applies: function(state) {
+      return state.data.collectedCards.length > 0;
+    },
+    createOption: function() {
+      return {
+        id: "decay_card",
+        title: "Decay a card",
+        description: "Choose a card. It is bought with 2 decay tokens.",
+        spec: null,
+        data: null
+      };
+    },
+    resolveTransform: function(_option, state) {
+      return __awaiter10(void 0, void 0, void 0, function() {
+        var picked, chosenName;
+        return __generator10(this, function(_a) {
+          switch (_a.label) {
+            case 0:
+              return [4, state.ui.chooseCard(state, "Choose a card to decay:", __spreadArray8([], __read13(state.data.collectedCards), false), true)];
+            case 1:
+              picked = _a.sent();
+              if (!picked)
+                return [2, null];
+              chosenName = displayName(picked);
+              return [2, function(innerState) {
+                return __awaiter10(this, void 0, void 0, function() {
+                  var cards, index;
+                  return __generator10(this, function(_a2) {
+                    switch (_a2.label) {
+                      case 0:
+                        cards = __spreadArray8([], __read13(innerState.data.collectedCards), false);
+                        index = cards.indexOf(picked);
+                        if (!(index >= 0)) return [3, 2];
+                        cards[index] = upgradeCardSpec2(cards[index], decayCardUpgrade);
+                        innerState.update({ collectedCards: cards });
+                        return [4, addTimelineAction("Burden: Decayed a card", chosenName)(innerState)];
+                      case 1:
+                        _a2.sent();
+                        _a2.label = 2;
+                      case 2:
+                        return [
+                          2
+                          /*return*/
+                        ];
+                    }
+                  });
+                });
+              }];
+          }
+        });
+      });
+    }
+  });
+  registerBurden({
+    id: "tax_event",
+    title: "Tax an event",
+    description: "Choose an event. It costs $2 more to use.",
+    applies: function(state) {
+      return state.data.collectedEvents.length > 0;
+    },
+    createOption: function() {
+      return {
+        id: "tax_event",
+        title: "Tax an event",
+        description: "Choose an event. It costs $2 more to use.",
+        spec: null,
+        data: null
+      };
+    },
+    resolveTransform: function(_option, state) {
+      return __awaiter10(void 0, void 0, void 0, function() {
+        var picked, chosenName;
+        return __generator10(this, function(_a) {
+          switch (_a.label) {
+            case 0:
+              return [4, state.ui.chooseCard(state, "Choose an event to tax:", __spreadArray8([], __read13(state.data.collectedEvents), false), true)];
+            case 1:
+              picked = _a.sent();
+              if (!picked)
+                return [2, null];
+              chosenName = displayName(picked);
+              return [2, function(innerState) {
+                return __awaiter10(this, void 0, void 0, function() {
+                  var events, index;
+                  return __generator10(this, function(_a2) {
+                    switch (_a2.label) {
+                      case 0:
+                        events = __spreadArray8([], __read13(innerState.data.collectedEvents), false);
+                        index = events.indexOf(picked);
+                        if (!(index >= 0)) return [3, 2];
+                        events[index] = upgradeCardSpec2(events[index], taxEventUpgrade);
+                        innerState.update({ collectedEvents: events });
+                        return [4, addTimelineAction("Burden: Taxed an event", chosenName)(innerState)];
+                      case 1:
+                        _a2.sent();
+                        _a2.label = 2;
+                      case 2:
+                        return [
+                          2
+                          /*return*/
+                        ];
+                    }
+                  });
+                });
+              }];
+          }
+        });
+      });
+    }
+  });
+
+  // public/progressSidebar.js
+  var __values11 = function(o) {
+    var s = typeof Symbol === "function" && Symbol.iterator, m = s && o[s], i = 0;
+    if (m) return m.call(o);
+    if (o && typeof o.length === "number") return {
+      next: function() {
+        if (o && i >= o.length) o = void 0;
+        return { value: o && o[i++], done: !o };
+      }
+    };
+    throw new TypeError(s ? "Object is not iterable." : "Symbol.iterator is not defined.");
+  };
+  function createTooltip(text) {
+    var tooltip = document.createElement("span");
+    tooltip.className = "tooltip";
+    tooltip.style.whiteSpace = "pre-line";
+    tooltip.textContent = text;
+    return tooltip;
+  }
+  function renderProgressSidebar(selector, stages) {
+    var e_1, _a;
+    var circles = document.querySelectorAll("".concat(selector, " .progressCircle"));
+    var byStage = /* @__PURE__ */ new Map();
+    try {
+      for (var stages_1 = __values11(stages), stages_1_1 = stages_1.next(); !stages_1_1.done; stages_1_1 = stages_1.next()) {
+        var stage = stages_1_1.value;
+        byStage.set(stage.stage, stage);
+      }
+    } catch (e_1_1) {
+      e_1 = { error: e_1_1 };
+    } finally {
+      try {
+        if (stages_1_1 && !stages_1_1.done && (_a = stages_1.return)) _a.call(stages_1);
+      } finally {
+        if (e_1) throw e_1.error;
+      }
+    }
+    circles.forEach(function(circle) {
+      var el = circle;
+      var stage2 = parseInt(el.getAttribute("data-stage") || "-1");
+      var display = byStage.get(stage2);
+      el.classList.remove("completed", "current", "replayable", "replaying");
+      el.onclick = null;
+      var existingScore = el.querySelector(".progressScore");
+      if (existingScore)
+        existingScore.remove();
+      var existingTooltips = el.querySelectorAll(".tooltip");
+      existingTooltips.forEach(function(node) {
+        return node.remove();
+      });
+      if (!display)
+        return;
+      if (display.completed)
+        el.classList.add("completed");
+      if (display.current)
+        el.classList.add("current");
+      if (display.replayable)
+        el.classList.add("replayable");
+      if (display.replaying)
+        el.classList.add("replaying");
+      if (display.onClick)
+        el.onclick = display.onClick;
+      var tooltipTarget = el;
+      if (display.scoreText !== void 0) {
+        var scoreSpan = document.createElement("span");
+        scoreSpan.className = "progressScore";
+        scoreSpan.textContent = display.scoreText;
+        if (display.scoreColor)
+          scoreSpan.style.color = display.scoreColor;
+        el.appendChild(scoreSpan);
+        tooltipTarget = scoreSpan;
+      }
+      if (display.tooltipText && display.tooltipText.length > 0) {
+        tooltipTarget.appendChild(createTooltip(display.tooltipText));
+      }
+    });
+  }
+
+  // public/gameUI.js
+  var __extends3 = /* @__PURE__ */ (function() {
+    var extendStatics = function(d, b) {
+      extendStatics = Object.setPrototypeOf || { __proto__: [] } instanceof Array && function(d2, b2) {
+        d2.__proto__ = b2;
+      } || function(d2, b2) {
+        for (var p in b2) if (Object.prototype.hasOwnProperty.call(b2, p)) d2[p] = b2[p];
+      };
+      return extendStatics(d, b);
+    };
+    return function(d, b) {
+      if (typeof b !== "function" && b !== null)
+        throw new TypeError("Class extends value " + String(b) + " is not a constructor or null");
+      extendStatics(d, b);
+      function __() {
+        this.constructor = d;
+      }
+      d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
+    };
+  })();
+  var __assign10 = function() {
+    __assign10 = Object.assign || function(t) {
+      for (var s, i = 1, n = arguments.length; i < n; i++) {
+        s = arguments[i];
+        for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p))
+          t[p] = s[p];
+      }
+      return t;
+    };
+    return __assign10.apply(this, arguments);
+  };
+  var __awaiter11 = function(thisArg, _arguments, P, generator) {
+    function adopt(value) {
+      return value instanceof P ? value : new P(function(resolve) {
+        resolve(value);
+      });
+    }
+    return new (P || (P = Promise))(function(resolve, reject) {
+      function fulfilled(value) {
+        try {
+          step(generator.next(value));
+        } catch (e) {
+          reject(e);
+        }
+      }
+      function rejected(value) {
+        try {
+          step(generator["throw"](value));
+        } catch (e) {
+          reject(e);
+        }
+      }
+      function step(result) {
+        result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected);
+      }
+      step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+  };
+  var __generator11 = function(thisArg, body) {
+    var _ = { label: 0, sent: function() {
+      if (t[0] & 1) throw t[1];
+      return t[1];
+    }, trys: [], ops: [] }, f, y, t, g = Object.create((typeof Iterator === "function" ? Iterator : Object).prototype);
+    return g.next = verb(0), g["throw"] = verb(1), g["return"] = verb(2), typeof Symbol === "function" && (g[Symbol.iterator] = function() {
+      return this;
+    }), g;
+    function verb(n) {
+      return function(v) {
+        return step([n, v]);
+      };
+    }
+    function step(op) {
+      if (f) throw new TypeError("Generator is already executing.");
+      while (g && (g = 0, op[0] && (_ = 0)), _) try {
+        if (f = 1, y && (t = op[0] & 2 ? y["return"] : op[0] ? y["throw"] || ((t = y["return"]) && t.call(y), 0) : y.next) && !(t = t.call(y, op[1])).done) return t;
+        if (y = 0, t) op = [op[0] & 2, t.value];
+        switch (op[0]) {
+          case 0:
+          case 1:
+            t = op;
+            break;
+          case 4:
+            _.label++;
+            return { value: op[1], done: false };
+          case 5:
+            _.label++;
+            y = op[1];
+            op = [0];
+            continue;
+          case 7:
+            op = _.ops.pop();
+            _.trys.pop();
+            continue;
+          default:
+            if (!(t = _.trys, t = t.length > 0 && t[t.length - 1]) && (op[0] === 6 || op[0] === 2)) {
+              _ = 0;
+              continue;
+            }
+            if (op[0] === 3 && (!t || op[1] > t[0] && op[1] < t[3])) {
+              _.label = op[1];
+              break;
+            }
+            if (op[0] === 6 && _.label < t[1]) {
+              _.label = t[1];
+              t = op;
+              break;
+            }
+            if (t && _.label < t[2]) {
+              _.label = t[2];
+              _.ops.push(op);
+              break;
+            }
+            if (t[2]) _.ops.pop();
+            _.trys.pop();
+            continue;
+        }
+        op = body.call(thisArg, _);
+      } catch (e) {
+        op = [6, e];
+        y = 0;
+      } finally {
+        f = t = 0;
+      }
+      if (op[0] & 5) throw op[1];
+      return { value: op[0] ? op[1] : void 0, done: true };
+    }
+  };
+  var __values12 = function(o) {
+    var s = typeof Symbol === "function" && Symbol.iterator, m = s && o[s], i = 0;
+    if (m) return m.call(o);
+    if (o && typeof o.length === "number") return {
+      next: function() {
+        if (o && i >= o.length) o = void 0;
+        return { value: o && o[i++], done: !o };
+      }
+    };
+    throw new TypeError(s ? "Object is not iterable." : "Symbol.iterator is not defined.");
+  };
+  var __read14 = function(o, n) {
+    var m = typeof Symbol === "function" && o[Symbol.iterator];
+    if (!m) return o;
+    var i = m.call(o), r, ar = [], e;
+    try {
+      while ((n === void 0 || n-- > 0) && !(r = i.next()).done) ar.push(r.value);
+    } catch (error) {
+      e = { error };
+    } finally {
+      try {
+        if (r && !r.done && (m = i["return"])) m.call(i);
+      } finally {
+        if (e) throw e.error;
+      }
+    }
+    return ar;
+  };
+  var __spreadArray9 = function(to, from, pack) {
     if (pack || arguments.length === 2) for (var i = 0, l = from.length, ar; i < l; i++) {
       if (ar || !(i in from)) {
         if (!ar) ar = Array.prototype.slice.call(from, 0, i);
@@ -14060,7 +15466,7 @@
   }
   function cloneMacroStep(step) {
     if (step.kind === "string") {
-      return __assign9({}, step);
+      return __assign10({}, step);
     }
     return {
       kind: "card",
@@ -14106,7 +15512,7 @@
     var e_1, _a;
     var counts = /* @__PURE__ */ new Map();
     try {
-      for (var cards_1 = __values11(cards), cards_1_1 = cards_1.next(); !cards_1_1.done; cards_1_1 = cards_1.next()) {
+      for (var cards_1 = __values12(cards), cards_1_1 = cards_1.next(); !cards_1_1.done; cards_1_1 = cards_1.next()) {
         var card = cards_1_1.value;
         counts.set(card.name, (counts.get(card.name) || 0) + 1);
       }
@@ -14123,9 +15529,9 @@
   }
   function noteDecrease(target, start, current) {
     var e_2, _a;
-    var names = new Set(__spreadArray8(__spreadArray8([], __read13(start.keys()), false), __read13(current.keys()), false));
+    var names = new Set(__spreadArray9(__spreadArray9([], __read14(start.keys()), false), __read14(current.keys()), false));
     try {
-      for (var names_1 = __values11(names), names_1_1 = names_1.next(); !names_1_1.done; names_1_1 = names_1.next()) {
+      for (var names_1 = __values12(names), names_1_1 = names_1.next(); !names_1_1.done; names_1_1 = names_1.next()) {
         var name_1 = names_1_1.value;
         var decrease = (start.get(name_1) || 0) - (current.get(name_1) || 0);
         if (decrease > 0) {
@@ -14175,8 +15581,8 @@
   function hasRequiredCounts(required, current) {
     var e_3, _a;
     try {
-      for (var required_1 = __values11(required), required_1_1 = required_1.next(); !required_1_1.done; required_1_1 = required_1.next()) {
-        var _b = __read13(required_1_1.value, 2), name_2 = _b[0], minimum = _b[1];
+      for (var required_1 = __values12(required), required_1_1 = required_1.next(); !required_1_1.done; required_1_1 = required_1.next()) {
+        var _b = __read14(required_1_1.value, 2), name_2 = _b[0], minimum = _b[1];
         if ((current.get(name_2) || 0) < minimum)
           return false;
       }
@@ -14245,12 +15651,12 @@
     })(Error)
   );
   function buildReplayMacroFromState(targetState) {
-    return __awaiter10(this, void 0, void 0, function() {
+    return __awaiter11(this, void 0, void 0, function() {
       var history, steps, recordingStates, startPrompt, cursor, captureUI, error_1;
-      return __generator10(this, function(_a) {
+      return __generator11(this, function(_a) {
         switch (_a.label) {
           case 0:
-            history = __spreadArray8([], __read13(targetState.origin().future), false);
+            history = __spreadArray9([], __read14(targetState.origin().future), false);
             if (history.length === 0)
               return [2, null];
             steps = [];
@@ -14259,9 +15665,9 @@
             cursor = 0;
             captureUI = {
               choice: function(state, prompt, options, info, chosen) {
-                return __awaiter10(this, void 0, void 0, function() {
+                return __awaiter11(this, void 0, void 0, function() {
                   var index;
-                  return __generator10(this, function(_a2) {
+                  return __generator11(this, function(_a2) {
                     if (cursor >= history.length)
                       throw new ReplayMacroCaptureComplete();
                     index = history[cursor];
@@ -14280,8 +15686,8 @@
                 });
               },
               victory: function() {
-                return __awaiter10(this, void 0, void 0, function() {
-                  return __generator10(this, function(_a2) {
+                return __awaiter11(this, void 0, void 0, function() {
+                  return __generator11(this, function(_a2) {
                     if (cursor >= history.length)
                       throw new ReplayMacroCaptureComplete();
                     throw new Error("Unable to save replay: replay reached victory before consuming history.");
@@ -14349,11 +15755,11 @@
             return !taken.has(x);
           });
           function tokenSketch(tokens) {
-            return __spreadArray8([], __read13(tokens.entries()), false).filter(function(_a3) {
-              var _b2 = __read13(_a3, 2), _ = _b2[0], v = _b2[1];
+            return __spreadArray9([], __read14(tokens.entries()), false).filter(function(_a3) {
+              var _b2 = __read14(_a3, 2), _ = _b2[0], v = _b2[1];
               return v > 0;
             }).map(function(_a3) {
-              var _b2 = __read13(_a3, 2), k = _b2[0], v = _b2[1];
+              var _b2 = __read14(_a3, 2), k = _b2[0], v = _b2[1];
               return "".concat(k).concat(v);
             }).sort().join(",");
           }
@@ -14363,7 +15769,7 @@
           var seenGroups = /* @__PURE__ */ new Set();
           var groupRank = 0;
           try {
-            for (var cards_2 = __values11(cards), cards_2_1 = cards_2.next(); !cards_2_1.done; cards_2_1 = cards_2.next()) {
+            for (var cards_2 = __values12(cards), cards_2_1 = cards_2.next(); !cards_2_1.done; cards_2_1 = cards_2.next()) {
               var card = cards_2_1.value;
               var groupKey = cardGroupKey(card);
               if (seenGroups.has(groupKey))
@@ -14390,7 +15796,7 @@
         setFrom(state.play, supplyAndPlayHotkeys);
         setFrom(state.potions, potionHotkeys);
         try {
-          for (var options_1 = __values11(options), options_1_1 = options_1.next(); !options_1_1.done; options_1_1 = options_1.next()) {
+          for (var options_1 = __values12(options), options_1_1 = options_1.next(); !options_1_1.done; options_1_1 = options_1.next()) {
             var option = options_1_1.value;
             var hint = interpretHint(option.hotkeyHint);
             if (hint && !result.has(renderKey(option.render)) && !takenByPickable(hint)) {
@@ -14408,7 +15814,7 @@
         }
         var index = 0;
         try {
-          for (var options_2 = __values11(options), options_2_1 = options_2.next(); !options_2_1.done; options_2_1 = options_2.next()) {
+          for (var options_2 = __values12(options), options_2_1 = options_2.next(); !options_2_1.done; options_2_1 = options_2.next()) {
             var option = options_2_1.value;
             if (!result.has(renderKey(option.render))) {
               while (index < hotkeys.length && takenByPickable(hotkeys[index])) {
@@ -14452,8 +15858,8 @@
         var e_7, _a;
         var parts = [];
         try {
-          for (var tokens_1 = __values11(tokens), tokens_1_1 = tokens_1.next(); !tokens_1_1.done; tokens_1_1 = tokens_1.next()) {
-            var _b = __read13(tokens_1_1.value, 2), token = _b[0], count = _b[1];
+          for (var tokens_1 = __values12(tokens), tokens_1_1 = tokens_1.next(); !tokens_1_1.done; tokens_1_1 = tokens_1.next()) {
+            var _b = __read14(tokens_1_1.value, 2), token = _b[0], count = _b[1];
             if (count > 0) {
               var idx = this.getTokenIndex(token);
               var color = this.tokenColors[idx % this.tokenColors.length];
@@ -14476,8 +15882,8 @@
         var e_8, _a;
         var parts = [];
         try {
-          for (var tokens_2 = __values11(tokens), tokens_2_1 = tokens_2.next(); !tokens_2_1.done; tokens_2_1 = tokens_2.next()) {
-            var _b = __read13(tokens_2_1.value, 2), token = _b[0], count = _b[1];
+          for (var tokens_2 = __values12(tokens), tokens_2_1 = tokens_2.next(); !tokens_2_1.done; tokens_2_1 = tokens_2.next()) {
+            var _b = __read14(tokens_2_1.value, 2), token = _b[0], count = _b[1];
             if (count > 0) {
               parts.push(count === 1 ? token : "".concat(token, " (").concat(count, ")"));
             }
@@ -14521,9 +15927,9 @@
     var e_9, _a;
     var parts = [];
     try {
-      for (var _b = __values11(cardSpecEffects(spec)), _c = _b.next(); !_c.done; _c = _b.next()) {
+      for (var _b = __values12(cardSpecEffects(spec)), _c = _b.next(); !_c.done; _c = _b.next()) {
         var effect = _c.value;
-        parts.push.apply(parts, __spreadArray8([], __read13(effect.text), false));
+        parts.push.apply(parts, __spreadArray9([], __read14(effect.text), false));
       }
     } catch (e_9_1) {
       e_9 = { error: e_9_1 };
@@ -14542,9 +15948,9 @@
     var e_10, _a;
     var parts = [];
     try {
-      for (var _b = __values11(spec.ability || []), _c = _b.next(); !_c.done; _c = _b.next()) {
+      for (var _b = __values12(spec.ability || []), _c = _b.next(); !_c.done; _c = _b.next()) {
         var effect = _c.value;
-        parts.push.apply(parts, __spreadArray8([], __read13(effect.text.map(function(x) {
+        parts.push.apply(parts, __spreadArray9([], __read14(effect.text.map(function(x) {
           return "<div>(ability) ".concat(x, "</div>");
         })), false));
       }
@@ -14647,7 +16053,7 @@
     if (card instanceof Shadow) {
       return renderShadow(card, state, tokenRenderer);
     }
-    var costType = zone === "events" ? "use" : "play";
+    var costType = zone === "events" || zone === "potions" ? "use" : "play";
     var tokenhtml = tokenRenderer.render(card.tokens);
     var costhtml = zone === "supply" ? renderCost(card.cost("buy", state)) || "&nbsp" : renderCost(card.cost(costType, state)) || "&nbsp";
     var picktext = options.pick !== void 0 ? "<div class='pickorder'>".concat(options.pick + 1, "</div>") : "";
@@ -14683,11 +16089,11 @@
     return "<div class='spec'>".concat(header).concat(displayText, "<span class='tooltip'>").concat(tooltipHtml, "</span></div>");
   }
   function sketchMap(x) {
-    return __spreadArray8([], __read13(x.entries()), false).filter(function(_a) {
-      var _b = __read13(_a, 2), _ = _b[0], v = _b[1];
+    return __spreadArray9([], __read14(x.entries()), false).filter(function(_a) {
+      var _b = __read14(_a, 2), _ = _b[0], v = _b[1];
       return v > 0;
     }).map(function(_a) {
-      var _b = __read13(_a, 2), k = _b[0], v = _b[1];
+      var _b = __read14(_a, 2), k = _b[0], v = _b[1];
       return "".concat(k).concat(v);
     }).sort().join(",");
   }
@@ -14701,7 +16107,7 @@
     var first = /* @__PURE__ */ new Map();
     var last = /* @__PURE__ */ new Map();
     try {
-      for (var cards_3 = __values11(cards), cards_3_1 = cards_3.next(); !cards_3_1.done; cards_3_1 = cards_3.next()) {
+      for (var cards_3 = __values12(cards), cards_3_1 = cards_3.next(); !cards_3_1.done; cards_3_1 = cards_3.next()) {
         var card = cards_3_1.value;
         var s = sketchCard(card, settings);
         if (!counts.has(s)) {
@@ -14753,7 +16159,7 @@
     var sketches = sketchCards(cards, settings);
     container.innerHTML = sketches.map(function(_a) {
       var _b;
-      var _c = __read13(_a, 2), _ = _c[0], data = _c[1];
+      var _c = __read14(_a, 2), _ = _c[0], data = _c[1];
       return render(data.last, data.count, (_b = settings.hotkeyMap) === null || _b === void 0 ? void 0 : _b.get(data.first.id));
     }).join("");
     var _loop_1 = function(i2) {
@@ -14798,7 +16204,7 @@
       return renderCard(c, state, "resolving", {}, globalRendererState.tokenRenderer);
     }).join("");
     try {
-      for (var zoneNames_1 = __values11(zoneNames), zoneNames_1_1 = zoneNames_1.next(); !zoneNames_1_1.done; zoneNames_1_1 = zoneNames_1.next()) {
+      for (var zoneNames_1 = __values12(zoneNames), zoneNames_1_1 = zoneNames_1.next(); !zoneNames_1_1.done; zoneNames_1_1 = zoneNames_1.next()) {
         var zone = zoneNames_1_1.value;
         renderZone(state, zone, settings);
       }
@@ -14828,7 +16234,7 @@
   function setVisibleLog(state, logType, ui) {
     var e_19, _a;
     try {
-      for (var logTypes_1 = __values11(logTypes), logTypes_1_1 = logTypes_1.next(); !logTypes_1_1.done; logTypes_1_1 = logTypes_1.next()) {
+      for (var logTypes_1 = __values12(logTypes), logTypes_1_1 = logTypes_1.next(); !logTypes_1_1.done; logTypes_1_1 = logTypes_1.next()) {
         var lt = logTypes_1_1.value;
         var el = querySelector(".logOption[option=".concat(lt, "]"));
         if (el) {
@@ -14870,8 +16276,8 @@
       }
     };
     try {
-      for (var _b = __values11(logs.entries()), _c = _b.next(); !_c.done; _c = _b.next()) {
-        var _d = __read13(_c.value, 2), i = _d[0], _e = __read13(_d[1], 2), _ = _e[0], state = _e[1];
+      for (var _b = __values12(logs.entries()), _c = _b.next(); !_c.done; _c = _b.next()) {
+        var _d = __read14(_c.value, 2), i = _d[0], _e = __read14(_d[1], 2), _ = _e[0], state = _e[1];
         _loop_2(i, _, state);
       }
     } catch (e_20_1) {
@@ -14911,7 +16317,7 @@
     var optionsMap = /* @__PURE__ */ new Map();
     var stringOptions = [];
     try {
-      for (var options_3 = __values11(options), options_3_1 = options_3.next(); !options_3_1.done; options_3_1 = options_3.next()) {
+      for (var options_3 = __values12(options), options_3_1 = options_3.next(); !options_3_1.done; options_3_1 = options_3.next()) {
         var option = options_3_1.value;
         var rendered = option.render;
         if (rendered.kind === "string") {
@@ -14931,8 +16337,8 @@
     }
     var pickMap = /* @__PURE__ */ new Map();
     try {
-      for (var _d = __values11(picks.entries()), _e = _d.next(); !_e.done; _e = _d.next()) {
-        var _f = __read13(_e.value, 2), i = _f[0], x = _f[1];
+      for (var _d = __values12(picks.entries()), _e = _d.next(); !_e.done; _e = _d.next()) {
+        var _f = __read14(_e.value, 2), i = _f[0], x = _f[1];
         pickMap.set(renderKey(x), i);
       }
     } catch (e_22_1) {
@@ -14952,7 +16358,7 @@
     var optionsEl = getElement("options");
     clearElement(optionsEl);
     try {
-      for (var stringOptions_1 = __values11(stringOptions), stringOptions_1_1 = stringOptions_1.next(); !stringOptions_1_1.done; stringOptions_1_1 = stringOptions_1.next()) {
+      for (var stringOptions_1 = __values12(stringOptions), stringOptions_1_1 = stringOptions_1.next(); !stringOptions_1_1.done; stringOptions_1_1 = stringOptions_1.next()) {
         var option = stringOptions_1_1.value;
         var hotkey = hotkeyMap.get(option.render);
         optionsEl.appendChild(renderStringOption(option, hotkey, pickMap.get(option.render)));
@@ -15098,9 +16504,9 @@
     if (!el)
       return;
     el.onclick = function() {
-      return __awaiter10(_this, void 0, void 0, function() {
+      return __awaiter11(_this, void 0, void 0, function() {
         var macro;
-        return __generator10(this, function(_a) {
+        return __generator11(this, function(_a) {
           switch (_a.label) {
             case 0:
               if (!saveReplayEnabled(state, ui))
@@ -15132,7 +16538,7 @@
     var macroButtons = ui.macros.map(function(macro, index) {
       return renderPlayMacroButton(macro, index, canPlayMacro(macro, state, ui.choiceState));
     });
-    var contents = __spreadArray8([renderRecordMacroButton(ui)], __read13(macroButtons), false).join("");
+    var contents = __spreadArray9([renderRecordMacroButton(ui)], __read14(macroButtons), false).join("");
     container.innerHTML = "<div id='macros'>".concat(contents, "</div>");
     bindRecordMacroButton(ui, state);
     bindPlayMacroButtons(ui, state);
@@ -15299,7 +16705,7 @@
     var verb = choiceVerb(x, info);
     switch (x.kind) {
       case "string":
-        return __assign9(__assign9({}, x), { verb });
+        return __assign10(__assign10({}, x), { verb });
       case "card":
         return { kind: "card", card: macroCardSnapshotFromCard(x.card), chosen, verb };
       default:
@@ -15310,8 +16716,8 @@
     var e_24, _a, e_25, _b;
     var result = 0;
     try {
-      for (var _c = __values11(card.tokens), _d = _c.next(); !_d.done; _d = _c.next()) {
-        var _e = __read13(_d.value, 2), token = _e[0], count = _e[1];
+      for (var _c = __values12(card.tokens), _d = _c.next(); !_d.done; _d = _c.next()) {
+        var _e = __read14(_d.value, 2), token = _e[0], count = _e[1];
         if ((macroCard.tokens.get(token) || 0) < count)
           result++;
       }
@@ -15325,8 +16731,8 @@
       }
     }
     try {
-      for (var _f = __values11(macroCard.tokens), _g = _f.next(); !_g.done; _g = _f.next()) {
-        var _h = __read13(_g.value, 2), token = _h[0], count = _h[1];
+      for (var _f = __values12(macroCard.tokens), _g = _f.next(); !_g.done; _g = _f.next()) {
+        var _h = __read14(_g.value, 2), token = _h[0], count = _h[1];
         if ((card.tokens.get(token) || 0) < count)
           result++;
       }
@@ -15350,13 +16756,13 @@
     });
     if (macro.kind === "string") {
       renders = renders.filter(function(_a) {
-        var _b = __read13(_a, 1), r = _b[0];
+        var _b = __read14(_a, 1), r = _b[0];
         return r.kind === "string" && r.string === macro.string;
       });
       return renders.length > 0 ? renders[0][1] : null;
     }
     renders = renders.filter(function(_a) {
-      var _b = __read13(_a, 1), r = _b[0];
+      var _b = __read14(_a, 1), r = _b[0];
       return r.kind === "card" && macroMatchCandidate(r.card, macro.card) && chosen.includes(renders.find(function(x) {
         return x[0] === r;
       })[1]) === macro.chosen;
@@ -15466,10 +16872,10 @@
         if (this.choiceState) {
           var cs_2 = this.choiceState;
           if (this.onProgress) {
-            this.onProgress(__assign9({ history: __spreadArray8([], __read13(cs_2.state.origin().future), false), redo: __spreadArray8([], __read13(cs_2.state.future), false) }, this.exportPersistenceData()));
+            this.onProgress(__assign10({ history: __spreadArray9([], __read14(cs_2.state.origin().future), false), redo: __spreadArray9([], __read14(cs_2.state.future), false) }, this.exportPersistenceData()));
           }
           renderChoice(this, cs_2.state, cs_2.choicePrompt, cs_2.options.map(function(x, i) {
-            return __assign9(__assign9({}, x), { value: function(shifted) {
+            return __assign10(__assign10({}, x), { value: function(shifted) {
               return cs_2.resolve(i, shifted);
             } });
           }), cs_2.chosen.map(function(i) {
@@ -15544,9 +16950,9 @@
         return null;
       };
       GameUI2.prototype.victory = function(state) {
-        return __awaiter10(this, void 0, void 0, function() {
+        return __awaiter11(this, void 0, void 0, function() {
           var ui;
-          return __generator10(this, function(_a) {
+          return __generator11(this, function(_a) {
             ui = this;
             return [2, new Promise(function(resolve, reject) {
               var _a2;
@@ -15588,7 +16994,7 @@
     })()
   );
   function startGame(spec_1) {
-    return __awaiter10(this, arguments, void 0, function(spec, initialHistory, initialRedo, initialMacros, initialViewingMacros, onProgress, undoAtBeginning) {
+    return __awaiter11(this, arguments, void 0, function(spec, initialHistory, initialRedo, initialMacros, initialViewingMacros, onProgress, undoAtBeginning) {
       var ui, result;
       if (initialHistory === void 0) {
         initialHistory = [];
@@ -15608,7 +17014,7 @@
       if (undoAtBeginning === void 0) {
         undoAtBeginning = "leave";
       }
-      return __generator10(this, function(_a) {
+      return __generator11(this, function(_a) {
         switch (_a.label) {
           case 0:
             initHotkeys();
@@ -15625,14 +17031,14 @@
             return [4, playGame(spec, ui, initialHistory, initialRedo)];
           case 1:
             result = _a.sent();
-            return [2, __assign9(__assign9({}, result), ui.exportPersistenceData())];
+            return [2, __assign10(__assign10({}, result), ui.exportPersistenceData())];
         }
       });
     });
   }
 
   // public/metaUI.js
-  var __awaiter11 = function(thisArg, _arguments, P, generator) {
+  var __awaiter12 = function(thisArg, _arguments, P, generator) {
     function adopt(value) {
       return value instanceof P ? value : new P(function(resolve) {
         resolve(value);
@@ -15659,7 +17065,7 @@
       step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
   };
-  var __generator11 = function(thisArg, body) {
+  var __generator12 = function(thisArg, body) {
     var _ = { label: 0, sent: function() {
       if (t[0] & 1) throw t[1];
       return t[1];
@@ -15728,7 +17134,7 @@
       return { value: op[0] ? op[1] : void 0, done: true };
     }
   };
-  var __values12 = function(o) {
+  var __values13 = function(o) {
     var s = typeof Symbol === "function" && Symbol.iterator, m = s && o[s], i = 0;
     if (m) return m.call(o);
     if (o && typeof o.length === "number") return {
@@ -15739,7 +17145,7 @@
     };
     throw new TypeError(s ? "Object is not iterable." : "Symbol.iterator is not defined.");
   };
-  var __read14 = function(o, n) {
+  var __read15 = function(o, n) {
     var m = typeof Symbol === "function" && o[Symbol.iterator];
     if (!m) return o;
     var i = m.call(o), r, ar = [], e;
@@ -15807,8 +17213,8 @@
       gameOver: "gameOverScreen"
     };
     try {
-      for (var _b = __values12(Object.entries(screens)), _c = _b.next(); !_c.done; _c = _b.next()) {
-        var _d = __read14(_c.value, 2), name_1 = _d[0], id = _d[1];
+      for (var _b = __values13(Object.entries(screens)), _c = _b.next(); !_c.done; _c = _b.next()) {
+        var _d = __read15(_c.value, 2), name_1 = _d[0], id = _d[1];
         var el = getElement2(id);
         if (name_1 === screen) {
           showElement2(el);
@@ -15978,7 +17384,7 @@
       return "";
     var lines = [];
     try {
-      for (var options_1 = __values12(options), options_1_1 = options_1.next(); !options_1_1.done; options_1_1 = options_1.next()) {
+      for (var options_1 = __values13(options), options_1_1 = options_1.next(); !options_1_1.done; options_1_1 = options_1.next()) {
         var option = options_1_1.value;
         var text = option.description ? "".concat(option.label, ": ").concat(option.description) : option.label;
         lines.push(text);
@@ -16036,7 +17442,7 @@
       container.appendChild(optionEl);
     };
     try {
-      for (var options_2 = __values12(options), options_2_1 = options_2.next(); !options_2_1.done; options_2_1 = options_2.next()) {
+      for (var options_2 = __values13(options), options_2_1 = options_2.next(); !options_2_1.done; options_2_1 = options_2.next()) {
         var card = options_2_1.value;
         _loop_2(card);
       }
@@ -16128,7 +17534,7 @@
       container.appendChild(optionDiv);
     };
     try {
-      for (var options_3 = __values12(options), options_3_1 = options_3.next(); !options_3_1.done; options_3_1 = options_3.next()) {
+      for (var options_3 = __values13(options), options_3_1 = options_3.next(); !options_3_1.done; options_3_1 = options_3.next()) {
         var option = options_3_1.value;
         _loop_3(option);
       }
@@ -16157,7 +17563,7 @@
       });
     }
   }
-  function renderStageScreen(state, onChallenge, onOptionClick, onReplayStage) {
+  function renderStageScreen(state, onChallenge, onOptionClick, onBurdenClick, onReplayStage) {
     var e_5, _a;
     showScreen("stage");
     renderCommonUI(state, onReplayStage);
@@ -16227,19 +17633,70 @@
       rewardRow.appendChild(optionsDiv);
       rewardContainer.appendChild(rewardRow);
     });
+    state.data.burdenStates.forEach(function(burdenState, burdenIndex) {
+      var burdenRow = createDiv("rewardRow");
+      var labelDiv = createDiv("rewardLabel");
+      labelDiv.textContent = "Burden ".concat(burdenIndex + 1);
+      burdenRow.appendChild(labelDiv);
+      var optionsDiv = createDiv("rewardOptions");
+      var options = getBurdenOptions(burdenState, state);
+      options.forEach(function(option, optionIndex) {
+        var optionEl;
+        if (option.spec) {
+          optionEl = createElementFromHTML2(renderSpecNoRelated(option.spec));
+          optionEl.classList.add("rewardOption");
+        } else {
+          optionEl = createDiv("rewardOption option");
+          var nameDiv = createDiv("rewardOptionNameText");
+          nameDiv.textContent = option.label;
+          optionEl.appendChild(nameDiv);
+          if (option.description) {
+            var descDiv = createDiv("rewardOptionDescriptionText");
+            descDiv.textContent = option.description;
+            optionEl.appendChild(descDiv);
+          }
+        }
+        if (option.disabled) {
+          optionEl.setAttribute("disabled", "disabled");
+          if (option.checked) {
+            optionEl.classList.add("checked");
+            var checkmark = createSpan("checkmark");
+            checkmark.textContent = " \u2713";
+            optionEl.appendChild(checkmark);
+          }
+        } else {
+          optionEl.setAttribute("choosable", "");
+          optionEl.style.cursor = "pointer";
+          optionEl.onclick = function() {
+            return onBurdenClick(burdenIndex, optionIndex);
+          };
+        }
+        optionsDiv.appendChild(optionEl);
+      });
+      burdenRow.appendChild(optionsDiv);
+      rewardContainer.appendChild(burdenRow);
+    });
     var challengeContainer = getElement2("challengeButtons");
     clearElement2(challengeContainer);
+    var unresolvedBurdens = state.data.burdenStates.some(function(burdenState) {
+      return burdenState.selectedIndex === null;
+    });
     var _loop_4 = function(challenge2) {
       var playBtn = createSpan("option");
-      playBtn.setAttribute("choosable", "");
+      if (!unresolvedBurdens)
+        playBtn.setAttribute("choosable", "");
       playBtn.innerHTML = renderChallenge(challenge2, state);
-      playBtn.onclick = function() {
-        return onChallenge(challenge2);
-      };
+      if (unresolvedBurdens) {
+        playBtn.setAttribute("disabled", "disabled");
+      } else {
+        playBtn.onclick = function() {
+          return onChallenge(challenge2);
+        };
+      }
       challengeContainer.appendChild(playBtn);
     };
     try {
-      for (var _b = __values12(state.data.challenges), _c = _b.next(); !_c.done; _c = _b.next()) {
+      for (var _b = __values13(state.data.challenges), _c = _b.next(); !_c.done; _c = _b.next()) {
         var challenge = _c.value;
         _loop_4(challenge);
       }
@@ -16262,8 +17719,8 @@
     var columns = getElement2("pathColumns");
     clearElement2(columns);
     try {
-      for (var _b = __values12(paths.entries()), _c = _b.next(); !_c.done; _c = _b.next()) {
-        var _d = __read14(_c.value, 2), index = _d[0], path = _d[1];
+      for (var _b = __values13(paths.entries()), _c = _b.next(); !_c.done; _c = _b.next()) {
+        var _d = __read15(_c.value, 2), index = _d[0], path = _d[1];
         columns.appendChild(renderPathColumn(path, state, onSelect, index));
       }
     } catch (e_6_1) {
@@ -16289,7 +17746,7 @@
     pathColumn.appendChild(pathChoice);
     var rewardsContainer = createDiv("pathRewards");
     try {
-      for (var _b = __values12(path.rewardStates), _c = _b.next(); !_c.done; _c = _b.next()) {
+      for (var _b = __values13(path.rewardStates), _c = _b.next(); !_c.done; _c = _b.next()) {
         var rewardState = _c.value;
         var rewardDiv = createDiv("pathReward");
         rewardDiv.textContent = getRewardName(rewardState);
@@ -16303,6 +17760,11 @@
       } finally {
         if (e_7) throw e_7.error;
       }
+    }
+    for (var burdenIndex = 0; burdenIndex < path.burdenStates.length; burdenIndex++) {
+      var burdenDiv = createDiv("pathReward");
+      burdenDiv.textContent = "Burden";
+      rewardsContainer.appendChild(burdenDiv);
     }
     pathColumn.appendChild(rewardsContainer);
     var playDiv = createDiv("pathPlay");
@@ -16327,7 +17789,7 @@
     ];
     var hasContent = false;
     try {
-      for (var sections_1 = __values12(sections), sections_1_1 = sections_1.next(); !sections_1_1.done; sections_1_1 = sections_1.next()) {
+      for (var sections_1 = __values13(sections), sections_1_1 = sections_1.next(); !sections_1_1.done; sections_1_1 = sections_1.next()) {
         var section = sections_1_1.value;
         if (section.items.length > 0) {
           hasContent = true;
@@ -16337,7 +17799,7 @@
           sectionDiv.appendChild(header);
           var itemsRow = createDiv("deckSectionItems");
           try {
-            for (var _c = (e_9 = void 0, __values12(section.items)), _d = _c.next(); !_d.done; _d = _c.next()) {
+            for (var _c = (e_9 = void 0, __values13(section.items)), _d = _c.next(); !_d.done; _d = _c.next()) {
               var spec = _d.value;
               itemsRow.appendChild(createElementFromHTML2(renderSpecNoRelated(spec)));
             }
@@ -16386,11 +17848,11 @@
         initHotkeys();
       }
       MetaGameUI2.prototype.chooseCard = function(state_1, prompt_1, options_4) {
-        return __awaiter11(this, arguments, void 0, function(state, prompt, options, canCancel) {
+        return __awaiter12(this, arguments, void 0, function(state, prompt, options, canCancel) {
           if (canCancel === void 0) {
             canCancel = true;
           }
-          return __generator11(this, function(_a) {
+          return __generator12(this, function(_a) {
             return [2, new Promise(function(resolve, reject) {
               bindUndoRedoButtons(state, function() {
                 return reject(new Undo2());
@@ -16407,11 +17869,11 @@
         });
       };
       MetaGameUI2.prototype.chooseOption = function(state_1, prompt_1, options_4) {
-        return __awaiter11(this, arguments, void 0, function(state, prompt, options, canCancel) {
+        return __awaiter12(this, arguments, void 0, function(state, prompt, options, canCancel) {
           if (canCancel === void 0) {
             canCancel = true;
           }
-          return __generator11(this, function(_a) {
+          return __generator12(this, function(_a) {
             return [2, new Promise(function(resolve, reject) {
               bindUndoRedoButtons(state, function() {
                 return reject(new Undo2());
@@ -16428,9 +17890,9 @@
         });
       };
       MetaGameUI2.prototype.waitForChallenge = function(state) {
-        return __awaiter11(this, void 0, void 0, function() {
+        return __awaiter12(this, void 0, void 0, function() {
           var _this = this;
-          return __generator11(this, function(_a) {
+          return __generator12(this, function(_a) {
             return [2, new Promise(function(resolve, reject) {
               var escapeListener = function() {
                 if (isDeckDialogOpen()) {
@@ -16471,9 +17933,9 @@
                   },
                   // onOptionClick
                   function(rewardIndex, optionIndex) {
-                    return __awaiter11(_this, void 0, void 0, function() {
+                    return __awaiter12(_this, void 0, void 0, function() {
                       var rewardState, options, option, _a2, newData, transform, noOpCancel, newRewardState;
-                      return __generator11(this, function(_b) {
+                      return __generator12(this, function(_b) {
                         switch (_b.label) {
                           case 0:
                             rewardState = state.data.rewardStates[rewardIndex];
@@ -16487,7 +17949,7 @@
                             return [4, option.onClick()];
                           case 1:
                             _a2 = _b.sent(), newData = _a2.newData, transform = _a2.transform;
-                            noOpCancel = rewardState.kind === "encounter" && transform === void 0 && newData === rewardState.data;
+                            noOpCancel = transform === void 0 && (newData === rewardState || rewardState.kind === "encounter" && newData === rewardState.data);
                             if (noOpCancel) {
                               render();
                               return [
@@ -16517,6 +17979,49 @@
                       });
                     });
                   },
+                  function(burdenIndex, optionIndex) {
+                    return __awaiter12(_this, void 0, void 0, function() {
+                      var burdenState, options, option, _a2, newData, transform, noOpCancel, newBurdenState;
+                      return __generator12(this, function(_b) {
+                        switch (_b.label) {
+                          case 0:
+                            burdenState = state.data.burdenStates[burdenIndex];
+                            options = getBurdenOptions(burdenState, state);
+                            option = options[optionIndex];
+                            if (option.disabled)
+                              return [
+                                2
+                                /*return*/
+                              ];
+                            return [4, option.onClick()];
+                          case 1:
+                            _a2 = _b.sent(), newData = _a2.newData, transform = _a2.transform;
+                            noOpCancel = transform === void 0 && newData === burdenState;
+                            if (noOpCancel) {
+                              render();
+                              return [
+                                2
+                                /*return*/
+                              ];
+                            }
+                            newBurdenState = updateBurdenState(burdenState, newData);
+                            updateBurdenAtIndex(state, burdenIndex, newBurdenState);
+                            if (!transform) return [3, 3];
+                            return [4, transform(state)];
+                          case 2:
+                            _b.sent();
+                            _b.label = 3;
+                          case 3:
+                            state.setCheckpoint();
+                            render();
+                            return [
+                              2
+                              /*return*/
+                            ];
+                        }
+                      });
+                    });
+                  },
                   function(stage) {
                     return finishReject(new ReplayStage(stage));
                   }
@@ -16528,8 +18033,8 @@
         });
       };
       MetaGameUI2.prototype.pickPath = function(state, paths) {
-        return __awaiter11(this, void 0, void 0, function() {
-          return __generator11(this, function(_a) {
+        return __awaiter12(this, void 0, void 0, function() {
+          return __generator12(this, function(_a) {
             return [2, new Promise(function(resolve, reject) {
               var escapeListener = function() {
                 if (isDeckDialogOpen()) {
@@ -16567,8 +18072,8 @@
         });
       };
       MetaGameUI2.prototype.showMessage = function(state, message) {
-        return __awaiter11(this, void 0, void 0, function() {
-          return __generator11(this, function(_a) {
+        return __awaiter12(this, void 0, void 0, function() {
+          return __generator12(this, function(_a) {
             console.log("[MetaUI]: ".concat(message));
             return [
               2
@@ -16613,7 +18118,7 @@
   );
 
   // public/main.js
-  var __awaiter12 = function(thisArg, _arguments, P, generator) {
+  var __awaiter13 = function(thisArg, _arguments, P, generator) {
     function adopt(value) {
       return value instanceof P ? value : new P(function(resolve) {
         resolve(value);
@@ -16640,7 +18145,7 @@
       step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
   };
-  var __generator12 = function(thisArg, body) {
+  var __generator13 = function(thisArg, body) {
     var _ = { label: 0, sent: function() {
       if (t[0] & 1) throw t[1];
       return t[1];
@@ -16709,7 +18214,7 @@
       return { value: op[0] ? op[1] : void 0, done: true };
     }
   };
-  var __values13 = function(o) {
+  var __values14 = function(o) {
     var s = typeof Symbol === "function" && Symbol.iterator, m = s && o[s], i = 0;
     if (m) return m.call(o);
     if (o && typeof o.length === "number") return {
@@ -16727,11 +18232,13 @@
   var SAVE_STORAGE_KEY = "roguelike.ongoingSaves.v1";
   var RUN_TIMER_STORAGE_KEY = "roguelike.runTimerSeconds.v1";
   var HELP_SEEN_STORAGE_KEY = "roguelike.helpSeen.v1";
+  var BURDENS_SETTING_STORAGE_KEY = "roguelike.newGameBurdensEnabled.v1";
   var MAX_LAUNCHER_SAVES = 10;
   var runTimerSeconds = 0;
   var activeRunSlotID = null;
   var runTimerIntervalID = null;
   var removeHelpEscapeHandler = null;
+  var newGameBurdensEnabled = false;
   var HELP_ITEMS = [
     "Click new game to start a game. You can press escape to return to this screen, and resume games at any time.",
     'There are 8 stages, each involves playing a round of engine-game. You can learn how to play at <a href="https://engine-game.com/tutorial" target="_blank" rel="noopener noreferrer">engine-game.com/tutorial</a>, though some of the cards are different.',
@@ -16819,43 +18326,43 @@
   }
   var summaryMetaUI = {
     chooseCard: function() {
-      return __awaiter12(void 0, void 0, void 0, function() {
-        return __generator12(this, function(_a) {
+      return __awaiter13(void 0, void 0, void 0, function() {
+        return __generator13(this, function(_a) {
           return [2, null];
         });
       });
     },
     playGame: function() {
-      return __awaiter12(void 0, void 0, void 0, function() {
-        return __generator12(this, function(_a) {
+      return __awaiter13(void 0, void 0, void 0, function() {
+        return __generator13(this, function(_a) {
           throw new Error("Summary UI does not support playGame");
         });
       });
     },
     waitForChallenge: function() {
-      return __awaiter12(void 0, void 0, void 0, function() {
-        return __generator12(this, function(_a) {
+      return __awaiter13(void 0, void 0, void 0, function() {
+        return __generator13(this, function(_a) {
           throw new Error("Summary UI does not support waitForChallenge");
         });
       });
     },
     pickPath: function() {
-      return __awaiter12(void 0, void 0, void 0, function() {
-        return __generator12(this, function(_a) {
+      return __awaiter13(void 0, void 0, void 0, function() {
+        return __generator13(this, function(_a) {
           throw new Error("Summary UI does not support pickPath");
         });
       });
     },
     chooseOption: function() {
-      return __awaiter12(void 0, void 0, void 0, function() {
-        return __generator12(this, function(_a) {
+      return __awaiter13(void 0, void 0, void 0, function() {
+        return __generator13(this, function(_a) {
           return [2, null];
         });
       });
     },
     showMessage: function() {
-      return __awaiter12(void 0, void 0, void 0, function() {
-        return __generator12(this, function(_a) {
+      return __awaiter13(void 0, void 0, void 0, function() {
+        return __generator13(this, function(_a) {
           return [
             2
             /*return*/
@@ -16876,6 +18383,32 @@
   }
   function isDebugGame(snapshot) {
     return snapshot.debugEnabled === true;
+  }
+  function isBurdensGame(snapshot) {
+    return snapshot.burdensEnabled === true;
+  }
+  function loadNewGameBurdensEnabled() {
+    try {
+      return localStorage.getItem(BURDENS_SETTING_STORAGE_KEY) === "1";
+    } catch (_a) {
+      return false;
+    }
+  }
+  function persistNewGameBurdensEnabled() {
+    try {
+      localStorage.setItem(BURDENS_SETTING_STORAGE_KEY, newGameBurdensEnabled ? "1" : "0");
+    } catch (_a) {
+    }
+  }
+  function updateLauncherBurdensTag() {
+    var tag = document.getElementById("launcherBurdensTag");
+    if (!tag)
+      return;
+    if (newGameBurdensEnabled) {
+      tag.removeAttribute("hidden");
+    } else {
+      tag.setAttribute("hidden", "");
+    }
   }
   function loadSaveSlots() {
     try {
@@ -16957,7 +18490,7 @@
       "seedDisplay"
     ];
     try {
-      for (var ids_1 = __values13(ids), ids_1_1 = ids_1.next(); !ids_1_1.done; ids_1_1 = ids_1.next()) {
+      for (var ids_1 = __values14(ids), ids_1_1 = ids_1.next(); !ids_1_1.done; ids_1_1 = ids_1.next()) {
         var id = ids_1_1.value;
         var el = document.getElementById(id);
         if (!el)
@@ -16983,12 +18516,12 @@
       return;
     var style = document.createElement("style");
     style.id = "saveLauncherStyles";
-    style.textContent = "\n        #saveLauncher {\n            min-height: 100vh;\n            display: flex;\n            align-items: center;\n            justify-content: center;\n            background: #f6f6f8;\n            color: #222;\n            font-family: system-ui, -apple-system, sans-serif;\n        }\n        #saveLauncherCard {\n            width: min(760px, 92vw);\n            background: white;\n            border: 1px solid #ddd;\n            border-radius: 12px;\n            padding: 20px;\n            box-shadow: 0 8px 30px rgba(0,0,0,0.08);\n        }\n        #saveLauncherHeader {\n            display: flex;\n            align-items: center;\n            justify-content: space-between;\n            margin-bottom: 12px;\n        }\n        #saveList {\n            display: flex;\n            flex-direction: column;\n            gap: 10px;\n            margin-top: 14px;\n        }\n        .saveRow {\n            border: 1px solid #ddd;\n            border-radius: 8px;\n            padding: 10px 12px;\n            display: flex;\n            align-items: center;\n            justify-content: space-between;\n            gap: 10px;\n            background: #fcfcfd;\n        }\n        .saveMeta {\n            display: flex;\n            flex-direction: column;\n            gap: 2px;\n        }\n        .saveSeed {\n            font-size: 0.8em;\n            color: #777;\n        }\n        .saveActions {\n            display: flex;\n            gap: 8px;\n        }\n        .launcherBtn {\n            border: 1px solid #bbb;\n            border-radius: 6px;\n            padding: 6px 10px;\n            background: #fff;\n            cursor: pointer;\n        }\n        .launcherBtn:hover {\n            border-color: #777;\n        }\n        .dangerBtn {\n            border-color: #d33;\n            color: #b11;\n        }\n        #newGameDialog {\n            position: fixed;\n            inset: 0;\n            display: flex;\n            align-items: center;\n            justify-content: center;\n            background: rgba(0,0,0,0.25);\n        }\n        #allSavesDialog {\n            position: fixed;\n            inset: 0;\n            display: flex;\n            align-items: center;\n            justify-content: center;\n            background: rgba(0,0,0,0.25);\n            z-index: 45;\n        }\n        #helpDialog {\n            position: fixed;\n            inset: 0;\n            display: flex;\n            align-items: center;\n            justify-content: center;\n            background: rgba(0,0,0,0.25);\n            z-index: 46;\n        }\n        #helpCard {\n            width: min(760px, 94vw);\n            max-height: 86vh;\n            overflow-y: auto;\n            background: white;\n            border: 1px solid #ddd;\n            border-radius: 10px;\n            padding: 16px;\n            box-sizing: border-box;\n            display: flex;\n            flex-direction: column;\n            gap: 12px;\n        }\n        #helpList {\n            margin: 0;\n            padding-left: 20px;\n            display: flex;\n            flex-direction: column;\n            gap: 8px;\n            color: #333;\n        }\n        .helpFooter {\n            display: flex;\n            justify-content: flex-start;\n            margin-top: 6px;\n        }\n        .launcherFooter {\n            margin-top: 10px;\n            display: flex;\n            justify-content: flex-end;\n            align-items: center;\n            gap: 8px;\n        }\n        .launcherFooterWithLeft {\n            justify-content: space-between;\n        }\n        #allSavesCard {\n            width: min(900px, 95vw);\n            max-height: 90vh;\n            overflow: hidden;\n            background: white;\n            border: 1px solid #ddd;\n            border-radius: 10px;\n            padding: 16px;\n            box-sizing: border-box;\n            display: flex;\n            flex-direction: column;\n            gap: 12px;\n        }\n        #allSavesList {\n            overflow-y: auto;\n            display: flex;\n            flex-direction: column;\n            gap: 10px;\n            padding-right: 4px;\n        }\n        #newGameCard {\n            background: white;\n            border-radius: 10px;\n            border: 1px solid #ddd;\n            padding: 16px 28px 16px 16px;\n            width: auto;\n            max-width: 92vw;\n            box-sizing: border-box;\n            overflow: hidden;\n            display: flex;\n            flex-direction: column;\n            gap: 10px;\n        }\n        #newGameCard label {\n            font-size: 0.9em;\n            color: #555;\n        }\n        #newGameSeedInput {\n            display: block;\n            font-size: 1.1em;\n            padding: 8px;\n            border: 1px solid #ccc;\n            border-radius: 6px;\n            width: 260px;\n            max-width: 100%;\n            box-sizing: border-box;\n            align-self: flex-start;\n        }\n        #emptySaves {\n            font-size: 0.95em;\n            color: #666;\n            padding: 8px 2px;\n        }\n        .saveFootnote {\n            margin-top: 10px;\n            font-size: 0.85em;\n            color: #777;\n        }\n        .negativeBuffer {\n            color: #b00020;\n            font-weight: 700;\n        }\n        #viewGameDialog {\n            position: fixed;\n            inset: 0;\n            display: flex;\n            align-items: center;\n            justify-content: center;\n            background: rgba(0,0,0,0.3);\n            z-index: 50;\n            padding: 20px 0;\n        }\n        #viewGameCard {\n            width: min(1100px, 96vw);\n            max-height: calc(100vh - 40px);\n            overflow-y: auto;\n            background: white;\n            border: 1px solid #ddd;\n            border-radius: 10px;\n            padding: 16px;\n            box-sizing: border-box;\n            display: flex;\n            flex-direction: column;\n            gap: 12px;\n        }\n        .viewHeader {\n            display: flex;\n            justify-content: space-between;\n            align-items: center;\n            gap: 10px;\n        }\n        .viewDeckSection {\n            border: 1px solid #ddd;\n            border-radius: 8px;\n            padding: 8px;\n            background: #fcfcfd;\n        }\n        .viewDeckTitle {\n            font-weight: 600;\n            margin-bottom: 6px;\n            color: #333;\n        }\n        .viewDeckCards {\n            display: flex;\n            flex-wrap: wrap;\n            gap: 6px;\n        }\n        #viewTimeline {\n            border: 1px solid #ddd;\n            border-radius: 8px;\n            padding: 8px;\n            background: #fcfcfd;\n            display: flex;\n            flex-direction: column;\n            gap: 6px;\n        }\n        .timelineRow {\n            display: flex;\n            justify-content: space-between;\n            align-items: center;\n            gap: 10px;\n            border-bottom: 1px solid #eee;\n            padding: 4px 0;\n        }\n        .timelineText {\n            display: flex;\n            align-items: baseline;\n            gap: 8px;\n            flex-wrap: wrap;\n        }\n        .timelinePrimary {\n            font-size: 0.95em;\n            color: #333;\n        }\n        .timelineSecondary {\n            font-size: 0.82em;\n            color: #777;\n        }\n    ";
+    style.textContent = "\n        #saveLauncher {\n            min-height: 100vh;\n            display: flex;\n            align-items: center;\n            justify-content: center;\n            background: #f6f6f8;\n            color: #222;\n            font-family: system-ui, -apple-system, sans-serif;\n        }\n        #saveLauncherCard {\n            width: min(760px, 92vw);\n            background: white;\n            border: 1px solid #ddd;\n            border-radius: 12px;\n            padding: 20px;\n            box-shadow: 0 8px 30px rgba(0,0,0,0.08);\n        }\n        #saveLauncherHeader {\n            display: flex;\n            align-items: center;\n            justify-content: space-between;\n            margin-bottom: 12px;\n        }\n        .launcherTitleRow {\n            display: flex;\n            align-items: flex-end;\n            gap: 8px;\n        }\n        #saveList {\n            display: flex;\n            flex-direction: column;\n            gap: 10px;\n            margin-top: 14px;\n        }\n        .saveRow {\n            border: 1px solid #ddd;\n            border-radius: 8px;\n            padding: 10px 12px;\n            display: flex;\n            align-items: center;\n            justify-content: space-between;\n            gap: 10px;\n            background: #fcfcfd;\n        }\n        .saveMeta {\n            display: flex;\n            flex-direction: column;\n            gap: 2px;\n        }\n        .saveSeed {\n            font-size: 0.8em;\n            color: #777;\n        }\n        .burdenTag {\n            font-size: 0.8em;\n            color: #3d6fdc;\n            margin-left: 6px;\n        }\n        .saveActions {\n            display: flex;\n            gap: 8px;\n        }\n        .launcherBtn {\n            border: 1px solid #bbb;\n            border-radius: 6px;\n            padding: 6px 10px;\n            background: #fff;\n            cursor: pointer;\n        }\n        .launcherBtn:hover {\n            border-color: #777;\n        }\n        .dangerBtn {\n            border-color: #d33;\n            color: #b11;\n        }\n        #newGameDialog {\n            position: fixed;\n            inset: 0;\n            display: flex;\n            align-items: center;\n            justify-content: center;\n            background: rgba(0,0,0,0.25);\n        }\n        #challengeSettingsDialog {\n            position: fixed;\n            inset: 0;\n            display: flex;\n            align-items: center;\n            justify-content: center;\n            background: rgba(0,0,0,0.25);\n            z-index: 45;\n        }\n        #challengeSettingsCard {\n            background: #fff;\n            border: 1px solid #ddd;\n            border-radius: 10px;\n            padding: 16px;\n            min-width: 320px;\n            display: flex;\n            flex-direction: column;\n            gap: 12px;\n        }\n        .challengeSettingRow {\n            display: flex;\n            align-items: flex-start;\n            gap: 10px;\n        }\n        .challengeSettingLabel {\n            display: flex;\n            flex-direction: column;\n            gap: 2px;\n        }\n        .challengeSettingHint {\n            font-size: 0.8em;\n            color: #777;\n        }\n        #allSavesDialog {\n            position: fixed;\n            inset: 0;\n            display: flex;\n            align-items: center;\n            justify-content: center;\n            background: rgba(0,0,0,0.25);\n            z-index: 45;\n        }\n        #helpDialog {\n            position: fixed;\n            inset: 0;\n            display: flex;\n            align-items: center;\n            justify-content: center;\n            background: rgba(0,0,0,0.25);\n            z-index: 46;\n        }\n        #helpCard {\n            width: min(760px, 94vw);\n            max-height: 86vh;\n            overflow-y: auto;\n            background: white;\n            border: 1px solid #ddd;\n            border-radius: 10px;\n            padding: 16px;\n            box-sizing: border-box;\n            display: flex;\n            flex-direction: column;\n            gap: 12px;\n        }\n        #helpList {\n            margin: 0;\n            padding-left: 20px;\n            display: flex;\n            flex-direction: column;\n            gap: 8px;\n            color: #333;\n        }\n        .helpFooter {\n            display: flex;\n            justify-content: flex-start;\n            margin-top: 6px;\n        }\n        .launcherFooter {\n            margin-top: 10px;\n            display: flex;\n            justify-content: flex-end;\n            align-items: center;\n            gap: 8px;\n        }\n        .launcherFooterWithLeft {\n            justify-content: space-between;\n        }\n        #allSavesCard {\n            width: min(900px, 95vw);\n            max-height: 90vh;\n            overflow: hidden;\n            background: white;\n            border: 1px solid #ddd;\n            border-radius: 10px;\n            padding: 16px;\n            box-sizing: border-box;\n            display: flex;\n            flex-direction: column;\n            gap: 12px;\n        }\n        #allSavesList {\n            overflow-y: auto;\n            display: flex;\n            flex-direction: column;\n            gap: 10px;\n            padding-right: 4px;\n        }\n        #newGameCard {\n            background: white;\n            border-radius: 10px;\n            border: 1px solid #ddd;\n            padding: 16px 28px 16px 16px;\n            width: auto;\n            max-width: 92vw;\n            box-sizing: border-box;\n            overflow: hidden;\n            display: flex;\n            flex-direction: column;\n            gap: 10px;\n        }\n        #newGameCard label {\n            font-size: 0.9em;\n            color: #555;\n        }\n        #newGameSeedInput {\n            display: block;\n            font-size: 1.1em;\n            padding: 8px;\n            border: 1px solid #ccc;\n            border-radius: 6px;\n            width: 260px;\n            max-width: 100%;\n            box-sizing: border-box;\n            align-self: flex-start;\n        }\n        #emptySaves {\n            font-size: 0.95em;\n            color: #666;\n            padding: 8px 2px;\n        }\n        .saveFootnote {\n            margin-top: 10px;\n            font-size: 0.85em;\n            color: #777;\n        }\n        .negativeBuffer {\n            color: #b00020;\n            font-weight: 700;\n        }\n        #viewGameDialog {\n            position: fixed;\n            inset: 0;\n            display: flex;\n            align-items: center;\n            justify-content: center;\n            background: rgba(0,0,0,0.3);\n            z-index: 50;\n            padding: 20px 0;\n        }\n        #viewGameCard {\n            width: min(1100px, 96vw);\n            max-height: calc(100vh - 40px);\n            overflow-y: auto;\n            background: white;\n            border: 1px solid #ddd;\n            border-radius: 10px;\n            padding: 16px;\n            box-sizing: border-box;\n            display: flex;\n            flex-direction: column;\n            gap: 12px;\n        }\n        .viewHeader {\n            display: flex;\n            justify-content: space-between;\n            align-items: center;\n            gap: 10px;\n        }\n        .viewDeckSection {\n            border: 1px solid #ddd;\n            border-radius: 8px;\n            padding: 8px;\n            background: #fcfcfd;\n        }\n        .viewDeckTitle {\n            font-weight: 600;\n            margin-bottom: 6px;\n            color: #333;\n        }\n        .viewDeckCards {\n            display: flex;\n            flex-wrap: wrap;\n            gap: 6px;\n        }\n        #viewTimeline {\n            border: 1px solid #ddd;\n            border-radius: 8px;\n            padding: 8px;\n            background: #fcfcfd;\n            display: flex;\n            flex-direction: column;\n            gap: 6px;\n        }\n        .timelineRow {\n            display: flex;\n            justify-content: space-between;\n            align-items: center;\n            gap: 10px;\n            border-bottom: 1px solid #eee;\n            padding: 4px 0;\n        }\n        .timelineText {\n            display: flex;\n            align-items: baseline;\n            gap: 8px;\n            flex-wrap: wrap;\n        }\n        .timelinePrimary {\n            font-size: 0.95em;\n            color: #333;\n        }\n        .timelineSecondary {\n            font-size: 0.82em;\n            color: #777;\n        }\n    ";
     document.head.appendChild(style);
   }
   function runGame(slotID_1, snapshot_1, seed_1) {
-    return __awaiter12(this, arguments, void 0, function(slotID, snapshot, seed, newGameDebugEnabled, initialElapsedSeconds) {
-      var debugEnabled, activeTest, seedDisplay, metaUI, saveCallback, error_1;
+    return __awaiter13(this, arguments, void 0, function(slotID, snapshot, seed, newGameDebugEnabled, initialElapsedSeconds, newGameBurdensSetting) {
+      var debugEnabled, burdensEnabled, activeTest, seedDisplay, metaUI, saveCallback, error_1;
       var _a;
       if (newGameDebugEnabled === void 0) {
         newGameDebugEnabled = false;
@@ -16996,10 +18529,14 @@
       if (initialElapsedSeconds === void 0) {
         initialElapsedSeconds = 0;
       }
-      return __generator12(this, function(_b) {
+      if (newGameBurdensSetting === void 0) {
+        newGameBurdensSetting = false;
+      }
+      return __generator13(this, function(_b) {
         switch (_b.label) {
           case 0:
             debugEnabled = snapshot ? isDebugGame(snapshot) : newGameDebugEnabled;
+            burdensEnabled = snapshot ? isBurdensGame(snapshot) : newGameBurdensSetting;
             activeTest = debugEnabled ? test : null;
             activeRunSlotID = slotID;
             runTimerSeconds = Math.max(0, Math.floor(initialElapsedSeconds));
@@ -17018,7 +18555,7 @@
             _b.label = 1;
           case 1:
             _b.trys.push([1, 3, 4, 5]);
-            return [4, playGame2(metaUI, activeTest, seed, snapshot, saveCallback, debugEnabled)];
+            return [4, playGame2(metaUI, activeTest, seed, snapshot, saveCallback, debugEnabled, burdensEnabled)];
           case 2:
             _b.sent();
             return [3, 5];
@@ -17050,11 +18587,12 @@
     });
   }
   function clearLauncherDialogs() {
-    var _a, _b, _c, _d;
+    var _a, _b, _c, _d, _e;
     (_a = document.getElementById("newGameDialog")) === null || _a === void 0 ? void 0 : _a.remove();
-    (_b = document.getElementById("viewGameDialog")) === null || _b === void 0 ? void 0 : _b.remove();
-    (_c = document.getElementById("allSavesDialog")) === null || _c === void 0 ? void 0 : _c.remove();
-    (_d = document.getElementById("helpDialog")) === null || _d === void 0 ? void 0 : _d.remove();
+    (_b = document.getElementById("challengeSettingsDialog")) === null || _b === void 0 ? void 0 : _b.remove();
+    (_c = document.getElementById("viewGameDialog")) === null || _c === void 0 ? void 0 : _c.remove();
+    (_d = document.getElementById("allSavesDialog")) === null || _d === void 0 ? void 0 : _d.remove();
+    (_e = document.getElementById("helpDialog")) === null || _e === void 0 ? void 0 : _e.remove();
     if (removeHelpEscapeHandler !== null) {
       removeHelpEscapeHandler();
       removeHelpEscapeHandler = null;
@@ -17074,7 +18612,7 @@
     var list = document.createElement("ul");
     list.id = "helpList";
     try {
-      for (var HELP_ITEMS_1 = __values13(HELP_ITEMS), HELP_ITEMS_1_1 = HELP_ITEMS_1.next(); !HELP_ITEMS_1_1.done; HELP_ITEMS_1_1 = HELP_ITEMS_1.next()) {
+      for (var HELP_ITEMS_1 = __values14(HELP_ITEMS), HELP_ITEMS_1_1 = HELP_ITEMS_1.next(); !HELP_ITEMS_1_1.done; HELP_ITEMS_1_1 = HELP_ITEMS_1.next()) {
         var item = HELP_ITEMS_1_1.value;
         var li = document.createElement("li");
         li.innerHTML = item;
@@ -17123,11 +18661,60 @@
     };
     document.body.appendChild(dialog);
   }
+  function openChallengesDialog() {
+    clearLauncherDialogs();
+    var dialog = document.createElement("div");
+    dialog.id = "challengeSettingsDialog";
+    var card = document.createElement("div");
+    card.id = "challengeSettingsCard";
+    var title = document.createElement("h3");
+    title.style.margin = "0";
+    title.textContent = "Challenges";
+    card.appendChild(title);
+    var row = document.createElement("label");
+    row.className = "challengeSettingRow";
+    var checkbox = document.createElement("input");
+    checkbox.type = "checkbox";
+    checkbox.checked = newGameBurdensEnabled;
+    checkbox.onchange = function() {
+      newGameBurdensEnabled = checkbox.checked;
+      persistNewGameBurdensEnabled();
+      updateLauncherBurdensTag();
+    };
+    var label = document.createElement("div");
+    label.className = "challengeSettingLabel";
+    var name = document.createElement("span");
+    name.textContent = "Burdens";
+    var hint = document.createElement("span");
+    hint.className = "challengeSettingHint";
+    hint.textContent = "Add a mandatory burden in each round after the first.";
+    label.appendChild(name);
+    label.appendChild(hint);
+    row.appendChild(checkbox);
+    row.appendChild(label);
+    card.appendChild(row);
+    var actions = document.createElement("div");
+    actions.className = "saveActions";
+    var close = document.createElement("button");
+    close.className = "launcherBtn";
+    close.textContent = "Close";
+    close.onclick = function() {
+      return dialog.remove();
+    };
+    actions.appendChild(close);
+    card.appendChild(actions);
+    dialog.appendChild(card);
+    dialog.addEventListener("mousedown", function(event) {
+      if (event.target === dialog)
+        dialog.remove();
+    });
+    document.body.appendChild(dialog);
+  }
   function runReplayFromSnapshot(slot, stage) {
-    return __awaiter12(this, void 0, void 0, function() {
+    return __awaiter13(this, void 0, void 0, function() {
       var seedDisplay, state, replayData, bufferDisplay, debugTag, error_2;
       var _a;
-      return __generator12(this, function(_b) {
+      return __generator13(this, function(_b) {
         switch (_b.label) {
           case 0:
             seedDisplay = document.getElementById("seedDisplay");
@@ -17227,7 +18814,7 @@
       cards.appendChild(empty);
     } else {
       try {
-        for (var specs_1 = __values13(specs), specs_1_1 = specs_1.next(); !specs_1_1.done; specs_1_1 = specs_1.next()) {
+        for (var specs_1 = __values14(specs), specs_1_1 = specs_1.next(); !specs_1_1.done; specs_1_1 = specs_1.next()) {
           var spec = specs_1_1.value;
           var wrap = document.createElement("div");
           wrap.innerHTML = renderSpecNoRelated(spec);
@@ -17280,6 +18867,12 @@
     var done = state.data.phase === "game_over" || state.data.stage >= 8;
     var statusDebugTag = state.debugEnabled ? " [Debug]" : "";
     status.textContent = "".concat(done ? "Victory!" : "Stage ".concat(state.data.stage + 1), " \u2022 Buffer ").concat(state.data.buffer).concat(statusDebugTag, " \u2022 Seed ").concat(slot.seed);
+    if (isBurdensGame(slot.snapshot)) {
+      var burdenTag = document.createElement("span");
+      burdenTag.className = "burdenTag";
+      burdenTag.textContent = "(burdens)";
+      status.appendChild(burdenTag);
+    }
     if (state.data.buffer < 0)
       status.className = "negativeBuffer";
     card.appendChild(status);
@@ -17326,8 +18919,8 @@
           replayButton.className = "launcherBtn";
           replayButton.textContent = "View replay";
           replayButton.onclick = function() {
-            return __awaiter12(_this, void 0, void 0, function() {
-              return __generator12(this, function(_a2) {
+            return __awaiter13(_this, void 0, void 0, function() {
+              return __generator13(this, function(_a2) {
                 switch (_a2.label) {
                   case 0:
                     dialog.remove();
@@ -17347,7 +18940,7 @@
         timeline.appendChild(row);
       };
       try {
-        for (var _b = __values13(state.data.timeline), _c = _b.next(); !_c.done; _c = _b.next()) {
+        for (var _b = __values14(state.data.timeline), _c = _b.next(); !_c.done; _c = _b.next()) {
           var entry = _c.value;
           _loop_1(entry);
         }
@@ -17379,6 +18972,12 @@
     var done = slot.snapshot.data.phase === "game_over" || slot.snapshot.data.stage >= 8;
     var debugTag = isDebugGame(slot.snapshot) ? " [Debug]" : "";
     primary.textContent = done ? "Victory! \u2022 Buffer ".concat(slot.snapshot.data.buffer).concat(debugTag) : "Stage ".concat(slot.snapshot.data.stage + 1, " \u2022 Buffer ").concat(slot.snapshot.data.buffer).concat(debugTag);
+    if (isBurdensGame(slot.snapshot)) {
+      var burdenTag = document.createElement("span");
+      burdenTag.className = "burdenTag";
+      burdenTag.textContent = "(burdens)";
+      primary.appendChild(burdenTag);
+    }
     if (slot.snapshot.data.buffer < 0) {
       primary.className = "negativeBuffer";
     }
@@ -17394,8 +18993,8 @@
       continueButton.className = "launcherBtn";
       continueButton.textContent = "Continue";
       continueButton.onclick = function() {
-        return __awaiter12(_this, void 0, void 0, function() {
-          return __generator12(this, function(_a) {
+        return __awaiter13(_this, void 0, void 0, function() {
+          return __generator13(this, function(_a) {
             return [2, runGame(slot.id, slot.snapshot, slot.seed, false, slot.elapsedSeconds)];
           });
         });
@@ -17471,7 +19070,7 @@
         }));
       };
       try {
-        for (var slots_1 = __values13(slots), slots_1_1 = slots_1.next(); !slots_1_1.done; slots_1_1 = slots_1.next()) {
+        for (var slots_1 = __values14(slots), slots_1_1 = slots_1.next(); !slots_1_1.done; slots_1_1 = slots_1.next()) {
           var slot = slots_1_1.value;
           _loop_2(slot);
         }
@@ -17507,9 +19106,20 @@
     card.id = "saveLauncherCard";
     var header = document.createElement("div");
     header.id = "saveLauncherHeader";
+    var titleRow = document.createElement("div");
+    titleRow.className = "launcherTitleRow";
     var title = document.createElement("h2");
     title.textContent = "engine-roguelike";
     title.style.margin = "0";
+    var burdenTag = document.createElement("span");
+    burdenTag.id = "launcherBurdensTag";
+    burdenTag.className = "burdenTag";
+    burdenTag.textContent = "(burdens)";
+    if (!newGameBurdensEnabled) {
+      burdenTag.setAttribute("hidden", "");
+    }
+    titleRow.appendChild(title);
+    titleRow.appendChild(burdenTag);
     var headerActions = document.createElement("div");
     headerActions.className = "saveActions";
     var newButton = document.createElement("button");
@@ -17541,14 +19151,14 @@
       startButton.className = "launcherBtn";
       startButton.textContent = "start";
       var startNewGame = function() {
-        return __awaiter12(_this, void 0, void 0, function() {
+        return __awaiter13(_this, void 0, void 0, function() {
           var seed, slotID;
-          return __generator12(this, function(_a2) {
+          return __generator13(this, function(_a2) {
             switch (_a2.label) {
               case 0:
                 seed = normalizeSeed(seedInput.value) || randomString();
                 slotID = "".concat(Date.now(), "-").concat(Math.floor(Math.random() * 1e6));
-                return [4, runGame(slotID, null, seed, debugNewGame, 0)];
+                return [4, runGame(slotID, null, seed, debugNewGame, 0, newGameBurdensEnabled)];
               case 1:
                 _a2.sent();
                 return [
@@ -17561,8 +19171,8 @@
       };
       startButton.onclick = startNewGame;
       seedInput.addEventListener("keydown", function(event2) {
-        return __awaiter12(_this, void 0, void 0, function() {
-          return __generator12(this, function(_a2) {
+        return __awaiter13(_this, void 0, void 0, function() {
+          return __generator13(this, function(_a2) {
             switch (_a2.label) {
               case 0:
                 if (event2.key !== "Enter")
@@ -17603,7 +19213,7 @@
       seedInput.select();
     };
     headerActions.appendChild(newButton);
-    header.appendChild(title);
+    header.appendChild(titleRow);
     header.appendChild(headerActions);
     card.appendChild(header);
     var list = document.createElement("div");
@@ -17623,7 +19233,7 @@
         }));
       };
       try {
-        for (var slots_2 = __values13(slots), slots_2_1 = slots_2.next(); !slots_2_1.done; slots_2_1 = slots_2.next()) {
+        for (var slots_2 = __values14(slots), slots_2_1 = slots_2.next(); !slots_2_1.done; slots_2_1 = slots_2.next()) {
           var slot = slots_2_1.value;
           _loop_3(slot);
         }
@@ -17654,6 +19264,13 @@
       };
       footerActions.appendChild(showAllButton);
     }
+    var challengesButton = document.createElement("button");
+    challengesButton.className = "launcherBtn";
+    challengesButton.textContent = "Challenges";
+    challengesButton.onclick = function() {
+      return openChallengesDialog();
+    };
+    footerActions.appendChild(challengesButton);
     var helpButton = document.createElement("button");
     helpButton.className = "launcherBtn";
     helpButton.textContent = "Help";
@@ -17665,14 +19282,16 @@
     card.appendChild(footerActions);
     root.appendChild(card);
     document.body.appendChild(root);
+    updateLauncherBurdensTag();
     if (!hasSeenHelp()) {
       markHelpSeen();
       openHelpDialog();
     }
   }
   window.addEventListener("load", function() {
-    return __awaiter12(void 0, void 0, void 0, function() {
-      return __generator12(this, function(_a) {
+    return __awaiter13(void 0, void 0, void 0, function() {
+      return __generator13(this, function(_a) {
+        newGameBurdensEnabled = loadNewGameBurdensEnabled();
         initRunTimer();
         renderLauncher();
         return [

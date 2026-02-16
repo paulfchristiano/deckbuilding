@@ -850,7 +850,7 @@ function renderCard(
         return renderShadow(card, state, tokenRenderer)
     }
 
-    const costType: 'use' | 'play' = zone === 'events' ? 'use' : 'play'
+    const costType: 'use' | 'play' = (zone === 'events' || zone === 'potions') ? 'use' : 'play'
     const tokenhtml = tokenRenderer.render(card.tokens)
     const costhtml = zone === 'supply'
         ? renderCost(card.cost('buy', state)) || '&nbsp'
