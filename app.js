@@ -7574,6 +7574,91 @@
     }]
   };
   relicRewards.push(wingedBoots);
+  var flywheel = {
+    name: "Flywheel",
+    metaTriggers: [{
+      kind: "end",
+      text: ["At end of each course, remove all charge counters from this."],
+      simpleText: [],
+      handles: function() {
+        return true;
+      },
+      transform: function(_e, _s, self) {
+        return function(state) {
+          return __awaiter4(this, void 0, void 0, function() {
+            return __generator4(this, function(_a) {
+              state.applyToRelic(function(r) {
+                return r.update({ tokens: /* @__PURE__ */ new Map() });
+              }, self);
+              return [
+                2
+                /*return*/
+              ];
+            });
+          });
+        };
+      }
+    }],
+    triggers: [{
+      kind: "play",
+      text: [
+        "After you play a card, put a charge token on this, then if it has 5 or more tokens, remove 5 and +1 action."
+      ],
+      simpleText: ["Every 5 cards you play, +1 action."],
+      handles: function() {
+        return true;
+      },
+      transform: function(_e, _s, source) {
+        return function(state) {
+          return __awaiter4(this, void 0, void 0, function() {
+            var relic, current;
+            return __generator4(this, function(_a) {
+              switch (_a.label) {
+                case 0:
+                  relic = source;
+                  return [4, charge(relic, 1)(state)];
+                case 1:
+                  state = _a.sent();
+                  _a.label = 2;
+                case 2:
+                  if (false) return [3, 5];
+                  current = state.find(relic);
+                  if (!current || current.charge < 5)
+                    return [2, state];
+                  return [4, charge(relic, -5)(state)];
+                case 3:
+                  state = _a.sent();
+                  return [4, gainActions(1, relic)(state)];
+                case 4:
+                  state = _a.sent();
+                  return [3, 2];
+                case 5:
+                  return [
+                    2
+                    /*return*/
+                  ];
+              }
+            });
+          });
+        };
+      }
+    }]
+  };
+  relicRewards.push(flywheel);
+  var creditVoucher = {
+    name: "Credit Voucher",
+    triggers: [{
+      kind: "buy",
+      text: ["Whenever you buy a card costing $5 or more, +1 buy."],
+      handles: function(e, _s, _c) {
+        return e.card.cost("buy", _s).coin >= 5;
+      },
+      transform: function(e, s, source) {
+        return gainBuys(1, source);
+      }
+    }]
+  };
+  relicRewards.push(creditVoucher);
   var matryoshkaDoll = {
     name: "Matryoshka Doll",
     metaReplacers: [{
@@ -7733,32 +7818,32 @@
           return function(state) {
             return __awaiter4(this, void 0, void 0, function() {
               var _a, _b, spec, e_1_1;
-              var e_1, _c;
-              return __generator4(this, function(_d) {
-                switch (_d.label) {
+              var e_1, _d;
+              return __generator4(this, function(_f) {
+                switch (_f.label) {
                   case 0:
-                    _d.trys.push([0, 5, 6, 7]);
+                    _f.trys.push([0, 5, 6, 7]);
                     _a = __values5(relic.notedCards || []), _b = _a.next();
-                    _d.label = 1;
+                    _f.label = 1;
                   case 1:
                     if (!!_b.done) return [3, 4];
                     spec = _b.value;
                     return [4, create(spec, "hand")(state)];
                   case 2:
-                    state = _d.sent();
-                    _d.label = 3;
+                    state = _f.sent();
+                    _f.label = 3;
                   case 3:
                     _b = _a.next();
                     return [3, 1];
                   case 4:
                     return [3, 7];
                   case 5:
-                    e_1_1 = _d.sent();
+                    e_1_1 = _f.sent();
                     e_1 = { error: e_1_1 };
                     return [3, 7];
                   case 6:
                     try {
-                      if (_b && !_b.done && (_c = _a.return)) _c.call(_a);
+                      if (_b && !_b.done && (_d = _a.return)) _d.call(_a);
                     } finally {
                       if (e_1) throw e_1.error;
                     }
@@ -16510,8 +16595,7 @@
   };
   var test = {
     rewards: [
-      [1, ["card", ferry]],
-      [1, ["event", swap]]
+      [1, ["relic", creditVoucher]]
     ],
     challenges: []
   };

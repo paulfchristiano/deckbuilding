@@ -13,7 +13,9 @@ import {
     doAll,
     repeat,
     cardRewards,
-    eventRewards
+    eventRewards,
+    State,
+    charge
 } from '../gameLogic.js'
 import { registerSpec } from '../registry.js'
 import { Generator } from '../rng.js'
@@ -204,6 +206,48 @@ export const wingedBoots: RelicSpec = {
     }]
 }
 relicRewards.push(wingedBoots)
+
+export const flywheel: RelicSpec = {
+    name: 'Flywheel',
+    metaTriggers: [{
+        kind: 'end',
+        text: ['At end of each course, remove all charge counters from this.'],
+        simpleText: [],
+        handles: () => true,
+        transform: (_e, _s, self: Relic) => async function (state: MetaState) {
+            state.applyToRelic(r => r.update({ tokens: new Map() }), self)
+        }
+    }],
+    triggers: [{
+        kind: 'play',
+        text: ['After you play a card, put a charge token on this, then if it has 5 or more tokens, remove 5 and +1 action.'
+        ],
+        simpleText: [`Every 5 cards you play, +1 action.`],
+        handles: () => true,
+        transform: (_e, _s, source: Card|null) => async function (state: State) {
+            const relic = source!
+            state = await charge(relic, 1)(state)
+            while (true) {
+                const current = state.find(relic)
+                if (!current || current.charge < 5) return state
+                state = await charge(relic, -5)(state)
+                state = await gainActions(1, relic)(state)
+            }
+        }
+    }]
+}
+relicRewards.push(flywheel)
+
+export const creditVoucher: RelicSpec = {
+    name: 'Credit Voucher',
+    triggers: [{
+        kind: 'buy',
+        text: ['Whenever you buy a card costing $5 or more, +1 buy.'],
+        handles: (e, _s, _c) => e.card.cost('buy', _s).coin >= 5,
+        transform: (e, s, source) => gainBuys(1, source)
+    }]
+}
+relicRewards.push(creditVoucher)
 
 export const matryoshkaDoll: RelicSpec = {
     name: 'Matryoshka Doll',
