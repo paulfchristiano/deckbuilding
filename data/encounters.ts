@@ -6,13 +6,14 @@ import { Encounter, registerEncounter, RewardOption,
     addBuffer, gainCard, gainEvent, gainPotion, gainRelic,
     addTimelineAction,
     RelicSpec,
+    standardRelicRewards,
     GameSetupParams,
     compose,
     registerEncounterUpgrade,
 } from '../metaLogic.js'
 import { calledShot, delayedGratification, emptyBottle, giftBox, inkwell, sacredBark, silverMirror } from './relics.js'
 import { CardSpec, CardUpgrade,
-    cardRewards, eventRewards, relicRewards, potionRewards,
+    cardRewards, eventRewards, potionRewards,
     displayName,
     Card,
     State,
@@ -259,12 +260,6 @@ export const allEncounterUpgrades: CardUpgrade[] = [
     tacticianCooperationUpgrade,
 ]
 
-
-// ----------------------------- Helper Functions
-
-function standardRelicRewards(): RelicSpec[] {
-    return relicRewards as RelicSpec[]
-}
 
 function upgradeCardSpec(spec: CardSpec, upgrade: CardUpgrade): CardSpec {
     return {
@@ -822,7 +817,7 @@ export const varietyPack: Encounter = {
             offerCard: generator.sample(cardRewards),
             offerEvent: generator.sample(eventRewards),
             offerPotion: generator.sample(potionRewards),
-            offerRelic: generator.sample(standardRelicRewards())
+            offerRelic: generator.sample(standardRelicRewards(metaState.data.stage))
         }
     },
     getOptions(data: unknown, metaState: MetaState): RewardOption[] {
@@ -906,7 +901,7 @@ const tradingPost: Encounter = {
             offerCard: generator.sample(cardRewards),
             offerEvent: generator.sample(eventRewards),
             offerPotion: generator.sample(potionRewards),
-            offerRelic: generator.sample(standardRelicRewards()),
+            offerRelic: generator.sample(standardRelicRewards(metaState.data.stage)),
             cardTraded: false,
             eventTraded: false,
             potionTraded: false,

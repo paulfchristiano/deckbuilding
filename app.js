@@ -6321,8 +6321,16 @@
     var params = applyMetaReplacers("reward", { optionCount: 3 }, state);
     return params.optionCount;
   }
-  function standardRelicRewards() {
-    return relicRewards;
+  function relicAvailableOnStage(relic, stage) {
+    var _a, _b;
+    var minStage = (_a = relic.minStage) !== null && _a !== void 0 ? _a : 0;
+    var maxStage = (_b = relic.maxStage) !== null && _b !== void 0 ? _b : TOTAL_STAGES - 1;
+    return minStage <= stage && stage <= maxStage;
+  }
+  function standardRelicRewards(stage) {
+    return relicRewards.filter(function(relic) {
+      return relicAvailableOnStage(relic, stage);
+    });
   }
   function nextDistinctByName(ordered, used, fallbackIndex) {
     var next = ordered.find(function(item) {
@@ -6791,7 +6799,7 @@
         var generator = state.generator("rewardsrelic").newGenerator();
         return {
           kind: "relic",
-          options: generator.samples(standardRelicRewards(), getRewardOptionCount(state)),
+          options: generator.samples(standardRelicRewards(state.data.stage), getRewardOptionCount(state)),
           selectedIndex: null
         };
       }
@@ -7443,6 +7451,7 @@
   relicRewards.push(brokenLever);
   var darkBanner = {
     name: "Dark Banner",
+    maxStage: 6,
     metaReplacers: [{
       kind: "gameSetup",
       text: ["Par is 4@ lower on each course."],
@@ -7465,6 +7474,7 @@
   var mirrorName = "Silver Mirror";
   var silverMirror = {
     name: mirrorName,
+    maxStage: 6,
     metaTriggers: [{
       kind: "relic",
       simpleText: ["The next time you gain a relic, gain two additional copies of it."],
@@ -7565,6 +7575,7 @@
   relicRewards.push(piggyBank);
   var wingedBoots = {
     name: "Winged Boots",
+    maxStage: 6,
     metaReplacers: [{
       kind: "pathRewards",
       text: ["Each stage has an additional path."],
@@ -7661,6 +7672,7 @@
   relicRewards.push(creditVoucher);
   var matryoshkaDoll = {
     name: "Matryoshka Doll",
+    maxStage: 5,
     metaReplacers: [{
       kind: "pathRewards",
       text: ["Each stage has an additional reward."],
@@ -7737,6 +7749,7 @@
   relicRewards.push(matryoshkaDoll);
   var calledShot = {
     name: "Called Shot",
+    maxStage: 6,
     metaTriggers: [{
       kind: "end",
       text: ["At end of the next course, gain 1 buffer for each @ you beat par, then destroy this."],
@@ -7967,6 +7980,7 @@
   registerSpec(emptyBottle);
   var banner = {
     name: "Banner",
+    maxStage: 6,
     metaTriggers: [{
       kind: "end",
       text: ["At end of course, gain 1@ buffer for each 2@ you beat par."],
@@ -7984,6 +7998,7 @@
   relicRewards.push(banner);
   var questionCard = {
     name: "Question Card",
+    maxStage: 6,
     metaReplacers: [{
       kind: "reward",
       text: ["All reward packs are generated with 2 more options."],
@@ -12408,9 +12423,6 @@
       }
     }]
   });
-  function standardRelicRewards2() {
-    return relicRewards;
-  }
   function upgradeCardSpec(spec, upgrade) {
     return __assign8(__assign8({}, spec), { upgrades: __spreadArray7(__spreadArray7([], __read12(spec.upgrades || []), false), [upgrade], false) });
   }
@@ -13114,7 +13126,7 @@
         offerCard: generator.sample(cardRewards),
         offerEvent: generator.sample(eventRewards),
         offerPotion: generator.sample(potionRewards),
-        offerRelic: generator.sample(standardRelicRewards2())
+        offerRelic: generator.sample(standardRelicRewards(metaState.data.stage))
       };
     },
     getOptions: function(data, metaState) {
@@ -13211,7 +13223,7 @@
         offerCard: generator.sample(cardRewards),
         offerEvent: generator.sample(eventRewards),
         offerPotion: generator.sample(potionRewards),
-        offerRelic: generator.sample(standardRelicRewards2()),
+        offerRelic: generator.sample(standardRelicRewards(metaState.data.stage)),
         cardTraded: false,
         eventTraded: false,
         potionTraded: false,

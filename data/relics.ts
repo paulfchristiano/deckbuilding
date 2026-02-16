@@ -106,6 +106,7 @@ relicRewards.push(brokenLever)
 
 export const darkBanner: RelicSpec = {
     name: 'Dark Banner',
+    maxStage: 6,
     metaReplacers: [{
         kind: 'gameSetup',
         text: ['Par is 4@ lower on each course.'],
@@ -123,6 +124,7 @@ relicRewards.push(darkBanner)
 const mirrorName = `Silver Mirror`
 export const silverMirror: RelicSpec = {
     name: mirrorName,
+    maxStage: 6,
     metaTriggers: [{
         kind: 'relic',
         simpleText: ['The next time you gain a relic, gain two additional copies of it.'],
@@ -196,6 +198,7 @@ relicRewards.push(piggyBank)
 
 export const wingedBoots: RelicSpec = {
     name: 'Winged Boots',
+    maxStage: 6,
     metaReplacers: [{
         kind: 'pathRewards',
         text: ['Each stage has an additional path.'],
@@ -251,6 +254,7 @@ relicRewards.push(creditVoucher)
 
 export const matryoshkaDoll: RelicSpec = {
     name: 'Matryoshka Doll',
+    maxStage: 5,
     metaReplacers: [{
         kind: 'pathRewards',
         text: ['Each stage has an additional reward.'],
@@ -290,6 +294,7 @@ relicRewards.push(matryoshkaDoll)
 
 export const calledShot: RelicSpec = {
     name: 'Called Shot',
+    maxStage: 6,
     metaTriggers: [{
         kind: 'end',
         text: ['At end of the next course, gain 1 buffer for each @ you beat par, then destroy this.'],
@@ -414,6 +419,7 @@ registerSpec(emptyBottle)
 
 export const banner: RelicSpec = {
     name: 'Banner',
+    maxStage: 6,
     metaTriggers: [{
         kind: 'end',
         text: ['At end of course, gain 1@ buffer for each 2@ you beat par.'],
@@ -431,6 +437,7 @@ relicRewards.push(banner)
 // Question Card: Future rewards have 1 more option
 export const questionCard: RelicSpec = {
     name: 'Question Card',
+    maxStage: 6,
     metaReplacers: [{
         kind: 'reward',
         text: ['All reward packs are generated with 2 more options.'],

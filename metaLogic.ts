@@ -335,6 +335,8 @@ export type GameSetupParams = {
 }
 
 export interface RelicSpec extends CardSpec {
+    minStage?: number
+    maxStage?: number
     gainRequirement?: (state: MetaState) => boolean
     metaReplacers?: MetaReplacer[]
     metaTriggers?: TypedMetaTrigger[]
@@ -1756,8 +1758,14 @@ export function getRewardOptionCount(state: MetaState): number {
     return params.optionCount
 }
 
-function standardRelicRewards(): RelicSpec[] {
-    return relicRewards as RelicSpec[]
+function relicAvailableOnStage(relic: RelicSpec, stage: number): boolean {
+    const minStage = relic.minStage ?? 0
+    const maxStage = relic.maxStage ?? (TOTAL_STAGES - 1)
+    return minStage <= stage && stage <= maxStage
+}
+
+export function standardRelicRewards(stage: number): RelicSpec[] {
+    return (relicRewards as RelicSpec[]).filter(relic => relicAvailableOnStage(relic, stage))
 }
 
 // ----------------------- Generate data
@@ -2168,7 +2176,7 @@ function materializePath(state: MetaState, path: Path): Pick<MetaStateData, 'cha
             const generator = state.generator(`rewardsrelic`).newGenerator()
             return {
                 kind: 'relic' as const,
-                options: generator.samples(standardRelicRewards(), getRewardOptionCount(state)),
+                options: generator.samples(standardRelicRewards(state.data.stage), getRewardOptionCount(state)),
                 selectedIndex: null
             }
         }
