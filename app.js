@@ -16625,10 +16625,25 @@
   };
   var SAVE_STORAGE_KEY = "roguelike.ongoingSaves.v1";
   var RUN_TIMER_STORAGE_KEY = "roguelike.runTimerSeconds.v1";
+  var HELP_SEEN_STORAGE_KEY = "roguelike.helpSeen.v1";
   var MAX_LAUNCHER_SAVES = 10;
   var runTimerSeconds = 0;
   var activeRunSlotID = null;
   var runTimerIntervalID = null;
+  var removeHelpEscapeHandler = null;
+  var HELP_ITEMS = [
+    "Click new game to start a game. You can press escape to return to this screen, and resume games at any time.",
+    'There are 8 stages, each involves playing a round of engine-game. You can learn how to play at <a href="https://engine-game.com/tutorial" target="_blank" rel="noopener noreferrer">engine-game.com/tutorial</a>, though some of the cards are different.',
+    "Each stage has a par. You start with 10 buffer, and you lose buffer for all energy you go over the par.",
+    "Each stage has a random choice of vp card, and a random event that\u2019s added.",
+    "The base pars are indicated on the left sidebar. The pars are adjusted based on the random event. You can mouseover the pars on the left side to see how they are calculated.",
+    "You can undo freely, including past the start of the game. The only times new information is revealed is when (i) you finish a game and click \u201Cdone\u201D and see the paths available for the next stage, or (ii) you pick which path to take for a stage and then see the actual rewards.",
+    "You can also click on a completed stage in the left sidebar to replay it and get a better score, which will increase your buffer accordingly. You have to use the same set of potions when you replay a stage, all you can change is getting a lower score.",
+    "The final stage has a low par and no boon, so you\u2019ll need to prepare.",
+    "You can see the text of cards by hovering over them. If you hold shift you can see the exact rules rather than the simplified text that is displayed by default.",
+    "If you shift+click on an item, you will use it 10 times.",
+    "You can record macros to replay comment events. You can also click \u201Csave replay\u201D to record a macro from the beginning of the game to your current state. Right click a macro to delete it."
+  ];
   function loadRunTimerSeconds() {
     try {
       var raw = localStorage.getItem(RUN_TIMER_STORAGE_KEY);
@@ -16821,6 +16836,12 @@
   function removeAllSaveSlots() {
     persistSaveSlots([]);
   }
+  function hasSeenHelp() {
+    return localStorage.getItem(HELP_SEEN_STORAGE_KEY) === "1";
+  }
+  function markHelpSeen() {
+    localStorage.setItem(HELP_SEEN_STORAGE_KEY, "1");
+  }
   function setCoreUIVisible(visible) {
     var e_1, _a;
     var hidden = !visible;
@@ -16861,7 +16882,7 @@
       return;
     var style = document.createElement("style");
     style.id = "saveLauncherStyles";
-    style.textContent = "\n        #saveLauncher {\n            min-height: 100vh;\n            display: flex;\n            align-items: center;\n            justify-content: center;\n            background: #f6f6f8;\n            color: #222;\n            font-family: system-ui, -apple-system, sans-serif;\n        }\n        #saveLauncherCard {\n            width: min(760px, 92vw);\n            background: white;\n            border: 1px solid #ddd;\n            border-radius: 12px;\n            padding: 20px;\n            box-shadow: 0 8px 30px rgba(0,0,0,0.08);\n        }\n        #saveLauncherHeader {\n            display: flex;\n            align-items: center;\n            justify-content: space-between;\n            margin-bottom: 12px;\n        }\n        #saveList {\n            display: flex;\n            flex-direction: column;\n            gap: 10px;\n            margin-top: 14px;\n        }\n        .saveRow {\n            border: 1px solid #ddd;\n            border-radius: 8px;\n            padding: 10px 12px;\n            display: flex;\n            align-items: center;\n            justify-content: space-between;\n            gap: 10px;\n            background: #fcfcfd;\n        }\n        .saveMeta {\n            display: flex;\n            flex-direction: column;\n            gap: 2px;\n        }\n        .saveSeed {\n            font-size: 0.8em;\n            color: #777;\n        }\n        .saveActions {\n            display: flex;\n            gap: 8px;\n        }\n        .launcherBtn {\n            border: 1px solid #bbb;\n            border-radius: 6px;\n            padding: 6px 10px;\n            background: #fff;\n            cursor: pointer;\n        }\n        .launcherBtn:hover {\n            border-color: #777;\n        }\n        .dangerBtn {\n            border-color: #d33;\n            color: #b11;\n        }\n        #newGameDialog {\n            position: fixed;\n            inset: 0;\n            display: flex;\n            align-items: center;\n            justify-content: center;\n            background: rgba(0,0,0,0.25);\n        }\n        #allSavesDialog {\n            position: fixed;\n            inset: 0;\n            display: flex;\n            align-items: center;\n            justify-content: center;\n            background: rgba(0,0,0,0.25);\n            z-index: 45;\n        }\n        #allSavesCard {\n            width: min(900px, 95vw);\n            max-height: 90vh;\n            overflow: hidden;\n            background: white;\n            border: 1px solid #ddd;\n            border-radius: 10px;\n            padding: 16px;\n            box-sizing: border-box;\n            display: flex;\n            flex-direction: column;\n            gap: 12px;\n        }\n        #allSavesList {\n            overflow-y: auto;\n            display: flex;\n            flex-direction: column;\n            gap: 10px;\n            padding-right: 4px;\n        }\n        #newGameCard {\n            background: white;\n            border-radius: 10px;\n            border: 1px solid #ddd;\n            padding: 16px 28px 16px 16px;\n            width: auto;\n            max-width: 92vw;\n            box-sizing: border-box;\n            overflow: hidden;\n            display: flex;\n            flex-direction: column;\n            gap: 10px;\n        }\n        #newGameCard label {\n            font-size: 0.9em;\n            color: #555;\n        }\n        #newGameSeedInput {\n            display: block;\n            font-size: 1.1em;\n            padding: 8px;\n            border: 1px solid #ccc;\n            border-radius: 6px;\n            width: 260px;\n            max-width: 100%;\n            box-sizing: border-box;\n            align-self: flex-start;\n        }\n        #emptySaves {\n            font-size: 0.95em;\n            color: #666;\n            padding: 8px 2px;\n        }\n        .saveFootnote {\n            margin-top: 10px;\n            font-size: 0.85em;\n            color: #777;\n        }\n        .negativeBuffer {\n            color: #b00020;\n            font-weight: 700;\n        }\n        #viewGameDialog {\n            position: fixed;\n            inset: 0;\n            display: flex;\n            align-items: center;\n            justify-content: center;\n            background: rgba(0,0,0,0.3);\n            z-index: 50;\n            padding: 20px 0;\n        }\n        #viewGameCard {\n            width: min(1100px, 96vw);\n            max-height: calc(100vh - 40px);\n            overflow-y: auto;\n            background: white;\n            border: 1px solid #ddd;\n            border-radius: 10px;\n            padding: 16px;\n            box-sizing: border-box;\n            display: flex;\n            flex-direction: column;\n            gap: 12px;\n        }\n        .viewHeader {\n            display: flex;\n            justify-content: space-between;\n            align-items: center;\n            gap: 10px;\n        }\n        .viewDeckSection {\n            border: 1px solid #ddd;\n            border-radius: 8px;\n            padding: 8px;\n            background: #fcfcfd;\n        }\n        .viewDeckTitle {\n            font-weight: 600;\n            margin-bottom: 6px;\n            color: #333;\n        }\n        .viewDeckCards {\n            display: flex;\n            flex-wrap: wrap;\n            gap: 6px;\n        }\n        #viewTimeline {\n            border: 1px solid #ddd;\n            border-radius: 8px;\n            padding: 8px;\n            background: #fcfcfd;\n            display: flex;\n            flex-direction: column;\n            gap: 6px;\n        }\n        .timelineRow {\n            display: flex;\n            justify-content: space-between;\n            align-items: center;\n            gap: 10px;\n            border-bottom: 1px solid #eee;\n            padding: 4px 0;\n        }\n        .timelineText {\n            display: flex;\n            align-items: baseline;\n            gap: 8px;\n            flex-wrap: wrap;\n        }\n        .timelinePrimary {\n            font-size: 0.95em;\n            color: #333;\n        }\n        .timelineSecondary {\n            font-size: 0.82em;\n            color: #777;\n        }\n    ";
+    style.textContent = "\n        #saveLauncher {\n            min-height: 100vh;\n            display: flex;\n            align-items: center;\n            justify-content: center;\n            background: #f6f6f8;\n            color: #222;\n            font-family: system-ui, -apple-system, sans-serif;\n        }\n        #saveLauncherCard {\n            width: min(760px, 92vw);\n            background: white;\n            border: 1px solid #ddd;\n            border-radius: 12px;\n            padding: 20px;\n            box-shadow: 0 8px 30px rgba(0,0,0,0.08);\n        }\n        #saveLauncherHeader {\n            display: flex;\n            align-items: center;\n            justify-content: space-between;\n            margin-bottom: 12px;\n        }\n        #saveList {\n            display: flex;\n            flex-direction: column;\n            gap: 10px;\n            margin-top: 14px;\n        }\n        .saveRow {\n            border: 1px solid #ddd;\n            border-radius: 8px;\n            padding: 10px 12px;\n            display: flex;\n            align-items: center;\n            justify-content: space-between;\n            gap: 10px;\n            background: #fcfcfd;\n        }\n        .saveMeta {\n            display: flex;\n            flex-direction: column;\n            gap: 2px;\n        }\n        .saveSeed {\n            font-size: 0.8em;\n            color: #777;\n        }\n        .saveActions {\n            display: flex;\n            gap: 8px;\n        }\n        .launcherBtn {\n            border: 1px solid #bbb;\n            border-radius: 6px;\n            padding: 6px 10px;\n            background: #fff;\n            cursor: pointer;\n        }\n        .launcherBtn:hover {\n            border-color: #777;\n        }\n        .dangerBtn {\n            border-color: #d33;\n            color: #b11;\n        }\n        #newGameDialog {\n            position: fixed;\n            inset: 0;\n            display: flex;\n            align-items: center;\n            justify-content: center;\n            background: rgba(0,0,0,0.25);\n        }\n        #allSavesDialog {\n            position: fixed;\n            inset: 0;\n            display: flex;\n            align-items: center;\n            justify-content: center;\n            background: rgba(0,0,0,0.25);\n            z-index: 45;\n        }\n        #helpDialog {\n            position: fixed;\n            inset: 0;\n            display: flex;\n            align-items: center;\n            justify-content: center;\n            background: rgba(0,0,0,0.25);\n            z-index: 46;\n        }\n        #helpCard {\n            width: min(760px, 94vw);\n            max-height: 86vh;\n            overflow-y: auto;\n            background: white;\n            border: 1px solid #ddd;\n            border-radius: 10px;\n            padding: 16px;\n            box-sizing: border-box;\n            display: flex;\n            flex-direction: column;\n            gap: 12px;\n        }\n        #helpList {\n            margin: 0;\n            padding-left: 20px;\n            display: flex;\n            flex-direction: column;\n            gap: 8px;\n            color: #333;\n        }\n        .helpFooter {\n            display: flex;\n            justify-content: flex-start;\n            margin-top: 6px;\n        }\n        .launcherFooter {\n            margin-top: 10px;\n            display: flex;\n            justify-content: flex-end;\n            align-items: center;\n            gap: 8px;\n        }\n        .launcherFooterWithLeft {\n            justify-content: space-between;\n        }\n        #allSavesCard {\n            width: min(900px, 95vw);\n            max-height: 90vh;\n            overflow: hidden;\n            background: white;\n            border: 1px solid #ddd;\n            border-radius: 10px;\n            padding: 16px;\n            box-sizing: border-box;\n            display: flex;\n            flex-direction: column;\n            gap: 12px;\n        }\n        #allSavesList {\n            overflow-y: auto;\n            display: flex;\n            flex-direction: column;\n            gap: 10px;\n            padding-right: 4px;\n        }\n        #newGameCard {\n            background: white;\n            border-radius: 10px;\n            border: 1px solid #ddd;\n            padding: 16px 28px 16px 16px;\n            width: auto;\n            max-width: 92vw;\n            box-sizing: border-box;\n            overflow: hidden;\n            display: flex;\n            flex-direction: column;\n            gap: 10px;\n        }\n        #newGameCard label {\n            font-size: 0.9em;\n            color: #555;\n        }\n        #newGameSeedInput {\n            display: block;\n            font-size: 1.1em;\n            padding: 8px;\n            border: 1px solid #ccc;\n            border-radius: 6px;\n            width: 260px;\n            max-width: 100%;\n            box-sizing: border-box;\n            align-self: flex-start;\n        }\n        #emptySaves {\n            font-size: 0.95em;\n            color: #666;\n            padding: 8px 2px;\n        }\n        .saveFootnote {\n            margin-top: 10px;\n            font-size: 0.85em;\n            color: #777;\n        }\n        .negativeBuffer {\n            color: #b00020;\n            font-weight: 700;\n        }\n        #viewGameDialog {\n            position: fixed;\n            inset: 0;\n            display: flex;\n            align-items: center;\n            justify-content: center;\n            background: rgba(0,0,0,0.3);\n            z-index: 50;\n            padding: 20px 0;\n        }\n        #viewGameCard {\n            width: min(1100px, 96vw);\n            max-height: calc(100vh - 40px);\n            overflow-y: auto;\n            background: white;\n            border: 1px solid #ddd;\n            border-radius: 10px;\n            padding: 16px;\n            box-sizing: border-box;\n            display: flex;\n            flex-direction: column;\n            gap: 12px;\n        }\n        .viewHeader {\n            display: flex;\n            justify-content: space-between;\n            align-items: center;\n            gap: 10px;\n        }\n        .viewDeckSection {\n            border: 1px solid #ddd;\n            border-radius: 8px;\n            padding: 8px;\n            background: #fcfcfd;\n        }\n        .viewDeckTitle {\n            font-weight: 600;\n            margin-bottom: 6px;\n            color: #333;\n        }\n        .viewDeckCards {\n            display: flex;\n            flex-wrap: wrap;\n            gap: 6px;\n        }\n        #viewTimeline {\n            border: 1px solid #ddd;\n            border-radius: 8px;\n            padding: 8px;\n            background: #fcfcfd;\n            display: flex;\n            flex-direction: column;\n            gap: 6px;\n        }\n        .timelineRow {\n            display: flex;\n            justify-content: space-between;\n            align-items: center;\n            gap: 10px;\n            border-bottom: 1px solid #eee;\n            padding: 4px 0;\n        }\n        .timelineText {\n            display: flex;\n            align-items: baseline;\n            gap: 8px;\n            flex-wrap: wrap;\n        }\n        .timelinePrimary {\n            font-size: 0.95em;\n            color: #333;\n        }\n        .timelineSecondary {\n            font-size: 0.82em;\n            color: #777;\n        }\n    ";
     document.head.appendChild(style);
   }
   function runGame(slotID_1, snapshot_1, seed_1) {
@@ -16928,10 +16949,78 @@
     });
   }
   function clearLauncherDialogs() {
-    var _a, _b, _c;
+    var _a, _b, _c, _d;
     (_a = document.getElementById("newGameDialog")) === null || _a === void 0 ? void 0 : _a.remove();
     (_b = document.getElementById("viewGameDialog")) === null || _b === void 0 ? void 0 : _b.remove();
     (_c = document.getElementById("allSavesDialog")) === null || _c === void 0 ? void 0 : _c.remove();
+    (_d = document.getElementById("helpDialog")) === null || _d === void 0 ? void 0 : _d.remove();
+    if (removeHelpEscapeHandler !== null) {
+      removeHelpEscapeHandler();
+      removeHelpEscapeHandler = null;
+    }
+  }
+  function openHelpDialog() {
+    var e_2, _a;
+    clearLauncherDialogs();
+    var dialog = document.createElement("div");
+    dialog.id = "helpDialog";
+    var card = document.createElement("div");
+    card.id = "helpCard";
+    var title = document.createElement("h3");
+    title.style.margin = "0";
+    title.textContent = "Help";
+    card.appendChild(title);
+    var list = document.createElement("ul");
+    list.id = "helpList";
+    try {
+      for (var HELP_ITEMS_1 = __values13(HELP_ITEMS), HELP_ITEMS_1_1 = HELP_ITEMS_1.next(); !HELP_ITEMS_1_1.done; HELP_ITEMS_1_1 = HELP_ITEMS_1.next()) {
+        var item = HELP_ITEMS_1_1.value;
+        var li = document.createElement("li");
+        li.innerHTML = item;
+        list.appendChild(li);
+      }
+    } catch (e_2_1) {
+      e_2 = { error: e_2_1 };
+    } finally {
+      try {
+        if (HELP_ITEMS_1_1 && !HELP_ITEMS_1_1.done && (_a = HELP_ITEMS_1.return)) _a.call(HELP_ITEMS_1);
+      } finally {
+        if (e_2) throw e_2.error;
+      }
+    }
+    card.appendChild(list);
+    var footer = document.createElement("div");
+    footer.className = "helpFooter";
+    var backButton = document.createElement("button");
+    backButton.className = "launcherBtn";
+    backButton.textContent = "Back";
+    var close = function() {
+      dialog.remove();
+      if (removeHelpEscapeHandler !== null) {
+        removeHelpEscapeHandler();
+        removeHelpEscapeHandler = null;
+      }
+    };
+    backButton.onclick = close;
+    footer.appendChild(backButton);
+    card.appendChild(footer);
+    dialog.appendChild(card);
+    dialog.addEventListener("mousedown", function(e) {
+      if (e.target === dialog)
+        close();
+    });
+    var onKeyDown = function(e) {
+      if (e.key !== "Escape")
+        return;
+      e.preventDefault();
+      e.stopPropagation();
+      close();
+    };
+    document.addEventListener("keydown", onKeyDown, true);
+    removeHelpEscapeHandler = function() {
+      return document.removeEventListener("keydown", onKeyDown, true);
+    };
+    document.body.appendChild(dialog);
   }
   function runReplayFromSnapshot(slot, stage) {
     return __awaiter12(this, void 0, void 0, function() {
@@ -17021,7 +17110,7 @@
     };
   }
   function renderDeckSection(title, specs) {
-    var e_2, _a;
+    var e_3, _a;
     var section = document.createElement("div");
     section.className = "viewDeckSection";
     var heading = document.createElement("div");
@@ -17043,13 +17132,13 @@
           wrap.innerHTML = renderSpecNoRelated(spec);
           cards.appendChild(wrap.firstElementChild);
         }
-      } catch (e_2_1) {
-        e_2 = { error: e_2_1 };
+      } catch (e_3_1) {
+        e_3 = { error: e_3_1 };
       } finally {
         try {
           if (specs_1_1 && !specs_1_1.done && (_a = specs_1.return)) _a.call(specs_1);
         } finally {
-          if (e_2) throw e_2.error;
+          if (e_3) throw e_3.error;
         }
       }
     }
@@ -17057,7 +17146,7 @@
     return section;
   }
   function openViewDialog(slot) {
-    var e_3, _a;
+    var e_4, _a;
     var _this = this;
     clearLauncherDialogs();
     var state;
@@ -17161,13 +17250,13 @@
           var entry = _c.value;
           _loop_1(entry);
         }
-      } catch (e_3_1) {
-        e_3 = { error: e_3_1 };
+      } catch (e_4_1) {
+        e_4 = { error: e_4_1 };
       } finally {
         try {
           if (_c && !_c.done && (_a = _b.return)) _a.call(_b);
         } finally {
-          if (e_3) throw e_3.error;
+          if (e_4) throw e_4.error;
         }
       }
     }
@@ -17230,7 +17319,7 @@
     return row;
   }
   function openAllSavesDialog() {
-    var e_4, _a;
+    var e_5, _a;
     clearLauncherDialogs();
     var slots = loadSaveSlots();
     var dialog = document.createElement("div");
@@ -17286,13 +17375,13 @@
           var slot = slots_1_1.value;
           _loop_2(slot);
         }
-      } catch (e_4_1) {
-        e_4 = { error: e_4_1 };
+      } catch (e_5_1) {
+        e_5 = { error: e_5_1 };
       } finally {
         try {
           if (slots_1_1 && !slots_1_1.done && (_a = slots_1.return)) _a.call(slots_1);
         } finally {
-          if (e_4) throw e_4.error;
+          if (e_5) throw e_5.error;
         }
       }
     }
@@ -17305,7 +17394,7 @@
     document.body.appendChild(dialog);
   }
   function renderLauncher() {
-    var e_5, _a;
+    var e_6, _a;
     var _this = this;
     var _b;
     ensureLauncherStyles();
@@ -17438,24 +17527,25 @@
           var slot = slots_2_1.value;
           _loop_3(slot);
         }
-      } catch (e_5_1) {
-        e_5 = { error: e_5_1 };
+      } catch (e_6_1) {
+        e_6 = { error: e_6_1 };
       } finally {
         try {
           if (slots_2_1 && !slots_2_1.done && (_a = slots_2.return)) _a.call(slots_2);
         } finally {
-          if (e_5) throw e_5.error;
+          if (e_6) throw e_6.error;
         }
       }
     }
     card.appendChild(list);
+    var footerActions = document.createElement("div");
+    footerActions.className = "launcherFooter";
     if (allSlots.length > MAX_LAUNCHER_SAVES) {
       var footnote = document.createElement("div");
       footnote.className = "saveFootnote";
       footnote.textContent = "Showing latest ".concat(MAX_LAUNCHER_SAVES, " of ").concat(allSlots.length, " saved games.");
       card.appendChild(footnote);
-      var footerActions = document.createElement("div");
-      footerActions.className = "saveActions";
+      footerActions.classList.add("launcherFooterWithLeft");
       var showAllButton = document.createElement("button");
       showAllButton.className = "launcherBtn";
       showAllButton.textContent = "Show all";
@@ -17463,10 +17553,22 @@
         return openAllSavesDialog();
       };
       footerActions.appendChild(showAllButton);
-      card.appendChild(footerActions);
     }
+    var helpButton = document.createElement("button");
+    helpButton.className = "launcherBtn";
+    helpButton.textContent = "Help";
+    helpButton.onclick = function() {
+      markHelpSeen();
+      openHelpDialog();
+    };
+    footerActions.appendChild(helpButton);
+    card.appendChild(footerActions);
     root.appendChild(card);
     document.body.appendChild(root);
+    if (!hasSeenHelp()) {
+      markHelpSeen();
+      openHelpDialog();
+    }
   }
   window.addEventListener("load", function() {
     return __awaiter12(void 0, void 0, void 0, function() {

@@ -33,11 +33,27 @@ let test: DebugTestConfig | null = {
 
 const SAVE_STORAGE_KEY = 'roguelike.ongoingSaves.v1'
 const RUN_TIMER_STORAGE_KEY = 'roguelike.runTimerSeconds.v1'
+const HELP_SEEN_STORAGE_KEY = 'roguelike.helpSeen.v1'
 const MAX_LAUNCHER_SAVES = 10
 
 let runTimerSeconds = 0
 let activeRunSlotID: string | null = null
 let runTimerIntervalID: number | null = null
+let removeHelpEscapeHandler: (() => void) | null = null
+
+const HELP_ITEMS: string[] = [
+    'Click new game to start a game. You can press escape to return to this screen, and resume games at any time.',
+    'There are 8 stages, each involves playing a round of engine-game. You can learn how to play at <a href="https://engine-game.com/tutorial" target="_blank" rel="noopener noreferrer">engine-game.com/tutorial</a>, though some of the cards are different.',
+    'Each stage has a par. You start with 10 buffer, and you lose buffer for all energy you go over the par.',
+    'Each stage has a random choice of vp card, and a random event that’s added.',
+    'The base pars are indicated on the left sidebar. The pars are adjusted based on the random event. You can mouseover the pars on the left side to see how they are calculated.',
+    'You can undo freely, including past the start of the game. The only times new information is revealed is when (i) you finish a game and click “done” and see the paths available for the next stage, or (ii) you pick which path to take for a stage and then see the actual rewards.',
+    'You can also click on a completed stage in the left sidebar to replay it and get a better score, which will increase your buffer accordingly. You have to use the same set of potions when you replay a stage, all you can change is getting a lower score.',
+    'The final stage has a low par and no boon, so you’ll need to prepare.',
+    'You can see the text of cards by hovering over them. If you hold shift you can see the exact rules rather than the simplified text that is displayed by default.',
+    'If you shift+click on an item, you will use it 10 times.',
+    'You can record macros to replay comment events. You can also click “save replay” to record a macro from the beginning of the game to your current state. Right click a macro to delete it.'
+]
 
 function loadRunTimerSeconds(): number {
     try {
@@ -202,6 +218,14 @@ function removeAllSaveSlots(): void {
     persistSaveSlots([])
 }
 
+function hasSeenHelp(): boolean {
+    return localStorage.getItem(HELP_SEEN_STORAGE_KEY) === '1'
+}
+
+function markHelpSeen(): void {
+    localStorage.setItem(HELP_SEEN_STORAGE_KEY, '1')
+}
+
 function setCoreUIVisible(visible: boolean): void {
     const hidden = !visible
     const ids = [
@@ -312,6 +336,51 @@ function ensureLauncherStyles(): void {
             justify-content: center;
             background: rgba(0,0,0,0.25);
             z-index: 45;
+        }
+        #helpDialog {
+            position: fixed;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(0,0,0,0.25);
+            z-index: 46;
+        }
+        #helpCard {
+            width: min(760px, 94vw);
+            max-height: 86vh;
+            overflow-y: auto;
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 10px;
+            padding: 16px;
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        #helpList {
+            margin: 0;
+            padding-left: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            color: #333;
+        }
+        .helpFooter {
+            display: flex;
+            justify-content: flex-start;
+            margin-top: 6px;
+        }
+        .launcherFooter {
+            margin-top: 10px;
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
+            gap: 8px;
+        }
+        .launcherFooterWithLeft {
+            justify-content: space-between;
         }
         #allSavesCard {
             width: min(900px, 95vw);
@@ -496,6 +565,63 @@ function clearLauncherDialogs(): void {
     document.getElementById('newGameDialog')?.remove()
     document.getElementById('viewGameDialog')?.remove()
     document.getElementById('allSavesDialog')?.remove()
+    document.getElementById('helpDialog')?.remove()
+    if (removeHelpEscapeHandler !== null) {
+        removeHelpEscapeHandler()
+        removeHelpEscapeHandler = null
+    }
+}
+
+function openHelpDialog(): void {
+    clearLauncherDialogs()
+    const dialog = document.createElement('div')
+    dialog.id = 'helpDialog'
+    const card = document.createElement('div')
+    card.id = 'helpCard'
+
+    const title = document.createElement('h3')
+    title.style.margin = '0'
+    title.textContent = 'Help'
+    card.appendChild(title)
+
+    const list = document.createElement('ul')
+    list.id = 'helpList'
+    for (const item of HELP_ITEMS) {
+        const li = document.createElement('li')
+        li.innerHTML = item
+        list.appendChild(li)
+    }
+    card.appendChild(list)
+
+    const footer = document.createElement('div')
+    footer.className = 'helpFooter'
+    const backButton = document.createElement('button')
+    backButton.className = 'launcherBtn'
+    backButton.textContent = 'Back'
+    const close = () => {
+        dialog.remove()
+        if (removeHelpEscapeHandler !== null) {
+            removeHelpEscapeHandler()
+            removeHelpEscapeHandler = null
+        }
+    }
+    backButton.onclick = close
+    footer.appendChild(backButton)
+    card.appendChild(footer)
+
+    dialog.appendChild(card)
+    dialog.addEventListener('mousedown', (e: MouseEvent) => {
+        if (e.target === dialog) close()
+    })
+    const onKeyDown = (e: KeyboardEvent) => {
+        if (e.key !== 'Escape') return
+        e.preventDefault()
+        e.stopPropagation()
+        close()
+    }
+    document.addEventListener('keydown', onKeyDown, true)
+    removeHelpEscapeHandler = () => document.removeEventListener('keydown', onKeyDown, true)
+    document.body.appendChild(dialog)
 }
 
 async function runReplayFromSnapshot(slot: SaveSlot, stage: number): Promise<void> {
@@ -902,23 +1028,36 @@ function renderLauncher(): void {
     }
 
     card.appendChild(list)
+    const footerActions = document.createElement('div')
+    footerActions.className = 'launcherFooter'
     if (allSlots.length > MAX_LAUNCHER_SAVES) {
         const footnote = document.createElement('div')
         footnote.className = 'saveFootnote'
         footnote.textContent = `Showing latest ${MAX_LAUNCHER_SAVES} of ${allSlots.length} saved games.`
         card.appendChild(footnote)
 
-        const footerActions = document.createElement('div')
-        footerActions.className = 'saveActions'
+        footerActions.classList.add('launcherFooterWithLeft')
         const showAllButton = document.createElement('button')
         showAllButton.className = 'launcherBtn'
         showAllButton.textContent = 'Show all'
         showAllButton.onclick = () => openAllSavesDialog()
         footerActions.appendChild(showAllButton)
-        card.appendChild(footerActions)
     }
+    const helpButton = document.createElement('button')
+    helpButton.className = 'launcherBtn'
+    helpButton.textContent = 'Help'
+    helpButton.onclick = () => {
+        markHelpSeen()
+        openHelpDialog()
+    }
+    footerActions.appendChild(helpButton)
+    card.appendChild(footerActions)
     root.appendChild(card)
     document.body.appendChild(root)
+    if (!hasSeenHelp()) {
+        markHelpSeen()
+        openHelpDialog()
+    }
 }
 
 // Start the game when the page loads
