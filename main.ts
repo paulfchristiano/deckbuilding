@@ -24,12 +24,10 @@ import { banquet, fairyGold, shippingLane, ferry } from './data/cards.js'
 import { creditVoucher } from './data/relics.js'
 import { haggle, swap } from './data/events.js'
 import { potionOfBounty } from './data/potions.js'
-import { shopkeeper } from './data/encounters.js'
+import { potionShop } from './data/encounters.js'
 
 let test: DebugTestConfig | null = {
-    rewards: [
-        [1, ['relic', creditVoucher]],
-    ],
+    rewards: [],
     challenges: []
 }
 

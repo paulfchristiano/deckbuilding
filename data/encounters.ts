@@ -676,13 +676,17 @@ export const potionShop: Encounter = {
     createInitialData(_metaState: MetaState, generator: Generator): PotionShopData {
         return {
             selectedIndex: null,
-            offers: generator.samples(potionRewards, 4),
+            offers: generator.samples(potionRewards, 3),
         }
     },
     getOptions(data: unknown, metaState: MetaState): RewardOption[] {
         const d = data as PotionShopData
-        const [first, second, third, fourth] = d.offers
-        const bundleDetail = `Potion Shop bundle for 3@: with ${displayName(third)} and ${displayName(fourth)}`
+        const [first, second, third] = d.offers
+        const bundleDetail = `Potion Shop bundle for 3@: with ${displayName(second)} and ${displayName(third)}`
+        const bundleTooltipSpec: CardSpec = {
+            ...second,
+            relatedCards: [...(second.relatedCards || []), third]
+        }
         return [
             {
                 label: `Take ${displayName(first)}`,
@@ -696,32 +700,44 @@ export const potionShop: Encounter = {
                 })
             },
             {
-                label: `Buy ${displayName(second)}`,
-                description: 'Spend 1@ to take this potion.',
-                tooltipSpec: second,
-                disabled: d.selectedIndex !== null || metaState.data.buffer < 1,
+                label: `Buy ${displayName(second)} + ${displayName(third)}`,
+                description: 'Lose 3@ buffer to buy both potions.',
+                tooltipSpec: bundleTooltipSpec,
+                disabled: d.selectedIndex !== null || metaState.data.buffer < 3,
                 checked: d.selectedIndex === 1,
                 onClick: async () => ({
                     newData: { ...d, selectedIndex: 1 },
                     transform: compose(
-                        addBuffer(-1),
-                        gainPotion(second, { details: 'Potion Shop: paid 1@' })
+                        addBuffer(-3),
+                        gainPotion(second, { details: bundleDetail }),
+                        gainPotion(third, { details: bundleDetail }),
                     ),
                 })
             },
             {
-                label: `Buy ${displayName(third)} + ${displayName(fourth)}`,
-                description: 'Spend 3@ to take both potions.',
-                disabled: d.selectedIndex !== null || metaState.data.buffer < 3,
+                label: 'Sell a potion',
+                description: 'Lose a potion and gain 4@ buffer.',
+                disabled: d.selectedIndex !== null || metaState.data.potions.length === 0,
                 checked: d.selectedIndex === 2,
-                onClick: async () => ({
-                    newData: { ...d, selectedIndex: 2 },
-                    transform: compose(
-                        addBuffer(-3),
-                        gainPotion(third, { details: bundleDetail }),
-                        gainPotion(fourth, { details: bundleDetail }),
-                    ),
-                })
+                onClick: async () => {
+                    const potion = await metaState.ui.chooseCard(
+                        metaState,
+                        'Choose a potion to give up:',
+                        [...metaState.data.potions],
+                        true
+                    )
+                    if (!potion) return { newData: data }
+                    return {
+                        newData: { ...d, selectedIndex: 2 },
+                        transform: compose(
+                            async (state: MetaState) => {
+                                state.removePotion(potion.id)
+                            },
+                            addBuffer(4),
+                            addTimelineAction('Potion Shop', `Gave up ${displayName(potion.spec)} for 4@`)
+                        ),
+                    }
+                }
             }
         ]
     }
@@ -1009,7 +1025,6 @@ registerEncounter(tradingPost, { minStage: 4 })
 // The Scribe encounter
 const cursedInkwell: RelicSpec = {
     name: 'Cursed Inkwell',
-    simpleText: ['Par is 1@ lower on each course.'],
     metaReplacers: [{
         kind: 'gameSetup',
         text: ['Par is 1@ lower on each course.'],
@@ -1027,13 +1042,13 @@ const theScribe: Encounter = simpleEncounter({
         },
         {
             label: 'Use the quill',
-            description: '+3@ buffer.',
-            transform: addBuffer(3)
+            description: '+2@ buffer.',
+            transform: addBuffer(2)
         },
         {
             label: 'Use the cursed quill',
-            description: '+5@ buffer, but par is 1@ lower on each course.',
-            transform: compose(addBuffer(5), gainRelic(cursedInkwell))
+            description: '+4@ buffer, but par is 1@ lower on each course.',
+            transform: compose(addBuffer(4), gainRelic(cursedInkwell))
         }
     ]
 })
