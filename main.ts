@@ -13,7 +13,7 @@ import {
     replaySpecForStage,
     ExitToLauncher
 } from './metaLogic.js'
-import { MetaGameUI } from './metaUI.js'
+import { MetaGameUI, setBufferDisplayText } from './metaUI.js'
 import { randomString } from './rng.js'
 import { startGame } from './gameUI.js'
 import { renderSpecNoRelated } from './cardRendering.js'
@@ -34,12 +34,92 @@ let test: DebugTestConfig | null = {
 }
 
 const SAVE_STORAGE_KEY = 'roguelike.ongoingSaves.v1'
+const RUN_TIMER_STORAGE_KEY = 'roguelike.runTimerSeconds.v1'
 const MAX_LAUNCHER_SAVES = 10
+
+let runTimerSeconds = 0
+let activeRunSlotID: string | null = null
+let runTimerIntervalID: number | null = null
+
+function loadRunTimerSeconds(): number {
+    try {
+        const raw = localStorage.getItem(RUN_TIMER_STORAGE_KEY)
+        if (!raw) return 0
+        const parsedJSON = JSON.parse(raw) as { slotID?: unknown, elapsedSeconds?: unknown }
+        if (typeof parsedJSON.elapsedSeconds === 'number' && Number.isFinite(parsedJSON.elapsedSeconds) && parsedJSON.elapsedSeconds >= 0) {
+            return parsedJSON.elapsedSeconds
+        }
+        const parsed = Number.parseInt(raw, 10)
+        return Number.isFinite(parsed) && parsed >= 0 ? parsed : 0
+    } catch {
+        return 0
+    }
+}
+
+function persistRunTimerSeconds(): void {
+    const payload = {
+        slotID: activeRunSlotID,
+        elapsedSeconds: runTimerSeconds
+    }
+    localStorage.setItem(RUN_TIMER_STORAGE_KEY, JSON.stringify(payload))
+}
+
+function formatRunTimer(totalSeconds: number): string {
+    const seconds = totalSeconds % 60
+    const minutesTotal = Math.floor(totalSeconds / 60)
+    if (minutesTotal >= 60) {
+        const hours = Math.floor(minutesTotal / 60)
+        const minutes = minutesTotal % 60
+        return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`
+    }
+    return `${minutesTotal}:${seconds.toString().padStart(2, '0')}`
+}
+
+function renderRunTimer(): void {
+    const runTimerDisplay = document.getElementById('runTimerDisplay')
+    if (!runTimerDisplay) return
+    if (activeRunSlotID === null) {
+        runTimerDisplay.setAttribute('hidden', '')
+        return
+    }
+    runTimerDisplay.removeAttribute('hidden')
+    const formatted = formatRunTimer(runTimerSeconds)
+    runTimerDisplay.textContent = formatted
+}
+
+function runTimerActive(): boolean {
+    return document.visibilityState === 'visible' && document.hasFocus()
+}
+
+function tickRunTimer(): void {
+    if (activeRunSlotID === null || !runTimerActive()) return
+    runTimerSeconds += 1
+    persistRunTimerSeconds()
+    const slots = loadSaveSlots()
+    const index = slots.findIndex(slot => slot.id === activeRunSlotID)
+    if (index >= 0) {
+        slots[index].elapsedSeconds = runTimerSeconds
+        persistSaveSlots(slots)
+    }
+    renderRunTimer()
+}
+
+function initRunTimer(): void {
+    runTimerSeconds = loadRunTimerSeconds()
+    renderRunTimer()
+    if (runTimerIntervalID === null) {
+        runTimerIntervalID = window.setInterval(tickRunTimer, 1000)
+    }
+    document.addEventListener('visibilitychange', renderRunTimer)
+    window.addEventListener('focus', renderRunTimer)
+    window.addEventListener('blur', renderRunTimer)
+}
 
 interface SaveSlot {
     id: string
     updatedAt: number
     seed: string
+    elapsedSeconds: number
     snapshot: SerializedMetaGame
 }
 
@@ -71,10 +151,17 @@ function loadSaveSlots(): SaveSlot[] {
     try {
         const raw = localStorage.getItem(SAVE_STORAGE_KEY)
         if (!raw) return []
-        const parsed = JSON.parse(raw) as SaveSlot[]
+        const parsed = JSON.parse(raw) as Array<Partial<SaveSlot> & { id?: unknown, seed?: unknown, snapshot?: unknown, updatedAt?: unknown, elapsedSeconds?: unknown }>
         if (!Array.isArray(parsed)) return []
         return parsed
-            .filter(slot => slot && slot.id && slot.snapshot && slot.seed)
+            .filter(slot => slot && typeof slot.id === 'string' && slot.snapshot && typeof slot.seed === 'string')
+            .map(slot => ({
+                id: slot.id as string,
+                seed: slot.seed as string,
+                snapshot: slot.snapshot as SerializedMetaGame,
+                updatedAt: (typeof slot.updatedAt === 'number' && Number.isFinite(slot.updatedAt)) ? slot.updatedAt : 0,
+                elapsedSeconds: (typeof slot.elapsedSeconds === 'number' && Number.isFinite(slot.elapsedSeconds) && slot.elapsedSeconds >= 0) ? slot.elapsedSeconds : 0,
+            }))
             .sort((a, b) => b.updatedAt - a.updatedAt)
     } catch {
         return []
@@ -87,12 +174,16 @@ function persistSaveSlots(slots: SaveSlot[]): void {
     localStorage.setItem(SAVE_STORAGE_KEY, JSON.stringify(sorted))
 }
 
-function upsertSaveSlot(id: string, snapshot: SerializedMetaGame): void {
+function upsertSaveSlot(id: string, snapshot: SerializedMetaGame, elapsedSeconds: number): void {
     const slots = loadSaveSlots()
+    const normalizedElapsed = Number.isFinite(elapsedSeconds) && elapsedSeconds >= 0
+        ? Math.floor(elapsedSeconds)
+        : 0
     const updated: SaveSlot = {
         id,
         updatedAt: Date.now(),
         seed: snapshot.seed,
+        elapsedSeconds: normalizedElapsed,
         snapshot
     }
     const index = slots.findIndex(slot => slot.id === id)
@@ -370,10 +461,15 @@ async function runGame(
     slotID: string,
     snapshot: SerializedMetaGame | null,
     seed: string,
-    newGameDebugEnabled: boolean = false
+    newGameDebugEnabled: boolean = false,
+    initialElapsedSeconds: number = 0
 ): Promise<void> {
     const debugEnabled = snapshot ? isDebugGame(snapshot) : newGameDebugEnabled
     const activeTest: DebugTestConfig | null = debugEnabled ? test : null
+    activeRunSlotID = slotID
+    runTimerSeconds = Math.max(0, Math.floor(initialElapsedSeconds))
+    persistRunTimerSeconds()
+    renderRunTimer()
     const seedDisplay = document.getElementById('seedDisplay')
     if (seedDisplay) seedDisplay.textContent = `Seed: ${seed}`
     setCoreUIVisible(true)
@@ -382,7 +478,7 @@ async function runGame(
 
     const metaUI = new MetaGameUI()
     const saveCallback = (nextSnapshot: SerializedMetaGame) => {
-        upsertSaveSlot(slotID, nextSnapshot)
+        upsertSaveSlot(slotID, nextSnapshot, runTimerSeconds)
     }
 
     try {
@@ -392,6 +488,8 @@ async function runGame(
         console.error(error)
         alert('Failed to load or run this game. You can abandon it from the launcher.')
     } finally {
+        activeRunSlotID = null
+        renderRunTimer()
         renderLauncher()
     }
 }
@@ -418,7 +516,7 @@ async function runReplayFromSnapshot(slot: SaveSlot, stage: number): Promise<voi
         const bufferDisplay = document.getElementById('bufferDisplay')
         if (bufferDisplay) {
             const debugTag = state.debugEnabled ? ' [Debug]' : ''
-            bufferDisplay.textContent = `Buffer: ${replayData.bufferBeforeCourse}${debugTag}`
+            setBufferDisplayText(`Buffer: ${replayData.bufferBeforeCourse}${debugTag}`)
         }
         await startGame(
             replaySpecForStage(state, replayData),
@@ -601,9 +699,10 @@ function createSaveRow(slot: SaveSlot, onAbandon: () => void): HTMLElement {
     const primary = document.createElement('div')
     const done = slot.snapshot.data.phase === 'game_over' || slot.snapshot.data.stage >= 8
     const debugTag = isDebugGame(slot.snapshot) ? ' [Debug]' : ''
+    const timerSummary = formatRunTimer(slot.elapsedSeconds)
     primary.textContent = done
-        ? `Victory! • Buffer ${slot.snapshot.data.buffer}${debugTag}`
-        : `Stage ${slot.snapshot.data.stage + 1} • Buffer ${slot.snapshot.data.buffer}${debugTag}`
+        ? `Victory! • Buffer ${slot.snapshot.data.buffer}${debugTag} • ${timerSummary}`
+        : `Stage ${slot.snapshot.data.stage + 1} • Buffer ${slot.snapshot.data.buffer}${debugTag} • ${timerSummary}`
     if (slot.snapshot.data.buffer < 0) {
         primary.className = 'negativeBuffer'
     }
@@ -619,7 +718,7 @@ function createSaveRow(slot: SaveSlot, onAbandon: () => void): HTMLElement {
         const continueButton = document.createElement('button')
         continueButton.className = 'launcherBtn'
         continueButton.textContent = 'Continue'
-        continueButton.onclick = async () => runGame(slot.id, slot.snapshot, slot.seed)
+        continueButton.onclick = async () => runGame(slot.id, slot.snapshot, slot.seed, false, slot.elapsedSeconds)
         actions.appendChild(continueButton)
     }
     const viewButton = document.createElement('button')
@@ -753,7 +852,7 @@ function renderLauncher(): void {
         const startNewGame = async () => {
             const seed = normalizeSeed(seedInput.value) || randomString()
             const slotID = `${Date.now()}-${Math.floor(Math.random() * 1_000_000)}`
-            await runGame(slotID, null, seed, debugNewGame)
+            await runGame(slotID, null, seed, debugNewGame, 0)
         }
         startButton.onclick = startNewGame
         seedInput.addEventListener('keydown', async (event: KeyboardEvent) => {
@@ -826,5 +925,6 @@ function renderLauncher(): void {
 
 // Start the game when the page loads
 window.addEventListener('load', async () => {
+    initRunTimer()
     renderLauncher()
 })
