@@ -11123,7 +11123,7 @@
       text: ["After buying a card costing $1 or more, remove a charge token from this to buy a card\n        in the supply that costs at least $1 less."],
       simpleText: ["The next two times you buy a card, immediately buy a cheaper card."],
       handles: function(e, s, c) {
-        return s.find(c).charge > 0 && e.card.cost("buy", s) >= coin(1);
+        return s.find(c).charge > 0 && leq(coin(1), e.card.cost("buy", s));
       },
       transform: function(e, s, c) {
         return payToDo(discharge(c, 1), buyCheaper(e.card, s, c));
@@ -16721,7 +16721,7 @@
     throw new TypeError(s ? "Object is not iterable." : "Symbol.iterator is not defined.");
   };
   var test = {
-    rewards: [],
+    rewards: [[1, ["event", haggle]]],
     challenges: []
   };
   var SAVE_STORAGE_KEY = "roguelike.ongoingSaves.v1";

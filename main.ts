@@ -20,9 +20,10 @@ import { renderSpecNoRelated } from './cardRendering.js'
 import { Card, CardSpec, UndoPastBeginning } from './gameLogic.js'
 
 import type { DebugTestConfig } from './metaLogic.js'
+import { haggle } from './data/events.js'
 
 let test: DebugTestConfig | null = {
-    rewards: [],
+    rewards: [[1, ['event', haggle]]],
     challenges: []
 }
 

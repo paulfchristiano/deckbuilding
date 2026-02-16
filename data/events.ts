@@ -379,7 +379,7 @@ export const haggle:CardSpec = {
         text: [`After buying a card costing $1 or more, remove a charge token from this to buy a card
         in the supply that costs at least $1 less.`],
         simpleText: [`The next two times you buy a card, immediately buy a cheaper card.`],
-        handles: (e, s, c) => s.find(c!).charge > 0 && e.card.cost('buy', s) >= coin(1),
+        handles: (e, s, c) => s.find(c!).charge > 0 && leq(coin(1), e.card.cost('buy', s)),
         transform: (e, s, c) => payToDo(discharge(c!, 1), buyCheaper(e.card, s, c)),
     }]
 }
