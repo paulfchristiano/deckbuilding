@@ -725,6 +725,7 @@ import { Generator, randomString } from './rng.js'
 interface MetaStateOptions {
     debugEnabled?: boolean
     burdensEnabled?: boolean
+    scarcityEnabled?: boolean
 }
 
 export class MetaState {
@@ -735,6 +736,7 @@ export class MetaState {
     public readonly seed: string
     public readonly debugEnabled: boolean
     public readonly burdensEnabled: boolean
+    public readonly scarcityEnabled: boolean
     public masterGenerator: Generator
     public generators: Map<string, Generator> = new Map()
     public data: MetaStateData
@@ -750,6 +752,7 @@ export class MetaState {
         this.onChange = onChange
         this.debugEnabled = options.debugEnabled ?? false
         this.burdensEnabled = options.burdensEnabled ?? false
+        this.scarcityEnabled = options.scarcityEnabled ?? false
         if (seed === null) {
             this.seed = randomString()
         } else {
@@ -1078,6 +1081,7 @@ export interface SerializedMetaGame {
     seed: string
     debugEnabled?: boolean
     burdensEnabled?: boolean
+    scarcityEnabled?: boolean
     masterGeneratorState: number
     generatorStates: Array<{ key: string, state: number }>
     data: SerializedMetaStateData
@@ -1538,6 +1542,7 @@ export function serializeMetaGame(state: MetaState): SerializedMetaGame {
         seed: state.seed,
         debugEnabled: state.debugEnabled,
         burdensEnabled: state.burdensEnabled,
+        scarcityEnabled: state.scarcityEnabled,
         masterGeneratorState: state.masterGenerator.exportState(),
         generatorStates: [...state.generators.entries()].map(([key, generator]) => ({
             key,
@@ -1563,7 +1568,8 @@ export function deserializeMetaGame(
     }
     const debugEnabled = serialized.debugEnabled ?? false
     const burdensEnabled = serialized.burdensEnabled ?? false
-    const state = new MetaState(ui, serialized.seed, onChange, { debugEnabled, burdensEnabled })
+    const scarcityEnabled = serialized.scarcityEnabled ?? false
+    const state = new MetaState(ui, serialized.seed, onChange, { debugEnabled, burdensEnabled, scarcityEnabled })
     state.masterGenerator = Generator.fromState(serialized.masterGeneratorState)
     state.generators = new Map(
         serialized.generatorStates.map(entry => [entry.key, Generator.fromState(entry.state)])
@@ -1843,12 +1849,37 @@ function signedAmount(amount: number): string {
     return amount > 0 ? `+${amount}` : `${amount}`
 }
 
+function scarcityParAdjustment(stage: number, state: MetaState): number {
+    return state.scarcityEnabled && stage < TOTAL_STAGES - 1 ? -1 : 0
+}
+
+export function displayBasePar(stage: number, state: MetaState): number | null {
+    const basePar = BASE_PARS[stage]
+    if (basePar === undefined) return null
+    return Math.max(0, basePar + scarcityParAdjustment(stage, state))
+}
+
+export function describeBasePar(stage: number, state: MetaState): string {
+    const basePar = BASE_PARS[stage]
+    if (basePar === undefined) return ''
+    const scarcityDelta = scarcityParAdjustment(stage, state)
+    if (scarcityDelta === 0) return `${basePar} (base)`
+    const adjusted = displayBasePar(stage, state)
+    if (adjusted === null) return `${basePar} (base)`
+    return `${basePar} (base), ${signedAmount(scarcityDelta)} for scarcity, = ${adjusted}`
+}
+
 export function describeParCalculation(stage: number, challenge: ChallengeSpec | null | undefined, relicCards: Card[], state: MetaState): string {
     const basePar = BASE_PARS[stage]
     if (basePar === undefined) return ''
 
     const parts = [`${basePar} (base)`]
     let par = basePar
+    const scarcityDelta = scarcityParAdjustment(stage, state)
+    if (scarcityDelta !== 0) {
+        par += scarcityDelta
+        parts.push(`${signedAmount(scarcityDelta)} for scarcity`)
+    }
     if (challenge !== null && challenge !== undefined) {
         for (const boon of challenge.boons) {
             par += boon.parAdjustment
@@ -1896,7 +1927,7 @@ function stageTooltipTexts(state: MetaState): (string | null)[] {
         if (stage === state.data.stage && state.data.challenges.length === 1) {
             return describeParCalculation(stage, state.data.challenges[0], state.data.relics, state)
         }
-        return `${basePar} (base)`
+        return describeBasePar(stage, state)
     })
 }
 
@@ -1925,6 +1956,7 @@ async function trigger<T extends MetaGameEvent>(e:T, state: MetaState): Promise<
 // Create a spec for a given challenge.
 export function makeSpec(state: MetaState, challenge: ChallengeSpec): GameSpec {
     let par = BASE_PARS[state.data.stage]
+    par += scarcityParAdjustment(state.data.stage, state)
     const vpTarget = challenge.vpMode.target
     const cards = challenge.vpMode.cards.slice()
     const events = challenge.vpMode.events.slice()
@@ -2716,11 +2748,12 @@ export async function playGame(
     initialSnapshot: SerializedMetaGame | null = null,
     onStateChange: ((snapshot: SerializedMetaGame) => void) | null = null,
     debugEnabled: boolean = false,
-    burdensEnabled: boolean = false
+    burdensEnabled: boolean = false,
+    scarcityEnabled: boolean = false
 ): Promise<void> {
     const state: MetaState = initialSnapshot
         ? deserializeMetaGame(ui, initialSnapshot, null)
-        : new MetaState(ui, seed, null, { debugEnabled, burdensEnabled })
+        : new MetaState(ui, seed, null, { debugEnabled, burdensEnabled, scarcityEnabled })
     state.setChangeListener(onStateChange ? () => onStateChange!(serializeMetaGame(state)) : null)
     const tests = state.debugEnabled
         ? normalizeTests(test)

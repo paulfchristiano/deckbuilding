@@ -27,6 +27,7 @@ const SAVE_STORAGE_KEY = 'roguelike.ongoingSaves.v1'
 const RUN_TIMER_STORAGE_KEY = 'roguelike.runTimerSeconds.v1'
 const HELP_SEEN_STORAGE_KEY = 'roguelike.helpSeen.v1'
 const BURDENS_SETTING_STORAGE_KEY = 'roguelike.newGameBurdensEnabled.v1'
+const SCARCITY_SETTING_STORAGE_KEY = 'roguelike.newGameScarcityEnabled.v1'
 const MAX_LAUNCHER_SAVES = 10
 
 let runTimerSeconds = 0
@@ -34,6 +35,7 @@ let activeRunSlotID: string | null = null
 let runTimerIntervalID: number | null = null
 let removeHelpEscapeHandler: (() => void) | null = null
 let newGameBurdensEnabled = false
+let newGameScarcityEnabled = false
 
 const HELP_ITEMS: string[] = [
     'Click new game to start a game. You can press escape to return to this screen, and resume games at any time.',
@@ -159,9 +161,21 @@ function isBurdensGame(snapshot: SerializedMetaGame): boolean {
     return snapshot.burdensEnabled === true
 }
 
+function isScarcityGame(snapshot: SerializedMetaGame): boolean {
+    return snapshot.scarcityEnabled === true
+}
+
 function loadNewGameBurdensEnabled(): boolean {
     try {
         return localStorage.getItem(BURDENS_SETTING_STORAGE_KEY) === '1'
+    } catch {
+        return false
+    }
+}
+
+function loadNewGameScarcityEnabled(): boolean {
+    try {
+        return localStorage.getItem(SCARCITY_SETTING_STORAGE_KEY) === '1'
     } catch {
         return false
     }
@@ -175,10 +189,28 @@ function persistNewGameBurdensEnabled(): void {
     }
 }
 
+function persistNewGameScarcityEnabled(): void {
+    try {
+        localStorage.setItem(SCARCITY_SETTING_STORAGE_KEY, newGameScarcityEnabled ? '1' : '0')
+    } catch {
+        // no-op
+    }
+}
+
 function updateLauncherBurdensTag(): void {
     const tag = document.getElementById('launcherBurdensTag')
     if (!tag) return
     if (newGameBurdensEnabled) {
+        tag.removeAttribute('hidden')
+    } else {
+        tag.setAttribute('hidden', '')
+    }
+}
+
+function updateLauncherScarcityTag(): void {
+    const tag = document.getElementById('launcherScarcityTag')
+    if (!tag) return
+    if (newGameScarcityEnabled) {
         tag.removeAttribute('hidden')
     } else {
         tag.setAttribute('hidden', '')
@@ -334,6 +366,11 @@ function ensureLauncherStyles(): void {
         .burdenTag {
             font-size: 0.8em;
             color: #3d6fdc;
+            margin-left: 6px;
+        }
+        .scarcityTag {
+            font-size: 0.8em;
+            color: #c53838;
             margin-left: 6px;
         }
         .saveActions {
@@ -597,10 +634,12 @@ async function runGame(
     seed: string,
     newGameDebugEnabled: boolean = false,
     initialElapsedSeconds: number = 0,
-    newGameBurdensSetting: boolean = false
+    newGameBurdensSetting: boolean = false,
+    newGameScarcitySetting: boolean = false
 ): Promise<void> {
     const debugEnabled = snapshot ? isDebugGame(snapshot) : newGameDebugEnabled
     const burdensEnabled = snapshot ? isBurdensGame(snapshot) : newGameBurdensSetting
+    const scarcityEnabled = snapshot ? isScarcityGame(snapshot) : newGameScarcitySetting
     const activeTest: DebugTestConfig | null = debugEnabled ? test : null
     activeRunSlotID = slotID
     runTimerSeconds = Math.max(0, Math.floor(initialElapsedSeconds))
@@ -618,7 +657,7 @@ async function runGame(
     }
 
     try {
-        await playGame(metaUI, activeTest, seed, snapshot, saveCallback, debugEnabled, burdensEnabled)
+        await playGame(metaUI, activeTest, seed, snapshot, saveCallback, debugEnabled, burdensEnabled, scarcityEnabled)
     } catch (error) {
         if (error instanceof ExitToLauncher) return
         console.error(error)
@@ -728,6 +767,29 @@ function openChallengesDialog(): void {
     row.appendChild(checkbox)
     row.appendChild(label)
     card.appendChild(row)
+
+    const scarcityRow = document.createElement('label')
+    scarcityRow.className = 'challengeSettingRow'
+    const scarcityCheckbox = document.createElement('input')
+    scarcityCheckbox.type = 'checkbox'
+    scarcityCheckbox.checked = newGameScarcityEnabled
+    scarcityCheckbox.onchange = () => {
+        newGameScarcityEnabled = scarcityCheckbox.checked
+        persistNewGameScarcityEnabled()
+        updateLauncherScarcityTag()
+    }
+    const scarcityLabel = document.createElement('div')
+    scarcityLabel.className = 'challengeSettingLabel'
+    const scarcityName = document.createElement('span')
+    scarcityName.textContent = 'Scarcity'
+    const scarcityHint = document.createElement('span')
+    scarcityHint.className = 'challengeSettingHint'
+    scarcityHint.textContent = 'Reduce par by 1 on every stage before the last.'
+    scarcityLabel.appendChild(scarcityName)
+    scarcityLabel.appendChild(scarcityHint)
+    scarcityRow.appendChild(scarcityCheckbox)
+    scarcityRow.appendChild(scarcityLabel)
+    card.appendChild(scarcityRow)
 
     const actions = document.createElement('div')
     actions.className = 'saveActions'
@@ -880,6 +942,12 @@ function openViewDialog(slot: SaveSlot): void {
         burdenTag.textContent = '(burdens)'
         status.appendChild(burdenTag)
     }
+    if (isScarcityGame(slot.snapshot)) {
+        const scarcityTag = document.createElement('span')
+        scarcityTag.className = 'scarcityTag'
+        scarcityTag.textContent = '(scarcity)'
+        status.appendChild(scarcityTag)
+    }
     if (state.data.buffer < 0) status.className = 'negativeBuffer'
     card.appendChild(status)
     const relicDisplaySpecs = state.data.relics.map(relic => relic.spec)
@@ -958,6 +1026,12 @@ function createSaveRow(slot: SaveSlot, onAbandon: () => void): HTMLElement {
         burdenTag.className = 'burdenTag'
         burdenTag.textContent = '(burdens)'
         primary.appendChild(burdenTag)
+    }
+    if (isScarcityGame(slot.snapshot)) {
+        const scarcityTag = document.createElement('span')
+        scarcityTag.className = 'scarcityTag'
+        scarcityTag.textContent = '(scarcity)'
+        primary.appendChild(scarcityTag)
     }
     if (slot.snapshot.data.buffer < 0) {
         primary.className = 'negativeBuffer'
@@ -1080,8 +1154,16 @@ function renderLauncher(): void {
     if (!newGameBurdensEnabled) {
         burdenTag.setAttribute('hidden', '')
     }
+    const scarcityTag = document.createElement('span')
+    scarcityTag.id = 'launcherScarcityTag'
+    scarcityTag.className = 'scarcityTag'
+    scarcityTag.textContent = '(scarcity)'
+    if (!newGameScarcityEnabled) {
+        scarcityTag.setAttribute('hidden', '')
+    }
     titleRow.appendChild(title)
     titleRow.appendChild(burdenTag)
+    titleRow.appendChild(scarcityTag)
     const headerActions = document.createElement('div')
     headerActions.className = 'saveActions'
     const newButton = document.createElement('button')
@@ -1119,7 +1201,7 @@ function renderLauncher(): void {
         const startNewGame = async () => {
             const seed = normalizeSeed(seedInput.value) || randomString()
             const slotID = `${Date.now()}-${Math.floor(Math.random() * 1_000_000)}`
-            await runGame(slotID, null, seed, debugNewGame, 0, newGameBurdensEnabled)
+            await runGame(slotID, null, seed, debugNewGame, 0, newGameBurdensEnabled, newGameScarcityEnabled)
         }
         startButton.onclick = startNewGame
         seedInput.addEventListener('keydown', async (event: KeyboardEvent) => {
@@ -1203,6 +1285,7 @@ function renderLauncher(): void {
     root.appendChild(card)
     document.body.appendChild(root)
     updateLauncherBurdensTag()
+    updateLauncherScarcityTag()
     if (!hasSeenHelp()) {
         markHelpSeen()
         openHelpDialog()
@@ -1212,6 +1295,7 @@ function renderLauncher(): void {
 // Start the game when the page loads
 window.addEventListener('load', async () => {
     newGameBurdensEnabled = loadNewGameBurdensEnabled()
+    newGameScarcityEnabled = loadNewGameScarcityEnabled()
     initRunTimer()
     renderLauncher()
 })

@@ -5177,7 +5177,7 @@
         if (options === void 0) {
           options = {};
         }
-        var _a, _b;
+        var _a, _b, _c;
         this.ui = ui;
         this.redoStack = [];
         this.undoStack = [];
@@ -5185,6 +5185,7 @@
         this.onChange = onChange;
         this.debugEnabled = (_a = options.debugEnabled) !== null && _a !== void 0 ? _a : false;
         this.burdensEnabled = (_b = options.burdensEnabled) !== null && _b !== void 0 ? _b : false;
+        this.scarcityEnabled = (_c = options.scarcityEnabled) !== null && _c !== void 0 ? _c : false;
         if (seed === null) {
           this.seed = randomString();
         } else {
@@ -5901,6 +5902,7 @@
       seed: state.seed,
       debugEnabled: state.debugEnabled,
       burdensEnabled: state.burdensEnabled,
+      scarcityEnabled: state.scarcityEnabled,
       masterGeneratorState: state.masterGenerator.exportState(),
       generatorStates: __spreadArray5([], __read6(state.generators.entries()), false).map(function(_a) {
         var _b = __read6(_a, 2), key = _b[0], generator = _b[1];
@@ -5919,7 +5921,7 @@
     };
   }
   function deserializeMetaGame(ui, serialized, onChange) {
-    var _a, _b, _c, _d;
+    var _a, _b, _c, _d, _e;
     if (onChange === void 0) {
       onChange = null;
     }
@@ -5928,7 +5930,8 @@
     }
     var debugEnabled = (_a = serialized.debugEnabled) !== null && _a !== void 0 ? _a : false;
     var burdensEnabled = (_b = serialized.burdensEnabled) !== null && _b !== void 0 ? _b : false;
-    var state = new MetaState(ui, serialized.seed, onChange, { debugEnabled, burdensEnabled });
+    var scarcityEnabled = (_c = serialized.scarcityEnabled) !== null && _c !== void 0 ? _c : false;
+    var state = new MetaState(ui, serialized.seed, onChange, { debugEnabled, burdensEnabled, scarcityEnabled });
     state.masterGenerator = Generator.fromState(serialized.masterGeneratorState);
     state.generators = new Map(serialized.generatorStates.map(function(entry) {
       return [entry.key, Generator.fromState(entry.state)];
@@ -5954,8 +5957,8 @@
     }
     var restoredGlobal = decodeUnknown(serialized.global);
     state.global = {
-      macros: (_c = restoredGlobal.macros) !== null && _c !== void 0 ? _c : [],
-      viewingMacros: (_d = restoredGlobal.viewingMacros) !== null && _d !== void 0 ? _d : false
+      macros: (_d = restoredGlobal.macros) !== null && _d !== void 0 ? _d : [],
+      viewingMacros: (_e = restoredGlobal.viewingMacros) !== null && _e !== void 0 ? _e : false
     };
     return state;
   }
@@ -6334,6 +6337,27 @@
   function signedAmount(amount) {
     return amount > 0 ? "+".concat(amount) : "".concat(amount);
   }
+  function scarcityParAdjustment(stage, state) {
+    return state.scarcityEnabled && stage < TOTAL_STAGES - 1 ? -1 : 0;
+  }
+  function displayBasePar(stage, state) {
+    var basePar = BASE_PARS[stage];
+    if (basePar === void 0)
+      return null;
+    return Math.max(0, basePar + scarcityParAdjustment(stage, state));
+  }
+  function describeBasePar(stage, state) {
+    var basePar = BASE_PARS[stage];
+    if (basePar === void 0)
+      return "";
+    var scarcityDelta = scarcityParAdjustment(stage, state);
+    if (scarcityDelta === 0)
+      return "".concat(basePar, " (base)");
+    var adjusted = displayBasePar(stage, state);
+    if (adjusted === null)
+      return "".concat(basePar, " (base)");
+    return "".concat(basePar, " (base), ").concat(signedAmount(scarcityDelta), " for scarcity, = ").concat(adjusted);
+  }
   function describeParCalculation(stage, challenge, relicCards, state) {
     var e_13, _a, e_14, _b, e_15, _c;
     var _d;
@@ -6342,6 +6366,11 @@
       return "";
     var parts = ["".concat(basePar, " (base)")];
     var par = basePar;
+    var scarcityDelta = scarcityParAdjustment(stage, state);
+    if (scarcityDelta !== 0) {
+      par += scarcityDelta;
+      parts.push("".concat(signedAmount(scarcityDelta), " for scarcity"));
+    }
     if (challenge !== null && challenge !== void 0) {
       try {
         for (var _e = __values4(challenge.boons), _f = _e.next(); !_f.done; _f = _e.next()) {
@@ -6422,7 +6451,7 @@
       if (stage === state.data.stage && state.data.challenges.length === 1) {
         return describeParCalculation(stage, state.data.challenges[0], state.data.relics, state);
       }
-      return "".concat(basePar, " (base)");
+      return describeBasePar(stage, state);
     });
   }
   function trigger2(e, state) {
@@ -6506,6 +6535,7 @@
   function makeSpec(state, challenge) {
     var e_18, _a;
     var par = BASE_PARS[state.data.stage];
+    par += scarcityParAdjustment(state.data.stage, state);
     var vpTarget = challenge.vpMode.target;
     var cards = challenge.vpMode.cards.slice();
     var events = challenge.vpMode.events.slice();
@@ -7366,7 +7396,7 @@
     }
   }
   function playGame2(ui_1) {
-    return __awaiter3(this, arguments, void 0, function(ui, test2, seed, initialSnapshot, onStateChange, debugEnabled, burdensEnabled) {
+    return __awaiter3(this, arguments, void 0, function(ui, test2, seed, initialSnapshot, onStateChange, debugEnabled, burdensEnabled, scarcityEnabled) {
       var state, tests, initialChallenges, initialPath, _a, _b, testSpec, initialBurdenTests, _loop_1, state_1;
       var e_27, _c;
       var _d, _e;
@@ -7388,10 +7418,13 @@
       if (burdensEnabled === void 0) {
         burdensEnabled = false;
       }
+      if (scarcityEnabled === void 0) {
+        scarcityEnabled = false;
+      }
       return __generator3(this, function(_f) {
         switch (_f.label) {
           case 0:
-            state = initialSnapshot ? deserializeMetaGame(ui, initialSnapshot, null) : new MetaState(ui, seed, null, { debugEnabled, burdensEnabled });
+            state = initialSnapshot ? deserializeMetaGame(ui, initialSnapshot, null) : new MetaState(ui, seed, null, { debugEnabled, burdensEnabled, scarcityEnabled });
             state.setChangeListener(onStateChange ? function() {
               return onStateChange(serializeMetaGame(state));
             } : null);
@@ -17377,8 +17410,9 @@
       var _loop_1 = function(stage2) {
         var display = { stage: stage2 };
         var basePar = BASE_PARS[stage2];
+        var shownBasePar = displayBasePar(stage2, state);
         var currentStagePar = stage2 === state.data.stage && state.data.challenges.length === 1 ? makeSpec(state, state.data.challenges[0]).par : null;
-        var tooltip = basePar === void 0 ? "" : "".concat(basePar, " (base)");
+        var tooltip = basePar === void 0 ? "" : describeBasePar(stage2, state);
         if (stage2 < state.data.stage) {
           var replayData = state.data.stageReplays[stage2];
           if (replayData !== null) {
@@ -17409,11 +17443,11 @@
           display.current = true;
           if (state.data.phase === "in_game" && currentStagePar !== null)
             display.scoreText = "?/".concat(currentStagePar);
-          else if (basePar !== void 0)
-            display.scoreText = "".concat(basePar);
+          else if (shownBasePar !== null)
+            display.scoreText = "".concat(shownBasePar);
         } else {
-          if (basePar !== void 0)
-            display.scoreText = "".concat(basePar);
+          if (shownBasePar !== null)
+            display.scoreText = "".concat(shownBasePar);
         }
         displays.push(display);
       };
@@ -18297,12 +18331,14 @@
   var RUN_TIMER_STORAGE_KEY = "roguelike.runTimerSeconds.v1";
   var HELP_SEEN_STORAGE_KEY = "roguelike.helpSeen.v1";
   var BURDENS_SETTING_STORAGE_KEY = "roguelike.newGameBurdensEnabled.v1";
+  var SCARCITY_SETTING_STORAGE_KEY = "roguelike.newGameScarcityEnabled.v1";
   var MAX_LAUNCHER_SAVES = 10;
   var runTimerSeconds = 0;
   var activeRunSlotID = null;
   var runTimerIntervalID = null;
   var removeHelpEscapeHandler = null;
   var newGameBurdensEnabled = false;
+  var newGameScarcityEnabled = false;
   var HELP_ITEMS = [
     "Click new game to start a game. You can press escape to return to this screen, and resume games at any time.",
     'There are 8 stages, each involves playing a round of engine-game. You can learn how to play at <a href="https://engine-game.com/tutorial" target="_blank" rel="noopener noreferrer">engine-game.com/tutorial</a>, though some of the cards are different.',
@@ -18451,9 +18487,19 @@
   function isBurdensGame(snapshot) {
     return snapshot.burdensEnabled === true;
   }
+  function isScarcityGame(snapshot) {
+    return snapshot.scarcityEnabled === true;
+  }
   function loadNewGameBurdensEnabled() {
     try {
       return localStorage.getItem(BURDENS_SETTING_STORAGE_KEY) === "1";
+    } catch (_a) {
+      return false;
+    }
+  }
+  function loadNewGameScarcityEnabled() {
+    try {
+      return localStorage.getItem(SCARCITY_SETTING_STORAGE_KEY) === "1";
     } catch (_a) {
       return false;
     }
@@ -18464,11 +18510,27 @@
     } catch (_a) {
     }
   }
+  function persistNewGameScarcityEnabled() {
+    try {
+      localStorage.setItem(SCARCITY_SETTING_STORAGE_KEY, newGameScarcityEnabled ? "1" : "0");
+    } catch (_a) {
+    }
+  }
   function updateLauncherBurdensTag() {
     var tag = document.getElementById("launcherBurdensTag");
     if (!tag)
       return;
     if (newGameBurdensEnabled) {
+      tag.removeAttribute("hidden");
+    } else {
+      tag.setAttribute("hidden", "");
+    }
+  }
+  function updateLauncherScarcityTag() {
+    var tag = document.getElementById("launcherScarcityTag");
+    if (!tag)
+      return;
+    if (newGameScarcityEnabled) {
       tag.removeAttribute("hidden");
     } else {
       tag.setAttribute("hidden", "");
@@ -18580,12 +18642,12 @@
       return;
     var style = document.createElement("style");
     style.id = "saveLauncherStyles";
-    style.textContent = "\n        #saveLauncher {\n            min-height: 100vh;\n            display: flex;\n            align-items: center;\n            justify-content: center;\n            background: #f6f6f8;\n            color: #222;\n            font-family: system-ui, -apple-system, sans-serif;\n        }\n        #saveLauncherCard {\n            width: min(760px, 92vw);\n            background: white;\n            border: 1px solid #ddd;\n            border-radius: 12px;\n            padding: 20px;\n            box-shadow: 0 8px 30px rgba(0,0,0,0.08);\n        }\n        #saveLauncherHeader {\n            display: flex;\n            align-items: center;\n            justify-content: space-between;\n            margin-bottom: 12px;\n        }\n        .launcherTitleRow {\n            display: flex;\n            align-items: flex-end;\n            gap: 8px;\n        }\n        #saveList {\n            display: flex;\n            flex-direction: column;\n            gap: 10px;\n            margin-top: 14px;\n        }\n        .saveRow {\n            border: 1px solid #ddd;\n            border-radius: 8px;\n            padding: 10px 12px;\n            display: flex;\n            align-items: center;\n            justify-content: space-between;\n            gap: 10px;\n            background: #fcfcfd;\n        }\n        .saveMeta {\n            display: flex;\n            flex-direction: column;\n            gap: 2px;\n        }\n        .saveSeed {\n            font-size: 0.8em;\n            color: #777;\n        }\n        .burdenTag {\n            font-size: 0.8em;\n            color: #3d6fdc;\n            margin-left: 6px;\n        }\n        .saveActions {\n            display: flex;\n            gap: 8px;\n        }\n        .launcherBtn {\n            border: 1px solid #bbb;\n            border-radius: 6px;\n            padding: 6px 10px;\n            background: #fff;\n            cursor: pointer;\n        }\n        .launcherBtn:hover {\n            border-color: #777;\n        }\n        .dangerBtn {\n            border-color: #d33;\n            color: #b11;\n        }\n        #newGameDialog {\n            position: fixed;\n            inset: 0;\n            display: flex;\n            align-items: center;\n            justify-content: center;\n            background: rgba(0,0,0,0.25);\n        }\n        #challengeSettingsDialog {\n            position: fixed;\n            inset: 0;\n            display: flex;\n            align-items: center;\n            justify-content: center;\n            background: rgba(0,0,0,0.25);\n            z-index: 45;\n        }\n        #challengeSettingsCard {\n            background: #fff;\n            border: 1px solid #ddd;\n            border-radius: 10px;\n            padding: 16px;\n            min-width: 320px;\n            display: flex;\n            flex-direction: column;\n            gap: 12px;\n        }\n        .challengeSettingRow {\n            display: flex;\n            align-items: flex-start;\n            gap: 10px;\n        }\n        .challengeSettingLabel {\n            display: flex;\n            flex-direction: column;\n            gap: 2px;\n        }\n        .challengeSettingHint {\n            font-size: 0.8em;\n            color: #777;\n        }\n        #allSavesDialog {\n            position: fixed;\n            inset: 0;\n            display: flex;\n            align-items: center;\n            justify-content: center;\n            background: rgba(0,0,0,0.25);\n            z-index: 45;\n        }\n        #helpDialog {\n            position: fixed;\n            inset: 0;\n            display: flex;\n            align-items: center;\n            justify-content: center;\n            background: rgba(0,0,0,0.25);\n            z-index: 46;\n        }\n        #helpCard {\n            width: min(760px, 94vw);\n            max-height: 86vh;\n            overflow-y: auto;\n            background: white;\n            border: 1px solid #ddd;\n            border-radius: 10px;\n            padding: 16px;\n            box-sizing: border-box;\n            display: flex;\n            flex-direction: column;\n            gap: 12px;\n        }\n        #helpList {\n            margin: 0;\n            padding-left: 20px;\n            display: flex;\n            flex-direction: column;\n            gap: 8px;\n            color: #333;\n        }\n        .helpFooter {\n            display: flex;\n            justify-content: flex-start;\n            margin-top: 6px;\n        }\n        .launcherFooter {\n            margin-top: 10px;\n            display: flex;\n            justify-content: flex-end;\n            align-items: center;\n            gap: 8px;\n        }\n        .launcherFooterWithLeft {\n            justify-content: space-between;\n        }\n        #allSavesCard {\n            width: min(900px, 95vw);\n            max-height: 90vh;\n            overflow: hidden;\n            background: white;\n            border: 1px solid #ddd;\n            border-radius: 10px;\n            padding: 16px;\n            box-sizing: border-box;\n            display: flex;\n            flex-direction: column;\n            gap: 12px;\n        }\n        #allSavesList {\n            overflow-y: auto;\n            display: flex;\n            flex-direction: column;\n            gap: 10px;\n            padding-right: 4px;\n        }\n        #newGameCard {\n            background: white;\n            border-radius: 10px;\n            border: 1px solid #ddd;\n            padding: 16px 28px 16px 16px;\n            width: auto;\n            max-width: 92vw;\n            box-sizing: border-box;\n            overflow: hidden;\n            display: flex;\n            flex-direction: column;\n            gap: 10px;\n        }\n        #newGameCard label {\n            font-size: 0.9em;\n            color: #555;\n        }\n        #newGameSeedInput {\n            display: block;\n            font-size: 1.1em;\n            padding: 8px;\n            border: 1px solid #ccc;\n            border-radius: 6px;\n            width: 260px;\n            max-width: 100%;\n            box-sizing: border-box;\n            align-self: flex-start;\n        }\n        #emptySaves {\n            font-size: 0.95em;\n            color: #666;\n            padding: 8px 2px;\n        }\n        .saveFootnote {\n            margin-top: 10px;\n            font-size: 0.85em;\n            color: #777;\n        }\n        .negativeBuffer {\n            color: #b00020;\n            font-weight: 700;\n        }\n        #viewGameDialog {\n            position: fixed;\n            inset: 0;\n            display: flex;\n            align-items: center;\n            justify-content: center;\n            background: rgba(0,0,0,0.3);\n            z-index: 50;\n            padding: 20px 0;\n        }\n        #viewGameCard {\n            width: min(1100px, 96vw);\n            max-height: calc(100vh - 40px);\n            overflow-y: auto;\n            background: white;\n            border: 1px solid #ddd;\n            border-radius: 10px;\n            padding: 16px;\n            box-sizing: border-box;\n            display: flex;\n            flex-direction: column;\n            gap: 12px;\n        }\n        .viewHeader {\n            display: flex;\n            justify-content: space-between;\n            align-items: center;\n            gap: 10px;\n        }\n        .viewDeckSection {\n            border: 1px solid #ddd;\n            border-radius: 8px;\n            padding: 8px;\n            background: #fcfcfd;\n        }\n        .viewDeckTitle {\n            font-weight: 600;\n            margin-bottom: 6px;\n            color: #333;\n        }\n        .viewDeckCards {\n            display: flex;\n            flex-wrap: wrap;\n            gap: 6px;\n        }\n        #viewTimeline {\n            border: 1px solid #ddd;\n            border-radius: 8px;\n            padding: 8px;\n            background: #fcfcfd;\n            display: flex;\n            flex-direction: column;\n            gap: 6px;\n        }\n        .timelineRow {\n            display: flex;\n            justify-content: space-between;\n            align-items: center;\n            gap: 10px;\n            border-bottom: 1px solid #eee;\n            padding: 4px 0;\n        }\n        .timelineText {\n            display: flex;\n            align-items: baseline;\n            gap: 8px;\n            flex-wrap: wrap;\n        }\n        .timelinePrimary {\n            font-size: 0.95em;\n            color: #333;\n        }\n        .timelineSecondary {\n            font-size: 0.82em;\n            color: #777;\n        }\n    ";
+    style.textContent = "\n        #saveLauncher {\n            min-height: 100vh;\n            display: flex;\n            align-items: center;\n            justify-content: center;\n            background: #f6f6f8;\n            color: #222;\n            font-family: system-ui, -apple-system, sans-serif;\n        }\n        #saveLauncherCard {\n            width: min(760px, 92vw);\n            background: white;\n            border: 1px solid #ddd;\n            border-radius: 12px;\n            padding: 20px;\n            box-shadow: 0 8px 30px rgba(0,0,0,0.08);\n        }\n        #saveLauncherHeader {\n            display: flex;\n            align-items: center;\n            justify-content: space-between;\n            margin-bottom: 12px;\n        }\n        .launcherTitleRow {\n            display: flex;\n            align-items: flex-end;\n            gap: 8px;\n        }\n        #saveList {\n            display: flex;\n            flex-direction: column;\n            gap: 10px;\n            margin-top: 14px;\n        }\n        .saveRow {\n            border: 1px solid #ddd;\n            border-radius: 8px;\n            padding: 10px 12px;\n            display: flex;\n            align-items: center;\n            justify-content: space-between;\n            gap: 10px;\n            background: #fcfcfd;\n        }\n        .saveMeta {\n            display: flex;\n            flex-direction: column;\n            gap: 2px;\n        }\n        .saveSeed {\n            font-size: 0.8em;\n            color: #777;\n        }\n        .burdenTag {\n            font-size: 0.8em;\n            color: #3d6fdc;\n            margin-left: 6px;\n        }\n        .scarcityTag {\n            font-size: 0.8em;\n            color: #c53838;\n            margin-left: 6px;\n        }\n        .saveActions {\n            display: flex;\n            gap: 8px;\n        }\n        .launcherBtn {\n            border: 1px solid #bbb;\n            border-radius: 6px;\n            padding: 6px 10px;\n            background: #fff;\n            cursor: pointer;\n        }\n        .launcherBtn:hover {\n            border-color: #777;\n        }\n        .dangerBtn {\n            border-color: #d33;\n            color: #b11;\n        }\n        #newGameDialog {\n            position: fixed;\n            inset: 0;\n            display: flex;\n            align-items: center;\n            justify-content: center;\n            background: rgba(0,0,0,0.25);\n        }\n        #challengeSettingsDialog {\n            position: fixed;\n            inset: 0;\n            display: flex;\n            align-items: center;\n            justify-content: center;\n            background: rgba(0,0,0,0.25);\n            z-index: 45;\n        }\n        #challengeSettingsCard {\n            background: #fff;\n            border: 1px solid #ddd;\n            border-radius: 10px;\n            padding: 16px;\n            min-width: 320px;\n            display: flex;\n            flex-direction: column;\n            gap: 12px;\n        }\n        .challengeSettingRow {\n            display: flex;\n            align-items: flex-start;\n            gap: 10px;\n        }\n        .challengeSettingLabel {\n            display: flex;\n            flex-direction: column;\n            gap: 2px;\n        }\n        .challengeSettingHint {\n            font-size: 0.8em;\n            color: #777;\n        }\n        #allSavesDialog {\n            position: fixed;\n            inset: 0;\n            display: flex;\n            align-items: center;\n            justify-content: center;\n            background: rgba(0,0,0,0.25);\n            z-index: 45;\n        }\n        #helpDialog {\n            position: fixed;\n            inset: 0;\n            display: flex;\n            align-items: center;\n            justify-content: center;\n            background: rgba(0,0,0,0.25);\n            z-index: 46;\n        }\n        #helpCard {\n            width: min(760px, 94vw);\n            max-height: 86vh;\n            overflow-y: auto;\n            background: white;\n            border: 1px solid #ddd;\n            border-radius: 10px;\n            padding: 16px;\n            box-sizing: border-box;\n            display: flex;\n            flex-direction: column;\n            gap: 12px;\n        }\n        #helpList {\n            margin: 0;\n            padding-left: 20px;\n            display: flex;\n            flex-direction: column;\n            gap: 8px;\n            color: #333;\n        }\n        .helpFooter {\n            display: flex;\n            justify-content: flex-start;\n            margin-top: 6px;\n        }\n        .launcherFooter {\n            margin-top: 10px;\n            display: flex;\n            justify-content: flex-end;\n            align-items: center;\n            gap: 8px;\n        }\n        .launcherFooterWithLeft {\n            justify-content: space-between;\n        }\n        #allSavesCard {\n            width: min(900px, 95vw);\n            max-height: 90vh;\n            overflow: hidden;\n            background: white;\n            border: 1px solid #ddd;\n            border-radius: 10px;\n            padding: 16px;\n            box-sizing: border-box;\n            display: flex;\n            flex-direction: column;\n            gap: 12px;\n        }\n        #allSavesList {\n            overflow-y: auto;\n            display: flex;\n            flex-direction: column;\n            gap: 10px;\n            padding-right: 4px;\n        }\n        #newGameCard {\n            background: white;\n            border-radius: 10px;\n            border: 1px solid #ddd;\n            padding: 16px 28px 16px 16px;\n            width: auto;\n            max-width: 92vw;\n            box-sizing: border-box;\n            overflow: hidden;\n            display: flex;\n            flex-direction: column;\n            gap: 10px;\n        }\n        #newGameCard label {\n            font-size: 0.9em;\n            color: #555;\n        }\n        #newGameSeedInput {\n            display: block;\n            font-size: 1.1em;\n            padding: 8px;\n            border: 1px solid #ccc;\n            border-radius: 6px;\n            width: 260px;\n            max-width: 100%;\n            box-sizing: border-box;\n            align-self: flex-start;\n        }\n        #emptySaves {\n            font-size: 0.95em;\n            color: #666;\n            padding: 8px 2px;\n        }\n        .saveFootnote {\n            margin-top: 10px;\n            font-size: 0.85em;\n            color: #777;\n        }\n        .negativeBuffer {\n            color: #b00020;\n            font-weight: 700;\n        }\n        #viewGameDialog {\n            position: fixed;\n            inset: 0;\n            display: flex;\n            align-items: center;\n            justify-content: center;\n            background: rgba(0,0,0,0.3);\n            z-index: 50;\n            padding: 20px 0;\n        }\n        #viewGameCard {\n            width: min(1100px, 96vw);\n            max-height: calc(100vh - 40px);\n            overflow-y: auto;\n            background: white;\n            border: 1px solid #ddd;\n            border-radius: 10px;\n            padding: 16px;\n            box-sizing: border-box;\n            display: flex;\n            flex-direction: column;\n            gap: 12px;\n        }\n        .viewHeader {\n            display: flex;\n            justify-content: space-between;\n            align-items: center;\n            gap: 10px;\n        }\n        .viewDeckSection {\n            border: 1px solid #ddd;\n            border-radius: 8px;\n            padding: 8px;\n            background: #fcfcfd;\n        }\n        .viewDeckTitle {\n            font-weight: 600;\n            margin-bottom: 6px;\n            color: #333;\n        }\n        .viewDeckCards {\n            display: flex;\n            flex-wrap: wrap;\n            gap: 6px;\n        }\n        #viewTimeline {\n            border: 1px solid #ddd;\n            border-radius: 8px;\n            padding: 8px;\n            background: #fcfcfd;\n            display: flex;\n            flex-direction: column;\n            gap: 6px;\n        }\n        .timelineRow {\n            display: flex;\n            justify-content: space-between;\n            align-items: center;\n            gap: 10px;\n            border-bottom: 1px solid #eee;\n            padding: 4px 0;\n        }\n        .timelineText {\n            display: flex;\n            align-items: baseline;\n            gap: 8px;\n            flex-wrap: wrap;\n        }\n        .timelinePrimary {\n            font-size: 0.95em;\n            color: #333;\n        }\n        .timelineSecondary {\n            font-size: 0.82em;\n            color: #777;\n        }\n    ";
     document.head.appendChild(style);
   }
   function runGame(slotID_1, snapshot_1, seed_1) {
-    return __awaiter13(this, arguments, void 0, function(slotID, snapshot, seed, newGameDebugEnabled, initialElapsedSeconds, newGameBurdensSetting) {
-      var debugEnabled, burdensEnabled, activeTest, seedDisplay, metaUI, saveCallback, error_1;
+    return __awaiter13(this, arguments, void 0, function(slotID, snapshot, seed, newGameDebugEnabled, initialElapsedSeconds, newGameBurdensSetting, newGameScarcitySetting) {
+      var debugEnabled, burdensEnabled, scarcityEnabled, activeTest, seedDisplay, metaUI, saveCallback, error_1;
       var _a;
       if (newGameDebugEnabled === void 0) {
         newGameDebugEnabled = false;
@@ -18596,11 +18658,15 @@
       if (newGameBurdensSetting === void 0) {
         newGameBurdensSetting = false;
       }
+      if (newGameScarcitySetting === void 0) {
+        newGameScarcitySetting = false;
+      }
       return __generator13(this, function(_b) {
         switch (_b.label) {
           case 0:
             debugEnabled = snapshot ? isDebugGame(snapshot) : newGameDebugEnabled;
             burdensEnabled = snapshot ? isBurdensGame(snapshot) : newGameBurdensSetting;
+            scarcityEnabled = snapshot ? isScarcityGame(snapshot) : newGameScarcitySetting;
             activeTest = debugEnabled ? test : null;
             activeRunSlotID = slotID;
             runTimerSeconds = Math.max(0, Math.floor(initialElapsedSeconds));
@@ -18619,7 +18685,7 @@
             _b.label = 1;
           case 1:
             _b.trys.push([1, 3, 4, 5]);
-            return [4, playGame2(metaUI, activeTest, seed, snapshot, saveCallback, debugEnabled, burdensEnabled)];
+            return [4, playGame2(metaUI, activeTest, seed, snapshot, saveCallback, debugEnabled, burdensEnabled, scarcityEnabled)];
           case 2:
             _b.sent();
             return [3, 5];
@@ -18757,6 +18823,28 @@
     row.appendChild(checkbox);
     row.appendChild(label);
     card.appendChild(row);
+    var scarcityRow = document.createElement("label");
+    scarcityRow.className = "challengeSettingRow";
+    var scarcityCheckbox = document.createElement("input");
+    scarcityCheckbox.type = "checkbox";
+    scarcityCheckbox.checked = newGameScarcityEnabled;
+    scarcityCheckbox.onchange = function() {
+      newGameScarcityEnabled = scarcityCheckbox.checked;
+      persistNewGameScarcityEnabled();
+      updateLauncherScarcityTag();
+    };
+    var scarcityLabel = document.createElement("div");
+    scarcityLabel.className = "challengeSettingLabel";
+    var scarcityName = document.createElement("span");
+    scarcityName.textContent = "Scarcity";
+    var scarcityHint = document.createElement("span");
+    scarcityHint.className = "challengeSettingHint";
+    scarcityHint.textContent = "Reduce par by 1 on every stage before the last.";
+    scarcityLabel.appendChild(scarcityName);
+    scarcityLabel.appendChild(scarcityHint);
+    scarcityRow.appendChild(scarcityCheckbox);
+    scarcityRow.appendChild(scarcityLabel);
+    card.appendChild(scarcityRow);
     var actions = document.createElement("div");
     actions.className = "saveActions";
     var close = document.createElement("button");
@@ -18937,6 +19025,12 @@
       burdenTag.textContent = "(burdens)";
       status.appendChild(burdenTag);
     }
+    if (isScarcityGame(slot.snapshot)) {
+      var scarcityTag = document.createElement("span");
+      scarcityTag.className = "scarcityTag";
+      scarcityTag.textContent = "(scarcity)";
+      status.appendChild(scarcityTag);
+    }
     if (state.data.buffer < 0)
       status.className = "negativeBuffer";
     card.appendChild(status);
@@ -19041,6 +19135,12 @@
       burdenTag.className = "burdenTag";
       burdenTag.textContent = "(burdens)";
       primary.appendChild(burdenTag);
+    }
+    if (isScarcityGame(slot.snapshot)) {
+      var scarcityTag = document.createElement("span");
+      scarcityTag.className = "scarcityTag";
+      scarcityTag.textContent = "(scarcity)";
+      primary.appendChild(scarcityTag);
     }
     if (slot.snapshot.data.buffer < 0) {
       primary.className = "negativeBuffer";
@@ -19182,8 +19282,16 @@
     if (!newGameBurdensEnabled) {
       burdenTag.setAttribute("hidden", "");
     }
+    var scarcityTag = document.createElement("span");
+    scarcityTag.id = "launcherScarcityTag";
+    scarcityTag.className = "scarcityTag";
+    scarcityTag.textContent = "(scarcity)";
+    if (!newGameScarcityEnabled) {
+      scarcityTag.setAttribute("hidden", "");
+    }
     titleRow.appendChild(title);
     titleRow.appendChild(burdenTag);
+    titleRow.appendChild(scarcityTag);
     var headerActions = document.createElement("div");
     headerActions.className = "saveActions";
     var newButton = document.createElement("button");
@@ -19222,7 +19330,7 @@
               case 0:
                 seed = normalizeSeed(seedInput.value) || randomString();
                 slotID = "".concat(Date.now(), "-").concat(Math.floor(Math.random() * 1e6));
-                return [4, runGame(slotID, null, seed, debugNewGame, 0, newGameBurdensEnabled)];
+                return [4, runGame(slotID, null, seed, debugNewGame, 0, newGameBurdensEnabled, newGameScarcityEnabled)];
               case 1:
                 _a2.sent();
                 return [
@@ -19347,6 +19455,7 @@
     root.appendChild(card);
     document.body.appendChild(root);
     updateLauncherBurdensTag();
+    updateLauncherScarcityTag();
     if (!hasSeenHelp()) {
       markHelpSeen();
       openHelpDialog();
@@ -19356,6 +19465,7 @@
     return __awaiter13(void 0, void 0, void 0, function() {
       return __generator13(this, function(_a) {
         newGameBurdensEnabled = loadNewGameBurdensEnabled();
+        newGameScarcityEnabled = loadNewGameScarcityEnabled();
         initRunTimer();
         renderLauncher();
         return [

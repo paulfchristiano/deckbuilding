@@ -5,7 +5,7 @@ import { Card, CardSpec, GameSpec, UndoPastBeginning, VictoryData } from './game
 import {
     MetaState, RewardState, Path, ChallengeSpec,
     MetaUI, MetaOption,
-    BASE_PARS, describeParCalculation,
+    BASE_PARS, describeParCalculation, describeBasePar, displayBasePar,
     makeSpec,
     ActiveGameProgress,
     renderChallenge,
@@ -203,6 +203,7 @@ function updateProgressSidebar(state: MetaState, onReplayStage?: (stage: number)
         for (let stage = 0; stage < BASE_PARS.length; stage++) {
             const display: ProgressStageDisplay = { stage }
             const basePar = BASE_PARS[stage]
+            const shownBasePar = displayBasePar(stage, state)
             const currentStagePar = (
                 stage === state.data.stage &&
                 state.data.challenges.length === 1
@@ -210,7 +211,7 @@ function updateProgressSidebar(state: MetaState, onReplayStage?: (stage: number)
                 ? makeSpec(state, state.data.challenges[0]).par
                 : null
 
-            let tooltip = basePar === undefined ? '' : `${basePar} (base)`
+            let tooltip = basePar === undefined ? '' : describeBasePar(stage, state)
             if (stage < state.data.stage) {
                 const replayData = state.data.stageReplays[stage]
                 if (replayData !== null) {
@@ -237,9 +238,9 @@ function updateProgressSidebar(state: MetaState, onReplayStage?: (stage: number)
             } else if (stage === state.data.stage) {
                 display.current = true
                 if (state.data.phase === 'in_game' && currentStagePar !== null) display.scoreText = `?/${currentStagePar}`
-                else if (basePar !== undefined) display.scoreText = `${basePar}`
+                else if (shownBasePar !== null) display.scoreText = `${shownBasePar}`
             } else {
-                if (basePar !== undefined) display.scoreText = `${basePar}`
+                if (shownBasePar !== null) display.scoreText = `${shownBasePar}`
             }
             displays.push(display)
         }
