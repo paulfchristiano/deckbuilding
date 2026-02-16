@@ -227,10 +227,10 @@ const construction:CardSpec = {name: 'Construction',
 cardRewards.push(construction)
 
 
-function chargeUpTo(max: number): Effect {
+function chargeUpTo(max: number, simpleText?: string[]): Effect {
     return {
         text: [`Put a charge token on this if it has less than ${max}.`],
-        simpleText: [`Increase X by 1 (max ${max}).`],
+        simpleText: simpleText,
         transform: (state, card) => (card.charge >= max) ? noop : charge(card, 1)
     }
 }
@@ -241,9 +241,9 @@ const investment:CardSpec = {name: investmentName,
     fixedCost: energy(0),
     effects: [{
         text: ['+$1 per charge token on this.'],
-        simpleText: ['+$X'],
+        simpleText: ['+$2'],
         transform: (state, card) => gainCoins(state.find(card).charge, card),
-    }, chargeUpTo(6)],
+    }, chargeUpTo(6, [`This creates $1 more each time you play it up to a max of $6.`])],
     staticReplacers: [startsWithCharge(investmentName, 2)]
 }
 cardRewards.push(investment)
@@ -267,6 +267,7 @@ export const shippingLane:CardSpec = {name: 'Shipping Lane',
     buyCost: coin(3),
     fixedCost: energy(1),
     effects: [coinsEffect(2), createInPlayEffect(bounty)],
+    relatedCards: [bounty],
 }
 cardRewards.push(shippingLane)
 
@@ -303,7 +304,8 @@ cardRewards.push(feast)
 
 const researcher:CardSpec = {name: 'Researcher',
     effects: [{
-        text: [`+X actions`],
+        text: [`+1 action for each charge token on this.`],
+        simpleText: [`+3 actions.`],
         transform: (state, card) => async function(state) {
             const n = state.find(card).charge
             state = await gainActions(n, card)(state)
@@ -327,9 +329,13 @@ const researcher:CardSpec = {name: 'Researcher',
             return state
             */
         }
-    }, chargeEffect()],
+    }, {
+        text: [`Put a charge token on this.`],
+        simpleText: [`This gets +1 action each time you play it.`],
+        transform: (state, card) => charge(card, 1)
+    }],
     buyCost: coin(5),
-    staticReplacers: [startsWithCharge('Researcher', 3)],
+    staticReplacers: [startsWithCharge('Researcher', 3, true)],
 }
 cardRewards.push(researcher)
 

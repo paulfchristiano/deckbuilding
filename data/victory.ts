@@ -70,10 +70,14 @@ const frontier: CardSpec = {
     buyCost: coin(6),
     effects: [{
         text: ['+1 vp per charge token on this.'],
-        simpleText: [`+X vp`],
+        simpleText: [`+1 vp`],
         transform: (state, card) => gainPoints(state.find(card).charge, card)
-    }, chargeEffect()],
-    staticReplacers: [startsWithCharge(frontierName, 1)]
+    }, {
+        text: ['Put a charge token on this.'],
+        simpleText: [`This gets +1 vp each time you play it.`],
+        transform: (state, card) => charge(card, 1)
+    }],
+    staticReplacers: [startsWithCharge(frontierName, 1, true)]
 }
 
 export const gardens: CardSpec = {
