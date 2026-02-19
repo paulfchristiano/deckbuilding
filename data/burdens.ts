@@ -2,7 +2,12 @@ import {
     Card,
     CardSpec,
     CardUpgrade,
+    CreateParams,
+    Effect,
     ResourceEvent,
+    State,
+    Token,
+    Transform,
     addCosts,
     addToken,
     coin,
@@ -87,13 +92,21 @@ const fakeCoin: RelicSpec = {
     burden: true,
     triggers: [{
         kind: 'beforeStart',
-        text: ['At the start of the game, put a decay token on a Copper without decay tokens.'],
+        text: ['At the start of the game, put a decay token on a Copper with the minimal number of decay tokens on it.'],
         simpleText: [`One of your coppers starts with a decay token.`],
         handles: () => true,
         transform: () => async function (state) {
-            const target = state.discard.find(card => card.name === copper.name && card.count('decay') === 0)
-            if (!target) return state
-            return addToken(target, 'decay')(state)
+            // Set target to be the copper with the smallest card.count('decay')
+            const target = state.discard.filter(card => card.name === copper.name).reduce((best, card) => {
+                if (!best) return card
+                if (card.count('decay') < best.count('decay')) return card
+                return best
+            }, null as Card | null)
+            if (target != null) {
+                return setDecayTransform(target, target.count('decay') + 1)(state)
+            } else {
+                return state
+            }
         }
     }],
     rules: [decayRule]
@@ -105,12 +118,12 @@ const miserlyTouch: RelicSpec = {
     burden: true,
     triggers: [{
         kind: 'beforeStart',
-        text: ['At the start of the game, put 3 decay tokens on each Copper in your discard without decay tokens.'],
+        text: ['At the start of the game, put 3 decay tokens on each Copper in your discard without decay tokens or with more than 3 tokens.'],
         simpleText: [`Your coppers start with 3 decay tokens.`],
         handles: () => true,
         transform: () => async function (state) {
-            for (const target of state.discard.filter(card => card.name === copper.name && card.count('decay') === 0)) {
-                state = await addToken(target, 'decay', 3)(state)
+            for (const target of state.discard.filter(card => card.name === copper.name)) {
+                state = await setDecayTransform(target, 3)(state)
             }
             return state
         }
@@ -231,19 +244,19 @@ const cursedSozu: RelicSpec = {
 }
 registerSpec(cursedSozu)
 
-const expensiveSozu: RelicSpec = {
-    name: 'Expensive Sozu',
+const expensiveFlask: RelicSpec = {
+    name: 'Expensive Flask',
     burden: true,
     staticReplacers: [{
         kind: 'cost',
-        text: ['Potions cost $2 more to drink.'],
+        text: ['Potions cost $1 more to drink.'],
         handles: params =>
             params.card.spec.isPotion === true
             && (params.actionKind === 'potion' || params.actionKind === 'use'),
-        replace: params => ({ ...params, cost: addCosts(params.cost, coin(2)) })
+        replace: params => ({ ...params, cost: addCosts(params.cost, coin(1)) })
     }]
 }
-registerSpec(expensiveSozu)
+registerSpec(expensiveFlask)
 
 const brokenCrown: RelicSpec = {
     name: 'Broken Crown',
@@ -265,18 +278,34 @@ const taxCardUpgrade: CardUpgrade = {
 }
 registerEncounterUpgrade('burden_tax_card', taxCardUpgrade)
 
+function setDecayTransform(card: Card, numTokens: number): Transform {
+    return async function (state: State) {
+        const currentCount = card.count('decay')
+        if (currentCount < numTokens && currentCount > 0) return state // Don't increase decay tokens
+        state = await addToken(card, 'decay', numTokens - currentCount)(state)
+        return state
+    }
+} 
+
+function setDecayReplacer(numTokens: number): ((params: CreateParams) => CreateParams) {
+    return params => {
+        const tokens = new Map(params.tokens || [])
+        if (!tokens.has('decay') || tokens.get('decay')! > numTokens) {
+            tokens.set('decay', numTokens)
+        }
+        return { ...params, tokens }
+    }
+}
+
 const decayCardUpgrade: CardUpgrade = {
     id: 'burden_decay_card',
     name: name => `${name}-`,
     staticReplacers: [{
         kind: 'create',
-        text: ['When you buy this, put 2 decay tokens on it.'],
+        text: ['When you create this, if it has no decay tokens put 2 on it. If it has more than 2 decay tokens, remove all but 2.'],
+        simpleText: [`This is created with 2 decay tokens on it.`],
         handles: (params, s, source) => params.zone === 'discard' && params.spec.name === source.name,
-        replace: params => {
-            const tokens = new Map(params.tokens || [])
-            incrementMap(tokens, 'decay', 2)
-            return { ...params, tokens }
-        }
+        replace: setDecayReplacer(2)
     }]
 }
 registerEncounterUpgrade('burden_decay_card', decayCardUpgrade)
@@ -327,23 +356,24 @@ relicBurdenOption(
 relicBurdenOption(
     'cursed_hourglass',
     cursedHourglass,
-    { maxStage: 5 }
+    { maxStage: TOTAL_STAGES - 2 }
 )
 
 relicBurdenOption(
     'cursed_doll',
     cursedDoll,
-    { maxStage: 5 }
+    { maxStage: TOTAL_STAGES - 3 }
 )
 
 relicBurdenOption(
     'cursed_sozu',
-    cursedSozu
+    cursedSozu,
+    { maxStage: TOTAL_STAGES - 2 }
 )
 
 relicBurdenOption(
-    'expensive_sozu',
-    expensiveSozu
+    'expensive_flask',
+    expensiveFlask
 )
 
 relicBurdenOption(
@@ -414,6 +444,7 @@ registerBurden({
     id: 'lose_buffer',
     title: 'Falter',
     description: 'Lose 1 buffer.',
+    weight: 2,
     applies: state => state.data.buffer > 0,
     resolveTransform: async () => async function (state: MetaState) {
         await addBuffer(-1)(state)
