@@ -36,6 +36,7 @@ import {
     move, moveMany,
     fountainEffect,
     reductionRule,
+    canCreate,
 } from '../gameLogic.js'
 import { registerSpec } from '../registry.js'
 
@@ -366,6 +367,7 @@ function buyCheaper(card:Card, s:State, source:Source): Transform {
         state => state.supply.filter(target => leq(
             addCosts(target.cost('buy', state), coin(1)),
             card.cost('buy', state))
+            && canCreate(target.spec, state)
         )
     )
 }
@@ -477,7 +479,10 @@ export const swap:CardSpec = {
         target => doAll([trash(target), applyToTarget(
             target2 => create(target2.spec, 'hand'),
             `Choose a card to copy.`,
-            state => state.supply.filter(sup => leq(sup.cost('buy', state), target.cost('buy', state)))
+            state => state.supply.filter(
+                sup => leq(sup.cost('buy', state), target.cost('buy', state))
+                    && canCreate(sup.spec, state)
+            )
         )]),
         `Trash a card in your hand. Choose a card in the supply with equal or lesser cost and create a copy in your hand.`,
         state => state.hand,

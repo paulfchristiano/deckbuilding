@@ -486,6 +486,7 @@ export class Card {
     }
     available(kind:ActionKind, state:State): boolean {
         if (kind == 'activate' && this.spec.ability === undefined) return false;
+        if (kind == 'buy' && !canCreate(this.spec, state)) return false
         for (const restriction of this.restrictions()) {
             if (restriction.test(this, state, kind))
                 return false
@@ -635,6 +636,7 @@ export type GameSpec = {
     metaStageScores?: (number | null)[],
     metaStagePars?: (number | null)[],
     metaStageTooltips?: (string | null)[],
+    metaCursesEnabled?: boolean,
     previousScore?: number | null,
     replayUsedPotionIDs?: number[],
     replayStage?: number | null
@@ -1076,6 +1078,7 @@ function trigger<T extends GameEvent>(e:T): Transform {
 interface ResourceParams {kind:'resource', resource:ResourceName, amount:number, source:Source, effects:Transform[]}
 export interface CostParams {kind:'cost', actionKind: ActionKind, card:Card, cost:Cost}
 interface CostIncreaseParams {kind:'costIncrease', actionKind: ActionKind, card:Card, cost:Cost}
+export interface CanCreateParams {kind:'canCreate', spec:CardSpec, canCreate:boolean}
 export interface MoveParams {kind:'move', card:Card, fromZone:PlaceName, toZone:PlaceName, effects:Transform[], skip:boolean}
 interface VictoryParams {kind: 'victory', victory: boolean}
 export interface CreateParams {
@@ -1086,13 +1089,13 @@ export interface CreateParams {
     effects:Array<(c:Card) => Transform>
 }
 
-type Params = ResourceParams | CostParams | MoveParams | CreateParams | CostIncreaseParams | VictoryParams
+type Params = ResourceParams | CostParams | MoveParams | CreateParams | CostIncreaseParams | CanCreateParams | VictoryParams
 export type TypedReplacer = Replacer<ResourceParams, Card> | Replacer<CostParams, Card> |
     Replacer<MoveParams, Card> | Replacer<CreateParams, Card> | Replacer<CostIncreaseParams, Card> |
-    Replacer<VictoryParams, Card>
+    Replacer<CanCreateParams, Card> | Replacer<VictoryParams, Card>
 type TypedRuleReplacer = Replacer<ResourceParams, Rule> | Replacer<CostParams, Rule> |
     Replacer<MoveParams, Rule> | Replacer<CreateParams, Rule> | Replacer<CostIncreaseParams, Rule> |
-    Replacer<VictoryParams, Rule>
+    Replacer<CanCreateParams, Rule> | Replacer<VictoryParams, Rule>
 
 function replace<T extends Params>(x: T, state: State): T {
     // First, process rule replacers
@@ -1254,6 +1257,7 @@ export function createAndTrack(
         let params:CreateParams = {kind:'create', spec:spec, zone:zone, effects:[], tokens:tokens}
         params = replace(params, state)
         spec = params.spec
+        if (!canCreate(spec, state)) return [null, state]
         let card:Card|null = null
         if (params.zone !=  null) {
             [state, card] = createRaw(state, spec, params.zone, params.tokens)
@@ -1266,6 +1270,11 @@ export function createAndTrack(
 
 export function createAndPlay(spec:CardSpec, source:Source): Transform {
     return create(spec, 'void', (c => c.play(source)))
+}
+
+export function canCreate(spec: CardSpec, state: State): boolean {
+    const params: CanCreateParams = replace({ kind: 'canCreate', spec, canCreate: true }, state)
+    return params.canCreate
 }
 
 export function move(card:Card, toZone:PlaceName, logged:boolean=false): Transform {
@@ -1484,6 +1493,7 @@ export type Token = 'charge' | 'cost' | 'mirror' | 'duplicate' | 'twin' | 'syner
     'reuse' | 'polish' | 'priority' | 'parallelize' | 'reduction' | 'reduce' |
     'strength' | 'mire' | 'onslaught' | 'accelerate' | 'reflect' | 'brigade' | 'bulk' |
     'pillage' | 'bargain' | 'splay' | 'crown' | 'ferry' | 'ideal' |
+    'inflation' | 'encumber' | 'inefficiency' |
     'logistics'
 
 export function discharge(card:Card, n:number): Transform {
@@ -2136,6 +2146,28 @@ export const shelterRule: Rule = {
 }
 registerRule(shelterRule)
 
+export const decayRule: Rule = {
+    name: 'Decay',
+    replacers: [{
+        text: ['Whenever a card with a decay token would move to your discard or leave play, remove a decay token from it. Then if it has no decay tokens, trash it instead.'],
+        simpleText: ['After playing a card remove a decay token. When the last is removed, trash the card.'],
+        kind: 'move',
+        handles: (params, state) =>
+            state.find(params.card).count('decay') > 0
+            && (params.toZone === 'discard' || params.fromZone === 'play'),
+        replace: (params, state) => {
+            const current = state.find(params.card)
+            const shouldTrash = current.count('decay') <= 1
+            return {
+                ...params,
+                toZone: shouldTrash ? 'void' : params.toZone,
+                effects: params.effects.concat([removeToken(current, 'decay', 1)])
+            }
+        }
+    }]
+}
+registerRule(decayRule)
+
 // Priority rule: cards created from supplies with priority tokens are played immediately
 export const priorityRule: Rule = {
     name: 'Priority',
@@ -2468,7 +2500,7 @@ export function sum<T>(xs:T[], f:(x:T) => number): number {
     return xs.map(f).reduce((a, b) => a+b)
 }
 
-export function countNameTokens(card:Card, token:Token, state:State): number {
+export function countNameTokens(card:Card | CardSpec, token:Token, state:State): number {
     return sum(
         state.supply,
         c => (c.name == card.name) ? c.count(token) : 0
@@ -2590,7 +2622,9 @@ export function workshopEffect(n:number, except:string):Effect {
         (target, card) => target.buy(card),
         `Buy a card in the supply costing up to $${n} not named ${except}.`,
         state => state.supply.filter(
-            x => leq(x.cost('buy', state), coin(n)) && x.name != except
+            x => leq(x.cost('buy', state), coin(n))
+                && x.name != except
+                && canCreate(x.spec, state)
         )
     )
 }

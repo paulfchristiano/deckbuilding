@@ -18,6 +18,7 @@ type MetaTextEntry = { text: string[] }
 type MetaTextSpec = CardSpec & {
     metaReplacers?: MetaTextEntry[]
     metaTriggers?: MetaTextEntry[]
+    burden?: boolean
     gainRequirement?: unknown
     mutableTriggers?: unknown
     mutableReplacers?: unknown
@@ -29,6 +30,7 @@ function asMetaTextSpec(spec: CardSpec): MetaTextSpec {
 
 function isRelicSpec(spec: CardSpec): boolean {
     const x = asMetaTextSpec(spec)
+    if (x.burden === true) return true
     if (x.metaReplacers !== undefined || x.metaTriggers !== undefined || x.gainRequirement !== undefined) return true
     if (x.mutableTriggers !== undefined || x.mutableReplacers !== undefined) return true
     return relicRewards.some(relic => relic.name === spec.name)
