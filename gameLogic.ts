@@ -18,7 +18,6 @@ export interface CardSpec {
     simpleText?: string[]; // Short description for card selector/deck view (one line per array element)
     isPotion?: boolean; // If true, trash after playing
     rules?: Rule[]; // Rules this card references (for tooltip display)
-    simpleRules?: Rule[]; // Optional rules used only in simple display text
     // Meta-game text entries (typed concretely in metaLogic.ts)
     metaReplacers?: { text: string[]; simpleText?: string[] }[];
     metaTriggers?: { text: string[]; simpleText?: string[] }[];
@@ -94,8 +93,7 @@ export function cardSpecSimpleLines(spec: CardSpec): string[] {
     for (const replacer of cardSpecStaticReplacers(spec)) {
         lines.push(...(replacer.simpleText ?? replacer.text))
     }
-    const simpleRules = spec.simpleRules !== undefined ? spec.simpleRules : (spec.rules || [])
-    for (const rule of simpleRules) {
+    for (const rule of (spec.rules || [])) {
         for (const trigger of (rule.triggers || [])) {
             lines.push(...(trigger.simpleText ?? trigger.text))
         }

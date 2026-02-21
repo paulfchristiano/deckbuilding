@@ -400,7 +400,6 @@ const duplicateStart:CardSpec = {
         }
     }],
     rules: [duplicateRule],
-    simpleRules: [],
 }
 boons.push({
         name: 'Duplication',

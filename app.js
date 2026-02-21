@@ -320,34 +320,33 @@
         if (e_9) throw e_9.error;
       }
     }
-    var simpleRules = spec.simpleRules !== void 0 ? spec.simpleRules : spec.rules || [];
     try {
-      for (var simpleRules_1 = __values(simpleRules), simpleRules_1_1 = simpleRules_1.next(); !simpleRules_1_1.done; simpleRules_1_1 = simpleRules_1.next()) {
-        var rule = simpleRules_1_1.value;
+      for (var _12 = __values(spec.rules || []), _13 = _12.next(); !_13.done; _13 = _12.next()) {
+        var rule = _13.value;
         try {
-          for (var _12 = (e_11 = void 0, __values(rule.triggers || [])), _13 = _12.next(); !_13.done; _13 = _12.next()) {
-            var trigger_3 = _13.value;
+          for (var _14 = (e_11 = void 0, __values(rule.triggers || [])), _15 = _14.next(); !_15.done; _15 = _14.next()) {
+            var trigger_3 = _15.value;
             lines.push.apply(lines, __spreadArray([], __read((_u = trigger_3.simpleText) !== null && _u !== void 0 ? _u : trigger_3.text), false));
           }
         } catch (e_11_1) {
           e_11 = { error: e_11_1 };
         } finally {
           try {
-            if (_13 && !_13.done && (_j = _12.return)) _j.call(_12);
+            if (_15 && !_15.done && (_j = _14.return)) _j.call(_14);
           } finally {
             if (e_11) throw e_11.error;
           }
         }
         try {
-          for (var _14 = (e_12 = void 0, __values(rule.replacers || [])), _15 = _14.next(); !_15.done; _15 = _14.next()) {
-            var replacer = _15.value;
+          for (var _16 = (e_12 = void 0, __values(rule.replacers || [])), _17 = _16.next(); !_17.done; _17 = _16.next()) {
+            var replacer = _17.value;
             lines.push.apply(lines, __spreadArray([], __read((_v = replacer.simpleText) !== null && _v !== void 0 ? _v : replacer.text), false));
           }
         } catch (e_12_1) {
           e_12 = { error: e_12_1 };
         } finally {
           try {
-            if (_15 && !_15.done && (_k = _14.return)) _k.call(_14);
+            if (_17 && !_17.done && (_k = _16.return)) _k.call(_16);
           } finally {
             if (e_12) throw e_12.error;
           }
@@ -357,35 +356,35 @@
       e_10 = { error: e_10_1 };
     } finally {
       try {
-        if (simpleRules_1_1 && !simpleRules_1_1.done && (_h = simpleRules_1.return)) _h.call(simpleRules_1);
+        if (_13 && !_13.done && (_h = _12.return)) _h.call(_12);
       } finally {
         if (e_10) throw e_10.error;
       }
     }
     try {
-      for (var _16 = __values(spec.metaReplacers || []), _17 = _16.next(); !_17.done; _17 = _16.next()) {
-        var metaReplacer = _17.value;
+      for (var _18 = __values(spec.metaReplacers || []), _19 = _18.next(); !_19.done; _19 = _18.next()) {
+        var metaReplacer = _19.value;
         lines.push.apply(lines, __spreadArray([], __read((_w = metaReplacer.simpleText) !== null && _w !== void 0 ? _w : metaReplacer.text), false));
       }
     } catch (e_13_1) {
       e_13 = { error: e_13_1 };
     } finally {
       try {
-        if (_17 && !_17.done && (_l = _16.return)) _l.call(_16);
+        if (_19 && !_19.done && (_l = _18.return)) _l.call(_18);
       } finally {
         if (e_13) throw e_13.error;
       }
     }
     try {
-      for (var _18 = __values(spec.metaTriggers || []), _19 = _18.next(); !_19.done; _19 = _18.next()) {
-        var metaTrigger = _19.value;
+      for (var _20 = __values(spec.metaTriggers || []), _21 = _20.next(); !_21.done; _21 = _20.next()) {
+        var metaTrigger = _21.value;
         lines.push.apply(lines, __spreadArray([], __read((_x = metaTrigger.simpleText) !== null && _x !== void 0 ? _x : metaTrigger.text), false));
       }
     } catch (e_14_1) {
       e_14 = { error: e_14_1 };
     } finally {
       try {
-        if (_19 && !_19.done && (_m = _18.return)) _m.call(_18);
+        if (_21 && !_21.done && (_m = _20.return)) _m.call(_20);
       } finally {
         if (e_14) throw e_14.error;
       }
@@ -4296,8 +4295,7 @@
     return "".concat(mine).concat(related);
   }
   function buildSpecTooltipOnlyRelatedSimple(spec) {
-    var simpleRules = spec.simpleRules !== void 0 ? spec.simpleRules : spec.rules || [];
-    var rules2 = simpleRules.map(function(rule) {
+    var rules2 = (spec.rules || []).map(function(rule) {
       return renderRuleText(rule, false);
     }).join("");
     var related = (spec.relatedCards || []).map(buildSimpleTooltipForSingleSpec).join("");
@@ -12940,8 +12938,7 @@
         };
       }
     }],
-    rules: [duplicateRule],
-    simpleRules: []
+    rules: [duplicateRule]
   };
   boons.push({
     name: "Duplication",

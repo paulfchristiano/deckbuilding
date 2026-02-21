@@ -169,8 +169,7 @@ export function buildSpecTooltipSimple(spec: CardSpec): string {
 }
 
 export function buildSpecTooltipOnlyRelatedSimple(spec: CardSpec): string {
-    const simpleRules = spec.simpleRules !== undefined ? spec.simpleRules : (spec.rules || [])
-    const rules = simpleRules.map(rule => renderRuleText(rule, false)).join('')
+    const rules = (spec.rules || []).map(rule => renderRuleText(rule, false)).join('')
     const related = (spec.relatedCards || []).map(buildSimpleTooltipForSingleSpec).join('')
     return `${rules}${related}`
 }
