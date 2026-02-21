@@ -380,6 +380,7 @@ function relicBurdenOption(
         id,
         title: displayName(spec),
         ...options,
+        applies: state => !state.data.relics.some(relic => relic.spec.name === spec.name),
         createOption: () => ({
             id,
             title: displayName(spec),

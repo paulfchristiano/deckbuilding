@@ -7043,10 +7043,44 @@
     var maxStage = (_b = relic.maxStage) !== null && _b !== void 0 ? _b : TOTAL_STAGES - 1;
     return minStage <= stage && stage <= maxStage;
   }
-  function standardRelicRewards(stage) {
-    return relicRewards.filter(function(relic) {
-      return relicAvailableOnStage(relic, stage) && relic.burden !== true;
-    });
+  function standardRelicRewards() {
+    return relicRewards;
+  }
+  function sampleEligibleRelicRewards(generator, count, state) {
+    var e_19, _a;
+    var blockedNames = new Set(state.data.relics.map(function(relic2) {
+      return relic2.spec.name;
+    }));
+    var result = [];
+    try {
+      for (var _b = __values4(generator.permute(standardRelicRewards())), _c = _b.next(); !_c.done; _c = _b.next()) {
+        var relic = _c.value;
+        if (blockedNames.has(relic.name))
+          continue;
+        if (!relicAvailableOnStage(relic, state.data.stage))
+          continue;
+        result.push(relic);
+        blockedNames.add(relic.name);
+        if (result.length >= count)
+          break;
+      }
+    } catch (e_19_1) {
+      e_19 = { error: e_19_1 };
+    } finally {
+      try {
+        if (_c && !_c.done && (_a = _b.return)) _a.call(_b);
+      } finally {
+        if (e_19) throw e_19.error;
+      }
+    }
+    return result;
+  }
+  function sampleEligibleRelicReward(generator, state) {
+    var sampled = sampleEligibleRelicRewards(generator, 1, state)[0];
+    if (!sampled) {
+      throw new Error("No eligible relic rewards for stage ".concat(state.data.stage + 1));
+    }
+    return sampled;
   }
   function nextDistinctByName(ordered, used, fallbackIndex) {
     var next = ordered.find(function(item) {
@@ -7095,7 +7129,7 @@
     return result;
   }
   function orderedBurdenCandidates(_state, generator) {
-    var e_19, _a;
+    var e_20, _a;
     var weighted = [];
     try {
       for (var burdenRegistry_1 = __values4(burdenRegistry), burdenRegistry_1_1 = burdenRegistry_1.next(); !burdenRegistry_1_1.done; burdenRegistry_1_1 = burdenRegistry_1.next()) {
@@ -7105,19 +7139,19 @@
           weighted.push(definition);
         }
       }
-    } catch (e_19_1) {
-      e_19 = { error: e_19_1 };
+    } catch (e_20_1) {
+      e_20 = { error: e_20_1 };
     } finally {
       try {
         if (burdenRegistry_1_1 && !burdenRegistry_1_1.done && (_a = burdenRegistry_1.return)) _a.call(burdenRegistry_1);
       } finally {
-        if (e_19) throw e_19.error;
+        if (e_20) throw e_20.error;
       }
     }
     return generator.permute(weighted);
   }
   function sampleBurdenState(state, generator) {
-    var e_20, _a;
+    var e_21, _a;
     var stage = state.data.stage;
     var ordered = orderedBurdenCandidates(state, generator);
     var options = [];
@@ -7136,13 +7170,13 @@
         if (options.length === 2)
           break;
       }
-    } catch (e_20_1) {
-      e_20 = { error: e_20_1 };
+    } catch (e_21_1) {
+      e_21 = { error: e_21_1 };
     } finally {
       try {
         if (ordered_1_1 && !ordered_1_1.done && (_a = ordered_1.return)) _a.call(ordered_1);
       } finally {
-        if (e_20) throw e_20.error;
+        if (e_21) throw e_21.error;
       }
     }
     if (options.length < 2) {
@@ -7227,7 +7261,7 @@
     });
   }
   function pathFromSkeleton(skeleton) {
-    var e_21, _a;
+    var e_22, _a;
     var rewardStates = [];
     try {
       for (var _b = __values4(skeleton.rewards), _c = _b.next(); !_c.done; _c = _b.next()) {
@@ -7244,13 +7278,13 @@
           rewardStates.push({ kind: "potion", options: [], selectedIndex: null });
         }
       }
-    } catch (e_21_1) {
-      e_21 = { error: e_21_1 };
+    } catch (e_22_1) {
+      e_22 = { error: e_22_1 };
     } finally {
       try {
         if (_c && !_c.done && (_a = _b.return)) _a.call(_b);
       } finally {
-        if (e_21) throw e_21.error;
+        if (e_22) throw e_22.error;
       }
     }
     var burdenStates = [];
@@ -7357,7 +7391,7 @@
     });
   }
   function sampleRewardOptionsByBaseName(generator, allOptions, count, collected) {
-    var e_22, _a;
+    var e_23, _a;
     var blockedBaseNames = new Set(collected.map(function(spec2) {
       return spec2.name;
     }));
@@ -7372,13 +7406,13 @@
         if (result.length >= count)
           break;
       }
-    } catch (e_22_1) {
-      e_22 = { error: e_22_1 };
+    } catch (e_23_1) {
+      e_23 = { error: e_23_1 };
     } finally {
       try {
         if (_c && !_c.done && (_a = _b.return)) _a.call(_b);
       } finally {
-        if (e_22) throw e_22.error;
+        if (e_23) throw e_23.error;
       }
     }
     return result;
@@ -7507,7 +7541,7 @@
   }
   function replayCompletedStage(state, stage) {
     return __awaiter4(this, void 0, void 0, function() {
-      var replayData, replayResult, e_23, macros, viewingMacros, newBufferAfterCourse, updatedReplayData, bufferAdjustment, usedPotions, stageTimelineEntry;
+      var replayData, replayResult, e_24, macros, viewingMacros, newBufferAfterCourse, updatedReplayData, bufferAdjustment, usedPotions, stageTimelineEntry;
       var _a, _b, _c, _d;
       return __generator4(this, function(_e) {
         switch (_e.label) {
@@ -7526,22 +7560,22 @@
             replayResult = _e.sent();
             return [3, 4];
           case 3:
-            e_23 = _e.sent();
-            if (e_23 instanceof Undo2) {
-              macros = (_a = e_23.macros) !== null && _a !== void 0 ? _a : state.global.macros;
-              viewingMacros = (_b = e_23.viewingMacros) !== null && _b !== void 0 ? _b : state.global.viewingMacros;
+            e_24 = _e.sent();
+            if (e_24 instanceof Undo2) {
+              macros = (_a = e_24.macros) !== null && _a !== void 0 ? _a : state.global.macros;
+              viewingMacros = (_b = e_24.viewingMacros) !== null && _b !== void 0 ? _b : state.global.viewingMacros;
               state.updateGlobal({ macros, viewingMacros });
               return [
                 2
                 /*return*/
               ];
             }
-            if (e_23 instanceof Redo)
+            if (e_24 instanceof Redo)
               return [
                 2
                 /*return*/
               ];
-            throw e_23;
+            throw e_24;
           case 4:
             state.updateGlobal({
               macros: (_c = replayResult.macros) !== null && _c !== void 0 ? _c : state.global.macros,
@@ -7604,7 +7638,7 @@
         var generator = state.generator("rewardsrelic").newGenerator();
         return {
           kind: "relic",
-          options: generator.samples(standardRelicRewards(state.data.stage), getRewardOptionCount(state)),
+          options: sampleEligibleRelicRewards(generator, getRewardOptionCount(state), state),
           selectedIndex: null
         };
       }
@@ -7622,7 +7656,7 @@
   function applyPathOnSelectEffects(state, path) {
     return __awaiter4(this, void 0, void 0, function() {
       var _loop_2, _a, _b, effect;
-      var e_24, _c;
+      var e_25, _c;
       return __generator4(this, function(_d) {
         _loop_2 = function(effect2) {
           if (effect2.kind === "spendRelicCharge") {
@@ -7644,13 +7678,13 @@
             effect = _b.value;
             _loop_2(effect);
           }
-        } catch (e_24_1) {
-          e_24 = { error: e_24_1 };
+        } catch (e_25_1) {
+          e_25 = { error: e_25_1 };
         } finally {
           try {
             if (_b && !_b.done && (_c = _a.return)) _c.call(_a);
           } finally {
-            if (e_24) throw e_24.error;
+            if (e_25) throw e_25.error;
           }
         }
         return [
@@ -7786,7 +7820,7 @@
     return burden;
   }
   function challengeOverridesForStage(tests, stageIndex, pathIndex) {
-    var e_25, _a;
+    var e_26, _a;
     if (pathIndex !== 0)
       return {};
     var stageNumber = stageIndex + 1;
@@ -7810,13 +7844,13 @@
             overrides.curse = curse;
         }
       }
-    } catch (e_25_1) {
-      e_25 = { error: e_25_1 };
+    } catch (e_26_1) {
+      e_26 = { error: e_26_1 };
     } finally {
       try {
         if (tests_1_1 && !tests_1_1.done && (_a = tests_1.return)) _a.call(tests_1);
       } finally {
-        if (e_25) throw e_25.error;
+        if (e_26) throw e_26.error;
       }
     }
     return overrides;
@@ -7832,7 +7866,7 @@
     });
   }
   function burdenTestsForStage(tests, stageIndex) {
-    var e_26, _a, e_27, _b;
+    var e_27, _a, e_28, _b;
     var stageNumber = stageIndex + 1;
     var result = [];
     try {
@@ -7850,7 +7884,7 @@
         var group = [];
         var seen = /* @__PURE__ */ new Set();
         try {
-          for (var refs_1 = (e_27 = void 0, __values4(refs)), refs_1_1 = refs_1.next(); !refs_1_1.done; refs_1_1 = refs_1.next()) {
+          for (var refs_1 = (e_28 = void 0, __values4(refs)), refs_1_1 = refs_1.next(); !refs_1_1.done; refs_1_1 = refs_1.next()) {
             var ref = refs_1_1.value;
             var burden = resolveBurdenTestRef(ref);
             if (burden === null || seen.has(burden.id))
@@ -7858,25 +7892,25 @@
             seen.add(burden.id);
             group.push(burden);
           }
-        } catch (e_27_1) {
-          e_27 = { error: e_27_1 };
+        } catch (e_28_1) {
+          e_28 = { error: e_28_1 };
         } finally {
           try {
             if (refs_1_1 && !refs_1_1.done && (_b = refs_1.return)) _b.call(refs_1);
           } finally {
-            if (e_27) throw e_27.error;
+            if (e_28) throw e_28.error;
           }
         }
         if (group.length > 0)
           result.push(group);
       }
-    } catch (e_26_1) {
-      e_26 = { error: e_26_1 };
+    } catch (e_27_1) {
+      e_27 = { error: e_27_1 };
     } finally {
       try {
         if (tests_2_1 && !tests_2_1.done && (_a = tests_2.return)) _a.call(tests_2);
       } finally {
-        if (e_26) throw e_26.error;
+        if (e_27) throw e_27.error;
       }
     }
     return result;
@@ -7918,7 +7952,7 @@
   function playGame2(ui_1) {
     return __awaiter4(this, arguments, void 0, function(ui, test2, seed, initialSnapshot, onStateChange, debugEnabled, burdensEnabled, scarcityEnabled, cursesEnabled) {
       var state, tests, initialChallenges, initialPath, _a, _b, testSpec, initialBurdenTests, initialBurdenTests_1, initialBurdenTests_1_1, burdenDefinitions, _loop_3, state_1;
-      var e_28, _c, e_29, _d;
+      var e_29, _c, e_30, _d;
       var _e, _f;
       if (test2 === void 0) {
         test2 = null;
@@ -7966,13 +8000,13 @@
                   testSpec = _b.value;
                   initialPath.rewardStates.push(makeTestReward(state, testSpec));
                 }
-              } catch (e_28_1) {
-                e_28 = { error: e_28_1 };
+              } catch (e_29_1) {
+                e_29 = { error: e_29_1 };
               } finally {
                 try {
                   if (_b && !_b.done && (_c = _a.return)) _c.call(_a);
                 } finally {
-                  if (e_28) throw e_28.error;
+                  if (e_29) throw e_29.error;
                 }
               }
               initialBurdenTests = burdenTestsForStage(tests.burdens, 0);
@@ -7981,13 +8015,13 @@
                   burdenDefinitions = initialBurdenTests_1_1.value;
                   initialPath.burdenStates.push(makeTestBurdenState(state, burdenDefinitions));
                 }
-              } catch (e_29_1) {
-                e_29 = { error: e_29_1 };
+              } catch (e_30_1) {
+                e_30 = { error: e_30_1 };
               } finally {
                 try {
                   if (initialBurdenTests_1_1 && !initialBurdenTests_1_1.done && (_d = initialBurdenTests_1.return)) _d.call(initialBurdenTests_1);
                 } finally {
-                  if (e_29) throw e_29.error;
+                  if (e_30) throw e_30.error;
                 }
               }
               state.replaceAndClearHistory(__assign3(__assign3({}, materializePath(state, initialPath)), { phase: "stage_select", availablePaths: [] }));
@@ -7996,8 +8030,8 @@
             }
             state.ui.updateBuffer(state);
             _loop_3 = function() {
-              var sameReplay_1, stage, gameSpec, startingBuffer, _h, score, potionsRemaining, history_1, macros, viewingMacros, usedPotions, persistedMacros, persistedViewingMacros, stageReplays, stageTimelineEntry, nextStage, paths, _j, _k, testSpec2, pathBurdenTests, pathBurdenTests_1, pathBurdenTests_1_1, burdenDefinitions2, paths, path, _l, e_30, selectedChallenge, e_31, e_32, persistedMacros, persistedViewingMacros;
-              var e_33, _m, e_34, _o;
+              var sameReplay_1, stage, gameSpec, startingBuffer, _h, score, potionsRemaining, history_1, macros, viewingMacros, usedPotions, persistedMacros, persistedViewingMacros, stageReplays, stageTimelineEntry, nextStage, paths, _j, _k, testSpec2, pathBurdenTests, pathBurdenTests_1, pathBurdenTests_1_1, burdenDefinitions2, paths, path, _l, e_31, selectedChallenge, e_32, e_33, persistedMacros, persistedViewingMacros;
+              var e_34, _m, e_35, _o;
               return __generator4(this, function(_p) {
                 switch (_p.label) {
                   case 0:
@@ -8079,32 +8113,32 @@
                       return pathFromSkeleton(skel);
                     });
                     try {
-                      for (_j = (e_33 = void 0, __values4(rewardTestsForStage(tests.rewards, nextStage))), _k = _j.next(); !_k.done; _k = _j.next()) {
+                      for (_j = (e_34 = void 0, __values4(rewardTestsForStage(tests.rewards, nextStage))), _k = _j.next(); !_k.done; _k = _j.next()) {
                         testSpec2 = _k.value;
                         paths[0].rewardStates.push(makeTestReward(state, testSpec2));
-                      }
-                    } catch (e_33_1) {
-                      e_33 = { error: e_33_1 };
-                    } finally {
-                      try {
-                        if (_k && !_k.done && (_m = _j.return)) _m.call(_j);
-                      } finally {
-                        if (e_33) throw e_33.error;
-                      }
-                    }
-                    pathBurdenTests = burdenTestsForStage(tests.burdens, nextStage);
-                    try {
-                      for (pathBurdenTests_1 = (e_34 = void 0, __values4(pathBurdenTests)), pathBurdenTests_1_1 = pathBurdenTests_1.next(); !pathBurdenTests_1_1.done; pathBurdenTests_1_1 = pathBurdenTests_1.next()) {
-                        burdenDefinitions2 = pathBurdenTests_1_1.value;
-                        paths[0].burdenStates.push(makeTestBurdenState(state, burdenDefinitions2));
                       }
                     } catch (e_34_1) {
                       e_34 = { error: e_34_1 };
                     } finally {
                       try {
-                        if (pathBurdenTests_1_1 && !pathBurdenTests_1_1.done && (_o = pathBurdenTests_1.return)) _o.call(pathBurdenTests_1);
+                        if (_k && !_k.done && (_m = _j.return)) _m.call(_j);
                       } finally {
                         if (e_34) throw e_34.error;
+                      }
+                    }
+                    pathBurdenTests = burdenTestsForStage(tests.burdens, nextStage);
+                    try {
+                      for (pathBurdenTests_1 = (e_35 = void 0, __values4(pathBurdenTests)), pathBurdenTests_1_1 = pathBurdenTests_1.next(); !pathBurdenTests_1_1.done; pathBurdenTests_1_1 = pathBurdenTests_1.next()) {
+                        burdenDefinitions2 = pathBurdenTests_1_1.value;
+                        paths[0].burdenStates.push(makeTestBurdenState(state, burdenDefinitions2));
+                      }
+                    } catch (e_35_1) {
+                      e_35 = { error: e_35_1 };
+                    } finally {
+                      try {
+                        if (pathBurdenTests_1_1 && !pathBurdenTests_1_1.done && (_o = pathBurdenTests_1.return)) _o.call(pathBurdenTests_1);
+                      } finally {
+                        if (e_35) throw e_35.error;
                       }
                     }
                     state.replaceAndClearHistory({
@@ -8140,14 +8174,14 @@
                     path = _l;
                     return [3, 16];
                   case 12:
-                    e_30 = _p.sent();
-                    if (!(e_30 instanceof ReplayStage)) return [3, 14];
-                    return [4, replayCompletedStage(state, e_30.stage)];
+                    e_31 = _p.sent();
+                    if (!(e_31 instanceof ReplayStage)) return [3, 14];
+                    return [4, replayCompletedStage(state, e_31.stage)];
                   case 13:
                     _p.sent();
                     return [3, 7];
                   case 14:
-                    throw e_30;
+                    throw e_31;
                   case 15:
                     return [3, 7];
                   case 16:
@@ -8170,14 +8204,14 @@
                     selectedChallenge = _p.sent();
                     return [3, 26];
                   case 22:
-                    e_31 = _p.sent();
-                    if (!(e_31 instanceof ReplayStage)) return [3, 24];
-                    return [4, replayCompletedStage(state, e_31.stage)];
+                    e_32 = _p.sent();
+                    if (!(e_32 instanceof ReplayStage)) return [3, 24];
+                    return [4, replayCompletedStage(state, e_32.stage)];
                   case 23:
                     _p.sent();
                     return [3, 19];
                   case 24:
-                    throw e_31;
+                    throw e_32;
                   case 25:
                     return [3, 19];
                   case 26:
@@ -8203,22 +8237,22 @@
                   case 29:
                     return [3, 31];
                   case 30:
-                    e_32 = _p.sent();
-                    if (e_32 instanceof Undo2) {
-                      persistedMacros = (_e = e_32.macros) !== null && _e !== void 0 ? _e : state.global.macros;
-                      persistedViewingMacros = (_f = e_32.viewingMacros) !== null && _f !== void 0 ? _f : state.global.viewingMacros;
+                    e_33 = _p.sent();
+                    if (e_33 instanceof Undo2) {
+                      persistedMacros = (_e = e_33.macros) !== null && _e !== void 0 ? _e : state.global.macros;
+                      persistedViewingMacros = (_f = e_33.viewingMacros) !== null && _f !== void 0 ? _f : state.global.viewingMacros;
                       state.updateGlobal({
                         macros: persistedMacros,
                         viewingMacros: persistedViewingMacros
                       });
                       state.undo({
-                        gameHistory: e_32.gameHistory,
-                        gameRedo: e_32.gameRedo
+                        gameHistory: e_33.gameHistory,
+                        gameRedo: e_33.gameRedo
                       });
-                    } else if (e_32 instanceof Redo) {
+                    } else if (e_33 instanceof Redo) {
                       state.redo();
                     } else {
-                      throw e_32;
+                      throw e_33;
                     }
                     return [3, 31];
                   case 31:
@@ -14211,7 +14245,7 @@
         offerCard: generator.sample(cardRewards),
         offerEvent: generator.sample(eventRewards),
         offerPotion: generator.sample(potionRewards),
-        offerRelic: generator.sample(standardRelicRewards(metaState.data.stage))
+        offerRelic: sampleEligibleRelicReward(generator, metaState)
       };
     },
     getOptions: function(data, metaState) {
@@ -14308,7 +14342,7 @@
         offerCard: generator.sample(cardRewards),
         offerEvent: generator.sample(eventRewards),
         offerPotion: generator.sample(potionRewards),
-        offerRelic: generator.sample(standardRelicRewards(metaState.data.stage)),
+        offerRelic: sampleEligibleRelicReward(generator, metaState),
         cardTraded: false,
         eventTraded: false,
         potionTraded: false,
@@ -15288,7 +15322,11 @@
     if (options === void 0) {
       options = {};
     }
-    registerBurden(__assign10(__assign10({ id, title: displayName(spec) }, options), { createOption: function() {
+    registerBurden(__assign10(__assign10({ id, title: displayName(spec) }, options), { applies: function(state) {
+      return !state.data.relics.some(function(relic) {
+        return relic.spec.name === spec.name;
+      });
+    }, createOption: function() {
       return {
         id,
         title: displayName(spec),

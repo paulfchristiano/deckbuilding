@@ -2130,10 +2130,36 @@ function relicAvailableOnStage(relic: RelicSpec, stage: number): boolean {
     return minStage <= stage && stage <= maxStage
 }
 
-export function standardRelicRewards(stage: number): RelicSpec[] {
-    return (relicRewards as RelicSpec[]).filter(relic =>
-        relicAvailableOnStage(relic, stage) && relic.burden !== true
-    )
+export function standardRelicRewards(): RelicSpec[] {
+    return relicRewards as RelicSpec[]
+}
+
+export function sampleEligibleRelicRewards(
+    generator: Generator,
+    count: number,
+    state: MetaState
+): RelicSpec[] {
+    const blockedNames = new Set(state.data.relics.map(relic => relic.spec.name))
+    const result: RelicSpec[] = []
+    for (const relic of generator.permute(standardRelicRewards())) {
+        if (blockedNames.has(relic.name)) continue
+        if (!relicAvailableOnStage(relic, state.data.stage)) continue
+        result.push(relic)
+        blockedNames.add(relic.name)
+        if (result.length >= count) break
+    }
+    return result
+}
+
+export function sampleEligibleRelicReward(
+    generator: Generator,
+    state: MetaState
+): RelicSpec {
+    const sampled = sampleEligibleRelicRewards(generator, 1, state)[0]
+    if (!sampled) {
+        throw new Error(`No eligible relic rewards for stage ${state.data.stage + 1}`)
+    }
+    return sampled
 }
 
 // ----------------------- Generate data
@@ -2611,7 +2637,7 @@ function materializePath(state: MetaState, path: Path): Pick<MetaStateData, 'cha
             const generator = state.generator(`rewardsrelic`).newGenerator()
             return {
                 kind: 'relic' as const,
-                options: generator.samples(standardRelicRewards(state.data.stage), getRewardOptionCount(state)),
+                options: sampleEligibleRelicRewards(generator, getRewardOptionCount(state), state),
                 selectedIndex: null
             }
         }

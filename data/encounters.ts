@@ -6,7 +6,7 @@ import { Encounter, registerEncounter, RewardOption,
     addBuffer, gainCard, gainEvent, gainPotion, gainRelic, removeRelic,
     addTimelineAction,
     RelicSpec,
-    standardRelicRewards,
+    sampleEligibleRelicReward,
     GameSetupParams,
     compose,
     registerEncounterUpgrade,
@@ -818,7 +818,7 @@ export const varietyPack: Encounter = {
             offerCard: generator.sample(cardRewards),
             offerEvent: generator.sample(eventRewards),
             offerPotion: generator.sample(potionRewards),
-            offerRelic: generator.sample(standardRelicRewards(metaState.data.stage))
+            offerRelic: sampleEligibleRelicReward(generator, metaState)
         }
     },
     getOptions(data: unknown, metaState: MetaState): RewardOption[] {
@@ -902,7 +902,7 @@ const tradingPost: Encounter = {
             offerCard: generator.sample(cardRewards),
             offerEvent: generator.sample(eventRewards),
             offerPotion: generator.sample(potionRewards),
-            offerRelic: generator.sample(standardRelicRewards(metaState.data.stage)),
+            offerRelic: sampleEligibleRelicReward(generator, metaState),
             cardTraded: false,
             eventTraded: false,
             potionTraded: false,
