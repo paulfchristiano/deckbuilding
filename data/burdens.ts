@@ -377,6 +377,15 @@ const decayCardUpgrade: CardUpgrade = {
 }
 registerEncounterUpgrade('burden_decay_card', decayCardUpgrade)
 
+const dullCardUpgrade: CardUpgrade = {
+    id: 'burden_dull_card',
+    name: name => `${name}-`,
+    cost: (cost, kind) => kind === 'play'
+        ? { ...cost, coin: cost.coin + 1 }
+        : cost,
+}
+registerEncounterUpgrade('burden_dull_card', dullCardUpgrade)
+
 const taxEventUpgrade: CardUpgrade = {
     id: 'burden_tax_event',
     name: name => `${name}-`,
@@ -615,6 +624,28 @@ registerBurden({
                 cards[index] = upgradeCardSpec(cards[index], decayCardUpgrade)
                 innerState.update({ collectedCards: cards })
                 await addTimelineAction('Burden: Decayed a card', chosenName, skipped)(innerState)
+            }
+        }
+    },
+})
+
+registerBurden({
+    id: 'dull_card',
+    title: 'Dull a card',
+    description: 'Choose a card. It costs $1 more to play.',
+    applies: state => state.data.collectedCards.some(card => card.burden !== true),
+    resolveTransform: async (_option, state, skipped) => {
+        const validCards = state.data.collectedCards.filter(card => card.burden !== true)
+        const picked = await state.ui.chooseCard(state, 'Choose a card to dull:', validCards, true)
+        if (!picked) return null
+        const chosenName = displayName(picked)
+        return async function (innerState: MetaState) {
+            const cards = [...innerState.data.collectedCards]
+            const index = cards.indexOf(picked)
+            if (index >= 0) {
+                cards[index] = upgradeCardSpec(cards[index], dullCardUpgrade)
+                innerState.update({ collectedCards: cards })
+                await addTimelineAction('Burden: Dulled a card', chosenName, skipped)(innerState)
             }
         }
     },

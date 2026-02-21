@@ -15495,6 +15495,16 @@
     }]
   };
   registerEncounterUpgrade("burden_decay_card", decayCardUpgrade);
+  var dullCardUpgrade = {
+    id: "burden_dull_card",
+    name: function(name) {
+      return "".concat(name, "-");
+    },
+    cost: function(cost, kind) {
+      return kind === "play" ? __assign10(__assign10({}, cost), { coin: cost.coin + 1 }) : cost;
+    }
+  };
+  registerEncounterUpgrade("burden_dull_card", dullCardUpgrade);
   var taxEventUpgrade = {
     id: "burden_tax_event",
     name: function(name) {
@@ -15892,6 +15902,59 @@
                         cards[index] = upgradeCardSpec2(cards[index], decayCardUpgrade);
                         innerState.update({ collectedCards: cards });
                         return [4, addTimelineAction("Burden: Decayed a card", chosenName, skipped)(innerState)];
+                      case 1:
+                        _a2.sent();
+                        _a2.label = 2;
+                      case 2:
+                        return [
+                          2
+                          /*return*/
+                        ];
+                    }
+                  });
+                });
+              }];
+          }
+        });
+      });
+    }
+  });
+  registerBurden({
+    id: "dull_card",
+    title: "Dull a card",
+    description: "Choose a card. It costs $1 more to play.",
+    applies: function(state) {
+      return state.data.collectedCards.some(function(card) {
+        return card.burden !== true;
+      });
+    },
+    resolveTransform: function(_option, state, skipped) {
+      return __awaiter11(void 0, void 0, void 0, function() {
+        var validCards, picked, chosenName;
+        return __generator11(this, function(_a) {
+          switch (_a.label) {
+            case 0:
+              validCards = state.data.collectedCards.filter(function(card) {
+                return card.burden !== true;
+              });
+              return [4, state.ui.chooseCard(state, "Choose a card to dull:", validCards, true)];
+            case 1:
+              picked = _a.sent();
+              if (!picked)
+                return [2, null];
+              chosenName = displayName(picked);
+              return [2, function(innerState) {
+                return __awaiter11(this, void 0, void 0, function() {
+                  var cards, index;
+                  return __generator11(this, function(_a2) {
+                    switch (_a2.label) {
+                      case 0:
+                        cards = __spreadArray9([], __read14(innerState.data.collectedCards), false);
+                        index = cards.indexOf(picked);
+                        if (!(index >= 0)) return [3, 2];
+                        cards[index] = upgradeCardSpec2(cards[index], dullCardUpgrade);
+                        innerState.update({ collectedCards: cards });
+                        return [4, addTimelineAction("Burden: Dulled a card", chosenName, skipped)(innerState)];
                       case 1:
                         _a2.sent();
                         _a2.label = 2;
@@ -19554,7 +19617,9 @@
     };
     throw new TypeError(s ? "Object is not iterable." : "Symbol.iterator is not defined.");
   };
-  var test = null;
+  var test = {
+    burdens: [[1, "dull_card"]]
+  };
   var SAVE_STORAGE_KEY = "roguelike.ongoingSaves.v1";
   var RUN_TIMER_STORAGE_KEY = "roguelike.runTimerSeconds.v1";
   var HELP_SEEN_STORAGE_KEY = "roguelike.helpSeen.v1";
