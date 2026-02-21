@@ -826,7 +826,7 @@ function openChallengesDialog(): void {
     scarcityName.textContent = 'Scarcity'
     const scarcityHint = document.createElement('span')
     scarcityHint.className = 'challengeSettingHint'
-    scarcityHint.textContent = 'Reduce par by 1 on every stage before the last.'
+    scarcityHint.textContent = 'Reduce par by 1 on every stage.'
     scarcityLabel.appendChild(scarcityName)
     scarcityLabel.appendChild(scarcityHint)
     scarcityRow.appendChild(scarcityCheckbox)

@@ -1972,8 +1972,8 @@ function signedAmount(amount: number): string {
     return amount > 0 ? `+${amount}` : `${amount}`
 }
 
-function scarcityParAdjustment(stage: number, state: MetaState): number {
-    return state.scarcityEnabled && stage < TOTAL_STAGES - 1 ? -1 : 0
+function scarcityParAdjustment(_stage: number, state: MetaState): number {
+    return state.scarcityEnabled ? -1 : 0
 }
 
 type CurseLevel = 'minor' | 'major'

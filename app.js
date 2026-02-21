@@ -6830,8 +6830,8 @@
   function signedAmount(amount) {
     return amount > 0 ? "+".concat(amount) : "".concat(amount);
   }
-  function scarcityParAdjustment(stage, state) {
-    return state.scarcityEnabled && stage < TOTAL_STAGES - 1 ? -1 : 0;
+  function scarcityParAdjustment(_stage, state) {
+    return state.scarcityEnabled ? -1 : 0;
   }
   function stageCurseLevel(stage, state) {
     if (!state.cursesEnabled)
@@ -20165,7 +20165,7 @@
     scarcityName.textContent = "Scarcity";
     var scarcityHint = document.createElement("span");
     scarcityHint.className = "challengeSettingHint";
-    scarcityHint.textContent = "Reduce par by 1 on every stage before the last.";
+    scarcityHint.textContent = "Reduce par by 1 on every stage.";
     scarcityLabel.appendChild(scarcityName);
     scarcityLabel.appendChild(scarcityHint);
     scarcityRow.appendChild(scarcityCheckbox);
