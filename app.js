@@ -3060,6 +3060,7 @@
     name: "Shelter",
     replacers: [{
       text: ["Whenever a card with a shelter token would be trashed, remove a shelter token instead."],
+      simpleText: ["Whenever you would trash a card, remove a shelter token instead."],
       kind: "move",
       handles: function(p, state) {
         return state.find(p.card).count("shelter") > 0 && p.fromZone == "play" && p.toZone == "void";
@@ -3083,17 +3084,19 @@
   registerRule(shelterRule);
   var decayRule = {
     name: "Decay",
-    replacers: [{
-      text: ["Whenever a card with a decay token would move to your discard or leave play, remove a decay token from it. Then if it has no decay tokens, trash it instead."],
-      simpleText: ["After playing a card remove a decay token. When the last is removed, trash the card."],
+    triggers: [{
+      text: ["Whenever you play a card from your hand, remove a decay token from it. Then if it has no decay tokens, put an echo token on it."],
+      simpleText: ["You can only play a card once per decay token on it."],
       kind: "move",
       handles: function(params, state) {
-        return state.find(params.card).count("decay") > 0 && (params.toZone === "discard" || params.fromZone === "play");
+        return state.find(params.card).count("decay") > 0 && params.fromZone == "hand" && params.toZone == "resolving";
       },
-      replace: function(params, state) {
+      transform: function(params, state) {
         var current = state.find(params.card);
-        var shouldTrash = current.count("decay") <= 1;
-        return __assign(__assign({}, params), { toZone: shouldTrash ? "void" : params.toZone, effects: params.effects.concat([removeToken(current, "decay", 1)]) });
+        var shouldEcho = current.count("decay") <= 1;
+        return doAll(__spreadArray([
+          removeToken(current, "decay", 1)
+        ], __read(shouldEcho ? [addToken(current, "echo")] : []), false));
       }
     }]
   };
@@ -9632,8 +9635,7 @@
         };
       }
     }],
-    rules: [shelterRule],
-    simpleRules: []
+    rules: [shelterRule]
   };
   cardRewards.push(shelter);
   var market = {
@@ -19292,7 +19294,7 @@
     };
     throw new TypeError(s ? "Object is not iterable." : "Symbol.iterator is not defined.");
   };
-  var test = { allBurdens: true };
+  var test = null;
   var SAVE_STORAGE_KEY = "roguelike.ongoingSaves.v1";
   var RUN_TIMER_STORAGE_KEY = "roguelike.runTimerSeconds.v1";
   var HELP_SEEN_STORAGE_KEY = "roguelike.helpSeen.v1";
