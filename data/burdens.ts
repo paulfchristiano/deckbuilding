@@ -297,12 +297,18 @@ registerSpec(cursedBanner)
 const cursedSozu: RelicSpec = {
     name: 'Sozu',
     burden: true,
-    metaTriggers: [{
-        kind: 'potion',
-        text: ['Whenever you gain a potion, lose 1 buffer.'],
-        simpleText: ['Whenever you gain a potion, lose 1 buffer.'],
-        handles: () => true,
-        transform: () => addBuffer(-1)
+    metaReplacers: [{
+        kind: 'reward',
+        text: ['Whenever you pick a potion reward, lose 1 buffer.'],
+        simpleText: ['Potion reward options: lose 1 buffer.'],
+        replace: params => {
+            if (params.rewardKind !== 'potion') return params
+            const pickBufferAdjustments = [...params.pickBufferAdjustments]
+            for (let i = 0; i < params.optionCount; i++) {
+                pickBufferAdjustments[i] = (pickBufferAdjustments[i] ?? 0) - 1
+            }
+            return { ...params, pickBufferAdjustments }
+        }
     }]
 }
 registerSpec(cursedSozu)

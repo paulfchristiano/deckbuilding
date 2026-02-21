@@ -5166,7 +5166,8 @@
     var options = state.options;
     var rewardParams = applyMetaReplacers("reward", {
       optionCount: options.length,
-      pickBufferAdjustments: []
+      pickBufferAdjustments: [],
+      rewardKind: state.kind
     }, metaState);
     return options.map(function(option, i) {
       var _a;
@@ -7030,10 +7031,11 @@
       metaCursesEnabled: state.cursesEnabled
     };
   }
-  function getRewardOptionCount(state) {
+  function getRewardOptionCount(state, rewardKind) {
     var params = applyMetaReplacers("reward", {
       optionCount: 3,
-      pickBufferAdjustments: []
+      pickBufferAdjustments: [],
+      rewardKind
     }, state);
     return params.optionCount;
   }
@@ -7617,28 +7619,28 @@
         var generator = state.generator("rewardscard").newGenerator();
         return {
           kind: "card",
-          options: sampleRewardOptionsByBaseName(generator, cardRewards, getRewardOptionCount(state), state.data.collectedCards),
+          options: sampleRewardOptionsByBaseName(generator, cardRewards, getRewardOptionCount(state, "card"), state.data.collectedCards),
           selectedIndex: null
         };
       } else if (rs.kind === "event" && rs.options.length === 0) {
         var generator = state.generator("rewardsevent").newGenerator();
         return {
           kind: "event",
-          options: sampleRewardOptionsByBaseName(generator, eventRewards, getRewardOptionCount(state), state.data.collectedEvents),
+          options: sampleRewardOptionsByBaseName(generator, eventRewards, getRewardOptionCount(state, "event"), state.data.collectedEvents),
           selectedIndex: null
         };
       } else if (rs.kind === "potion" && rs.options.length === 0) {
         var generator = state.generator("rewardspotion").newGenerator();
         return {
           kind: "potion",
-          options: generator.samples(potionRewards, getRewardOptionCount(state)),
+          options: generator.samples(potionRewards, getRewardOptionCount(state, "potion")),
           selectedIndex: null
         };
       } else if (rs.kind === "relic" && rs.options.length === 0) {
         var generator = state.generator("rewardsrelic").newGenerator();
         return {
           kind: "relic",
-          options: sampleEligibleRelicRewards(generator, getRewardOptionCount(state), state),
+          options: sampleEligibleRelicRewards(generator, getRewardOptionCount(state, "relic"), state),
           selectedIndex: null
         };
       }
@@ -15234,15 +15236,19 @@
   var cursedSozu = {
     name: "Sozu",
     burden: true,
-    metaTriggers: [{
-      kind: "potion",
-      text: ["Whenever you gain a potion, lose 1 buffer."],
-      simpleText: ["Whenever you gain a potion, lose 1 buffer."],
-      handles: function() {
-        return true;
-      },
-      transform: function() {
-        return addBuffer(-1);
+    metaReplacers: [{
+      kind: "reward",
+      text: ["Whenever you pick a potion reward, lose 1 buffer."],
+      simpleText: ["Potion reward options: lose 1 buffer."],
+      replace: function(params) {
+        var _a;
+        if (params.rewardKind !== "potion")
+          return params;
+        var pickBufferAdjustments = __spreadArray9([], __read14(params.pickBufferAdjustments), false);
+        for (var i = 0; i < params.optionCount; i++) {
+          pickBufferAdjustments[i] = ((_a = pickBufferAdjustments[i]) !== null && _a !== void 0 ? _a : 0) - 1;
+        }
+        return __assign10(__assign10({}, params), { pickBufferAdjustments });
       }
     }]
   };
@@ -19332,7 +19338,12 @@
     };
     throw new TypeError(s ? "Object is not iterable." : "Symbol.iterator is not defined.");
   };
-  var test = null;
+  var test = {
+    burdens: [
+      [1, "broken_crown"],
+      [1, "cursed_sozu"]
+    ]
+  };
   var SAVE_STORAGE_KEY = "roguelike.ongoingSaves.v1";
   var RUN_TIMER_STORAGE_KEY = "roguelike.runTimerSeconds.v1";
   var HELP_SEEN_STORAGE_KEY = "roguelike.helpSeen.v1";

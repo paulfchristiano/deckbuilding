@@ -206,7 +206,8 @@ function getSimpleRewardOptions(state: SimpleRewardState, metaState: MetaState):
     const options = state.options as Array<CardSpec | RelicSpec>
     const rewardParams = applyMetaReplacers('reward', {
         optionCount: options.length,
-        pickBufferAdjustments: []
+        pickBufferAdjustments: [],
+        rewardKind: state.kind
     }, metaState)
     return options.map((option: CardSpec | RelicSpec, i: number) => ({
         label: displayName(option as CardSpec),
@@ -539,6 +540,7 @@ export class Relic extends Card {
 export interface RewardParams {
     optionCount: number
     pickBufferAdjustments: number[]
+    rewardKind?: RewardKind
 }
 
 export interface ExtraOptionsParams {
@@ -2116,10 +2118,11 @@ export function makeSpec(state: MetaState, challenge: ChallengeSpec): GameSpec {
 }
 
 // Get reward option count based on relics
-export function getRewardOptionCount(state: MetaState): number {
+export function getRewardOptionCount(state: MetaState, rewardKind?: RewardKind): number {
     const params = applyMetaReplacers('reward', {
         optionCount: 3,
-        pickBufferAdjustments: []
+        pickBufferAdjustments: [],
+        rewardKind
     }, state)
     return params.optionCount
 }
@@ -2609,7 +2612,7 @@ function materializePath(state: MetaState, path: Path): Pick<MetaStateData, 'cha
                 options: sampleRewardOptionsByBaseName(
                     generator,
                     cardRewards,
-                    getRewardOptionCount(state),
+                    getRewardOptionCount(state, 'card'),
                     state.data.collectedCards
                 ),
                 selectedIndex: null
@@ -2621,7 +2624,7 @@ function materializePath(state: MetaState, path: Path): Pick<MetaStateData, 'cha
                 options: sampleRewardOptionsByBaseName(
                     generator,
                     eventRewards,
-                    getRewardOptionCount(state),
+                    getRewardOptionCount(state, 'event'),
                     state.data.collectedEvents
                 ),
                 selectedIndex: null
@@ -2630,14 +2633,14 @@ function materializePath(state: MetaState, path: Path): Pick<MetaStateData, 'cha
             const generator = state.generator(`rewardspotion`).newGenerator()
             return {
                 kind: 'potion' as const,
-                options: generator.samples(potionRewards, getRewardOptionCount(state)),
+                options: generator.samples(potionRewards, getRewardOptionCount(state, 'potion')),
                 selectedIndex: null
             }
         } else if (rs.kind === 'relic' && rs.options.length === 0) {
             const generator = state.generator(`rewardsrelic`).newGenerator()
             return {
                 kind: 'relic' as const,
-                options: sampleEligibleRelicRewards(generator, getRewardOptionCount(state), state),
+                options: sampleEligibleRelicRewards(generator, getRewardOptionCount(state, 'relic'), state),
                 selectedIndex: null
             }
         }
