@@ -402,7 +402,7 @@ function relicBurdenOption(
             spec,
             data: null,
         }),
-        resolveTransform: async () => gainRelic(spec, { details: `Burden: ${displayName(spec)}` }),
+        resolveTransform: async (_option, _state, skipped) => gainRelic(spec, { skipped }),
     })
 }
 
@@ -477,7 +477,7 @@ registerBurden({
         || state.data.collectedEvents.some(event => event.burden !== true)
         || state.data.potions.some(potion => potion.spec.burden !== true)
         || state.data.relics.some(relic => relic.spec.burden !== true),
-    resolveTransform: async (_option: BurdenOptionState, state: MetaState) => {
+    resolveTransform: async (_option: BurdenOptionState, state: MetaState, skipped: string[]) => {
         const cardOptions = state.data.collectedCards.filter(card => card.burden !== true)
         const eventOptions = state.data.collectedEvents.filter(event => event.burden !== true)
         const potionOptions = state.data.potions.filter(potion => potion.spec.burden !== true)
@@ -500,27 +500,27 @@ registerBurden({
             const chosenName = displayName(picked.spec)
             return async function (innerState: MetaState) {
                 await removeRelic(innerState, picked.id)
-                await addTimelineAction('Burden: Lost a relic', chosenName)(innerState)
+                await addTimelineAction('Burden: Lost a relic', chosenName, skipped)(innerState)
             }
         }
         if (picked instanceof Card) { // Only potion options are cards, the others are cardSpecs. Very janky.
             const chosenName = displayName(picked.spec)
             return async function (innerState: MetaState) {
                 innerState.removePotion(picked.id)
-                await addTimelineAction('Burden: Lost a potion', chosenName)(innerState)
+                await addTimelineAction('Burden: Lost a potion', chosenName, skipped)(innerState)
             }
         }
         if (eventOptions.includes(picked)) {
             const chosenName = displayName(picked)
             return async function (innerState: MetaState) {
                 innerState.removeEvent(picked.name)
-                await addTimelineAction('Burden: Lost an event', chosenName)(innerState)
+                await addTimelineAction('Burden: Lost an event', chosenName, skipped)(innerState)
             }
         }
         const chosenName = displayName(picked)
         return async function (innerState: MetaState) {
             innerState.removeCard(picked.name)
-            await addTimelineAction('Burden: Lost a card', chosenName)(innerState)
+            await addTimelineAction('Burden: Lost a card', chosenName, skipped)(innerState)
         }
     },
 })
@@ -531,9 +531,9 @@ registerBurden({
     description: 'Lose 1 buffer.',
     weight: 2,
     applies: state => state.data.buffer > 0,
-    resolveTransform: async () => async function (state: MetaState) {
+    resolveTransform: async (_option, _state, skipped) => async function (state: MetaState) {
         await addBuffer(-1)(state)
-        await addTimelineAction('Burden: Lost 1 buffer')(state)
+        await addTimelineAction('Burden: Lost 1 buffer', undefined, skipped)(state)
     },
 })
 
@@ -542,14 +542,14 @@ registerBurden({
     title: 'Trade a potion',
     description: `Give up a potion and gain ${beggarsBrew.name}.`,
     applies: state => state.data.potions.some(potion => potion.spec.burden !== true),
-    resolveTransform: async (_option, state) => {
+    resolveTransform: async (_option, state, skipped) => {
         const validPotions = state.data.potions.filter(potion => potion.spec.burden !== true)
         const picked = await state.ui.chooseCard(state, 'Choose a potion to give up:', validPotions, true)
         if (!picked) return null
         const chosenName = displayName(picked.spec)
         return async function (innerState: MetaState) {
             innerState.removePotion(picked.id)
-            await gainPotion(beggarsBrew, { details: `Gave up ${chosenName}` })(innerState)
+            await gainPotion(beggarsBrew, { details: `Gave up ${chosenName}`, skipped })(innerState)
         }
     },
 })
@@ -560,7 +560,7 @@ registerBurden({
     description: 'Freeze a relic for the next 2 stages.',
     maxStage: 5,
     applies: state => state.data.relics.some(relic => relic.spec.burden !== true),
-    resolveTransform: async (_option, state) => {
+    resolveTransform: async (_option, state, skipped) => {
         const options = state.data.relics.filter(relic => relic.spec.burden !== true)
         if (options.length === 0) return null
         const picked = await state.ui.chooseCard(state, 'Choose a relic to freeze:', options, true)
@@ -569,9 +569,8 @@ registerBurden({
         const frozenSpec = makeFrozenRelicSpec(picked.spec)
         return async function (innerState: MetaState) {
             await removeRelic(innerState, picked.id)
-            await gainNotedRelic(frozenSpec, [picked.spec], {
-                details: `Froze ${chosenName}`
-            })(innerState)
+            await gainNotedRelic(frozenSpec, [picked.spec], { silent: true })(innerState)
+            await addTimelineAction(`Froze ${chosenName}`, undefined, skipped)(innerState)
         }
     },
 })
@@ -581,7 +580,7 @@ registerBurden({
     title: 'Tax a card',
     description: 'Choose a card. It costs $2 more to buy.',
     applies: state => state.data.collectedCards.some(card => card.burden !== true),
-    resolveTransform: async (_option, state) => {
+    resolveTransform: async (_option, state, skipped) => {
         const validCards = state.data.collectedCards.filter(card => card.burden !== true)
         const picked = await state.ui.chooseCard(state, 'Choose a card to tax:', validCards, true)
         if (!picked) return null
@@ -592,7 +591,7 @@ registerBurden({
             if (index >= 0) {
                 cards[index] = upgradeCardSpec(cards[index], taxCardUpgrade)
                 innerState.update({ collectedCards: cards })
-                await addTimelineAction('Burden: Taxed a card', chosenName)(innerState)
+                await addTimelineAction('Burden: Taxed a card', chosenName, skipped)(innerState)
             }
         }
     },
@@ -604,7 +603,7 @@ registerBurden({
     description: 'Choose a card. Whenever that card is created, put 2 decay tokens on it.',
     rules: [decayRule],
     applies: state => state.data.collectedCards.some(card => card.burden !== true),
-    resolveTransform: async (_option, state) => {
+    resolveTransform: async (_option, state, skipped) => {
         const validCards = state.data.collectedCards.filter(card => card.burden !== true)
         const picked = await state.ui.chooseCard(state, 'Choose a card to decay:', validCards, true)
         if (!picked) return null
@@ -615,7 +614,7 @@ registerBurden({
             if (index >= 0) {
                 cards[index] = upgradeCardSpec(cards[index], decayCardUpgrade)
                 innerState.update({ collectedCards: cards })
-                await addTimelineAction('Burden: Decayed a card', chosenName)(innerState)
+                await addTimelineAction('Burden: Decayed a card', chosenName, skipped)(innerState)
             }
         }
     },
@@ -626,7 +625,7 @@ registerBurden({
     title: 'Tax an event',
     description: 'Choose an event. It costs $2 more to use.',
     applies: state => state.data.collectedEvents.some(event => event.burden !== true),
-    resolveTransform: async (_option, state) => {
+    resolveTransform: async (_option, state, skipped) => {
         const validEvents = state.data.collectedEvents.filter(event => event.burden !== true)
         const picked = await state.ui.chooseCard(state, 'Choose an event to tax:', validEvents, true)
         if (!picked) return null
@@ -637,7 +636,7 @@ registerBurden({
             if (index >= 0) {
                 events[index] = upgradeCardSpec(events[index], taxEventUpgrade)
                 innerState.update({ collectedEvents: events })
-                await addTimelineAction('Burden: Taxed an event', chosenName)(innerState)
+                await addTimelineAction('Burden: Taxed an event', chosenName, skipped)(innerState)
             }
         }
     },

@@ -21,11 +21,7 @@ import { Card, CardSpec, UndoPastBeginning } from './gameLogic.js'
 
 import type { DebugTestConfig } from './metaLogic.js'
 
-let test: DebugTestConfig | null = {
-    burdens: [
-        [1, 'cursed_doll'],
-    ]
-}
+let test: DebugTestConfig | null = null
 
 const SAVE_STORAGE_KEY = 'roguelike.ongoingSaves.v1'
 const RUN_TIMER_STORAGE_KEY = 'roguelike.runTimerSeconds.v1'
@@ -928,9 +924,14 @@ function timelineRowContent(
         }
     }
     if (entry.kind === 'action') {
+        const secondaryParts: string[] = []
+        if (entry.details) secondaryParts.push(entry.details)
+        if (entry.skipped && entry.skipped.length > 0) {
+            secondaryParts.push(`Skipped: ${entry.skipped.join(', ')}`)
+        }
         return {
             primary: `Stage ${entry.stage + 1}: ${entry.action}`,
-            secondary: entry.details ?? null
+            secondary: secondaryParts.length > 0 ? secondaryParts.join(' • ') : null
         }
     }
     const secondaryParts: string[] = []

@@ -5332,7 +5332,7 @@
         checked: alreadyPicked,
         onClick: function() {
           return __awaiter4(_this, void 0, void 0, function() {
-            var transform, selectedIndices;
+            var selectedIndices, isFinalPick, skipped, transform;
             var _a2;
             return __generator4(this, function(_b) {
               switch (_b.label) {
@@ -5340,7 +5340,14 @@
                   if (!definition.applies(metaState)) {
                     return [2, { newData: burdenState }];
                   }
-                  return [4, definition.resolveTransform(option, metaState)];
+                  selectedIndices = __spreadArray6(__spreadArray6([], __read7(burdenState.selectedIndices), false), [index], false);
+                  isFinalPick = selectedIndices.length >= burdenState.numPicked;
+                  skipped = isFinalPick ? burdenState.options.filter(function(_, i) {
+                    return !selectedIndices.includes(i);
+                  }).map(function(o) {
+                    return o.title;
+                  }) : [];
+                  return [4, definition.resolveTransform(option, metaState, skipped)];
                 case 1:
                   transform = _b.sent();
                   if (!transform) {
@@ -5348,7 +5355,6 @@
                       newData: burdenState
                     }];
                   }
-                  selectedIndices = __spreadArray6(__spreadArray6([], __read7(burdenState.selectedIndices), false), [index], false);
                   return [2, {
                     newData: __assign3(__assign3({}, burdenState), { selectedIndex: (_a2 = selectedIndices[0]) !== null && _a2 !== void 0 ? _a2 : null, selectedIndices }),
                     transform
@@ -6439,7 +6445,7 @@
       });
     };
   }
-  function addTimelineAction(action, details) {
+  function addTimelineAction(action, details, skipped) {
     return function(state) {
       return __awaiter4(this, void 0, void 0, function() {
         return __generator4(this, function(_a) {
@@ -6448,6 +6454,7 @@
               kind: "action",
               stage: state.data.stage,
               action,
+              skipped,
               details
             }], false)
           });
@@ -15443,10 +15450,10 @@
         spec,
         data: null
       };
-    }, resolveTransform: function() {
+    }, resolveTransform: function(_option, _state, skipped) {
       return __awaiter11(_this, void 0, void 0, function() {
         return __generator11(this, function(_a) {
-          return [2, gainRelic(spec, { details: "Burden: ".concat(displayName(spec)) })];
+          return [2, gainRelic(spec, { skipped })];
         });
       });
     } }));
@@ -15478,7 +15485,7 @@
         return relic.spec.burden !== true;
       });
     },
-    resolveTransform: function(_option, state) {
+    resolveTransform: function(_option, state, skipped) {
       return __awaiter11(void 0, void 0, void 0, function() {
         var cardOptions, eventOptions, potionOptions, relicOptions, options, picked, chosenName_1, chosenName_2, chosenName_3, chosenName;
         return __generator11(this, function(_a) {
@@ -15514,7 +15521,7 @@
                           return [4, removeRelic(innerState, picked.id)];
                         case 1:
                           _a2.sent();
-                          return [4, addTimelineAction("Burden: Lost a relic", chosenName_1)(innerState)];
+                          return [4, addTimelineAction("Burden: Lost a relic", chosenName_1, skipped)(innerState)];
                         case 2:
                           _a2.sent();
                           return [
@@ -15534,7 +15541,7 @@
                       switch (_a2.label) {
                         case 0:
                           innerState.removePotion(picked.id);
-                          return [4, addTimelineAction("Burden: Lost a potion", chosenName_2)(innerState)];
+                          return [4, addTimelineAction("Burden: Lost a potion", chosenName_2, skipped)(innerState)];
                         case 1:
                           _a2.sent();
                           return [
@@ -15554,7 +15561,7 @@
                       switch (_a2.label) {
                         case 0:
                           innerState.removeEvent(picked.name);
-                          return [4, addTimelineAction("Burden: Lost an event", chosenName_3)(innerState)];
+                          return [4, addTimelineAction("Burden: Lost an event", chosenName_3, skipped)(innerState)];
                         case 1:
                           _a2.sent();
                           return [
@@ -15573,7 +15580,7 @@
                     switch (_a2.label) {
                       case 0:
                         innerState.removeCard(picked.name);
-                        return [4, addTimelineAction("Burden: Lost a card", chosenName)(innerState)];
+                        return [4, addTimelineAction("Burden: Lost a card", chosenName, skipped)(innerState)];
                       case 1:
                         _a2.sent();
                         return [
@@ -15597,7 +15604,7 @@
     applies: function(state) {
       return state.data.buffer > 0;
     },
-    resolveTransform: function() {
+    resolveTransform: function(_option, _state, skipped) {
       return __awaiter11(void 0, void 0, void 0, function() {
         return __generator11(this, function(_a) {
           return [2, function(state) {
@@ -15608,7 +15615,7 @@
                     return [4, addBuffer(-1)(state)];
                   case 1:
                     _a2.sent();
-                    return [4, addTimelineAction("Burden: Lost 1 buffer")(state)];
+                    return [4, addTimelineAction("Burden: Lost 1 buffer", void 0, skipped)(state)];
                   case 2:
                     _a2.sent();
                     return [
@@ -15632,7 +15639,7 @@
         return potion.spec.burden !== true;
       });
     },
-    resolveTransform: function(_option, state) {
+    resolveTransform: function(_option, state, skipped) {
       return __awaiter11(void 0, void 0, void 0, function() {
         var validPotions, picked, chosenName;
         return __generator11(this, function(_a) {
@@ -15653,7 +15660,7 @@
                     switch (_a2.label) {
                       case 0:
                         innerState.removePotion(picked.id);
-                        return [4, gainPotion(beggarsBrew, { details: "Gave up ".concat(chosenName) })(innerState)];
+                        return [4, gainPotion(beggarsBrew, { details: "Gave up ".concat(chosenName), skipped })(innerState)];
                       case 1:
                         _a2.sent();
                         return [
@@ -15679,7 +15686,7 @@
         return relic.spec.burden !== true;
       });
     },
-    resolveTransform: function(_option, state) {
+    resolveTransform: function(_option, state, skipped) {
       return __awaiter11(void 0, void 0, void 0, function() {
         var options, picked, chosenName, frozenSpec;
         return __generator11(this, function(_a) {
@@ -15705,10 +15712,11 @@
                         return [4, removeRelic(innerState, picked.id)];
                       case 1:
                         _a2.sent();
-                        return [4, gainNotedRelic(frozenSpec, [picked.spec], {
-                          details: "Froze ".concat(chosenName)
-                        })(innerState)];
+                        return [4, gainNotedRelic(frozenSpec, [picked.spec], { silent: true })(innerState)];
                       case 2:
+                        _a2.sent();
+                        return [4, addTimelineAction("Froze ".concat(chosenName), void 0, skipped)(innerState)];
+                      case 3:
                         _a2.sent();
                         return [
                           2
@@ -15732,7 +15740,7 @@
         return card.burden !== true;
       });
     },
-    resolveTransform: function(_option, state) {
+    resolveTransform: function(_option, state, skipped) {
       return __awaiter11(void 0, void 0, void 0, function() {
         var validCards, picked, chosenName;
         return __generator11(this, function(_a) {
@@ -15758,7 +15766,7 @@
                         if (!(index >= 0)) return [3, 2];
                         cards[index] = upgradeCardSpec2(cards[index], taxCardUpgrade);
                         innerState.update({ collectedCards: cards });
-                        return [4, addTimelineAction("Burden: Taxed a card", chosenName)(innerState)];
+                        return [4, addTimelineAction("Burden: Taxed a card", chosenName, skipped)(innerState)];
                       case 1:
                         _a2.sent();
                         _a2.label = 2;
@@ -15786,7 +15794,7 @@
         return card.burden !== true;
       });
     },
-    resolveTransform: function(_option, state) {
+    resolveTransform: function(_option, state, skipped) {
       return __awaiter11(void 0, void 0, void 0, function() {
         var validCards, picked, chosenName;
         return __generator11(this, function(_a) {
@@ -15812,7 +15820,7 @@
                         if (!(index >= 0)) return [3, 2];
                         cards[index] = upgradeCardSpec2(cards[index], decayCardUpgrade);
                         innerState.update({ collectedCards: cards });
-                        return [4, addTimelineAction("Burden: Decayed a card", chosenName)(innerState)];
+                        return [4, addTimelineAction("Burden: Decayed a card", chosenName, skipped)(innerState)];
                       case 1:
                         _a2.sent();
                         _a2.label = 2;
@@ -15839,7 +15847,7 @@
         return event.burden !== true;
       });
     },
-    resolveTransform: function(_option, state) {
+    resolveTransform: function(_option, state, skipped) {
       return __awaiter11(void 0, void 0, void 0, function() {
         var validEvents, picked, chosenName;
         return __generator11(this, function(_a) {
@@ -15865,7 +15873,7 @@
                         if (!(index >= 0)) return [3, 2];
                         events[index] = upgradeCardSpec2(events[index], taxEventUpgrade);
                         innerState.update({ collectedEvents: events });
-                        return [4, addTimelineAction("Burden: Taxed an event", chosenName)(innerState)];
+                        return [4, addTimelineAction("Burden: Taxed an event", chosenName, skipped)(innerState)];
                       case 1:
                         _a2.sent();
                         _a2.label = 2;
@@ -19475,11 +19483,7 @@
     };
     throw new TypeError(s ? "Object is not iterable." : "Symbol.iterator is not defined.");
   };
-  var test = {
-    burdens: [
-      [1, "cursed_doll"]
-    ]
-  };
+  var test = null;
   var SAVE_STORAGE_KEY = "roguelike.ongoingSaves.v1";
   var RUN_TIMER_STORAGE_KEY = "roguelike.runTimerSeconds.v1";
   var HELP_SEEN_STORAGE_KEY = "roguelike.helpSeen.v1";
@@ -20127,7 +20131,7 @@
     });
   }
   function timelineRowContent(entry, stageScores, stagePars) {
-    var _a, _b, _c;
+    var _a, _b;
     if (entry.kind === "stage") {
       var score = (_a = stageScores[entry.stage]) !== null && _a !== void 0 ? _a : entry.score;
       var par = (_b = stagePars[entry.stage]) !== null && _b !== void 0 ? _b : entry.par;
@@ -20140,9 +20144,15 @@
       };
     }
     if (entry.kind === "action") {
+      var secondaryParts_1 = [];
+      if (entry.details)
+        secondaryParts_1.push(entry.details);
+      if (entry.skipped && entry.skipped.length > 0) {
+        secondaryParts_1.push("Skipped: ".concat(entry.skipped.join(", ")));
+      }
       return {
         primary: "Stage ".concat(entry.stage + 1, ": ").concat(entry.action),
-        secondary: (_c = entry.details) !== null && _c !== void 0 ? _c : null
+        secondary: secondaryParts_1.length > 0 ? secondaryParts_1.join(" \u2022 ") : null
       };
     }
     var secondaryParts = [];

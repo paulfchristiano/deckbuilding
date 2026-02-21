@@ -143,7 +143,7 @@ export interface BurdenDefinition {
     maxStage: number
     applies: (state: MetaState) => boolean
     createOption: (state: MetaState, generator: Generator) => BurdenOptionState
-    resolveTransform: (option: BurdenOptionState, state: MetaState) => Promise<MetaTransform | null> | MetaTransform | null
+    resolveTransform: (option: BurdenOptionState, state: MetaState, skipped: string[]) => Promise<MetaTransform | null> | MetaTransform | null
 }
 
 export type ExtraOptionID = string
@@ -333,13 +333,17 @@ export function getBurdenOptions(burdenState: BurdenState, metaState: MetaState)
                 if (!definition.applies(metaState)) {
                     return { newData: burdenState }
                 }
-                const transform = await definition.resolveTransform(option, metaState)
+                const selectedIndices = [...burdenState.selectedIndices, index]
+                const isFinalPick = selectedIndices.length >= burdenState.numPicked
+                const skipped = isFinalPick
+                    ? burdenState.options.filter((_, i) => !selectedIndices.includes(i)).map(o => o.title)
+                    : []
+                const transform = await definition.resolveTransform(option, metaState, skipped)
                 if (!transform) {
                     return {
                         newData: burdenState,
                     }
                 }
-                const selectedIndices = [...burdenState.selectedIndices, index]
                 return {
                     newData: {
                         ...burdenState,
@@ -725,6 +729,7 @@ export type MetaTimelineEntry =
         kind: 'action'
         stage: number
         action: string
+        skipped?: string[]
         details?: string
     }
 
@@ -1761,13 +1766,14 @@ export function addBuffer(amount: number): MetaTransform {
     }
 }
 
-export function addTimelineAction(action: string, details?: string): MetaTransform {
+export function addTimelineAction(action: string, details?: string, skipped?: string[]): MetaTransform {
     return async function(state: MetaState) {
         state.update({
             timeline: [...state.data.timeline, {
                 kind: 'action',
                 stage: state.data.stage,
                 action,
+                skipped,
                 details
             }]
         })
