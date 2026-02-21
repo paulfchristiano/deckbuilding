@@ -29,7 +29,7 @@ import { CardSpec, CardUpgrade,
 import { Generator } from '../rng.js'
 import { mirrorBrew } from './potions.js'
 import { makeBottledCardPotion } from './specialSpecs.js'
-import { registerSpec } from '../registry.js'
+import { registerRelicSpec } from '../registry.js'
 
 function registerUpgrade(id: string, upgrade: CardUpgrade): CardUpgrade {
     upgrade.id = id
@@ -1035,7 +1035,7 @@ const cursedInkwell: RelicSpec = {
         replace: (p: GameSetupParams) => ({ ...p, par: p.par - 1 })
     }]
 }
-registerSpec(cursedInkwell)
+registerRelicSpec(cursedInkwell)
 
 const theScribe: Encounter = simpleEncounter({
     name: 'The Scribe',

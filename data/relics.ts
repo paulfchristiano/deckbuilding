@@ -7,7 +7,7 @@ import {
     silver,
     gold,
     ResourceEvent,
-    refresh, relicRewards,
+    refresh,
     sourceHasName,
     displayName,
     doAll,
@@ -17,7 +17,7 @@ import {
     State,
     charge
 } from '../gameLogic.js'
-import { registerSpec } from '../registry.js'
+import { addRelicReward, registerRelicSpec } from '../registry.js'
 import { Generator } from '../rng.js'
 
 import {
@@ -39,7 +39,7 @@ export const bagOfCoins: RelicSpec = {
         transform: () => repeat(create(copper, 'discard'), 2)
     }]
 }
-relicRewards.push(bagOfCoins)
+addRelicReward(bagOfCoins)
 
 export const bagOfPreparation: RelicSpec = {
     name: 'Bag of Preparation',
@@ -56,7 +56,7 @@ export const bagOfPreparation: RelicSpec = {
         transform: (_e, _s, c) => gainActions(10, c)
     }]
 }
-relicRewards.push(bagOfPreparation)
+addRelicReward(bagOfPreparation)
 
 export const courier: RelicSpec = {
     name: 'Courier',
@@ -67,7 +67,7 @@ export const courier: RelicSpec = {
         transform: (e, s, c) => doAll([gainBuys(2, c), gainActions(1, c)])
     }],
 }
-relicRewards.push(courier)
+addRelicReward(courier)
 
 // Inkwell: Par is 1@ higher on each course
 export const inkwell: RelicSpec = {
@@ -78,7 +78,7 @@ export const inkwell: RelicSpec = {
         replace: (p: GameSetupParams) => ({ ...p, par: p.par + 1 })
     }]
 }
-relicRewards.push(inkwell)
+addRelicReward(inkwell)
 
 // Elegant Quill: Gain 2@ buffer (one-time effect on acquisition)
 export const elegantQuill: RelicSpec = {
@@ -98,7 +98,7 @@ export const elegantQuill: RelicSpec = {
         }
     ]
 }
-relicRewards.push(elegantQuill)
+addRelicReward(elegantQuill)
 
 // Broken Lever: VP targets are 25% lower
 export const brokenLever: RelicSpec = {
@@ -110,7 +110,7 @@ export const brokenLever: RelicSpec = {
         replace: (p: GameSetupParams) => ({ ...p, vpGoal: Math.ceil(p.vpGoal * 0.75) })
     }]
 }
-relicRewards.push(brokenLever)
+addRelicReward(brokenLever)
 
 export const darkBanner: RelicSpec = {
     name: 'Dark Banner',
@@ -127,7 +127,7 @@ export const darkBanner: RelicSpec = {
         transform: (e: CourseStartEvent) => addBuffer(3)
     }]
 }
-relicRewards.push(darkBanner)
+addRelicReward(darkBanner)
 
 const mirrorName = `Silver Mirror`
 export const silverMirror: RelicSpec = {
@@ -148,7 +148,7 @@ export const silverMirror: RelicSpec = {
         },
     }]
 }
-relicRewards.push(silverMirror)
+addRelicReward(silverMirror)
 
 export const sacredBark: RelicSpec = {
     name: 'Sacred Bark',
@@ -167,7 +167,7 @@ export const sacredBark: RelicSpec = {
         transform: (e, _state, card) => e.card.activate('potion', card)
     }]
 }
-relicRewards.push(sacredBark)
+addRelicReward(sacredBark)
 
 export const discountCard: RelicSpec = {
     name: 'Discount card',
@@ -183,7 +183,7 @@ export const discountCard: RelicSpec = {
         }
     }]
 }
-relicRewards.push(discountCard)
+addRelicReward(discountCard)
 
 export const singingBowl: RelicSpec = {
     name: 'Singing Bowl',
@@ -193,7 +193,7 @@ export const singingBowl: RelicSpec = {
         replace: (p: ExtraOptionsParams) => ({ ...p, options: p.options.concat(['singingBowl']) })
     }]
 }
-relicRewards.push(singingBowl)
+addRelicReward(singingBowl)
 
 export const piggyBank: RelicSpec = {
     name: 'Piggy Bank',
@@ -205,7 +205,7 @@ export const piggyBank: RelicSpec = {
         replace: (p: ExtraOptionsParams) => ({ ...p, options: p.options.concat(['takeItAll']) })
     }]
 }
-relicRewards.push(piggyBank)
+addRelicReward(piggyBank)
 
 export const wingedBoots: RelicSpec = {
     name: 'Winged Boots',
@@ -219,7 +219,7 @@ export const wingedBoots: RelicSpec = {
         })
     }]
 }
-relicRewards.push(wingedBoots)
+addRelicReward(wingedBoots)
 
 export const flywheel: RelicSpec = {
     name: 'Flywheel',
@@ -250,7 +250,7 @@ export const flywheel: RelicSpec = {
         }
     }]
 }
-relicRewards.push(flywheel)
+addRelicReward(flywheel)
 
 export const creditVoucher: RelicSpec = {
     name: 'Credit Voucher',
@@ -261,7 +261,7 @@ export const creditVoucher: RelicSpec = {
         transform: (e, s, source) => gainBuys(1, source)
     }]
 }
-relicRewards.push(creditVoucher)
+addRelicReward(creditVoucher)
 
 export const matryoshkaDoll: RelicSpec = {
     name: 'Matryoshka Doll',
@@ -301,7 +301,7 @@ export const matryoshkaDoll: RelicSpec = {
         }
     }]
 }
-relicRewards.push(matryoshkaDoll)
+addRelicReward(matryoshkaDoll)
 
 export const calledShot: RelicSpec = {
     name: 'Called Shot',
@@ -337,8 +337,8 @@ export const delayedGratification: RelicSpec = {
         }
     }]
 }
-registerSpec(calledShot)
-registerSpec(delayedGratification)
+registerRelicSpec(calledShot)
+registerRelicSpec(delayedGratification)
 
 // TODO: implement
 // Need to have a replacer that can put in cards into the challengespec
@@ -396,7 +396,7 @@ export const giftBox: RelicSpec = {
         },
     }]
 }
-relicRewards.push(giftBox)
+addRelicReward(giftBox)
 
 export const emptyBottle: RelicSpec = {
     name: 'Empty Bottle',
@@ -426,7 +426,7 @@ export const emptyBottle: RelicSpec = {
         })
     }]
 }
-registerSpec(emptyBottle)
+registerRelicSpec(emptyBottle)
 
 export const banner: RelicSpec = {
     name: 'Banner',
@@ -443,7 +443,7 @@ export const banner: RelicSpec = {
         }
     }]
 }
-relicRewards.push(banner)
+addRelicReward(banner)
 
 // Question Card: Future rewards have 1 more option
 export const questionCard: RelicSpec = {
@@ -456,7 +456,7 @@ export const questionCard: RelicSpec = {
         replace: (p: RewardParams) => ({ ...p, optionCount: p.optionCount + 2 })
     }]
 }
-relicRewards.push(questionCard)
+addRelicReward(questionCard)
 
 // If called multiple times we generate the same permutations, but index further into them.
 function lookingGlassNewKingdom(
@@ -511,4 +511,4 @@ export const lookingGlass: RelicSpec = {
         }
     }]
 }
-relicRewards.push(lookingGlass)
+addRelicReward(lookingGlass)

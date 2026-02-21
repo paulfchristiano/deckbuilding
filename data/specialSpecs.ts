@@ -1,10 +1,11 @@
-import { Card, CardSpec, State, cardSpecEffects, create, displayName, trash } from '../gameLogic.js'
+import { Card, CardSpec, State, cardSpecEffects, cardSpecRules, create, displayName, trash } from '../gameLogic.js'
 import type { RelicSpec } from '../metaLogic.js'
 
 export function makeCardInABoxRelic(spec: CardSpec): RelicSpec {
     const cardName = displayName(spec)
     return {
         name: `Boxed ${cardName}`,
+        isRelic: true,
         simpleText: [
             `At the start of the game, create a copy of ${cardName} in your hand.`,
             'Trash this.'
@@ -66,7 +67,10 @@ export function makeBottledEventPotion(
         isPotion: true,
         simpleText: [`Use ${cardName}.`],
         relatedCards: [spec],
-        rules: spec.rules ? [...spec.rules] : undefined,
+        rules: (() => {
+            const rules = cardSpecRules(spec)
+            return rules.length > 0 ? [...rules] : undefined
+        })(),
         persistence: {
             kind: 'bottledEventPotion'
         },

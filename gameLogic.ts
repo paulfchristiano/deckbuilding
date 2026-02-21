@@ -3,6 +3,7 @@
 
 export interface CardSpec {
     name: string;
+    isRelic?: boolean; // Explicit rendering marker for relic-style text formatting
     upgrades?: CardUpgrade[];
     fixedCost?: Cost;
     restrictions?: Restriction[];
@@ -36,6 +37,7 @@ export interface CardUpgrade {
     staticTriggers?: TypedTrigger[];
     replacers?: TypedReplacer[];
     staticReplacers?: TypedReplacer[];
+    rules?: Rule[];
     cost?: (cost: Cost, kind: ActionKind) => Cost;
 }
 
@@ -67,6 +69,10 @@ export function cardSpecEffects(spec: CardSpec): Effect[] {
     return appendUpgrades(spec.effects, spec.upgrades, upgrade => upgrade.effects)
 }
 
+export function cardSpecRules(spec: CardSpec): Rule[] {
+    return appendUpgrades(spec.rules, spec.upgrades, upgrade => upgrade.rules)
+}
+
 export function cardSpecSimpleLines(spec: CardSpec): string[] {
     const lines: string[] = []
     if (spec.simpleText !== undefined) {
@@ -94,7 +100,7 @@ export function cardSpecSimpleLines(spec: CardSpec): string[] {
     for (const replacer of cardSpecStaticReplacers(spec)) {
         lines.push(...(replacer.simpleText ?? replacer.text))
     }
-    for (const rule of (spec.rules || [])) {
+    for (const rule of cardSpecRules(spec)) {
         for (const trigger of (rule.triggers || [])) {
             lines.push(...(trigger.simpleText ?? trigger.text))
         }

@@ -16,6 +16,16 @@ export function registerSpec(spec: CardSpec): void {
     extraSpecsByName.set(spec.name, spec)
 }
 
+export function registerRelicSpec(spec: CardSpec): void {
+    spec.isRelic = true
+    registerSpec(spec)
+}
+
+export function addRelicReward(spec: CardSpec): void {
+    spec.isRelic = true
+    relicRewards.push(spec)
+}
+
 export function getSpecByName(name: string): CardSpec | null {
     if (extraSpecsByName.has(name)) return extraSpecsByName.get(name)!
 

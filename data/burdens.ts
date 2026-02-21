@@ -34,7 +34,7 @@ import {
     removeRelic,
 } from '../metaLogic.js'
 import { beggarsBrew } from './potions.js'
-import { registerSpec } from '../registry.js'
+import { registerRelicSpec } from '../registry.js'
 
 function upgradeCardSpec(spec: CardSpec, upgrade: CardUpgrade): CardSpec {
     return {
@@ -78,7 +78,7 @@ const frozenRelic: RelicSpec = {
         }
     }]
 }
-registerSpec(frozenRelic)
+registerRelicSpec(frozenRelic)
 
 function makeFrozenRelicSpec(baseRelic: RelicSpec): RelicSpec {
     return {
@@ -111,7 +111,7 @@ const fakeCoin: RelicSpec = {
     }],
     rules: [decayRule]
 }
-registerSpec(fakeCoin)
+registerRelicSpec(fakeCoin)
 
 const miserlyTouch: RelicSpec = {
     name: 'Miserly Touch',
@@ -130,7 +130,7 @@ const miserlyTouch: RelicSpec = {
     }],
     rules: [decayRule]
 }
-registerSpec(miserlyTouch)
+registerRelicSpec(miserlyTouch)
 
 const heavyStone: RelicSpec = {
     name: 'Heavy Stone',
@@ -146,7 +146,7 @@ const heavyStone: RelicSpec = {
         replace: params => ({ ...params, amount: Math.max(0, params.amount - 1) })
     }]
 }
-registerSpec(heavyStone)
+registerRelicSpec(heavyStone)
 
 const cursedHourglass: RelicSpec = {
     name: 'Leaking Inkwell',
@@ -186,7 +186,7 @@ const cursedHourglass: RelicSpec = {
         }
     }]
 }
-registerSpec(cursedHourglass)
+registerRelicSpec(cursedHourglass)
 
 const cursedDoll: RelicSpec = {
     name: 'Cursed Doll',
@@ -207,7 +207,7 @@ const cursedDoll: RelicSpec = {
         }
     }]
 }
-registerSpec(cursedDoll)
+registerRelicSpec(cursedDoll)
 
 const cursedKey: RelicSpec = {
     name: 'Cursed Key',
@@ -226,7 +226,7 @@ const cursedKey: RelicSpec = {
         replace: params => ({ ...params, options: params.options.concat(['destroyCursedKey']) })
     }]
 }
-registerSpec(cursedKey)
+registerRelicSpec(cursedKey)
 
 const cursedBoots: RelicSpec = {
     name: 'Cursed Boots',
@@ -262,7 +262,7 @@ const cursedBoots: RelicSpec = {
         }
     }]
 }
-registerSpec(cursedBoots)
+registerRelicSpec(cursedBoots)
 
 const cursedBanner: RelicSpec = {
     name: 'Cursed Hourglass',
@@ -285,7 +285,7 @@ const cursedBanner: RelicSpec = {
         }
     }]
 }
-registerSpec(cursedBanner)
+registerRelicSpec(cursedBanner)
 
 const cursedSozu: RelicSpec = {
     name: 'Sozu',
@@ -304,7 +304,7 @@ const cursedSozu: RelicSpec = {
         }
     }]
 }
-registerSpec(cursedSozu)
+registerRelicSpec(cursedSozu)
 
 const expensiveFlask: RelicSpec = {
     name: 'Expensive Flask',
@@ -318,7 +318,7 @@ const expensiveFlask: RelicSpec = {
         replace: params => ({ ...params, cost: addCosts(params.cost, coin(1)) })
     }]
 }
-registerSpec(expensiveFlask)
+registerRelicSpec(expensiveFlask)
 
 const brokenCrown: RelicSpec = {
     name: 'Broken Crown',
@@ -333,7 +333,7 @@ const brokenCrown: RelicSpec = {
         }
     }]
 }
-registerSpec(brokenCrown)
+registerRelicSpec(brokenCrown)
 
 const taxCardUpgrade: CardUpgrade = {
     id: 'burden_tax_card',
@@ -366,6 +366,7 @@ function setDecayReplacer(numTokens: number): ((params: CreateParams) => CreateP
 const decayCardUpgrade: CardUpgrade = {
     id: 'burden_decay_card',
     name: name => `${name}-`,
+    rules: [decayRule],
     staticReplacers: [{
         kind: 'create',
         text: ['When you create this, if it has no decay tokens put 2 on it. If it has more than 2 decay tokens, remove all but 2.'],

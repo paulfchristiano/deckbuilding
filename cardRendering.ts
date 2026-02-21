@@ -2,7 +2,7 @@
 // Shared between gameUI and metaUI for consistent card display.
 
 import { CardSpec, Cost, VariableCost, Trigger, Replacer, Rule } from './gameLogic.js'
-import { cardSpecCost, cardSpecEffects, cardSpecSimpleLines, displayName, cardSpecReplacers, cardSpecStaticReplacers, cardSpecStaticTriggers, cardSpecTriggers, relicRewards, renderCost } from './gameLogic.js'
+import { cardSpecCost, cardSpecEffects, cardSpecRules, cardSpecSimpleLines, displayName, cardSpecReplacers, cardSpecStaticReplacers, cardSpecStaticTriggers, cardSpecTriggers, renderCost } from './gameLogic.js'
 
 // ----------------------------- Helper Functions
 
@@ -18,10 +18,6 @@ type MetaTextEntry = { text: string[] }
 type MetaTextSpec = CardSpec & {
     metaReplacers?: MetaTextEntry[]
     metaTriggers?: MetaTextEntry[]
-    burden?: boolean
-    gainRequirement?: unknown
-    mutableTriggers?: unknown
-    mutableReplacers?: unknown
 }
 
 function asMetaTextSpec(spec: CardSpec): MetaTextSpec {
@@ -29,11 +25,7 @@ function asMetaTextSpec(spec: CardSpec): MetaTextSpec {
 }
 
 function isRelicSpec(spec: CardSpec): boolean {
-    const x = asMetaTextSpec(spec)
-    if (x.burden === true) return true
-    if (x.metaReplacers !== undefined || x.metaTriggers !== undefined || x.gainRequirement !== undefined) return true
-    if (x.mutableTriggers !== undefined || x.mutableReplacers !== undefined) return true
-    return relicRewards.some(relic => relic.name === spec.name)
+    return spec.isRelic === true
 }
 
 // ----------------------------- Text Rendering
@@ -121,7 +113,7 @@ export function cardText(spec: CardSpec): string {
     const replacerHtml = cardSpecReplacers(spec).map(x => renderTrigger(x, false, plain)).join('')
     const staticTriggerHtml = cardSpecStaticTriggers(spec).map(x => renderTrigger(x, true, plain)).join('')
     const staticReplacerHtml = cardSpecStaticReplacers(spec).map(x => renderTrigger(x, true, plain)).join('')
-    const rulesHtml = (spec.rules || []).map(rule => renderRuleText(rule, plain)).join('')
+    const rulesHtml = cardSpecRules(spec).map(rule => renderRuleText(rule, plain)).join('')
     const metaHtml = renderMetaText(spec, plain)
 
     return [
@@ -169,7 +161,7 @@ export function buildSpecTooltipSimple(spec: CardSpec): string {
 }
 
 export function buildSpecTooltipOnlyRelatedSimple(spec: CardSpec): string {
-    const rules = (spec.rules || []).map(rule => renderRuleText(rule, false)).join('')
+    const rules = cardSpecRules(spec).map(rule => renderRuleText(rule, false)).join('')
     const related = (spec.relatedCards || []).map(buildSimpleTooltipForSingleSpec).join('')
     return `${rules}${related}`
 }
