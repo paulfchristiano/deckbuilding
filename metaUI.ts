@@ -9,7 +9,7 @@ import {
     makeSpec,
     ActiveGameProgress,
     renderChallenge,
-    getRewardOptions, getRewardName, getBurdenOptions, updateRewardState, updateRewardAtIndex, updateBurdenState, updateBurdenAtIndex,
+    getRewardOptions, getRewardName, getBurdenOptions, isBurdenResolved, updateRewardState, updateRewardAtIndex, updateBurdenState, updateBurdenAtIndex,
     Undo, Redo, ReplayStage, ExitToLauncher
 } from './metaLogic.js'
 import { buildSpecTooltipFull, buildSpecTooltipSimple, renderSpecNoRelated } from './cardRendering.js'
@@ -577,7 +577,7 @@ function renderStageScreen(
     // Render challenge button(s)
     const challengeContainer = getElement('challengeButtons')
     clearElement(challengeContainer)
-    const unresolvedBurdens = state.data.burdenStates.some(burdenState => burdenState.selectedIndex === null)
+    const unresolvedBurdens = state.data.burdenStates.some(burdenState => !isBurdenResolved(burdenState))
 
     for (const challenge of state.data.challenges) {
         const playBtn = createSpan('option')

@@ -178,39 +178,18 @@ const cursedDoll: RelicSpec = {
     name: 'Cursed Doll',
     burden: true,
     metaReplacers: [{
-        kind: 'pathRewards',
-        simpleText: ['Your next 2 stages have an additional burden on each path.'],
-        text: ['Each path has an additional burden on it.'],
-        replace: (params, _state, self: Relic) => (
-            { ...params, numBurdens: params.numBurdens + 1 }
-        )
+        kind: 'burden',
+        simpleText: ['In the next burden you encounter, pick 2 of 3 options instead of 1 of 2.'],
+        text: ['In the next burden you encounter, pick 2 of 3 options instead of 1 of 2.'],
+        replace: params => ({ ...params, numOptions: params.numOptions + 1, numPicked: params.numPicked + 1 })
     }],
     metaTriggers: [{
-        kind: 'relic',
-        text: ['When you gain this, put 2 charge tokens on it.'],
+        kind: 'start',
+        text: [],
         simpleText: [],
-        handles: (e, _s, self: Relic) => self.id === e.relic.id,
+        handles: (e, _s, _self: Relic) => e.stage > 0,
         transform: (_e, _s, self: Relic) => async function (state: MetaState) {
-            if (!state.data.relics.some(r => r.id === self.id)) return
-            const tokens = new Map(self.tokens)
-            tokens.set('charge', 2)
-            state.applyToRelic(r => r.update({ tokens }), self)
-        }
-    }, {
-        kind: 'path',
-        text: ['After generating paths, remove a charge token from this. Then if it has no charge tokens, destroy it.'],
-        simpleText: [],
-        handles: (_e, _s, _self: Relic) => true,
-        transform: (_e, _s, self: Relic) => async function (state: MetaState) {
-            const current = state.data.relics.find(r => r.id === self.id)
-            if (!current) return
-            const nextCharge = Math.max(current.count('charge') - 1, 0)
-            const tokens = new Map(current.tokens)
-            tokens.set('charge', nextCharge)
-            state.applyToRelic(r => r.update({ tokens }), current)
-            if (nextCharge === 0) {
-                await removeRelic(state, current.id)
-            }
+            await removeRelic(state, self.id)
         }
     }]
 }

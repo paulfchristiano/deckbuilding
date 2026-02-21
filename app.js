@@ -5268,6 +5268,9 @@
       return definition.id;
     });
   }
+  function isBurdenResolved(burdenState) {
+    return burdenState.selectedIndices.length >= burdenState.numPicked;
+  }
   function getBurdenOptions(burdenState, metaState) {
     var _this = this;
     return burdenState.options.map(function(option, index) {
@@ -5313,31 +5316,35 @@
       });
       var baseDescription = option.description || "";
       var descriptionLines = baseDescription.length > 0 ? __spreadArray6([baseDescription], __read7(ruleLines), false) : ruleLines;
+      var resolved = isBurdenResolved(burdenState);
+      var alreadyPicked = burdenState.selectedIndices.includes(index);
       return {
         label: option.title,
         description: descriptionLines.join("\n"),
         spec: (_a = option.spec) !== null && _a !== void 0 ? _a : void 0,
-        disabled: burdenState.selectedIndex !== null || !applicable,
-        checked: burdenState.selectedIndex === index,
+        disabled: resolved || alreadyPicked || !applicable,
+        checked: alreadyPicked,
         onClick: function() {
           return __awaiter4(_this, void 0, void 0, function() {
-            var transform;
-            return __generator4(this, function(_a2) {
-              switch (_a2.label) {
+            var transform, selectedIndices;
+            var _a2;
+            return __generator4(this, function(_b) {
+              switch (_b.label) {
                 case 0:
                   if (!definition.applies(metaState)) {
                     return [2, { newData: burdenState }];
                   }
                   return [4, definition.resolveTransform(option, metaState)];
                 case 1:
-                  transform = _a2.sent();
+                  transform = _b.sent();
                   if (!transform) {
                     return [2, {
                       newData: burdenState
                     }];
                   }
+                  selectedIndices = __spreadArray6(__spreadArray6([], __read7(burdenState.selectedIndices), false), [index], false);
                   return [2, {
-                    newData: __assign3(__assign3({}, burdenState), { selectedIndex: index }),
+                    newData: __assign3(__assign3({}, burdenState), { selectedIndex: (_a2 = selectedIndices[0]) !== null && _a2 !== void 0 ? _a2 : null, selectedIndices }),
                     transform
                   }];
               }
@@ -6055,8 +6062,11 @@
     };
   }
   function serializeBurdenState(burdenState) {
+    var _a;
     return {
-      selectedIndex: burdenState.selectedIndex,
+      selectedIndex: (_a = burdenState.selectedIndices[0]) !== null && _a !== void 0 ? _a : null,
+      selectedIndices: __spreadArray6([], __read7(burdenState.selectedIndices), false),
+      numPicked: burdenState.numPicked,
       options: burdenState.options.map(function(option) {
         return {
           id: option.id,
@@ -6069,8 +6079,13 @@
     };
   }
   function deserializeBurdenState(burdenState) {
+    var _a, _b;
+    var selectedIndices = burdenState.selectedIndices !== void 0 ? __spreadArray6([], __read7(burdenState.selectedIndices), false) : burdenState.selectedIndex === null ? [] : [burdenState.selectedIndex];
+    var numPicked = Math.max(1, (_a = burdenState.numPicked) !== null && _a !== void 0 ? _a : 1);
     return {
-      selectedIndex: burdenState.selectedIndex,
+      selectedIndex: (_b = selectedIndices[0]) !== null && _b !== void 0 ? _b : null,
+      selectedIndices,
+      numPicked,
       options: burdenState.options.map(function(option) {
         return {
           id: option.id,
@@ -7158,6 +7173,13 @@
   function sampleBurdenState(state, generator) {
     var e_21, _a;
     var stage = state.data.stage;
+    var burdenParams = applyMetaReplacers({
+      kind: "burden",
+      numOptions: 2,
+      numPicked: 1
+    }, state);
+    var numOptions = Math.max(1, burdenParams.numOptions);
+    var numPicked = Math.max(1, Math.min(burdenParams.numPicked, numOptions));
     var ordered = orderedBurdenCandidates(state, generator);
     var options = [];
     var chosenIDs = /* @__PURE__ */ new Set();
@@ -7172,7 +7194,7 @@
           continue;
         options.push(definition.createOption(state, generator));
         chosenIDs.add(definition.id);
-        if (options.length === 2)
+        if (options.length === numOptions)
           break;
       }
     } catch (e_21_1) {
@@ -7184,12 +7206,14 @@
         if (e_21) throw e_21.error;
       }
     }
-    if (options.length < 2) {
+    if (options.length < numOptions) {
       throw new Error("No valid burden options for stage ".concat(state.data.stage + 1));
     }
     return {
       options,
-      selectedIndex: null
+      selectedIndex: null,
+      selectedIndices: [],
+      numPicked
     };
   }
   function normalizePathOptionSpec(path) {
@@ -7295,7 +7319,7 @@
     }
     var burdenStates = [];
     for (var index = 0; index < skeleton.burdens; index++) {
-      burdenStates.push({ options: [], selectedIndex: null });
+      burdenStates.push({ options: [], selectedIndex: null, selectedIndices: [], numPicked: 1 });
     }
     return {
       label: skeleton.label,
@@ -7928,7 +7952,9 @@
     });
     return {
       options,
-      selectedIndex: null
+      selectedIndex: null,
+      selectedIndices: [],
+      numPicked: 1
     };
   }
   function makeTestReward(state, spec) {
@@ -8226,7 +8252,7 @@
                   case 27:
                     _p.sent();
                     if (state.data.burdenStates.some(function(burden) {
-                      return burden.selectedIndex === null;
+                      return !isBurdenResolved(burden);
                     })) {
                       throw new Error("Invariant violation: cannot start stage with unresolved burdens");
                     }
@@ -15039,79 +15065,29 @@
     name: "Cursed Doll",
     burden: true,
     metaReplacers: [{
-      kind: "pathRewards",
-      simpleText: ["Your next 2 stages have an additional burden on each path."],
-      text: ["Each path has an additional burden on it."],
-      replace: function(params, _state, self) {
-        return __assign10(__assign10({}, params), { numBurdens: params.numBurdens + 1 });
+      kind: "burden",
+      simpleText: ["In the next burden you encounter, pick 2 of 3 options instead of 1 of 2."],
+      text: ["In the next burden you encounter, pick 2 of 3 options instead of 1 of 2."],
+      replace: function(params) {
+        return __assign10(__assign10({}, params), { numOptions: params.numOptions + 1, numPicked: params.numPicked + 1 });
       }
     }],
     metaTriggers: [{
-      kind: "relic",
-      text: ["When you gain this, put 2 charge tokens on it."],
+      kind: "start",
+      text: [],
       simpleText: [],
-      handles: function(e, _s, self) {
-        return self.id === e.relic.id;
+      handles: function(e, _s, _self) {
+        return e.stage > 0;
       },
       transform: function(_e, _s, self) {
         return function(state) {
           return __awaiter11(this, void 0, void 0, function() {
-            var tokens;
-            return __generator11(this, function(_a) {
-              if (!state.data.relics.some(function(r) {
-                return r.id === self.id;
-              }))
-                return [
-                  2
-                  /*return*/
-                ];
-              tokens = new Map(self.tokens);
-              tokens.set("charge", 2);
-              state.applyToRelic(function(r) {
-                return r.update({ tokens });
-              }, self);
-              return [
-                2
-                /*return*/
-              ];
-            });
-          });
-        };
-      }
-    }, {
-      kind: "path",
-      text: ["After generating paths, remove a charge token from this. Then if it has no charge tokens, destroy it."],
-      simpleText: [],
-      handles: function(_e, _s, _self) {
-        return true;
-      },
-      transform: function(_e, _s, self) {
-        return function(state) {
-          return __awaiter11(this, void 0, void 0, function() {
-            var current, nextCharge, tokens;
             return __generator11(this, function(_a) {
               switch (_a.label) {
                 case 0:
-                  current = state.data.relics.find(function(r) {
-                    return r.id === self.id;
-                  });
-                  if (!current)
-                    return [
-                      2
-                      /*return*/
-                    ];
-                  nextCharge = Math.max(current.count("charge") - 1, 0);
-                  tokens = new Map(current.tokens);
-                  tokens.set("charge", nextCharge);
-                  state.applyToRelic(function(r) {
-                    return r.update({ tokens });
-                  }, current);
-                  if (!(nextCharge === 0)) return [3, 2];
-                  return [4, removeRelic(state, current.id)];
+                  return [4, removeRelic(state, self.id)];
                 case 1:
                   _a.sent();
-                  _a.label = 2;
-                case 2:
                   return [
                     2
                     /*return*/
@@ -18796,7 +18772,7 @@
     var challengeContainer = getElement2("challengeButtons");
     clearElement2(challengeContainer);
     var unresolvedBurdens = state.data.burdenStates.some(function(burdenState) {
-      return burdenState.selectedIndex === null;
+      return !isBurdenResolved(burdenState);
     });
     var _loop_4 = function(challenge2) {
       var playBtn = createSpan("option");
@@ -19342,7 +19318,11 @@
     };
     throw new TypeError(s ? "Object is not iterable." : "Symbol.iterator is not defined.");
   };
-  var test = null;
+  var test = {
+    burdens: [
+      [1, "cursed_doll"]
+    ]
+  };
   var SAVE_STORAGE_KEY = "roguelike.ongoingSaves.v1";
   var RUN_TIMER_STORAGE_KEY = "roguelike.runTimerSeconds.v1";
   var HELP_SEEN_STORAGE_KEY = "roguelike.helpSeen.v1";

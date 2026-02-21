@@ -129,6 +129,8 @@ export interface BurdenOptionState {
 export interface BurdenState {
     options: BurdenOptionState[]
     selectedIndex: number | null
+    selectedIndices: number[]
+    numPicked: number
 }
 
 export interface BurdenDefinition {
@@ -294,6 +296,10 @@ export function getRegisteredBurdenIds(): string[] {
     return burdenRegistry.map(definition => definition.id)
 }
 
+export function isBurdenResolved(burdenState: BurdenState): boolean {
+    return burdenState.selectedIndices.length >= burdenState.numPicked
+}
+
 export function getBurdenOptions(burdenState: BurdenState, metaState: MetaState): RewardOption[] {
     return burdenState.options.map((option, index) => {
         const definition = burdenDefinitionById(option.id)
@@ -315,12 +321,14 @@ export function getBurdenOptions(burdenState: BurdenState, metaState: MetaState)
         const descriptionLines = baseDescription.length > 0
             ? [baseDescription, ...ruleLines]
             : ruleLines
+        const resolved = isBurdenResolved(burdenState)
+        const alreadyPicked = burdenState.selectedIndices.includes(index)
         return {
             label: option.title,
             description: descriptionLines.join('\n'),
             spec: option.spec ?? undefined,
-            disabled: burdenState.selectedIndex !== null || !applicable,
-            checked: burdenState.selectedIndex === index,
+            disabled: resolved || alreadyPicked || !applicable,
+            checked: alreadyPicked,
             onClick: async () => {
                 if (!definition.applies(metaState)) {
                     return { newData: burdenState }
@@ -331,8 +339,13 @@ export function getBurdenOptions(burdenState: BurdenState, metaState: MetaState)
                         newData: burdenState,
                     }
                 }
+                const selectedIndices = [...burdenState.selectedIndices, index]
                 return {
-                    newData: { ...burdenState, selectedIndex: index },
+                    newData: {
+                        ...burdenState,
+                        selectedIndex: selectedIndices[0] ?? null,
+                        selectedIndices
+                    },
                     transform
                 }
             }
@@ -569,7 +582,13 @@ export interface PathRewardParams {
     numBurdens: number
 }
 
-export type MetaParams = GameSetupParams | RewardParams | ExtraOptionsParams | PathRewardParams
+export interface BurdenParams {
+    kind: 'burden'
+    numOptions: number
+    numPicked: number
+}
+
+export type MetaParams = GameSetupParams | RewardParams | ExtraOptionsParams | PathRewardParams | BurdenParams
 
 export interface TypedMetaReplacer<T extends MetaParams> {
     kind: T['kind']
@@ -584,6 +603,7 @@ export type MetaReplacer =
     | TypedMetaReplacer<RewardParams>
     | TypedMetaReplacer<ExtraOptionsParams>
     | TypedMetaReplacer<PathRewardParams>
+    | TypedMetaReplacer<BurdenParams>
 
 // Meta trigger event types
 export interface CourseEndEvent {
@@ -1069,6 +1089,8 @@ interface SerializedBurdenOptionState {
 interface SerializedBurdenState {
     options: SerializedBurdenOptionState[]
     selectedIndex: number | null
+    selectedIndices?: number[]
+    numPicked?: number
 }
 
 interface SerializedEncounterRewardState {
@@ -1426,7 +1448,9 @@ function deserializePath(path: SerializedPath): Path {
 
 function serializeBurdenState(burdenState: BurdenState): SerializedBurdenState {
     return {
-        selectedIndex: burdenState.selectedIndex,
+        selectedIndex: burdenState.selectedIndices[0] ?? null,
+        selectedIndices: [...burdenState.selectedIndices],
+        numPicked: burdenState.numPicked,
         options: burdenState.options.map(option => ({
             id: option.id,
             title: option.title,
@@ -1438,8 +1462,14 @@ function serializeBurdenState(burdenState: BurdenState): SerializedBurdenState {
 }
 
 function deserializeBurdenState(burdenState: SerializedBurdenState): BurdenState {
+    const selectedIndices = burdenState.selectedIndices !== undefined
+        ? [...burdenState.selectedIndices]
+        : (burdenState.selectedIndex === null ? [] : [burdenState.selectedIndex])
+    const numPicked = Math.max(1, burdenState.numPicked ?? 1)
     return {
-        selectedIndex: burdenState.selectedIndex,
+        selectedIndex: selectedIndices[0] ?? null,
+        selectedIndices,
+        numPicked,
         options: burdenState.options.map(option => ({
             id: option.id,
             title: option.title,
@@ -2249,6 +2279,13 @@ function orderedBurdenCandidates(
 
 function sampleBurdenState(state: MetaState, generator: Generator): BurdenState {
     const stage = state.data.stage
+    const burdenParams = applyMetaReplacers({
+        kind: 'burden',
+        numOptions: 2,
+        numPicked: 1
+    }, state)
+    const numOptions = Math.max(1, burdenParams.numOptions)
+    const numPicked = Math.max(1, Math.min(burdenParams.numPicked, numOptions))
     const ordered = orderedBurdenCandidates(state, generator)
     const options: BurdenOptionState[] = []
     const chosenIDs = new Set<string>()
@@ -2258,14 +2295,16 @@ function sampleBurdenState(state: MetaState, generator: Generator): BurdenState 
         if (!definition.applies(state)) continue
         options.push(definition.createOption(state, generator))
         chosenIDs.add(definition.id)
-        if (options.length === 2) break
+        if (options.length === numOptions) break
     }
-    if (options.length < 2) {
+    if (options.length < numOptions) {
         throw new Error(`No valid burden options for stage ${state.data.stage + 1}`)
     }
     return {
         options,
-        selectedIndex: null
+        selectedIndex: null,
+        selectedIndices: [],
+        numPicked
     }
 }
 
@@ -2353,7 +2392,7 @@ function pathFromSkeleton(skeleton: PathSkeleton): Path {
     }
     const burdenStates: BurdenState[] = []
     for (let index = 0; index < skeleton.burdens; index++) {
-        burdenStates.push({ options: [], selectedIndex: null })
+        burdenStates.push({ options: [], selectedIndex: null, selectedIndices: [], numPicked: 1 })
     }
     return {
         label: skeleton.label,
@@ -2926,7 +2965,9 @@ function makeTestBurdenState(state: MetaState, burdenDefinitions: BurdenDefiniti
     const options = burdenDefinitions.map(definition => definition.createOption(state, generator))
     return {
         options,
-        selectedIndex: null
+        selectedIndex: null,
+        selectedIndices: [],
+        numPicked: 1
     }
 }
 
@@ -3138,7 +3179,7 @@ export async function playGame(
                 // Store the selected challenge as the only one
                 state.update({ challenges: [selectedChallenge], availablePaths: [] })
                 await trigger({kind: 'start', stage: state.data.stage}, state)
-                if (state.data.burdenStates.some(burden => burden.selectedIndex === null)) {
+                if (state.data.burdenStates.some(burden => !isBurdenResolved(burden))) {
                     throw new Error('Invariant violation: cannot start stage with unresolved burdens')
                 }
                 state.updateAndSetCheckpoint({
