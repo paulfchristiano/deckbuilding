@@ -50,7 +50,8 @@ const HELP_ITEMS: string[] = [
     'The final stage has a low par and no boon, so you’ll need to prepare.',
     'You can see the text of cards by hovering over them. If you hold shift you can see the exact rules rather than the simplified text that is displayed by default.',
     'If you shift+click on an item, you will use it 10 times.',
-    'You can record macros to replay common sequences of actions, or you can click “save replay” to record a macro from the beginning of the game to your current state (for example if you want to save your state and experiment with different picks). Right click a macro to delete it.'
+    'You can record macros to replay common sequences of actions, or you can click “save replay” to record a macro from the beginning of the game to your current state (for example if you want to save your state and experiment with different picks). Right click a macro to delete it.',
+    'You can enable any of 3 challenge modes: scarcity (decreases pars by 1), burdens (pick a negative effect each stage), and curses (two stages have a curse that makes them harder).'
 ]
 
 function loadRunTimerSeconds(): number {
