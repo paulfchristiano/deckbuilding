@@ -491,6 +491,17 @@ function renderStageScreen(
                 }
             }
 
+            if ((option.bufferDelta ?? 0) !== 0) {
+                const bufferBadge = createSpan('rewardOptionBufferBadge')
+                if ((option.bufferDelta ?? 0) < 0) {
+                    bufferBadge.classList.add('negative')
+                } else {
+                    bufferBadge.classList.add('positive')
+                }
+                bufferBadge.textContent = `${option.bufferDelta}`
+                optionEl.appendChild(bufferBadge)
+            }
+
             if (option.disabled) {
                 optionEl.setAttribute('disabled', 'disabled')
                 if (option.checked) {
@@ -517,7 +528,7 @@ function renderStageScreen(
         const burdenRow = createDiv('rewardRow')
 
         const labelDiv = createDiv('rewardLabel')
-        labelDiv.textContent = `Burden ${burdenIndex + 1}`
+        labelDiv.textContent = 'Take Burden'
         burdenRow.appendChild(labelDiv)
 
         const optionsDiv = createDiv('rewardOptions')

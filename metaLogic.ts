@@ -10,7 +10,6 @@ import { CardSpec, Card, State, vpModes,
     Token,
     cardRewards, eventRewards, potionRewards, relicRewards,
     coinKey, energyEventKey, displayName,
-    ExtraOption, extraOptions,
     VictoryData,
     Replayable
  } from './gameLogic.js'
@@ -90,6 +89,7 @@ export interface RewardOption {
     spec?: CardSpec           // Display as card if provided
     tooltipSpec?: CardSpec    // Optional tooltip card content for text options
     compact?: boolean         // Render as compact text option
+    bufferDelta?: number      // Buffer gained/lost when this option is picked
     disabled: boolean
     checked: boolean          // Shows checkmark if selected
     onClick: () => Promise<{ newData: unknown, transform?: MetaTransform }>
@@ -143,7 +143,44 @@ export interface BurdenDefinition {
     createOption: (state: MetaState, generator: Generator) => BurdenOptionState
     resolveTransform: (option: BurdenOptionState, state: MetaState) => Promise<MetaTransform | null> | MetaTransform | null
 }
-const PIGGY_BANK_SELECTED_INDEX = -2
+
+export type ExtraOptionID = string
+
+export interface ExtraOptionRender {
+    label: string
+    description?: string
+    tooltipSpec?: CardSpec
+    compact?: boolean
+    transform: MetaTransform
+}
+
+export interface ExtraOptionDefinition {
+    id: ExtraOptionID
+    selectionMarker: number
+    render: (rewardState: SimpleRewardState, state: MetaState) => ExtraOptionRender
+}
+
+const extraOptionRegistry = new Map<ExtraOptionID, ExtraOptionDefinition>()
+const extraOptionSelectionRegistry = new Map<number, ExtraOptionDefinition>()
+
+export function registerExtraOption(definition: ExtraOptionDefinition): void {
+    if (extraOptionRegistry.has(definition.id)) {
+        throw new Error(`Duplicate extra option id "${definition.id}"`)
+    }
+    if (extraOptionSelectionRegistry.has(definition.selectionMarker)) {
+        throw new Error(`Duplicate extra option marker "${definition.selectionMarker}"`)
+    }
+    extraOptionRegistry.set(definition.id, definition)
+    extraOptionSelectionRegistry.set(definition.selectionMarker, definition)
+}
+
+function getRegisteredExtraOptions(): ExtraOptionDefinition[] {
+    return [...extraOptionRegistry.values()]
+}
+
+function extraOptionBySelectionMarker(marker: number): ExtraOptionDefinition | null {
+    return extraOptionSelectionRegistry.get(marker) ?? null
+}
 
 function encounterRewardCompleted(rewardState: EncounterRewardState): boolean {
     const data = rewardState.data as Record<string, unknown> | null
@@ -158,21 +195,26 @@ function relicGainRequirementSatisfied(relic: RelicSpec, state: MetaState): bool
     return relic.gainRequirement ? relic.gainRequirement(state) : true
 }
 
-function enabledExtraOptions(state: MetaState): Set<ExtraOption> {
-    const allowed = new Set<ExtraOption>(extraOptions)
-    const params = applyMetaReplacers('extraOptions', { options: [] as ExtraOption[] }, state)
+function enabledExtraOptions(state: MetaState): Set<ExtraOptionID> {
+    const allowed = new Set<ExtraOptionID>(extraOptionRegistry.keys())
+    const params = applyMetaReplacers('extraOptions', { options: [] as ExtraOptionID[] }, state)
     return new Set(params.options.filter(option => allowed.has(option)))
 }
 
 // Get options for a simple reward
 function getSimpleRewardOptions(state: SimpleRewardState, metaState: MetaState): RewardOption[] {
     const options = state.options as Array<CardSpec | RelicSpec>
+    const rewardParams = applyMetaReplacers('reward', {
+        optionCount: options.length,
+        pickBufferAdjustments: []
+    }, metaState)
     return options.map((option: CardSpec | RelicSpec, i: number) => ({
         label: displayName(option as CardSpec),
         spec: option as CardSpec,
         disabled: state.selectedIndex !== null
             || (state.kind === 'relic' && !relicGainRequirementSatisfied(option as RelicSpec, metaState)),
-        checked: state.selectedIndex === i || state.selectedIndex === PIGGY_BANK_SELECTED_INDEX,
+        checked: state.selectedIndex === i,
+        bufferDelta: rewardParams.pickBufferAdjustments[i] ?? 0,
         onClick: async () => {
             const skipped = options
                 .filter((_, optionIndex) => optionIndex !== i)
@@ -182,9 +224,12 @@ function getSimpleRewardOptions(state: SimpleRewardState, metaState: MetaState):
                 state.kind === 'event' ? gainEvent(option as CardSpec, { skipped }) :
                 state.kind === 'potion' ? gainPotion(option as CardSpec, { skipped }) :
                 gainRelic(option as RelicSpec, { skipped })
+            const pickBufferAdjustment = rewardParams.pickBufferAdjustments[i] ?? 0
             return {
                 newData: { ...state, selectedIndex: i },
-                transform
+                transform: pickBufferAdjustment === 0
+                    ? transform
+                    : compose(transform, addBuffer(pickBufferAdjustment))
             }
         }
     }))
@@ -199,58 +244,32 @@ export function getRewardOptions(rewardState: RewardState, metaState: MetaState)
     const alreadySelected = rewardState.kind === 'encounter'
         ? encounterRewardCompleted(rewardState)
         : rewardState.selectedIndex !== null
-    const piggySelected = rewardState.kind !== 'encounter' && rewardState.selectedIndex === PIGGY_BANK_SELECTED_INDEX
-    const extraOptionSet = rewardState.kind === 'encounter' ? new Set<ExtraOption>() : enabledExtraOptions(metaState)
-    const hasSingingBowl = rewardState.kind !== 'encounter' && extraOptionSet.has('singingBowl')
-    if (hasSingingBowl) {
-        const optionIndex = baseOptions.length
-        const skippedLabels = baseOptions.map(option => option.label)
-        const details = skippedLabels.length > 0 ? `Skipped: ${skippedLabels.join(', ')}` : undefined
-        baseOptions.push({
-            label: '+2 Buffer',
-            compact: true,
-            disabled: alreadySelected,
-            checked: rewardState.selectedIndex === optionIndex,
-            onClick: async () => {
-                const transform = compose(
-                    addTimelineAction('Gain 2 buffer', details),
-                    addBuffer(2)
-                )
-                return {
-                    newData: { ...rewardState, selectedIndex: optionIndex },
-                    transform
-                }
-            }
-        })
-    }
 
-    const hasPiggyBank = rewardState.kind !== 'encounter' && (extraOptionSet.has('takeItAll') || piggySelected)
-    if (hasPiggyBank) {
-        const takenNames = rewardState.options.map(option => displayName(option as CardSpec))
-        const details = takenNames.length > 0 ? `Taken: ${takenNames.join(', ')}` : undefined
-        baseOptions.push({
-            label: 'Take it all',
-            compact: true,
-            disabled: alreadySelected,
-            checked: piggySelected,
-            onClick: async () => {
-                const transform: MetaTransform = async (state: MetaState) => {
-                    const piggyBank = state.data.relics.find(relic => relic.name === 'Piggy Bank')
-                    if (piggyBank) await removeRelic(state, piggyBank.id)
-                    await addTimelineAction('Take it all', details)(state)
-                    for (const option of rewardState.options) {
-                        if (rewardState.kind === 'card') await gainCard(option as CardSpec, { silent: true })(state)
-                        else if (rewardState.kind === 'event') await gainEvent(option as CardSpec, { silent: true })(state)
-                        else if (rewardState.kind === 'potion') await gainPotion(option as CardSpec, { silent: true })(state)
-                        else await gainRelic(option as RelicSpec, { silent: true })(state)
+    if (rewardState.kind !== 'encounter') {
+        const enabledIDs = enabledExtraOptions(metaState)
+        const selectedExtraOption = rewardState.selectedIndex === null
+            ? null
+            : extraOptionBySelectionMarker(rewardState.selectedIndex)
+        if (selectedExtraOption !== null) enabledIDs.add(selectedExtraOption.id)
+
+        for (const definition of getRegisteredExtraOptions()) {
+            if (!enabledIDs.has(definition.id)) continue
+            const rendered = definition.render(rewardState, metaState)
+            baseOptions.push({
+                label: rendered.label,
+                description: rendered.description,
+                tooltipSpec: rendered.tooltipSpec,
+                compact: rendered.compact,
+                disabled: alreadySelected,
+                checked: rewardState.selectedIndex === definition.selectionMarker,
+                onClick: async () => {
+                    return {
+                        newData: { ...rewardState, selectedIndex: definition.selectionMarker },
+                        transform: rendered.transform
                     }
                 }
-                return {
-                    newData: { ...rewardState, selectedIndex: PIGGY_BANK_SELECTED_INDEX },
-                    transform
-                }
-            }
-        })
+            })
+        }
     }
 
     return baseOptions
@@ -519,15 +538,27 @@ export class Relic extends Card {
 
 export interface RewardParams {
     optionCount: number
+    pickBufferAdjustments: number[]
 }
 
 export interface ExtraOptionsParams {
-    options: ExtraOption[]
+    options: ExtraOptionID[]
+}
+
+export type PathOnSelectEffect = {
+    kind: 'spendRelicCharge'
+    relicID: number
+    amount: number
+}
+
+export interface PathOptionSpec {
+    label: string
+    onSelectEffects?: PathOnSelectEffect[]
 }
 
 export interface PathRewardParams {
     rewardsPerPath: number
-    paths: string[]
+    paths: Array<string | PathOptionSpec>
     numBurdens: number
 }
 
@@ -569,7 +600,7 @@ export interface LoseRelicEvent {
 }
 
 export interface GainPotionEvent {
-    kind: 'card'
+    kind: 'potion'
     potion: Card
 }
 
@@ -610,6 +641,7 @@ export type TypedMetaTrigger =
 // A path the player can choose (contains rewards + kingdom)
 export interface Path {
     label: string
+    onSelectEffects?: PathOnSelectEffect[]
     rewardStates: RewardState[]
     burdenStates: BurdenState[]
     challenges: ChallengeSpec[]
@@ -1040,6 +1072,7 @@ interface SerializedChallengeSpec {
 
 interface SerializedPath {
     label?: string
+    onSelectEffects?: PathOnSelectEffect[]
     rewardStates: SerializedRewardState[]
     burdenStates?: SerializedBurdenState[]
     challenges: SerializedChallengeSpec[]
@@ -1358,6 +1391,7 @@ function deserializeChallenge(challenge: SerializedChallengeSpec): ChallengeSpec
 function serializePath(path: Path): SerializedPath {
     return {
         label: path.label,
+        onSelectEffects: path.onSelectEffects ? path.onSelectEffects.map(effect => ({ ...effect })) : undefined,
         rewardStates: path.rewardStates.map(serializeRewardState),
         burdenStates: path.burdenStates.map(serializeBurdenState),
         challenges: path.challenges.map(serializeChallenge)
@@ -1367,6 +1401,7 @@ function serializePath(path: Path): SerializedPath {
 function deserializePath(path: SerializedPath): Path {
     return {
         label: path.label ?? 'Path',
+        onSelectEffects: (path.onSelectEffects || []).map(effect => ({ ...effect })),
         rewardStates: path.rewardStates.map(deserializeRewardState),
         burdenStates: (path.burdenStates || []).map(deserializeBurdenState),
         challenges: path.challenges.map(deserializeChallenge)
@@ -1750,6 +1785,7 @@ export function gainPotion(potion: CardSpec, timelineDetails: GainTimelineDetail
             }]
         }
         state.update(nextData)
+        await trigger({kind: 'potion', potion: potionCard}, state)
     }
 } 
 
@@ -2081,7 +2117,10 @@ export function makeSpec(state: MetaState, challenge: ChallengeSpec): GameSpec {
 
 // Get reward option count based on relics
 export function getRewardOptionCount(state: MetaState): number {
-    const params = applyMetaReplacers('reward', { optionCount: 3 }, state)
+    const params = applyMetaReplacers('reward', {
+        optionCount: 3,
+        pickBufferAdjustments: []
+    }, state)
     return params.optionCount
 }
 
@@ -2197,9 +2236,18 @@ function sampleBurdenState(state: MetaState, generator: Generator): BurdenState 
 
 interface PathSkeleton {
     label: string,
+    onSelectEffects: PathOnSelectEffect[],
     rewards: RewardKind[],
     burdens: number,
     challenges: ChallengeSpec[]
+}
+
+function normalizePathOptionSpec(path: string | PathOptionSpec): Required<PathOptionSpec> {
+    if (typeof path === 'string') return { label: path, onSelectEffects: [] }
+    return {
+        label: path.label,
+        onSelectEffects: (path.onSelectEffects || []).map(effect => ({ ...effect }))
+    }
 }
 
 async function makePaths(state: MetaState, challengeTests: ChallengeTestSpec[] = []): Promise<PathSkeleton[]> {
@@ -2221,8 +2269,8 @@ async function makePaths(state: MetaState, challengeTests: ChallengeTestSpec[] =
         numBurdens: pathRewardParams.numBurdens
     }, state)
     const rewardsPerPath = pathRewardParams.rewardsPerPath
-    const pathLabels = pathRewardParams.paths
-    const pathCount = pathLabels.length
+    const pathOptions = pathRewardParams.paths.map(normalizePathOptionSpec)
+    const pathCount = pathOptions.length
     const numBurdens = Math.max(0, pathRewardParams.numBurdens)
     const challenges = sampleChallengesForStage(state, pathCount, challengeTests)
     const rewardsPerSet = 6
@@ -2240,8 +2288,10 @@ async function makePaths(state: MetaState, challengeTests: ChallengeTestSpec[] =
     for (let pathIndex = 0; pathIndex < pathCount; pathIndex++) {
         const start = pathIndex * rewardsPerPath
         const end = start + rewardsPerPath
+        const pathOption = pathOptions[pathIndex]
         paths.push({
-            label: pathLabels[pathIndex] ?? 'Path',
+            label: pathOption?.label ?? 'Path',
+            onSelectEffects: pathOption?.onSelectEffects || [],
             rewards: shuffledRewards.slice(start, end),
             burdens: numBurdens,
             challenges: [challenges[pathIndex]]
@@ -2269,7 +2319,13 @@ function pathFromSkeleton(skeleton: PathSkeleton): Path {
     for (let index = 0; index < skeleton.burdens; index++) {
         burdenStates.push({ options: [], selectedIndex: null })
     }
-    return { label: skeleton.label, rewardStates, burdenStates, challenges: skeleton.challenges }
+    return {
+        label: skeleton.label,
+        onSelectEffects: [...skeleton.onSelectEffects],
+        rewardStates,
+        burdenStates,
+        challenges: skeleton.challenges
+    }
 }
 
 // ------------------ Meta loop -------------------
@@ -2571,6 +2627,19 @@ function materializePath(state: MetaState, path: Path): Pick<MetaStateData, 'cha
     return { challenges: path.challenges, rewardStates, burdenStates }
 }
 
+async function applyPathOnSelectEffects(state: MetaState, path: Path): Promise<void> {
+    for (const effect of (path.onSelectEffects || [])) {
+        if (effect.kind === 'spendRelicCharge') {
+            const relic = state.data.relics.find(candidate => candidate.id === effect.relicID)
+            if (!relic) continue
+            const nextCharge = Math.max(relic.count('charge') - effect.amount, 0)
+            const tokens = new Map(relic.tokens)
+            tokens.set('charge', nextCharge)
+            state.applyToRelic(current => current.update({ tokens }), relic)
+        }
+    }
+}
+
 // We can define staged tests in order to inject a given reward for a specific stage while debugging.
 // Stage is 1-based for readability (stage 1 = first stage shown to the player).
 type RewardTestSpec =
@@ -2584,9 +2653,10 @@ type VPModeTestRef = VPMode | string
 type BoonTestRef = Boon | string
 type CurseTestRef = CardSpec | string
 type BurdenTestRef = string
+type BurdenTestGroupRef = ['burden', BurdenTestRef | BurdenTestRef[]]
 type ChallengeStageTest = ['vpMode', VPModeTestRef] | ['boon', BoonTestRef] | ['curse', CurseTestRef]
 export type ChallengeTestSpec = [number, ChallengeStageTest]
-export type BurdenTestSpec = [number, BurdenTestRef]
+export type BurdenTestSpec = [number, BurdenTestRef | BurdenTestGroupRef]
 export interface DebugTestConfig {
     rewards?: TestSpec[]
     challenges?: ChallengeTestSpec[]
@@ -2634,11 +2704,21 @@ function isChallengeTestSpec(value: unknown): value is ChallengeTestSpec {
 }
 
 function isBurdenTestSpec(value: unknown): value is BurdenTestSpec {
+    const isGroup =
+        Array.isArray(value)
+        && value.length === 2
+        && Array.isArray(value[1])
+        && value[1].length === 2
+        && value[1][0] === 'burden'
+        && (
+            typeof value[1][1] === 'string'
+            || (Array.isArray(value[1][1]) && value[1][1].every(entry => typeof entry === 'string'))
+        )
     return Array.isArray(value)
         && value.length === 2
         && typeof value[0] === 'number'
         && Number.isInteger(value[0])
-        && typeof value[1] === 'string'
+        && (typeof value[1] === 'string' || isGroup)
 }
 
 function isDebugTestConfig(value: unknown): value is DebugTestConfig {
@@ -2690,13 +2770,7 @@ function normalizeTests(test: null | TestSpec | TestSpec[] | DebugTestConfig): P
 
         const burdens = test.burdens ? [...test.burdens] : []
         if (test.allBurdens) {
-            const burdenKeys = new Set<string>(burdens.map(([stage, id]) => `${stage}|${id}`))
-            for (const id of getRegisteredBurdenIds()) {
-                const key = `${bulkStage}|${id}`
-                if (burdenKeys.has(key)) continue
-                burdenKeys.add(key)
-                burdens.push([bulkStage, id])
-            }
+            burdens.push([bulkStage, ['burden', getRegisteredBurdenIds()]])
         }
         return {
             rewards,
@@ -2787,16 +2861,26 @@ function rewardTestsForStage(tests: TestSpec[], stageIndex: number): RewardTestS
         .map(([, spec]) => spec)
 }
 
-function burdenTestsForStage(tests: BurdenTestSpec[], stageIndex: number): BurdenDefinition[] {
+function burdenTestsForStage(tests: BurdenTestSpec[], stageIndex: number): BurdenDefinition[][] {
     const stageNumber = stageIndex + 1
-    const seen = new Set<string>()
-    const result: BurdenDefinition[] = []
-    for (const [stage, ref] of tests) {
+    const result: BurdenDefinition[][] = []
+    for (const [stage, refOrGroup] of tests) {
         if (stage !== stageNumber) continue
-        const burden = resolveBurdenTestRef(ref)
-        if (burden === null || seen.has(burden.id)) continue
-        seen.add(burden.id)
-        result.push(burden)
+        if (typeof refOrGroup === 'string') {
+            const burden = resolveBurdenTestRef(refOrGroup)
+            if (burden !== null) result.push([burden])
+            continue
+        }
+        const refs = Array.isArray(refOrGroup[1]) ? refOrGroup[1] : [refOrGroup[1]]
+        const group: BurdenDefinition[] = []
+        const seen = new Set<string>()
+        for (const ref of refs) {
+            const burden = resolveBurdenTestRef(ref)
+            if (burden === null || seen.has(burden.id)) continue
+            seen.add(burden.id)
+            group.push(burden)
+        }
+        if (group.length > 0) result.push(group)
     }
     return result
 }
@@ -2861,6 +2945,7 @@ export async function playGame(
         const initialChallenges = sampleChallengesForStage(state, 2, tests.challenges)
         const initialPath = pathFromSkeleton({
             label: 'Go left',
+            onSelectEffects: [],
             rewards: ['card', 'card', 'event', 'potion'] as RewardKind[],
             burdens: 0,
             challenges: initialChallenges
@@ -2869,8 +2954,8 @@ export async function playGame(
             initialPath.rewardStates.push(makeTestReward(state, testSpec))
         }
         const initialBurdenTests = burdenTestsForStage(tests.burdens, 0)
-        if (initialBurdenTests.length > 0) {
-            initialPath.burdenStates.push(makeTestBurdenState(state, initialBurdenTests))
+        for (const burdenDefinitions of initialBurdenTests) {
+            initialPath.burdenStates.push(makeTestBurdenState(state, burdenDefinitions))
         }
         state.replaceAndClearHistory({
             ...materializePath(state, initialPath),
@@ -2965,8 +3050,8 @@ export async function playGame(
                     paths[0].rewardStates.push(makeTestReward(state, testSpec))
                 }
                 const pathBurdenTests = burdenTestsForStage(tests.burdens, nextStage)
-                if (pathBurdenTests.length > 0) {
-                    paths[0].burdenStates.push(makeTestBurdenState(state, pathBurdenTests))
+                for (const burdenDefinitions of pathBurdenTests) {
+                    paths[0].burdenStates.push(makeTestBurdenState(state, burdenDefinitions))
                 }
                 state.replaceAndClearHistory({
                     phase: 'path_select',
@@ -2993,6 +3078,7 @@ export async function playGame(
                         throw e
                     }
                 }
+                await applyPathOnSelectEffects(state, path)
                 state.replaceAndClearHistory({
                     ...materializePath(state, path),
                     phase: 'stage_select',
