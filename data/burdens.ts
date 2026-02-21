@@ -59,7 +59,7 @@ const frozenRelic: RelicSpec = {
         }
     }, {
         kind: 'start',
-        text: ['At the start of each course, remove a charge token from this. Then if it has no charge tokens, gain the frozen relic back and destroy this.'],
+        text: ['At the start of each course, remove a charge token from this. Then if it has no charge tokens, destroy this and regain the frozen relic.'],
         handles: (_e, _s, _self: Relic) => true,
         transform: (_e, _s, self: Relic) => async function (state: MetaState) {
             const current = state.data.relics.find(r => r.id === self.id)
@@ -233,10 +233,12 @@ const cursedKey: RelicSpec = {
     name: 'Cursed Key',
     burden: true,
     metaReplacers: [{
-        kind: 'gameSetup',
-        text: ['Par is 1 lower.'],
+        kind: 'pathRewards',
+        text: ['There is 1 less reward on the final stage.'],
         replace: (params, state) => (
-            {...params, par: params.par - 1 }
+            state.data.stage === TOTAL_STAGES - 1 ?
+            {...params, rewardsPerPath: Math.max(0, params.rewardsPerPath - 1)} :
+            params
         )
     }, {
         kind: 'extraOptions',
@@ -288,7 +290,6 @@ const cursedBanner: RelicSpec = {
     metaReplacers: [{
         kind: 'gameSetup',
         text: ['Par is 3 lower on the final stage.'],
-        simpleText: ['Final-stage par is 3 lower.'],
         replace: (params, state) => (
             state.data.stage === TOTAL_STAGES - 1
                 ? { ...params, par: params.par - 3 }
@@ -298,7 +299,6 @@ const cursedBanner: RelicSpec = {
     metaTriggers: [{
         kind: 'end',
         text: ['Whenever you beat par by 3 or more, destroy this.'],
-        simpleText: ['Beat par by 3+: destroy this.'],
         handles: e => e.score <= e.par - 3,
         transform: (_e, _s, self: Relic) => async function (state: MetaState) {
             await removeRelic(state, self.id)
@@ -340,7 +340,6 @@ const brokenCrown: RelicSpec = {
     metaReplacers: [{
         kind: 'reward',
         text: ['When you pick the third option from a reward pack, lose 1 buffer.'],
-        simpleText: ['Third reward option: lose 1 buffer.'],
         replace: params => {
             const pickBufferAdjustments = [...params.pickBufferAdjustments]
             pickBufferAdjustments[2] = (pickBufferAdjustments[2] ?? 0) - 1
@@ -516,7 +515,7 @@ registerBurden({
                 await addTimelineAction('Burden: Lost a relic', chosenName)(innerState)
             }
         }
-        if (picked instanceof Card) {
+        if (picked instanceof Card) { // Only potion options are cards, the others are cardSpecs. Very janky.
             const chosenName = displayName(picked.spec)
             return async function (innerState: MetaState) {
                 innerState.removePotion(picked.id)
