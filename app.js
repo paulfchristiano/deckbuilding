@@ -7186,50 +7186,61 @@
     return generator.permute(weighted);
   }
   function sampleBurdenState(state, generator) {
-    var e_21, _a;
-    var stage = state.data.stage;
-    var burdenParams = applyMetaReplacers({
-      kind: "burden",
-      numOptions: 2,
-      numPicked: 1
-    }, state);
-    var numOptions = Math.max(1, burdenParams.numOptions);
-    var numPicked = Math.max(1, Math.min(burdenParams.numPicked, numOptions));
-    var ordered = orderedBurdenCandidates(state, generator);
-    var options = [];
-    var chosenIDs = /* @__PURE__ */ new Set();
-    try {
-      for (var ordered_1 = __values4(ordered), ordered_1_1 = ordered_1.next(); !ordered_1_1.done; ordered_1_1 = ordered_1.next()) {
-        var definition = ordered_1_1.value;
-        if (chosenIDs.has(definition.id))
-          continue;
-        if (definition.minStage > stage || stage > definition.maxStage)
-          continue;
-        if (!definition.applies(state))
-          continue;
-        options.push(definition.createOption(state, generator));
-        chosenIDs.add(definition.id);
-        if (options.length === numOptions)
-          break;
-      }
-    } catch (e_21_1) {
-      e_21 = { error: e_21_1 };
-    } finally {
-      try {
-        if (ordered_1_1 && !ordered_1_1.done && (_a = ordered_1.return)) _a.call(ordered_1);
-      } finally {
-        if (e_21) throw e_21.error;
-      }
-    }
-    if (options.length < numOptions) {
-      throw new Error("No valid burden options for stage ".concat(state.data.stage + 1));
-    }
-    return {
-      options,
-      selectedIndex: null,
-      selectedIndices: [],
-      numPicked
-    };
+    return __awaiter4(this, void 0, void 0, function() {
+      var stage, burdenParams, numOptions, numPicked, ordered, options, chosenIDs, ordered_1, ordered_1_1, definition;
+      var e_21, _a;
+      return __generator4(this, function(_b) {
+        switch (_b.label) {
+          case 0:
+            stage = state.data.stage;
+            burdenParams = applyMetaReplacers({
+              kind: "burden",
+              numOptions: 2,
+              numPicked: 1
+            }, state);
+            return [4, trigger2({ kind: "burdenGeneration" }, state)];
+          case 1:
+            _b.sent();
+            numOptions = Math.max(1, burdenParams.numOptions);
+            numPicked = Math.max(1, Math.min(burdenParams.numPicked, numOptions));
+            ordered = orderedBurdenCandidates(state, generator);
+            options = [];
+            chosenIDs = /* @__PURE__ */ new Set();
+            try {
+              for (ordered_1 = __values4(ordered), ordered_1_1 = ordered_1.next(); !ordered_1_1.done; ordered_1_1 = ordered_1.next()) {
+                definition = ordered_1_1.value;
+                if (chosenIDs.has(definition.id))
+                  continue;
+                if (definition.minStage > stage || stage > definition.maxStage)
+                  continue;
+                if (!definition.applies(state))
+                  continue;
+                options.push(definition.createOption(state, generator));
+                chosenIDs.add(definition.id);
+                if (options.length === numOptions)
+                  break;
+              }
+            } catch (e_21_1) {
+              e_21 = { error: e_21_1 };
+            } finally {
+              try {
+                if (ordered_1_1 && !ordered_1_1.done && (_a = ordered_1.return)) _a.call(ordered_1);
+              } finally {
+                if (e_21) throw e_21.error;
+              }
+            }
+            if (options.length < numOptions) {
+              throw new Error("No valid burden options for stage ".concat(state.data.stage + 1));
+            }
+            return [2, {
+              options,
+              selectedIndex: null,
+              selectedIndices: [],
+              numPicked
+            }];
+        }
+      });
+    });
   }
   function normalizePathOptionSpec(path) {
     if (typeof path === "string")
@@ -7654,54 +7665,95 @@
     });
   }
   function materializePath(state, path) {
-    var rewardStates = path.rewardStates.map(function(rs) {
-      if (rs.kind === "encounter" && rs.encounter === null) {
-        var generator = state.generator("encounter").newGenerator();
-        return getEncounterState(state, generator, state.data.stage);
-      } else if (rs.kind === "card" && rs.options.length === 0) {
-        var generator = state.generator("rewardscard").newGenerator();
-        return {
-          kind: "card",
-          options: sampleRewardOptionsByBaseName(generator, cardRewards, getRewardOptionCount(state, "card"), state.data.collectedCards),
-          selectedIndex: null
-        };
-      } else if (rs.kind === "event" && rs.options.length === 0) {
-        var generator = state.generator("rewardsevent").newGenerator();
-        return {
-          kind: "event",
-          options: sampleRewardOptionsByBaseName(generator, eventRewards, getRewardOptionCount(state, "event"), state.data.collectedEvents),
-          selectedIndex: null
-        };
-      } else if (rs.kind === "potion" && rs.options.length === 0) {
-        var generator = state.generator("rewardspotion").newGenerator();
-        return {
-          kind: "potion",
-          options: generator.samples(potionRewards, getRewardOptionCount(state, "potion")),
-          selectedIndex: null
-        };
-      } else if (rs.kind === "relic" && rs.options.length === 0) {
-        var generator = state.generator("rewardsrelic").newGenerator();
-        return {
-          kind: "relic",
-          options: sampleEligibleRelicRewards(generator, getRewardOptionCount(state, "relic"), state),
-          selectedIndex: null
-        };
-      }
-      return rs;
+    return __awaiter4(this, void 0, void 0, function() {
+      var rewardStates, burdenGenerator, burdenStates, _a, _b, burdenState, _c, _d, e_25_1;
+      var e_25, _e;
+      return __generator4(this, function(_f) {
+        switch (_f.label) {
+          case 0:
+            rewardStates = path.rewardStates.map(function(rs) {
+              if (rs.kind === "encounter" && rs.encounter === null) {
+                var generator = state.generator("encounter").newGenerator();
+                return getEncounterState(state, generator, state.data.stage);
+              } else if (rs.kind === "card" && rs.options.length === 0) {
+                var generator = state.generator("rewardscard").newGenerator();
+                return {
+                  kind: "card",
+                  options: sampleRewardOptionsByBaseName(generator, cardRewards, getRewardOptionCount(state, "card"), state.data.collectedCards),
+                  selectedIndex: null
+                };
+              } else if (rs.kind === "event" && rs.options.length === 0) {
+                var generator = state.generator("rewardsevent").newGenerator();
+                return {
+                  kind: "event",
+                  options: sampleRewardOptionsByBaseName(generator, eventRewards, getRewardOptionCount(state, "event"), state.data.collectedEvents),
+                  selectedIndex: null
+                };
+              } else if (rs.kind === "potion" && rs.options.length === 0) {
+                var generator = state.generator("rewardspotion").newGenerator();
+                return {
+                  kind: "potion",
+                  options: generator.samples(potionRewards, getRewardOptionCount(state, "potion")),
+                  selectedIndex: null
+                };
+              } else if (rs.kind === "relic" && rs.options.length === 0) {
+                var generator = state.generator("rewardsrelic").newGenerator();
+                return {
+                  kind: "relic",
+                  options: sampleEligibleRelicRewards(generator, getRewardOptionCount(state, "relic"), state),
+                  selectedIndex: null
+                };
+              }
+              return rs;
+            });
+            burdenGenerator = state.generator("rewardsburden").newGenerator();
+            burdenStates = [];
+            _f.label = 1;
+          case 1:
+            _f.trys.push([1, 7, 8, 9]);
+            _a = __values4(path.burdenStates), _b = _a.next();
+            _f.label = 2;
+          case 2:
+            if (!!_b.done) return [3, 6];
+            burdenState = _b.value;
+            if (!(burdenState.options.length === 0)) return [3, 4];
+            _d = (_c = burdenStates).push;
+            return [4, sampleBurdenState(state, burdenGenerator)];
+          case 3:
+            _d.apply(_c, [_f.sent()]);
+            return [3, 5];
+          case 4:
+            burdenStates.push(burdenState);
+            _f.label = 5;
+          case 5:
+            _b = _a.next();
+            return [3, 2];
+          case 6:
+            return [3, 9];
+          case 7:
+            e_25_1 = _f.sent();
+            e_25 = { error: e_25_1 };
+            return [3, 9];
+          case 8:
+            try {
+              if (_b && !_b.done && (_e = _a.return)) _e.call(_a);
+            } finally {
+              if (e_25) throw e_25.error;
+            }
+            return [
+              7
+              /*endfinally*/
+            ];
+          case 9:
+            return [2, { challenges: path.challenges, rewardStates, burdenStates }];
+        }
+      });
     });
-    var burdenGenerator = state.generator("rewardsburden").newGenerator();
-    var burdenStates = path.burdenStates.map(function(burdenState) {
-      if (burdenState.options.length === 0) {
-        return sampleBurdenState(state, burdenGenerator);
-      }
-      return burdenState;
-    });
-    return { challenges: path.challenges, rewardStates, burdenStates };
   }
   function applyPathOnSelectEffects(state, path) {
     return __awaiter4(this, void 0, void 0, function() {
       var _loop_2, _a, _b, effect;
-      var e_25, _c;
+      var e_26, _c;
       return __generator4(this, function(_d) {
         _loop_2 = function(effect2) {
           if (effect2.kind === "spendRelicCharge") {
@@ -7723,13 +7775,13 @@
             effect = _b.value;
             _loop_2(effect);
           }
-        } catch (e_25_1) {
-          e_25 = { error: e_25_1 };
+        } catch (e_26_1) {
+          e_26 = { error: e_26_1 };
         } finally {
           try {
             if (_b && !_b.done && (_c = _a.return)) _c.call(_a);
           } finally {
-            if (e_25) throw e_25.error;
+            if (e_26) throw e_26.error;
           }
         }
         return [
@@ -7865,7 +7917,7 @@
     return burden;
   }
   function challengeOverridesForStage(tests, stageIndex, pathIndex) {
-    var e_26, _a;
+    var e_27, _a;
     if (pathIndex !== 0)
       return {};
     var stageNumber = stageIndex + 1;
@@ -7889,13 +7941,13 @@
             overrides.curse = curse;
         }
       }
-    } catch (e_26_1) {
-      e_26 = { error: e_26_1 };
+    } catch (e_27_1) {
+      e_27 = { error: e_27_1 };
     } finally {
       try {
         if (tests_1_1 && !tests_1_1.done && (_a = tests_1.return)) _a.call(tests_1);
       } finally {
-        if (e_26) throw e_26.error;
+        if (e_27) throw e_27.error;
       }
     }
     return overrides;
@@ -7911,7 +7963,7 @@
     });
   }
   function burdenTestsForStage(tests, stageIndex) {
-    var e_27, _a, e_28, _b;
+    var e_28, _a, e_29, _b;
     var stageNumber = stageIndex + 1;
     var result = [];
     try {
@@ -7929,7 +7981,7 @@
         var group = [];
         var seen = /* @__PURE__ */ new Set();
         try {
-          for (var refs_1 = (e_28 = void 0, __values4(refs)), refs_1_1 = refs_1.next(); !refs_1_1.done; refs_1_1 = refs_1.next()) {
+          for (var refs_1 = (e_29 = void 0, __values4(refs)), refs_1_1 = refs_1.next(); !refs_1_1.done; refs_1_1 = refs_1.next()) {
             var ref = refs_1_1.value;
             var burden = resolveBurdenTestRef(ref);
             if (burden === null || seen.has(burden.id))
@@ -7937,25 +7989,25 @@
             seen.add(burden.id);
             group.push(burden);
           }
-        } catch (e_28_1) {
-          e_28 = { error: e_28_1 };
+        } catch (e_29_1) {
+          e_29 = { error: e_29_1 };
         } finally {
           try {
             if (refs_1_1 && !refs_1_1.done && (_b = refs_1.return)) _b.call(refs_1);
           } finally {
-            if (e_28) throw e_28.error;
+            if (e_29) throw e_29.error;
           }
         }
         if (group.length > 0)
           result.push(group);
       }
-    } catch (e_27_1) {
-      e_27 = { error: e_27_1 };
+    } catch (e_28_1) {
+      e_28 = { error: e_28_1 };
     } finally {
       try {
         if (tests_2_1 && !tests_2_1.done && (_a = tests_2.return)) _a.call(tests_2);
       } finally {
-        if (e_27) throw e_27.error;
+        if (e_28) throw e_28.error;
       }
     }
     return result;
@@ -7998,9 +8050,9 @@
   }
   function playGame2(ui_1) {
     return __awaiter4(this, arguments, void 0, function(ui, test2, seed, initialSnapshot, onStateChange, debugEnabled, burdensEnabled, scarcityEnabled, cursesEnabled) {
-      var state, tests, initialChallenges, initialPath, _a, _b, testSpec, initialBurdenTests, initialBurdenTests_1, initialBurdenTests_1_1, burdenDefinitions, _loop_3, state_1;
-      var e_29, _c, e_30, _d;
-      var _e, _f;
+      var state, tests, initialChallenges, initialPath, _a, _b, testSpec, initialBurdenTests, initialBurdenTests_1, initialBurdenTests_1_1, burdenDefinitions, _c, _d, _e, _loop_3, state_1;
+      var e_30, _f, e_31, _g;
+      var _h, _j;
       if (test2 === void 0) {
         test2 = null;
       }
@@ -8025,64 +8077,72 @@
       if (cursesEnabled === void 0) {
         cursesEnabled = false;
       }
-      return __generator4(this, function(_g) {
-        switch (_g.label) {
+      return __generator4(this, function(_k) {
+        switch (_k.label) {
           case 0:
             state = initialSnapshot ? deserializeMetaGame(ui, initialSnapshot, null) : new MetaState(ui, seed, null, { debugEnabled, burdensEnabled, scarcityEnabled, cursesEnabled });
             state.setChangeListener(onStateChange ? function() {
               return onStateChange(serializeMetaGame(state));
             } : null);
             tests = state.debugEnabled ? normalizeTests(test2) : { rewards: [], challenges: [], burdens: [] };
-            if (!initialSnapshot) {
-              initialChallenges = sampleChallengesForStage(state, 2, tests.challenges);
-              initialPath = pathFromSkeleton({
-                label: "Go left",
-                onSelectEffects: [],
-                rewards: ["card", "card", "event", "potion"],
-                burdens: 0,
-                challenges: initialChallenges
-              });
-              try {
-                for (_a = __values4(rewardTestsForStage(tests.rewards, 0)), _b = _a.next(); !_b.done; _b = _a.next()) {
-                  testSpec = _b.value;
-                  initialPath.rewardStates.push(makeTestReward(state, testSpec));
-                }
-              } catch (e_29_1) {
-                e_29 = { error: e_29_1 };
-              } finally {
-                try {
-                  if (_b && !_b.done && (_c = _a.return)) _c.call(_a);
-                } finally {
-                  if (e_29) throw e_29.error;
-                }
+            if (!!initialSnapshot) return [3, 2];
+            initialChallenges = sampleChallengesForStage(state, 2, tests.challenges);
+            initialPath = pathFromSkeleton({
+              label: "Go left",
+              onSelectEffects: [],
+              rewards: ["card", "card", "event", "potion"],
+              burdens: 0,
+              challenges: initialChallenges
+            });
+            try {
+              for (_a = __values4(rewardTestsForStage(tests.rewards, 0)), _b = _a.next(); !_b.done; _b = _a.next()) {
+                testSpec = _b.value;
+                initialPath.rewardStates.push(makeTestReward(state, testSpec));
               }
-              initialBurdenTests = burdenTestsForStage(tests.burdens, 0);
+            } catch (e_30_1) {
+              e_30 = { error: e_30_1 };
+            } finally {
               try {
-                for (initialBurdenTests_1 = __values4(initialBurdenTests), initialBurdenTests_1_1 = initialBurdenTests_1.next(); !initialBurdenTests_1_1.done; initialBurdenTests_1_1 = initialBurdenTests_1.next()) {
-                  burdenDefinitions = initialBurdenTests_1_1.value;
-                  initialPath.burdenStates.push(makeTestBurdenState(state, burdenDefinitions));
-                }
-              } catch (e_30_1) {
-                e_30 = { error: e_30_1 };
+                if (_b && !_b.done && (_f = _a.return)) _f.call(_a);
               } finally {
-                try {
-                  if (initialBurdenTests_1_1 && !initialBurdenTests_1_1.done && (_d = initialBurdenTests_1.return)) _d.call(initialBurdenTests_1);
-                } finally {
-                  if (e_30) throw e_30.error;
-                }
+                if (e_30) throw e_30.error;
               }
-              state.replaceAndClearHistory(__assign3(__assign3({}, materializePath(state, initialPath)), { phase: "stage_select", availablePaths: [] }));
-            } else if (onStateChange) {
+            }
+            initialBurdenTests = burdenTestsForStage(tests.burdens, 0);
+            try {
+              for (initialBurdenTests_1 = __values4(initialBurdenTests), initialBurdenTests_1_1 = initialBurdenTests_1.next(); !initialBurdenTests_1_1.done; initialBurdenTests_1_1 = initialBurdenTests_1.next()) {
+                burdenDefinitions = initialBurdenTests_1_1.value;
+                initialPath.burdenStates.push(makeTestBurdenState(state, burdenDefinitions));
+              }
+            } catch (e_31_1) {
+              e_31 = { error: e_31_1 };
+            } finally {
+              try {
+                if (initialBurdenTests_1_1 && !initialBurdenTests_1_1.done && (_g = initialBurdenTests_1.return)) _g.call(initialBurdenTests_1);
+              } finally {
+                if (e_31) throw e_31.error;
+              }
+            }
+            _d = (_c = state).replaceAndClearHistory;
+            _e = [{}];
+            return [4, materializePath(state, initialPath)];
+          case 1:
+            _d.apply(_c, [__assign3.apply(void 0, [__assign3.apply(void 0, _e.concat([_k.sent()])), { phase: "stage_select", availablePaths: [] }])]);
+            return [3, 3];
+          case 2:
+            if (onStateChange) {
               onStateChange(serializeMetaGame(state));
             }
+            _k.label = 3;
+          case 3:
             state.ui.updateBuffer(state);
             _loop_3 = function() {
-              var sameReplay_1, stage, gameSpec, startingBuffer, _h, score, potionsRemaining, history_1, macros, viewingMacros, usedPotions, persistedMacros, persistedViewingMacros, stageReplays, stageTimelineEntry, nextStage, paths, _j, _k, testSpec2, pathBurdenTests, pathBurdenTests_1, pathBurdenTests_1_1, burdenDefinitions2, paths, path, _l, e_31, selectedChallenge, e_32, e_33, persistedMacros, persistedViewingMacros;
-              var e_34, _m, e_35, _o;
-              return __generator4(this, function(_p) {
-                switch (_p.label) {
+              var sameReplay_1, stage, gameSpec, startingBuffer, _l, score, potionsRemaining, history_1, macros, viewingMacros, usedPotions, persistedMacros, persistedViewingMacros, stageReplays, stageTimelineEntry, nextStage, paths, _m, _o, testSpec2, pathBurdenTests, pathBurdenTests_1, pathBurdenTests_1_1, burdenDefinitions2, paths, path, _p, e_32, _q, _r, _s, selectedChallenge, e_33, e_34, persistedMacros, persistedViewingMacros;
+              var e_35, _t, e_36, _u;
+              return __generator4(this, function(_v) {
+                switch (_v.label) {
                   case 0:
-                    _p.trys.push([0, 30, , 31]);
+                    _v.trys.push([0, 31, , 32]);
                     if (!(state.data.phase === "in_game")) return [3, 6];
                     sameReplay_1 = function(a2, b) {
                       return a2.length === b.length && a2.every(function(value, index) {
@@ -8105,7 +8165,7 @@
                       });
                     }, "leave")];
                   case 1:
-                    _h = _p.sent(), score = _h.score, potionsRemaining = _h.potionsRemaining, history_1 = _h.history, macros = _h.macros, viewingMacros = _h.viewingMacros;
+                    _l = _v.sent(), score = _l.score, potionsRemaining = _l.potionsRemaining, history_1 = _l.history, macros = _l.macros, viewingMacros = _l.viewingMacros;
                     usedPotions = usedPotionNames(gameSpec.potions, potionsRemaining);
                     persistedMacros = macros !== null && macros !== void 0 ? macros : state.global.macros;
                     persistedViewingMacros = viewingMacros !== null && viewingMacros !== void 0 ? viewingMacros : state.global.viewingMacros;
@@ -8120,7 +8180,7 @@
                     });
                     return [4, endCourse(score, gameSpec.par, state)];
                   case 2:
-                    _p.sent();
+                    _v.sent();
                     stageReplays = __spreadArray6([], __read7(state.data.stageReplays), false);
                     stageReplays[stage] = {
                       stage,
@@ -8151,41 +8211,41 @@
                     state.update({ phase: "game_over" });
                     return [4, state.ui.showMessage(state, "Congratulations! You have completed all stages!")];
                   case 3:
-                    _p.sent();
+                    _v.sent();
                     return [2, { value: void 0 }];
                   case 4:
                     return [4, makePaths(state, tests.challenges)];
                   case 5:
-                    paths = _p.sent().map(function(skel) {
+                    paths = _v.sent().map(function(skel) {
                       return pathFromSkeleton(skel);
                     });
                     try {
-                      for (_j = (e_34 = void 0, __values4(rewardTestsForStage(tests.rewards, nextStage))), _k = _j.next(); !_k.done; _k = _j.next()) {
-                        testSpec2 = _k.value;
+                      for (_m = (e_35 = void 0, __values4(rewardTestsForStage(tests.rewards, nextStage))), _o = _m.next(); !_o.done; _o = _m.next()) {
+                        testSpec2 = _o.value;
                         paths[0].rewardStates.push(makeTestReward(state, testSpec2));
-                      }
-                    } catch (e_34_1) {
-                      e_34 = { error: e_34_1 };
-                    } finally {
-                      try {
-                        if (_k && !_k.done && (_m = _j.return)) _m.call(_j);
-                      } finally {
-                        if (e_34) throw e_34.error;
-                      }
-                    }
-                    pathBurdenTests = burdenTestsForStage(tests.burdens, nextStage);
-                    try {
-                      for (pathBurdenTests_1 = (e_35 = void 0, __values4(pathBurdenTests)), pathBurdenTests_1_1 = pathBurdenTests_1.next(); !pathBurdenTests_1_1.done; pathBurdenTests_1_1 = pathBurdenTests_1.next()) {
-                        burdenDefinitions2 = pathBurdenTests_1_1.value;
-                        paths[0].burdenStates.push(makeTestBurdenState(state, burdenDefinitions2));
                       }
                     } catch (e_35_1) {
                       e_35 = { error: e_35_1 };
                     } finally {
                       try {
-                        if (pathBurdenTests_1_1 && !pathBurdenTests_1_1.done && (_o = pathBurdenTests_1.return)) _o.call(pathBurdenTests_1);
+                        if (_o && !_o.done && (_t = _m.return)) _t.call(_m);
                       } finally {
                         if (e_35) throw e_35.error;
+                      }
+                    }
+                    pathBurdenTests = burdenTestsForStage(tests.burdens, nextStage);
+                    try {
+                      for (pathBurdenTests_1 = (e_36 = void 0, __values4(pathBurdenTests)), pathBurdenTests_1_1 = pathBurdenTests_1.next(); !pathBurdenTests_1_1.done; pathBurdenTests_1_1 = pathBurdenTests_1.next()) {
+                        burdenDefinitions2 = pathBurdenTests_1_1.value;
+                        paths[0].burdenStates.push(makeTestBurdenState(state, burdenDefinitions2));
+                      }
+                    } catch (e_36_1) {
+                      e_36 = { error: e_36_1 };
+                    } finally {
+                      try {
+                        if (pathBurdenTests_1_1 && !pathBurdenTests_1_1.done && (_u = pathBurdenTests_1.return)) _u.call(pathBurdenTests_1);
+                      } finally {
+                        if (e_36) throw e_36.error;
                       }
                     }
                     state.replaceAndClearHistory({
@@ -8195,77 +8255,81 @@
                       burdenStates: [],
                       availablePaths: paths
                     });
-                    return [3, 29];
+                    return [3, 30];
                   case 6:
-                    if (!(state.data.phase === "path_select")) return [3, 18];
+                    if (!(state.data.phase === "path_select")) return [3, 19];
                     paths = state.data.availablePaths;
                     if (paths.length === 0) {
                       throw new Error("Invariant violation: path_select phase missing available paths");
                     }
                     path = void 0;
-                    _p.label = 7;
+                    _v.label = 7;
                   case 7:
                     if (false) return [3, 16];
-                    _p.label = 8;
+                    _v.label = 8;
                   case 8:
-                    _p.trys.push([8, 12, , 15]);
+                    _v.trys.push([8, 12, , 15]);
                     if (!(paths.length > 1)) return [3, 10];
                     return [4, state.ui.pickPath(state, paths)];
                   case 9:
-                    _l = _p.sent();
+                    _p = _v.sent();
                     return [3, 11];
                   case 10:
-                    _l = paths[0];
-                    _p.label = 11;
+                    _p = paths[0];
+                    _v.label = 11;
                   case 11:
-                    path = _l;
+                    path = _p;
                     return [3, 16];
                   case 12:
-                    e_31 = _p.sent();
-                    if (!(e_31 instanceof ReplayStage)) return [3, 14];
-                    return [4, replayCompletedStage(state, e_31.stage)];
+                    e_32 = _v.sent();
+                    if (!(e_32 instanceof ReplayStage)) return [3, 14];
+                    return [4, replayCompletedStage(state, e_32.stage)];
                   case 13:
-                    _p.sent();
+                    _v.sent();
                     return [3, 7];
                   case 14:
-                    throw e_31;
+                    throw e_32;
                   case 15:
                     return [3, 7];
                   case 16:
                     return [4, applyPathOnSelectEffects(state, path)];
                   case 17:
-                    _p.sent();
-                    state.replaceAndClearHistory(__assign3(__assign3({}, materializePath(state, path)), { phase: "stage_select", availablePaths: [] }));
-                    return [3, 29];
+                    _v.sent();
+                    _r = (_q = state).replaceAndClearHistory;
+                    _s = [{}];
+                    return [4, materializePath(state, path)];
                   case 18:
-                    if (!(state.data.phase === "stage_select")) return [3, 28];
-                    selectedChallenge = void 0;
-                    _p.label = 19;
+                    _r.apply(_q, [__assign3.apply(void 0, [__assign3.apply(void 0, _s.concat([_v.sent()])), { phase: "stage_select", availablePaths: [] }])]);
+                    return [3, 30];
                   case 19:
-                    if (false) return [3, 26];
-                    _p.label = 20;
+                    if (!(state.data.phase === "stage_select")) return [3, 29];
+                    selectedChallenge = void 0;
+                    _v.label = 20;
                   case 20:
-                    _p.trys.push([20, 22, , 25]);
-                    return [4, state.ui.waitForChallenge(state)];
+                    if (false) return [3, 27];
+                    _v.label = 21;
                   case 21:
-                    selectedChallenge = _p.sent();
-                    return [3, 26];
+                    _v.trys.push([21, 23, , 26]);
+                    return [4, state.ui.waitForChallenge(state)];
                   case 22:
-                    e_32 = _p.sent();
-                    if (!(e_32 instanceof ReplayStage)) return [3, 24];
-                    return [4, replayCompletedStage(state, e_32.stage)];
+                    selectedChallenge = _v.sent();
+                    return [3, 27];
                   case 23:
-                    _p.sent();
-                    return [3, 19];
+                    e_33 = _v.sent();
+                    if (!(e_33 instanceof ReplayStage)) return [3, 25];
+                    return [4, replayCompletedStage(state, e_33.stage)];
                   case 24:
-                    throw e_32;
+                    _v.sent();
+                    return [3, 20];
                   case 25:
-                    return [3, 19];
+                    throw e_33;
                   case 26:
+                    return [3, 20];
+                  case 27:
                     state.update({ challenges: [selectedChallenge], availablePaths: [] });
                     return [4, trigger2({ kind: "start", stage: state.data.stage }, state)];
-                  case 27:
-                    _p.sent();
+                  case 28:
+                    _v.sent();
                     if (state.data.burdenStates.some(function(burden) {
                       return !isBurdenResolved(burden);
                     })) {
@@ -8278,31 +8342,31 @@
                       gameHistory: [],
                       gameRedo: []
                     });
-                    return [3, 29];
-                  case 28:
-                    return [2, { value: void 0 }];
+                    return [3, 30];
                   case 29:
-                    return [3, 31];
+                    return [2, { value: void 0 }];
                   case 30:
-                    e_33 = _p.sent();
-                    if (e_33 instanceof Undo2) {
-                      persistedMacros = (_e = e_33.macros) !== null && _e !== void 0 ? _e : state.global.macros;
-                      persistedViewingMacros = (_f = e_33.viewingMacros) !== null && _f !== void 0 ? _f : state.global.viewingMacros;
+                    return [3, 32];
+                  case 31:
+                    e_34 = _v.sent();
+                    if (e_34 instanceof Undo2) {
+                      persistedMacros = (_h = e_34.macros) !== null && _h !== void 0 ? _h : state.global.macros;
+                      persistedViewingMacros = (_j = e_34.viewingMacros) !== null && _j !== void 0 ? _j : state.global.viewingMacros;
                       state.updateGlobal({
                         macros: persistedMacros,
                         viewingMacros: persistedViewingMacros
                       });
                       state.undo({
-                        gameHistory: e_33.gameHistory,
-                        gameRedo: e_33.gameRedo
+                        gameHistory: e_34.gameHistory,
+                        gameRedo: e_34.gameRedo
                       });
-                    } else if (e_33 instanceof Redo) {
+                    } else if (e_34 instanceof Redo) {
                       state.redo();
                     } else {
-                      throw e_33;
+                      throw e_34;
                     }
-                    return [3, 31];
-                  case 31:
+                    return [3, 32];
+                  case 32:
                     return [
                       2
                       /*return*/
@@ -8310,16 +8374,16 @@
                 }
               });
             };
-            _g.label = 1;
-          case 1:
-            if (false) return [3, 3];
+            _k.label = 4;
+          case 4:
+            if (false) return [3, 6];
             return [5, _loop_3()];
-          case 2:
-            state_1 = _g.sent();
+          case 5:
+            state_1 = _k.sent();
             if (typeof state_1 === "object")
               return [2, state_1.value];
-            return [3, 1];
-          case 3:
+            return [3, 4];
+          case 6:
             return [
               2
               /*return*/
@@ -15110,11 +15174,11 @@
       }
     }],
     metaTriggers: [{
-      kind: "start",
+      kind: "burdenGeneration",
       text: [],
       simpleText: [],
-      handles: function(e, _s, _self) {
-        return e.stage > 0;
+      handles: function() {
+        return true;
       },
       transform: function(_e, _s, self) {
         return function(state) {
@@ -19411,7 +19475,11 @@
     };
     throw new TypeError(s ? "Object is not iterable." : "Symbol.iterator is not defined.");
   };
-  var test = null;
+  var test = {
+    burdens: [
+      [1, "cursed_doll"]
+    ]
+  };
   var SAVE_STORAGE_KEY = "roguelike.ongoingSaves.v1";
   var RUN_TIMER_STORAGE_KEY = "roguelike.runTimerSeconds.v1";
   var HELP_SEEN_STORAGE_KEY = "roguelike.helpSeen.v1";

@@ -198,10 +198,10 @@ const cursedDoll: RelicSpec = {
         replace: params => ({ ...params, numOptions: params.numOptions + 1, numPicked: params.numPicked + 1 })
     }],
     metaTriggers: [{
-        kind: 'start',
+        kind: 'burdenGeneration',
         text: [],
         simpleText: [],
-        handles: (e, _s, _self: Relic) => e.stage > 0,
+        handles: () => true,
         transform: (_e, _s, self: Relic) => async function (state: MetaState) {
             await removeRelic(state, self.id)
         }

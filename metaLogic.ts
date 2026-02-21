@@ -650,7 +650,11 @@ export interface GainEventEvent {
     event: CardSpec
 }
 
-export type MetaGameEvent = CourseEndEvent | CourseStartEvent | PathGenerationEvent | GainRelicEvent | LoseRelicEvent | GainPotionEvent | GainCardEvent | GainEventEvent
+export interface BurdenGenerationEvent {
+    kind: 'burdenGeneration'
+}
+
+export type MetaGameEvent = CourseEndEvent | CourseStartEvent | PathGenerationEvent | GainRelicEvent | LoseRelicEvent | GainPotionEvent | GainCardEvent | GainEventEvent | BurdenGenerationEvent
 
 export interface MetaTrigger<T extends MetaGameEvent> {
     kind: T['kind'];
@@ -670,6 +674,7 @@ export type TypedMetaTrigger =
     | MetaTrigger<GainPotionEvent>
     | MetaTrigger<GainCardEvent>
     | MetaTrigger<GainEventEvent>
+    | MetaTrigger<BurdenGenerationEvent>
 
 // ----------------------------- State Types
 
@@ -2289,13 +2294,14 @@ function orderedBurdenCandidates(
     return generator.permute(weighted)
 }
 
-function sampleBurdenState(state: MetaState, generator: Generator): BurdenState {
+async function sampleBurdenState(state: MetaState, generator: Generator): Promise<BurdenState> {
     const stage = state.data.stage
     const burdenParams = applyMetaReplacers({
         kind: 'burden',
         numOptions: 2,
         numPicked: 1
     }, state)
+    await trigger({kind: 'burdenGeneration'}, state)
     const numOptions = Math.max(1, burdenParams.numOptions)
     const numPicked = Math.max(1, Math.min(burdenParams.numPicked, numOptions))
     const ordered = orderedBurdenCandidates(state, generator)
@@ -2657,7 +2663,7 @@ async function replayCompletedStage(state: MetaState, stage: number): Promise<vo
     state.ui.updateBuffer(state)
 }
 
-function materializePath(state: MetaState, path: Path): Pick<MetaStateData, 'challenges' | 'rewardStates' | 'burdenStates'> {
+async function materializePath(state: MetaState, path: Path): Promise<Pick<MetaStateData, 'challenges' | 'rewardStates' | 'burdenStates'>> {
     // Materialize rewards only when the path is actually selected.
     const rewardStates = path.rewardStates.map(rs => {
         if (rs.kind === 'encounter' && rs.encounter === null) {
@@ -2705,12 +2711,14 @@ function materializePath(state: MetaState, path: Path): Pick<MetaStateData, 'cha
         return rs
     })
     const burdenGenerator = state.generator(`rewardsburden`).newGenerator()
-    const burdenStates = path.burdenStates.map(burdenState => {
+    const burdenStates: BurdenState[] = []
+    for (const burdenState of path.burdenStates) {
         if (burdenState.options.length === 0) {
-            return sampleBurdenState(state, burdenGenerator)
+            burdenStates.push(await sampleBurdenState(state, burdenGenerator))
+        } else {
+            burdenStates.push(burdenState)
         }
-        return burdenState
-    })
+    }
     return { challenges: path.challenges, rewardStates, burdenStates }
 }
 
@@ -3047,7 +3055,7 @@ export async function playGame(
             initialPath.burdenStates.push(makeTestBurdenState(state, burdenDefinitions))
         }
         state.replaceAndClearHistory({
-            ...materializePath(state, initialPath),
+            ...(await materializePath(state, initialPath)),
             phase: 'stage_select',
             availablePaths: [],
         })
@@ -3169,7 +3177,7 @@ export async function playGame(
                 }
                 await applyPathOnSelectEffects(state, path)
                 state.replaceAndClearHistory({
-                    ...materializePath(state, path),
+                    ...(await materializePath(state, path)),
                     phase: 'stage_select',
                     availablePaths: [],
                 })
