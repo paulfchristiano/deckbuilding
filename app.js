@@ -5156,7 +5156,7 @@
   }
   function enabledExtraOptions(state) {
     var allowed = new Set(extraOptionRegistry.keys());
-    var params = applyMetaReplacers("extraOptions", { options: [] }, state);
+    var params = applyMetaReplacers({ kind: "extraOptions", options: [] }, state);
     return new Set(params.options.filter(function(option) {
       return allowed.has(option);
     }));
@@ -5164,7 +5164,8 @@
   function getSimpleRewardOptions(state, metaState) {
     var _this = this;
     var options = state.options;
-    var rewardParams = applyMetaReplacers("reward", {
+    var rewardParams = applyMetaReplacers({
+      kind: "reward",
       optionCount: options.length,
       pickBufferAdjustments: [],
       rewardKind: state.kind
@@ -6694,20 +6695,19 @@
       });
     });
   }
-  function applyMetaReplacers(kind, params, state) {
+  function applyMetaReplacers(params, state) {
     var e_11, _a, e_12, _b;
-    var relics = state.data.relics;
     try {
-      for (var relics_1 = __values4(relics), relics_1_1 = relics_1.next(); !relics_1_1.done; relics_1_1 = relics_1.next()) {
-        var relic = relics_1_1.value;
+      for (var _c = __values4(state.data.relics), _d = _c.next(); !_d.done; _d = _c.next()) {
+        var relic = _d.value;
         var metaReplacers = relic.metaReplacers();
         try {
           for (var metaReplacers_1 = (e_12 = void 0, __values4(metaReplacers)), metaReplacers_1_1 = metaReplacers_1.next(); !metaReplacers_1_1.done; metaReplacers_1_1 = metaReplacers_1.next()) {
-            var replacer = metaReplacers_1_1.value;
-            if (replacer.kind === kind) {
-              var replaceFn = replacer.replace;
-              params = replaceFn(params, state, relic);
-            }
+            var rawReplacer = metaReplacers_1_1.value;
+            if (rawReplacer.kind !== params.kind)
+              continue;
+            var replacer = rawReplacer;
+            params = replacer.replace(params, state, relic);
           }
         } catch (e_12_1) {
           e_12 = { error: e_12_1 };
@@ -6723,7 +6723,7 @@
       e_11 = { error: e_11_1 };
     } finally {
       try {
-        if (relics_1_1 && !relics_1_1.done && (_a = relics_1.return)) _a.call(relics_1);
+        if (_d && !_d.done && (_a = _c.return)) _a.call(_c);
       } finally {
         if (e_11) throw e_11.error;
       }
@@ -6823,6 +6823,7 @@
       }
     }
     var params = {
+      kind: "gameSetup",
       par,
       vpGoal: (_d = challenge === null || challenge === void 0 ? void 0 : challenge.vpMode.target) !== null && _d !== void 0 ? _d : 0,
       cardSpecs: [],
@@ -7007,7 +7008,8 @@
         events.push(cheatSpec_1);
       }
     }
-    var gameSetupParams = applyMetaReplacers("gameSetup", {
+    var gameSetupParams = applyMetaReplacers({
+      kind: "gameSetup",
       par,
       vpGoal: vpTarget,
       cardSpecs: cards,
@@ -7032,7 +7034,8 @@
     };
   }
   function getRewardOptionCount(state, rewardKind) {
-    var params = applyMetaReplacers("reward", {
+    var params = applyMetaReplacers({
+      kind: "reward",
       optionCount: 3,
       pickBufferAdjustments: [],
       rewardKind
@@ -7214,7 +7217,8 @@
             baseRewardsPerPath = 2;
             basePaths = ["Go left", "Go right"];
             baseNumBurdens = state.burdensEnabled && stage > 0 ? 1 : 0;
-            pathRewardParams = applyMetaReplacers("pathRewards", {
+            pathRewardParams = applyMetaReplacers({
+              kind: "pathRewards",
               rewardsPerPath: baseRewardsPerPath,
               paths: basePaths,
               numBurdens: baseNumBurdens
@@ -19338,12 +19342,7 @@
     };
     throw new TypeError(s ? "Object is not iterable." : "Symbol.iterator is not defined.");
   };
-  var test = {
-    burdens: [
-      [1, "broken_crown"],
-      [1, "cursed_sozu"]
-    ]
-  };
+  var test = null;
   var SAVE_STORAGE_KEY = "roguelike.ongoingSaves.v1";
   var RUN_TIMER_STORAGE_KEY = "roguelike.runTimerSeconds.v1";
   var HELP_SEEN_STORAGE_KEY = "roguelike.helpSeen.v1";

@@ -21,12 +21,7 @@ import { Card, CardSpec, UndoPastBeginning } from './gameLogic.js'
 
 import type { DebugTestConfig } from './metaLogic.js'
 
-let test: DebugTestConfig | null = {
-    burdens: [
-        [1, 'broken_crown'],
-        [1, 'cursed_sozu']
-    ]
-}
+let test: DebugTestConfig | null = null
 
 const SAVE_STORAGE_KEY = 'roguelike.ongoingSaves.v1'
 const RUN_TIMER_STORAGE_KEY = 'roguelike.runTimerSeconds.v1'

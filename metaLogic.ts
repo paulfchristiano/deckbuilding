@@ -197,14 +197,15 @@ function relicGainRequirementSatisfied(relic: RelicSpec, state: MetaState): bool
 
 function enabledExtraOptions(state: MetaState): Set<ExtraOptionID> {
     const allowed = new Set<ExtraOptionID>(extraOptionRegistry.keys())
-    const params = applyMetaReplacers('extraOptions', { options: [] as ExtraOptionID[] }, state)
+    const params = applyMetaReplacers({ kind: 'extraOptions', options: [] as ExtraOptionID[] }, state)
     return new Set(params.options.filter(option => allowed.has(option)))
 }
 
 // Get options for a simple reward
 function getSimpleRewardOptions(state: SimpleRewardState, metaState: MetaState): RewardOption[] {
     const options = state.options as Array<CardSpec | RelicSpec>
-    const rewardParams = applyMetaReplacers('reward', {
+    const rewardParams = applyMetaReplacers({
+        kind: 'reward',
         optionCount: options.length,
         pickBufferAdjustments: [],
         rewardKind: state.kind
@@ -477,7 +478,8 @@ export function challengeSummaryWithState(challenge: ChallengeSpec, state: MetaS
 }
 
 // Meta replacer types - modify game setup parameters
-export type GameSetupParams = {
+export interface GameSetupParams {
+    kind: 'gameSetup'
     par: number
     vpGoal: number
     cardSpecs: CardSpec[]
@@ -538,12 +540,14 @@ export class Relic extends Card {
 }
 
 export interface RewardParams {
+    kind: 'reward'
     optionCount: number
     pickBufferAdjustments: number[]
     rewardKind?: RewardKind
 }
 
 export interface ExtraOptionsParams {
+    kind: 'extraOptions'
     options: ExtraOptionID[]
 }
 
@@ -559,17 +563,27 @@ export interface PathOptionSpec {
 }
 
 export interface PathRewardParams {
+    kind: 'pathRewards'
     rewardsPerPath: number
     paths: Array<string | PathOptionSpec>
     numBurdens: number
 }
 
+export type MetaParams = GameSetupParams | RewardParams | ExtraOptionsParams | PathRewardParams
+
+export interface TypedMetaReplacer<T extends MetaParams> {
+    kind: T['kind']
+    text: string[]
+    simpleText?: string[]
+    replace: (params: T, state: MetaState, self: Relic) => T
+}
+
 // TODO: render relics appropriately when you hold shift etc.
 export type MetaReplacer =
-    | { kind: 'gameSetup', text: string[], simpleText?: string[], replace: (params: GameSetupParams, state: MetaState, self: Relic) => GameSetupParams }
-    | { kind: 'reward', text: string[], simpleText?: string[], replace: (params: RewardParams, state: MetaState, self: Relic) => RewardParams }
-    | { kind: 'extraOptions', text: string[], simpleText?: string[], replace: (params: ExtraOptionsParams, state: MetaState, self: Relic) => ExtraOptionsParams }
-    | { kind: 'pathRewards', text: string[], simpleText?: string[], replace: (params: PathRewardParams, state: MetaState, self: Relic) => PathRewardParams }
+    | TypedMetaReplacer<GameSetupParams>
+    | TypedMetaReplacer<RewardParams>
+    | TypedMetaReplacer<ExtraOptionsParams>
+    | TypedMetaReplacer<PathRewardParams>
 
 // Meta trigger event types
 export interface CourseEndEvent {
@@ -1894,27 +1908,16 @@ export async function endCourse(score: number, par: number, state:MetaState): Pr
 
 // ----------------------------- Meta Replacer Application
 
-type MetaReplacerParamMap = {
-    'gameSetup': GameSetupParams
-    'reward': RewardParams
-    'extraOptions': ExtraOptionsParams
-    'pathRewards': PathRewardParams
-}
-
-export function applyMetaReplacers<K extends keyof MetaReplacerParamMap>(
-    kind: K,
-    params: MetaReplacerParamMap[K],
+export function applyMetaReplacers<T extends MetaParams>(
+    params: T,
     state: MetaState,
-): MetaReplacerParamMap[K] {
-    const relics = state.data.relics;
-    for (const relic of relics) {
+): T {
+    for (const relic of state.data.relics) {
         const metaReplacers = relic.metaReplacers() as MetaReplacer[]
-        for (const replacer of metaReplacers) {
-            if (replacer.kind === kind) {
-                // Type assertion via unknown needed due to TypeScript limitations with discriminated unions
-                const replaceFn = replacer.replace as unknown as (p: MetaReplacerParamMap[K], s: MetaState, self: Relic) => MetaReplacerParamMap[K]
-                params = replaceFn(params, state, relic)
-            }
+        for (const rawReplacer of metaReplacers) {
+            if (rawReplacer.kind !== params.kind) continue
+            const replacer = rawReplacer as unknown as TypedMetaReplacer<T>
+            params = replacer.replace(params, state, relic)
         }
     }
     return params
@@ -2001,6 +2004,7 @@ export function describeParCalculation(stage: number, challenge: ChallengeSpec |
     }
 
     let params: GameSetupParams = {
+        kind: 'gameSetup',
         par,
         vpGoal: challenge?.vpMode.target ?? 0,
         cardSpecs: [],
@@ -2092,7 +2096,8 @@ export function makeSpec(state: MetaState, challenge: ChallengeSpec): GameSpec {
         }
     }
 
-    const gameSetupParams = applyMetaReplacers('gameSetup', {
+    const gameSetupParams = applyMetaReplacers({
+        kind: 'gameSetup',
         par: par,
         vpGoal: vpTarget,
         cardSpecs: cards,
@@ -2119,7 +2124,8 @@ export function makeSpec(state: MetaState, challenge: ChallengeSpec): GameSpec {
 
 // Get reward option count based on relics
 export function getRewardOptionCount(state: MetaState, rewardKind?: RewardKind): number {
-    const params = applyMetaReplacers('reward', {
+    const params = applyMetaReplacers({
+        kind: 'reward',
         optionCount: 3,
         pickBufferAdjustments: [],
         rewardKind
@@ -2285,7 +2291,8 @@ async function makePaths(state: MetaState, challengeTests: ChallengeTestSpec[] =
     const baseRewardsPerPath = 2
     const basePaths = ['Go left', 'Go right']
     const baseNumBurdens = state.burdensEnabled && stage > 0 ? 1 : 0
-    const pathRewardParams = applyMetaReplacers('pathRewards', {
+    const pathRewardParams = applyMetaReplacers({
+        kind: 'pathRewards',
         rewardsPerPath: baseRewardsPerPath,
         paths: basePaths,
         numBurdens: baseNumBurdens
