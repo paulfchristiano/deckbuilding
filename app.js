@@ -213,6 +213,11 @@
       return upgrade.effects;
     });
   }
+  function cardSpecRules(spec) {
+    return appendUpgrades(spec.rules, spec.upgrades, function(upgrade) {
+      return upgrade.rules;
+    });
+  }
   function cardSpecSimpleLines(spec) {
     var e_3, _a, e_4, _b, e_5, _c, e_6, _d, e_7, _e, e_8, _f, e_9, _g, e_10, _h, e_11, _j, e_12, _k, e_13, _l, e_14, _m;
     var _o, _p, _q, _r, _s, _t, _u, _v, _w, _x;
@@ -321,7 +326,7 @@
       }
     }
     try {
-      for (var _12 = __values(spec.rules || []), _13 = _12.next(); !_13.done; _13 = _12.next()) {
+      for (var _12 = __values(cardSpecRules(spec)), _13 = _12.next(); !_13.done; _13 = _12.next()) {
         var rule = _13.value;
         try {
           for (var _14 = (e_11 = void 0, __values(rule.triggers || [])), _15 = _14.next(); !_15.done; _15 = _14.next()) {
@@ -3829,6 +3834,14 @@
   function registerSpec(spec) {
     extraSpecsByName.set(spec.name, spec);
   }
+  function registerRelicSpec(spec) {
+    spec.isRelic = true;
+    registerSpec(spec);
+  }
+  function addRelicReward(spec) {
+    spec.isRelic = true;
+    relicRewards.push(spec);
+  }
   function getSpecByName(name) {
     var e_1, _a;
     var _b;
@@ -4023,16 +4036,7 @@
     return spec;
   }
   function isRelicSpec(spec) {
-    var x = asMetaTextSpec(spec);
-    if (x.burden === true)
-      return true;
-    if (x.metaReplacers !== void 0 || x.metaTriggers !== void 0 || x.gainRequirement !== void 0)
-      return true;
-    if (x.mutableTriggers !== void 0 || x.mutableReplacers !== void 0)
-      return true;
-    return relicRewards.some(function(relic) {
-      return relic.name === spec.name;
-    });
+    return spec.isRelic === true;
   }
   function renderEffects(spec) {
     var e_1, _a;
@@ -4245,7 +4249,7 @@
     var staticReplacerHtml = cardSpecStaticReplacers(spec).map(function(x) {
       return renderTrigger(x, true, plain);
     }).join("");
-    var rulesHtml = (spec.rules || []).map(function(rule) {
+    var rulesHtml = cardSpecRules(spec).map(function(rule) {
       return renderRuleText(rule, plain);
     }).join("");
     var metaHtml = renderMetaText(spec, plain);
@@ -4295,7 +4299,7 @@
     return "".concat(mine).concat(related);
   }
   function buildSpecTooltipOnlyRelatedSimple(spec) {
-    var rules2 = (spec.rules || []).map(function(rule) {
+    var rules2 = cardSpecRules(spec).map(function(rule) {
       return renderRuleText(rule, false);
     }).join("");
     var related = (spec.relatedCards || []).map(buildSimpleTooltipForSingleSpec).join("");
@@ -4459,6 +4463,7 @@
     var cardName = displayName(spec);
     return {
       name: "Boxed ".concat(cardName),
+      isRelic: true,
       simpleText: [
         "At the start of the game, create a copy of ".concat(cardName, " in your hand."),
         "Trash this."
@@ -4543,7 +4548,10 @@
       isPotion: true,
       simpleText: ["Use ".concat(cardName, ".")],
       relatedCards: [spec],
-      rules: spec.rules ? __spreadArray4([], __read5(spec.rules), false) : void 0,
+      rules: (function() {
+        var rules2 = cardSpecRules(spec);
+        return rules2.length > 0 ? __spreadArray4([], __read5(rules2), false) : void 0;
+      })(),
       persistence: {
         kind: "bottledEventPotion"
       },
@@ -8471,7 +8479,7 @@
       }
     }]
   };
-  relicRewards.push(bagOfCoins);
+  addRelicReward(bagOfCoins);
   var bagOfPreparation = {
     name: "Bag of Preparation",
     staticReplacers: [{
@@ -8495,7 +8503,7 @@
       }
     }]
   };
-  relicRewards.push(bagOfPreparation);
+  addRelicReward(bagOfPreparation);
   var courier = {
     name: "Courier",
     triggers: [{
@@ -8509,7 +8517,7 @@
       }
     }]
   };
-  relicRewards.push(courier);
+  addRelicReward(courier);
   var inkwell = {
     name: "Inkwell",
     metaReplacers: [{
@@ -8520,7 +8528,7 @@
       }
     }]
   };
-  relicRewards.push(inkwell);
+  addRelicReward(inkwell);
   var elegantQuill = {
     name: "Elegant Quill",
     metaTriggers: [
@@ -8546,7 +8554,7 @@
       }
     ]
   };
-  relicRewards.push(elegantQuill);
+  addRelicReward(elegantQuill);
   var brokenLever = {
     name: "Broken Lever",
     metaReplacers: [{
@@ -8558,7 +8566,7 @@
       }
     }]
   };
-  relicRewards.push(brokenLever);
+  addRelicReward(brokenLever);
   var darkBanner = {
     name: "Dark Banner",
     maxStage: 6,
@@ -8580,7 +8588,7 @@
       }
     }]
   };
-  relicRewards.push(darkBanner);
+  addRelicReward(darkBanner);
   var mirrorName = "Silver Mirror";
   var silverMirror = {
     name: mirrorName,
@@ -8618,7 +8626,7 @@
       }
     }]
   };
-  relicRewards.push(silverMirror);
+  addRelicReward(silverMirror);
   var sacredBark = {
     name: "Sacred Bark",
     gainRequirement: function(state) {
@@ -8646,7 +8654,7 @@
       }
     }]
   };
-  relicRewards.push(sacredBark);
+  addRelicReward(sacredBark);
   var discountCard = {
     name: "Discount card",
     staticReplacers: [{
@@ -8661,7 +8669,7 @@
       }
     }]
   };
-  relicRewards.push(discountCard);
+  addRelicReward(discountCard);
   var singingBowl = {
     name: "Singing Bowl",
     metaReplacers: [{
@@ -8672,7 +8680,7 @@
       }
     }]
   };
-  relicRewards.push(singingBowl);
+  addRelicReward(singingBowl);
   var piggyBank = {
     name: "Piggy Bank",
     metaReplacers: [{
@@ -8684,7 +8692,7 @@
       }
     }]
   };
-  relicRewards.push(piggyBank);
+  addRelicReward(piggyBank);
   var wingedBoots = {
     name: "Winged Boots",
     maxStage: 6,
@@ -8696,7 +8704,7 @@
       }
     }]
   };
-  relicRewards.push(wingedBoots);
+  addRelicReward(wingedBoots);
   var flywheel = {
     name: "Flywheel",
     metaTriggers: [{
@@ -8767,7 +8775,7 @@
       }
     }]
   };
-  relicRewards.push(flywheel);
+  addRelicReward(flywheel);
   var creditVoucher = {
     name: "Credit Voucher",
     triggers: [{
@@ -8781,7 +8789,7 @@
       }
     }]
   };
-  relicRewards.push(creditVoucher);
+  addRelicReward(creditVoucher);
   var matryoshkaDoll = {
     name: "Matryoshka Doll",
     maxStage: 5,
@@ -8864,7 +8872,7 @@
       }
     }]
   };
-  relicRewards.push(matryoshkaDoll);
+  addRelicReward(matryoshkaDoll);
   var calledShot = {
     name: "Called Shot",
     maxStage: 6,
@@ -8940,8 +8948,8 @@
       }
     }]
   };
-  registerSpec(calledShot);
-  registerSpec(delayedGratification);
+  registerRelicSpec(calledShot);
+  registerRelicSpec(delayedGratification);
   var giftBox = {
     name: "Gift Box",
     mutableTriggers: function(relic) {
@@ -9046,7 +9054,7 @@
       }
     }]
   };
-  relicRewards.push(giftBox);
+  addRelicReward(giftBox);
   var emptyBottle = {
     name: "Empty Bottle",
     metaTriggers: [{
@@ -9102,7 +9110,7 @@
       }
     }]
   };
-  registerSpec(emptyBottle);
+  registerRelicSpec(emptyBottle);
   var banner = {
     name: "Banner",
     maxStage: 6,
@@ -9120,7 +9128,7 @@
       }
     }]
   };
-  relicRewards.push(banner);
+  addRelicReward(banner);
   var questionCard = {
     name: "Question Card",
     maxStage: 6,
@@ -9133,7 +9141,7 @@
       }
     }]
   };
-  relicRewards.push(questionCard);
+  addRelicReward(questionCard);
   function lookingGlassNewKingdom(state, cards, events) {
     var e_2, _a, e_3, _b;
     var result = { cards: cards.slice(), events: events.slice() };
@@ -9199,7 +9207,7 @@
       }
     }]
   };
-  relicRewards.push(lookingGlass);
+  addRelicReward(lookingGlass);
 
   // public/data/cards.js
   var __assign5 = function() {
@@ -14596,7 +14604,7 @@
       }
     }]
   };
-  registerSpec(cursedInkwell);
+  registerRelicSpec(cursedInkwell);
   var theScribe = simpleEncounter({
     name: "The Scribe",
     options: [
@@ -14872,7 +14880,7 @@
       }
     }]
   };
-  registerSpec(frozenRelic);
+  registerRelicSpec(frozenRelic);
   function makeFrozenRelicSpec(baseRelic) {
     return __assign10(__assign10({}, frozenRelic), { name: "Frozen ".concat(displayName(baseRelic)) });
   }
@@ -14916,7 +14924,7 @@
     }],
     rules: [decayRule]
   };
-  registerSpec(fakeCoin);
+  registerRelicSpec(fakeCoin);
   var miserlyTouch = {
     name: "Miserly Touch",
     burden: true,
@@ -14976,7 +14984,7 @@
     }],
     rules: [decayRule]
   };
-  registerSpec(miserlyTouch);
+  registerRelicSpec(miserlyTouch);
   var heavyStone = {
     name: "Heavy Stone",
     burden: true,
@@ -14991,7 +14999,7 @@
       }
     }]
   };
-  registerSpec(heavyStone);
+  registerRelicSpec(heavyStone);
   var cursedHourglass = {
     name: "Leaking Inkwell",
     burden: true,
@@ -15080,7 +15088,7 @@
       }
     }]
   };
-  registerSpec(cursedHourglass);
+  registerRelicSpec(cursedHourglass);
   var cursedDoll = {
     name: "Cursed Doll",
     burden: true,
@@ -15119,7 +15127,7 @@
       }
     }]
   };
-  registerSpec(cursedDoll);
+  registerRelicSpec(cursedDoll);
   var cursedKey = {
     name: "Cursed Key",
     burden: true,
@@ -15137,7 +15145,7 @@
       }
     }]
   };
-  registerSpec(cursedKey);
+  registerRelicSpec(cursedKey);
   var cursedBoots = {
     name: "Cursed Boots",
     burden: true,
@@ -15193,7 +15201,7 @@
       }
     }]
   };
-  registerSpec(cursedBoots);
+  registerRelicSpec(cursedBoots);
   var cursedBanner = {
     name: "Cursed Hourglass",
     burden: true,
@@ -15230,7 +15238,7 @@
       }
     }]
   };
-  registerSpec(cursedBanner);
+  registerRelicSpec(cursedBanner);
   var cursedSozu = {
     name: "Sozu",
     burden: true,
@@ -15250,7 +15258,7 @@
       }
     }]
   };
-  registerSpec(cursedSozu);
+  registerRelicSpec(cursedSozu);
   var expensiveFlask = {
     name: "Expensive Flask",
     burden: true,
@@ -15265,7 +15273,7 @@
       }
     }]
   };
-  registerSpec(expensiveFlask);
+  registerRelicSpec(expensiveFlask);
   var brokenCrown = {
     name: "Broken Crown",
     burden: true,
@@ -15280,7 +15288,7 @@
       }
     }]
   };
-  registerSpec(brokenCrown);
+  registerRelicSpec(brokenCrown);
   var taxCardUpgrade = {
     id: "burden_tax_card",
     name: function(name) {
@@ -15324,6 +15332,7 @@
     name: function(name) {
       return "".concat(name, "-");
     },
+    rules: [decayRule],
     staticReplacers: [{
       kind: "create",
       text: ["When you create this, if it has no decay tokens put 2 on it. If it has more than 2 decay tokens, remove all but 2."],
