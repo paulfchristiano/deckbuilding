@@ -372,7 +372,6 @@ export const shelter:CardSpec = {name: shelterName,
         }
     }],
     rules: [shelterRule],
-    simpleRules: []
 }
 cardRewards.push(shelter)
 

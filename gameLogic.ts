@@ -28,9 +28,6 @@ export interface CardSpec {
     }
 }
 
-export type ExtraOption = 'singingBowl' | 'takeItAll'
-export const extraOptions: ExtraOption[] = ['singingBowl', 'takeItAll']
-
 export interface CardUpgrade {
     id?: string;
     name?: (name: string) => string;
@@ -2124,6 +2121,7 @@ export const shelterRule: Rule = {
     name: 'Shelter',
     replacers: [{
         text: [`Whenever a card with a shelter token would be trashed, remove a shelter token instead.`],
+        simpleText: [`Whenever you would trash a card, remove a shelter token instead.`],
         kind: 'move',
         handles: (p, state) => state.find(p.card).count('shelter') > 0
             && p.fromZone == 'play' && p.toZone == 'void',
@@ -2148,21 +2146,19 @@ registerRule(shelterRule)
 
 export const decayRule: Rule = {
     name: 'Decay',
-    replacers: [{
-        text: ['Whenever a card with a decay token would move to your discard or leave play, remove a decay token from it. Then if it has no decay tokens, trash it instead.'],
-        simpleText: ['After playing a card remove a decay token. When the last is removed, trash the card.'],
+    triggers: [{
+        text: ['Whenever you play a card from your hand, remove a decay token from it. Then if it has no decay tokens, put an echo token on it.'],
+        simpleText: ['You can only play a card once per decay token on it.'],
         kind: 'move',
         handles: (params, state) =>
-            state.find(params.card).count('decay') > 0
-            && (params.toZone === 'discard' || params.fromZone === 'play'),
-        replace: (params, state) => {
+            state.find(params.card).count('decay') > 0 && params.fromZone == 'hand' && params.toZone == 'resolving',
+        transform: (params, state) => {
             const current = state.find(params.card)
-            const shouldTrash = current.count('decay') <= 1
-            return {
-                ...params,
-                toZone: shouldTrash ? 'void' : params.toZone,
-                effects: params.effects.concat([removeToken(current, 'decay', 1)])
-            }
+            const shouldEcho = current.count('decay') <= 1
+            return doAll([
+                removeToken(current, 'decay', 1),
+                ...(shouldEcho ? [addToken(current, 'echo')] : [])
+            ])
         }
     }]
 }

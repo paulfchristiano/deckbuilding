@@ -14,7 +14,6 @@ import {
     copper,
     decayRule,
     displayName,
-    energy,
     gainCoins,
     incrementMap,
     refresh,
@@ -149,23 +148,23 @@ const heavyStone: RelicSpec = {
 registerSpec(heavyStone)
 
 const cursedHourglass: RelicSpec = {
-    name: 'Cursed Hourglass',
+    name: 'Leaking Inkwell',
     burden: true,
     metaReplacers: [{
         kind: 'gameSetup',
         text: ['Each stage has par 1 lower.'],
-        simpleText: ['Your next 3 stages have par 1 lower.'],
+        simpleText: ['Your next 2 stages have par 1 lower.'],
         replace: (params, _state, self: Relic) => ({ ...params, par: params.par - 1 })
     }],
     metaTriggers: [{
         kind: 'relic',
-        text: ['When you gain this, put 3 charge tokens on it.'],
+        text: ['When you gain this, put 2 charge tokens on it.'],
         simpleText: [],
         handles: (e, _s, self: Relic) => self.id === e.relic.id,
         transform: (_e, _s, self: Relic) => async function (state: MetaState) {
             if (!state.data.relics.some(r => r.id === self.id)) return
             const tokens = new Map(self.tokens)
-            tokens.set('charge', 3)
+            tokens.set('charge', 2)
             state.applyToRelic(r => r.update({ tokens }), self)
         }
     }, {
@@ -230,16 +229,93 @@ const cursedDoll: RelicSpec = {
 }
 registerSpec(cursedDoll)
 
-const cursedSozu: RelicSpec = {
-    name: 'Cursed Sozu',
+const cursedKey: RelicSpec = {
+    name: 'Cursed Key',
     burden: true,
-    staticReplacers: [{
-        kind: 'cost',
-        text: ['Potions cost @ more to drink.'],
-        handles: params =>
-            params.card.spec.isPotion === true
-            && (params.actionKind === 'potion' || params.actionKind === 'use'),
-        replace: params => ({ ...params, cost: addCosts(params.cost, energy(1)) })
+    metaReplacers: [{
+        kind: 'gameSetup',
+        text: ['Par is 1 lower.'],
+        replace: (params, state) => (
+            {...params, par: params.par - 1 }
+        )
+    }, {
+        kind: 'extraOptions',
+        text: ['You can skip any reward to destroy this.'],
+        replace: params => ({ ...params, options: params.options.concat(['destroyCursedKey']) })
+    }]
+}
+registerSpec(cursedKey)
+
+const cursedBoots: RelicSpec = {
+    name: 'Cursed Boots',
+    burden: true,
+    metaReplacers: [{
+        kind: 'pathRewards',
+        text: [
+            'Remove the first path option.',
+            'If this has a charge token, add a path option "Use Cursed Boots."'
+        ],
+        simpleText: ['Remove first path; if charged, add Use Cursed Boots.'],
+        replace: (params, _state, self: Relic) => {
+            const paths = params.paths.slice(1)
+            if (self.count('charge') > 0) {
+                paths.push({
+                    label: 'Use Cursed Boots',
+                    onSelectEffects: [{ kind: 'spendRelicCharge', relicID: self.id, amount: 1 }]
+                })
+            }
+            return { ...params, paths }
+        }
+    }],
+    metaTriggers: [{
+        kind: 'relic',
+        text: ['When you gain this, put a charge token on it.'],
+        simpleText: ['This starts with a charge token.'],
+        handles: (e, _s, self: Relic) => self.id === e.relic.id,
+        transform: (_e, _s, self: Relic) => async function (state: MetaState) {
+            if (!state.data.relics.some(r => r.id === self.id)) return
+            const tokens = new Map(self.tokens)
+            tokens.set('charge', 1)
+            state.applyToRelic(r => r.update({ tokens }), self)
+        }
+    }]
+}
+registerSpec(cursedBoots)
+
+const cursedBanner: RelicSpec = {
+    name: 'Cursed Hourglass',
+    burden: true,
+    metaReplacers: [{
+        kind: 'gameSetup',
+        text: ['Par is 3 lower on the final stage.'],
+        simpleText: ['Final-stage par is 3 lower.'],
+        replace: (params, state) => (
+            state.data.stage === TOTAL_STAGES - 1
+                ? { ...params, par: params.par - 3 }
+                : params
+        )
+    }],
+    metaTriggers: [{
+        kind: 'end',
+        text: ['Whenever you beat par by 3 or more, destroy this.'],
+        simpleText: ['Beat par by 3+: destroy this.'],
+        handles: e => e.score <= e.par - 3,
+        transform: (_e, _s, self: Relic) => async function (state: MetaState) {
+            await removeRelic(state, self.id)
+        }
+    }]
+}
+registerSpec(cursedBanner)
+
+const cursedSozu: RelicSpec = {
+    name: 'Sozu',
+    burden: true,
+    metaTriggers: [{
+        kind: 'potion',
+        text: ['Whenever you gain a potion, lose 1 buffer.'],
+        simpleText: ['Whenever you gain a potion, lose 1 buffer.'],
+        handles: () => true,
+        transform: () => addBuffer(-1)
     }]
 }
 registerSpec(cursedSozu)
@@ -263,8 +339,13 @@ const brokenCrown: RelicSpec = {
     burden: true,
     metaReplacers: [{
         kind: 'reward',
-        text: ['Future rewards have 1 less option.'],
-        replace: params => ({ ...params, optionCount: Math.max(1, params.optionCount - 1) })
+        text: ['When you pick the third option from a reward pack, lose 1 buffer.'],
+        simpleText: ['Third reward option: lose 1 buffer.'],
+        replace: params => {
+            const pickBufferAdjustments = [...params.pickBufferAdjustments]
+            pickBufferAdjustments[2] = (pickBufferAdjustments[2] ?? 0) - 1
+            return { ...params, pickBufferAdjustments }
+        }
     }]
 }
 registerSpec(brokenCrown)
@@ -363,6 +444,23 @@ relicBurdenOption(
     'cursed_doll',
     cursedDoll,
     { maxStage: TOTAL_STAGES - 3 }
+)
+
+relicBurdenOption(
+    'cursed_key',
+    cursedKey,
+    { maxStage: TOTAL_STAGES - 2 }
+)
+
+relicBurdenOption(
+    'cursed_boots',
+    cursedBoots,
+    { maxStage: TOTAL_STAGES - 3 }
+)
+
+relicBurdenOption(
+    'cursed_banner',
+    cursedBanner
 )
 
 relicBurdenOption(
