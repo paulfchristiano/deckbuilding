@@ -2234,10 +2234,17 @@ function sampleChallengesForStage(
     const vpModeOrder = generator.permute(vpModes)
     const isFinalStage = stage === TOTAL_STAGES - 1
     const boonOrder = isFinalStage ? [] : generator.permute(boons)
+    const curseLevel = stageCurseLevel(stage, state)
+    const cursePool = curseLevel === 'minor' ? allMinorCurses()
+        : curseLevel === 'major' ? allMajorCurses()
+        : []
+    const curseOrder = cursePool.length > 0 ? generator.permute(cursePool) : []
     const usedVPModes = new Set<string>()
     const usedBoons = new Set<string>()
+    const usedCurses = new Set<string>()
     const vpFallbackIndex = { value: 0 }
     const boonFallbackIndex = { value: 0 }
+    const curseFallbackIndex = { value: 0 }
     const result: ChallengeSpec[] = []
 
     for (let pathIndex = 0; pathIndex < count; pathIndex++) {
@@ -2252,11 +2259,16 @@ function sampleChallengesForStage(
             challengeBoons = [boon]
         }
 
+        let curse: CardSpec | null = overrides.curse ?? null
+        if (curse === null && curseOrder.length > 0) {
+            curse = nextDistinctByName(curseOrder, usedCurses, curseFallbackIndex)
+        }
+
         result.push({
             stage,
             vpMode,
             boons: challengeBoons,
-            curse: overrides.curse ?? null,
+            curse,
         })
     }
 

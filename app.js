@@ -7130,10 +7130,15 @@
     var vpModeOrder = generator.permute(vpModes);
     var isFinalStage = stage === TOTAL_STAGES - 1;
     var boonOrder = isFinalStage ? [] : generator.permute(boons);
+    var curseLevel = stageCurseLevel(stage, state);
+    var cursePool = curseLevel === "minor" ? allMinorCurses() : curseLevel === "major" ? allMajorCurses() : [];
+    var curseOrder = cursePool.length > 0 ? generator.permute(cursePool) : [];
     var usedVPModes = /* @__PURE__ */ new Set();
     var usedBoons = /* @__PURE__ */ new Set();
+    var usedCurses = /* @__PURE__ */ new Set();
     var vpFallbackIndex = { value: 0 };
     var boonFallbackIndex = { value: 0 };
+    var curseFallbackIndex = { value: 0 };
     var result = [];
     for (var pathIndex = 0; pathIndex < count; pathIndex++) {
       var overrides = challengeOverridesForStage(challengeTests, stage, pathIndex);
@@ -7145,11 +7150,15 @@
         usedBoons.add(boon.name);
         challengeBoons = [boon];
       }
+      var curse = (_c = overrides.curse) !== null && _c !== void 0 ? _c : null;
+      if (curse === null && curseOrder.length > 0) {
+        curse = nextDistinctByName(curseOrder, usedCurses, curseFallbackIndex);
+      }
       result.push({
         stage,
         vpMode,
         boons: challengeBoons,
-        curse: (_c = overrides.curse) !== null && _c !== void 0 ? _c : null
+        curse
       });
     }
     return result;
