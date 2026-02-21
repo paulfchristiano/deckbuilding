@@ -17,6 +17,7 @@ export interface CardSpec {
     ability?: Effect[];
     simpleText?: string[]; // Short description for card selector/deck view (one line per array element)
     isPotion?: boolean; // If true, trash after playing
+    burden?: boolean; // If true, this is burdened and may be excluded from trade/sacrifice options
     rules?: Rule[]; // Rules this card references (for tooltip display)
     // Meta-game text entries (typed concretely in metaLogic.ts)
     metaReplacers?: { text: string[]; simpleText?: string[] }[];

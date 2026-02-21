@@ -678,6 +678,7 @@ export const potionShop: Encounter = {
     getOptions(data: unknown, metaState: MetaState): RewardOption[] {
         const d = data as PotionShopData
         const [first, second, third] = d.offers
+        const sellablePotions = metaState.data.potions.filter(potion => potion.spec.burden !== true)
         const bundleDetail = `Potion Shop bundle for 3@: with ${displayName(second)} and ${displayName(third)}`
         const bundleTooltipSpec: CardSpec = {
             ...second,
@@ -713,13 +714,13 @@ export const potionShop: Encounter = {
             {
                 label: 'Sell a potion',
                 description: 'Lose a potion and gain 4@ buffer.',
-                disabled: d.selectedIndex !== null || metaState.data.potions.length === 0,
+                disabled: d.selectedIndex !== null || sellablePotions.length === 0,
                 checked: d.selectedIndex === 2,
                 onClick: async () => {
                     const potion = await metaState.ui.chooseCard(
                         metaState,
                         'Choose a potion to give up:',
-                        [...metaState.data.potions],
+                        sellablePotions,
                         true
                     )
                     if (!potion) return { newData: data }
@@ -911,6 +912,9 @@ const tradingPost: Encounter = {
     },
     getOptions(data: unknown, metaState: MetaState): RewardOption[] {
         const d = data as TradingPostData
+        const tradableCards = metaState.data.collectedCards.filter(card => card.burden !== true)
+        const tradableEvents = metaState.data.collectedEvents.filter(event => event.burden !== true)
+        const tradablePotions = metaState.data.potions.filter(potion => potion.spec.burden !== true)
         const tradableRelics = metaState.data.relics.filter(relic => relic.spec.burden !== true)
         const offeredRelicIsBad = d.offerRelic.burden === true
 
@@ -919,13 +923,13 @@ const tradingPost: Encounter = {
                 label: `Trade Card for ${displayName(d.offerCard)}`,
                 description: 'Give up one of your cards to receive this one.',
                 tooltipSpec: d.offerCard,
-                disabled: d.cardTraded || metaState.data.collectedCards.length === 0,
+                disabled: d.cardTraded || tradableCards.length === 0,
                 checked: d.cardTraded,
                 onClick: async () => {
                     const card = await metaState.ui.chooseCard(
                         metaState,
                         'Choose a card to trade away:',
-                        [...metaState.data.collectedCards],
+                        tradableCards,
                         true
                     )
                     if (!card) return { newData: data }
@@ -944,13 +948,13 @@ const tradingPost: Encounter = {
                 label: `Trade Event for ${displayName(d.offerEvent)}`,
                 description: 'Give up one of your events to receive this one.',
                 tooltipSpec: d.offerEvent,
-                disabled: d.eventTraded || metaState.data.collectedEvents.length === 0,
+                disabled: d.eventTraded || tradableEvents.length === 0,
                 checked: d.eventTraded,
                 onClick: async () => {
                     const event = await metaState.ui.chooseCard(
                         metaState,
                         'Choose an event to trade away:',
-                        [...metaState.data.collectedEvents],
+                        tradableEvents,
                         true
                     )
                     if (!event) return { newData: data }
@@ -969,13 +973,13 @@ const tradingPost: Encounter = {
                 label: `Trade Potion for ${displayName(d.offerPotion)}`,
                 description: 'Give up one of your potions to receive this one.',
                 tooltipSpec: d.offerPotion,
-                disabled: d.potionTraded || metaState.data.potions.length === 0,
+                disabled: d.potionTraded || tradablePotions.length === 0,
                 checked: d.potionTraded,
                 onClick: async () => {
                     const potion = await metaState.ui.chooseCard(
                         metaState,
                         'Choose a potion to trade away:',
-                        [...metaState.data.potions],
+                        tradablePotions,
                         true
                     )
                     if (!potion) return { newData: data }

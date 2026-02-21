@@ -79,6 +79,7 @@ potionRewards.push(potionOfCopper)
 export const beggarsBrew: CardSpec = {
     name: "Beggar's Brew",
     isPotion: true,
+    burden: true,
     effects: [coinsEffect(1)]
 }
 registerSpec(beggarsBrew)

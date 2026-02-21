@@ -11183,6 +11183,7 @@
   var beggarsBrew = {
     name: "Beggar's Brew",
     isPotion: true,
+    burden: true,
     effects: [coinsEffect(1)]
   };
   registerSpec(beggarsBrew);
@@ -14063,6 +14064,9 @@
       var _this = this;
       var d = data;
       var _a = __read13(d.offers, 3), first = _a[0], second = _a[1], third = _a[2];
+      var sellablePotions = metaState.data.potions.filter(function(potion) {
+        return potion.spec.burden !== true;
+      });
       var bundleDetail = "Potion Shop bundle for 3@: with ".concat(displayName(second), " and ").concat(displayName(third));
       var bundleTooltipSpec = __assign9(__assign9({}, second), { relatedCards: __spreadArray8(__spreadArray8([], __read13(second.relatedCards || []), false), [third], false) });
       return [
@@ -14103,7 +14107,7 @@
         {
           label: "Sell a potion",
           description: "Lose a potion and gain 4@ buffer.",
-          disabled: d.selectedIndex !== null || metaState.data.potions.length === 0,
+          disabled: d.selectedIndex !== null || sellablePotions.length === 0,
           checked: d.selectedIndex === 2,
           onClick: function() {
             return __awaiter10(_this, void 0, void 0, function() {
@@ -14112,7 +14116,7 @@
               return __generator10(this, function(_a2) {
                 switch (_a2.label) {
                   case 0:
-                    return [4, metaState.ui.chooseCard(metaState, "Choose a potion to give up:", __spreadArray8([], __read13(metaState.data.potions), false), true)];
+                    return [4, metaState.ui.chooseCard(metaState, "Choose a potion to give up:", sellablePotions, true)];
                   case 1:
                     potion = _a2.sent();
                     if (!potion)
@@ -14379,6 +14383,15 @@
     getOptions: function(data, metaState) {
       var _this = this;
       var d = data;
+      var tradableCards = metaState.data.collectedCards.filter(function(card) {
+        return card.burden !== true;
+      });
+      var tradableEvents = metaState.data.collectedEvents.filter(function(event) {
+        return event.burden !== true;
+      });
+      var tradablePotions = metaState.data.potions.filter(function(potion) {
+        return potion.spec.burden !== true;
+      });
       var tradableRelics = metaState.data.relics.filter(function(relic) {
         return relic.spec.burden !== true;
       });
@@ -14388,7 +14401,7 @@
           label: "Trade Card for ".concat(displayName(d.offerCard)),
           description: "Give up one of your cards to receive this one.",
           tooltipSpec: d.offerCard,
-          disabled: d.cardTraded || metaState.data.collectedCards.length === 0,
+          disabled: d.cardTraded || tradableCards.length === 0,
           checked: d.cardTraded,
           onClick: function() {
             return __awaiter10(_this, void 0, void 0, function() {
@@ -14397,7 +14410,7 @@
               return __generator10(this, function(_a) {
                 switch (_a.label) {
                   case 0:
-                    return [4, metaState.ui.chooseCard(metaState, "Choose a card to trade away:", __spreadArray8([], __read13(metaState.data.collectedCards), false), true)];
+                    return [4, metaState.ui.chooseCard(metaState, "Choose a card to trade away:", tradableCards, true)];
                   case 1:
                     card = _a.sent();
                     if (!card)
@@ -14433,7 +14446,7 @@
           label: "Trade Event for ".concat(displayName(d.offerEvent)),
           description: "Give up one of your events to receive this one.",
           tooltipSpec: d.offerEvent,
-          disabled: d.eventTraded || metaState.data.collectedEvents.length === 0,
+          disabled: d.eventTraded || tradableEvents.length === 0,
           checked: d.eventTraded,
           onClick: function() {
             return __awaiter10(_this, void 0, void 0, function() {
@@ -14442,7 +14455,7 @@
               return __generator10(this, function(_a) {
                 switch (_a.label) {
                   case 0:
-                    return [4, metaState.ui.chooseCard(metaState, "Choose an event to trade away:", __spreadArray8([], __read13(metaState.data.collectedEvents), false), true)];
+                    return [4, metaState.ui.chooseCard(metaState, "Choose an event to trade away:", tradableEvents, true)];
                   case 1:
                     event = _a.sent();
                     if (!event)
@@ -14478,7 +14491,7 @@
           label: "Trade Potion for ".concat(displayName(d.offerPotion)),
           description: "Give up one of your potions to receive this one.",
           tooltipSpec: d.offerPotion,
-          disabled: d.potionTraded || metaState.data.potions.length === 0,
+          disabled: d.potionTraded || tradablePotions.length === 0,
           checked: d.potionTraded,
           onClick: function() {
             return __awaiter10(_this, void 0, void 0, function() {
@@ -14487,7 +14500,7 @@
               return __generator10(this, function(_a) {
                 switch (_a.label) {
                   case 0:
-                    return [4, metaState.ui.chooseCard(metaState, "Choose a potion to trade away:", __spreadArray8([], __read13(metaState.data.potions), false), true)];
+                    return [4, metaState.ui.chooseCard(metaState, "Choose a potion to trade away:", tradablePotions, true)];
                   case 1:
                     potion = _a.sent();
                     if (!potion)
@@ -14768,7 +14781,7 @@
     throw new TypeError(s ? "Object is not iterable." : "Symbol.iterator is not defined.");
   };
   function upgradeCardSpec2(spec, upgrade) {
-    return __assign10(__assign10({}, spec), { upgrades: __spreadArray9(__spreadArray9([], __read14(spec.upgrades || []), false), [upgrade], false) });
+    return __assign10(__assign10({}, spec), { burden: true, upgrades: __spreadArray9(__spreadArray9([], __read14(spec.upgrades || []), false), [upgrade], false) });
   }
   var frozenRelic = {
     name: "Frozen Relic",
@@ -15373,7 +15386,13 @@
     description: "Give up a card, event, potion, or relic.",
     weight: 3,
     applies: function(state) {
-      return state.data.collectedCards.length > 0 || state.data.collectedEvents.length > 0 || state.data.potions.length > 0 || state.data.relics.some(function(relic) {
+      return state.data.collectedCards.some(function(card) {
+        return card.burden !== true;
+      }) || state.data.collectedEvents.some(function(event) {
+        return event.burden !== true;
+      }) || state.data.potions.some(function(potion) {
+        return potion.spec.burden !== true;
+      }) || state.data.relics.some(function(relic) {
         return relic.spec.burden !== true;
       });
     },
@@ -15383,9 +15402,15 @@
         return __generator11(this, function(_a) {
           switch (_a.label) {
             case 0:
-              cardOptions = __spreadArray9([], __read14(state.data.collectedCards), false);
-              eventOptions = __spreadArray9([], __read14(state.data.collectedEvents), false);
-              potionOptions = __spreadArray9([], __read14(state.data.potions), false);
+              cardOptions = state.data.collectedCards.filter(function(card) {
+                return card.burden !== true;
+              });
+              eventOptions = state.data.collectedEvents.filter(function(event) {
+                return event.burden !== true;
+              });
+              potionOptions = state.data.potions.filter(function(potion) {
+                return potion.spec.burden !== true;
+              });
               relicOptions = state.data.relics.filter(function(candidate) {
                 return candidate.spec.burden !== true;
               });
@@ -15521,15 +15546,20 @@
     title: "Trade a potion",
     description: "Give up a potion and gain ".concat(beggarsBrew.name, "."),
     applies: function(state) {
-      return state.data.potions.length > 0;
+      return state.data.potions.some(function(potion) {
+        return potion.spec.burden !== true;
+      });
     },
     resolveTransform: function(_option, state) {
       return __awaiter11(void 0, void 0, void 0, function() {
-        var picked, chosenName;
+        var validPotions, picked, chosenName;
         return __generator11(this, function(_a) {
           switch (_a.label) {
             case 0:
-              return [4, state.ui.chooseCard(state, "Choose a potion to give up:", __spreadArray9([], __read14(state.data.potions), false), true)];
+              validPotions = state.data.potions.filter(function(potion) {
+                return potion.spec.burden !== true;
+              });
+              return [4, state.ui.chooseCard(state, "Choose a potion to give up:", validPotions, true)];
             case 1:
               picked = _a.sent();
               if (!picked)
@@ -15616,15 +15646,20 @@
     title: "Tax a card",
     description: "Choose a card. It costs $2 more to buy.",
     applies: function(state) {
-      return state.data.collectedCards.length > 0;
+      return state.data.collectedCards.some(function(card) {
+        return card.burden !== true;
+      });
     },
     resolveTransform: function(_option, state) {
       return __awaiter11(void 0, void 0, void 0, function() {
-        var picked, chosenName;
+        var validCards, picked, chosenName;
         return __generator11(this, function(_a) {
           switch (_a.label) {
             case 0:
-              return [4, state.ui.chooseCard(state, "Choose a card to tax:", __spreadArray9([], __read14(state.data.collectedCards), false), true)];
+              validCards = state.data.collectedCards.filter(function(card) {
+                return card.burden !== true;
+              });
+              return [4, state.ui.chooseCard(state, "Choose a card to tax:", validCards, true)];
             case 1:
               picked = _a.sent();
               if (!picked)
@@ -15665,15 +15700,20 @@
     description: "Choose a card. Whenever that card is created, put 2 decay tokens on it.",
     rules: [decayRule],
     applies: function(state) {
-      return state.data.collectedCards.length > 0;
+      return state.data.collectedCards.some(function(card) {
+        return card.burden !== true;
+      });
     },
     resolveTransform: function(_option, state) {
       return __awaiter11(void 0, void 0, void 0, function() {
-        var picked, chosenName;
+        var validCards, picked, chosenName;
         return __generator11(this, function(_a) {
           switch (_a.label) {
             case 0:
-              return [4, state.ui.chooseCard(state, "Choose a card to decay:", __spreadArray9([], __read14(state.data.collectedCards), false), true)];
+              validCards = state.data.collectedCards.filter(function(card) {
+                return card.burden !== true;
+              });
+              return [4, state.ui.chooseCard(state, "Choose a card to decay:", validCards, true)];
             case 1:
               picked = _a.sent();
               if (!picked)
@@ -15713,15 +15753,20 @@
     title: "Tax an event",
     description: "Choose an event. It costs $2 more to use.",
     applies: function(state) {
-      return state.data.collectedEvents.length > 0;
+      return state.data.collectedEvents.some(function(event) {
+        return event.burden !== true;
+      });
     },
     resolveTransform: function(_option, state) {
       return __awaiter11(void 0, void 0, void 0, function() {
-        var picked, chosenName;
+        var validEvents, picked, chosenName;
         return __generator11(this, function(_a) {
           switch (_a.label) {
             case 0:
-              return [4, state.ui.chooseCard(state, "Choose an event to tax:", __spreadArray9([], __read14(state.data.collectedEvents), false), true)];
+              validEvents = state.data.collectedEvents.filter(function(event) {
+                return event.burden !== true;
+              });
+              return [4, state.ui.chooseCard(state, "Choose an event to tax:", validEvents, true)];
             case 1:
               picked = _a.sent();
               if (!picked)
@@ -19348,11 +19393,7 @@
     };
     throw new TypeError(s ? "Object is not iterable." : "Symbol.iterator is not defined.");
   };
-  var test = {
-    burdens: [
-      [1, "cursed_doll"]
-    ]
-  };
+  var test = null;
   var SAVE_STORAGE_KEY = "roguelike.ongoingSaves.v1";
   var RUN_TIMER_STORAGE_KEY = "roguelike.runTimerSeconds.v1";
   var HELP_SEEN_STORAGE_KEY = "roguelike.helpSeen.v1";

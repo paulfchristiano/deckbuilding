@@ -39,6 +39,7 @@ import { registerSpec } from '../registry.js'
 function upgradeCardSpec(spec: CardSpec, upgrade: CardUpgrade): CardSpec {
     return {
         ...spec,
+        burden: true,
         upgrades: [...(spec.upgrades || []), upgrade],
     }
 }
@@ -471,14 +472,14 @@ registerBurden({
     description: 'Give up a card, event, potion, or relic.',
     weight: 3,
     applies: state =>
-        state.data.collectedCards.length > 0
-        || state.data.collectedEvents.length > 0
-        || state.data.potions.length > 0
+        state.data.collectedCards.some(card => card.burden !== true)
+        || state.data.collectedEvents.some(event => event.burden !== true)
+        || state.data.potions.some(potion => potion.spec.burden !== true)
         || state.data.relics.some(relic => relic.spec.burden !== true),
     resolveTransform: async (_option: BurdenOptionState, state: MetaState) => {
-        const cardOptions = [...state.data.collectedCards]
-        const eventOptions = [...state.data.collectedEvents]
-        const potionOptions = [...state.data.potions]
+        const cardOptions = state.data.collectedCards.filter(card => card.burden !== true)
+        const eventOptions = state.data.collectedEvents.filter(event => event.burden !== true)
+        const potionOptions = state.data.potions.filter(potion => potion.spec.burden !== true)
         const relicOptions = state.data.relics.filter(candidate => candidate.spec.burden !== true)
         const options: Array<CardSpec | Card> = [
             ...cardOptions,
@@ -539,9 +540,10 @@ registerBurden({
     id: 'lose_potion_brew',
     title: 'Trade a potion',
     description: `Give up a potion and gain ${beggarsBrew.name}.`,
-    applies: state => state.data.potions.length > 0,
+    applies: state => state.data.potions.some(potion => potion.spec.burden !== true),
     resolveTransform: async (_option, state) => {
-        const picked = await state.ui.chooseCard(state, 'Choose a potion to give up:', [...state.data.potions], true)
+        const validPotions = state.data.potions.filter(potion => potion.spec.burden !== true)
+        const picked = await state.ui.chooseCard(state, 'Choose a potion to give up:', validPotions, true)
         if (!picked) return null
         const chosenName = displayName(picked.spec)
         return async function (innerState: MetaState) {
@@ -577,9 +579,10 @@ registerBurden({
     id: 'tax_card',
     title: 'Tax a card',
     description: 'Choose a card. It costs $2 more to buy.',
-    applies: state => state.data.collectedCards.length > 0,
+    applies: state => state.data.collectedCards.some(card => card.burden !== true),
     resolveTransform: async (_option, state) => {
-        const picked = await state.ui.chooseCard(state, 'Choose a card to tax:', [...state.data.collectedCards], true)
+        const validCards = state.data.collectedCards.filter(card => card.burden !== true)
+        const picked = await state.ui.chooseCard(state, 'Choose a card to tax:', validCards, true)
         if (!picked) return null
         const chosenName = displayName(picked)
         return async function (innerState: MetaState) {
@@ -599,9 +602,10 @@ registerBurden({
     title: 'Weaken a card',
     description: 'Choose a card. Whenever that card is created, put 2 decay tokens on it.',
     rules: [decayRule],
-    applies: state => state.data.collectedCards.length > 0,
+    applies: state => state.data.collectedCards.some(card => card.burden !== true),
     resolveTransform: async (_option, state) => {
-        const picked = await state.ui.chooseCard(state, 'Choose a card to decay:', [...state.data.collectedCards], true)
+        const validCards = state.data.collectedCards.filter(card => card.burden !== true)
+        const picked = await state.ui.chooseCard(state, 'Choose a card to decay:', validCards, true)
         if (!picked) return null
         const chosenName = displayName(picked)
         return async function (innerState: MetaState) {
@@ -620,9 +624,10 @@ registerBurden({
     id: 'tax_event',
     title: 'Tax an event',
     description: 'Choose an event. It costs $2 more to use.',
-    applies: state => state.data.collectedEvents.length > 0,
+    applies: state => state.data.collectedEvents.some(event => event.burden !== true),
     resolveTransform: async (_option, state) => {
-        const picked = await state.ui.chooseCard(state, 'Choose an event to tax:', [...state.data.collectedEvents], true)
+        const validEvents = state.data.collectedEvents.filter(event => event.burden !== true)
+        const picked = await state.ui.chooseCard(state, 'Choose an event to tax:', validEvents, true)
         if (!picked) return null
         const chosenName = displayName(picked)
         return async function (innerState: MetaState) {
