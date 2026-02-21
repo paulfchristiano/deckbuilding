@@ -4667,6 +4667,17 @@
       return { value: op[0] ? op[1] : void 0, done: true };
     }
   };
+  var __values4 = function(o) {
+    var s = typeof Symbol === "function" && Symbol.iterator, m = s && o[s], i = 0;
+    if (m) return m.call(o);
+    if (o && typeof o.length === "number") return {
+      next: function() {
+        if (o && i >= o.length) o = void 0;
+        return { value: o && o[i++], done: !o };
+      }
+    };
+    throw new TypeError(s ? "Object is not iterable." : "Symbol.iterator is not defined.");
+  };
   var __read6 = function(o, n) {
     var m = typeof Symbol === "function" && o[Symbol.iterator];
     if (!m) return o;
@@ -4702,10 +4713,37 @@
     return isMajor ? "".concat(base, " (Major)") : base;
   }
   function registerCursePair(minor, major) {
+    var e_1, _a, e_2, _b;
     minorCursePool.push(minor);
     majorCursePool.push(major);
-    registerSpec(minor);
-    registerSpec(major);
+    try {
+      for (var _c = __values4(minor.events), _d = _c.next(); !_d.done; _d = _c.next()) {
+        var event_1 = _d.value;
+        registerSpec(event_1);
+      }
+    } catch (e_1_1) {
+      e_1 = { error: e_1_1 };
+    } finally {
+      try {
+        if (_d && !_d.done && (_a = _c.return)) _a.call(_c);
+      } finally {
+        if (e_1) throw e_1.error;
+      }
+    }
+    try {
+      for (var _e = __values4(major.events), _f = _e.next(); !_f.done; _f = _e.next()) {
+        var event_2 = _f.value;
+        registerSpec(event_2);
+      }
+    } catch (e_2_1) {
+      e_2 = { error: e_2_1 };
+    } finally {
+      try {
+        if (_f && !_f.done && (_b = _e.return)) _b.call(_e);
+      } finally {
+        if (e_2) throw e_2.error;
+      }
+    }
   }
   function registerMirroredCurse(factory2) {
     registerCursePair(factory2(false), factory2(true));
@@ -4720,22 +4758,25 @@
     var decayTokens = variant(3, 2, isMajor);
     return {
       name: curseName("Decay", isMajor),
-      restrictions: [cannotUse],
-      staticReplacers: [{
-        kind: "create",
-        text: ["If a card would be created without decay tokens or with more than ".concat(decayTokens, " decay tokens, instead create it with ").concat(decayTokens, " decay tokens.")],
-        simpleText: ["Cards are created with ".concat(decayTokens, " decay tokens.")],
-        handles: function() {
-          return true;
-        },
-        replace: function(params) {
-          var tokens = new Map(params.tokens || []);
-          var currentDecay = tokens.get("decay") || 0;
-          if (currentDecay === 0 || currentDecay > decayTokens) {
-            tokens.set("decay", decayTokens);
+      events: [{
+        name: curseName("Decay", isMajor),
+        restrictions: [cannotUse],
+        staticReplacers: [{
+          kind: "create",
+          text: ["If a card would be created without decay tokens or with more than ".concat(decayTokens, " decay tokens, instead create it with ").concat(decayTokens, " decay tokens.")],
+          simpleText: ["Cards are created with ".concat(decayTokens, " decay tokens.")],
+          handles: function() {
+            return true;
+          },
+          replace: function(params) {
+            var tokens = new Map(params.tokens || []);
+            var currentDecay = tokens.get("decay") || 0;
+            if (currentDecay === 0 || currentDecay > decayTokens) {
+              tokens.set("decay", decayTokens);
+            }
+            return __assign2(__assign2({}, params), { tokens });
           }
-          return __assign2(__assign2({}, params), { tokens });
-        }
+        }]
       }]
     };
   });
@@ -4743,18 +4784,21 @@
     var maxActionsFromRefresh = variant(3, 1, isMajor);
     return {
       name: curseName("Squeeze", isMajor),
-      fixedCost: energy(1),
-      effects: [actionsEffect(1)],
-      staticReplacers: [{
-        kind: "resource",
-        text: ["Whenever you would gain actions from ".concat(refresh.name, ", gain at most ").concat(maxActionsFromRefresh, ".")],
-        simpleText: ["You gain at most ".concat(maxActionsFromRefresh, " actions from ").concat(refresh.name, ".")],
-        handles: function(params) {
-          return params.resource === "actions" && params.amount > 0 && params.source instanceof Card && params.source.name === refresh.name;
-        },
-        replace: function(params) {
-          return __assign2(__assign2({}, params), { amount: Math.min(params.amount, maxActionsFromRefresh) });
-        }
+      events: [{
+        name: curseName("Squeeze", isMajor),
+        fixedCost: energy(1),
+        effects: [actionsEffect(1)],
+        staticReplacers: [{
+          kind: "resource",
+          text: ["Whenever you would gain actions from ".concat(refresh.name, ", gain at most ").concat(maxActionsFromRefresh, ".")],
+          simpleText: ["You gain at most ".concat(maxActionsFromRefresh, " actions from ").concat(refresh.name, ".")],
+          handles: function(params) {
+            return params.resource === "actions" && params.amount > 0 && params.source instanceof Card && params.source.name === refresh.name;
+          },
+          replace: function(params) {
+            return __assign2(__assign2({}, params), { amount: Math.min(params.amount, maxActionsFromRefresh) });
+          }
+        }]
       }]
     };
   });
@@ -4762,45 +4806,48 @@
     var inflationCostPerToken = 1;
     return {
       name: curseName("Inflation", _isMajor),
-      restrictions: [cannotUse],
-      staticTriggers: [{
-        kind: "create",
-        text: ["Whenever you create a card, put an inflation token on its supply."],
-        simpleText: ["Whenever you create a card, put an inflation token on it."],
-        handles: function() {
-          return true;
-        },
-        transform: function(e) {
-          return function(state) {
-            return __awaiter3(void 0, void 0, void 0, function() {
-              return __generator3(this, function(_a) {
-                switch (_a.label) {
-                  case 0:
-                    return [4, doAll(state.supply.filter(function(card) {
-                      return card.name === e.card.name;
-                    }).map(function(card) {
-                      return addToken(card, "inflation", 1);
-                    }))(state)];
-                  case 1:
-                    return [2, _a.sent()];
-                }
+      events: [{
+        name: curseName("Inflation", _isMajor),
+        restrictions: [cannotUse],
+        staticTriggers: [{
+          kind: "create",
+          text: ["Whenever you create a card, put an inflation token on its supply."],
+          simpleText: ["Whenever you create a card, put an inflation token on it."],
+          handles: function() {
+            return true;
+          },
+          transform: function(e) {
+            return function(state) {
+              return __awaiter3(void 0, void 0, void 0, function() {
+                return __generator3(this, function(_a) {
+                  switch (_a.label) {
+                    case 0:
+                      return [4, doAll(state.supply.filter(function(card) {
+                        return card.name === e.card.name;
+                      }).map(function(card) {
+                        return addToken(card, "inflation", 1);
+                      }))(state)];
+                    case 1:
+                      return [2, _a.sent()];
+                  }
+                });
               });
-            });
-          };
-        }
-      }],
-      staticReplacers: [{
-        kind: "cost",
-        text: ["Cards cost $".concat(inflationCostPerToken, " more to buy for each inflation token on them or their supply.")],
-        simpleText: ["Cards cost $".concat(inflationCostPerToken, " more to buy for each inflation token on them.")],
-        handles: function(params, state) {
-          return params.actionKind === "buy" && countNameTokens(params.card, "inflation", state) > 0;
-        },
-        replace: function(params, state) {
-          return __assign2(__assign2({}, params), { cost: addCosts(params.cost, {
-            coin: inflationCostPerToken * countNameTokens(params.card, "inflation", state)
-          }) });
-        }
+            };
+          }
+        }],
+        staticReplacers: [{
+          kind: "cost",
+          text: ["Cards cost $".concat(inflationCostPerToken, " more to buy for each inflation token on them or their supply.")],
+          simpleText: ["Cards cost $".concat(inflationCostPerToken, " more to buy for each inflation token on them.")],
+          handles: function(params, state) {
+            return params.actionKind === "buy" && countNameTokens(params.card, "inflation", state) > 0;
+          },
+          replace: function(params, state) {
+            return __assign2(__assign2({}, params), { cost: addCosts(params.cost, {
+              coin: inflationCostPerToken * countNameTokens(params.card, "inflation", state)
+            }) });
+          }
+        }]
       }]
     };
   });
@@ -4808,49 +4855,52 @@
     var removeCount = variant(2, 1, isMajor);
     return {
       name: curseName("Encumber", isMajor),
-      fixedCost: energy(1),
-      effects: [{
-        text: ["Remove ".concat(removeCount, " encumber tokens from each card in the supply.")],
-        transform: function(state) {
-          return doAll(state.supply.map(function(card) {
-            return removeToken(card, "encumber", removeCount);
-          }));
-        }
-      }],
-      staticTriggers: [{
-        kind: "create",
-        text: ["Whenever you create a card, put an encumber token on its supply."],
-        handles: function() {
-          return true;
-        },
-        transform: function(e) {
-          return function(state) {
-            return __awaiter3(void 0, void 0, void 0, function() {
-              return __generator3(this, function(_a) {
-                switch (_a.label) {
-                  case 0:
-                    return [4, doAll(state.supply.filter(function(card) {
-                      return card.name === e.card.name;
-                    }).map(function(card) {
-                      return addToken(card, "encumber", 1);
-                    }))(state)];
-                  case 1:
-                    return [2, _a.sent()];
-                }
+      events: [{
+        name: curseName("Encumber", isMajor),
+        fixedCost: energy(1),
+        effects: [{
+          text: ["Remove ".concat(removeCount, " encumber tokens from each card in the supply.")],
+          transform: function(state) {
+            return doAll(state.supply.map(function(card) {
+              return removeToken(card, "encumber", removeCount);
+            }));
+          }
+        }],
+        staticTriggers: [{
+          kind: "create",
+          text: ["Whenever you create a card, put an encumber token on its supply."],
+          handles: function() {
+            return true;
+          },
+          transform: function(e) {
+            return function(state) {
+              return __awaiter3(void 0, void 0, void 0, function() {
+                return __generator3(this, function(_a) {
+                  switch (_a.label) {
+                    case 0:
+                      return [4, doAll(state.supply.filter(function(card) {
+                        return card.name === e.card.name;
+                      }).map(function(card) {
+                        return addToken(card, "encumber", 1);
+                      }))(state)];
+                    case 1:
+                      return [2, _a.sent()];
+                  }
+                });
               });
-            });
-          };
-        }
-      }],
-      staticReplacers: [{
-        kind: "canCreate",
-        text: ["You can't create cards whose supply has 2 encumber tokens."],
-        handles: function(params, state) {
-          return params.canCreate && countNameTokens(params.spec, "encumber", state) >= 2;
-        },
-        replace: function(params) {
-          return __assign2(__assign2({}, params), { canCreate: false });
-        }
+            };
+          }
+        }],
+        staticReplacers: [{
+          kind: "canCreate",
+          text: ["You can't create cards whose supply has 2 encumber tokens."],
+          handles: function(params, state) {
+            return params.canCreate && countNameTokens(params.spec, "encumber", state) >= 2;
+          },
+          replace: function(params) {
+            return __assign2(__assign2({}, params), { canCreate: false });
+          }
+        }]
       }]
     };
   });
@@ -4858,34 +4908,37 @@
     var removeCost = variant(2, 4, isMajor);
     return {
       name: curseName("Mire", isMajor),
-      fixedCost: energy(removeCost),
-      effects: [{
-        text: ["Remove all mire tokens from cards in your discard."],
-        transform: function(state) {
-          return doAll(state.discard.map(function(card) {
-            return removeToken(card, "mire", "all");
-          }));
-        }
-      }],
-      staticTriggers: [{
-        kind: "move",
-        text: ["When you put a card in your discard or play, put a mire token on it."],
-        handles: function(event) {
-          return event.toZone === "discard" || event.toZone === "play";
-        },
-        transform: function(event) {
-          return addToken(event.card, "mire");
-        }
-      }],
-      staticReplacers: [{
-        kind: "move",
-        text: ["When a card with a mire token would move to your hand, instead leave it where it is."],
-        handles: function(params, state) {
-          return params.toZone === "hand" && state.find(params.card).count("mire") > 0;
-        },
-        replace: function(params) {
-          return __assign2(__assign2({}, params), { skip: true });
-        }
+      events: [{
+        name: curseName("Mire", isMajor),
+        fixedCost: energy(removeCost),
+        effects: [{
+          text: ["Remove all mire tokens from cards in your discard."],
+          transform: function(state) {
+            return doAll(state.discard.map(function(card) {
+              return removeToken(card, "mire", "all");
+            }));
+          }
+        }],
+        staticTriggers: [{
+          kind: "move",
+          text: ["When you put a card in your discard or play, put a mire token on it."],
+          handles: function(event) {
+            return event.toZone === "discard" || event.toZone === "play";
+          },
+          transform: function(event) {
+            return addToken(event.card, "mire");
+          }
+        }],
+        staticReplacers: [{
+          kind: "move",
+          text: ["When a card with a mire token would move to your hand, instead leave it where it is."],
+          handles: function(params, state) {
+            return params.toZone === "hand" && state.find(params.card).count("mire") > 0;
+          },
+          replace: function(params) {
+            return __assign2(__assign2({}, params), { skip: true });
+          }
+        }]
       }]
     };
   });
@@ -4893,17 +4946,20 @@
     var overheadFlat = variant(1, 0, isMajor);
     return {
       name: curseName("Overhead", isMajor),
-      restrictions: [cannotUse],
-      staticReplacers: [{
-        kind: "costIncrease",
-        text: isMajor ? ["Cards cost 50% more $ (rounded up)."] : ["Cards other than ".concat(copper.name, " cost $1 more.")],
-        handles: function(params) {
-          return params.actionKind === "buy" && (isMajor || params.card.name !== copper.name) && params.cost.coin > 0;
-        },
-        replace: function(params) {
-          var extraCoin = isMajor ? Math.ceil(params.cost.coin * 0.5) : overheadFlat;
-          return __assign2(__assign2({}, params), { cost: addCosts(params.cost, coin(extraCoin)) });
-        }
+      events: [{
+        name: curseName("Overhead", isMajor),
+        restrictions: [cannotUse],
+        staticReplacers: [{
+          kind: "costIncrease",
+          text: isMajor ? ["Cards cost 50% more $ (rounded up)."] : ["Cards other than ".concat(copper.name, " cost $1 more.")],
+          handles: function(params) {
+            return params.actionKind === "buy" && (isMajor || params.card.name !== copper.name) && params.cost.coin > 0;
+          },
+          replace: function(params) {
+            var extraCoin = isMajor ? Math.ceil(params.cost.coin * 0.5) : overheadFlat;
+            return __assign2(__assign2({}, params), { cost: addCosts(params.cost, coin(extraCoin)) });
+          }
+        }]
       }]
     };
   });
@@ -4911,55 +4967,62 @@
     var vpMultiplier = variant(2, 4, isMajor);
     return {
       name: curseName("Slog", isMajor),
-      restrictions: [cannotUse],
-      staticReplacers: [{
-        kind: "victory",
-        text: ["You need ".concat(vpMultiplier, "x the vp target to win.")],
-        handles: function(params) {
-          return params.victory;
-        },
-        replace: function(params, state) {
-          return __assign2(__assign2({}, params), { victory: params.victory && state.points >= state.vp_goal * vpMultiplier });
-        }
-      }]
+      events: [{
+        name: curseName("Slog", isMajor),
+        restrictions: [cannotUse],
+        staticReplacers: [{
+          kind: "victory",
+          text: ["The vp target is ".concat(vpMultiplier, "x higher.")],
+          handles: function() {
+            return false;
+          },
+          replace: function(params) {
+            return params;
+          }
+        }]
+      }],
+      vpTargetMultiplier: vpMultiplier
     };
   });
   registerMirroredCurse(function(isMajor) {
     var freePlays = variant(1, 2, isMajor);
     return {
       name: curseName("Inefficiency", isMajor),
-      restrictions: [cannotUse],
-      simpleText: ["After the first ".concat(freePlays, " plays, cards other than ").concat(copper.name, " cost $1 to play.")],
-      staticReplacers: [{
-        kind: "create",
-        text: ["Whenever you create a card other than ".concat(copper.name, ", put ").concat(freePlays, " efficiency tokens on it.")],
-        handles: function(params) {
-          return params.spec.name !== copper.name && ["play", "discard", "hand", null].includes(params.zone);
-        },
-        replace: function(params) {
-          var tokens = new Map(params.tokens || []);
-          incrementMap(tokens, "efficiency", freePlays);
-          return __assign2(__assign2({}, params), { tokens });
-        }
-      }, {
-        kind: "costIncrease",
-        text: ["Cards other than ".concat(copper.name, " cost $1 more to play if they have no efficiency tokens.")],
-        handles: function(params, state) {
-          return params.actionKind === "play" && params.card.name !== copper.name && state.find(params.card).count("efficiency") === 0;
-        },
-        replace: function(params) {
-          return __assign2(__assign2({}, params), { cost: addCosts(params.cost, coin(1)) });
-        }
-      }],
-      staticTriggers: [{
-        kind: "play",
-        text: ["When you play a card other than ".concat(copper.name, " the normal way, remove an efficiency token from it.")],
-        handles: function(event) {
-          return event.source === "act" && event.card.name !== copper.name && event.card.count("efficiency") > 0;
-        },
-        transform: function(event) {
-          return removeToken(event.card, "efficiency", 1);
-        }
+      events: [{
+        name: curseName("Inefficiency", isMajor),
+        restrictions: [cannotUse],
+        simpleText: ["After the first ".concat(freePlays, " plays, cards other than ").concat(copper.name, " cost $1 to play.")],
+        staticReplacers: [{
+          kind: "create",
+          text: ["Whenever you create a card other than ".concat(copper.name, ", put ").concat(freePlays, " efficiency tokens on it.")],
+          handles: function(params) {
+            return params.spec.name !== copper.name && ["play", "discard", "hand", null].includes(params.zone);
+          },
+          replace: function(params) {
+            var tokens = new Map(params.tokens || []);
+            incrementMap(tokens, "efficiency", freePlays);
+            return __assign2(__assign2({}, params), { tokens });
+          }
+        }, {
+          kind: "costIncrease",
+          text: ["Cards other than ".concat(copper.name, " cost $1 more to play if they have no efficiency tokens.")],
+          handles: function(params, state) {
+            return params.actionKind === "play" && params.card.name !== copper.name && state.find(params.card).count("efficiency") === 0;
+          },
+          replace: function(params) {
+            return __assign2(__assign2({}, params), { cost: addCosts(params.cost, coin(1)) });
+          }
+        }],
+        staticTriggers: [{
+          kind: "play",
+          text: ["When you play a card other than ".concat(copper.name, " the normal way, remove an efficiency token from it.")],
+          handles: function(event) {
+            return event.source === "act" && event.card.name !== copper.name && event.card.count("efficiency") > 0;
+          },
+          transform: function(event) {
+            return removeToken(event.card, "efficiency", 1);
+          }
+        }]
       }]
     };
   });
@@ -5117,7 +5180,7 @@
     }
     return to.concat(ar || Array.prototype.slice.call(from));
   };
-  var __values4 = function(o) {
+  var __values5 = function(o) {
     var s = typeof Symbol === "function" && Symbol.iterator, m = s && o[s], i = 0;
     if (m) return m.call(o);
     if (o && typeof o.length === "number") return {
@@ -5240,7 +5303,7 @@
         });
       };
       try {
-        for (var _b = __values4(getRegisteredExtraOptions()), _c = _b.next(); !_c.done; _c = _b.next()) {
+        for (var _b = __values5(getRegisteredExtraOptions()), _c = _b.next(); !_c.done; _c = _b.next()) {
           var definition = _c.value;
           _loop_1(definition);
         }
@@ -5291,7 +5354,7 @@
         var _c, _d;
         var lines = [];
         try {
-          for (var _e = __values4(rule.triggers || []), _f = _e.next(); !_f.done; _f = _e.next()) {
+          for (var _e = __values5(rule.triggers || []), _f = _e.next(); !_f.done; _f = _e.next()) {
             var trigger_1 = _f.value;
             lines.push.apply(lines, __spreadArray6([], __read7((_c = trigger_1.simpleText) !== null && _c !== void 0 ? _c : trigger_1.text), false));
           }
@@ -5305,7 +5368,7 @@
           }
         }
         try {
-          for (var _g = __values4(rule.replacers || []), _h = _g.next(); !_h.done; _h = _g.next()) {
+          for (var _g = __values5(rule.replacers || []), _h = _g.next(); !_h.done; _h = _g.next()) {
             var replacer = _h.value;
             lines.push.apply(lines, __spreadArray6([], __read7((_d = replacer.simpleText) !== null && _d !== void 0 ? _d : replacer.text), false));
           }
@@ -5425,14 +5488,14 @@
   var MINOR_CURSE_STAGE = 3;
   var MAJOR_CURSE_STAGE = 6;
   var BASE_PARS = [26, 24, 22, 20, 18, 16, 14, 4];
-  function displayCurseName(spec) {
-    return spec.name.replace(/ \(Major\)$/, "");
+  function displayCurseName(curse) {
+    return curse.name.replace(/ \(Major\)$/, "");
   }
   function renderChallenge(spec, state) {
     var gameSpec = makeSpec(state, spec);
     var label = "".concat(challengeSummaryWithState(spec, state), " (").concat(gameSpec.vp, "vp in ").concat(gameSpec.par, "@)");
     var stageCurse = selectedCurseForChallenge(spec, state);
-    var relatedCards = __spreadArray6(__spreadArray6(__spreadArray6(__spreadArray6([], __read7(spec.vpMode.cards), false), __read7(spec.vpMode.events), false), __read7(stageCurse ? [stageCurse] : []), false), __read7(spec.boons.flatMap(function(b) {
+    var relatedCards = __spreadArray6(__spreadArray6(__spreadArray6(__spreadArray6([], __read7(spec.vpMode.cards), false), __read7(spec.vpMode.events), false), __read7(stageCurse ? stageCurse.events : []), false), __read7(spec.boons.flatMap(function(b) {
       return __spreadArray6(__spreadArray6([], __read7(b.cards), false), __read7(b.events), false);
     })), false);
     var tooltipParts = [];
@@ -5511,7 +5574,7 @@
     var result = [];
     var firstStageRowIndex = /* @__PURE__ */ new Map();
     try {
-      for (var timeline_1 = __values4(timeline), timeline_1_1 = timeline_1.next(); !timeline_1_1.done; timeline_1_1 = timeline_1.next()) {
+      for (var timeline_1 = __values5(timeline), timeline_1_1 = timeline_1.next(); !timeline_1_1.done; timeline_1_1 = timeline_1.next()) {
         var entry = timeline_1_1.value;
         if (entry.kind !== "stage") {
           result.push(entry);
@@ -5745,7 +5808,7 @@
         var seen = /* @__PURE__ */ new Set();
         var result = [];
         try {
-          for (var snapshots_1 = __values4(snapshots), snapshots_1_1 = snapshots_1.next(); !snapshots_1_1.done; snapshots_1_1 = snapshots_1.next()) {
+          for (var snapshots_1 = __values5(snapshots), snapshots_1_1 = snapshots_1.next(); !snapshots_1_1.done; snapshots_1_1 = snapshots_1.next()) {
             var snapshot = snapshots_1_1.value;
             if (!seen.has(snapshot)) {
               seen.add(snapshot);
@@ -5766,7 +5829,7 @@
       MetaState2.prototype.mutateAllSnapshots = function(mutator) {
         var e_6, _a;
         try {
-          for (var _b = __values4(this.uniqueSnapshots()), _c = _b.next(); !_c.done; _c = _b.next()) {
+          for (var _b = __values5(this.uniqueSnapshots()), _c = _b.next(); !_c.done; _c = _b.next()) {
             var snapshot = _c.value;
             mutator(snapshot);
           }
@@ -5856,7 +5919,7 @@
     if (value !== null && typeof value === "object") {
       var result = {};
       try {
-        for (var _b = __values4(Object.entries(value)), _c = _b.next(); !_c.done; _c = _b.next()) {
+        for (var _b = __values5(Object.entries(value)), _c = _b.next(); !_c.done; _c = _b.next()) {
           var _d = __read7(_c.value, 2), key = _d[0], entryValue = _d[1];
           result[key] = encodeUnknown(entryValue);
         }
@@ -5895,7 +5958,7 @@
       }
       var result = {};
       try {
-        for (var _b = __values4(Object.entries(record)), _c = _b.next(); !_c.done; _c = _b.next()) {
+        for (var _b = __values5(Object.entries(record)), _c = _b.next(); !_c.done; _c = _b.next()) {
           var _d = __read7(_c.value, 2), key = _d[0], entryValue = _d[1];
           result[key] = decodeUnknown(entryValue);
         }
@@ -5956,7 +6019,7 @@
     var e_9, _a;
     var result = base;
     try {
-      for (var upgradeIDs_1 = __values4(upgradeIDs), upgradeIDs_1_1 = upgradeIDs_1.next(); !upgradeIDs_1_1.done; upgradeIDs_1_1 = upgradeIDs_1.next()) {
+      for (var upgradeIDs_1 = __values5(upgradeIDs), upgradeIDs_1_1 = upgradeIDs_1.next(); !upgradeIDs_1_1.done; upgradeIDs_1_1 = upgradeIDs_1.next()) {
         var id = upgradeIDs_1_1.value;
         var upgrade = getEncounterUpgradeById(id);
         if (!upgrade) {
@@ -6028,6 +6091,12 @@
       curseName: (_a = challenge.curse) === null || _a === void 0 ? void 0 : _a.name
     };
   }
+  function findCurseByName(name) {
+    var _a;
+    return (_a = __spreadArray6(__spreadArray6([], __read7(allMinorCurses()), false), __read7(allMajorCurses()), false).find(function(c) {
+      return c.name === name;
+    })) !== null && _a !== void 0 ? _a : null;
+  }
   function deserializeChallenge(challenge) {
     var vpMode = vpModes.find(function(mode) {
       return mode.name === challenge.vpModeName;
@@ -6042,7 +6111,7 @@
         throw new Error('Unknown boon "'.concat(name, '"'));
       return boon;
     });
-    var curse = challenge.curseName === void 0 ? null : findBaseSpec(challenge.curseName);
+    var curse = challenge.curseName === void 0 ? null : findCurseByName(challenge.curseName);
     return {
       stage: challenge.stage,
       vpMode,
@@ -6393,7 +6462,7 @@
           switch (_b.label) {
             case 0:
               _b.trys.push([0, 5, 6, 7]);
-              transforms_1 = __values4(transforms), transforms_1_1 = transforms_1.next();
+              transforms_1 = __values5(transforms), transforms_1_1 = transforms_1.next();
               _b.label = 1;
             case 1:
               if (!!transforms_1_1.done) return [3, 4];
@@ -6726,11 +6795,11 @@
   function applyMetaReplacers(params, state) {
     var e_11, _a, e_12, _b;
     try {
-      for (var _c = __values4(state.data.relics), _d = _c.next(); !_d.done; _d = _c.next()) {
+      for (var _c = __values5(state.data.relics), _d = _c.next(); !_d.done; _d = _c.next()) {
         var relic = _d.value;
         var metaReplacers = relic.metaReplacers();
         try {
-          for (var metaReplacers_1 = (e_12 = void 0, __values4(metaReplacers)), metaReplacers_1_1 = metaReplacers_1.next(); !metaReplacers_1_1.done; metaReplacers_1_1 = metaReplacers_1.next()) {
+          for (var metaReplacers_1 = (e_12 = void 0, __values5(metaReplacers)), metaReplacers_1_1 = metaReplacers_1.next(); !metaReplacers_1_1.done; metaReplacers_1_1 = metaReplacers_1.next()) {
             var rawReplacer = metaReplacers_1_1.value;
             if (rawReplacer.kind !== params.kind)
               continue;
@@ -6833,7 +6902,7 @@
     }
     if (challenge !== null && challenge !== void 0) {
       try {
-        for (var _e = __values4(challenge.boons), _f = _e.next(); !_f.done; _f = _e.next()) {
+        for (var _e = __values5(challenge.boons), _f = _e.next(); !_f.done; _f = _e.next()) {
           var boon = _f.value;
           par += boon.parAdjustment;
           if (boon.parAdjustment !== 0) {
@@ -6858,13 +6927,13 @@
       eventSpecs: []
     };
     try {
-      for (var relicCards_1 = __values4(relicCards), relicCards_1_1 = relicCards_1.next(); !relicCards_1_1.done; relicCards_1_1 = relicCards_1.next()) {
+      for (var relicCards_1 = __values5(relicCards), relicCards_1_1 = relicCards_1.next(); !relicCards_1_1.done; relicCards_1_1 = relicCards_1.next()) {
         var relicCard = relicCards_1_1.value;
         if (!(relicCard instanceof Relic))
           continue;
         var metaReplacers = relicCard.metaReplacers();
         try {
-          for (var metaReplacers_2 = (e_15 = void 0, __values4(metaReplacers)), metaReplacers_2_1 = metaReplacers_2.next(); !metaReplacers_2_1.done; metaReplacers_2_1 = metaReplacers_2.next()) {
+          for (var metaReplacers_2 = (e_15 = void 0, __values5(metaReplacers)), metaReplacers_2_1 = metaReplacers_2.next(); !metaReplacers_2_1.done; metaReplacers_2_1 = metaReplacers_2.next()) {
             var replacer = metaReplacers_2_1.value;
             if (replacer.kind !== "gameSetup")
               continue;
@@ -6923,7 +6992,7 @@
         switch (_e.label) {
           case 0:
             _e.trys.push([0, 11, 12, 13]);
-            _a = __values4(state.data.relics), _b = _a.next();
+            _a = __values5(state.data.relics), _b = _a.next();
             _e.label = 1;
           case 1:
             if (!!_b.done) return [3, 10];
@@ -6933,7 +7002,7 @@
             _e.label = 2;
           case 2:
             _e.trys.push([2, 7, 8, 9]);
-            metaTriggers_1 = (e_16 = void 0, __values4(metaTriggers)), metaTriggers_1_1 = metaTriggers_1.next();
+            metaTriggers_1 = (e_16 = void 0, __values5(metaTriggers)), metaTriggers_1_1 = metaTriggers_1.next();
             _e.label = 3;
           case 3:
             if (!!metaTriggers_1_1.done) return [3, 6];
@@ -6995,6 +7064,7 @@
   }
   function makeSpec(state, challenge) {
     var e_18, _a;
+    var _b;
     var par = BASE_PARS[state.data.stage];
     par += scarcityParAdjustment(state.data.stage, state);
     var vpTarget = challenge.vpMode.target;
@@ -7002,11 +7072,12 @@
     var events = challenge.vpMode.events.slice();
     var stageCurse = selectedCurseForChallenge(challenge, state);
     if (stageCurse !== null) {
-      events.push(stageCurse);
+      events.push.apply(events, __spreadArray6([], __read7(stageCurse.events), false));
+      vpTarget = Math.ceil(vpTarget * ((_b = stageCurse.vpTargetMultiplier) !== null && _b !== void 0 ? _b : 1));
     }
     try {
-      for (var _b = __values4(challenge.boons), _c = _b.next(); !_c.done; _c = _b.next()) {
-        var boon = _c.value;
+      for (var _c = __values5(challenge.boons), _d = _c.next(); !_d.done; _d = _c.next()) {
+        var boon = _d.value;
         par += boon.parAdjustment;
         cards.push.apply(cards, __spreadArray6([], __read7(boon.cards), false));
         events.push.apply(events, __spreadArray6([], __read7(boon.events), false));
@@ -7015,7 +7086,7 @@
       e_18 = { error: e_18_1 };
     } finally {
       try {
-        if (_c && !_c.done && (_a = _b.return)) _a.call(_b);
+        if (_d && !_d.done && (_a = _c.return)) _a.call(_c);
       } finally {
         if (e_18) throw e_18.error;
       }
@@ -7086,7 +7157,7 @@
     }));
     var result = [];
     try {
-      for (var _b = __values4(generator.permute(standardRelicRewards())), _c = _b.next(); !_c.done; _c = _b.next()) {
+      for (var _b = __values5(generator.permute(standardRelicRewards())), _c = _b.next(); !_c.done; _c = _b.next()) {
         var relic = _c.value;
         if (blockedNames.has(relic.name))
           continue;
@@ -7174,7 +7245,7 @@
     var e_20, _a;
     var weighted = [];
     try {
-      for (var burdenRegistry_1 = __values4(burdenRegistry), burdenRegistry_1_1 = burdenRegistry_1.next(); !burdenRegistry_1_1.done; burdenRegistry_1_1 = burdenRegistry_1.next()) {
+      for (var burdenRegistry_1 = __values5(burdenRegistry), burdenRegistry_1_1 = burdenRegistry_1.next(); !burdenRegistry_1_1.done; burdenRegistry_1_1 = burdenRegistry_1.next()) {
         var definition = burdenRegistry_1_1.value;
         var weight = Math.max(1, definition.weight);
         for (var index = 0; index < weight; index++) {
@@ -7214,7 +7285,7 @@
             options = [];
             chosenIDs = /* @__PURE__ */ new Set();
             try {
-              for (ordered_1 = __values4(ordered), ordered_1_1 = ordered_1.next(); !ordered_1_1.done; ordered_1_1 = ordered_1.next()) {
+              for (ordered_1 = __values5(ordered), ordered_1_1 = ordered_1.next(); !ordered_1_1.done; ordered_1_1 = ordered_1.next()) {
                 definition = ordered_1_1.value;
                 if (chosenIDs.has(definition.id))
                   continue;
@@ -7327,7 +7398,7 @@
     var e_22, _a;
     var rewardStates = [];
     try {
-      for (var _b = __values4(skeleton.rewards), _c = _b.next(); !_c.done; _c = _b.next()) {
+      for (var _b = __values5(skeleton.rewards), _c = _b.next(); !_c.done; _c = _b.next()) {
         var rewardKind = _c.value;
         if (rewardKind === "encounter") {
           rewardStates.push({ kind: "encounter", encounter: null, data: null });
@@ -7460,7 +7531,7 @@
     }));
     var result = [];
     try {
-      for (var _b = __values4(generator.permute(allOptions)), _c = _b.next(); !_c.done; _c = _b.next()) {
+      for (var _b = __values5(generator.permute(allOptions)), _c = _b.next(); !_c.done; _c = _b.next()) {
         var spec = _c.value;
         if (blockedBaseNames.has(spec.name))
           continue;
@@ -7718,7 +7789,7 @@
             _f.label = 1;
           case 1:
             _f.trys.push([1, 7, 8, 9]);
-            _a = __values4(path.burdenStates), _b = _a.next();
+            _a = __values5(path.burdenStates), _b = _a.next();
             _f.label = 2;
           case 2:
             if (!!_b.done) return [3, 6];
@@ -7778,7 +7849,7 @@
           }
         };
         try {
-          for (_a = __values4(path.onSelectEffects || []), _b = _a.next(); !_b.done; _b = _a.next()) {
+          for (_a = __values5(path.onSelectEffects || []), _b = _a.next(); !_b.done; _b = _a.next()) {
             effect = _b.value;
             _loop_2(effect);
           }
@@ -7906,7 +7977,7 @@
   function resolveCurseTestRef(ref) {
     if (typeof ref !== "string")
       return ref;
-    var curse = getSpecByName(ref);
+    var curse = findCurseByName(ref);
     if (curse !== null)
       return curse;
     if (!warnedUnknownCurseTests.has(ref)) {
@@ -7930,7 +8001,7 @@
     var stageNumber = stageIndex + 1;
     var overrides = {};
     try {
-      for (var tests_1 = __values4(tests), tests_1_1 = tests_1.next(); !tests_1_1.done; tests_1_1 = tests_1.next()) {
+      for (var tests_1 = __values5(tests), tests_1_1 = tests_1.next(); !tests_1_1.done; tests_1_1 = tests_1.next()) {
         var _b = __read7(tests_1_1.value, 2), stage = _b[0], stageTest = _b[1];
         if (stage !== stageNumber)
           continue;
@@ -7974,7 +8045,7 @@
     var stageNumber = stageIndex + 1;
     var result = [];
     try {
-      for (var tests_2 = __values4(tests), tests_2_1 = tests_2.next(); !tests_2_1.done; tests_2_1 = tests_2.next()) {
+      for (var tests_2 = __values5(tests), tests_2_1 = tests_2.next(); !tests_2_1.done; tests_2_1 = tests_2.next()) {
         var _c = __read7(tests_2_1.value, 2), stage = _c[0], refOrGroup = _c[1];
         if (stage !== stageNumber)
           continue;
@@ -7988,7 +8059,7 @@
         var group = [];
         var seen = /* @__PURE__ */ new Set();
         try {
-          for (var refs_1 = (e_29 = void 0, __values4(refs)), refs_1_1 = refs_1.next(); !refs_1_1.done; refs_1_1 = refs_1.next()) {
+          for (var refs_1 = (e_29 = void 0, __values5(refs)), refs_1_1 = refs_1.next(); !refs_1_1.done; refs_1_1 = refs_1.next()) {
             var ref = refs_1_1.value;
             var burden = resolveBurdenTestRef(ref);
             if (burden === null || seen.has(burden.id))
@@ -8102,7 +8173,7 @@
               challenges: initialChallenges
             });
             try {
-              for (_a = __values4(rewardTestsForStage(tests.rewards, 0)), _b = _a.next(); !_b.done; _b = _a.next()) {
+              for (_a = __values5(rewardTestsForStage(tests.rewards, 0)), _b = _a.next(); !_b.done; _b = _a.next()) {
                 testSpec = _b.value;
                 initialPath.rewardStates.push(makeTestReward(state, testSpec));
               }
@@ -8117,7 +8188,7 @@
             }
             initialBurdenTests = burdenTestsForStage(tests.burdens, 0);
             try {
-              for (initialBurdenTests_1 = __values4(initialBurdenTests), initialBurdenTests_1_1 = initialBurdenTests_1.next(); !initialBurdenTests_1_1.done; initialBurdenTests_1_1 = initialBurdenTests_1.next()) {
+              for (initialBurdenTests_1 = __values5(initialBurdenTests), initialBurdenTests_1_1 = initialBurdenTests_1.next(); !initialBurdenTests_1_1.done; initialBurdenTests_1_1 = initialBurdenTests_1.next()) {
                 burdenDefinitions = initialBurdenTests_1_1.value;
                 initialPath.burdenStates.push(makeTestBurdenState(state, burdenDefinitions));
               }
@@ -8227,7 +8298,7 @@
                       return pathFromSkeleton(skel);
                     });
                     try {
-                      for (_m = (e_35 = void 0, __values4(rewardTestsForStage(tests.rewards, nextStage))), _o = _m.next(); !_o.done; _o = _m.next()) {
+                      for (_m = (e_35 = void 0, __values5(rewardTestsForStage(tests.rewards, nextStage))), _o = _m.next(); !_o.done; _o = _m.next()) {
                         testSpec2 = _o.value;
                         paths[0].rewardStates.push(makeTestReward(state, testSpec2));
                       }
@@ -8242,7 +8313,7 @@
                     }
                     pathBurdenTests = burdenTestsForStage(tests.burdens, nextStage);
                     try {
-                      for (pathBurdenTests_1 = (e_36 = void 0, __values4(pathBurdenTests)), pathBurdenTests_1_1 = pathBurdenTests_1.next(); !pathBurdenTests_1_1.done; pathBurdenTests_1_1 = pathBurdenTests_1.next()) {
+                      for (pathBurdenTests_1 = (e_36 = void 0, __values5(pathBurdenTests)), pathBurdenTests_1_1 = pathBurdenTests_1.next(); !pathBurdenTests_1_1.done; pathBurdenTests_1_1 = pathBurdenTests_1.next()) {
                         burdenDefinitions2 = pathBurdenTests_1_1.value;
                         paths[0].burdenStates.push(makeTestBurdenState(state, burdenDefinitions2));
                       }
@@ -8534,7 +8605,7 @@
     }
     return to.concat(ar || Array.prototype.slice.call(from));
   };
-  var __values5 = function(o) {
+  var __values6 = function(o) {
     var s = typeof Symbol === "function" && Symbol.iterator, m = s && o[s], i = 0;
     if (m) return m.call(o);
     if (o && typeof o.length === "number") return {
@@ -9049,7 +9120,7 @@
                 switch (_f.label) {
                   case 0:
                     _f.trys.push([0, 5, 6, 7]);
-                    _a = __values5(relic.notedCards || []), _b = _a.next();
+                    _a = __values6(relic.notedCards || []), _b = _a.next();
                     _f.label = 1;
                   case 1:
                     if (!!_b.done) return [3, 4];
@@ -9237,7 +9308,7 @@
     var allCards = generator.permute(__spreadArray7([], __read8(cardRewards), false));
     var addedCards = [];
     try {
-      for (var allCards_1 = __values5(allCards), allCards_1_1 = allCards_1.next(); !allCards_1_1.done; allCards_1_1 = allCards_1.next()) {
+      for (var allCards_1 = __values6(allCards), allCards_1_1 = allCards_1.next(); !allCards_1_1.done; allCards_1_1 = allCards_1.next()) {
         var card = allCards_1_1.value;
         if (addedCards.length >= neededCards)
           break;
@@ -9257,7 +9328,7 @@
     var allEvents = generator.permute(__spreadArray7([], __read8(eventRewards), false));
     var addedEvents = [];
     try {
-      for (var allEvents_1 = __values5(allEvents), allEvents_1_1 = allEvents_1.next(); !allEvents_1_1.done; allEvents_1_1 = allEvents_1.next()) {
+      for (var allEvents_1 = __values6(allEvents), allEvents_1_1 = allEvents_1.next(); !allEvents_1_1.done; allEvents_1_1 = allEvents_1.next()) {
         var event_1 = allEvents_1_1.value;
         if (addedEvents.length >= neededEvents)
           break;
@@ -9414,7 +9485,7 @@
     }
     return ar;
   };
-  var __values6 = function(o) {
+  var __values7 = function(o) {
     var s = typeof Symbol === "function" && Symbol.iterator, m = s && o[s], i = 0;
     if (m) return m.call(o);
     if (o && typeof o.length === "number") return {
@@ -9751,7 +9822,7 @@
               switch (_d.label) {
                 case 0:
                   _d.trys.push([0, 5, 6, 7]);
-                  _a = __values6(state2.play), _b = _a.next();
+                  _a = __values7(state2.play), _b = _a.next();
                   _d.label = 1;
                 case 1:
                   if (!!_b.done) return [3, 4];
@@ -11808,7 +11879,7 @@
     }
     return ar;
   };
-  var __values7 = function(o) {
+  var __values8 = function(o) {
     var s = typeof Symbol === "function" && Symbol.iterator, m = s && o[s], i = 0;
     if (m) return m.call(o);
     if (o && typeof o.length === "number") return {
@@ -12031,7 +12102,7 @@
                   _c.label = 2;
                 case 2:
                   _c.trys.push([2, 7, 8, 9]);
-                  cards_1 = __values7(cards), cards_1_1 = cards_1.next();
+                  cards_1 = __values8(cards), cards_1_1 = cards_1.next();
                   _c.label = 3;
                 case 3:
                   if (!!cards_1_1.done) return [3, 6];
@@ -12508,7 +12579,7 @@
       return { value: op[0] ? op[1] : void 0, done: true };
     }
   };
-  var __values8 = function(o) {
+  var __values9 = function(o) {
     var s = typeof Symbol === "function" && Symbol.iterator, m = s && o[s], i = 0;
     if (m) return m.call(o);
     if (o && typeof o.length === "number") return {
@@ -12651,7 +12722,7 @@
               switch (_d.label) {
                 case 0:
                   _d.trys.push([0, 5, 6, 7]);
-                  _a = __values8(state2.supply), _b = _a.next();
+                  _a = __values9(state2.supply), _b = _a.next();
                   _d.label = 1;
                 case 1:
                   if (!!_b.done) return [3, 4];
@@ -12991,7 +13062,7 @@
               switch (_d.label) {
                 case 0:
                   _d.trys.push([0, 5, 6, 7]);
-                  _a = __values8(state2.supply), _b = _a.next();
+                  _a = __values9(state2.supply), _b = _a.next();
                   _d.label = 1;
                 case 1:
                   if (!!_b.done) return [3, 4];
@@ -13349,7 +13420,7 @@
     }
     return to.concat(ar || Array.prototype.slice.call(from));
   };
-  var __values9 = function(o) {
+  var __values10 = function(o) {
     var s = typeof Symbol === "function" && Symbol.iterator, m = s && o[s], i = 0;
     if (m) return m.call(o);
     if (o && typeof o.length === "number") return {
@@ -14294,7 +14365,7 @@
                             _b.label = 2;
                           case 2:
                             _b.trys.push([2, 7, 8, 9]);
-                            potionSpecs_1 = __values9(potionSpecs), potionSpecs_1_1 = potionSpecs_1.next();
+                            potionSpecs_1 = __values10(potionSpecs), potionSpecs_1_1 = potionSpecs_1.next();
                             _b.label = 3;
                           case 3:
                             if (!!potionSpecs_1_1.done) return [3, 6];
@@ -14857,7 +14928,7 @@
     }
     return to.concat(ar || Array.prototype.slice.call(from));
   };
-  var __values10 = function(o) {
+  var __values11 = function(o) {
     var s = typeof Symbol === "function" && Symbol.iterator, m = s && o[s], i = 0;
     if (m) return m.call(o);
     if (o && typeof o.length === "number") return {
@@ -15024,7 +15095,7 @@
               switch (_d.label) {
                 case 0:
                   _d.trys.push([0, 5, 6, 7]);
-                  _a = __values10(state.discard.filter(function(card) {
+                  _a = __values11(state.discard.filter(function(card) {
                     return card.name === copper.name;
                   })), _b = _a.next();
                   _d.label = 1;
@@ -15989,7 +16060,7 @@
       return { value: op[0] ? op[1] : void 0, done: true };
     }
   };
-  var __values11 = function(o) {
+  var __values12 = function(o) {
     var s = typeof Symbol === "function" && Symbol.iterator, m = s && o[s], i = 0;
     if (m) return m.call(o);
     if (o && typeof o.length === "number") return {
@@ -16067,7 +16138,7 @@
                   _d.label = 4;
                 case 4:
                   _d.trys.push([4, 15, 16, 17]);
-                  _a = __values11(rewardState.options), _b = _a.next();
+                  _a = __values12(rewardState.options), _b = _a.next();
                   _d.label = 5;
                 case 5:
                   if (!!_b.done) return [3, 14];
@@ -16165,7 +16236,7 @@
   });
 
   // public/progressSidebar.js
-  var __values12 = function(o) {
+  var __values13 = function(o) {
     var s = typeof Symbol === "function" && Symbol.iterator, m = s && o[s], i = 0;
     if (m) return m.call(o);
     if (o && typeof o.length === "number") return {
@@ -16188,7 +16259,7 @@
     var circles = document.querySelectorAll("".concat(selector, " .progressCircle"));
     var byStage = /* @__PURE__ */ new Map();
     try {
-      for (var stages_1 = __values12(stages), stages_1_1 = stages_1.next(); !stages_1_1.done; stages_1_1 = stages_1.next()) {
+      for (var stages_1 = __values13(stages), stages_1_1 = stages_1.next(); !stages_1_1.done; stages_1_1 = stages_1.next()) {
         var stage = stages_1_1.value;
         byStage.set(stage.stage, stage);
       }
@@ -16369,7 +16440,7 @@
       return { value: op[0] ? op[1] : void 0, done: true };
     }
   };
-  var __values13 = function(o) {
+  var __values14 = function(o) {
     var s = typeof Symbol === "function" && Symbol.iterator, m = s && o[s], i = 0;
     if (m) return m.call(o);
     if (o && typeof o.length === "number") return {
@@ -16742,7 +16813,7 @@
     var e_1, _a;
     var counts = /* @__PURE__ */ new Map();
     try {
-      for (var cards_1 = __values13(cards), cards_1_1 = cards_1.next(); !cards_1_1.done; cards_1_1 = cards_1.next()) {
+      for (var cards_1 = __values14(cards), cards_1_1 = cards_1.next(); !cards_1_1.done; cards_1_1 = cards_1.next()) {
         var card = cards_1_1.value;
         counts.set(card.name, (counts.get(card.name) || 0) + 1);
       }
@@ -16761,7 +16832,7 @@
     var e_2, _a;
     var names = new Set(__spreadArray10(__spreadArray10([], __read15(start.keys()), false), __read15(current.keys()), false));
     try {
-      for (var names_1 = __values13(names), names_1_1 = names_1.next(); !names_1_1.done; names_1_1 = names_1.next()) {
+      for (var names_1 = __values14(names), names_1_1 = names_1.next(); !names_1_1.done; names_1_1 = names_1.next()) {
         var name_1 = names_1_1.value;
         var decrease = (start.get(name_1) || 0) - (current.get(name_1) || 0);
         if (decrease > 0) {
@@ -16811,7 +16882,7 @@
   function hasRequiredCounts(required, current) {
     var e_3, _a;
     try {
-      for (var required_1 = __values13(required), required_1_1 = required_1.next(); !required_1_1.done; required_1_1 = required_1.next()) {
+      for (var required_1 = __values14(required), required_1_1 = required_1.next(); !required_1_1.done; required_1_1 = required_1.next()) {
         var _b = __read15(required_1_1.value, 2), name_2 = _b[0], minimum = _b[1];
         if ((current.get(name_2) || 0) < minimum)
           return false;
@@ -16999,7 +17070,7 @@
           var seenGroups = /* @__PURE__ */ new Set();
           var groupRank = 0;
           try {
-            for (var cards_2 = __values13(cards), cards_2_1 = cards_2.next(); !cards_2_1.done; cards_2_1 = cards_2.next()) {
+            for (var cards_2 = __values14(cards), cards_2_1 = cards_2.next(); !cards_2_1.done; cards_2_1 = cards_2.next()) {
               var card = cards_2_1.value;
               var groupKey = cardGroupKey(card);
               if (seenGroups.has(groupKey))
@@ -17026,7 +17097,7 @@
         setFrom(state.play, supplyAndPlayHotkeys);
         setFrom(state.potions, potionHotkeys);
         try {
-          for (var options_1 = __values13(options), options_1_1 = options_1.next(); !options_1_1.done; options_1_1 = options_1.next()) {
+          for (var options_1 = __values14(options), options_1_1 = options_1.next(); !options_1_1.done; options_1_1 = options_1.next()) {
             var option = options_1_1.value;
             var hint = interpretHint(option.hotkeyHint);
             if (hint && !result.has(renderKey(option.render)) && !takenByPickable(hint)) {
@@ -17044,7 +17115,7 @@
         }
         var index = 0;
         try {
-          for (var options_2 = __values13(options), options_2_1 = options_2.next(); !options_2_1.done; options_2_1 = options_2.next()) {
+          for (var options_2 = __values14(options), options_2_1 = options_2.next(); !options_2_1.done; options_2_1 = options_2.next()) {
             var option = options_2_1.value;
             if (!result.has(renderKey(option.render))) {
               while (index < hotkeys.length && takenByPickable(hotkeys[index])) {
@@ -17088,7 +17159,7 @@
         var e_7, _a;
         var parts = [];
         try {
-          for (var tokens_1 = __values13(tokens), tokens_1_1 = tokens_1.next(); !tokens_1_1.done; tokens_1_1 = tokens_1.next()) {
+          for (var tokens_1 = __values14(tokens), tokens_1_1 = tokens_1.next(); !tokens_1_1.done; tokens_1_1 = tokens_1.next()) {
             var _b = __read15(tokens_1_1.value, 2), token = _b[0], count = _b[1];
             if (count > 0) {
               var idx = this.getTokenIndex(token);
@@ -17112,7 +17183,7 @@
         var e_8, _a;
         var parts = [];
         try {
-          for (var tokens_2 = __values13(tokens), tokens_2_1 = tokens_2.next(); !tokens_2_1.done; tokens_2_1 = tokens_2.next()) {
+          for (var tokens_2 = __values14(tokens), tokens_2_1 = tokens_2.next(); !tokens_2_1.done; tokens_2_1 = tokens_2.next()) {
             var _b = __read15(tokens_2_1.value, 2), token = _b[0], count = _b[1];
             if (count > 0) {
               parts.push(count === 1 ? token : "".concat(token, " (").concat(count, ")"));
@@ -17157,7 +17228,7 @@
     var e_9, _a;
     var parts = [];
     try {
-      for (var _b = __values13(cardSpecEffects(spec)), _c = _b.next(); !_c.done; _c = _b.next()) {
+      for (var _b = __values14(cardSpecEffects(spec)), _c = _b.next(); !_c.done; _c = _b.next()) {
         var effect = _c.value;
         parts.push.apply(parts, __spreadArray10([], __read15(effect.text), false));
       }
@@ -17178,7 +17249,7 @@
     var e_10, _a;
     var parts = [];
     try {
-      for (var _b = __values13(spec.ability || []), _c = _b.next(); !_c.done; _c = _b.next()) {
+      for (var _b = __values14(spec.ability || []), _c = _b.next(); !_c.done; _c = _b.next()) {
         var effect = _c.value;
         parts.push.apply(parts, __spreadArray10([], __read15(effect.text.map(function(x) {
           return "<div>(ability) ".concat(x, "</div>");
@@ -17337,7 +17408,7 @@
     var first = /* @__PURE__ */ new Map();
     var last = /* @__PURE__ */ new Map();
     try {
-      for (var cards_3 = __values13(cards), cards_3_1 = cards_3.next(); !cards_3_1.done; cards_3_1 = cards_3.next()) {
+      for (var cards_3 = __values14(cards), cards_3_1 = cards_3.next(); !cards_3_1.done; cards_3_1 = cards_3.next()) {
         var card = cards_3_1.value;
         var s = sketchCard(card, settings);
         if (!counts.has(s)) {
@@ -17434,7 +17505,7 @@
       return renderCard(c, state, "resolving", {}, globalRendererState.tokenRenderer);
     }).join("");
     try {
-      for (var zoneNames_1 = __values13(zoneNames), zoneNames_1_1 = zoneNames_1.next(); !zoneNames_1_1.done; zoneNames_1_1 = zoneNames_1.next()) {
+      for (var zoneNames_1 = __values14(zoneNames), zoneNames_1_1 = zoneNames_1.next(); !zoneNames_1_1.done; zoneNames_1_1 = zoneNames_1.next()) {
         var zone = zoneNames_1_1.value;
         renderZone(state, zone, settings);
       }
@@ -17464,7 +17535,7 @@
   function setVisibleLog(state, logType, ui) {
     var e_19, _a;
     try {
-      for (var logTypes_1 = __values13(logTypes), logTypes_1_1 = logTypes_1.next(); !logTypes_1_1.done; logTypes_1_1 = logTypes_1.next()) {
+      for (var logTypes_1 = __values14(logTypes), logTypes_1_1 = logTypes_1.next(); !logTypes_1_1.done; logTypes_1_1 = logTypes_1.next()) {
         var lt = logTypes_1_1.value;
         var el = querySelector(".logOption[option=".concat(lt, "]"));
         if (el) {
@@ -17506,7 +17577,7 @@
       }
     };
     try {
-      for (var _b = __values13(logs.entries()), _c = _b.next(); !_c.done; _c = _b.next()) {
+      for (var _b = __values14(logs.entries()), _c = _b.next(); !_c.done; _c = _b.next()) {
         var _d = __read15(_c.value, 2), i = _d[0], _e = __read15(_d[1], 2), _ = _e[0], state = _e[1];
         _loop_2(i, _, state);
       }
@@ -17547,7 +17618,7 @@
     var optionsMap = /* @__PURE__ */ new Map();
     var stringOptions = [];
     try {
-      for (var options_3 = __values13(options), options_3_1 = options_3.next(); !options_3_1.done; options_3_1 = options_3.next()) {
+      for (var options_3 = __values14(options), options_3_1 = options_3.next(); !options_3_1.done; options_3_1 = options_3.next()) {
         var option = options_3_1.value;
         var rendered = option.render;
         if (rendered.kind === "string") {
@@ -17567,7 +17638,7 @@
     }
     var pickMap = /* @__PURE__ */ new Map();
     try {
-      for (var _d = __values13(picks.entries()), _e = _d.next(); !_e.done; _e = _d.next()) {
+      for (var _d = __values14(picks.entries()), _e = _d.next(); !_e.done; _e = _d.next()) {
         var _f = __read15(_e.value, 2), i = _f[0], x = _f[1];
         pickMap.set(renderKey(x), i);
       }
@@ -17588,7 +17659,7 @@
     var optionsEl = getElement("options");
     clearElement(optionsEl);
     try {
-      for (var stringOptions_1 = __values13(stringOptions), stringOptions_1_1 = stringOptions_1.next(); !stringOptions_1_1.done; stringOptions_1_1 = stringOptions_1.next()) {
+      for (var stringOptions_1 = __values14(stringOptions), stringOptions_1_1 = stringOptions_1.next(); !stringOptions_1_1.done; stringOptions_1_1 = stringOptions_1.next()) {
         var option = stringOptions_1_1.value;
         var hotkey = hotkeyMap.get(option.render);
         optionsEl.appendChild(renderStringOption(option, hotkey, pickMap.get(option.render)));
@@ -17946,7 +18017,7 @@
     var e_24, _a, e_25, _b;
     var result = 0;
     try {
-      for (var _c = __values13(card.tokens), _d = _c.next(); !_d.done; _d = _c.next()) {
+      for (var _c = __values14(card.tokens), _d = _c.next(); !_d.done; _d = _c.next()) {
         var _e = __read15(_d.value, 2), token = _e[0], count = _e[1];
         if ((macroCard.tokens.get(token) || 0) < count)
           result++;
@@ -17961,7 +18032,7 @@
       }
     }
     try {
-      for (var _f = __values13(macroCard.tokens), _g = _f.next(); !_g.done; _g = _f.next()) {
+      for (var _f = __values14(macroCard.tokens), _g = _f.next(); !_g.done; _g = _f.next()) {
         var _h = __read15(_g.value, 2), token = _h[0], count = _h[1];
         if ((card.tokens.get(token) || 0) < count)
           result++;
@@ -18364,7 +18435,7 @@
       return { value: op[0] ? op[1] : void 0, done: true };
     }
   };
-  var __values14 = function(o) {
+  var __values15 = function(o) {
     var s = typeof Symbol === "function" && Symbol.iterator, m = s && o[s], i = 0;
     if (m) return m.call(o);
     if (o && typeof o.length === "number") return {
@@ -18443,7 +18514,7 @@
       gameOver: "gameOverScreen"
     };
     try {
-      for (var _b = __values14(Object.entries(screens)), _c = _b.next(); !_c.done; _c = _b.next()) {
+      for (var _b = __values15(Object.entries(screens)), _c = _b.next(); !_c.done; _c = _b.next()) {
         var _d = __read16(_c.value, 2), name_1 = _d[0], id = _d[1];
         var el = getElement2(id);
         if (name_1 === screen) {
@@ -18615,7 +18686,7 @@
       return "";
     var lines = [];
     try {
-      for (var options_1 = __values14(options), options_1_1 = options_1.next(); !options_1_1.done; options_1_1 = options_1.next()) {
+      for (var options_1 = __values15(options), options_1_1 = options_1.next(); !options_1_1.done; options_1_1 = options_1.next()) {
         var option = options_1_1.value;
         var text = option.description ? "".concat(option.label, ": ").concat(option.description) : option.label;
         lines.push(text);
@@ -18673,7 +18744,7 @@
       container.appendChild(optionEl);
     };
     try {
-      for (var options_2 = __values14(options), options_2_1 = options_2.next(); !options_2_1.done; options_2_1 = options_2.next()) {
+      for (var options_2 = __values15(options), options_2_1 = options_2.next(); !options_2_1.done; options_2_1 = options_2.next()) {
         var card = options_2_1.value;
         _loop_2(card);
       }
@@ -18765,7 +18836,7 @@
       container.appendChild(optionDiv);
     };
     try {
-      for (var options_3 = __values14(options), options_3_1 = options_3.next(); !options_3_1.done; options_3_1 = options_3.next()) {
+      for (var options_3 = __values15(options), options_3_1 = options_3.next(); !options_3_1.done; options_3_1 = options_3.next()) {
         var option = options_3_1.value;
         _loop_3(option);
       }
@@ -18895,7 +18966,7 @@
           optionEl.appendChild(nameDiv);
           if (option.description) {
             try {
-              for (var _b2 = __values14(option.description.split("\n")), _c2 = _b2.next(); !_c2.done; _c2 = _b2.next()) {
+              for (var _b2 = __values15(option.description.split("\n")), _c2 = _b2.next(); !_c2.done; _c2 = _b2.next()) {
                 var line = _c2.value;
                 if (line.length === 0)
                   continue;
@@ -18954,7 +19025,7 @@
       challengeContainer.appendChild(playBtn);
     };
     try {
-      for (var _b = __values14(state.data.challenges), _c = _b.next(); !_c.done; _c = _b.next()) {
+      for (var _b = __values15(state.data.challenges), _c = _b.next(); !_c.done; _c = _b.next()) {
         var challenge = _c.value;
         _loop_4(challenge);
       }
@@ -18977,7 +19048,7 @@
     var columns = getElement2("pathColumns");
     clearElement2(columns);
     try {
-      for (var _b = __values14(paths.entries()), _c = _b.next(); !_c.done; _c = _b.next()) {
+      for (var _b = __values15(paths.entries()), _c = _b.next(); !_c.done; _c = _b.next()) {
         var _d = __read16(_c.value, 2), index = _d[0], path = _d[1];
         columns.appendChild(renderPathColumn(path, state, onSelect, index));
       }
@@ -19004,7 +19075,7 @@
     pathColumn.appendChild(pathChoice);
     var rewardsContainer = createDiv("pathRewards");
     try {
-      for (var _b = __values14(path.rewardStates), _c = _b.next(); !_c.done; _c = _b.next()) {
+      for (var _b = __values15(path.rewardStates), _c = _b.next(); !_c.done; _c = _b.next()) {
         var rewardState = _c.value;
         var rewardDiv = createDiv("pathReward");
         rewardDiv.textContent = getRewardName(rewardState);
@@ -19047,7 +19118,7 @@
     ];
     var hasContent = false;
     try {
-      for (var sections_1 = __values14(sections), sections_1_1 = sections_1.next(); !sections_1_1.done; sections_1_1 = sections_1.next()) {
+      for (var sections_1 = __values15(sections), sections_1_1 = sections_1.next(); !sections_1_1.done; sections_1_1 = sections_1.next()) {
         var section = sections_1_1.value;
         if (section.items.length > 0) {
           hasContent = true;
@@ -19057,7 +19128,7 @@
           sectionDiv.appendChild(header);
           var itemsRow = createDiv("deckSectionItems");
           try {
-            for (var _c = (e_10 = void 0, __values14(section.items)), _d = _c.next(); !_d.done; _d = _c.next()) {
+            for (var _c = (e_10 = void 0, __values15(section.items)), _d = _c.next(); !_d.done; _d = _c.next()) {
               var spec = _d.value;
               itemsRow.appendChild(createElementFromHTML2(renderSpecNoRelated(spec)));
             }
@@ -19472,7 +19543,7 @@
       return { value: op[0] ? op[1] : void 0, done: true };
     }
   };
-  var __values15 = function(o) {
+  var __values16 = function(o) {
     var s = typeof Symbol === "function" && Symbol.iterator, m = s && o[s], i = 0;
     if (m) return m.call(o);
     if (o && typeof o.length === "number") return {
@@ -19801,7 +19872,7 @@
       "seedDisplay"
     ];
     try {
-      for (var ids_1 = __values15(ids), ids_1_1 = ids_1.next(); !ids_1_1.done; ids_1_1 = ids_1.next()) {
+      for (var ids_1 = __values16(ids), ids_1_1 = ids_1.next(); !ids_1_1.done; ids_1_1 = ids_1.next()) {
         var id = ids_1_1.value;
         var el = document.getElementById(id);
         if (!el)
@@ -19931,7 +20002,7 @@
     var list = document.createElement("ul");
     list.id = "helpList";
     try {
-      for (var HELP_ITEMS_1 = __values15(HELP_ITEMS), HELP_ITEMS_1_1 = HELP_ITEMS_1.next(); !HELP_ITEMS_1_1.done; HELP_ITEMS_1_1 = HELP_ITEMS_1.next()) {
+      for (var HELP_ITEMS_1 = __values16(HELP_ITEMS), HELP_ITEMS_1_1 = HELP_ITEMS_1.next(); !HELP_ITEMS_1_1.done; HELP_ITEMS_1_1 = HELP_ITEMS_1.next()) {
         var item = HELP_ITEMS_1_1.value;
         var li = document.createElement("li");
         li.innerHTML = item;
@@ -20183,7 +20254,7 @@
       cards.appendChild(empty);
     } else {
       try {
-        for (var specs_1 = __values15(specs), specs_1_1 = specs_1.next(); !specs_1_1.done; specs_1_1 = specs_1.next()) {
+        for (var specs_1 = __values16(specs), specs_1_1 = specs_1.next(); !specs_1_1.done; specs_1_1 = specs_1.next()) {
           var spec = specs_1_1.value;
           var wrap = document.createElement("div");
           wrap.innerHTML = renderSpecNoRelated(spec);
@@ -20321,7 +20392,7 @@
         timeline.appendChild(row);
       };
       try {
-        for (var _b = __values15(state.data.timeline), _c = _b.next(); !_c.done; _c = _b.next()) {
+        for (var _b = __values16(state.data.timeline), _c = _b.next(); !_c.done; _c = _b.next()) {
           var entry = _c.value;
           _loop_1(entry);
         }
@@ -20463,7 +20534,7 @@
         }));
       };
       try {
-        for (var slots_1 = __values15(slots), slots_1_1 = slots_1.next(); !slots_1_1.done; slots_1_1 = slots_1.next()) {
+        for (var slots_1 = __values16(slots), slots_1_1 = slots_1.next(); !slots_1_1.done; slots_1_1 = slots_1.next()) {
           var slot = slots_1_1.value;
           _loop_2(slot);
         }
@@ -20642,7 +20713,7 @@
         }));
       };
       try {
-        for (var slots_2 = __values15(slots), slots_2_1 = slots_2.next(); !slots_2_1.done; slots_2_1 = slots_2.next()) {
+        for (var slots_2 = __values16(slots), slots_2_1 = slots_2.next(); !slots_2_1.done; slots_2_1 = slots_2.next()) {
           var slot = slots_2_1.value;
           _loop_3(slot);
         }

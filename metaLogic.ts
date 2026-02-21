@@ -18,7 +18,7 @@ import { getSpecByName } from './registry.js'
 
 import { buildSpecTooltip } from './cardRendering.js'
 import { makeBottledCardPotion, makeBottledEventPotion, makeCardInABoxRelic } from './data/specialSpecs.js'
-import { allMajorCurses, allMinorCurses } from './data/curses.js'
+import { allMajorCurses, allMinorCurses, Curse } from './data/curses.js'
 
 // ----------------------------- MetaUI Interface
 
@@ -449,11 +449,11 @@ export interface ChallengeSpec {
     stage: number,
     vpMode: VPMode,
     boons: Boon[],
-    curse?: CardSpec | null,
+    curse?: Curse | null,
 }
 
-function displayCurseName(spec: CardSpec): string {
-    return spec.name.replace(/ \(Major\)$/, '')
+function displayCurseName(curse: Curse): string {
+    return curse.name.replace(/ \(Major\)$/, '')
 }
 
 export function renderChallenge(spec: ChallengeSpec, state: MetaState): string {
@@ -465,7 +465,7 @@ export function renderChallenge(spec: ChallengeSpec, state: MetaState): string {
     const relatedCards: CardSpec[] = [
         ...spec.vpMode.cards,
         ...spec.vpMode.events,
-        ...(stageCurse ? [stageCurse] : []),
+        ...(stageCurse ? stageCurse.events : []),
         ...spec.boons.flatMap(b => [...b.cards, ...b.events])
     ]
     const tooltipParts: string[] = []
@@ -1417,6 +1417,10 @@ function serializeChallenge(challenge: ChallengeSpec): SerializedChallengeSpec {
     }
 }
 
+function findCurseByName(name: string): Curse | null {
+    return [...allMinorCurses(), ...allMajorCurses()].find(c => c.name === name) ?? null
+}
+
 function deserializeChallenge(challenge: SerializedChallengeSpec): ChallengeSpec {
     const vpMode = vpModes.find(mode => mode.name === challenge.vpModeName)
     if (!vpMode) throw new Error(`Unknown vp mode "${challenge.vpModeName}"`)
@@ -1427,7 +1431,7 @@ function deserializeChallenge(challenge: SerializedChallengeSpec): ChallengeSpec
     })
     const curse = challenge.curseName === undefined
         ? null
-        : findBaseSpec(challenge.curseName)
+        : findCurseByName(challenge.curseName)
     return {
         stage: challenge.stage,
         vpMode,
@@ -1981,7 +1985,7 @@ function stageCurseLevel(stage: number, state: MetaState): CurseLevel | null {
     return null
 }
 
-function sampledCurseForStage(stage: number, state: MetaState): CardSpec | null {
+function sampledCurseForStage(stage: number, state: MetaState): Curse | null {
     const level = stageCurseLevel(stage, state)
     if (level === null) return null
     const pool = level === 'minor' ? allMinorCurses() : allMajorCurses()
@@ -1992,7 +1996,7 @@ function sampledCurseForStage(stage: number, state: MetaState): CardSpec | null 
     return generator.sample(pool)
 }
 
-function selectedCurseForChallenge(challenge: ChallengeSpec, state: MetaState): CardSpec | null {
+function selectedCurseForChallenge(challenge: ChallengeSpec, state: MetaState): Curse | null {
     if (challenge.curse !== undefined && challenge.curse !== null) return challenge.curse
     return sampledCurseForStage(challenge.stage, state)
 }
@@ -2113,12 +2117,13 @@ async function trigger<T extends MetaGameEvent>(e:T, state: MetaState): Promise<
 export function makeSpec(state: MetaState, challenge: ChallengeSpec): GameSpec {
     let par = BASE_PARS[state.data.stage]
     par += scarcityParAdjustment(state.data.stage, state)
-    const vpTarget = challenge.vpMode.target
+    let vpTarget = challenge.vpMode.target
     const cards = challenge.vpMode.cards.slice()
     const events = challenge.vpMode.events.slice()
     const stageCurse = selectedCurseForChallenge(challenge, state)
     if (stageCurse !== null) {
-        events.push(stageCurse)
+        events.push(...stageCurse.events)
+        vpTarget = Math.ceil(vpTarget * (stageCurse.vpTargetMultiplier ?? 1))
     }
     for (const boon of challenge.boons) {
         par += boon.parAdjustment
@@ -2217,7 +2222,7 @@ export function sampleEligibleRelicReward(
 interface ChallengeOverrides {
     vpMode?: VPMode
     boon?: Boon
-    curse?: CardSpec | null
+    curse?: Curse | null
 }
 
 function nextDistinctByName<T extends { name: string }>(
@@ -2270,7 +2275,7 @@ function sampleChallengesForStage(
             challengeBoons = [boon]
         }
 
-        let curse: CardSpec | null = overrides.curse ?? null
+        let curse: Curse | null = overrides.curse ?? null
         if (curse === null && curseOrder.length > 0) {
             curse = nextDistinctByName(curseOrder, usedCurses, curseFallbackIndex)
         }
@@ -2752,7 +2757,7 @@ type RewardTestSpec =
 export type TestSpec = [number, RewardTestSpec]
 type VPModeTestRef = VPMode | string
 type BoonTestRef = Boon | string
-type CurseTestRef = CardSpec | string
+type CurseTestRef = Curse | string
 type BurdenTestRef = string
 type BurdenTestGroupRef = ['burden', BurdenTestRef | BurdenTestRef[]]
 type ChallengeStageTest = ['vpMode', VPModeTestRef] | ['boon', BoonTestRef] | ['curse', CurseTestRef]
@@ -2911,9 +2916,9 @@ function resolveBoonTestRef(ref: BoonTestRef): Boon | null {
     return boon
 }
 
-function resolveCurseTestRef(ref: CurseTestRef): CardSpec | null {
+function resolveCurseTestRef(ref: CurseTestRef): Curse | null {
     if (typeof ref !== 'string') return ref
-    const curse = getSpecByName(ref)
+    const curse = findCurseByName(ref)
     if (curse !== null) return curse
     if (!warnedUnknownCurseTests.has(ref)) {
         warnedUnknownCurseTests.add(ref)
