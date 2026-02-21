@@ -4926,20 +4926,20 @@
       simpleText: ["After the first ".concat(freePlays, " plays, cards other than ").concat(copper.name, " cost $1 to play.")],
       staticReplacers: [{
         kind: "create",
-        text: ["Whenever you create a card other than ".concat(copper.name, ", put ").concat(freePlays, " inefficiency tokens on it.")],
+        text: ["Whenever you create a card other than ".concat(copper.name, ", put ").concat(freePlays, " efficiency tokens on it.")],
         handles: function(params) {
-          return params.spec.name !== copper.name;
+          return params.spec.name !== copper.name && ["play", "discard", "hand", null].includes(params.zone);
         },
         replace: function(params) {
           var tokens = new Map(params.tokens || []);
-          incrementMap(tokens, "inefficiency", freePlays);
+          incrementMap(tokens, "efficiency", freePlays);
           return __assign2(__assign2({}, params), { tokens });
         }
       }, {
         kind: "costIncrease",
-        text: ["Cards other than ".concat(copper.name, " cost $1 more to play if they have no inefficiency tokens.")],
+        text: ["Cards other than ".concat(copper.name, " cost $1 more to play if they have no efficiency tokens.")],
         handles: function(params, state) {
-          return params.actionKind === "play" && params.card.name !== copper.name && state.find(params.card).count("inefficiency") === 0;
+          return params.actionKind === "play" && params.card.name !== copper.name && state.find(params.card).count("efficiency") === 0;
         },
         replace: function(params) {
           return __assign2(__assign2({}, params), { cost: addCosts(params.cost, coin(1)) });
@@ -4947,12 +4947,12 @@
       }],
       staticTriggers: [{
         kind: "play",
-        text: ["When you play a card other than ".concat(copper.name, " the normal way, remove an inefficiency token from it.")],
+        text: ["When you play a card other than ".concat(copper.name, " the normal way, remove an efficiency token from it.")],
         handles: function(event) {
-          return event.source === "act" && event.card.name !== copper.name && event.card.count("inefficiency") > 0;
+          return event.source === "act" && event.card.name !== copper.name && event.card.count("efficiency") > 0;
         },
         transform: function(event) {
-          return removeToken(event.card, "inefficiency", 1);
+          return removeToken(event.card, "efficiency", 1);
         }
       }]
     };
@@ -11870,15 +11870,13 @@
     fixedCost: __assign6(__assign6({}, free), { coin: 3, energy: 1 }),
     effects: [{
       text: ["Put a duplicate token on each card in the supply."],
-      simpleText: ["For each card in the supply, the next time you buy that card buy it again for free."],
       transform: function(state, card) {
         return doAll(state.supply.map(function(c) {
           return addToken(c, "duplicate");
         }));
       }
     }],
-    rules: [duplicateRule],
-    simpleRules: []
+    rules: [duplicateRule]
   };
   eventRewards.push(duplicate);
   var toil = {
@@ -14812,7 +14810,7 @@
       }
     }, {
       kind: "start",
-      text: ["At the start of each course, remove a charge token from this. Then if it has no charge tokens, gain the frozen relic back and destroy this."],
+      text: ["At the start of each course, remove a charge token from this. Then if it has no charge tokens, destroy this and regain the frozen relic."],
       handles: function(_e, _s, _self) {
         return true;
       },
@@ -14873,7 +14871,7 @@
     burden: true,
     triggers: [{
       kind: "beforeStart",
-      text: ["At the start of the game, put a decay token on a Copper without decay tokens."],
+      text: ["At the start of the game, put a decay token on a Copper with the minimal number of decay tokens on it."],
       simpleText: ["One of your coppers starts with a decay token."],
       handles: function() {
         return true;
@@ -14883,12 +14881,24 @@
           return __awaiter11(this, void 0, void 0, function() {
             var target;
             return __generator11(this, function(_a) {
-              target = state.discard.find(function(card) {
-                return card.name === copper.name && card.count("decay") === 0;
-              });
-              if (!target)
+              target = state.discard.filter(function(card) {
+                return card.name === copper.name;
+              }).reduce(function(best, card) {
+                if (!best)
+                  return card;
+                if (card.count("decay") < best.count("decay"))
+                  return card;
+                return best;
+              }, null);
+              if (target != null) {
+                return [2, setDecayTransform(target, target.count("decay") + 1)(state)];
+              } else {
                 return [2, state];
-              return [2, addToken(target, "decay")(state)];
+              }
+              return [
+                2
+                /*return*/
+              ];
             });
           });
         };
@@ -14902,7 +14912,7 @@
     burden: true,
     triggers: [{
       kind: "beforeStart",
-      text: ["At the start of the game, put 3 decay tokens on each Copper in your discard without decay tokens."],
+      text: ["At the start of the game, put 3 decay tokens on each Copper in your discard without decay tokens or with more than 3 tokens."],
       simpleText: ["Your coppers start with 3 decay tokens."],
       handles: function() {
         return true;
@@ -14917,13 +14927,13 @@
                 case 0:
                   _d.trys.push([0, 5, 6, 7]);
                   _a = __values10(state.discard.filter(function(card) {
-                    return card.name === copper.name && card.count("decay") === 0;
+                    return card.name === copper.name;
                   })), _b = _a.next();
                   _d.label = 1;
                 case 1:
                   if (!!_b.done) return [3, 4];
                   target = _b.value;
-                  return [4, addToken(target, "decay", 3)(state)];
+                  return [4, setDecayTransform(target, 3)(state)];
                 case 2:
                   state = _d.sent();
                   _d.label = 3;
@@ -15104,10 +15114,10 @@
     name: "Cursed Key",
     burden: true,
     metaReplacers: [{
-      kind: "gameSetup",
-      text: ["Par is 1 lower."],
+      kind: "pathRewards",
+      text: ["There is 1 less reward on the final stage."],
       replace: function(params, state) {
-        return __assign10(__assign10({}, params), { par: params.par - 1 });
+        return state.data.stage === TOTAL_STAGES - 1 ? __assign10(__assign10({}, params), { rewardsPerPath: Math.max(0, params.rewardsPerPath - 1) }) : params;
       }
     }, {
       kind: "extraOptions",
@@ -15180,7 +15190,6 @@
     metaReplacers: [{
       kind: "gameSetup",
       text: ["Par is 3 lower on the final stage."],
-      simpleText: ["Final-stage par is 3 lower."],
       replace: function(params, state) {
         return state.data.stage === TOTAL_STAGES - 1 ? __assign10(__assign10({}, params), { par: params.par - 3 }) : params;
       }
@@ -15188,7 +15197,6 @@
     metaTriggers: [{
       kind: "end",
       text: ["Whenever you beat par by 3 or more, destroy this."],
-      simpleText: ["Beat par by 3+: destroy this."],
       handles: function(e) {
         return e.score <= e.par - 3;
       },
@@ -15233,28 +15241,27 @@
     }]
   };
   registerSpec(cursedSozu);
-  var expensiveSozu = {
-    name: "Expensive Sozu",
+  var expensiveFlask = {
+    name: "Expensive Flask",
     burden: true,
     staticReplacers: [{
       kind: "cost",
-      text: ["Potions cost $2 more to drink."],
+      text: ["Potions cost $1 more to drink."],
       handles: function(params) {
         return params.card.spec.isPotion === true && (params.actionKind === "potion" || params.actionKind === "use");
       },
       replace: function(params) {
-        return __assign10(__assign10({}, params), { cost: addCosts(params.cost, coin(2)) });
+        return __assign10(__assign10({}, params), { cost: addCosts(params.cost, coin(1)) });
       }
     }]
   };
-  registerSpec(expensiveSozu);
+  registerSpec(expensiveFlask);
   var brokenCrown = {
     name: "Broken Crown",
     burden: true,
     metaReplacers: [{
       kind: "reward",
       text: ["When you pick the third option from a reward pack, lose 1 buffer."],
-      simpleText: ["Third reward option: lose 1 buffer."],
       replace: function(params) {
         var _a;
         var pickBufferAdjustments = __spreadArray9([], __read14(params.pickBufferAdjustments), false);
@@ -15274,6 +15281,34 @@
     }
   };
   registerEncounterUpgrade("burden_tax_card", taxCardUpgrade);
+  function setDecayTransform(card, numTokens) {
+    return function(state) {
+      return __awaiter11(this, void 0, void 0, function() {
+        var currentCount;
+        return __generator11(this, function(_a) {
+          switch (_a.label) {
+            case 0:
+              currentCount = card.count("decay");
+              if (currentCount < numTokens && currentCount > 0)
+                return [2, state];
+              return [4, addToken(card, "decay", numTokens - currentCount)(state)];
+            case 1:
+              state = _a.sent();
+              return [2, state];
+          }
+        });
+      });
+    };
+  }
+  function setDecayReplacer(numTokens) {
+    return function(params) {
+      var tokens = new Map(params.tokens || []);
+      if (!tokens.has("decay") || tokens.get("decay") > numTokens) {
+        tokens.set("decay", numTokens);
+      }
+      return __assign10(__assign10({}, params), { tokens });
+    };
+  }
   var decayCardUpgrade = {
     id: "burden_decay_card",
     name: function(name) {
@@ -15281,15 +15316,12 @@
     },
     staticReplacers: [{
       kind: "create",
-      text: ["When you buy this, put 2 decay tokens on it."],
+      text: ["When you create this, if it has no decay tokens put 2 on it. If it has more than 2 decay tokens, remove all but 2."],
+      simpleText: ["This is created with 2 decay tokens on it."],
       handles: function(params, s, source) {
         return params.zone === "discard" && params.spec.name === source.name;
       },
-      replace: function(params) {
-        var tokens = new Map(params.tokens || []);
-        incrementMap(tokens, "decay", 2);
-        return __assign10(__assign10({}, params), { tokens });
-      }
+      replace: setDecayReplacer(2)
     }]
   };
   registerEncounterUpgrade("burden_decay_card", decayCardUpgrade);
@@ -15330,13 +15362,13 @@
   relicBurdenOption("fake_coin", fakeCoin);
   relicBurdenOption("miserly_touch", miserlyTouch);
   relicBurdenOption("heavy_stone", heavyStone);
-  relicBurdenOption("cursed_hourglass", cursedHourglass, { maxStage: 5 });
-  relicBurdenOption("cursed_doll", cursedDoll, { maxStage: 5 });
+  relicBurdenOption("cursed_hourglass", cursedHourglass, { maxStage: TOTAL_STAGES - 2 });
+  relicBurdenOption("cursed_doll", cursedDoll, { maxStage: TOTAL_STAGES - 3 });
   relicBurdenOption("cursed_key", cursedKey, { maxStage: TOTAL_STAGES - 2 });
   relicBurdenOption("cursed_boots", cursedBoots, { maxStage: TOTAL_STAGES - 3 });
   relicBurdenOption("cursed_banner", cursedBanner);
-  relicBurdenOption("cursed_sozu", cursedSozu);
-  relicBurdenOption("expensive_sozu", expensiveSozu);
+  relicBurdenOption("cursed_sozu", cursedSozu, { maxStage: TOTAL_STAGES - 2 });
+  relicBurdenOption("expensive_flask", expensiveFlask);
   relicBurdenOption("broken_crown", brokenCrown, { maxStage: TOTAL_STAGES - 2 });
   registerBurden({
     id: "lose_anything",
@@ -15457,6 +15489,7 @@
     id: "lose_buffer",
     title: "Falter",
     description: "Lose 1 buffer.",
+    weight: 2,
     applies: function(state) {
       return state.data.buffer > 0;
     },

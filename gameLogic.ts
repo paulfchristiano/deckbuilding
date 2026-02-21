@@ -1490,7 +1490,7 @@ export type Token = 'charge' | 'cost' | 'mirror' | 'duplicate' | 'twin' | 'syner
     'reuse' | 'polish' | 'priority' | 'parallelize' | 'reduction' | 'reduce' |
     'strength' | 'mire' | 'onslaught' | 'accelerate' | 'reflect' | 'brigade' | 'bulk' |
     'pillage' | 'bargain' | 'splay' | 'crown' | 'ferry' | 'ideal' |
-    'inflation' | 'encumber' | 'inefficiency' |
+    'inflation' | 'encumber' | 'efficiency' |
     'logistics'
 
 export function discharge(card:Card, n:number): Transform {

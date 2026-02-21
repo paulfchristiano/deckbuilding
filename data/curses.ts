@@ -235,27 +235,27 @@ registerMirroredCurse((isMajor): CardSpec => {
         simpleText: [`After the first ${freePlays} plays, cards other than ${copper.name} cost $1 to play.`],
         staticReplacers: [{
             kind: 'create',
-            text: [`Whenever you create a card other than ${copper.name}, put ${freePlays} inefficiency tokens on it.`],
-            handles: params => params.spec.name !== copper.name,
+            text: [`Whenever you create a card other than ${copper.name}, put ${freePlays} efficiency tokens on it.`],
+            handles: params => params.spec.name !== copper.name && ['play', 'discard', 'hand', null].includes(params.zone),
             replace: params => {
                 const tokens = new Map(params.tokens || [])
-                incrementMap(tokens, 'inefficiency', freePlays)
+                incrementMap(tokens, 'efficiency', freePlays)
                 return { ...params, tokens }
             }
         }, {
             kind: 'costIncrease',
-            text: [`Cards other than ${copper.name} cost $1 more to play if they have no inefficiency tokens.`],
+            text: [`Cards other than ${copper.name} cost $1 more to play if they have no efficiency tokens.`],
             handles: (params, state) =>
                 params.actionKind === 'play'
                 && params.card.name !== copper.name
-                && state.find(params.card).count('inefficiency') === 0,
+                && state.find(params.card).count('efficiency') === 0,
             replace: params => ({ ...params, cost: addCosts(params.cost, coin(1)) })
         }],
         staticTriggers: [{
             kind: 'play',
-            text: [`When you play a card other than ${copper.name} the normal way, remove an inefficiency token from it.`],
-            handles: event => event.source === 'act' && event.card.name !== copper.name && event.card.count('inefficiency') > 0,
-            transform: event => removeToken(event.card, 'inefficiency', 1)
+            text: [`When you play a card other than ${copper.name} the normal way, remove an efficiency token from it.`],
+            handles: event => event.source === 'act' && event.card.name !== copper.name && event.card.count('efficiency') > 0,
+            transform: event => removeToken(event.card, 'efficiency', 1)
         }]
     }
 })

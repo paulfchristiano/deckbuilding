@@ -135,11 +135,9 @@ export const duplicate:CardSpec = {name: 'Duplicate',
     fixedCost: {...free, coin:3, energy:1},
     effects: [{
         text: [`Put a duplicate token on each card in the supply.`],
-        simpleText: [`For each card in the supply, the next time you buy that card buy it again for free.`],
         transform: (state, card) => doAll(state.supply.map(c => addToken(c, 'duplicate')))
     }],
     rules: [duplicateRule],
-    simpleRules: [],
 }
 eventRewards.push(duplicate)
 
