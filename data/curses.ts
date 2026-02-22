@@ -28,9 +28,6 @@ const majorCursePool: Curse[] = []
 
 type CurseFactory = (isMajor: boolean) => Curse
 
-function variant<T>(minor: T, major: T, isMajor: boolean): T {
-    return isMajor ? major : minor
-}
 
 function curseName(base: string, isMajor: boolean): string {
     return isMajor ? `${base} (Major)` : base
@@ -56,7 +53,7 @@ export function allMajorCurses(): Curse[] {
 }
 
 registerMirroredCurse((isMajor): Curse => {
-    const decayTokens = variant(3, 2, isMajor)
+    const decayTokens = isMajor ? 2 : 3
     return {
         name: curseName('Decay', isMajor),
         events: [{
@@ -81,7 +78,7 @@ registerMirroredCurse((isMajor): Curse => {
 })
 
 registerMirroredCurse((isMajor): Curse => {
-    const maxActionsFromRefresh = variant(3, 1, isMajor)
+    const maxActionsFromRefresh = isMajor ? 1 : 3
     return {
         name: curseName('Squeeze', isMajor),
         events: [{
@@ -140,7 +137,7 @@ registerMirroredCurse((_isMajor): Curse => {
 })
 
 registerMirroredCurse((isMajor): Curse => {
-    const removeCount = variant(2, 1, isMajor)
+    const removeCount = isMajor ? 1 : 2
     return {
         name: curseName('Encumber', isMajor),
         events: [{
@@ -176,7 +173,7 @@ registerMirroredCurse((isMajor): Curse => {
 })
 
 registerMirroredCurse((isMajor): Curse => {
-    const removeCost = variant(2, 4, isMajor)
+    const removeCost = isMajor ? 4 : 2
     return {
         name: curseName('Mire', isMajor),
         events: [{
@@ -205,7 +202,7 @@ registerMirroredCurse((isMajor): Curse => {
 })
 
 registerMirroredCurse((isMajor): Curse => {
-    const overheadFlat = variant(1, 0, isMajor)
+    const overheadFlat = isMajor ? 0 : 1
     return {
         name: curseName('Overhead', isMajor),
         events: [{
@@ -235,7 +232,7 @@ registerMirroredCurse((isMajor): Curse => {
 })
 
 registerMirroredCurse((isMajor): Curse => {
-    const vpMultiplier = variant(2, 4, isMajor)
+    const vpMultiplier = isMajor ? 4 : 2
     return {
         name: curseName('Slog', isMajor),
         events: [{
@@ -253,16 +250,16 @@ registerMirroredCurse((isMajor): Curse => {
 })
 
 registerMirroredCurse((isMajor): Curse => {
-    const freePlays = variant(1, 2, isMajor)
+    const freePlays = isMajor ? 1 : 2
     return {
         name: curseName('Inefficiency', isMajor),
         events: [{
             name: curseName('Inefficiency', isMajor),
             restrictions: [cannotUse],
-            simpleText: [`After the first ${freePlays} plays, cards other than ${copper.name} cost $1 to play.`],
             staticReplacers: [{
                 kind: 'create',
                 text: [`Whenever you create a card other than ${copper.name}, put ${freePlays} efficiency tokens on it.`],
+                simpleText: [`After the first ${freePlays} plays, cards other than ${copper.name} cost $1 to play.`],
                 handles: params => params.spec.name !== copper.name && ['play', 'discard', 'hand', null].includes(params.zone),
                 replace: params => {
                     const tokens = new Map(params.tokens || [])
@@ -272,6 +269,7 @@ registerMirroredCurse((isMajor): Curse => {
             }, {
                 kind: 'costIncrease',
                 text: [`Cards other than ${copper.name} cost $1 more to play if they have no efficiency tokens.`],
+                simpleText: [],
                 handles: (params, state) =>
                     params.actionKind === 'play'
                     && params.card.name !== copper.name
@@ -281,6 +279,7 @@ registerMirroredCurse((isMajor): Curse => {
             staticTriggers: [{
                 kind: 'play',
                 text: [`When you play a card other than ${copper.name} the normal way, remove an efficiency token from it.`],
+                simpleText: [],
                 handles: event => event.source === 'act' && event.card.name !== copper.name && event.card.count('efficiency') > 0,
                 transform: event => removeToken(event.card, 'efficiency', 1)
             }]

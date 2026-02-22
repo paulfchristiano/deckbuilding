@@ -4747,9 +4747,6 @@
   };
   var minorCursePool = [];
   var majorCursePool = [];
-  function variant(minor, major, isMajor) {
-    return isMajor ? major : minor;
-  }
   function curseName(base, isMajor) {
     return isMajor ? "".concat(base, " (Major)") : base;
   }
@@ -4796,7 +4793,7 @@
     return __spreadArray5([], __read6(majorCursePool), false);
   }
   registerMirroredCurse(function(isMajor) {
-    var decayTokens = variant(3, 2, isMajor);
+    var decayTokens = isMajor ? 2 : 3;
     return {
       name: curseName("Decay", isMajor),
       events: [{
@@ -4822,7 +4819,7 @@
     };
   });
   registerMirroredCurse(function(isMajor) {
-    var maxActionsFromRefresh = variant(3, 1, isMajor);
+    var maxActionsFromRefresh = isMajor ? 1 : 3;
     return {
       name: curseName("Squeeze", isMajor),
       events: [{
@@ -4893,7 +4890,7 @@
     };
   });
   registerMirroredCurse(function(isMajor) {
-    var removeCount = variant(2, 1, isMajor);
+    var removeCount = isMajor ? 1 : 2;
     return {
       name: curseName("Encumber", isMajor),
       events: [{
@@ -4946,7 +4943,7 @@
     };
   });
   registerMirroredCurse(function(isMajor) {
-    var removeCost = variant(2, 4, isMajor);
+    var removeCost = isMajor ? 4 : 2;
     return {
       name: curseName("Mire", isMajor),
       events: [{
@@ -4984,7 +4981,7 @@
     };
   });
   registerMirroredCurse(function(isMajor) {
-    var overheadFlat = variant(1, 0, isMajor);
+    var overheadFlat = isMajor ? 0 : 1;
     return {
       name: curseName("Overhead", isMajor),
       events: [{
@@ -5005,7 +5002,7 @@
     };
   });
   registerMirroredCurse(function(isMajor) {
-    var vpMultiplier = variant(2, 4, isMajor);
+    var vpMultiplier = isMajor ? 4 : 2;
     return {
       name: curseName("Slog", isMajor),
       events: [{
@@ -5026,16 +5023,16 @@
     };
   });
   registerMirroredCurse(function(isMajor) {
-    var freePlays = variant(1, 2, isMajor);
+    var freePlays = isMajor ? 1 : 2;
     return {
       name: curseName("Inefficiency", isMajor),
       events: [{
         name: curseName("Inefficiency", isMajor),
         restrictions: [cannotUse],
-        simpleText: ["After the first ".concat(freePlays, " plays, cards other than ").concat(copper.name, " cost $1 to play.")],
         staticReplacers: [{
           kind: "create",
           text: ["Whenever you create a card other than ".concat(copper.name, ", put ").concat(freePlays, " efficiency tokens on it.")],
+          simpleText: ["After the first ".concat(freePlays, " plays, cards other than ").concat(copper.name, " cost $1 to play.")],
           handles: function(params) {
             return params.spec.name !== copper.name && ["play", "discard", "hand", null].includes(params.zone);
           },
@@ -5047,6 +5044,7 @@
         }, {
           kind: "costIncrease",
           text: ["Cards other than ".concat(copper.name, " cost $1 more to play if they have no efficiency tokens.")],
+          simpleText: [],
           handles: function(params, state) {
             return params.actionKind === "play" && params.card.name !== copper.name && state.find(params.card).count("efficiency") === 0;
           },
@@ -5057,6 +5055,7 @@
         staticTriggers: [{
           kind: "play",
           text: ["When you play a card other than ".concat(copper.name, " the normal way, remove an efficiency token from it.")],
+          simpleText: [],
           handles: function(event) {
             return event.source === "act" && event.card.name !== copper.name && event.card.count("efficiency") > 0;
           },
@@ -15617,8 +15616,8 @@
   relicBurdenOption(miserlyTouch);
   relicBurdenOption(heavyStone);
   relicBurdenOption(cursedHourglass, { maxStage: TOTAL_STAGES - 2 });
-  relicBurdenOption(cursedDoll, { maxStage: TOTAL_STAGES - 3 });
-  relicBurdenOption(cursedKey);
+  relicBurdenOption(cursedDoll, { maxStage: TOTAL_STAGES - 2 });
+  relicBurdenOption(cursedKey, { maxStage: TOTAL_STAGES - 2 });
   relicBurdenOption(cursedBoots, { maxStage: TOTAL_STAGES - 3 });
   relicBurdenOption(cursedBanner);
   relicBurdenOption(cursedSozu, { maxStage: TOTAL_STAGES - 2 });
@@ -19678,7 +19677,9 @@
     };
     throw new TypeError(s ? "Object is not iterable." : "Symbol.iterator is not defined.");
   };
-  var test = null;
+  var test = {
+    challenges: [[1, ["curse", "Inefficiency"]]]
+  };
   var SAVE_STORAGE_KEY = "roguelike.ongoingSaves.v1";
   var RUN_TIMER_STORAGE_KEY = "roguelike.runTimerSeconds.v1";
   var HELP_SEEN_STORAGE_KEY = "roguelike.helpSeen.v1";
