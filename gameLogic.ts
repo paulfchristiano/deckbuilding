@@ -644,7 +644,8 @@ export type GameSpec = {
     metaCursesEnabled?: boolean,
     previousScore?: number | null,
     replayUsedPotionIDs?: number[],
-    replayStage?: number | null
+    replayStage?: number | null,
+    selectedChallengeIndex?: number
 }
 
 export class State {

@@ -6235,7 +6235,8 @@
       metaCursesEnabled: spec.metaCursesEnabled,
       previousScore: spec.previousScore,
       replayUsedPotionIDs: spec.replayUsedPotionIDs ? __spreadArray6([], __read7(spec.replayUsedPotionIDs), false) : void 0,
-      replayStage: spec.replayStage
+      replayStage: spec.replayStage,
+      selectedChallengeIndex: spec.selectedChallengeIndex
     };
   }
   function deserializeGameSpec(spec) {
@@ -6262,7 +6263,8 @@
       metaCursesEnabled: spec.metaCursesEnabled,
       previousScore: spec.previousScore,
       replayUsedPotionIDs: spec.replayUsedPotionIDs ? __spreadArray6([], __read7(spec.replayUsedPotionIDs), false) : void 0,
-      replayStage: spec.replayStage
+      replayStage: spec.replayStage,
+      selectedChallengeIndex: spec.selectedChallengeIndex
     };
   }
   function serializeMetaStateData(data) {
@@ -6311,7 +6313,8 @@
         return __assign3({}, entry);
       }),
       gameHistory: __spreadArray6([], __read7(data.gameHistory), false),
-      gameRedo: __spreadArray6([], __read7(data.gameRedo), false)
+      gameRedo: __spreadArray6([], __read7(data.gameRedo), false),
+      selectedChallengeIndex: data.selectedChallengeIndex
     };
   }
   function cloneSerializedMetaStateData(data) {
@@ -6364,7 +6367,8 @@
         return __assign3({}, entry);
       })),
       gameHistory: __spreadArray6([], __read7(data.gameHistory), false),
-      gameRedo: __spreadArray6([], __read7(data.gameRedo), false)
+      gameRedo: __spreadArray6([], __read7(data.gameRedo), false),
+      selectedChallengeIndex: data.selectedChallengeIndex
     };
     if (!data.timeline) {
       result.timeline = normalizeTimelineEntries(result.stageReplays.flatMap(function(stageReplay) {
@@ -7064,7 +7068,7 @@
       });
     });
   }
-  function makeSpec(state, challenge) {
+  function makeSpec(state, challenge, selectedChallengeIndex) {
     var e_18, _a;
     var _b;
     var par = BASE_PARS[state.data.stage];
@@ -7131,7 +7135,8 @@
       metaStageScores: __spreadArray6([], __read7(state.data.stageScores), false),
       metaStagePars: __spreadArray6([], __read7(state.data.stagePars), false),
       metaStageTooltips: stageTooltipTexts(state),
-      metaCursesEnabled: state.cursesEnabled
+      metaCursesEnabled: state.cursesEnabled,
+      selectedChallengeIndex
     };
   }
   function getRewardOptionCount(state, rewardKind) {
@@ -7506,7 +7511,7 @@
     })(Error)
   );
   function cloneGameSpec(spec) {
-    return __assign3(__assign3({}, spec), { buffer: spec.buffer, cards: __spreadArray6([], __read7(spec.cards), false), events: __spreadArray6([], __read7(spec.events), false), potions: __spreadArray6([], __read7(spec.potions), false), relics: __spreadArray6([], __read7(spec.relics), false), metaStageScores: spec.metaStageScores ? __spreadArray6([], __read7(spec.metaStageScores), false) : void 0, metaStagePars: spec.metaStagePars ? __spreadArray6([], __read7(spec.metaStagePars), false) : void 0, metaStageTooltips: spec.metaStageTooltips ? __spreadArray6([], __read7(spec.metaStageTooltips), false) : void 0, replayUsedPotionIDs: spec.replayUsedPotionIDs ? __spreadArray6([], __read7(spec.replayUsedPotionIDs), false) : void 0 });
+    return __assign3(__assign3({}, spec), { buffer: spec.buffer, cards: __spreadArray6([], __read7(spec.cards), false), events: __spreadArray6([], __read7(spec.events), false), potions: __spreadArray6([], __read7(spec.potions), false), relics: __spreadArray6([], __read7(spec.relics), false), metaStageScores: spec.metaStageScores ? __spreadArray6([], __read7(spec.metaStageScores), false) : void 0, metaStagePars: spec.metaStagePars ? __spreadArray6([], __read7(spec.metaStagePars), false) : void 0, metaStageTooltips: spec.metaStageTooltips ? __spreadArray6([], __read7(spec.metaStageTooltips), false) : void 0, replayUsedPotionIDs: spec.replayUsedPotionIDs ? __spreadArray6([], __read7(spec.replayUsedPotionIDs), false) : void 0, selectedChallengeIndex: spec.selectedChallengeIndex });
   }
   function cloneStageReplayData(replayData) {
     return __assign3(__assign3({}, replayData), { challenge: __assign3(__assign3({}, replayData.challenge), { boons: __spreadArray6([], __read7(replayData.challenge.boons), false) }), spec: cloneGameSpec(replayData.spec), history: __spreadArray6([], __read7(replayData.history), false), potionsRemaining: __spreadArray6([], __read7(replayData.potionsRemaining), false) });
@@ -7559,7 +7564,7 @@
     return result;
   }
   function replaySpecForStage(state, replayData) {
-    return __assign3(__assign3({}, cloneGameSpec(replayData.spec)), { buffer: replayData.bufferBeforeCourse, metaStage: state.data.stage, metaStageScores: __spreadArray6([], __read7(state.data.stageScores), false), metaStagePars: __spreadArray6([], __read7(state.data.stagePars), false), metaStageTooltips: stageTooltipTexts(state), previousScore: replayData.score, replayUsedPotionIDs: replayUsedPotionIDs(replayData), replayStage: replayData.stage });
+    return __assign3(__assign3({}, cloneGameSpec(replayData.spec)), { buffer: replayData.bufferBeforeCourse, metaStage: replayData.stage, metaStageScores: __spreadArray6([], __read7(state.data.stageScores), false), metaStagePars: __spreadArray6([], __read7(state.data.stagePars), false), metaStageTooltips: stageTooltipTexts(state), previousScore: replayData.score, replayUsedPotionIDs: replayUsedPotionIDs(replayData), replayStage: replayData.stage });
   }
   var replaySimulationUI = {
     chooseCard: function(_state, _prompt, _options) {
@@ -8221,7 +8226,7 @@
           case 3:
             state.ui.updateBuffer(state);
             _loop_3 = function() {
-              var sameReplay_1, stage, gameSpec, startingBuffer, _l, score, potionsRemaining, history_1, macros, viewingMacros, usedPotions, persistedMacros, persistedViewingMacros, stageReplays, stageTimelineEntry, nextStage, paths, _m, _o, testSpec2, pathBurdenTests, pathBurdenTests_1, pathBurdenTests_1_1, burdenDefinitions2, paths, path, _p, e_32, materialized, challenges, selectedChallenge, e_33, e_34, persistedMacros, persistedViewingMacros;
+              var sameReplay_1, stage, gameSpec, startingBuffer, _l, score, potionsRemaining, history_1, macros, viewingMacros, usedPotions, persistedMacros, persistedViewingMacros, stageReplays, stageTimelineEntry, nextStage, paths, _m, _o, testSpec2, pathBurdenTests, pathBurdenTests_1, pathBurdenTests_1_1, burdenDefinitions2, paths, path, _p, e_32, materialized, challenges, selectedChallenge, e_33, selectedChallengeIndex, e_34, persistedMacros, persistedViewingMacros;
               var e_35, _q, e_36, _r;
               return __generator4(this, function(_s) {
                 switch (_s.label) {
@@ -8234,7 +8239,7 @@
                       });
                     };
                     stage = state.data.stage;
-                    gameSpec = makeSpec(state, state.data.challenges[0]);
+                    gameSpec = makeSpec(state, state.data.challenges[0], state.data.selectedChallengeIndex);
                     startingBuffer = state.data.buffer;
                     return [4, state.ui.playGame(gameSpec, state.data.gameHistory, state.data.gameRedo, state.global.macros, state.global.viewingMacros, function(progress) {
                       if (!sameReplay_1(state.data.gameHistory, progress.history) || !sameReplay_1(state.data.gameRedo, progress.redo)) {
@@ -8410,7 +8415,8 @@
                   case 26:
                     return [3, 20];
                   case 27:
-                    state.update({ challenges: [selectedChallenge], availablePaths: [] });
+                    selectedChallengeIndex = state.data.challenges.indexOf(selectedChallenge);
+                    state.update({ challenges: [selectedChallenge], selectedChallengeIndex, availablePaths: [] });
                     return [4, trigger2({ kind: "start", stage: state.data.stage }, state)];
                   case 28:
                     _s.sent();
@@ -10983,7 +10989,7 @@
       }
     }],
     buyCost: coin(3),
-    staticReplacers: [startsWithCharge(churnName, 2)]
+    staticReplacers: [startsWithCharge(churnName, 2, true)]
   };
   cardRewards.push(churn);
   var bustlingVillage = {
@@ -16881,7 +16887,8 @@
       startPrompt: macro.startPrompt,
       displayLabelMain: macro.displayLabelMain,
       displayLabelMeta: macro.displayLabelMeta,
-      resetFirst: macro.resetFirst === true
+      resetFirst: macro.resetFirst === true,
+      stageFilter: macro.stageFilter
     };
   }
   function cloneMacros(macros) {
@@ -16954,7 +16961,7 @@
     var hasEmptiedDiscard = false;
     var discardNonempty = false;
     for (var i = 0; i < states.length; i++) {
-      if (i > 0 && isRefreshStep(steps[i - 1])) {
+      if (i > 0 && i - 1 < steps.length && isRefreshStep(steps[i - 1])) {
         return requirements;
       }
       var state = states[i];
@@ -17112,7 +17119,8 @@
               startPrompt,
               displayLabelMain: "Replay",
               displayLabelMeta: "".concat(targetState.energy, "@"),
-              resetFirst: true
+              resetFirst: true,
+              stageFilter: targetState.spec.metaStage !== void 0 && targetState.spec.selectedChallengeIndex !== void 0 ? { stage: targetState.spec.metaStage, challengeIndex: targetState.spec.selectedChallengeIndex } : void 0
             }];
         }
       });
@@ -17929,6 +17937,11 @@
   function makeMacroButtons(ui, container, state) {
     closeMacroDeleteMenu();
     var macroButtons = ui.macros.map(function(macro, index) {
+      if (macro.stageFilter !== void 0) {
+        if (macro.stageFilter.stage !== state.spec.metaStage || macro.stageFilter.challengeIndex !== state.spec.selectedChallengeIndex) {
+          return "";
+        }
+      }
       return renderPlayMacroButton(macro, index, canPlayMacro(macro, state, ui.choiceState));
     });
     var contents = __spreadArray10([renderRecordMacroButton(ui)], __read15(macroButtons), false).join("");
@@ -17975,6 +17988,7 @@
         } else {
           console.log(ui.recordingMacro.steps);
           console.log(ui.recordingStates);
+          ui.recordingStates.push(state);
           ui.recordingMacro.requirements = computeMacroRequirements(ui.recordingStates, ui.recordingMacro.steps);
           ui.macros.push(cloneMacro(ui.recordingMacro));
           ui.recordingMacro = null;
@@ -19366,8 +19380,6 @@
                   state,
                   // onChallenge - returns the selected challenge
                   function(challenge) {
-                    state.update({ challenges: [challenge] });
-                    updateProgressSidebar(state);
                     finishResolve(challenge);
                   },
                   // onOptionClick
@@ -19675,12 +19687,7 @@
     };
     throw new TypeError(s ? "Object is not iterable." : "Symbol.iterator is not defined.");
   };
-  var test = {
-    allCards: true,
-    allEvents: true,
-    allPotions: true,
-    allBurdens: true
-  };
+  var test = null;
   var SAVE_STORAGE_KEY = "roguelike.ongoingSaves.v1";
   var RUN_TIMER_STORAGE_KEY = "roguelike.runTimerSeconds.v1";
   var HELP_SEEN_STORAGE_KEY = "roguelike.helpSeen.v1";

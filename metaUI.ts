@@ -798,8 +798,6 @@ export class MetaGameUI implements MetaUI {
                     state,
                     // onChallenge - returns the selected challenge
                     (challenge) => {
-                        state.update({ challenges: [challenge] })
-                        updateProgressSidebar(state)
                         finishResolve(challenge)
                     },
                     // onOptionClick

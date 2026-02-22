@@ -204,6 +204,7 @@ interface Macro {
     displayLabelMain?: string
     displayLabelMeta?: string
     resetFirst?: boolean
+    stageFilter?: { stage: number, challengeIndex: number }
 }
 
 export type MacroPersistenceData = {
@@ -368,7 +369,8 @@ function cloneMacro(macro: Macro): Macro {
         startPrompt: macro.startPrompt,
         displayLabelMain: macro.displayLabelMain,
         displayLabelMeta: macro.displayLabelMeta,
-        resetFirst: macro.resetFirst === true
+        resetFirst: macro.resetFirst === true,
+        stageFilter: macro.stageFilter
     }
 }
 
@@ -430,7 +432,7 @@ function computeMacroRequirements(states: State[], steps: MacroStep[]): MacroReq
     let discardNonempty = false
 
     for (let i = 0; i < states.length; i++) {
-        if (i > 0 && isRefreshStep(steps[i - 1])) {
+        if (i > 0 && i - 1 < steps.length && isRefreshStep(steps[i - 1])) {
             return requirements
         }
         const state = states[i]
@@ -543,7 +545,10 @@ async function buildReplayMacroFromState(targetState: State): Promise<Macro | nu
         startPrompt,
         displayLabelMain: 'Replay',
         displayLabelMeta: `${targetState.energy}@`,
-        resetFirst: true
+        resetFirst: true,
+        stageFilter: targetState.spec.metaStage !== undefined && targetState.spec.selectedChallengeIndex !== undefined
+            ? { stage: targetState.spec.metaStage, challengeIndex: targetState.spec.selectedChallengeIndex }
+            : undefined
     }
 }
 
@@ -1345,7 +1350,15 @@ function bindSaveReplay(state: State, ui: GameUI): void {
 
 function makeMacroButtons(ui: GameUI, container: HTMLElement, state: State): void {
     closeMacroDeleteMenu()
-    const macroButtons = ui.macros.map((macro, index) => renderPlayMacroButton(macro, index, canPlayMacro(macro, state, ui.choiceState)))
+    const macroButtons = ui.macros.map((macro, index) => {
+        if (macro.stageFilter !== undefined) {
+            if (macro.stageFilter.stage !== state.spec.metaStage ||
+                macro.stageFilter.challengeIndex !== state.spec.selectedChallengeIndex) {
+                return ''
+            }
+        }
+        return renderPlayMacroButton(macro, index, canPlayMacro(macro, state, ui.choiceState))
+    })
     const contents = [renderRecordMacroButton(ui), ...macroButtons].join('')
     container.innerHTML = `<div id='macros'>${contents}</div>`
     bindRecordMacroButton(ui, state)
@@ -1393,6 +1406,7 @@ function bindRecordMacroButton(ui: GameUI, state: State): void {
             } else {
                 console.log(ui.recordingMacro.steps)
                 console.log(ui.recordingStates)
+                ui.recordingStates.push(state)
                 ui.recordingMacro.requirements = computeMacroRequirements(ui.recordingStates, ui.recordingMacro.steps)
                 ui.macros.push(cloneMacro(ui.recordingMacro))
                 ui.recordingMacro = null

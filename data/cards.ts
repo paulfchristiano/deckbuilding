@@ -1271,7 +1271,7 @@ const churn:CardSpec = {
 
     }],
     buyCost: coin(3),
-    staticReplacers: [startsWithCharge(churnName, 2)]
+    staticReplacers: [startsWithCharge(churnName, 2, true)]
 }
 cardRewards.push(churn)
 

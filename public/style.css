@@ -436,7 +436,7 @@ input {
 }
 
 /* Preserve the old "greyed out" look without fading tooltip content */
-.rewardOption[disabled] > :not(.tooltip) {
+.rewardOption[disabled] > :not(.tooltip):not(.checkmark) {
     opacity: 0.5;
 }
 

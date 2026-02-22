@@ -813,6 +813,9 @@ export interface MetaStateData {
     // Saved game state for restoration on redo
     gameHistory: number[]
     gameRedo: number[]
+
+    // Which challenge was selected (index in original challenges array)
+    selectedChallengeIndex?: number
 }
 
 export interface MetaGlobalState {
@@ -1141,6 +1144,7 @@ interface SerializedGameSpec {
     previousScore?: number | null
     replayUsedPotionIDs?: number[]
     replayStage?: number | null
+    selectedChallengeIndex?: number
 }
 
 interface SerializedStageReplayData {
@@ -1175,6 +1179,7 @@ interface SerializedMetaStateData {
     timeline?: MetaTimelineEntry[]
     gameHistory: number[]
     gameRedo: number[]
+    selectedChallengeIndex?: number
 }
 
 interface SerializedMetaHistory {
@@ -1542,7 +1547,8 @@ function serializeGameSpec(spec: GameSpec): SerializedGameSpec {
         metaCursesEnabled: spec.metaCursesEnabled,
         previousScore: spec.previousScore,
         replayUsedPotionIDs: spec.replayUsedPotionIDs ? [...spec.replayUsedPotionIDs] : undefined,
-        replayStage: spec.replayStage
+        replayStage: spec.replayStage,
+        selectedChallengeIndex: spec.selectedChallengeIndex
     }
 }
 
@@ -1562,7 +1568,8 @@ function deserializeGameSpec(spec: SerializedGameSpec): GameSpec {
         metaCursesEnabled: spec.metaCursesEnabled,
         previousScore: spec.previousScore,
         replayUsedPotionIDs: spec.replayUsedPotionIDs ? [...spec.replayUsedPotionIDs] : undefined,
-        replayStage: spec.replayStage
+        replayStage: spec.replayStage,
+        selectedChallengeIndex: spec.selectedChallengeIndex
     }
 }
 
@@ -1599,7 +1606,8 @@ function serializeMetaStateData(data: MetaStateData): SerializedMetaStateData {
         nextID: data.nextID,
         timeline: data.timeline.map(entry => ({ ...entry })),
         gameHistory: [...data.gameHistory],
-        gameRedo: [...data.gameRedo]
+        gameRedo: [...data.gameRedo],
+        selectedChallengeIndex: data.selectedChallengeIndex
     }
 }
 
@@ -1645,6 +1653,7 @@ function deserializeMetaStateData(data: SerializedMetaStateData): MetaStateData 
         timeline: normalizeTimelineEntries((data.timeline || []).map(entry => ({ ...entry }))),
         gameHistory: [...data.gameHistory],
         gameRedo: [...data.gameRedo],
+        selectedChallengeIndex: data.selectedChallengeIndex,
     }
     if (!data.timeline) {
         result.timeline = normalizeTimelineEntries(result.stageReplays.flatMap(stageReplay => {
@@ -2111,7 +2120,7 @@ async function trigger<T extends MetaGameEvent>(e:T, state: MetaState): Promise<
 // ----------------------------- Utility Functions
 
 // Create a spec for a given challenge.
-export function makeSpec(state: MetaState, challenge: ChallengeSpec): GameSpec {
+export function makeSpec(state: MetaState, challenge: ChallengeSpec, selectedChallengeIndex?: number): GameSpec {
     let par = BASE_PARS[state.data.stage]
     par += scarcityParAdjustment(state.data.stage, state)
     let vpTarget = challenge.vpMode.target
@@ -2162,6 +2171,7 @@ export function makeSpec(state: MetaState, challenge: ChallengeSpec): GameSpec {
         metaStagePars: [...state.data.stagePars],
         metaStageTooltips: stageTooltipTexts(state),
         metaCursesEnabled: state.cursesEnabled,
+        selectedChallengeIndex,
     }
 }
 
@@ -2480,7 +2490,8 @@ function cloneGameSpec(spec: GameSpec): GameSpec {
         metaStageScores: spec.metaStageScores ? [...spec.metaStageScores] : undefined,
         metaStagePars: spec.metaStagePars ? [...spec.metaStagePars] : undefined,
         metaStageTooltips: spec.metaStageTooltips ? [...spec.metaStageTooltips] : undefined,
-        replayUsedPotionIDs: spec.replayUsedPotionIDs ? [...spec.replayUsedPotionIDs] : undefined
+        replayUsedPotionIDs: spec.replayUsedPotionIDs ? [...spec.replayUsedPotionIDs] : undefined,
+        selectedChallengeIndex: spec.selectedChallengeIndex
     }
 }
 
@@ -2531,7 +2542,7 @@ export function replaySpecForStage(state: MetaState, replayData: StageReplayData
     return {
         ...cloneGameSpec(replayData.spec),
         buffer: replayData.bufferBeforeCourse,
-        metaStage: state.data.stage,
+        metaStage: replayData.stage,
         metaStageScores: [...state.data.stageScores],
         metaStagePars: [...state.data.stagePars],
         metaStageTooltips: stageTooltipTexts(state),
@@ -3085,7 +3096,7 @@ export async function playGame(
                     a.length === b.length && a.every((value, index) => value === b[index])
                 const stage = state.data.stage
                 // challenges[0] is the selected challenge (set when user clicks a challenge button)
-                const gameSpec = makeSpec(state, state.data.challenges[0])
+                const gameSpec = makeSpec(state, state.data.challenges[0], state.data.selectedChallengeIndex)
                 const startingBuffer = state.data.buffer
                 // Pass saved game state for replay (from previous redo)
                 const { score, potionsRemaining, history, macros, viewingMacros } = await state.ui.playGame(
@@ -3215,7 +3226,8 @@ export async function playGame(
                     }
                 }
                 // Store the selected challenge as the only one
-                state.update({ challenges: [selectedChallenge], availablePaths: [] })
+                const selectedChallengeIndex = state.data.challenges.indexOf(selectedChallenge)
+                state.update({ challenges: [selectedChallenge], selectedChallengeIndex, availablePaths: [] })
                 await trigger({kind: 'start', stage: state.data.stage}, state)
                 if (state.data.burdenStates.some(burden => !isBurdenResolved(burden))) {
                     throw new Error('Invariant violation: cannot start stage with unresolved burdens')
