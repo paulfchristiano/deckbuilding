@@ -13012,11 +13012,21 @@
     }],
     staticReplacers: [startInPlay(compostingName)]
   };
+  var wait = {
+    name: "Wait",
+    fixedCost: energy(1),
+    effects: [{
+      text: ["Do nothing."],
+      transform: function() {
+        return noop;
+      }
+    }]
+  };
   boons.push({
     name: "Composting",
     parAdjustment: 0,
     cards: [composting],
-    events: []
+    events: [wait]
   });
   var insight = {
     name: "Insight",
@@ -19661,7 +19671,7 @@
     };
     throw new TypeError(s ? "Object is not iterable." : "Symbol.iterator is not defined.");
   };
-  var test = null;
+  var test = { challenges: [[1, ["boon", "Composting"]]] };
   var SAVE_STORAGE_KEY = "roguelike.ongoingSaves.v1";
   var RUN_TIMER_STORAGE_KEY = "roguelike.runTimerSeconds.v1";
   var HELP_SEEN_STORAGE_KEY = "roguelike.helpSeen.v1";

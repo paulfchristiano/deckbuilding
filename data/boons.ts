@@ -23,7 +23,8 @@ import { doAll, Boon, boons,
     removeToken,
     incrementCost,
     move,
-    duplicateRule
+    duplicateRule,
+    noop
 } from '../gameLogic.js'
 
 const escalate:CardSpec = {name: 'Escalate',
@@ -338,11 +339,19 @@ const composting:CardSpec = {
     }],
     staticReplacers: [startInPlay(compostingName)],
 }
+const wait:CardSpec = {
+    name: 'Wait',
+    fixedCost: energy(1),
+    effects: [{
+        text: ['Do nothing.'],
+        transform: () => noop
+    }],
+}
 boons.push({
         name: 'Composting',
         parAdjustment: 0,
         cards: [composting],
-        events: [],
+        events: [wait],
 })
 
 
