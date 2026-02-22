@@ -759,7 +759,7 @@ export const potionLab: Encounter = {
         const offerName = displayName(d.offer)
         return [
             {
-                label: 'House special',
+                label: 'Double batch',
                 description: `Gain 2 copies of ${offerName}.`,
                 tooltipSpec: d.offer,
                 disabled: d.selectedIndex !== null,
@@ -767,14 +767,14 @@ export const potionLab: Encounter = {
                 onClick: async () => ({
                     newData: { ...d, selectedIndex: 0 },
                     transform: compose(
-                        addTimelineAction('Potion Lab: House special', `Gained two ${offerName}`),
+                        addTimelineAction('Potion Lab: Double batch', `Gained two ${offerName}`),
                         gainPotion(d.offer, { silent: true }),
                         gainPotion(d.offer, { silent: true }),
                     )
                 })
             },
             {
-                label: 'Duplicate your potions',
+                label: 'Duplication',
                 description: 'For each potion you have, gain a copy of that potion.',
                 disabled: d.selectedIndex !== null,
                 checked: d.selectedIndex === 1,
@@ -796,7 +796,7 @@ export const potionLab: Encounter = {
                 }
             },
             {
-                label: 'Sacred bark',
+                label: 'Sacred Bark',
                 spec: sacredBark,
                 disabled: d.selectedIndex !== null || metaState.data.buffer < 3,
                 checked: d.selectedIndex === 2,
@@ -1047,13 +1047,13 @@ const theScribe: Encounter = simpleEncounter({
         },
         {
             label: 'Use the quill',
-            description: '+2@ buffer.',
-            transform: addBuffer(2)
+            description: '+3@ buffer.',
+            transform: addBuffer(3)
         },
         {
             label: 'Use the cursed quill',
-            description: '+4@ buffer, but par is 1@ lower on each course.',
-            transform: compose(addBuffer(4), gainRelic(cursedInkwell))
+            description: '+5@ buffer, but par is 1@ lower on each course.',
+            transform: compose(addBuffer(5), gainRelic(cursedInkwell))
         }
     ]
 })

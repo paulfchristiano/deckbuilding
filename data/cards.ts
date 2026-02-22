@@ -418,7 +418,7 @@ cardRewards.push(ruinedVillage)
 
 const herbs:CardSpec = {name: 'Herbs',
     effects: [coinsEffect(1), buyEffect()],
-    buyCost: coin(1),
+    buyCost: coin(2),
     staticTriggers: [buyTrigger(buyEffect())]
 }
 cardRewards.push(herbs)

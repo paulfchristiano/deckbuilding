@@ -8650,23 +8650,23 @@
       handles: function() {
         return true;
       },
-      text: ["At the start of the game, +10 actions."],
+      text: ["At the start of the game, +5 actions."],
       transform: function(_e, _s, c) {
-        return gainActions(10, c);
+        return gainActions(5, c);
       }
     }]
   };
   addRelicReward(bagOfPreparation);
   var courier = {
     name: "Courier",
-    triggers: [{
-      kind: "afterUse",
-      text: ["+2 buys and +1 action each time you use ".concat(refresh.name, ".")],
+    replacers: [{
+      kind: "resource",
+      text: ["".concat(refresh.name, " gives you 2 more buys.")],
       handles: function(e, s, c) {
-        return e.card.name === refresh.name;
+        return sourceHasName(e.source, refresh.name) && e.resource === "buys";
       },
-      transform: function(e, s, c) {
-        return doAll([gainBuys(2, c), gainActions(1, c)]);
+      replace: function(e, s, c) {
+        return __assign4(__assign4({}, e), { amount: e.amount + 2 });
       }
     }]
   };
@@ -8687,22 +8687,22 @@
     metaTriggers: [
       {
         kind: "relic",
-        text: ["When you gain this, gain 2@ buffer."],
+        text: ["When you gain this, gain 3@ buffer."],
         handles: function(e, _s, self) {
           return self.id === e.relic.id;
         },
         transform: function(_e) {
-          return addBuffer(2);
+          return addBuffer(3);
         }
       },
       {
         kind: "loseRelic",
-        text: ["When you lose this, lose 2@ buffer."],
+        text: ["When you lose this, lose 3@ buffer."],
         handles: function(e, _s, self) {
           return self.id === e.relic.id;
         },
         transform: function(_e) {
-          return addBuffer(-2);
+          return addBuffer(-3);
         }
       }
     ]
@@ -8725,19 +8725,22 @@
     maxStage: 6,
     metaReplacers: [{
       kind: "gameSetup",
-      text: ["Par is 4@ lower on each course."],
+      text: ["Par is 1@ lower on each course."],
       replace: function(p) {
-        return __assign4(__assign4({}, p), { par: p.par - 4 });
+        return __assign4(__assign4({}, p), { par: p.par - 1 });
       }
     }],
     metaTriggers: [{
-      kind: "start",
-      text: ["At the start of each course, gain 3@ buffer."],
+      kind: "end",
+      text: ["At end of course, gain 1@ buffer for each 1@ you beat par up to a max of 4@."],
+      simpleText: ["For each 1@ you beat par, gain 1@ buffer up to a max of 4@."],
       handles: function(e) {
-        return true;
+        return e.score < e.par;
       },
       transform: function(e) {
-        return addBuffer(3);
+        var energyUnderPar = e.par - e.score;
+        var bufferGain = Math.min(energyUnderPar, 4);
+        return addBuffer(bufferGain);
       }
     }]
   };
@@ -8943,9 +8946,9 @@
     name: "Credit Voucher",
     triggers: [{
       kind: "buy",
-      text: ["Whenever you buy a card costing $5 or more, +1 buy."],
+      text: ["Whenever you buy a card costing $4 or more, +1 buy."],
       handles: function(e, _s, _c) {
-        return e.card.cost("buy", _s).coin >= 5;
+        return e.card.cost("buy", _s).coin >= 4;
       },
       transform: function(e, s, source) {
         return gainBuys(1, source);
@@ -9041,8 +9044,8 @@
     maxStage: 6,
     metaTriggers: [{
       kind: "end",
-      text: ["At end of the next course, gain 1 buffer for each @ you beat par, then destroy this."],
-      simpleText: ["At end of the next course, gain 1 buffer for each @ you beat par."],
+      text: ["At end of stage, gain 1 buffer for each @ you beat par, then destroy this."],
+      simpleText: ["At end of this stage, gain 1 buffer for each @ you beat par."],
       handles: function(_e, _s, _self) {
         return true;
       },
@@ -9932,7 +9935,7 @@
   var herbs = {
     name: "Herbs",
     effects: [coinsEffect(1), buyEffect()],
-    buyCost: coin(1),
+    buyCost: coin(2),
     staticTriggers: [buyTrigger(buyEffect())]
   };
   cardRewards.push(herbs);
@@ -11706,8 +11709,8 @@
     isPotion: true,
     rules: [reductionRule],
     effects: [targetedEffect(function(card) {
-      return addToken(card, "reduction", 8);
-    }, "Put 8 reduction tokens on a card in the supply.", function(state) {
+      return addToken(card, "reduction", 16);
+    }, "Put 16 reduction tokens on a card in the supply.", function(state) {
       return state.supply;
     })]
   };
@@ -14329,7 +14332,7 @@
       var offerName = displayName(d.offer);
       return [
         {
-          label: "House special",
+          label: "Double batch",
           description: "Gain 2 copies of ".concat(offerName, "."),
           tooltipSpec: d.offer,
           disabled: d.selectedIndex !== null,
@@ -14339,14 +14342,14 @@
               return __generator10(this, function(_a) {
                 return [2, {
                   newData: __assign9(__assign9({}, d), { selectedIndex: 0 }),
-                  transform: compose(addTimelineAction("Potion Lab: House special", "Gained two ".concat(offerName)), gainPotion(d.offer, { silent: true }), gainPotion(d.offer, { silent: true }))
+                  transform: compose(addTimelineAction("Potion Lab: Double batch", "Gained two ".concat(offerName)), gainPotion(d.offer, { silent: true }), gainPotion(d.offer, { silent: true }))
                 }];
               });
             });
           }
         },
         {
-          label: "Duplicate your potions",
+          label: "Duplication",
           description: "For each potion you have, gain a copy of that potion.",
           disabled: d.selectedIndex !== null,
           checked: d.selectedIndex === 1,
@@ -14420,7 +14423,7 @@
           }
         },
         {
-          label: "Sacred bark",
+          label: "Sacred Bark",
           spec: sacredBark,
           disabled: d.selectedIndex !== null || metaState.data.buffer < 3,
           checked: d.selectedIndex === 2,
@@ -14778,13 +14781,13 @@
       },
       {
         label: "Use the quill",
-        description: "+2@ buffer.",
-        transform: addBuffer(2)
+        description: "+3@ buffer.",
+        transform: addBuffer(3)
       },
       {
         label: "Use the cursed quill",
-        description: "+4@ buffer, but par is 1@ lower on each course.",
-        transform: compose(addBuffer(4), gainRelic(cursedInkwell))
+        description: "+5@ buffer, but par is 1@ lower on each course.",
+        transform: compose(addBuffer(5), gainRelic(cursedInkwell))
       }
     ]
   });

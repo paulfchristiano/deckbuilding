@@ -377,8 +377,8 @@ export const artistsBrew: CardSpec = {
     isPotion: true,
     rules: [reductionRule],
     effects: [targetedEffect(
-        card => addToken(card, 'reduction', 8),
-        'Put 8 reduction tokens on a card in the supply.',
+        card => addToken(card, 'reduction', 16),
+        'Put 16 reduction tokens on a card in the supply.',
         state => state.supply,
     )]
 }

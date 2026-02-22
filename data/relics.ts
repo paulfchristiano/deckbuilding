@@ -52,19 +52,19 @@ export const bagOfPreparation: RelicSpec = {
     triggers: [{
         kind: 'afterStart',
         handles: () => true,
-        text: ['At the start of the game, +10 actions.'],
-        transform: (_e, _s, c) => gainActions(10, c)
+        text: ['At the start of the game, +5 actions.'],
+        transform: (_e, _s, c) => gainActions(5, c)
     }]
 }
 addRelicReward(bagOfPreparation)
 
 export const courier: RelicSpec = {
     name: 'Courier',
-    triggers: [{
-        kind: 'afterUse',
-        text: [`+2 buys and +1 action each time you use ${refresh.name}.`],
-        handles: (e, s, c) => e.card.name === refresh.name,
-        transform: (e, s, c) => doAll([gainBuys(2, c), gainActions(1, c)])
+    replacers: [{
+        kind: 'resource',
+        text: [`${refresh.name} gives you 2 more buys.`],
+        handles: (e, s, c) => sourceHasName(e.source, refresh.name) && e.resource === 'buys',
+        replace: (e, s, c) => ({ ...e, amount: e.amount + 2 })
     }],
 }
 addRelicReward(courier)
@@ -86,15 +86,15 @@ export const elegantQuill: RelicSpec = {
     metaTriggers: [
         {
             kind: 'relic',
-            text: ['When you gain this, gain 2@ buffer.'],
+            text: ['When you gain this, gain 3@ buffer.'],
             handles: (e: GainRelicEvent, _s: MetaState, self: Relic) => self.id === e.relic.id,
-            transform: (_e: GainRelicEvent) => addBuffer(2)
+            transform: (_e: GainRelicEvent) => addBuffer(3)
         },
         {
             kind: 'loseRelic',
-            text: ['When you lose this, lose 2@ buffer.'],
+            text: ['When you lose this, lose 3@ buffer.'],
             handles: (e: LoseRelicEvent, _s: MetaState, self: Relic) => self.id === e.relic.id,
-            transform: (_e: LoseRelicEvent) => addBuffer(-2)
+            transform: (_e: LoseRelicEvent) => addBuffer(-3)
         }
     ]
 }
@@ -117,14 +117,19 @@ export const darkBanner: RelicSpec = {
     maxStage: 6,
     metaReplacers: [{
         kind: 'gameSetup',
-        text: ['Par is 4@ lower on each course.'],
-        replace: (p: GameSetupParams) => ({ ...p, par: p.par - 4 })
+        text: ['Par is 1@ lower on each course.'],
+        replace: (p: GameSetupParams) => ({ ...p, par: p.par - 1 })
     }],
     metaTriggers: [{
-        kind: 'start',
-        text: ['At the start of each course, gain 3@ buffer.'],
-        handles: (e: CourseStartEvent) => true,
-        transform: (e: CourseStartEvent) => addBuffer(3)
+        kind: 'end',
+        text: ['At end of course, gain 1@ buffer for each 1@ you beat par up to a max of 4@.'],
+        simpleText: [`For each 1@ you beat par, gain 1@ buffer up to a max of 4@.`],
+        handles: (e: CourseEndEvent) => e.score < e.par,
+        transform: (e: CourseEndEvent) => {
+            const energyUnderPar = e.par - e.score
+            const bufferGain = Math.min(energyUnderPar, 4)
+            return addBuffer(bufferGain)
+        }
     }]
 }
 addRelicReward(darkBanner)
@@ -268,8 +273,8 @@ export const creditVoucher: RelicSpec = {
     name: 'Credit Voucher',
     triggers: [{
         kind: 'buy',
-        text: ['Whenever you buy a card costing $5 or more, +1 buy.'],
-        handles: (e, _s, _c) => e.card.cost('buy', _s).coin >= 5,
+        text: ['Whenever you buy a card costing $4 or more, +1 buy.'],
+        handles: (e, _s, _c) => e.card.cost('buy', _s).coin >= 4,
         transform: (e, s, source) => gainBuys(1, source)
     }]
 }
@@ -320,8 +325,8 @@ export const calledShot: RelicSpec = {
     maxStage: 6,
     metaTriggers: [{
         kind: 'end',
-        text: ['At end of the next course, gain 1 buffer for each @ you beat par, then destroy this.'],
-        simpleText: ['At end of the next course, gain 1 buffer for each @ you beat par.'],
+        text: ['At end of stage, gain 1 buffer for each @ you beat par, then destroy this.'],
+        simpleText: ['At end of this stage, gain 1 buffer for each @ you beat par.'],
         handles: (_e: CourseEndEvent, _s: MetaState, _self: Relic) => true,
         transform: (e: CourseEndEvent, _s: MetaState, self: Relic) => async function (state: MetaState) {
             const gain = Math.max(0, e.par - e.score)
