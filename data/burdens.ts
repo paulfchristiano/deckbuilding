@@ -236,9 +236,9 @@ const cursedBoots: RelicSpec = {
         kind: 'pathRewards',
         text: [
             'Remove the first path option.',
-            'If this has a charge token, add a path option "Use Cursed Boots."'
+            'If this has a charge token, add a new path option that spends the charge token.'
         ],
-        simpleText: ['Remove first path; if charged, add Use Cursed Boots.'],
+        simpleText: ['You can only pick the first path one more time this game.'],
         replace: (params, _state, self: Relic) => {
             const paths = params.paths.slice(1)
             if (self.count('charge') > 0) {
@@ -326,10 +326,10 @@ const brokenCrown: RelicSpec = {
     burden: true,
     metaReplacers: [{
         kind: 'reward',
-        text: ['When you pick the third option from a reward pack, lose 1 buffer.'],
+        text: ['When you pick the first option from a reward pack, lose 1 buffer.'],
         replace: params => {
             const pickBufferAdjustments = [...params.pickBufferAdjustments]
-            pickBufferAdjustments[2] = (pickBufferAdjustments[2] ?? 0) - 1
+            pickBufferAdjustments[0] = (pickBufferAdjustments[0] ?? 0) - 1
             return { ...params, pickBufferAdjustments }
         }
     }]
@@ -368,7 +368,7 @@ function setDecayReplacer(numTokens: number): ((params: CreateParams) => CreateP
 const decayCardUpgrade: CardUpgrade = {
     id: 'burden_decay_card',
     burden: true,
-    name: name => `${name}-`,
+    name: name => `${name}−`,
     rules: [decayRule],
     staticReplacers: [{
         kind: 'create',
@@ -383,7 +383,7 @@ registerEncounterUpgrade('burden_decay_card', decayCardUpgrade)
 const dullCardUpgrade: CardUpgrade = {
     id: 'burden_dull_card',
     burden: true,
-    name: name => `${name}-`,
+    name: name => `${name}−`,
     cost: (cost, kind) => kind === 'play'
         ? { ...cost, coin: cost.coin + 1 }
         : cost,
@@ -393,7 +393,7 @@ registerEncounterUpgrade('burden_dull_card', dullCardUpgrade)
 const taxEventUpgrade: CardUpgrade = {
     id: 'burden_tax_event',
     burden: true,
-    name: name => `${name}-`,
+    name: name => `${name}−`,
     cost: (cost, kind) => kind === 'use'
         ? { ...cost, coin: cost.coin + 2 }
         : cost,

@@ -3200,7 +3200,7 @@ export async function playGame(
                 let path: Path
                 while (true) {
                     try {
-                        path = (paths.length > 1) ? await state.ui.pickPath(state, paths) : paths[0]
+                        path = await state.ui.pickPath(state, paths)
                         break
                     } catch (e) {
                         if (e instanceof ReplayStage) {
