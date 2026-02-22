@@ -11,8 +11,6 @@ import { Option, OptionRender, HotkeyHint } from './gameLogic.js'
 import { UI, Undo, SetState } from './gameLogic.js'
 import { playGame, initialState, Replayable } from './gameLogic.js'
 import { refresh } from './gameLogic.js'
-import { BASE_PARS, MINOR_CURSE_STAGE, MAJOR_CURSE_STAGE } from './metaLogic.js'
-import { ProgressStageDisplay, renderProgressSidebar } from './progressSidebar.js'
 import { cardText as renderCardText } from './cardRendering.js'
 
 // ----------------------------- DOM Helpers
@@ -47,61 +45,9 @@ function hideElement(el: HTMLElement): void {
     el.setAttribute('hidden', '')
 }
 
-function updateGameProgressSidebar(spec: GameSpec): void {
-    const currentStage = spec.metaStage
-    const activeStage = spec.replayStage ?? spec.metaStage
-    const stageScores = spec.metaStageScores || []
-    const stagePars = spec.metaStagePars || []
-    const stageTooltips = spec.metaStageTooltips || []
-    const replayStage = spec.replayStage
-    const displays: ProgressStageDisplay[] = []
-    const parMarker = (stage: number): string => {
-        if (spec.metaCursesEnabled !== true) return ''
-        if (stage === MINOR_CURSE_STAGE) return '*'
-        if (stage === MAJOR_CURSE_STAGE) return '**'
-        return ''
-    }
-    const formatPar = (stage: number, par: number): string => `${par}${parMarker(stage)}`
-
-    for (let stage = 0; stage < BASE_PARS.length; stage++) {
-        const display: ProgressStageDisplay = { stage }
-        const basePar = BASE_PARS[stage]
-        const tooltip = stageTooltips[stage] ?? (basePar === undefined ? null : `${basePar} (base)`)
-        if (tooltip !== null) display.tooltipText = tooltip.replace(/, /g, '\n')
-
-        if (currentStage !== undefined && stage < currentStage) {
-            display.completed = true
-            const score = stageScores[stage]
-            const par = stagePars[stage]
-            if (score !== null && score !== undefined && par !== null && par !== undefined) {
-                display.scoreText = `${score}/${formatPar(stage, par)}`
-                if (score > par) display.scoreColor = 'red'
-                else if (score < par) display.scoreColor = 'green'
-            }
-        } else if (currentStage !== undefined && stage === currentStage) {
-            display.current = true
-            if (basePar !== undefined) {
-                display.scoreText = formatPar(stage, basePar)
-            }
-        } else if (basePar !== undefined) {
-            display.scoreText = formatPar(stage, basePar)
-        }
-
-        if (activeStage !== null && activeStage !== undefined && stage === activeStage) {
-            display.scoreText = `?/${formatPar(stage, spec.par)}`
-        }
-        if (replayStage !== null && replayStage !== undefined && stage === replayStage) {
-            display.replaying = true
-        }
-        displays.push(display)
-    }
-
-    renderProgressSidebar('#progressLineGame', displays)
-}
 
 let clearMacroDeleteMenuHandlers: (() => void) | null = null
 let activeMacroDeleteMenu: HTMLElement | null = null
-let inGameDeckDialogOpen = false
 
 function closeMacroDeleteMenu(): void {
     if (activeMacroDeleteMenu !== null) {
@@ -1238,62 +1184,7 @@ function bindSpecials(state: State, ui: GameUI): void {
     bindRedo(state, ui)
     bindMacroToggle(state, ui)
     bindSaveReplay(state, ui)
-    bindInGameDeckDialog(state)
     bindBack(ui)
-}
-
-function renderInGameDeckSection(title: string, specs: CardSpec[]): string {
-    if (specs.length === 0) {
-        return `<div class='deckSection'><div class='deckSectionHeader'><strong>${title}:</strong></div><div class='deckSectionItems'><div class='saveSeed'>None</div></div></div>`
-    }
-    const cards = specs.map(spec => renderSpecNoRelated(spec)).join('')
-    return `<div class='deckSection'><div class='deckSectionHeader'><strong>${title}:</strong></div><div class='deckSectionItems'>${cards}</div></div>`
-}
-
-function buildRelicDisplaySpecs(state: State): CardSpec[] {
-    return state.relics.map(relic => relic.spec)
-}
-
-function showInGameDeckDialog(state: State): void {
-    const sections = [
-        renderInGameDeckSection('Cards', state.spec.collectedCards ?? state.spec.cards),
-        renderInGameDeckSection('Events', state.spec.collectedEvents ?? state.spec.events),
-        renderInGameDeckSection('Potions', state.potions.map(p => p.spec)),
-        renderInGameDeckSection('Relics', buildRelicDisplaySpecs(state)),
-    ].join('')
-    getElement('deckContents').innerHTML = sections
-    getElement('deckDialog').setAttribute('active', 'true')
-    inGameDeckDialogOpen = true
-
-    // Position tooltips with fixed positioning so they escape the scroll container
-    const dialog = getElement('deckDialog')
-    const specs = dialog.querySelectorAll('.spec')
-    specs.forEach(spec => {
-        const tooltips = spec.querySelectorAll('.tooltip, .tooltip-simple, .tooltip-full')
-        spec.addEventListener('mouseenter', () => {
-            const rect = spec.getBoundingClientRect()
-            tooltips.forEach(tooltip => {
-                const el = tooltip as HTMLElement
-                el.style.position = 'fixed'
-                el.style.top = `${rect.bottom}px`
-                el.style.left = `${rect.left}px`
-            })
-        })
-    })
-}
-
-function hideInGameDeckDialog(): void {
-    getElement('deckDialog').setAttribute('active', 'false')
-    inGameDeckDialogOpen = false
-}
-
-function bindInGameDeckDialog(state: State): void {
-    const deckIcon = getElement('deckIcon')
-    deckIcon.onclick = () => {
-        if (inGameDeckDialogOpen) hideInGameDeckDialog()
-        else showInGameDeckDialog(state)
-    }
-    getElement('deckClose').onclick = () => hideInGameDeckDialog()
 }
 
 function bindBack(ui: GameUI): void {
@@ -1307,8 +1198,9 @@ function bindBack(ui: GameUI): void {
         }
     }
     function pick() {
-        if (inGameDeckDialogOpen) {
-            hideInGameDeckDialog()
+        const deckDialog = getElement('deckDialog')
+        if (deckDialog.getAttribute('active') === 'true') {
+            deckDialog.setAttribute('active', 'false')
         } else {
             back()
         }
@@ -1851,14 +1743,6 @@ export async function startGame(
     closeMacroDeleteMenu()
     globalRendererState.viewingMacros = initialViewingMacros
     const ui = new GameUI(initialMacros, onProgress, undoAtBeginning)
-
-    // Show game container
-    showElement(getElement('gameContainer'))
-    hideElement(getElement('stageScreen'))
-    hideElement(getElement('pathSelectionScreen'))
-    hideElement(getElement('victoryScreen'))
-    hideElement(getElement('gameOverScreen'))
-    updateGameProgressSidebar(spec)
 
     const result = await playGame(spec, ui, initialHistory, initialRedo)
     return { ...result, ...ui.exportPersistenceData() }

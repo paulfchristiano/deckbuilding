@@ -339,7 +339,7 @@ registerRelicSpec(brokenCrown)
 const taxCardUpgrade: CardUpgrade = {
     id: 'burden_tax_card',
     burden: true,
-    name: name => `${name}-`,
+    name: name => `${name}−`,
     cost: (cost, kind) => kind === 'buy'
         ? { ...cost, coin: cost.coin + 2 }
         : cost,

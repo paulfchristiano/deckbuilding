@@ -86,6 +86,17 @@ function showScreen(screen: Screen): void {
             hideElement(el)
         }
     }
+
+    // Show/hide shared elements based on screen
+    const showShared = screen === 'stage' || screen === 'path' || screen === 'game'
+    const sharedElements = ['progressSidebar', 'bufferDisplay', 'deckIcon']
+    for (const id of sharedElements) {
+        const el = document.getElementById(id)
+        if (el) {
+            if (showShared) showElement(el)
+            else hideElement(el)
+        }
+    }
 }
 
 // ----------------------------- Dialog Management
@@ -198,58 +209,54 @@ function updateBufferDisplay(state: MetaState): void {
 }
 
 function updateProgressSidebar(state: MetaState, onReplayStage?: (stage: number) => void): void {
-    const renderLine = (selector: string, inGameSidebar: boolean): void => {
-        const displays: ProgressStageDisplay[] = []
-        for (let stage = 0; stage < BASE_PARS.length; stage++) {
-            const display: ProgressStageDisplay = { stage }
-            const basePar = BASE_PARS[stage]
-            const shownBasePar = displayBasePar(stage, state)
-            const currentStagePar = (
-                stage === state.data.stage &&
-                state.data.challenges.length === 1
-            )
-                ? makeSpec(state, state.data.challenges[0]).par
-                : null
+    const inGame = state.data.phase === 'in_game'
+    const displays: ProgressStageDisplay[] = []
+    for (let stage = 0; stage < BASE_PARS.length; stage++) {
+        const display: ProgressStageDisplay = { stage }
+        const basePar = BASE_PARS[stage]
+        const shownBasePar = displayBasePar(stage, state)
+        const currentStageSpec = (
+            stage === state.data.stage &&
+            state.data.challenges.length === 1
+        )
+            ? makeSpec(state, state.data.challenges[0])
+            : null
+        const currentStagePar = currentStageSpec?.par ?? null
 
-            let tooltip = basePar === undefined ? '' : describeBasePar(stage, state)
-            if (stage < state.data.stage) {
-                const replayData = state.data.stageReplays[stage]
-                if (replayData !== null) {
-                    tooltip = describeParCalculation(stage, replayData.challenge, replayData.spec.relics, state)
-                }
-            } else if (stage === state.data.stage && currentStagePar !== null) {
-                tooltip = describeParCalculation(stage, state.data.challenges[0], state.data.relics, state)
+        let tooltip = basePar === undefined ? '' : describeBasePar(stage, state)
+        if (stage < state.data.stage) {
+            const replayData = state.data.stageReplays[stage]
+            if (replayData !== null) {
+                tooltip = describeParCalculation(stage, replayData.challenge, replayData.spec.relics, state)
             }
-            display.tooltipText = tooltip.replace(/, /g, '\n')
-
-            if (stage < state.data.stage) {
-                display.completed = true
-                const score = state.data.stageScores[stage]
-                const par = state.data.stagePars[stage]
-                if (score !== null && par !== null) {
-                    display.scoreText = `${score}/${formatParDisplay(stage, par, state)}`
-                    if (score > par) display.scoreColor = 'red'
-                    else if (score < par) display.scoreColor = 'green'
-                }
-                if (!inGameSidebar && onReplayStage && state.data.stageReplays[stage] !== null) {
-                    display.replayable = true
-                    display.onClick = () => onReplayStage(stage)
-                }
-            } else if (stage === state.data.stage) {
-                display.current = true
-                if (state.data.phase === 'in_game' && currentStagePar !== null) display.scoreText = `?/${formatParDisplay(stage, currentStagePar, state)}`
-                else if (shownBasePar !== null) display.scoreText = formatParDisplay(stage, shownBasePar, state)
-            } else {
-                if (shownBasePar !== null) display.scoreText = formatParDisplay(stage, shownBasePar, state)
-            }
-            displays.push(display)
+        } else if (stage === state.data.stage && currentStagePar !== null) {
+            tooltip = describeParCalculation(stage, state.data.challenges[0], state.data.relics, state)
         }
-        renderProgressSidebar(selector, displays)
-    }
+        display.tooltipText = tooltip.replace(/, /g, '\n')
 
-    renderLine('#progressLine', false)
-    renderLine('#progressLinePath', false)
-    renderLine('#progressLineGame', true)
+        if (stage < state.data.stage) {
+            display.completed = true
+            const score = state.data.stageScores[stage]
+            const par = state.data.stagePars[stage]
+            if (score !== null && par !== null) {
+                display.scoreText = `${score}/${formatParDisplay(stage, par, state)}`
+                if (score > par) display.scoreColor = 'red'
+                else if (score < par) display.scoreColor = 'green'
+            }
+            if (!inGame && onReplayStage && state.data.stageReplays[stage] !== null) {
+                display.replayable = true
+                display.onClick = () => onReplayStage(stage)
+            }
+        } else if (stage === state.data.stage) {
+            display.current = true
+            if (state.data.phase === 'in_game' && currentStagePar !== null) display.scoreText = `?/${formatParDisplay(stage, currentStagePar, state)}`
+            else if (shownBasePar !== null) display.scoreText = formatParDisplay(stage, shownBasePar, state)
+        } else {
+            if (shownBasePar !== null) display.scoreText = formatParDisplay(stage, shownBasePar, state)
+        }
+        displays.push(display)
+    }
+    renderProgressSidebar('#progressLine', displays)
 }
 
 function encounterTooltipText(rewardState: RewardState, state: MetaState): string {
@@ -652,9 +659,6 @@ function renderPathColumn(path: Path, state: MetaState, onSelect: (path: Path) =
 let deckDialogOpen = false
 
 function showDeckDialog(state: MetaState): void {
-    const container = getElement('deckContents')
-    clearElement(container)
-
     const sections: Array<{ title: string, items: CardSpec[] }> = [
         { title: 'Cards', items: state.data.collectedCards },
         { title: 'Events', items: state.data.collectedEvents },
@@ -667,27 +671,42 @@ function showDeckDialog(state: MetaState): void {
             return relic.spec
         }) }
     ]
+    renderDeckSections(sections)
+}
+
+function showDeckDialogForSpec(spec: GameSpec): void {
+    const sections: Array<{ title: string, items: CardSpec[] }> = [
+        { title: 'Cards', items: spec.collectedCards ?? spec.cards },
+        { title: 'Events', items: spec.collectedEvents ?? spec.events },
+        { title: 'Potions', items: spec.potions.map(p => p.spec) },
+        { title: 'Relics', items: spec.relics.map(relic => {
+            const charges = relic.count('charge')
+            if (charges > 0) {
+                return { ...relic.spec, name: `${relic.spec.name} (${charges})` }
+            }
+            return relic.spec
+        }) }
+    ]
+    renderDeckSections(sections)
+}
+
+function renderDeckSections(sections: Array<{ title: string, items: CardSpec[] }>): void {
+    const container = getElement('deckContents')
+    clearElement(container)
 
     let hasContent = false
     for (const section of sections) {
         if (section.items.length > 0) {
             hasContent = true
-
-            // Create section container
             const sectionDiv = createDiv('deckSection')
-
-            // Header
             const header = createDiv('deckSectionHeader')
             header.innerHTML = `<strong>${section.title}:</strong>`
             sectionDiv.appendChild(header)
-
-            // Items row
             const itemsRow = createDiv('deckSectionItems')
             for (const spec of section.items) {
                 itemsRow.appendChild(createElementFromHTML(renderSpecNoRelated(spec)))
             }
             sectionDiv.appendChild(itemsRow)
-
             container.appendChild(sectionDiv)
         }
     }
@@ -698,7 +717,22 @@ function showDeckDialog(state: MetaState): void {
         container.appendChild(msg)
     }
 
-    getElement('deckClose').onclick = hideDeckDialog
+    // Position tooltips with fixed positioning so they escape the scroll container
+    const dialog = getElement('deckDialog')
+    const specs = dialog.querySelectorAll('.spec')
+    specs.forEach(spec => {
+        const tooltips = spec.querySelectorAll('.tooltip, .tooltip-simple, .tooltip-full')
+        spec.addEventListener('mouseenter', () => {
+            const rect = spec.getBoundingClientRect()
+            tooltips.forEach(tooltip => {
+                const el = tooltip as HTMLElement
+                el.style.position = 'fixed'
+                el.style.top = `${rect.bottom}px`
+                el.style.left = `${rect.left}px`
+            })
+        })
+    })
+
     showDialog('deckDialog')
     deckDialogOpen = true
 }
@@ -913,6 +947,35 @@ export class MetaGameUI implements MetaUI {
         onProgress: ((progress: ActiveGameProgress) => void) | null = null,
         undoAtBeginning: 'leave' | 'nothing' = 'leave'
     ): Promise<VictoryData> {
+        showScreen('game')
+        hideDeckDialog()
+        // Update progress sidebar to show ?/par for the active stage
+        if (spec.metaStage !== undefined) {
+            const circle = document.querySelector(`#progressLine .progressCircle[data-stage="${spec.metaStage}"]`)
+            if (circle) {
+                const existing = circle.querySelector('.progressScore')
+                if (existing) existing.remove()
+                const score = document.createElement('span')
+                score.className = 'progressScore'
+                score.textContent = `?/${spec.par}`
+                circle.appendChild(score)
+            }
+        }
+        // Highlight the replaying stage
+        if (spec.replayStage !== undefined && spec.replayStage !== null) {
+            const replayCircle = document.querySelector(`#progressLine .progressCircle[data-stage="${spec.replayStage}"]`)
+            if (replayCircle) replayCircle.classList.add('replaying')
+        }
+        // Bind deck icon to show game deck during play
+        const deckIcon = getElement('deckIcon')
+        deckIcon.onclick = () => {
+            if (isDeckDialogOpen()) {
+                hideDeckDialog()
+            } else {
+                showDeckDialogForSpec(spec)
+            }
+        }
+        getElement('deckClose').onclick = () => hideDeckDialog()
         return startGame(spec, gameHistory, gameRedo, macros, viewingMacros, onProgress, undoAtBeginning).catch(e => {
             if (e instanceof UndoPastBeginning) {
                 // Pass history and redo to meta Undo for restoration on redo

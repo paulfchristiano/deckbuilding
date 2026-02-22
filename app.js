@@ -15520,7 +15520,7 @@
     id: "burden_tax_card",
     burden: true,
     name: function(name) {
-      return "".concat(name, "-");
+      return "".concat(name, "\u2212");
     },
     cost: function(cost, kind) {
       return kind === "buy" ? __assign10(__assign10({}, cost), { coin: cost.coin + 2 }) : cost;
@@ -16379,84 +16379,6 @@
     }
   });
 
-  // public/progressSidebar.js
-  var __values13 = function(o) {
-    var s = typeof Symbol === "function" && Symbol.iterator, m = s && o[s], i = 0;
-    if (m) return m.call(o);
-    if (o && typeof o.length === "number") return {
-      next: function() {
-        if (o && i >= o.length) o = void 0;
-        return { value: o && o[i++], done: !o };
-      }
-    };
-    throw new TypeError(s ? "Object is not iterable." : "Symbol.iterator is not defined.");
-  };
-  function createTooltip(text) {
-    var tooltip = document.createElement("span");
-    tooltip.className = "tooltip";
-    tooltip.style.whiteSpace = "pre-line";
-    tooltip.textContent = text;
-    return tooltip;
-  }
-  function renderProgressSidebar(selector, stages) {
-    var e_1, _a;
-    var circles = document.querySelectorAll("".concat(selector, " .progressCircle"));
-    var byStage = /* @__PURE__ */ new Map();
-    try {
-      for (var stages_1 = __values13(stages), stages_1_1 = stages_1.next(); !stages_1_1.done; stages_1_1 = stages_1.next()) {
-        var stage = stages_1_1.value;
-        byStage.set(stage.stage, stage);
-      }
-    } catch (e_1_1) {
-      e_1 = { error: e_1_1 };
-    } finally {
-      try {
-        if (stages_1_1 && !stages_1_1.done && (_a = stages_1.return)) _a.call(stages_1);
-      } finally {
-        if (e_1) throw e_1.error;
-      }
-    }
-    circles.forEach(function(circle) {
-      var el = circle;
-      var stage2 = parseInt(el.getAttribute("data-stage") || "-1");
-      var display = byStage.get(stage2);
-      el.classList.remove("completed", "current", "replayable", "replaying");
-      el.onclick = null;
-      var existingScore = el.querySelector(".progressScore");
-      if (existingScore)
-        existingScore.remove();
-      var existingTooltips = el.querySelectorAll(".tooltip");
-      existingTooltips.forEach(function(node) {
-        return node.remove();
-      });
-      if (!display)
-        return;
-      if (display.completed)
-        el.classList.add("completed");
-      if (display.current)
-        el.classList.add("current");
-      if (display.replayable)
-        el.classList.add("replayable");
-      if (display.replaying)
-        el.classList.add("replaying");
-      if (display.onClick)
-        el.onclick = display.onClick;
-      var tooltipTarget = el;
-      if (display.scoreText !== void 0) {
-        var scoreSpan = document.createElement("span");
-        scoreSpan.className = "progressScore";
-        scoreSpan.textContent = display.scoreText;
-        if (display.scoreColor)
-          scoreSpan.style.color = display.scoreColor;
-        el.appendChild(scoreSpan);
-        tooltipTarget = scoreSpan;
-      }
-      if (display.tooltipText && display.tooltipText.length > 0) {
-        tooltipTarget.appendChild(createTooltip(display.tooltipText));
-      }
-    });
-  }
-
   // public/gameUI.js
   var __extends3 = /* @__PURE__ */ (function() {
     var extendStatics = function(d, b) {
@@ -16584,7 +16506,7 @@
       return { value: op[0] ? op[1] : void 0, done: true };
     }
   };
-  var __values14 = function(o) {
+  var __values13 = function(o) {
     var s = typeof Symbol === "function" && Symbol.iterator, m = s && o[s], i = 0;
     if (m) return m.call(o);
     if (o && typeof o.length === "number") return {
@@ -16638,71 +16560,8 @@
     template.innerHTML = html.trim();
     return template.content.firstChild;
   }
-  function showElement(el) {
-    el.removeAttribute("hidden");
-  }
-  function hideElement(el) {
-    el.setAttribute("hidden", "");
-  }
-  function updateGameProgressSidebar(spec) {
-    var _a, _b;
-    var currentStage = spec.metaStage;
-    var activeStage = (_a = spec.replayStage) !== null && _a !== void 0 ? _a : spec.metaStage;
-    var stageScores = spec.metaStageScores || [];
-    var stagePars = spec.metaStagePars || [];
-    var stageTooltips = spec.metaStageTooltips || [];
-    var replayStage = spec.replayStage;
-    var displays = [];
-    var parMarker = function(stage2) {
-      if (spec.metaCursesEnabled !== true)
-        return "";
-      if (stage2 === MINOR_CURSE_STAGE)
-        return "*";
-      if (stage2 === MAJOR_CURSE_STAGE)
-        return "**";
-      return "";
-    };
-    var formatPar = function(stage2, par2) {
-      return "".concat(par2).concat(parMarker(stage2));
-    };
-    for (var stage = 0; stage < BASE_PARS.length; stage++) {
-      var display = { stage };
-      var basePar = BASE_PARS[stage];
-      var tooltip = (_b = stageTooltips[stage]) !== null && _b !== void 0 ? _b : basePar === void 0 ? null : "".concat(basePar, " (base)");
-      if (tooltip !== null)
-        display.tooltipText = tooltip.replace(/, /g, "\n");
-      if (currentStage !== void 0 && stage < currentStage) {
-        display.completed = true;
-        var score = stageScores[stage];
-        var par = stagePars[stage];
-        if (score !== null && score !== void 0 && par !== null && par !== void 0) {
-          display.scoreText = "".concat(score, "/").concat(formatPar(stage, par));
-          if (score > par)
-            display.scoreColor = "red";
-          else if (score < par)
-            display.scoreColor = "green";
-        }
-      } else if (currentStage !== void 0 && stage === currentStage) {
-        display.current = true;
-        if (basePar !== void 0) {
-          display.scoreText = formatPar(stage, basePar);
-        }
-      } else if (basePar !== void 0) {
-        display.scoreText = formatPar(stage, basePar);
-      }
-      if (activeStage !== null && activeStage !== void 0 && stage === activeStage) {
-        display.scoreText = "?/".concat(formatPar(stage, spec.par));
-      }
-      if (replayStage !== null && replayStage !== void 0 && stage === replayStage) {
-        display.replaying = true;
-      }
-      displays.push(display);
-    }
-    renderProgressSidebar("#progressLineGame", displays);
-  }
   var clearMacroDeleteMenuHandlers = null;
   var activeMacroDeleteMenu = null;
-  var inGameDeckDialogOpen = false;
   function closeMacroDeleteMenu() {
     if (activeMacroDeleteMenu !== null) {
       activeMacroDeleteMenu.remove();
@@ -16958,7 +16817,7 @@
     var e_1, _a;
     var counts = /* @__PURE__ */ new Map();
     try {
-      for (var cards_1 = __values14(cards), cards_1_1 = cards_1.next(); !cards_1_1.done; cards_1_1 = cards_1.next()) {
+      for (var cards_1 = __values13(cards), cards_1_1 = cards_1.next(); !cards_1_1.done; cards_1_1 = cards_1.next()) {
         var card = cards_1_1.value;
         counts.set(card.name, (counts.get(card.name) || 0) + 1);
       }
@@ -16977,7 +16836,7 @@
     var e_2, _a;
     var names = new Set(__spreadArray10(__spreadArray10([], __read15(start.keys()), false), __read15(current.keys()), false));
     try {
-      for (var names_1 = __values14(names), names_1_1 = names_1.next(); !names_1_1.done; names_1_1 = names_1.next()) {
+      for (var names_1 = __values13(names), names_1_1 = names_1.next(); !names_1_1.done; names_1_1 = names_1.next()) {
         var name_1 = names_1_1.value;
         var decrease = (start.get(name_1) || 0) - (current.get(name_1) || 0);
         if (decrease > 0) {
@@ -17027,7 +16886,7 @@
   function hasRequiredCounts(required, current) {
     var e_3, _a;
     try {
-      for (var required_1 = __values14(required), required_1_1 = required_1.next(); !required_1_1.done; required_1_1 = required_1.next()) {
+      for (var required_1 = __values13(required), required_1_1 = required_1.next(); !required_1_1.done; required_1_1 = required_1.next()) {
         var _b = __read15(required_1_1.value, 2), name_2 = _b[0], minimum = _b[1];
         if ((current.get(name_2) || 0) < minimum)
           return false;
@@ -17216,7 +17075,7 @@
           var seenGroups = /* @__PURE__ */ new Set();
           var groupRank = 0;
           try {
-            for (var cards_2 = __values14(cards), cards_2_1 = cards_2.next(); !cards_2_1.done; cards_2_1 = cards_2.next()) {
+            for (var cards_2 = __values13(cards), cards_2_1 = cards_2.next(); !cards_2_1.done; cards_2_1 = cards_2.next()) {
               var card = cards_2_1.value;
               var groupKey = cardGroupKey(card);
               if (seenGroups.has(groupKey))
@@ -17243,7 +17102,7 @@
         setFrom(state.play, supplyAndPlayHotkeys);
         setFrom(state.potions, potionHotkeys);
         try {
-          for (var options_1 = __values14(options), options_1_1 = options_1.next(); !options_1_1.done; options_1_1 = options_1.next()) {
+          for (var options_1 = __values13(options), options_1_1 = options_1.next(); !options_1_1.done; options_1_1 = options_1.next()) {
             var option = options_1_1.value;
             var hint = interpretHint(option.hotkeyHint);
             if (hint && !result.has(renderKey(option.render)) && !takenByPickable(hint)) {
@@ -17261,7 +17120,7 @@
         }
         var index = 0;
         try {
-          for (var options_2 = __values14(options), options_2_1 = options_2.next(); !options_2_1.done; options_2_1 = options_2.next()) {
+          for (var options_2 = __values13(options), options_2_1 = options_2.next(); !options_2_1.done; options_2_1 = options_2.next()) {
             var option = options_2_1.value;
             if (!result.has(renderKey(option.render))) {
               while (index < hotkeys.length && takenByPickable(hotkeys[index])) {
@@ -17305,7 +17164,7 @@
         var e_7, _a;
         var parts = [];
         try {
-          for (var tokens_1 = __values14(tokens), tokens_1_1 = tokens_1.next(); !tokens_1_1.done; tokens_1_1 = tokens_1.next()) {
+          for (var tokens_1 = __values13(tokens), tokens_1_1 = tokens_1.next(); !tokens_1_1.done; tokens_1_1 = tokens_1.next()) {
             var _b = __read15(tokens_1_1.value, 2), token = _b[0], count = _b[1];
             if (count > 0) {
               var idx = this.getTokenIndex(token);
@@ -17329,7 +17188,7 @@
         var e_8, _a;
         var parts = [];
         try {
-          for (var tokens_2 = __values14(tokens), tokens_2_1 = tokens_2.next(); !tokens_2_1.done; tokens_2_1 = tokens_2.next()) {
+          for (var tokens_2 = __values13(tokens), tokens_2_1 = tokens_2.next(); !tokens_2_1.done; tokens_2_1 = tokens_2.next()) {
             var _b = __read15(tokens_2_1.value, 2), token = _b[0], count = _b[1];
             if (count > 0) {
               parts.push(count === 1 ? token : "".concat(token, " (").concat(count, ")"));
@@ -17374,7 +17233,7 @@
     var e_9, _a;
     var parts = [];
     try {
-      for (var _b = __values14(cardSpecEffects(spec)), _c = _b.next(); !_c.done; _c = _b.next()) {
+      for (var _b = __values13(cardSpecEffects(spec)), _c = _b.next(); !_c.done; _c = _b.next()) {
         var effect = _c.value;
         parts.push.apply(parts, __spreadArray10([], __read15(effect.text), false));
       }
@@ -17395,7 +17254,7 @@
     var e_10, _a;
     var parts = [];
     try {
-      for (var _b = __values14(spec.ability || []), _c = _b.next(); !_c.done; _c = _b.next()) {
+      for (var _b = __values13(spec.ability || []), _c = _b.next(); !_c.done; _c = _b.next()) {
         var effect = _c.value;
         parts.push.apply(parts, __spreadArray10([], __read15(effect.text.map(function(x) {
           return "<div>(ability) ".concat(x, "</div>");
@@ -17513,28 +17372,6 @@
     var replayPotionClass = replayUsedPotion ? " replay-used-potion" : "";
     return "<div id='card".concat(card.id, "' class='card").concat(replayPotionClass, "' ").concat(ticktext, " ").concat(choosetext, ">\n        ").concat(picktext, " ").concat(counttext, "\n        <div class='cardbody'>").concat(hotkeytext, " ").concat(card).concat(tokenhtml, "</div>\n        <div class='cardcost'>").concat(costhtml, "</div>\n        <span class='tooltip tooltip-simple'>").concat(renderTooltipSimple(card, state, tokenRenderer), "</span>\n        <span class='tooltip tooltip-full'>").concat(renderTooltipFull(card, state, tokenRenderer), "</span>\n    </div>");
   }
-  function buildSpecTooltip2(spec) {
-    var buyCost = cardSpecCost(spec, "buy");
-    var actionCost = cardSpecCost(spec, actionCostKindForSpec2(spec));
-    var buyStr = !isZero2(buyCost) ? "(".concat(renderCost(buyCost), ")") : "---";
-    var costStr = !isZero2(actionCost) ? "(".concat(renderCost(actionCost), ")") : "---";
-    var header = "<div>---".concat(buyStr, " ").concat(displayName(spec), " ").concat(costStr, "---</div>");
-    var baseFilling = header + cardText2(spec);
-    var relatedFilling = (spec.relatedCards || []).map(buildSpecTooltip2).join("");
-    return baseFilling + relatedFilling;
-  }
-  function renderSpecNoRelated2(spec) {
-    var buyCost = cardSpecCost(spec, "buy");
-    var actionCost = cardSpecCost(spec, actionCostKindForSpec2(spec));
-    var buyText = isZero2(buyCost) ? "" : "(".concat(renderCost(buyCost), ")&nbsp;");
-    var costText = isZero2(actionCost) ? "" : "&nbsp;(".concat(renderCost(actionCost), ")");
-    var header = "<div>".concat(buyText, "<strong>").concat(displayName(spec), "</strong>").concat(costText, "</div>");
-    var displayText = cardSpecSimpleLines(spec).map(function(line) {
-      return "<div>".concat(line, "</div>");
-    }).join("");
-    var tooltipHtml = buildSpecTooltip2(spec);
-    return "<div class='spec'>".concat(header).concat(displayText, "<span class='tooltip'>").concat(tooltipHtml, "</span></div>");
-  }
   function sketchMap(x) {
     return __spreadArray10([], __read15(x.entries()), false).filter(function(_a) {
       var _b = __read15(_a, 2), _ = _b[0], v = _b[1];
@@ -17554,7 +17391,7 @@
     var first = /* @__PURE__ */ new Map();
     var last = /* @__PURE__ */ new Map();
     try {
-      for (var cards_3 = __values14(cards), cards_3_1 = cards_3.next(); !cards_3_1.done; cards_3_1 = cards_3.next()) {
+      for (var cards_3 = __values13(cards), cards_3_1 = cards_3.next(); !cards_3_1.done; cards_3_1 = cards_3.next()) {
         var card = cards_3_1.value;
         var s = sketchCard(card, settings);
         if (!counts.has(s)) {
@@ -17651,7 +17488,7 @@
       return renderCard(c, state, "resolving", {}, globalRendererState.tokenRenderer);
     }).join("");
     try {
-      for (var zoneNames_1 = __values14(zoneNames), zoneNames_1_1 = zoneNames_1.next(); !zoneNames_1_1.done; zoneNames_1_1 = zoneNames_1.next()) {
+      for (var zoneNames_1 = __values13(zoneNames), zoneNames_1_1 = zoneNames_1.next(); !zoneNames_1_1.done; zoneNames_1_1 = zoneNames_1.next()) {
         var zone = zoneNames_1_1.value;
         renderZone(state, zone, settings);
       }
@@ -17681,7 +17518,7 @@
   function setVisibleLog(state, logType, ui) {
     var e_19, _a;
     try {
-      for (var logTypes_1 = __values14(logTypes), logTypes_1_1 = logTypes_1.next(); !logTypes_1_1.done; logTypes_1_1 = logTypes_1.next()) {
+      for (var logTypes_1 = __values13(logTypes), logTypes_1_1 = logTypes_1.next(); !logTypes_1_1.done; logTypes_1_1 = logTypes_1.next()) {
         var lt = logTypes_1_1.value;
         var el = querySelector(".logOption[option=".concat(lt, "]"));
         if (el) {
@@ -17723,7 +17560,7 @@
       }
     };
     try {
-      for (var _b = __values14(logs.entries()), _c = _b.next(); !_c.done; _c = _b.next()) {
+      for (var _b = __values13(logs.entries()), _c = _b.next(); !_c.done; _c = _b.next()) {
         var _d = __read15(_c.value, 2), i = _d[0], _e = __read15(_d[1], 2), _ = _e[0], state = _e[1];
         _loop_2(i, _, state);
       }
@@ -17764,7 +17601,7 @@
     var optionsMap = /* @__PURE__ */ new Map();
     var stringOptions = [];
     try {
-      for (var options_3 = __values14(options), options_3_1 = options_3.next(); !options_3_1.done; options_3_1 = options_3.next()) {
+      for (var options_3 = __values13(options), options_3_1 = options_3.next(); !options_3_1.done; options_3_1 = options_3.next()) {
         var option = options_3_1.value;
         var rendered = option.render;
         if (rendered.kind === "string") {
@@ -17784,7 +17621,7 @@
     }
     var pickMap = /* @__PURE__ */ new Map();
     try {
-      for (var _d = __values14(picks.entries()), _e = _d.next(); !_e.done; _e = _d.next()) {
+      for (var _d = __values13(picks.entries()), _e = _d.next(); !_e.done; _e = _d.next()) {
         var _f = __read15(_e.value, 2), i = _f[0], x = _f[1];
         pickMap.set(renderKey(x), i);
       }
@@ -17805,7 +17642,7 @@
     var optionsEl = getElement("options");
     clearElement(optionsEl);
     try {
-      for (var stringOptions_1 = __values14(stringOptions), stringOptions_1_1 = stringOptions_1.next(); !stringOptions_1_1.done; stringOptions_1_1 = stringOptions_1.next()) {
+      for (var stringOptions_1 = __values13(stringOptions), stringOptions_1_1 = stringOptions_1.next(); !stringOptions_1_1.done; stringOptions_1_1 = stringOptions_1.next()) {
         var option = stringOptions_1_1.value;
         var hotkey = hotkeyMap.get(option.render);
         optionsEl.appendChild(renderStringOption(option, hotkey, pickMap.get(option.render)));
@@ -17866,66 +17703,7 @@
     bindRedo(state, ui);
     bindMacroToggle(state, ui);
     bindSaveReplay(state, ui);
-    bindInGameDeckDialog(state);
     bindBack(ui);
-  }
-  function renderInGameDeckSection(title, specs) {
-    if (specs.length === 0) {
-      return "<div class='deckSection'><div class='deckSectionHeader'><strong>".concat(title, ":</strong></div><div class='deckSectionItems'><div class='saveSeed'>None</div></div></div>");
-    }
-    var cards = specs.map(function(spec) {
-      return renderSpecNoRelated2(spec);
-    }).join("");
-    return "<div class='deckSection'><div class='deckSectionHeader'><strong>".concat(title, ":</strong></div><div class='deckSectionItems'>").concat(cards, "</div></div>");
-  }
-  function buildRelicDisplaySpecs(state) {
-    return state.relics.map(function(relic) {
-      return relic.spec;
-    });
-  }
-  function showInGameDeckDialog(state) {
-    var _a, _b;
-    var sections = [
-      renderInGameDeckSection("Cards", (_a = state.spec.collectedCards) !== null && _a !== void 0 ? _a : state.spec.cards),
-      renderInGameDeckSection("Events", (_b = state.spec.collectedEvents) !== null && _b !== void 0 ? _b : state.spec.events),
-      renderInGameDeckSection("Potions", state.potions.map(function(p) {
-        return p.spec;
-      })),
-      renderInGameDeckSection("Relics", buildRelicDisplaySpecs(state))
-    ].join("");
-    getElement("deckContents").innerHTML = sections;
-    getElement("deckDialog").setAttribute("active", "true");
-    inGameDeckDialogOpen = true;
-    var dialog = getElement("deckDialog");
-    var specs = dialog.querySelectorAll(".spec");
-    specs.forEach(function(spec) {
-      var tooltips = spec.querySelectorAll(".tooltip, .tooltip-simple, .tooltip-full");
-      spec.addEventListener("mouseenter", function() {
-        var rect = spec.getBoundingClientRect();
-        tooltips.forEach(function(tooltip) {
-          var el = tooltip;
-          el.style.position = "fixed";
-          el.style.top = "".concat(rect.bottom, "px");
-          el.style.left = "".concat(rect.left, "px");
-        });
-      });
-    });
-  }
-  function hideInGameDeckDialog() {
-    getElement("deckDialog").setAttribute("active", "false");
-    inGameDeckDialogOpen = false;
-  }
-  function bindInGameDeckDialog(state) {
-    var deckIcon = getElement("deckIcon");
-    deckIcon.onclick = function() {
-      if (inGameDeckDialogOpen)
-        hideInGameDeckDialog();
-      else
-        showInGameDeckDialog(state);
-    };
-    getElement("deckClose").onclick = function() {
-      return hideInGameDeckDialog();
-    };
   }
   function bindBack(ui) {
     function back() {
@@ -17937,8 +17715,9 @@
       }
     }
     function pick() {
-      if (inGameDeckDialogOpen) {
-        hideInGameDeckDialog();
+      var deckDialog = getElement("deckDialog");
+      if (deckDialog.getAttribute("active") === "true") {
+        deckDialog.setAttribute("active", "false");
       } else {
         back();
       }
@@ -18191,7 +17970,7 @@
     var e_24, _a, e_25, _b;
     var result = 0;
     try {
-      for (var _c = __values14(card.tokens), _d = _c.next(); !_d.done; _d = _c.next()) {
+      for (var _c = __values13(card.tokens), _d = _c.next(); !_d.done; _d = _c.next()) {
         var _e = __read15(_d.value, 2), token = _e[0], count = _e[1];
         if ((macroCard.tokens.get(token) || 0) < count)
           result++;
@@ -18206,7 +17985,7 @@
       }
     }
     try {
-      for (var _f = __values14(macroCard.tokens), _g = _f.next(); !_g.done; _g = _f.next()) {
+      for (var _f = __values13(macroCard.tokens), _g = _f.next(); !_g.done; _g = _f.next()) {
         var _h = __read15(_g.value, 2), token = _h[0], count = _h[1];
         if ((card.tokens.get(token) || 0) < count)
           result++;
@@ -18497,18 +18276,90 @@
             closeMacroDeleteMenu();
             globalRendererState.viewingMacros = initialViewingMacros;
             ui = new GameUI(initialMacros, onProgress, undoAtBeginning);
-            showElement(getElement("gameContainer"));
-            hideElement(getElement("stageScreen"));
-            hideElement(getElement("pathSelectionScreen"));
-            hideElement(getElement("victoryScreen"));
-            hideElement(getElement("gameOverScreen"));
-            updateGameProgressSidebar(spec);
             return [4, playGame(spec, ui, initialHistory, initialRedo)];
           case 1:
             result = _a.sent();
             return [2, __assign11(__assign11({}, result), ui.exportPersistenceData())];
         }
       });
+    });
+  }
+
+  // public/progressSidebar.js
+  var __values14 = function(o) {
+    var s = typeof Symbol === "function" && Symbol.iterator, m = s && o[s], i = 0;
+    if (m) return m.call(o);
+    if (o && typeof o.length === "number") return {
+      next: function() {
+        if (o && i >= o.length) o = void 0;
+        return { value: o && o[i++], done: !o };
+      }
+    };
+    throw new TypeError(s ? "Object is not iterable." : "Symbol.iterator is not defined.");
+  };
+  function createTooltip(text) {
+    var tooltip = document.createElement("span");
+    tooltip.className = "tooltip";
+    tooltip.style.whiteSpace = "pre-line";
+    tooltip.textContent = text;
+    return tooltip;
+  }
+  function renderProgressSidebar(selector, stages) {
+    var e_1, _a;
+    var circles = document.querySelectorAll("".concat(selector, " .progressCircle"));
+    var byStage = /* @__PURE__ */ new Map();
+    try {
+      for (var stages_1 = __values14(stages), stages_1_1 = stages_1.next(); !stages_1_1.done; stages_1_1 = stages_1.next()) {
+        var stage = stages_1_1.value;
+        byStage.set(stage.stage, stage);
+      }
+    } catch (e_1_1) {
+      e_1 = { error: e_1_1 };
+    } finally {
+      try {
+        if (stages_1_1 && !stages_1_1.done && (_a = stages_1.return)) _a.call(stages_1);
+      } finally {
+        if (e_1) throw e_1.error;
+      }
+    }
+    circles.forEach(function(circle) {
+      var el = circle;
+      var stage2 = parseInt(el.getAttribute("data-stage") || "-1");
+      var display = byStage.get(stage2);
+      el.classList.remove("completed", "current", "replayable", "replaying");
+      el.onclick = null;
+      var existingScore = el.querySelector(".progressScore");
+      if (existingScore)
+        existingScore.remove();
+      var existingTooltips = el.querySelectorAll(".tooltip");
+      existingTooltips.forEach(function(node) {
+        return node.remove();
+      });
+      if (!display)
+        return;
+      if (display.completed)
+        el.classList.add("completed");
+      if (display.current)
+        el.classList.add("current");
+      if (display.replayable)
+        el.classList.add("replayable");
+      if (display.replaying)
+        el.classList.add("replaying");
+      if (display.onClick)
+        el.onclick = display.onClick;
+      var tooltipTarget = el;
+      if (display.scoreText !== void 0) {
+        var scoreSpan = document.createElement("span");
+        scoreSpan.className = "progressScore";
+        scoreSpan.textContent = display.scoreText;
+        if (display.scoreColor)
+          scoreSpan.style.color = display.scoreColor;
+        el.appendChild(scoreSpan);
+        tooltipTarget = scoreSpan;
+      }
+      if (display.tooltipText && display.tooltipText.length > 0) {
+        tooltipTarget.appendChild(createTooltip(display.tooltipText));
+      }
     });
   }
 
@@ -18677,10 +18528,10 @@
     tooltip.textContent = text;
     return tooltip;
   }
-  function showElement2(el) {
+  function showElement(el) {
     el.removeAttribute("hidden");
   }
-  function hideElement2(el) {
+  function hideElement(el) {
     el.setAttribute("hidden", "");
   }
   function setBufferDisplayText(text) {
@@ -18690,7 +18541,7 @@
     bufferDisplay.textContent = text;
   }
   function showScreen(screen) {
-    var e_1, _a;
+    var e_1, _a, e_2, _b;
     var screens = {
       stage: "stageScreen",
       path: "pathSelectionScreen",
@@ -18699,22 +18550,44 @@
       gameOver: "gameOverScreen"
     };
     try {
-      for (var _b = __values15(Object.entries(screens)), _c = _b.next(); !_c.done; _c = _b.next()) {
-        var _d = __read16(_c.value, 2), name_1 = _d[0], id = _d[1];
+      for (var _c = __values15(Object.entries(screens)), _d = _c.next(); !_d.done; _d = _c.next()) {
+        var _e = __read16(_d.value, 2), name_1 = _e[0], id = _e[1];
         var el = getElement2(id);
         if (name_1 === screen) {
-          showElement2(el);
+          showElement(el);
         } else {
-          hideElement2(el);
+          hideElement(el);
         }
       }
     } catch (e_1_1) {
       e_1 = { error: e_1_1 };
     } finally {
       try {
-        if (_c && !_c.done && (_a = _b.return)) _a.call(_b);
+        if (_d && !_d.done && (_a = _c.return)) _a.call(_c);
       } finally {
         if (e_1) throw e_1.error;
+      }
+    }
+    var showShared = screen === "stage" || screen === "path" || screen === "game";
+    var sharedElements = ["progressSidebar", "bufferDisplay", "deckIcon"];
+    try {
+      for (var sharedElements_1 = __values15(sharedElements), sharedElements_1_1 = sharedElements_1.next(); !sharedElements_1_1.done; sharedElements_1_1 = sharedElements_1.next()) {
+        var id = sharedElements_1_1.value;
+        var el = document.getElementById(id);
+        if (el) {
+          if (showShared)
+            showElement(el);
+          else
+            hideElement(el);
+        }
+      }
+    } catch (e_2_1) {
+      e_2 = { error: e_2_1 };
+    } finally {
+      try {
+        if (sharedElements_1_1 && !sharedElements_1_1.done && (_b = sharedElements_1.return)) _b.call(sharedElements_1);
+      } finally {
+        if (e_2) throw e_2.error;
       }
     }
   }
@@ -18807,63 +18680,61 @@
     setBufferDisplayText("Buffer: ".concat(state.data.buffer).concat(debugTag));
   }
   function updateProgressSidebar(state, onReplayStage) {
-    var renderLine = function(selector, inGameSidebar) {
-      var displays = [];
-      var _loop_1 = function(stage2) {
-        var display = { stage: stage2 };
-        var basePar = BASE_PARS[stage2];
-        var shownBasePar = displayBasePar(stage2, state);
-        var currentStagePar = stage2 === state.data.stage && state.data.challenges.length === 1 ? makeSpec(state, state.data.challenges[0]).par : null;
-        var tooltip = basePar === void 0 ? "" : describeBasePar(stage2, state);
-        if (stage2 < state.data.stage) {
-          var replayData = state.data.stageReplays[stage2];
-          if (replayData !== null) {
-            tooltip = describeParCalculation(stage2, replayData.challenge, replayData.spec.relics, state);
-          }
-        } else if (stage2 === state.data.stage && currentStagePar !== null) {
-          tooltip = describeParCalculation(stage2, state.data.challenges[0], state.data.relics, state);
+    var _a;
+    var inGame = state.data.phase === "in_game";
+    var displays = [];
+    var _loop_1 = function(stage2) {
+      var display = { stage: stage2 };
+      var basePar = BASE_PARS[stage2];
+      var shownBasePar = displayBasePar(stage2, state);
+      var currentStageSpec = stage2 === state.data.stage && state.data.challenges.length === 1 ? makeSpec(state, state.data.challenges[0]) : null;
+      var currentStagePar = (_a = currentStageSpec === null || currentStageSpec === void 0 ? void 0 : currentStageSpec.par) !== null && _a !== void 0 ? _a : null;
+      var tooltip = basePar === void 0 ? "" : describeBasePar(stage2, state);
+      if (stage2 < state.data.stage) {
+        var replayData = state.data.stageReplays[stage2];
+        if (replayData !== null) {
+          tooltip = describeParCalculation(stage2, replayData.challenge, replayData.spec.relics, state);
         }
-        display.tooltipText = tooltip.replace(/, /g, "\n");
-        if (stage2 < state.data.stage) {
-          display.completed = true;
-          var score = state.data.stageScores[stage2];
-          var par = state.data.stagePars[stage2];
-          if (score !== null && par !== null) {
-            display.scoreText = "".concat(score, "/").concat(formatParDisplay(stage2, par, state));
-            if (score > par)
-              display.scoreColor = "red";
-            else if (score < par)
-              display.scoreColor = "green";
-          }
-          if (!inGameSidebar && onReplayStage && state.data.stageReplays[stage2] !== null) {
-            display.replayable = true;
-            display.onClick = function() {
-              return onReplayStage(stage2);
-            };
-          }
-        } else if (stage2 === state.data.stage) {
-          display.current = true;
-          if (state.data.phase === "in_game" && currentStagePar !== null)
-            display.scoreText = "?/".concat(formatParDisplay(stage2, currentStagePar, state));
-          else if (shownBasePar !== null)
-            display.scoreText = formatParDisplay(stage2, shownBasePar, state);
-        } else {
-          if (shownBasePar !== null)
-            display.scoreText = formatParDisplay(stage2, shownBasePar, state);
-        }
-        displays.push(display);
-      };
-      for (var stage = 0; stage < BASE_PARS.length; stage++) {
-        _loop_1(stage);
+      } else if (stage2 === state.data.stage && currentStagePar !== null) {
+        tooltip = describeParCalculation(stage2, state.data.challenges[0], state.data.relics, state);
       }
-      renderProgressSidebar(selector, displays);
+      display.tooltipText = tooltip.replace(/, /g, "\n");
+      if (stage2 < state.data.stage) {
+        display.completed = true;
+        var score = state.data.stageScores[stage2];
+        var par = state.data.stagePars[stage2];
+        if (score !== null && par !== null) {
+          display.scoreText = "".concat(score, "/").concat(formatParDisplay(stage2, par, state));
+          if (score > par)
+            display.scoreColor = "red";
+          else if (score < par)
+            display.scoreColor = "green";
+        }
+        if (!inGame && onReplayStage && state.data.stageReplays[stage2] !== null) {
+          display.replayable = true;
+          display.onClick = function() {
+            return onReplayStage(stage2);
+          };
+        }
+      } else if (stage2 === state.data.stage) {
+        display.current = true;
+        if (state.data.phase === "in_game" && currentStagePar !== null)
+          display.scoreText = "?/".concat(formatParDisplay(stage2, currentStagePar, state));
+        else if (shownBasePar !== null)
+          display.scoreText = formatParDisplay(stage2, shownBasePar, state);
+      } else {
+        if (shownBasePar !== null)
+          display.scoreText = formatParDisplay(stage2, shownBasePar, state);
+      }
+      displays.push(display);
     };
-    renderLine("#progressLine", false);
-    renderLine("#progressLinePath", false);
-    renderLine("#progressLineGame", true);
+    for (var stage = 0; stage < BASE_PARS.length; stage++) {
+      _loop_1(stage);
+    }
+    renderProgressSidebar("#progressLine", displays);
   }
   function encounterTooltipText(rewardState, state) {
-    var e_2, _a;
+    var e_3, _a;
     if (rewardState.kind !== "encounter" || rewardState.encounter === null)
       return "";
     var options = getRewardOptions(rewardState, state);
@@ -18876,13 +18747,13 @@
         var text = option.description ? "".concat(option.label, ": ").concat(option.description) : option.label;
         lines.push(text);
       }
-    } catch (e_2_1) {
-      e_2 = { error: e_2_1 };
+    } catch (e_3_1) {
+      e_3 = { error: e_3_1 };
     } finally {
       try {
         if (options_1_1 && !options_1_1.done && (_a = options_1.return)) _a.call(options_1);
       } finally {
-        if (e_2) throw e_2.error;
+        if (e_3) throw e_3.error;
       }
     }
     return lines.join("\n");
@@ -18900,7 +18771,7 @@
     };
   }
   function showCardPicker(prompt, options, canCancel, onSelect, onCancel) {
-    var e_3, _a;
+    var e_4, _a;
     enterModalDialog();
     var closed = false;
     var unbindDismiss = function() {
@@ -18939,23 +18810,23 @@
         var card = options_2_1.value;
         _loop_2(card);
       }
-    } catch (e_3_1) {
-      e_3 = { error: e_3_1 };
+    } catch (e_4_1) {
+      e_4 = { error: e_4_1 };
     } finally {
       try {
         if (options_2_1 && !options_2_1.done && (_a = options_2.return)) _a.call(options_2);
       } finally {
-        if (e_3) throw e_3.error;
+        if (e_4) throw e_4.error;
       }
     }
     var cancelBtn = getElement2("cardPickerCancel");
     if (canCancel) {
-      showElement2(cancelBtn);
+      showElement(cancelBtn);
       cancelBtn.onclick = function() {
         return close(onCancel);
       };
     } else {
-      hideElement2(cancelBtn);
+      hideElement(cancelBtn);
     }
     showDialog("cardPickerDialog");
     if (canCancel) {
@@ -18965,7 +18836,7 @@
     }
   }
   function showOptionPicker(prompt, options, canCancel, onSelect, onCancel) {
-    var e_4, _a;
+    var e_5, _a;
     enterModalDialog();
     var closed = false;
     var unbindDismiss = function() {
@@ -19031,23 +18902,23 @@
         var option = options_3_1.value;
         _loop_3(option);
       }
-    } catch (e_4_1) {
-      e_4 = { error: e_4_1 };
+    } catch (e_5_1) {
+      e_5 = { error: e_5_1 };
     } finally {
       try {
         if (options_3_1 && !options_3_1.done && (_a = options_3.return)) _a.call(options_3);
       } finally {
-        if (e_4) throw e_4.error;
+        if (e_5) throw e_5.error;
       }
     }
     var cancelBtn = getElement2("encounterCancel");
     if (canCancel) {
-      showElement2(cancelBtn);
+      showElement(cancelBtn);
       cancelBtn.onclick = function() {
         return close(onCancel);
       };
     } else {
-      hideElement2(cancelBtn);
+      hideElement(cancelBtn);
     }
     showDialog("encounterDialog");
     if (canCancel) {
@@ -19057,7 +18928,7 @@
     }
   }
   function renderStageScreen(state, onChallenge, onOptionClick, onBurdenClick, onReplayStage) {
-    var e_5, _a;
+    var e_6, _a;
     showScreen("stage");
     renderCommonUI(state, onReplayStage);
     var debugTag = state.debugEnabled ? " [Debug]" : "";
@@ -19145,7 +19016,7 @@
       var optionsDiv = createDiv("rewardOptions");
       var options = getBurdenOptions(burdenState, state);
       options.forEach(function(option, optionIndex) {
-        var e_6, _a2;
+        var e_7, _a2;
         var optionEl;
         if (option.spec) {
           optionEl = createElementFromHTML2(renderSpecNoRelated(option.spec));
@@ -19165,13 +19036,13 @@
                 descDiv.textContent = line;
                 optionEl.appendChild(descDiv);
               }
-            } catch (e_6_1) {
-              e_6 = { error: e_6_1 };
+            } catch (e_7_1) {
+              e_7 = { error: e_7_1 };
             } finally {
               try {
                 if (_c2 && !_c2.done && (_a2 = _b2.return)) _a2.call(_b2);
               } finally {
-                if (e_6) throw e_6.error;
+                if (e_7) throw e_7.error;
               }
             }
           }
@@ -19220,18 +19091,18 @@
         var challenge = _c.value;
         _loop_4(challenge);
       }
-    } catch (e_5_1) {
-      e_5 = { error: e_5_1 };
+    } catch (e_6_1) {
+      e_6 = { error: e_6_1 };
     } finally {
       try {
         if (_c && !_c.done && (_a = _b.return)) _a.call(_b);
       } finally {
-        if (e_5) throw e_5.error;
+        if (e_6) throw e_6.error;
       }
     }
   }
   function renderPathSelectionScreen(state, paths, onSelect, onReplayStage) {
-    var e_7, _a;
+    var e_8, _a;
     showScreen("path");
     renderCommonUI(state, onReplayStage);
     var debugTag = state.debugEnabled ? " [Debug]" : "";
@@ -19243,18 +19114,18 @@
         var _d = __read16(_c.value, 2), index = _d[0], path = _d[1];
         columns.appendChild(renderPathColumn(path, state, onSelect, index));
       }
-    } catch (e_7_1) {
-      e_7 = { error: e_7_1 };
+    } catch (e_8_1) {
+      e_8 = { error: e_8_1 };
     } finally {
       try {
         if (_c && !_c.done && (_a = _b.return)) _a.call(_b);
       } finally {
-        if (e_7) throw e_7.error;
+        if (e_8) throw e_8.error;
       }
     }
   }
   function renderPathColumn(path, state, onSelect, index) {
-    var e_8, _a;
+    var e_9, _a;
     var pathColumn = createDiv("pathColumn");
     var pathChoice = createSpan("option pathChoice");
     pathChoice.setAttribute("choosable", "");
@@ -19272,13 +19143,13 @@
         rewardDiv.textContent = getRewardName(rewardState);
         rewardsContainer.appendChild(rewardDiv);
       }
-    } catch (e_8_1) {
-      e_8 = { error: e_8_1 };
+    } catch (e_9_1) {
+      e_9 = { error: e_9_1 };
     } finally {
       try {
         if (_c && !_c.done && (_a = _b.return)) _a.call(_b);
       } finally {
-        if (e_8) throw e_8.error;
+        if (e_9) throw e_9.error;
       }
     }
     for (var burdenIndex = 0; burdenIndex < path.burdenStates.length; burdenIndex++) {
@@ -19291,9 +19162,6 @@
   }
   var deckDialogOpen = false;
   function showDeckDialog(state) {
-    var e_9, _a, e_10, _b;
-    var container = getElement2("deckContents");
-    clearElement2(container);
     var sections = [
       { title: "Cards", items: state.data.collectedCards },
       { title: "Events", items: state.data.collectedEvents },
@@ -19308,6 +19176,30 @@
         return relic.spec;
       }) }
     ];
+    renderDeckSections(sections);
+  }
+  function showDeckDialogForSpec(spec) {
+    var _a, _b;
+    var sections = [
+      { title: "Cards", items: (_a = spec.collectedCards) !== null && _a !== void 0 ? _a : spec.cards },
+      { title: "Events", items: (_b = spec.collectedEvents) !== null && _b !== void 0 ? _b : spec.events },
+      { title: "Potions", items: spec.potions.map(function(p) {
+        return p.spec;
+      }) },
+      { title: "Relics", items: spec.relics.map(function(relic) {
+        var charges = relic.count("charge");
+        if (charges > 0) {
+          return __assign12(__assign12({}, relic.spec), { name: "".concat(relic.spec.name, " (").concat(charges, ")") });
+        }
+        return relic.spec;
+      }) }
+    ];
+    renderDeckSections(sections);
+  }
+  function renderDeckSections(sections) {
+    var e_10, _a, e_11, _b;
+    var container = getElement2("deckContents");
+    clearElement2(container);
     var hasContent = false;
     try {
       for (var sections_1 = __values15(sections), sections_1_1 = sections_1.next(); !sections_1_1.done; sections_1_1 = sections_1.next()) {
@@ -19320,30 +19212,30 @@
           sectionDiv.appendChild(header);
           var itemsRow = createDiv("deckSectionItems");
           try {
-            for (var _c = (e_10 = void 0, __values15(section.items)), _d = _c.next(); !_d.done; _d = _c.next()) {
+            for (var _c = (e_11 = void 0, __values15(section.items)), _d = _c.next(); !_d.done; _d = _c.next()) {
               var spec = _d.value;
               itemsRow.appendChild(createElementFromHTML2(renderSpecNoRelated(spec)));
             }
-          } catch (e_10_1) {
-            e_10 = { error: e_10_1 };
+          } catch (e_11_1) {
+            e_11 = { error: e_11_1 };
           } finally {
             try {
               if (_d && !_d.done && (_b = _c.return)) _b.call(_c);
             } finally {
-              if (e_10) throw e_10.error;
+              if (e_11) throw e_11.error;
             }
           }
           sectionDiv.appendChild(itemsRow);
           container.appendChild(sectionDiv);
         }
       }
-    } catch (e_9_1) {
-      e_9 = { error: e_9_1 };
+    } catch (e_10_1) {
+      e_10 = { error: e_10_1 };
     } finally {
       try {
         if (sections_1_1 && !sections_1_1.done && (_a = sections_1.return)) _a.call(sections_1);
       } finally {
-        if (e_9) throw e_9.error;
+        if (e_10) throw e_10.error;
       }
     }
     if (!hasContent) {
@@ -19351,7 +19243,20 @@
       msg.textContent = "No items collected yet.";
       container.appendChild(msg);
     }
-    getElement2("deckClose").onclick = hideDeckDialog;
+    var dialog = getElement2("deckDialog");
+    var specs = dialog.querySelectorAll(".spec");
+    specs.forEach(function(spec2) {
+      var tooltips = spec2.querySelectorAll(".tooltip, .tooltip-simple, .tooltip-full");
+      spec2.addEventListener("mouseenter", function() {
+        var rect = spec2.getBoundingClientRect();
+        tooltips.forEach(function(tooltip) {
+          var el = tooltip;
+          el.style.position = "fixed";
+          el.style.top = "".concat(rect.bottom, "px");
+          el.style.left = "".concat(rect.left, "px");
+        });
+      });
+    });
     showDialog("deckDialog");
     deckDialogOpen = true;
   }
@@ -19623,6 +19528,36 @@
         if (undoAtBeginning === void 0) {
           undoAtBeginning = "leave";
         }
+        showScreen("game");
+        hideDeckDialog();
+        if (spec.metaStage !== void 0) {
+          var circle = document.querySelector('#progressLine .progressCircle[data-stage="'.concat(spec.metaStage, '"]'));
+          if (circle) {
+            var existing = circle.querySelector(".progressScore");
+            if (existing)
+              existing.remove();
+            var score = document.createElement("span");
+            score.className = "progressScore";
+            score.textContent = "?/".concat(spec.par);
+            circle.appendChild(score);
+          }
+        }
+        if (spec.replayStage !== void 0 && spec.replayStage !== null) {
+          var replayCircle = document.querySelector('#progressLine .progressCircle[data-stage="'.concat(spec.replayStage, '"]'));
+          if (replayCircle)
+            replayCircle.classList.add("replaying");
+        }
+        var deckIcon = getElement2("deckIcon");
+        deckIcon.onclick = function() {
+          if (isDeckDialogOpen()) {
+            hideDeckDialog();
+          } else {
+            showDeckDialogForSpec(spec);
+          }
+        };
+        getElement2("deckClose").onclick = function() {
+          return hideDeckDialog();
+        };
         return startGame(spec, gameHistory, gameRedo, macros, viewingMacros, onProgress, undoAtBeginning).catch(function(e) {
           var _a, _b;
           if (e instanceof UndoPastBeginning) {
