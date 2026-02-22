@@ -92,18 +92,19 @@ const fakeCoin: RelicSpec = {
     burden: true,
     triggers: [{
         kind: 'beforeStart',
-        text: ['At the start of the game, put a decay token on a Copper with the minimal number of decay tokens on it.'],
+        text: ['At the start of the game, put a decay token on a Copper without any, or if all of your Coppers have a decay token remove all but one token from a Copper with the maximal number of decay tokens.'],
         simpleText: [`One of your coppers starts with a decay token.`],
         handles: () => true,
         transform: () => async function (state) {
             // Set target to be the copper with the smallest card.count('decay')
             const target = state.discard.filter(card => card.name === copper.name).reduce((best, card) => {
                 if (!best) return card
-                if (card.count('decay') < best.count('decay')) return card
+                if (card.count('decay') == 0) return card
+                else if (card.count('decay') > best.count('decay')) return card
                 return best
             }, null as Card | null)
             if (target != null) {
-                return setDecayTransform(target, target.count('decay') + 1)(state)
+                return setDecayTransform(target, 1)(state)
             } else {
                 return state
             }
@@ -400,10 +401,10 @@ const taxEventUpgrade: CardUpgrade = {
 registerEncounterUpgrade('burden_tax_event', taxEventUpgrade)
 
 function relicBurdenOption(
-    id: string,
     spec: RelicSpec,
     options: { minStage?: number, maxStage?: number } = {}
 ): void {
+    const id = spec.name
     registerBurden({
         id,
         title: displayName(spec),
@@ -419,66 +420,17 @@ function relicBurdenOption(
     })
 }
 
-relicBurdenOption(
-    'fake_coin',
-    fakeCoin
-)
-
-relicBurdenOption(
-    'miserly_touch',
-    miserlyTouch
-)
-
-relicBurdenOption(
-    'heavy_stone',
-    heavyStone
-)
-
-relicBurdenOption(
-    'cursed_hourglass',
-    cursedHourglass,
-    { maxStage: TOTAL_STAGES - 2 }
-)
-
-relicBurdenOption(
-    'cursed_doll',
-    cursedDoll,
-    { maxStage: TOTAL_STAGES - 3 }
-)
-
-relicBurdenOption(
-    'cursed_key',
-    cursedKey,
-    { maxStage: TOTAL_STAGES - 2 }
-)
-
-relicBurdenOption(
-    'cursed_boots',
-    cursedBoots,
-    { maxStage: TOTAL_STAGES - 3 }
-)
-
-relicBurdenOption(
-    'cursed_banner',
-    cursedBanner
-)
-
-relicBurdenOption(
-    'cursed_sozu',
-    cursedSozu,
-    { maxStage: TOTAL_STAGES - 2 }
-)
-
-relicBurdenOption(
-    'expensive_flask',
-    expensiveFlask
-)
-
-relicBurdenOption(
-    'broken_crown',
-    brokenCrown,
-    { maxStage: TOTAL_STAGES - 2 }
-)
+relicBurdenOption(fakeCoin)
+relicBurdenOption(miserlyTouch)
+relicBurdenOption(heavyStone)
+relicBurdenOption(cursedHourglass, { maxStage: TOTAL_STAGES - 2 })
+relicBurdenOption(cursedDoll, { maxStage: TOTAL_STAGES - 3 })
+relicBurdenOption(cursedKey, { maxStage: TOTAL_STAGES - 2 })
+relicBurdenOption(cursedBoots, { maxStage: TOTAL_STAGES - 3 })
+relicBurdenOption(cursedBanner)
+relicBurdenOption(cursedSozu, { maxStage: TOTAL_STAGES - 2 })
+relicBurdenOption(expensiveFlask)
+relicBurdenOption(brokenCrown, { maxStage: TOTAL_STAGES - 2 })
 
 registerBurden({
     id: 'lose_anything',

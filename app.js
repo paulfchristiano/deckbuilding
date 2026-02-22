@@ -15098,7 +15098,7 @@
     burden: true,
     triggers: [{
       kind: "beforeStart",
-      text: ["At the start of the game, put a decay token on a Copper with the minimal number of decay tokens on it."],
+      text: ["At the start of the game, put a decay token on a Copper without any, or if all of your Coppers have a decay token remove all but one token from a Copper with the maximal number of decay tokens."],
       simpleText: ["One of your coppers starts with a decay token."],
       handles: function() {
         return true;
@@ -15113,12 +15113,14 @@
               }).reduce(function(best, card) {
                 if (!best)
                   return card;
-                if (card.count("decay") < best.count("decay"))
+                if (card.count("decay") == 0)
+                  return card;
+                else if (card.count("decay") > best.count("decay"))
                   return card;
                 return best;
               }, null);
               if (target != null) {
-                return [2, setDecayTransform(target, target.count("decay") + 1)(state)];
+                return [2, setDecayTransform(target, 1)(state)];
               } else {
                 return [2, state];
               }
@@ -15577,11 +15579,12 @@
     }
   };
   registerEncounterUpgrade("burden_tax_event", taxEventUpgrade);
-  function relicBurdenOption(id, spec, options) {
+  function relicBurdenOption(spec, options) {
     var _this = this;
     if (options === void 0) {
       options = {};
     }
+    var id = spec.name;
     registerBurden(__assign10(__assign10({ id, title: displayName(spec) }, options), { applies: function(state) {
       return !state.data.relics.some(function(relic) {
         return relic.spec.name === spec.name;
@@ -15601,17 +15604,17 @@
       });
     } }));
   }
-  relicBurdenOption("fake_coin", fakeCoin);
-  relicBurdenOption("miserly_touch", miserlyTouch);
-  relicBurdenOption("heavy_stone", heavyStone);
-  relicBurdenOption("cursed_hourglass", cursedHourglass, { maxStage: TOTAL_STAGES - 2 });
-  relicBurdenOption("cursed_doll", cursedDoll, { maxStage: TOTAL_STAGES - 3 });
-  relicBurdenOption("cursed_key", cursedKey, { maxStage: TOTAL_STAGES - 2 });
-  relicBurdenOption("cursed_boots", cursedBoots, { maxStage: TOTAL_STAGES - 3 });
-  relicBurdenOption("cursed_banner", cursedBanner);
-  relicBurdenOption("cursed_sozu", cursedSozu, { maxStage: TOTAL_STAGES - 2 });
-  relicBurdenOption("expensive_flask", expensiveFlask);
-  relicBurdenOption("broken_crown", brokenCrown, { maxStage: TOTAL_STAGES - 2 });
+  relicBurdenOption(fakeCoin);
+  relicBurdenOption(miserlyTouch);
+  relicBurdenOption(heavyStone);
+  relicBurdenOption(cursedHourglass, { maxStage: TOTAL_STAGES - 2 });
+  relicBurdenOption(cursedDoll, { maxStage: TOTAL_STAGES - 3 });
+  relicBurdenOption(cursedKey, { maxStage: TOTAL_STAGES - 2 });
+  relicBurdenOption(cursedBoots, { maxStage: TOTAL_STAGES - 3 });
+  relicBurdenOption(cursedBanner);
+  relicBurdenOption(cursedSozu, { maxStage: TOTAL_STAGES - 2 });
+  relicBurdenOption(expensiveFlask);
+  relicBurdenOption(brokenCrown, { maxStage: TOTAL_STAGES - 2 });
   registerBurden({
     id: "lose_anything",
     title: "Forsake",
@@ -19716,8 +19719,8 @@
   };
   var test = {
     burdens: [
-      [1, ["burden", "decay_card"]],
-      [1, ["burden", "tax_card"]]
+      [1, ["burden", "Fake Coin"]],
+      [1, ["burden", "Miserly Touch"]]
     ]
   };
   var SAVE_STORAGE_KEY = "roguelike.ongoingSaves.v1";

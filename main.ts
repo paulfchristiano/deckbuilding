@@ -26,8 +26,8 @@ import { tactician } from './data/encounters.js'
 
 let test: DebugTestConfig | null = {
     burdens: [
-        [1, ['burden', 'decay_card']],
-        [1, ['burden', 'tax_card']],
+        [1, ['burden', 'Fake Coin']],
+        [1, ['burden', 'Miserly Touch']],
     ],
 }
 
