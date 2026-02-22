@@ -16,7 +16,7 @@ import { CardSpec, Card, State, vpModes,
 import type { GameSpec, Rule } from './gameLogic.js'
 import { getSpecByName } from './registry.js'
 
-import { buildSpecTooltip } from './cardRendering.js'
+import { buildSpecTooltipSimple, buildSpecTooltipFull } from './cardRendering.js'
 import { makeBottledCardPotion, makeBottledEventPotion, makeCardInABoxRelic } from './data/specialSpecs.js'
 import { allMajorCurses, allMinorCurses, Curse } from './data/curses.js'
 
@@ -468,13 +468,10 @@ export function renderChallenge(spec: ChallengeSpec, state: MetaState): string {
         ...(stageCurse ? stageCurse.events : []),
         ...spec.boons.flatMap(b => [...b.cards, ...b.events])
     ]
-    const tooltipParts: string[] = []
-    if (relatedCards.length > 0) {
-        tooltipParts.push(relatedCards.map(buildSpecTooltip).join(''))
-    }
-    if (tooltipParts.length === 0) return label
-    const tooltipContent = tooltipParts.join('')
-    return `${label}<span class='tooltip'>${tooltipContent}</span>`
+    if (relatedCards.length === 0) return label
+    const simpleContent = relatedCards.map(buildSpecTooltipSimple).join('')
+    const fullContent = relatedCards.map(buildSpecTooltipFull).join('')
+    return `${label}<span class='tooltip tooltip-simple'>${simpleContent}</span><span class='tooltip tooltip-full'>${fullContent}</span>`
 }
 
 export function challengeSummary(challenge: ChallengeSpec): string {
@@ -2034,22 +2031,22 @@ export function describeBasePar(stage: number, state: MetaState): string {
     const basePar = BASE_PARS[stage]
     if (basePar === undefined) return ''
     const scarcityDelta = scarcityParAdjustment(stage, state)
-    if (scarcityDelta === 0) return `${basePar} (base)`
+    if (scarcityDelta === 0) return `${basePar} (Base)`
     const adjusted = displayBasePar(stage, state)
-    if (adjusted === null) return `${basePar} (base)`
-    return `${basePar} (base), ${signedAmount(scarcityDelta)} for scarcity, = ${adjusted}`
+    if (adjusted === null) return `${basePar} (Base)`
+    return `${basePar} (Base), ${signedAmount(scarcityDelta)} for Scarcity, = ${adjusted}`
 }
 
 export function describeParCalculation(stage: number, challenge: ChallengeSpec | null | undefined, relicCards: Card[], state: MetaState): string {
     const basePar = BASE_PARS[stage]
     if (basePar === undefined) return ''
 
-    const parts = [`${basePar} (base)`]
+    const parts = [`${basePar} (Base)`]
     let par = basePar
     const scarcityDelta = scarcityParAdjustment(stage, state)
     if (scarcityDelta !== 0) {
         par += scarcityDelta
-        parts.push(`${signedAmount(scarcityDelta)} for scarcity`)
+        parts.push(`${signedAmount(scarcityDelta)} for Scarcity`)
     }
     if (challenge !== null && challenge !== undefined) {
         for (const boon of challenge.boons) {
@@ -2093,7 +2090,9 @@ function stageTooltipTexts(state: MetaState): (string | null)[] {
         if (stage < state.data.stage) {
             const replayData = state.data.stageReplays[stage]
             if (replayData !== null) {
-                return describeParCalculation(stage, replayData.challenge, replayData.spec.relics, state)
+                // Use the tooltip saved at game time, which reflects the modifiers that were active then
+                return replayData.spec.metaStageTooltips?.[stage]
+                    ?? describeParCalculation(stage, replayData.challenge, replayData.spec.relics, state)
             }
         }
         if (stage === state.data.stage && state.data.challenges.length === 1) {

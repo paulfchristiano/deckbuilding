@@ -5525,14 +5525,11 @@
     var relatedCards = __spreadArray6(__spreadArray6(__spreadArray6(__spreadArray6([], __read7(spec.vpMode.cards), false), __read7(spec.vpMode.events), false), __read7(stageCurse ? stageCurse.events : []), false), __read7(spec.boons.flatMap(function(b) {
       return __spreadArray6(__spreadArray6([], __read7(b.cards), false), __read7(b.events), false);
     })), false);
-    var tooltipParts = [];
-    if (relatedCards.length > 0) {
-      tooltipParts.push(relatedCards.map(buildSpecTooltip).join(""));
-    }
-    if (tooltipParts.length === 0)
+    if (relatedCards.length === 0)
       return label;
-    var tooltipContent = tooltipParts.join("");
-    return "".concat(label, "<span class='tooltip'>").concat(tooltipContent, "</span>");
+    var simpleContent = relatedCards.map(buildSpecTooltipSimple).join("");
+    var fullContent = relatedCards.map(buildSpecTooltipFull).join("");
+    return "".concat(label, "<span class='tooltip tooltip-simple'>").concat(simpleContent, "</span><span class='tooltip tooltip-full'>").concat(fullContent, "</span>");
   }
   function challengeSummary(challenge) {
     var parts = __spreadArray6([challenge.vpMode.name], __read7(challenge.boons.map(function(boon) {
@@ -6924,11 +6921,11 @@
       return "";
     var scarcityDelta = scarcityParAdjustment(stage, state);
     if (scarcityDelta === 0)
-      return "".concat(basePar, " (base)");
+      return "".concat(basePar, " (Base)");
     var adjusted = displayBasePar(stage, state);
     if (adjusted === null)
-      return "".concat(basePar, " (base)");
-    return "".concat(basePar, " (base), ").concat(signedAmount(scarcityDelta), " for scarcity, = ").concat(adjusted);
+      return "".concat(basePar, " (Base)");
+    return "".concat(basePar, " (Base), ").concat(signedAmount(scarcityDelta), " for Scarcity, = ").concat(adjusted);
   }
   function describeParCalculation(stage, challenge, relicCards, state) {
     var e_13, _a, e_14, _b, e_15, _c;
@@ -6936,12 +6933,12 @@
     var basePar = BASE_PARS[stage];
     if (basePar === void 0)
       return "";
-    var parts = ["".concat(basePar, " (base)")];
+    var parts = ["".concat(basePar, " (Base)")];
     var par = basePar;
     var scarcityDelta = scarcityParAdjustment(stage, state);
     if (scarcityDelta !== 0) {
       par += scarcityDelta;
-      parts.push("".concat(signedAmount(scarcityDelta), " for scarcity"));
+      parts.push("".concat(signedAmount(scarcityDelta), " for Scarcity"));
     }
     if (challenge !== null && challenge !== void 0) {
       try {
@@ -7013,12 +7010,13 @@
   }
   function stageTooltipTexts(state) {
     return BASE_PARS.map(function(basePar, stage) {
+      var _a, _b;
       if (basePar === void 0)
         return null;
       if (stage < state.data.stage) {
         var replayData = state.data.stageReplays[stage];
         if (replayData !== null) {
-          return describeParCalculation(stage, replayData.challenge, replayData.spec.relics, state);
+          return (_b = (_a = replayData.spec.metaStageTooltips) === null || _a === void 0 ? void 0 : _a[stage]) !== null && _b !== void 0 ? _b : describeParCalculation(stage, replayData.challenge, replayData.spec.relics, state);
         }
       }
       if (stage === state.data.stage && state.data.challenges.length === 1) {
@@ -18561,7 +18559,7 @@
     setBufferDisplayText("Buffer: ".concat(state.data.buffer));
   }
   function updateProgressSidebar(state, onReplayStage) {
-    var _a;
+    var _a, _b;
     var inGame = state.data.phase === "in_game";
     var displays = [];
     var _loop_1 = function(stage2) {
@@ -18574,7 +18572,8 @@
       if (stage2 < state.data.stage) {
         var replayData = state.data.stageReplays[stage2];
         if (replayData !== null) {
-          tooltip = describeParCalculation(stage2, replayData.challenge, replayData.spec.relics, state);
+          var savedTooltip = (_b = replayData.spec.metaStageTooltips) === null || _b === void 0 ? void 0 : _b[stage2];
+          tooltip = savedTooltip !== null && savedTooltip !== void 0 ? savedTooltip : describeParCalculation(stage2, replayData.challenge, replayData.spec.relics, state);
         }
       } else if (stage2 === state.data.stage && currentStagePar !== null) {
         tooltip = describeParCalculation(stage2, state.data.challenges[0], state.data.relics, state);

@@ -226,7 +226,9 @@ function updateProgressSidebar(state: MetaState, onReplayStage?: (stage: number)
         if (stage < state.data.stage) {
             const replayData = state.data.stageReplays[stage]
             if (replayData !== null) {
-                tooltip = describeParCalculation(stage, replayData.challenge, replayData.spec.relics, state)
+                // Use the tooltip saved at game time, which reflects the modifiers that were active then
+                const savedTooltip = replayData.spec.metaStageTooltips?.[stage]
+                tooltip = savedTooltip ?? describeParCalculation(stage, replayData.challenge, replayData.spec.relics, state)
             }
         } else if (stage === state.data.stage && currentStagePar !== null) {
             tooltip = describeParCalculation(stage, state.data.challenges[0], state.data.relics, state)

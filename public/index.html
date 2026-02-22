@@ -56,7 +56,6 @@
             background: #ccc;
             border: 2px solid #ccc;
             margin: 10px 0;
-            z-index: 1;
             position: relative;
         }
         .progressScore {
@@ -86,6 +85,9 @@
         }
         .progressCircle.replaying {
             box-shadow: 0 0 0 3px rgba(128, 0, 255, 0.8);
+        }
+        .progressCircle:hover {
+            z-index: 10;
         }
         #stageContent {
             display: flex;
