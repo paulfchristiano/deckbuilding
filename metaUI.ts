@@ -1029,6 +1029,10 @@ export function showStageScreenUI(): void {
     showScreen('stage')
 }
 
+export function showGameScreenUI(): void {
+    showScreen('game')
+}
+
 export function showPathSelectionUI(): void {
     showScreen('path')
 }

@@ -19531,6 +19531,9 @@
       return MetaGameUI2;
     })()
   );
+  function showGameScreenUI() {
+    showScreen("game");
+  }
   function hideAllMetaUI() {
     var e_12, _a;
     hideElement(getElement2("stageScreen"));
@@ -20279,7 +20282,7 @@
             seedDisplay = document.getElementById("seedDisplay");
             if (seedDisplay)
               seedDisplay.textContent = "Seed: ".concat(slot.seed);
-            setCoreUIVisible(true);
+            showGameScreenUI();
             (_a = document.getElementById("saveLauncher")) === null || _a === void 0 ? void 0 : _a.remove();
             clearLauncherDialogs();
             _b.label = 1;

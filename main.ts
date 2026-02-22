@@ -13,7 +13,7 @@ import {
     replaySpecForStage,
     ExitToLauncher
 } from './metaLogic.js'
-import { MetaGameUI, setBufferDisplayText, hideAllMetaUI } from './metaUI.js'
+import { MetaGameUI, setBufferDisplayText, hideAllMetaUI, showGameScreenUI } from './metaUI.js'
 import { randomString } from './rng.js'
 import { startGame } from './gameUI.js'
 import { renderSpecNoRelated } from './cardRendering.js'
@@ -878,7 +878,7 @@ function openChallengesDialog(): void {
 async function runReplayFromSnapshot(slot: SaveSlot, stage: number): Promise<void> {
     const seedDisplay = document.getElementById('seedDisplay')
     if (seedDisplay) seedDisplay.textContent = `Seed: ${slot.seed}`
-    setCoreUIVisible(true)
+    showGameScreenUI()
     document.getElementById('saveLauncher')?.remove()
     clearLauncherDialogs()
     try {
