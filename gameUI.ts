@@ -1355,6 +1355,8 @@ function bindPlayMacroButtons(ui: GameUI, state: State): void {
             if (ui.choiceState && ui.playingMacro.length === 0) {
                 const macro = ui.macros[i]
                 ui.playingMacro = repeat(macro.steps, (e as MouseEvent).shiftKey ? 10 : 1)
+                ui.macroRepetitionLength = macro.steps.length
+                ui.macroStepsIntoRepetition = 0
                 if (macro.resetFirst === true) {
                     const reset = startState(ui.choiceState.state)
                     ui.macroStartState = reset
@@ -1499,6 +1501,8 @@ export class GameUI implements UI {
     public recordingStates: State[] = []
     public playingMacro: MacroStep[] = []
     public macroStartState: State | null = null
+    public macroRepetitionLength: number = 0
+    public macroStepsIntoRepetition: number = 0
     public preserveMacroOnNextSetState = false
     public choiceState: ChoiceState | null = null
     private progressDirty = false
@@ -1590,10 +1594,19 @@ export class GameUI implements UI {
     matchNextMacroStep(): MacroMatchResult {
         const macro = this.playingMacro.shift()
         if (macro && this.choiceState) {
+            // At the start of a new repetition, update macroStartState so failure
+            // only rewinds the current repetition, not all previous ones
+            if (this.macroRepetitionLength > 0 && this.macroStepsIntoRepetition === 0 && this.choiceState) {
+                this.macroStartState = this.choiceState.state
+            }
             const option = matchMacro(macro, this.choiceState.state, this.choiceState.options, this.choiceState.chosen)
             if (option === null) {
                 this.playingMacro = []
                 return { option: null, failed: true }
+            }
+            this.macroStepsIntoRepetition++
+            if (this.macroRepetitionLength > 0 && this.macroStepsIntoRepetition >= this.macroRepetitionLength) {
+                this.macroStepsIntoRepetition = 0
             }
             return { option, failed: false }
         }
@@ -1641,9 +1654,14 @@ export class GameUI implements UI {
                 ui.clearChoice()
                 ui.recordResolvedChoice(state, choicePrompt, options, info, chosen, n)
                 const macroStep = macroStepFromChoice(options[n].render, chosen.includes(n), info)
-                if (shifted) ui.playingMacro = repeat([macroStep], 9)
+                if (shifted) {
+                    ui.playingMacro = repeat([macroStep], 9)
+                    ui.macroRepetitionLength = 1
+                    ui.macroStepsIntoRepetition = 0
+                }
                 if (ui.playingMacro.length === 0) {
                     ui.macroStartState = null
+                    ui.macroRepetitionLength = 0
                 }
                 resolve(n)
             }
@@ -1659,6 +1677,7 @@ export class GameUI implements UI {
                     } else {
                         ui.playingMacro = []
                         ui.macroStartState = null
+                        ui.macroRepetitionLength = 0
                     }
                 }
                 ui.clearChoice()
@@ -1675,21 +1694,29 @@ export class GameUI implements UI {
                 reject: newReject
             }
 
+            const chooseTrivial = ui.chooseTrivial(state, options, info)
+
+            // If the choice is trivial (only 1 option), resolve without consuming
+            // or recording a macro step, so macros work regardless of whether a
+            // choice was trivial during recording vs replay
+            if (chooseTrivial !== null) {
+                if (ui.undoing) {
+                    newReject(new Undo(state))
+                } else {
+                    ui.clearChoice()
+                    resolve(chooseTrivial)
+                }
+                return
+            }
+
             const macroMatch = ui.matchNextMacroStep()
             if (macroMatch.failed && ui.macroStartState !== null) {
                 newReject(new SetState(ui.macroStartState))
                 return
             }
-            const chooseTrivial = ui.chooseTrivial(state, options, info)
 
             if (macroMatch.option !== null) {
                 newResolve(macroMatch.option, false)
-            } else if (chooseTrivial !== null) {
-                if (ui.undoing) {
-                    newReject(new Undo(state))
-                } else {
-                    newResolve(chooseTrivial, false)
-                }
             } else {
                 ui.undoing = false
                 ui.render()

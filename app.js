@@ -17732,6 +17732,8 @@
         if (ui.choiceState && ui.playingMacro.length === 0) {
           var macro = ui.macros[i2];
           ui.playingMacro = repeat2(macro.steps, e.shiftKey ? 10 : 1);
+          ui.macroRepetitionLength = macro.steps.length;
+          ui.macroStepsIntoRepetition = 0;
           if (macro.resetFirst === true) {
             var reset = startState(ui.choiceState.state);
             ui.macroStartState = reset;
@@ -17912,6 +17914,8 @@
         this.recordingStates = [];
         this.playingMacro = [];
         this.macroStartState = null;
+        this.macroRepetitionLength = 0;
+        this.macroStepsIntoRepetition = 0;
         this.preserveMacroOnNextSetState = false;
         this.choiceState = null;
         this.progressDirty = false;
@@ -17984,10 +17988,17 @@
       GameUI2.prototype.matchNextMacroStep = function() {
         var macro = this.playingMacro.shift();
         if (macro && this.choiceState) {
+          if (this.macroRepetitionLength > 0 && this.macroStepsIntoRepetition === 0 && this.choiceState) {
+            this.macroStartState = this.choiceState.state;
+          }
           var option = matchMacro(macro, this.choiceState.state, this.choiceState.options, this.choiceState.chosen);
           if (option === null) {
             this.playingMacro = [];
             return { option: null, failed: true };
+          }
+          this.macroStepsIntoRepetition++;
+          if (this.macroRepetitionLength > 0 && this.macroStepsIntoRepetition >= this.macroRepetitionLength) {
+            this.macroStepsIntoRepetition = 0;
           }
           return { option, failed: false };
         }
@@ -18025,10 +18036,14 @@
             ui.clearChoice();
             ui.recordResolvedChoice(state, choicePrompt, options, info, chosen, n);
             var macroStep = macroStepFromChoice(options[n].render, chosen.includes(n), info);
-            if (shifted)
+            if (shifted) {
               ui.playingMacro = repeat2([macroStep], 9);
+              ui.macroRepetitionLength = 1;
+              ui.macroStepsIntoRepetition = 0;
+            }
             if (ui.playingMacro.length === 0) {
               ui.macroStartState = null;
+              ui.macroRepetitionLength = 0;
             }
             resolve(n);
           }
@@ -18043,6 +18058,7 @@
               } else {
                 ui.playingMacro = [];
                 ui.macroStartState = null;
+                ui.macroRepetitionLength = 0;
               }
             }
             ui.clearChoice();
@@ -18057,20 +18073,23 @@
             resolve: newResolve,
             reject: newReject
           };
+          var chooseTrivial = ui.chooseTrivial(state, options, info);
+          if (chooseTrivial !== null) {
+            if (ui.undoing) {
+              newReject(new Undo(state));
+            } else {
+              ui.clearChoice();
+              resolve(chooseTrivial);
+            }
+            return;
+          }
           var macroMatch = ui.matchNextMacroStep();
           if (macroMatch.failed && ui.macroStartState !== null) {
             newReject(new SetState(ui.macroStartState));
             return;
           }
-          var chooseTrivial = ui.chooseTrivial(state, options, info);
           if (macroMatch.option !== null) {
             newResolve(macroMatch.option, false);
-          } else if (chooseTrivial !== null) {
-            if (ui.undoing) {
-              newReject(new Undo(state));
-            } else {
-              newResolve(chooseTrivial, false);
-            }
           } else {
             ui.undoing = false;
             ui.render();
