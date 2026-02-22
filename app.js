@@ -18093,18 +18093,6 @@
             resolve: newResolve,
             reject: newReject
           };
-          var chooseTrivial = ui.chooseTrivial(state, options, info);
-          if (chooseTrivial !== null) {
-            if (ui.undoing) {
-              newReject(new Undo(state));
-            } else {
-              if (ui.playingMacro.length > 0)
-                ui.macroChoicesInRepetition++;
-              ui.clearChoice();
-              resolve(chooseTrivial);
-            }
-            return;
-          }
           var macroMatch = ui.matchNextMacroStep();
           if (macroMatch.failed && ui.macroStartState !== null) {
             var rewindCount = ui.macroChoicesInRepetition;
@@ -18115,8 +18103,15 @@
             newReject(new Undo(state, rewindCount));
             return;
           }
+          var chooseTrivial = ui.chooseTrivial(state, options, info);
           if (macroMatch.option !== null) {
             newResolve(macroMatch.option, false);
+          } else if (chooseTrivial !== null) {
+            if (ui.undoing) {
+              newReject(new Undo(state));
+            } else {
+              newResolve(chooseTrivial, false);
+            }
           } else {
             ui.undoing = false;
             ui.render();

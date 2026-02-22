@@ -1698,22 +1698,6 @@ export class GameUI implements UI {
                 reject: newReject
             }
 
-            const chooseTrivial = ui.chooseTrivial(state, options, info)
-
-            // If the choice is trivial (only 1 option), resolve without consuming
-            // or recording a macro step, so macros work regardless of whether a
-            // choice was trivial during recording vs replay
-            if (chooseTrivial !== null) {
-                if (ui.undoing) {
-                    newReject(new Undo(state))
-                } else {
-                    if (ui.playingMacro.length > 0) ui.macroChoicesInRepetition++
-                    ui.clearChoice()
-                    resolve(chooseTrivial)
-                }
-                return
-            }
-
             const macroMatch = ui.matchNextMacroStep()
             if (macroMatch.failed && ui.macroStartState !== null) {
                 // Undo all choices made in this repetition
@@ -1726,8 +1710,16 @@ export class GameUI implements UI {
                 return
             }
 
+            const chooseTrivial = ui.chooseTrivial(state, options, info)
+
             if (macroMatch.option !== null) {
                 newResolve(macroMatch.option, false)
+            } else if (chooseTrivial !== null) {
+                if (ui.undoing) {
+                    newReject(new Undo(state))
+                } else {
+                    newResolve(chooseTrivial, false)
+                }
             } else {
                 ui.undoing = false
                 ui.render()
