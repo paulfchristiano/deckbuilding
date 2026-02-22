@@ -6235,6 +6235,7 @@
     };
   }
   function serializeGameSpec(spec) {
+    var _a, _b;
     return {
       vp: spec.vp,
       par: spec.par,
@@ -6259,10 +6260,17 @@
       previousScore: spec.previousScore,
       replayUsedPotionIDs: spec.replayUsedPotionIDs ? __spreadArray6([], __read7(spec.replayUsedPotionIDs), false) : void 0,
       replayStage: spec.replayStage,
-      selectedChallengeIndex: spec.selectedChallengeIndex
+      selectedChallengeIndex: spec.selectedChallengeIndex,
+      collectedCards: (_a = spec.collectedCards) === null || _a === void 0 ? void 0 : _a.map(function(card) {
+        return serializeSpec(card, "card");
+      }),
+      collectedEvents: (_b = spec.collectedEvents) === null || _b === void 0 ? void 0 : _b.map(function(event) {
+        return serializeSpec(event, "event");
+      })
     };
   }
   function deserializeGameSpec(spec) {
+    var _a, _b;
     return {
       vp: spec.vp,
       par: spec.par,
@@ -6287,7 +6295,13 @@
       previousScore: spec.previousScore,
       replayUsedPotionIDs: spec.replayUsedPotionIDs ? __spreadArray6([], __read7(spec.replayUsedPotionIDs), false) : void 0,
       replayStage: spec.replayStage,
-      selectedChallengeIndex: spec.selectedChallengeIndex
+      selectedChallengeIndex: spec.selectedChallengeIndex,
+      collectedCards: (_a = spec.collectedCards) === null || _a === void 0 ? void 0 : _a.map(function(card) {
+        return deserializeSpec(card);
+      }),
+      collectedEvents: (_b = spec.collectedEvents) === null || _b === void 0 ? void 0 : _b.map(function(event) {
+        return deserializeSpec(event);
+      })
     };
   }
   function serializeMetaStateData(data) {
@@ -7159,7 +7173,9 @@
       metaStagePars: __spreadArray6([], __read7(state.data.stagePars), false),
       metaStageTooltips: stageTooltipTexts(state),
       metaCursesEnabled: state.cursesEnabled,
-      selectedChallengeIndex
+      selectedChallengeIndex,
+      collectedCards: sortedCollectedCards,
+      collectedEvents: sortedCollectedEvents
     };
   }
   function getRewardOptionCount(state, rewardKind) {
@@ -7534,7 +7550,7 @@
     })(Error)
   );
   function cloneGameSpec(spec) {
-    return __assign3(__assign3({}, spec), { buffer: spec.buffer, cards: __spreadArray6([], __read7(spec.cards), false), events: __spreadArray6([], __read7(spec.events), false), potions: __spreadArray6([], __read7(spec.potions), false), relics: __spreadArray6([], __read7(spec.relics), false), metaStageScores: spec.metaStageScores ? __spreadArray6([], __read7(spec.metaStageScores), false) : void 0, metaStagePars: spec.metaStagePars ? __spreadArray6([], __read7(spec.metaStagePars), false) : void 0, metaStageTooltips: spec.metaStageTooltips ? __spreadArray6([], __read7(spec.metaStageTooltips), false) : void 0, replayUsedPotionIDs: spec.replayUsedPotionIDs ? __spreadArray6([], __read7(spec.replayUsedPotionIDs), false) : void 0, selectedChallengeIndex: spec.selectedChallengeIndex });
+    return __assign3(__assign3({}, spec), { buffer: spec.buffer, cards: __spreadArray6([], __read7(spec.cards), false), events: __spreadArray6([], __read7(spec.events), false), potions: __spreadArray6([], __read7(spec.potions), false), relics: __spreadArray6([], __read7(spec.relics), false), metaStageScores: spec.metaStageScores ? __spreadArray6([], __read7(spec.metaStageScores), false) : void 0, metaStagePars: spec.metaStagePars ? __spreadArray6([], __read7(spec.metaStagePars), false) : void 0, metaStageTooltips: spec.metaStageTooltips ? __spreadArray6([], __read7(spec.metaStageTooltips), false) : void 0, replayUsedPotionIDs: spec.replayUsedPotionIDs ? __spreadArray6([], __read7(spec.replayUsedPotionIDs), false) : void 0, selectedChallengeIndex: spec.selectedChallengeIndex, collectedCards: spec.collectedCards ? __spreadArray6([], __read7(spec.collectedCards), false) : void 0, collectedEvents: spec.collectedEvents ? __spreadArray6([], __read7(spec.collectedEvents), false) : void 0 });
   }
   function cloneStageReplayData(replayData) {
     return __assign3(__assign3({}, replayData), { challenge: __assign3(__assign3({}, replayData.challenge), { boons: __spreadArray6([], __read7(replayData.challenge.boons), false) }), spec: cloneGameSpec(replayData.spec), history: __spreadArray6([], __read7(replayData.history), false), potionsRemaining: __spreadArray6([], __read7(replayData.potionsRemaining), false) });
@@ -17868,9 +17884,10 @@
     });
   }
   function showInGameDeckDialog(state) {
+    var _a, _b;
     var sections = [
-      renderInGameDeckSection("Cards", state.spec.cards),
-      renderInGameDeckSection("Events", state.spec.events),
+      renderInGameDeckSection("Cards", (_a = state.spec.collectedCards) !== null && _a !== void 0 ? _a : state.spec.cards),
+      renderInGameDeckSection("Events", (_b = state.spec.collectedEvents) !== null && _b !== void 0 ? _b : state.spec.events),
       renderInGameDeckSection("Potions", state.potions.map(function(p) {
         return p.spec;
       })),
@@ -17879,6 +17896,20 @@
     getElement("deckContents").innerHTML = sections;
     getElement("deckDialog").setAttribute("active", "true");
     inGameDeckDialogOpen = true;
+    var dialog = getElement("deckDialog");
+    var specs = dialog.querySelectorAll(".spec");
+    specs.forEach(function(spec) {
+      var tooltips = spec.querySelectorAll(".tooltip, .tooltip-simple, .tooltip-full");
+      spec.addEventListener("mouseenter", function() {
+        var rect = spec.getBoundingClientRect();
+        tooltips.forEach(function(tooltip) {
+          var el = tooltip;
+          el.style.position = "fixed";
+          el.style.top = "".concat(rect.bottom, "px");
+          el.style.left = "".concat(rect.left, "px");
+        });
+      });
+    });
   }
   function hideInGameDeckDialog() {
     getElement("deckDialog").setAttribute("active", "false");
@@ -17897,7 +17928,7 @@
     };
   }
   function bindBack(ui) {
-    function pick() {
+    function back() {
       if (ui.choiceState) {
         var state = ui.choiceState.state;
         var history_1 = state.origin().future;
@@ -17905,10 +17936,17 @@
         ui.choiceState.reject(new UndoPastBeginning(history_1, redo, ui.exportPersistenceData()));
       }
     }
+    function pick() {
+      if (inGameDeckDialogOpen) {
+        hideInGameDeckDialog();
+      } else {
+        back();
+      }
+    }
     keyListeners.set("Escape", pick);
     var el = querySelector("[option='back']");
     if (el)
-      el.onclick = pick;
+      el.onclick = back;
   }
   function bindMacroToggle(state, ui) {
     function updateMacroDisplay() {

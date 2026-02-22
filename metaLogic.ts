@@ -1145,6 +1145,8 @@ interface SerializedGameSpec {
     replayUsedPotionIDs?: number[]
     replayStage?: number | null
     selectedChallengeIndex?: number
+    collectedCards?: SerializedSpecRef[]
+    collectedEvents?: SerializedSpecRef[]
 }
 
 interface SerializedStageReplayData {
@@ -1548,7 +1550,9 @@ function serializeGameSpec(spec: GameSpec): SerializedGameSpec {
         previousScore: spec.previousScore,
         replayUsedPotionIDs: spec.replayUsedPotionIDs ? [...spec.replayUsedPotionIDs] : undefined,
         replayStage: spec.replayStage,
-        selectedChallengeIndex: spec.selectedChallengeIndex
+        selectedChallengeIndex: spec.selectedChallengeIndex,
+        collectedCards: spec.collectedCards?.map(card => serializeSpec(card, 'card')),
+        collectedEvents: spec.collectedEvents?.map(event => serializeSpec(event, 'event'))
     }
 }
 
@@ -1569,7 +1573,9 @@ function deserializeGameSpec(spec: SerializedGameSpec): GameSpec {
         previousScore: spec.previousScore,
         replayUsedPotionIDs: spec.replayUsedPotionIDs ? [...spec.replayUsedPotionIDs] : undefined,
         replayStage: spec.replayStage,
-        selectedChallengeIndex: spec.selectedChallengeIndex
+        selectedChallengeIndex: spec.selectedChallengeIndex,
+        collectedCards: spec.collectedCards?.map(card => deserializeSpec(card)),
+        collectedEvents: spec.collectedEvents?.map(event => deserializeSpec(event))
     }
 }
 
@@ -2172,6 +2178,8 @@ export function makeSpec(state: MetaState, challenge: ChallengeSpec, selectedCha
         metaStageTooltips: stageTooltipTexts(state),
         metaCursesEnabled: state.cursesEnabled,
         selectedChallengeIndex,
+        collectedCards: sortedCollectedCards,
+        collectedEvents: sortedCollectedEvents,
     }
 }
 
@@ -2491,7 +2499,9 @@ function cloneGameSpec(spec: GameSpec): GameSpec {
         metaStagePars: spec.metaStagePars ? [...spec.metaStagePars] : undefined,
         metaStageTooltips: spec.metaStageTooltips ? [...spec.metaStageTooltips] : undefined,
         replayUsedPotionIDs: spec.replayUsedPotionIDs ? [...spec.replayUsedPotionIDs] : undefined,
-        selectedChallengeIndex: spec.selectedChallengeIndex
+        selectedChallengeIndex: spec.selectedChallengeIndex,
+        collectedCards: spec.collectedCards ? [...spec.collectedCards] : undefined,
+        collectedEvents: spec.collectedEvents ? [...spec.collectedEvents] : undefined
     }
 }
 

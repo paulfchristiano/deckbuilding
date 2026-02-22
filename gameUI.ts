@@ -1256,14 +1256,30 @@ function buildRelicDisplaySpecs(state: State): CardSpec[] {
 
 function showInGameDeckDialog(state: State): void {
     const sections = [
-        renderInGameDeckSection('Cards', state.spec.cards),
-        renderInGameDeckSection('Events', state.spec.events),
+        renderInGameDeckSection('Cards', state.spec.collectedCards ?? state.spec.cards),
+        renderInGameDeckSection('Events', state.spec.collectedEvents ?? state.spec.events),
         renderInGameDeckSection('Potions', state.potions.map(p => p.spec)),
         renderInGameDeckSection('Relics', buildRelicDisplaySpecs(state)),
     ].join('')
     getElement('deckContents').innerHTML = sections
     getElement('deckDialog').setAttribute('active', 'true')
     inGameDeckDialogOpen = true
+
+    // Position tooltips with fixed positioning so they escape the scroll container
+    const dialog = getElement('deckDialog')
+    const specs = dialog.querySelectorAll('.spec')
+    specs.forEach(spec => {
+        const tooltips = spec.querySelectorAll('.tooltip, .tooltip-simple, .tooltip-full')
+        spec.addEventListener('mouseenter', () => {
+            const rect = spec.getBoundingClientRect()
+            tooltips.forEach(tooltip => {
+                const el = tooltip as HTMLElement
+                el.style.position = 'fixed'
+                el.style.top = `${rect.bottom}px`
+                el.style.left = `${rect.left}px`
+            })
+        })
+    })
 }
 
 function hideInGameDeckDialog(): void {
@@ -1281,7 +1297,7 @@ function bindInGameDeckDialog(state: State): void {
 }
 
 function bindBack(ui: GameUI): void {
-    function pick() {
+    function back() {
         if (ui.choiceState) {
             const state = ui.choiceState.state
             // Capture full history and redo buffer for restoration on meta-redo
@@ -1290,9 +1306,16 @@ function bindBack(ui: GameUI): void {
             ui.choiceState.reject(new UndoPastBeginning(history, redo, ui.exportPersistenceData()))
         }
     }
+    function pick() {
+        if (inGameDeckDialogOpen) {
+            hideInGameDeckDialog()
+        } else {
+            back()
+        }
+    }
     keyListeners.set('Escape', pick)
     const el = querySelector(`[option='back']`)
-    if (el) (el as HTMLElement).onclick = pick
+    if (el) (el as HTMLElement).onclick = back
 }
 
 function bindViewKingdom(state: State): void {

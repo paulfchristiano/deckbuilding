@@ -656,7 +656,9 @@ export type GameSpec = {
     previousScore?: number | null,
     replayUsedPotionIDs?: number[],
     replayStage?: number | null,
-    selectedChallengeIndex?: number
+    selectedChallengeIndex?: number,
+    collectedCards?: CardSpec[],
+    collectedEvents?: CardSpec[]
 }
 
 export class State {
