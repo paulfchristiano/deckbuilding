@@ -13677,14 +13677,14 @@
     name: function(name) {
       return "".concat(name, "+");
     },
-    staticReplacers: [{
-      kind: "create",
-      text: ["Whenever you would create this in your discard, instead create it in your hand."],
+    staticTriggers: [{
+      kind: "afterStart",
+      text: ["At the start of the game, put a priority token on this."],
       handles: function(p, _state, card) {
-        return p.zone === "discard" && p.spec.name === card.name;
+        return true;
       },
-      replace: function(p) {
-        return __assign9(__assign9({}, p), { zone: "hand" });
+      transform: function(_e, _s, card) {
+        return addToken(card, "priority", 1);
       }
     }]
   });
@@ -14142,7 +14142,7 @@
         },
         {
           label: "Rush order",
-          description: "Choose a card. Whenever it would be created in discard, create it in hand instead.",
+          description: "Choose a card. The first time you create it each stage, play it for free.",
           disabled: selectedIndex !== null || !hasCards,
           checked: selectedIndex === 1,
           onClick: function() {
@@ -19718,9 +19718,8 @@
     throw new TypeError(s ? "Object is not iterable." : "Symbol.iterator is not defined.");
   };
   var test = {
-    burdens: [
-      [1, ["burden", "Fake Coin"]],
-      [1, ["burden", "Miserly Touch"]]
+    rewards: [
+      [1, ["encounter", shopkeeper]]
     ]
   };
   var SAVE_STORAGE_KEY = "roguelike.ongoingSaves.v1";

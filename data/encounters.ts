@@ -152,11 +152,11 @@ export const buyOneGetOneUpgrade: CardUpgrade = registerUpgrade('buyOneGetOne', 
 
 export const rushOrderUpgrade: CardUpgrade = registerUpgrade('rushOrder', {
     name: name => `${name}+`,
-    staticReplacers: [{
-        kind: 'create',
-        text: ['Whenever you would create this in your discard, instead create it in your hand.'],
-        handles: (p, _state, card) => p.zone === 'discard' && p.spec.name === card.name,
-        replace: p => ({ ...p, zone: 'hand' }),
+    staticTriggers: [{
+        kind: 'afterStart',
+        text: ['At the start of the game, put a priority token on this.'],
+        handles: (p, _state, card) => true,
+        transform: (_e, _s, card) => addToken(card!, 'priority', 1),
     }]
 })
 
@@ -586,7 +586,7 @@ export const shopkeeper: Encounter = {
             },
             {
                 label: 'Rush order',
-                description: 'Choose a card. Whenever it would be created in discard, create it in hand instead.',
+                description: 'Choose a card. The first time you create it each stage, play it for free.',
                 disabled: selectedIndex !== null || !hasCards,
                 checked: selectedIndex === 1,
                 onClick: async () => chooseUpgrade(rushOrderUpgrade, 1, 'Rush order'),

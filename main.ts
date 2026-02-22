@@ -22,12 +22,11 @@ import { Card, CardSpec, UndoPastBeginning } from './gameLogic.js'
 import type { DebugTestConfig } from './metaLogic.js'
 
 import { commerce, splay } from './data/events.js'
-import { tactician } from './data/encounters.js'
+import { shopkeeper, tactician } from './data/encounters.js'
 
 let test: DebugTestConfig | null = {
-    burdens: [
-        [1, ['burden', 'Fake Coin']],
-        [1, ['burden', 'Miserly Touch']],
+    rewards: [
+        [1, ['encounter', shopkeeper]],
     ],
 }
 
