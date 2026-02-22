@@ -15,6 +15,7 @@ import {
     decayRule,
     displayName,
     gainCoins,
+    isBurdened,
     incrementMap,
     refresh,
 } from '../gameLogic.js'
@@ -39,7 +40,6 @@ import { registerRelicSpec } from '../registry.js'
 function upgradeCardSpec(spec: CardSpec, upgrade: CardUpgrade): CardSpec {
     return {
         ...spec,
-        burden: true,
         upgrades: [...(spec.upgrades || []), upgrade],
     }
 }
@@ -337,6 +337,7 @@ registerRelicSpec(brokenCrown)
 
 const taxCardUpgrade: CardUpgrade = {
     id: 'burden_tax_card',
+    burden: true,
     name: name => `${name}-`,
     cost: (cost, kind) => kind === 'buy'
         ? { ...cost, coin: cost.coin + 2 }
@@ -365,6 +366,7 @@ function setDecayReplacer(numTokens: number): ((params: CreateParams) => CreateP
 
 const decayCardUpgrade: CardUpgrade = {
     id: 'burden_decay_card',
+    burden: true,
     name: name => `${name}-`,
     rules: [decayRule],
     staticReplacers: [{
@@ -379,6 +381,7 @@ registerEncounterUpgrade('burden_decay_card', decayCardUpgrade)
 
 const dullCardUpgrade: CardUpgrade = {
     id: 'burden_dull_card',
+    burden: true,
     name: name => `${name}-`,
     cost: (cost, kind) => kind === 'play'
         ? { ...cost, coin: cost.coin + 1 }
@@ -388,6 +391,7 @@ registerEncounterUpgrade('burden_dull_card', dullCardUpgrade)
 
 const taxEventUpgrade: CardUpgrade = {
     id: 'burden_tax_event',
+    burden: true,
     name: name => `${name}-`,
     cost: (cost, kind) => kind === 'use'
         ? { ...cost, coin: cost.coin + 2 }
@@ -482,15 +486,15 @@ registerBurden({
     description: 'Give up a card, event, potion, or relic.',
     weight: 3,
     applies: state =>
-        state.data.collectedCards.some(card => card.burden !== true)
-        || state.data.collectedEvents.some(event => event.burden !== true)
-        || state.data.potions.some(potion => potion.spec.burden !== true)
-        || state.data.relics.some(relic => relic.spec.burden !== true),
+        state.data.collectedCards.some(card => !isBurdened(card))
+        || state.data.collectedEvents.some(event => !isBurdened(event))
+        || state.data.potions.some(potion => !isBurdened(potion.spec))
+        || state.data.relics.some(relic => !isBurdened(relic.spec)),
     resolveTransform: async (_option: BurdenOptionState, state: MetaState, skipped: string[]) => {
-        const cardOptions = state.data.collectedCards.filter(card => card.burden !== true)
-        const eventOptions = state.data.collectedEvents.filter(event => event.burden !== true)
-        const potionOptions = state.data.potions.filter(potion => potion.spec.burden !== true)
-        const relicOptions = state.data.relics.filter(candidate => candidate.spec.burden !== true)
+        const cardOptions = state.data.collectedCards.filter(card => !isBurdened(card))
+        const eventOptions = state.data.collectedEvents.filter(event => !isBurdened(event))
+        const potionOptions = state.data.potions.filter(potion => !isBurdened(potion.spec))
+        const relicOptions = state.data.relics.filter(candidate => !isBurdened(candidate.spec))
         const options: Array<CardSpec | Card> = [
             ...cardOptions,
             ...eventOptions,
@@ -550,9 +554,9 @@ registerBurden({
     id: 'lose_potion_brew',
     title: 'Trade a potion',
     description: `Give up a potion and gain ${beggarsBrew.name}.`,
-    applies: state => state.data.potions.some(potion => potion.spec.burden !== true),
+    applies: state => state.data.potions.some(potion => !isBurdened(potion.spec)),
     resolveTransform: async (_option, state, skipped) => {
-        const validPotions = state.data.potions.filter(potion => potion.spec.burden !== true)
+        const validPotions = state.data.potions.filter(potion => !isBurdened(potion.spec))
         const picked = await state.ui.chooseCard(state, 'Choose a potion to give up:', validPotions, true)
         if (!picked) return null
         const chosenName = displayName(picked.spec)
@@ -568,9 +572,9 @@ registerBurden({
     title: 'Freeze a relic',
     description: 'Freeze a relic for the next 2 stages.',
     maxStage: 5,
-    applies: state => state.data.relics.some(relic => relic.spec.burden !== true),
+    applies: state => state.data.relics.some(relic => !isBurdened(relic.spec)),
     resolveTransform: async (_option, state, skipped) => {
-        const options = state.data.relics.filter(relic => relic.spec.burden !== true)
+        const options = state.data.relics.filter(relic => !isBurdened(relic.spec))
         if (options.length === 0) return null
         const picked = await state.ui.chooseCard(state, 'Choose a relic to freeze:', options, true)
         if (!picked) return null
@@ -588,9 +592,9 @@ registerBurden({
     id: 'tax_card',
     title: 'Tax a card',
     description: 'Choose a card. It costs $2 more to buy.',
-    applies: state => state.data.collectedCards.some(card => card.burden !== true),
+    applies: state => state.data.collectedCards.some(card => !isBurdened(card)),
     resolveTransform: async (_option, state, skipped) => {
-        const validCards = state.data.collectedCards.filter(card => card.burden !== true)
+        const validCards = state.data.collectedCards.filter(card => !isBurdened(card))
         const picked = await state.ui.chooseCard(state, 'Choose a card to tax:', validCards, true)
         if (!picked) return null
         const chosenName = displayName(picked)
@@ -611,9 +615,9 @@ registerBurden({
     title: 'Weaken a card',
     description: 'Choose a card. Whenever that card is created, put 2 decay tokens on it.',
     rules: [decayRule],
-    applies: state => state.data.collectedCards.some(card => card.burden !== true),
+    applies: state => state.data.collectedCards.some(card => !isBurdened(card)),
     resolveTransform: async (_option, state, skipped) => {
-        const validCards = state.data.collectedCards.filter(card => card.burden !== true)
+        const validCards = state.data.collectedCards.filter(card => !isBurdened(card))
         const picked = await state.ui.chooseCard(state, 'Choose a card to decay:', validCards, true)
         if (!picked) return null
         const chosenName = displayName(picked)
@@ -633,9 +637,9 @@ registerBurden({
     id: 'dull_card',
     title: 'Dull a card',
     description: 'Choose a card. It costs $1 more to play.',
-    applies: state => state.data.collectedCards.some(card => card.burden !== true),
+    applies: state => state.data.collectedCards.some(card => !isBurdened(card)),
     resolveTransform: async (_option, state, skipped) => {
-        const validCards = state.data.collectedCards.filter(card => card.burden !== true)
+        const validCards = state.data.collectedCards.filter(card => !isBurdened(card))
         const picked = await state.ui.chooseCard(state, 'Choose a card to dull:', validCards, true)
         if (!picked) return null
         const chosenName = displayName(picked)
@@ -655,9 +659,9 @@ registerBurden({
     id: 'tax_event',
     title: 'Tax an event',
     description: 'Choose an event. It costs $2 more to use.',
-    applies: state => state.data.collectedEvents.some(event => event.burden !== true),
+    applies: state => state.data.collectedEvents.some(event => !isBurdened(event)),
     resolveTransform: async (_option, state, skipped) => {
-        const validEvents = state.data.collectedEvents.filter(event => event.burden !== true)
+        const validEvents = state.data.collectedEvents.filter(event => !isBurdened(event))
         const picked = await state.ui.chooseCard(state, 'Choose an event to tax:', validEvents, true)
         if (!picked) return null
         const chosenName = displayName(picked)

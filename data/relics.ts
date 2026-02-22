@@ -15,7 +15,8 @@ import {
     cardRewards,
     eventRewards,
     State,
-    charge
+    charge,
+    isBurdened
 } from '../gameLogic.js'
 import { addRelicReward, registerRelicSpec } from '../registry.js'
 import { Generator } from '../rng.js'
@@ -145,7 +146,7 @@ export const silverMirror: RelicSpec = {
         handles: (e: GainRelicEvent, _s: MetaState, relic: Relic) =>
             e.relic.id !== relic.id
             && e.relic.name !== mirrorName
-            && e.relic.spec.burden !== true,
+            && !isBurdened(e.relic.spec),
         transform: (e: GainRelicEvent, _s: MetaState, relic: Relic) => async function (state: MetaState) {
             await removeRelic(state, relic.id)
             await gainRelic(e.relic.spec)(state)

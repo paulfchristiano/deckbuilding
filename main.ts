@@ -24,7 +24,12 @@ import type { DebugTestConfig } from './metaLogic.js'
 import { commerce, splay } from './data/events.js'
 import { tactician } from './data/encounters.js'
 
-let test: DebugTestConfig | null = null
+let test: DebugTestConfig | null = {
+    burdens: [
+        [1, ['burden', 'decay_card']],
+        [1, ['burden', 'tax_card']],
+    ],
+}
 
 const SAVE_STORAGE_KEY = 'roguelike.ongoingSaves.v1'
 const RUN_TIMER_STORAGE_KEY = 'roguelike.runTimerSeconds.v1'

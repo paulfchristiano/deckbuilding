@@ -127,6 +127,17 @@
       return { value: op[0] ? op[1] : void 0, done: true };
     }
   };
+  var __values = function(o) {
+    var s = typeof Symbol === "function" && Symbol.iterator, m = s && o[s], i = 0;
+    if (m) return m.call(o);
+    if (o && typeof o.length === "number") return {
+      next: function() {
+        if (o && i >= o.length) o = void 0;
+        return { value: o && o[i++], done: !o };
+      }
+    };
+    throw new TypeError(s ? "Object is not iterable." : "Symbol.iterator is not defined.");
+  };
   var __read = function(o, n) {
     var m = typeof Symbol === "function" && o[Symbol.iterator];
     if (!m) return o;
@@ -153,19 +164,31 @@
     }
     return to.concat(ar || Array.prototype.slice.call(from));
   };
-  var __values = function(o) {
-    var s = typeof Symbol === "function" && Symbol.iterator, m = s && o[s], i = 0;
-    if (m) return m.call(o);
-    if (o && typeof o.length === "number") return {
-      next: function() {
-        if (o && i >= o.length) o = void 0;
-        return { value: o && o[i++], done: !o };
-      }
-    };
-    throw new TypeError(s ? "Object is not iterable." : "Symbol.iterator is not defined.");
-  };
-  function appendUpgrades(base, upgrades, getter) {
+  function isBurdened(spec) {
     var e_1, _a;
+    if (spec.burden === true)
+      return true;
+    if (spec.upgrades) {
+      try {
+        for (var _b = __values(spec.upgrades), _c = _b.next(); !_c.done; _c = _b.next()) {
+          var upgrade = _c.value;
+          if (upgrade.burden === true)
+            return true;
+        }
+      } catch (e_1_1) {
+        e_1 = { error: e_1_1 };
+      } finally {
+        try {
+          if (_c && !_c.done && (_a = _b.return)) _a.call(_b);
+        } finally {
+          if (e_1) throw e_1.error;
+        }
+      }
+    }
+    return false;
+  }
+  function appendUpgrades(base, upgrades, getter) {
+    var e_2, _a;
     var result = base ? __spreadArray([], __read(base), false) : [];
     if (!upgrades)
       return result;
@@ -176,19 +199,19 @@
         if (extra)
           result.push.apply(result, __spreadArray([], __read(extra), false));
       }
-    } catch (e_1_1) {
-      e_1 = { error: e_1_1 };
+    } catch (e_2_1) {
+      e_2 = { error: e_2_1 };
     } finally {
       try {
         if (upgrades_1_1 && !upgrades_1_1.done && (_a = upgrades_1.return)) _a.call(upgrades_1);
       } finally {
-        if (e_1) throw e_1.error;
+        if (e_2) throw e_2.error;
       }
     }
     return result;
   }
   function displayName(spec) {
-    var e_2, _a;
+    var e_3, _a;
     var name = spec.name;
     try {
       for (var _b = __values(spec.upgrades || []), _c = _b.next(); !_c.done; _c = _b.next()) {
@@ -197,13 +220,13 @@
           name = upgrade.name(name);
         }
       }
-    } catch (e_2_1) {
-      e_2 = { error: e_2_1 };
+    } catch (e_3_1) {
+      e_3 = { error: e_3_1 };
     } finally {
       try {
         if (_c && !_c.done && (_a = _b.return)) _a.call(_b);
       } finally {
-        if (e_2) throw e_2.error;
+        if (e_3) throw e_3.error;
       }
     }
     return name;
@@ -219,7 +242,7 @@
     });
   }
   function cardSpecSimpleLines(spec) {
-    var e_3, _a, e_4, _b, e_5, _c, e_6, _d, e_7, _e, e_8, _f, e_9, _g, e_10, _h, e_11, _j, e_12, _k, e_13, _l, e_14, _m;
+    var e_4, _a, e_5, _b, e_6, _c, e_7, _d, e_8, _e, e_9, _f, e_10, _g, e_11, _h, e_12, _j, e_13, _k, e_14, _l, e_15, _m;
     var _o, _p, _q, _r, _s, _t, _u, _v, _w, _x;
     var lines = [];
     if (spec.simpleText !== void 0) {
@@ -232,13 +255,13 @@
         if (restrictionLines !== void 0)
           lines.push.apply(lines, __spreadArray([], __read(restrictionLines), false));
       }
-    } catch (e_3_1) {
-      e_3 = { error: e_3_1 };
+    } catch (e_4_1) {
+      e_4 = { error: e_4_1 };
     } finally {
       try {
         if (_z && !_z.done && (_a = _y.return)) _a.call(_y);
       } finally {
-        if (e_3) throw e_3.error;
+        if (e_4) throw e_4.error;
       }
     }
     try {
@@ -246,13 +269,13 @@
         var effect = _1.value;
         lines.push.apply(lines, __spreadArray([], __read((_o = effect.simpleText) !== null && _o !== void 0 ? _o : effect.text), false));
       }
-    } catch (e_4_1) {
-      e_4 = { error: e_4_1 };
+    } catch (e_5_1) {
+      e_5 = { error: e_5_1 };
     } finally {
       try {
         if (_1 && !_1.done && (_b = _0.return)) _b.call(_0);
       } finally {
-        if (e_4) throw e_4.error;
+        if (e_5) throw e_5.error;
       }
     }
     try {
@@ -260,13 +283,13 @@
         var abilityEffect = _3.value;
         lines.push.apply(lines, __spreadArray([], __read((_p = abilityEffect.simpleText) !== null && _p !== void 0 ? _p : abilityEffect.text), false));
       }
-    } catch (e_5_1) {
-      e_5 = { error: e_5_1 };
+    } catch (e_6_1) {
+      e_6 = { error: e_6_1 };
     } finally {
       try {
         if (_3 && !_3.done && (_c = _2.return)) _c.call(_2);
       } finally {
-        if (e_5) throw e_5.error;
+        if (e_6) throw e_6.error;
       }
     }
     try {
@@ -274,13 +297,13 @@
         var trigger_1 = _5.value;
         lines.push.apply(lines, __spreadArray([], __read((_q = trigger_1.simpleText) !== null && _q !== void 0 ? _q : trigger_1.text), false));
       }
-    } catch (e_6_1) {
-      e_6 = { error: e_6_1 };
+    } catch (e_7_1) {
+      e_7 = { error: e_7_1 };
     } finally {
       try {
         if (_5 && !_5.done && (_d = _4.return)) _d.call(_4);
       } finally {
-        if (e_6) throw e_6.error;
+        if (e_7) throw e_7.error;
       }
     }
     try {
@@ -288,13 +311,13 @@
         var replacer = _7.value;
         lines.push.apply(lines, __spreadArray([], __read((_r = replacer.simpleText) !== null && _r !== void 0 ? _r : replacer.text), false));
       }
-    } catch (e_7_1) {
-      e_7 = { error: e_7_1 };
+    } catch (e_8_1) {
+      e_8 = { error: e_8_1 };
     } finally {
       try {
         if (_7 && !_7.done && (_e = _6.return)) _e.call(_6);
       } finally {
-        if (e_7) throw e_7.error;
+        if (e_8) throw e_8.error;
       }
     }
     try {
@@ -302,13 +325,13 @@
         var trigger_2 = _9.value;
         lines.push.apply(lines, __spreadArray([], __read((_s = trigger_2.simpleText) !== null && _s !== void 0 ? _s : trigger_2.text), false));
       }
-    } catch (e_8_1) {
-      e_8 = { error: e_8_1 };
+    } catch (e_9_1) {
+      e_9 = { error: e_9_1 };
     } finally {
       try {
         if (_9 && !_9.done && (_f = _8.return)) _f.call(_8);
       } finally {
-        if (e_8) throw e_8.error;
+        if (e_9) throw e_9.error;
       }
     }
     try {
@@ -316,54 +339,54 @@
         var replacer = _11.value;
         lines.push.apply(lines, __spreadArray([], __read((_t = replacer.simpleText) !== null && _t !== void 0 ? _t : replacer.text), false));
       }
-    } catch (e_9_1) {
-      e_9 = { error: e_9_1 };
+    } catch (e_10_1) {
+      e_10 = { error: e_10_1 };
     } finally {
       try {
         if (_11 && !_11.done && (_g = _10.return)) _g.call(_10);
       } finally {
-        if (e_9) throw e_9.error;
+        if (e_10) throw e_10.error;
       }
     }
     try {
       for (var _12 = __values(cardSpecRules(spec)), _13 = _12.next(); !_13.done; _13 = _12.next()) {
         var rule = _13.value;
         try {
-          for (var _14 = (e_11 = void 0, __values(rule.triggers || [])), _15 = _14.next(); !_15.done; _15 = _14.next()) {
+          for (var _14 = (e_12 = void 0, __values(rule.triggers || [])), _15 = _14.next(); !_15.done; _15 = _14.next()) {
             var trigger_3 = _15.value;
             lines.push.apply(lines, __spreadArray([], __read((_u = trigger_3.simpleText) !== null && _u !== void 0 ? _u : trigger_3.text), false));
-          }
-        } catch (e_11_1) {
-          e_11 = { error: e_11_1 };
-        } finally {
-          try {
-            if (_15 && !_15.done && (_j = _14.return)) _j.call(_14);
-          } finally {
-            if (e_11) throw e_11.error;
-          }
-        }
-        try {
-          for (var _16 = (e_12 = void 0, __values(rule.replacers || [])), _17 = _16.next(); !_17.done; _17 = _16.next()) {
-            var replacer = _17.value;
-            lines.push.apply(lines, __spreadArray([], __read((_v = replacer.simpleText) !== null && _v !== void 0 ? _v : replacer.text), false));
           }
         } catch (e_12_1) {
           e_12 = { error: e_12_1 };
         } finally {
           try {
-            if (_17 && !_17.done && (_k = _16.return)) _k.call(_16);
+            if (_15 && !_15.done && (_j = _14.return)) _j.call(_14);
           } finally {
             if (e_12) throw e_12.error;
           }
         }
+        try {
+          for (var _16 = (e_13 = void 0, __values(rule.replacers || [])), _17 = _16.next(); !_17.done; _17 = _16.next()) {
+            var replacer = _17.value;
+            lines.push.apply(lines, __spreadArray([], __read((_v = replacer.simpleText) !== null && _v !== void 0 ? _v : replacer.text), false));
+          }
+        } catch (e_13_1) {
+          e_13 = { error: e_13_1 };
+        } finally {
+          try {
+            if (_17 && !_17.done && (_k = _16.return)) _k.call(_16);
+          } finally {
+            if (e_13) throw e_13.error;
+          }
+        }
       }
-    } catch (e_10_1) {
-      e_10 = { error: e_10_1 };
+    } catch (e_11_1) {
+      e_11 = { error: e_11_1 };
     } finally {
       try {
         if (_13 && !_13.done && (_h = _12.return)) _h.call(_12);
       } finally {
-        if (e_10) throw e_10.error;
+        if (e_11) throw e_11.error;
       }
     }
     try {
@@ -371,13 +394,13 @@
         var metaReplacer = _19.value;
         lines.push.apply(lines, __spreadArray([], __read((_w = metaReplacer.simpleText) !== null && _w !== void 0 ? _w : metaReplacer.text), false));
       }
-    } catch (e_13_1) {
-      e_13 = { error: e_13_1 };
+    } catch (e_14_1) {
+      e_14 = { error: e_14_1 };
     } finally {
       try {
         if (_19 && !_19.done && (_l = _18.return)) _l.call(_18);
       } finally {
-        if (e_13) throw e_13.error;
+        if (e_14) throw e_14.error;
       }
     }
     try {
@@ -385,13 +408,13 @@
         var metaTrigger = _21.value;
         lines.push.apply(lines, __spreadArray([], __read((_x = metaTrigger.simpleText) !== null && _x !== void 0 ? _x : metaTrigger.text), false));
       }
-    } catch (e_14_1) {
-      e_14 = { error: e_14_1 };
+    } catch (e_15_1) {
+      e_15 = { error: e_15_1 };
     } finally {
       try {
         if (_21 && !_21.done && (_m = _20.return)) _m.call(_20);
       } finally {
-        if (e_14) throw e_14.error;
+        if (e_15) throw e_15.error;
       }
     }
     return lines;
@@ -417,7 +440,7 @@
     });
   }
   function applyCardUpgradeCost(spec, cost, kind) {
-    var e_15, _a;
+    var e_16, _a;
     var result = cost;
     try {
       for (var _b = __values(spec.upgrades || []), _c = _b.next(); !_c.done; _c = _b.next()) {
@@ -426,13 +449,13 @@
           result = upgrade.cost(result, kind);
         }
       }
-    } catch (e_15_1) {
-      e_15 = { error: e_15_1 };
+    } catch (e_16_1) {
+      e_16 = { error: e_16_1 };
     } finally {
       try {
         if (_c && !_c.done && (_a = _b.return)) _a.call(_b);
       } finally {
-        if (e_15) throw e_15.error;
+        if (e_16) throw e_16.error;
       }
     }
     return result;
@@ -513,7 +536,7 @@
         return this.update({ ticks: this.ticks.slice(0, n - 1).concat([t + 1]) });
       };
       Card2.prototype.baseCost = function(state, kind) {
-        var e_16, _a;
+        var e_17, _a;
         switch (kind) {
           case "play":
           case "use":
@@ -524,13 +547,13 @@
                   var vc = _c.value;
                   result = addCosts(result, vc.calculate(this, state));
                 }
-              } catch (e_16_1) {
-                e_16 = { error: e_16_1 };
+              } catch (e_17_1) {
+                e_17 = { error: e_17_1 };
               } finally {
                 try {
                   if (_c && !_c.done && (_a = _b.return)) _a.call(_b);
                 } finally {
-                  if (e_16) throw e_16.error;
+                  if (e_17) throw e_17.error;
                 }
               }
             }
@@ -648,8 +671,8 @@
                 case 9:
                   return [4, withTracking(function(state2) {
                     return __awaiter(this, void 0, void 0, function() {
-                      var _a2, _b2, _c2, effect, e_17_1, _d, _e, effect, e_18_1;
-                      var e_17, _f, e_18, _g;
+                      var _a2, _b2, _c2, effect, e_18_1, _d, _e, effect, e_19_1;
+                      var e_18, _f, e_19, _g;
                       return __generator(this, function(_h) {
                         switch (_h.label) {
                           case 0:
@@ -688,14 +711,14 @@
                           case 6:
                             return [3, 9];
                           case 7:
-                            e_17_1 = _h.sent();
-                            e_17 = { error: e_17_1 };
+                            e_18_1 = _h.sent();
+                            e_18 = { error: e_18_1 };
                             return [3, 9];
                           case 8:
                             try {
                               if (_c2 && !_c2.done && (_f = _b2.return)) _f.call(_b2);
                             } finally {
-                              if (e_17) throw e_17.error;
+                              if (e_18) throw e_18.error;
                             }
                             return [
                               7
@@ -721,14 +744,14 @@
                           case 14:
                             return [3, 17];
                           case 15:
-                            e_18_1 = _h.sent();
-                            e_18 = { error: e_18_1 };
+                            e_19_1 = _h.sent();
+                            e_19 = { error: e_19_1 };
                             return [3, 17];
                           case 16:
                             try {
                               if (_e && !_e.done && (_g = _d.return)) _g.call(_d);
                             } finally {
-                              if (e_18) throw e_18.error;
+                              if (e_19) throw e_19.error;
                             }
                             return [
                               7
@@ -868,7 +891,7 @@
         return this.available(kind, state) && canPay(this.cost(kind, state), state);
       };
       Card2.prototype.available = function(kind, state) {
-        var e_19, _a;
+        var e_20, _a;
         if (kind == "activate" && this.spec.ability === void 0)
           return false;
         if (kind == "buy" && !canCreate(this.spec, state))
@@ -879,13 +902,13 @@
             if (restriction.test(this, state, kind))
               return false;
           }
-        } catch (e_19_1) {
-          e_19 = { error: e_19_1 };
+        } catch (e_20_1) {
+          e_20 = { error: e_20_1 };
         } finally {
           try {
             if (_c && !_c.done && (_a = _b.return)) _a.call(_b);
           } finally {
-            if (e_19) throw e_19.error;
+            if (e_20) throw e_20.error;
           }
         }
         return true;
@@ -904,7 +927,7 @@
     };
   }
   function multiplyCosts(c, n) {
-    var e_20, _a;
+    var e_21, _a;
     var result = {};
     try {
       for (var allCostResources_1 = __values(allCostResources), allCostResources_1_1 = allCostResources_1.next(); !allCostResources_1_1.done; allCostResources_1_1 = allCostResources_1.next()) {
@@ -913,13 +936,13 @@
         if (r != void 0)
           result[resource] = n * r;
       }
-    } catch (e_20_1) {
-      e_20 = { error: e_20_1 };
+    } catch (e_21_1) {
+      e_21 = { error: e_21_1 };
     } finally {
       try {
         if (allCostResources_1_1 && !allCostResources_1_1.done && (_a = allCostResources_1.return)) _a.call(allCostResources_1);
       } finally {
-        if (e_20) throw e_20.error;
+        if (e_21) throw e_21.error;
       }
     }
     if (c.effects != void 0) {
@@ -1076,7 +1099,7 @@
         return this.update({ zones: newZones });
       };
       State2.prototype.resolvingCards = function() {
-        var e_21, _a;
+        var e_22, _a;
         var result = [];
         try {
           for (var _b = __values(this.resolving), _c = _b.next(); !_c.done; _c = _b.next()) {
@@ -1084,13 +1107,13 @@
             if (c.kind == "card")
               result.push(c);
           }
-        } catch (e_21_1) {
-          e_21 = { error: e_21_1 };
+        } catch (e_22_1) {
+          e_22 = { error: e_22_1 };
         } finally {
           try {
             if (_c && !_c.done && (_a = _b.return)) _a.call(_b);
           } finally {
-            if (e_21) throw e_21.error;
+            if (e_22) throw e_22.error;
           }
         }
         return result;
@@ -1105,36 +1128,13 @@
         return this.update({ zones: newZones });
       };
       State2.prototype.remove = function(card) {
-        var e_22, _a;
+        var e_23, _a;
         var newZones = /* @__PURE__ */ new Map();
         try {
           for (var _b = __values(this.zones), _c = _b.next(); !_c.done; _c = _b.next()) {
             var _d = __read(_c.value, 2), name_1 = _d[0], zone = _d[1];
             newZones.set(name_1, zone.filter(function(c) {
               return c.id != card.id;
-            }));
-          }
-        } catch (e_22_1) {
-          e_22 = { error: e_22_1 };
-        } finally {
-          try {
-            if (_c && !_c.done && (_a = _b.return)) _a.call(_b);
-          } finally {
-            if (e_22) throw e_22.error;
-          }
-        }
-        return this.update({ zones: newZones, resolving: this.resolving.filter(function(c) {
-          return c.id != card.id;
-        }) });
-      };
-      State2.prototype.apply = function(f, card) {
-        var e_23, _a;
-        var newZones = /* @__PURE__ */ new Map();
-        try {
-          for (var _b = __values(this.zones), _c = _b.next(); !_c.done; _c = _b.next()) {
-            var _d = __read(_c.value, 2), name_2 = _d[0], zone = _d[1];
-            newZones.set(name_2, zone.map(function(c) {
-              return c.id == card.id ? f(c) : c;
             }));
           }
         } catch (e_23_1) {
@@ -1144,6 +1144,29 @@
             if (_c && !_c.done && (_a = _b.return)) _a.call(_b);
           } finally {
             if (e_23) throw e_23.error;
+          }
+        }
+        return this.update({ zones: newZones, resolving: this.resolving.filter(function(c) {
+          return c.id != card.id;
+        }) });
+      };
+      State2.prototype.apply = function(f, card) {
+        var e_24, _a;
+        var newZones = /* @__PURE__ */ new Map();
+        try {
+          for (var _b = __values(this.zones), _c = _b.next(); !_c.done; _c = _b.next()) {
+            var _d = __read(_c.value, 2), name_2 = _d[0], zone = _d[1];
+            newZones.set(name_2, zone.map(function(c) {
+              return c.id == card.id ? f(c) : c;
+            }));
+          }
+        } catch (e_24_1) {
+          e_24 = { error: e_24_1 };
+        } finally {
+          try {
+            if (_c && !_c.done && (_a = _b.return)) _a.call(_b);
+          } finally {
+            if (e_24) throw e_24.error;
           }
         }
         function fOnCard(c) {
@@ -1170,33 +1193,33 @@
         return this.update({ resources });
       };
       State2.prototype.idMap = function() {
-        var e_24, _a, e_25, _b, e_26, _c;
+        var e_25, _a, e_26, _b, e_27, _c;
         var byId = /* @__PURE__ */ new Map();
         try {
           for (var _d = __values(this.zones), _e = _d.next(); !_e.done; _e = _d.next()) {
             var _f = __read(_e.value, 2), name_3 = _f[0], zone = _f[1];
             try {
-              for (var zone_1 = (e_25 = void 0, __values(zone)), zone_1_1 = zone_1.next(); !zone_1_1.done; zone_1_1 = zone_1.next()) {
+              for (var zone_1 = (e_26 = void 0, __values(zone)), zone_1_1 = zone_1.next(); !zone_1_1.done; zone_1_1 = zone_1.next()) {
                 var card = zone_1_1.value;
                 byId.set(card.id, card);
               }
-            } catch (e_25_1) {
-              e_25 = { error: e_25_1 };
+            } catch (e_26_1) {
+              e_26 = { error: e_26_1 };
             } finally {
               try {
                 if (zone_1_1 && !zone_1_1.done && (_b = zone_1.return)) _b.call(zone_1);
               } finally {
-                if (e_25) throw e_25.error;
+                if (e_26) throw e_26.error;
               }
             }
           }
-        } catch (e_24_1) {
-          e_24 = { error: e_24_1 };
+        } catch (e_25_1) {
+          e_25 = { error: e_25_1 };
         } finally {
           try {
             if (_e && !_e.done && (_a = _d.return)) _a.call(_d);
           } finally {
-            if (e_24) throw e_24.error;
+            if (e_25) throw e_25.error;
           }
         }
         try {
@@ -1206,19 +1229,19 @@
               byId.set(card.id, card);
             }
           }
-        } catch (e_26_1) {
-          e_26 = { error: e_26_1 };
+        } catch (e_27_1) {
+          e_27 = { error: e_27_1 };
         } finally {
           try {
             if (_h && !_h.done && (_c = _g.return)) _c.call(_g);
           } finally {
-            if (e_26) throw e_26.error;
+            if (e_27) throw e_27.error;
           }
         }
         return byId;
       };
       State2.prototype.find = function(card) {
-        var e_27, _a;
+        var e_28, _a;
         try {
           for (var _b = __values(this.zones), _c = _b.next(); !_c.done; _c = _b.next()) {
             var _d = __read(_c.value, 2), name_4 = _d[0], zone_2 = _d[1];
@@ -1228,13 +1251,13 @@
             if (matches_1.length > 0)
               return matches_1[0];
           }
-        } catch (e_27_1) {
-          e_27 = { error: e_27_1 };
+        } catch (e_28_1) {
+          e_28 = { error: e_28_1 };
         } finally {
           try {
             if (_c && !_c.done && (_a = _b.return)) _a.call(_b);
           } finally {
-            if (e_27) throw e_27.error;
+            if (e_28) throw e_28.error;
           }
         }
         var zone = this.resolving;
@@ -1377,8 +1400,8 @@
   function trigger(e) {
     return function(state) {
       return __awaiter(this, void 0, void 0, function() {
-        var initialState2, rules_1, rules_1_1, rule, ruleCard, _a, _b, rawTrigger, trigger_4, e_28_1, e_29_1, triggers, _c, _d, card, _e, _f, trigger_5, _g, _h, card, _j, _k, trigger_6, triggers_1, triggers_1_1, _l, card, rawTrigger, trigger_7, e_30_1;
-        var e_29, _m, e_28, _o, e_31, _p, e_32, _q, e_33, _r, e_34, _s, e_30, _t;
+        var initialState2, rules_1, rules_1_1, rule, ruleCard, _a, _b, rawTrigger, trigger_4, e_29_1, e_30_1, triggers, _c, _d, card, _e, _f, trigger_5, _g, _h, card, _j, _k, trigger_6, triggers_1, triggers_1_1, _l, card, rawTrigger, trigger_7, e_31_1;
+        var e_30, _m, e_29, _o, e_32, _p, e_33, _q, e_34, _r, e_35, _s, e_31, _t;
         return __generator(this, function(_u) {
           switch (_u.label) {
             case 0:
@@ -1396,7 +1419,7 @@
               _u.label = 3;
             case 3:
               _u.trys.push([3, 8, 9, 10]);
-              _a = (e_28 = void 0, __values(rule.triggers)), _b = _a.next();
+              _a = (e_29 = void 0, __values(rule.triggers)), _b = _a.next();
               _u.label = 4;
             case 4:
               if (!!_b.done) return [3, 7];
@@ -1415,14 +1438,14 @@
             case 7:
               return [3, 10];
             case 8:
-              e_28_1 = _u.sent();
-              e_28 = { error: e_28_1 };
+              e_29_1 = _u.sent();
+              e_29 = { error: e_29_1 };
               return [3, 10];
             case 9:
               try {
                 if (_b && !_b.done && (_o = _a.return)) _o.call(_a);
               } finally {
-                if (e_28) throw e_28.error;
+                if (e_29) throw e_29.error;
               }
               return [
                 7
@@ -1434,14 +1457,14 @@
             case 11:
               return [3, 14];
             case 12:
-              e_29_1 = _u.sent();
-              e_29 = { error: e_29_1 };
+              e_30_1 = _u.sent();
+              e_30 = { error: e_30_1 };
               return [3, 14];
             case 13:
               try {
                 if (rules_1_1 && !rules_1_1.done && (_m = rules_1.return)) _m.call(rules_1);
               } finally {
-                if (e_29) throw e_29.error;
+                if (e_30) throw e_30.error;
               }
               return [
                 7
@@ -1453,54 +1476,54 @@
                 for (_c = __values(state.events.concat(state.supply)), _d = _c.next(); !_d.done; _d = _c.next()) {
                   card = _d.value;
                   try {
-                    for (_e = (e_32 = void 0, __values(card.staticTriggers())), _f = _e.next(); !_f.done; _f = _e.next()) {
+                    for (_e = (e_33 = void 0, __values(card.staticTriggers())), _f = _e.next(); !_f.done; _f = _e.next()) {
                       trigger_5 = _f.value;
                       triggers.push([card, trigger_5]);
                     }
-                  } catch (e_32_1) {
-                    e_32 = { error: e_32_1 };
+                  } catch (e_33_1) {
+                    e_33 = { error: e_33_1 };
                   } finally {
                     try {
                       if (_f && !_f.done && (_q = _e.return)) _q.call(_e);
                     } finally {
-                      if (e_32) throw e_32.error;
+                      if (e_33) throw e_33.error;
                     }
                   }
                 }
-              } catch (e_31_1) {
-                e_31 = { error: e_31_1 };
+              } catch (e_32_1) {
+                e_32 = { error: e_32_1 };
               } finally {
                 try {
                   if (_d && !_d.done && (_p = _c.return)) _p.call(_c);
                 } finally {
-                  if (e_31) throw e_31.error;
+                  if (e_32) throw e_32.error;
                 }
               }
               try {
                 for (_g = __values(state.play.concat(state.relics)), _h = _g.next(); !_h.done; _h = _g.next()) {
                   card = _h.value;
                   try {
-                    for (_j = (e_34 = void 0, __values(card.triggers())), _k = _j.next(); !_k.done; _k = _j.next()) {
+                    for (_j = (e_35 = void 0, __values(card.triggers())), _k = _j.next(); !_k.done; _k = _j.next()) {
                       trigger_6 = _k.value;
                       triggers.push([card, trigger_6]);
                     }
-                  } catch (e_34_1) {
-                    e_34 = { error: e_34_1 };
+                  } catch (e_35_1) {
+                    e_35 = { error: e_35_1 };
                   } finally {
                     try {
                       if (_k && !_k.done && (_s = _j.return)) _s.call(_j);
                     } finally {
-                      if (e_34) throw e_34.error;
+                      if (e_35) throw e_35.error;
                     }
                   }
                 }
-              } catch (e_33_1) {
-                e_33 = { error: e_33_1 };
+              } catch (e_34_1) {
+                e_34 = { error: e_34_1 };
               } finally {
                 try {
                   if (_h && !_h.done && (_r = _g.return)) _r.call(_g);
                 } finally {
-                  if (e_33) throw e_33.error;
+                  if (e_34) throw e_34.error;
                 }
               }
               _u.label = 15;
@@ -1525,14 +1548,14 @@
             case 19:
               return [3, 22];
             case 20:
-              e_30_1 = _u.sent();
-              e_30 = { error: e_30_1 };
+              e_31_1 = _u.sent();
+              e_31 = { error: e_31_1 };
               return [3, 22];
             case 21:
               try {
                 if (triggers_1_1 && !triggers_1_1.done && (_t = triggers_1.return)) _t.call(triggers_1);
               } finally {
-                if (e_30) throw e_30.error;
+                if (e_31) throw e_31.error;
               }
               return [
                 7
@@ -1546,13 +1569,13 @@
     };
   }
   function replace(x, state) {
-    var e_35, _a, e_36, _b, e_37, _c, e_38, _d, e_39, _e, e_40, _f, e_41, _g;
+    var e_36, _a, e_37, _b, e_38, _c, e_39, _d, e_40, _e, e_41, _f, e_42, _g;
     try {
       for (var rules_2 = __values(rules), rules_2_1 = rules_2.next(); !rules_2_1.done; rules_2_1 = rules_2.next()) {
         var rule = rules_2_1.value;
         if (rule.replacers) {
           try {
-            for (var _h = (e_36 = void 0, __values(rule.replacers)), _j = _h.next(); !_j.done; _j = _h.next()) {
+            for (var _h = (e_37 = void 0, __values(rule.replacers)), _j = _h.next(); !_j.done; _j = _h.next()) {
               var rawReplacer = _j.value;
               if (rawReplacer.kind == x.kind) {
                 var replacer = rawReplacer;
@@ -1561,24 +1584,24 @@
                 }
               }
             }
-          } catch (e_36_1) {
-            e_36 = { error: e_36_1 };
+          } catch (e_37_1) {
+            e_37 = { error: e_37_1 };
           } finally {
             try {
               if (_j && !_j.done && (_b = _h.return)) _b.call(_h);
             } finally {
-              if (e_36) throw e_36.error;
+              if (e_37) throw e_37.error;
             }
           }
         }
       }
-    } catch (e_35_1) {
-      e_35 = { error: e_35_1 };
+    } catch (e_36_1) {
+      e_36 = { error: e_36_1 };
     } finally {
       try {
         if (rules_2_1 && !rules_2_1.done && (_a = rules_2.return)) _a.call(rules_2);
       } finally {
-        if (e_35) throw e_35.error;
+        if (e_36) throw e_36.error;
       }
     }
     var replacers = [];
@@ -1586,54 +1609,54 @@
       for (var _k = __values(state.events.concat(state.supply).concat(state.relics)), _l = _k.next(); !_l.done; _l = _k.next()) {
         var card = _l.value;
         try {
-          for (var _m = (e_38 = void 0, __values(card.staticReplacers())), _o = _m.next(); !_o.done; _o = _m.next()) {
+          for (var _m = (e_39 = void 0, __values(card.staticReplacers())), _o = _m.next(); !_o.done; _o = _m.next()) {
             var replacer = _o.value;
             replacers.push([card, replacer]);
           }
-        } catch (e_38_1) {
-          e_38 = { error: e_38_1 };
+        } catch (e_39_1) {
+          e_39 = { error: e_39_1 };
         } finally {
           try {
             if (_o && !_o.done && (_d = _m.return)) _d.call(_m);
           } finally {
-            if (e_38) throw e_38.error;
+            if (e_39) throw e_39.error;
           }
         }
       }
-    } catch (e_37_1) {
-      e_37 = { error: e_37_1 };
+    } catch (e_38_1) {
+      e_38 = { error: e_38_1 };
     } finally {
       try {
         if (_l && !_l.done && (_c = _k.return)) _c.call(_k);
       } finally {
-        if (e_37) throw e_37.error;
+        if (e_38) throw e_38.error;
       }
     }
     try {
       for (var _p = __values(state.play), _q = _p.next(); !_q.done; _q = _p.next()) {
         var card = _q.value;
         try {
-          for (var _r = (e_40 = void 0, __values(card.replacers())), _s = _r.next(); !_s.done; _s = _r.next()) {
+          for (var _r = (e_41 = void 0, __values(card.replacers())), _s = _r.next(); !_s.done; _s = _r.next()) {
             var replacer = _s.value;
             replacers.push([card, replacer]);
           }
-        } catch (e_40_1) {
-          e_40 = { error: e_40_1 };
+        } catch (e_41_1) {
+          e_41 = { error: e_41_1 };
         } finally {
           try {
             if (_s && !_s.done && (_f = _r.return)) _f.call(_r);
           } finally {
-            if (e_40) throw e_40.error;
+            if (e_41) throw e_41.error;
           }
         }
       }
-    } catch (e_39_1) {
-      e_39 = { error: e_39_1 };
+    } catch (e_40_1) {
+      e_40 = { error: e_40_1 };
     } finally {
       try {
         if (_q && !_q.done && (_e = _p.return)) _e.call(_p);
       } finally {
-        if (e_39) throw e_39.error;
+        if (e_40) throw e_40.error;
       }
     }
     try {
@@ -1646,13 +1669,13 @@
           }
         }
       }
-    } catch (e_41_1) {
-      e_41 = { error: e_41_1 };
+    } catch (e_42_1) {
+      e_42 = { error: e_42_1 };
     } finally {
       try {
         if (replacers_1_1 && !replacers_1_1.done && (_g = replacers_1.return)) _g.call(replacers_1);
       } finally {
-        if (e_41) throw e_41.error;
+        if (e_42) throw e_42.error;
       }
     }
     return x;
@@ -1749,7 +1772,7 @@
     };
   }
   function createRaw(state, spec, zone, tokens) {
-    var _a, e_42, _b;
+    var _a, e_43, _b;
     if (zone === void 0) {
       zone = "discard";
     }
@@ -1762,13 +1785,13 @@
           var _c = __read(tokens_1_1.value, 2), token = _c[0], n = _c[1];
           card.tokens.set(token, n);
         }
-      } catch (e_42_1) {
-        e_42 = { error: e_42_1 };
+      } catch (e_43_1) {
+        e_43 = { error: e_43_1 };
       } finally {
         try {
           if (tokens_1_1 && !tokens_1_1.done && (_b = tokens_1.return)) _b.call(tokens_1);
         } finally {
-          if (e_42) throw e_42.error;
+          if (e_43) throw e_43.error;
         }
       }
     }
@@ -1776,7 +1799,7 @@
     return [state, card];
   }
   function createRawMulti(state, specs, zone) {
-    var e_43, _a, _b;
+    var e_44, _a, _b;
     if (zone === void 0) {
       zone = "discard";
     }
@@ -1786,13 +1809,13 @@
         var card = void 0;
         _b = __read(createRaw(state, spec, zone), 2), state = _b[0], card = _b[1];
       }
-    } catch (e_43_1) {
-      e_43 = { error: e_43_1 };
+    } catch (e_44_1) {
+      e_44 = { error: e_44_1 };
     } finally {
       try {
         if (specs_1_1 && !specs_1_1.done && (_a = specs_1.return)) _a.call(specs_1);
       } finally {
-        if (e_43) throw e_43.error;
+        if (e_44) throw e_44.error;
       }
     }
     return state;
@@ -1803,8 +1826,8 @@
     }
     return function(state) {
       return __awaiter(this, void 0, void 0, function() {
-        var params, card, _a, _b, effect, e_44_1;
-        var _c, e_44, _d;
+        var params, card, _a, _b, effect, e_45_1;
+        var _c, e_45, _d;
         return __generator(this, function(_e) {
           switch (_e.label) {
             case 0:
@@ -1837,14 +1860,14 @@
             case 6:
               return [3, 9];
             case 7:
-              e_44_1 = _e.sent();
-              e_44 = { error: e_44_1 };
+              e_45_1 = _e.sent();
+              e_45 = { error: e_45_1 };
               return [3, 9];
             case 8:
               try {
                 if (_b && !_b.done && (_d = _a.return)) _d.call(_a);
               } finally {
-                if (e_44) throw e_44.error;
+                if (e_45) throw e_45.error;
               }
               return [
                 7
@@ -1867,8 +1890,8 @@
     }
     return function(state) {
       return __awaiter(this, void 0, void 0, function() {
-        var params, _a, _b, effect, e_45_1;
-        var e_45, _c;
+        var params, _a, _b, effect, e_46_1;
+        var e_46, _c;
         return __generator(this, function(_d) {
           switch (_d.label) {
             case 0:
@@ -1910,14 +1933,14 @@
             case 6:
               return [3, 9];
             case 7:
-              e_45_1 = _d.sent();
-              e_45 = { error: e_45_1 };
+              e_46_1 = _d.sent();
+              e_46 = { error: e_46_1 };
               return [3, 9];
             case 8:
               try {
                 if (_b && !_b.done && (_c = _a.return)) _c.call(_a);
               } finally {
-                if (e_45) throw e_45.error;
+                if (e_46) throw e_46.error;
               }
               return [
                 7
@@ -1931,7 +1954,7 @@
     };
   }
   function renderCost(cost, full) {
-    var e_46, _a;
+    var e_47, _a;
     if (full === void 0) {
       full = false;
     }
@@ -1944,13 +1967,13 @@
         if (x != void 0 && x > 0)
           parts.push(renderResource(name_5, x));
       }
-    } catch (e_46_1) {
-      e_46 = { error: e_46_1 };
+    } catch (e_47_1) {
+      e_47 = { error: e_47_1 };
     } finally {
       try {
         if (toRender_1_1 && !toRender_1_1.done && (_a = toRender_1.return)) _a.call(toRender_1);
       } finally {
-        if (e_46) throw e_46.error;
+        if (e_47) throw e_47.error;
       }
     }
     return parts.join(" ");
@@ -2026,8 +2049,8 @@
   function payCost(c, source) {
     return function(state) {
       return __awaiter(this, void 0, void 0, function() {
-        var _a, _b, effect, e_47_1;
-        var e_47, _c;
+        var _a, _b, effect, e_48_1;
+        var e_48, _c;
         return __generator(this, function(_d) {
           switch (_d.label) {
             case 0:
@@ -2071,14 +2094,14 @@
             case 5:
               return [3, 8];
             case 6:
-              e_47_1 = _d.sent();
-              e_47 = { error: e_47_1 };
+              e_48_1 = _d.sent();
+              e_48 = { error: e_48_1 };
               return [3, 8];
             case 7:
               try {
                 if (_b && !_b.done && (_c = _a.return)) _c.call(_a);
               } finally {
-                if (e_47) throw e_47.error;
+                if (e_48) throw e_48.error;
               }
               return [
                 7
@@ -2094,8 +2117,8 @@
   function gainResource(resource, amount, source) {
     return function(state) {
       return __awaiter(this, void 0, void 0, function() {
-        var newResources, params, _a, _b, transform, e_48_1;
-        var e_48, _c;
+        var newResources, params, _a, _b, transform, e_49_1;
+        var e_49, _c;
         return __generator(this, function(_d) {
           switch (_d.label) {
             case 0:
@@ -2139,14 +2162,14 @@
             case 5:
               return [3, 8];
             case 6:
-              e_48_1 = _d.sent();
-              e_48 = { error: e_48_1 };
+              e_49_1 = _d.sent();
+              e_49 = { error: e_49_1 };
               return [3, 8];
             case 7:
               try {
                 if (_b && !_b.done && (_c = _a.return)) _c.call(_a);
               } finally {
-                if (e_48) throw e_48.error;
+                if (e_49) throw e_49.error;
               }
               return [
                 7
@@ -2400,7 +2423,7 @@
   function choice(state_1, prompt_1, options_1) {
     return __awaiter(this, arguments, void 0, function(state, prompt, options, info, chosen, presentedIndices) {
       var index, visibleIndices, boundedVisibleIndices, visibleOptions, canonicalToVisible, _a, _b, _c, visibleIndex, canonicalIndex, visibleChosen, newState;
-      var e_49, _d, _e;
+      var e_50, _d, _e;
       var _this = this;
       if (info === void 0) {
         info = [];
@@ -2431,13 +2454,13 @@
                 _c = __read(_b.value, 2), visibleIndex = _c[0], canonicalIndex = _c[1];
                 canonicalToVisible.set(canonicalIndex, visibleIndex);
               }
-            } catch (e_49_1) {
-              e_49 = { error: e_49_1 };
+            } catch (e_50_1) {
+              e_50 = { error: e_50_1 };
             } finally {
               try {
                 if (_b && !_b.done && (_d = _a.return)) _d.call(_a);
               } finally {
-                if (e_49) throw e_49.error;
+                if (e_50) throw e_50.error;
               }
             }
             visibleChosen = chosen.map(function(canonicalIndex2) {
@@ -2690,7 +2713,7 @@
     });
   }
   function actChoice(state) {
-    var e_50, _a;
+    var e_51, _a;
     function asActChoice(kind) {
       return function(c) {
         return { render: { kind: "card", card: c }, value: [c, kind] };
@@ -2724,13 +2747,13 @@
           presentedIndices.push(nonPotionOptions.length + potionIndex);
         }
       }
-    } catch (e_50_1) {
-      e_50 = { error: e_50_1 };
+    } catch (e_51_1) {
+      e_51 = { error: e_51_1 };
     } finally {
       try {
         if (_c && !_c.done && (_a = _b.return)) _a.call(_b);
       } finally {
-        if (e_50) throw e_50.error;
+        if (e_51) throw e_51.error;
       }
     }
     return choice(state, "Buy a card (costs 1 buy),\n        play a card from your hand (costs 1 action),\n        use an event, or drink a potion.", options, ["actChoice"], [], presentedIndices);
@@ -2757,7 +2780,7 @@
   }
   function lexical(comps) {
     return function(a2, b) {
-      var e_51, _a;
+      var e_52, _a;
       try {
         for (var comps_1 = __values(comps), comps_1_1 = comps_1.next(); !comps_1_1.done; comps_1_1 = comps_1.next()) {
           var comp = comps_1_1.value;
@@ -2765,13 +2788,13 @@
           if (result != 0)
             return result;
         }
-      } catch (e_51_1) {
-        e_51 = { error: e_51_1 };
+      } catch (e_52_1) {
+        e_52 = { error: e_52_1 };
       } finally {
         try {
           if (comps_1_1 && !comps_1_1.done && (_a = comps_1.return)) _a.call(comps_1);
         } finally {
-          if (e_51) throw e_51.error;
+          if (e_52) throw e_52.error;
         }
       }
       return 0;
@@ -2787,7 +2810,7 @@
     nameComp
   ]);
   function maxID(cards) {
-    var e_52, _a;
+    var e_53, _a;
     var max = 0;
     try {
       for (var cards_1 = __values(cards), cards_1_1 = cards_1.next(); !cards_1_1.done; cards_1_1 = cards_1.next()) {
@@ -2795,32 +2818,32 @@
         if (card.id > max)
           max = card.id;
       }
-    } catch (e_52_1) {
-      e_52 = { error: e_52_1 };
+    } catch (e_53_1) {
+      e_53 = { error: e_53_1 };
     } finally {
       try {
         if (cards_1_1 && !cards_1_1.done && (_a = cards_1.return)) _a.call(cards_1);
       } finally {
-        if (e_52) throw e_52.error;
+        if (e_53) throw e_53.error;
       }
     }
     return max;
   }
   function initialState(spec, ui) {
-    var e_53, _a, e_54, _b;
+    var e_54, _a, e_55, _b;
     var state = new State(spec, ui);
     try {
       for (var _c = __values(spec.potions), _d = _c.next(); !_d.done; _d = _c.next()) {
         var potion = _d.value;
         state = state.addToZone(potion, "potions");
       }
-    } catch (e_53_1) {
-      e_53 = { error: e_53_1 };
+    } catch (e_54_1) {
+      e_54 = { error: e_54_1 };
     } finally {
       try {
         if (_d && !_d.done && (_a = _c.return)) _a.call(_c);
       } finally {
-        if (e_53) throw e_53.error;
+        if (e_54) throw e_54.error;
       }
     }
     try {
@@ -2828,13 +2851,13 @@
         var relic = _f.value;
         state = state.addToZone(relic, "relics");
       }
-    } catch (e_54_1) {
-      e_54 = { error: e_54_1 };
+    } catch (e_55_1) {
+      e_55 = { error: e_55_1 };
     } finally {
       try {
         if (_f && !_f.done && (_b = _e.return)) _b.call(_e);
       } finally {
-        if (e_54) throw e_54.error;
+        if (e_55) throw e_55.error;
       }
     }
     state = state.update({ nextID: maxID(spec.potions.concat(spec.relics)) + 1 });
@@ -2849,7 +2872,7 @@
     return xs.values();
   }
   function undoOrSet(to, from) {
-    var e_55, _a;
+    var e_56, _a;
     var newHistory = to.origin().future;
     var oldHistory = from.origin().future;
     var newRedo = from.redo.slice();
@@ -2864,13 +2887,13 @@
             predecessor = false;
           }
         }
-      } catch (e_55_1) {
-        e_55 = { error: e_55_1 };
+      } catch (e_56_1) {
+        e_56 = { error: e_56_1 };
       } finally {
         try {
           if (_c && !_c.done && (_a = _b.return)) _a.call(_b);
         } finally {
-          if (e_55) throw e_55.error;
+          if (e_56) throw e_56.error;
         }
       }
     }
@@ -3216,7 +3239,7 @@
     throw new Error("Unexpected: ".concat(x));
   }
   function countDistinct(xs) {
-    var e_56, _a;
+    var e_57, _a;
     var distinct = /* @__PURE__ */ new Set();
     var result = 0;
     try {
@@ -3227,13 +3250,13 @@
           distinct.add(x);
         }
       }
-    } catch (e_56_1) {
-      e_56 = { error: e_56_1 };
+    } catch (e_57_1) {
+      e_57 = { error: e_57_1 };
     } finally {
       try {
         if (xs_1_1 && !xs_1_1.done && (_a = xs_1.return)) _a.call(xs_1);
       } finally {
-        if (e_56) throw e_56.error;
+        if (e_57) throw e_57.error;
       }
     }
     return result;
@@ -8764,7 +8787,7 @@
       simpleText: ["The next time you gain a relic, gain two additional copies of it."],
       text: ["Whenever you gain a relic other than ".concat(mirrorName, ", gain two additional copies of that relic and destroy this.")],
       handles: function(e, _s, relic) {
-        return e.relic.id !== relic.id && e.relic.name !== mirrorName && e.relic.spec.burden !== true;
+        return e.relic.id !== relic.id && e.relic.name !== mirrorName && !isBurdened(e.relic.spec);
       },
       transform: function(e, _s, relic) {
         return function(state) {
@@ -14259,7 +14282,7 @@
       var d = data;
       var _a = __read13(d.offers, 3), first = _a[0], second = _a[1], third = _a[2];
       var sellablePotions = metaState.data.potions.filter(function(potion) {
-        return potion.spec.burden !== true;
+        return !isBurdened(potion.spec);
       });
       var bundleDetail = "Potion Shop bundle for 3@: with ".concat(displayName(second), " and ").concat(displayName(third));
       var bundleTooltipSpec = __assign9(__assign9({}, second), { relatedCards: __spreadArray8(__spreadArray8([], __read13(second.relatedCards || []), false), [third], false) });
@@ -14578,18 +14601,18 @@
       var _this = this;
       var d = data;
       var tradableCards = metaState.data.collectedCards.filter(function(card) {
-        return card.burden !== true;
+        return !isBurdened(card);
       });
       var tradableEvents = metaState.data.collectedEvents.filter(function(event) {
-        return event.burden !== true;
+        return !isBurdened(event);
       });
       var tradablePotions = metaState.data.potions.filter(function(potion) {
-        return potion.spec.burden !== true;
+        return !isBurdened(potion.spec);
       });
       var tradableRelics = metaState.data.relics.filter(function(relic) {
-        return relic.spec.burden !== true;
+        return !isBurdened(relic.spec);
       });
-      var offeredRelicIsBad = d.offerRelic.burden === true;
+      var offeredRelicIsBad = isBurdened(d.offerRelic);
       return [
         {
           label: "Trade Card for ".concat(displayName(d.offerCard)),
@@ -14975,7 +14998,7 @@
     throw new TypeError(s ? "Object is not iterable." : "Symbol.iterator is not defined.");
   };
   function upgradeCardSpec2(spec, upgrade) {
-    return __assign10(__assign10({}, spec), { burden: true, upgrades: __spreadArray9(__spreadArray9([], __read14(spec.upgrades || []), false), [upgrade], false) });
+    return __assign10(__assign10({}, spec), { upgrades: __spreadArray9(__spreadArray9([], __read14(spec.upgrades || []), false), [upgrade], false) });
   }
   var frozenRelic = {
     name: "Frozen Relic",
@@ -15477,6 +15500,7 @@
   registerRelicSpec(brokenCrown);
   var taxCardUpgrade = {
     id: "burden_tax_card",
+    burden: true,
     name: function(name) {
       return "".concat(name, "-");
     },
@@ -15515,6 +15539,7 @@
   }
   var decayCardUpgrade = {
     id: "burden_decay_card",
+    burden: true,
     name: function(name) {
       return "".concat(name, "-");
     },
@@ -15532,6 +15557,7 @@
   registerEncounterUpgrade("burden_decay_card", decayCardUpgrade);
   var dullCardUpgrade = {
     id: "burden_dull_card",
+    burden: true,
     name: function(name) {
       return "".concat(name, "-");
     },
@@ -15542,6 +15568,7 @@
   registerEncounterUpgrade("burden_dull_card", dullCardUpgrade);
   var taxEventUpgrade = {
     id: "burden_tax_event",
+    burden: true,
     name: function(name) {
       return "".concat(name, "-");
     },
@@ -15592,13 +15619,13 @@
     weight: 3,
     applies: function(state) {
       return state.data.collectedCards.some(function(card) {
-        return card.burden !== true;
+        return !isBurdened(card);
       }) || state.data.collectedEvents.some(function(event) {
-        return event.burden !== true;
+        return !isBurdened(event);
       }) || state.data.potions.some(function(potion) {
-        return potion.spec.burden !== true;
+        return !isBurdened(potion.spec);
       }) || state.data.relics.some(function(relic) {
-        return relic.spec.burden !== true;
+        return !isBurdened(relic.spec);
       });
     },
     resolveTransform: function(_option, state, skipped) {
@@ -15608,16 +15635,16 @@
           switch (_a.label) {
             case 0:
               cardOptions = state.data.collectedCards.filter(function(card) {
-                return card.burden !== true;
+                return !isBurdened(card);
               });
               eventOptions = state.data.collectedEvents.filter(function(event) {
-                return event.burden !== true;
+                return !isBurdened(event);
               });
               potionOptions = state.data.potions.filter(function(potion) {
-                return potion.spec.burden !== true;
+                return !isBurdened(potion.spec);
               });
               relicOptions = state.data.relics.filter(function(candidate) {
-                return candidate.spec.burden !== true;
+                return !isBurdened(candidate.spec);
               });
               options = __spreadArray9(__spreadArray9(__spreadArray9(__spreadArray9([], __read14(cardOptions), false), __read14(eventOptions), false), __read14(potionOptions), false), __read14(relicOptions), false);
               if (options.length === 0)
@@ -15752,7 +15779,7 @@
     description: "Give up a potion and gain ".concat(beggarsBrew.name, "."),
     applies: function(state) {
       return state.data.potions.some(function(potion) {
-        return potion.spec.burden !== true;
+        return !isBurdened(potion.spec);
       });
     },
     resolveTransform: function(_option, state, skipped) {
@@ -15762,7 +15789,7 @@
           switch (_a.label) {
             case 0:
               validPotions = state.data.potions.filter(function(potion) {
-                return potion.spec.burden !== true;
+                return !isBurdened(potion.spec);
               });
               return [4, state.ui.chooseCard(state, "Choose a potion to give up:", validPotions, true)];
             case 1:
@@ -15799,7 +15826,7 @@
     maxStage: 5,
     applies: function(state) {
       return state.data.relics.some(function(relic) {
-        return relic.spec.burden !== true;
+        return !isBurdened(relic.spec);
       });
     },
     resolveTransform: function(_option, state, skipped) {
@@ -15809,7 +15836,7 @@
           switch (_a.label) {
             case 0:
               options = state.data.relics.filter(function(relic) {
-                return relic.spec.burden !== true;
+                return !isBurdened(relic.spec);
               });
               if (options.length === 0)
                 return [2, null];
@@ -15853,7 +15880,7 @@
     description: "Choose a card. It costs $2 more to buy.",
     applies: function(state) {
       return state.data.collectedCards.some(function(card) {
-        return card.burden !== true;
+        return !isBurdened(card);
       });
     },
     resolveTransform: function(_option, state, skipped) {
@@ -15863,7 +15890,7 @@
           switch (_a.label) {
             case 0:
               validCards = state.data.collectedCards.filter(function(card) {
-                return card.burden !== true;
+                return !isBurdened(card);
               });
               return [4, state.ui.chooseCard(state, "Choose a card to tax:", validCards, true)];
             case 1:
@@ -15907,7 +15934,7 @@
     rules: [decayRule],
     applies: function(state) {
       return state.data.collectedCards.some(function(card) {
-        return card.burden !== true;
+        return !isBurdened(card);
       });
     },
     resolveTransform: function(_option, state, skipped) {
@@ -15917,7 +15944,7 @@
           switch (_a.label) {
             case 0:
               validCards = state.data.collectedCards.filter(function(card) {
-                return card.burden !== true;
+                return !isBurdened(card);
               });
               return [4, state.ui.chooseCard(state, "Choose a card to decay:", validCards, true)];
             case 1:
@@ -15960,7 +15987,7 @@
     description: "Choose a card. It costs $1 more to play.",
     applies: function(state) {
       return state.data.collectedCards.some(function(card) {
-        return card.burden !== true;
+        return !isBurdened(card);
       });
     },
     resolveTransform: function(_option, state, skipped) {
@@ -15970,7 +15997,7 @@
           switch (_a.label) {
             case 0:
               validCards = state.data.collectedCards.filter(function(card) {
-                return card.burden !== true;
+                return !isBurdened(card);
               });
               return [4, state.ui.chooseCard(state, "Choose a card to dull:", validCards, true)];
             case 1:
@@ -16013,7 +16040,7 @@
     description: "Choose an event. It costs $2 more to use.",
     applies: function(state) {
       return state.data.collectedEvents.some(function(event) {
-        return event.burden !== true;
+        return !isBurdened(event);
       });
     },
     resolveTransform: function(_option, state, skipped) {
@@ -16023,7 +16050,7 @@
           switch (_a.label) {
             case 0:
               validEvents = state.data.collectedEvents.filter(function(event) {
-                return event.burden !== true;
+                return !isBurdened(event);
               });
               return [4, state.ui.chooseCard(state, "Choose an event to tax:", validEvents, true)];
             case 1:
@@ -19687,7 +19714,12 @@
     };
     throw new TypeError(s ? "Object is not iterable." : "Symbol.iterator is not defined.");
   };
-  var test = null;
+  var test = {
+    burdens: [
+      [1, ["burden", "decay_card"]],
+      [1, ["burden", "tax_card"]]
+    ]
+  };
   var SAVE_STORAGE_KEY = "roguelike.ongoingSaves.v1";
   var RUN_TIMER_STORAGE_KEY = "roguelike.runTimerSeconds.v1";
   var HELP_SEEN_STORAGE_KEY = "roguelike.helpSeen.v1";

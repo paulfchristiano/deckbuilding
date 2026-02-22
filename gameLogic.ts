@@ -39,6 +39,17 @@ export interface CardUpgrade {
     staticReplacers?: TypedReplacer[];
     rules?: Rule[];
     cost?: (cost: Cost, kind: ActionKind) => Cost;
+    burden?: boolean;
+}
+
+export function isBurdened(spec: CardSpec): boolean {
+    if (spec.burden === true) return true
+    if (spec.upgrades) {
+        for (const upgrade of spec.upgrades) {
+            if (upgrade.burden === true) return true
+        }
+    }
+    return false
 }
 
 function appendUpgrades<T>(

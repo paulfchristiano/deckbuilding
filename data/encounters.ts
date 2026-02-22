@@ -23,7 +23,8 @@ import { CardSpec, CardUpgrade,
     addCosts, coin, trash, applyToTarget,
     create, buyTrigger, afterBuyTrigger, buysEffect, sourceHasName, addToken, removeToken,
     doAll,
-    duplicateRule
+    duplicateRule,
+    isBurdened
 } from '../gameLogic.js'
 
 import { Generator } from '../rng.js'
@@ -678,7 +679,7 @@ export const potionShop: Encounter = {
     getOptions(data: unknown, metaState: MetaState): RewardOption[] {
         const d = data as PotionShopData
         const [first, second, third] = d.offers
-        const sellablePotions = metaState.data.potions.filter(potion => potion.spec.burden !== true)
+        const sellablePotions = metaState.data.potions.filter(potion => !isBurdened(potion.spec))
         const bundleDetail = `Potion Shop bundle for 3@: with ${displayName(second)} and ${displayName(third)}`
         const bundleTooltipSpec: CardSpec = {
             ...second,
@@ -912,11 +913,11 @@ const tradingPost: Encounter = {
     },
     getOptions(data: unknown, metaState: MetaState): RewardOption[] {
         const d = data as TradingPostData
-        const tradableCards = metaState.data.collectedCards.filter(card => card.burden !== true)
-        const tradableEvents = metaState.data.collectedEvents.filter(event => event.burden !== true)
-        const tradablePotions = metaState.data.potions.filter(potion => potion.spec.burden !== true)
-        const tradableRelics = metaState.data.relics.filter(relic => relic.spec.burden !== true)
-        const offeredRelicIsBad = d.offerRelic.burden === true
+        const tradableCards = metaState.data.collectedCards.filter(card => !isBurdened(card))
+        const tradableEvents = metaState.data.collectedEvents.filter(event => !isBurdened(event))
+        const tradablePotions = metaState.data.potions.filter(potion => !isBurdened(potion.spec))
+        const tradableRelics = metaState.data.relics.filter(relic => !isBurdened(relic.spec))
+        const offeredRelicIsBad = isBurdened(d.offerRelic)
 
         return [
             {
