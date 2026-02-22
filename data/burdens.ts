@@ -5,6 +5,7 @@ import {
     CreateParams,
     Effect,
     ResourceEvent,
+    Rule,
     State,
     Token,
     Transform,
@@ -540,91 +541,65 @@ registerBurden({
     },
 })
 
-registerBurden({
-    id: 'tax_card',
-    title: 'Tax a card',
+function registerDowngradeBurden(options: {
+    id: string,
+    title: string,
+    description: string,
+    upgrade: CardUpgrade,
+    collection: 'collectedCards' | 'collectedEvents',
+    prompt: string,
+    timelineLabel: string,
+    rules?: Rule[],
+}): void {
+    registerBurden({
+        id: options.id,
+        title: options.title,
+        description: options.description,
+        rules: options.rules,
+        applies: state => state.data[options.collection].some(spec => !isBurdened(spec)),
+        resolveTransform: async (_option, state, skipped) => {
+            const valid = state.data[options.collection].filter(spec => !isBurdened(spec))
+            const picked = await state.ui.chooseCard(state, options.prompt, valid, true)
+            if (!picked) return null
+            const chosenName = displayName(picked)
+            return async function (innerState: MetaState) {
+                const items = [...innerState.data[options.collection]]
+                const index = items.indexOf(picked)
+                if (index >= 0) {
+                    items[index] = upgradeCardSpec(items[index], options.upgrade)
+                    innerState.update({ [options.collection]: items })
+                    await addTimelineAction(options.timelineLabel, chosenName, skipped)(innerState)
+                }
+            }
+        },
+    })
+}
+
+registerDowngradeBurden({
+    id: 'tax_card', title: 'Tax a card',
     description: 'Choose a card. It costs $2 more to buy.',
-    applies: state => state.data.collectedCards.some(card => !isBurdened(card)),
-    resolveTransform: async (_option, state, skipped) => {
-        const validCards = state.data.collectedCards.filter(card => !isBurdened(card))
-        const picked = await state.ui.chooseCard(state, 'Choose a card to tax:', validCards, true)
-        if (!picked) return null
-        const chosenName = displayName(picked)
-        return async function (innerState: MetaState) {
-            const cards = [...innerState.data.collectedCards]
-            const index = cards.indexOf(picked)
-            if (index >= 0) {
-                cards[index] = upgradeCardSpec(cards[index], taxCardUpgrade)
-                innerState.update({ collectedCards: cards })
-                await addTimelineAction('Burden: Taxed a card', chosenName, skipped)(innerState)
-            }
-        }
-    },
+    upgrade: taxCardUpgrade, collection: 'collectedCards',
+    prompt: 'Choose a card to tax:', timelineLabel: 'Burden: Taxed a card',
 })
 
-registerBurden({
-    id: 'decay_card',
-    title: 'Weaken a card',
+registerDowngradeBurden({
+    id: 'decay_card', title: 'Weaken a card',
     description: 'Choose a card. Whenever that card is created, put 2 decay tokens on it.',
+    upgrade: decayCardUpgrade, collection: 'collectedCards',
+    prompt: 'Choose a card to decay:', timelineLabel: 'Burden: Decayed a card',
     rules: [decayRule],
-    applies: state => state.data.collectedCards.some(card => !isBurdened(card)),
-    resolveTransform: async (_option, state, skipped) => {
-        const validCards = state.data.collectedCards.filter(card => !isBurdened(card))
-        const picked = await state.ui.chooseCard(state, 'Choose a card to decay:', validCards, true)
-        if (!picked) return null
-        const chosenName = displayName(picked)
-        return async function (innerState: MetaState) {
-            const cards = [...innerState.data.collectedCards]
-            const index = cards.indexOf(picked)
-            if (index >= 0) {
-                cards[index] = upgradeCardSpec(cards[index], decayCardUpgrade)
-                innerState.update({ collectedCards: cards })
-                await addTimelineAction('Burden: Decayed a card', chosenName, skipped)(innerState)
-            }
-        }
-    },
 })
 
-registerBurden({
-    id: 'dull_card',
-    title: 'Dull a card',
+registerDowngradeBurden({
+    id: 'dull_card', title: 'Dull a card',
     description: 'Choose a card. It costs $1 more to play.',
-    applies: state => state.data.collectedCards.some(card => !isBurdened(card)),
-    resolveTransform: async (_option, state, skipped) => {
-        const validCards = state.data.collectedCards.filter(card => !isBurdened(card))
-        const picked = await state.ui.chooseCard(state, 'Choose a card to dull:', validCards, true)
-        if (!picked) return null
-        const chosenName = displayName(picked)
-        return async function (innerState: MetaState) {
-            const cards = [...innerState.data.collectedCards]
-            const index = cards.indexOf(picked)
-            if (index >= 0) {
-                cards[index] = upgradeCardSpec(cards[index], dullCardUpgrade)
-                innerState.update({ collectedCards: cards })
-                await addTimelineAction('Burden: Dulled a card', chosenName, skipped)(innerState)
-            }
-        }
-    },
+    upgrade: dullCardUpgrade, collection: 'collectedCards',
+    prompt: 'Choose a card to dull:', timelineLabel: 'Burden: Dulled a card',
 })
 
-registerBurden({
-    id: 'tax_event',
-    title: 'Tax an event',
+registerDowngradeBurden({
+    id: 'tax_event', title: 'Tax an event',
     description: 'Choose an event. It costs $2 more to use.',
-    applies: state => state.data.collectedEvents.some(event => !isBurdened(event)),
-    resolveTransform: async (_option, state, skipped) => {
-        const validEvents = state.data.collectedEvents.filter(event => !isBurdened(event))
-        const picked = await state.ui.chooseCard(state, 'Choose an event to tax:', validEvents, true)
-        if (!picked) return null
-        const chosenName = displayName(picked)
-        return async function (innerState: MetaState) {
-            const events = [...innerState.data.collectedEvents]
-            const index = events.indexOf(picked)
-            if (index >= 0) {
-                events[index] = upgradeCardSpec(events[index], taxEventUpgrade)
-                innerState.update({ collectedEvents: events })
-                await addTimelineAction('Burden: Taxed an event', chosenName, skipped)(innerState)
-            }
-        }
-    },
+    upgrade: taxEventUpgrade, collection: 'collectedEvents',
+    prompt: 'Choose an event to tax:', timelineLabel: 'Burden: Taxed an event',
 })

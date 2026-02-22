@@ -25,8 +25,11 @@ import { commerce, splay } from './data/events.js'
 import { shopkeeper, tactician } from './data/encounters.js'
 
 let test: DebugTestConfig | null = {
-    rewards: [
-        [1, ['encounter', shopkeeper]],
+    burdens: [
+        [1, ['burden', 'tax_card']],
+        [1, ['burden', 'decay_card']],
+        [1, ['burden', 'dull_card']],
+        [1, ['burden', 'tax_event']],
     ],
 }
 

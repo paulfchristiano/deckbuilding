@@ -15893,218 +15893,100 @@
       });
     }
   });
-  registerBurden({
+  function registerDowngradeBurden(options) {
+    var _this = this;
+    registerBurden({
+      id: options.id,
+      title: options.title,
+      description: options.description,
+      rules: options.rules,
+      applies: function(state) {
+        return state.data[options.collection].some(function(spec) {
+          return !isBurdened(spec);
+        });
+      },
+      resolveTransform: function(_option, state, skipped) {
+        return __awaiter11(_this, void 0, void 0, function() {
+          var valid, picked, chosenName;
+          return __generator11(this, function(_a) {
+            switch (_a.label) {
+              case 0:
+                valid = state.data[options.collection].filter(function(spec) {
+                  return !isBurdened(spec);
+                });
+                return [4, state.ui.chooseCard(state, options.prompt, valid, true)];
+              case 1:
+                picked = _a.sent();
+                if (!picked)
+                  return [2, null];
+                chosenName = displayName(picked);
+                return [2, function(innerState) {
+                  return __awaiter11(this, void 0, void 0, function() {
+                    var items, index;
+                    var _a2;
+                    return __generator11(this, function(_b) {
+                      switch (_b.label) {
+                        case 0:
+                          items = __spreadArray9([], __read14(innerState.data[options.collection]), false);
+                          index = items.indexOf(picked);
+                          if (!(index >= 0)) return [3, 2];
+                          items[index] = upgradeCardSpec2(items[index], options.upgrade);
+                          innerState.update((_a2 = {}, _a2[options.collection] = items, _a2));
+                          return [4, addTimelineAction(options.timelineLabel, chosenName, skipped)(innerState)];
+                        case 1:
+                          _b.sent();
+                          _b.label = 2;
+                        case 2:
+                          return [
+                            2
+                            /*return*/
+                          ];
+                      }
+                    });
+                  });
+                }];
+            }
+          });
+        });
+      }
+    });
+  }
+  registerDowngradeBurden({
     id: "tax_card",
     title: "Tax a card",
     description: "Choose a card. It costs $2 more to buy.",
-    applies: function(state) {
-      return state.data.collectedCards.some(function(card) {
-        return !isBurdened(card);
-      });
-    },
-    resolveTransform: function(_option, state, skipped) {
-      return __awaiter11(void 0, void 0, void 0, function() {
-        var validCards, picked, chosenName;
-        return __generator11(this, function(_a) {
-          switch (_a.label) {
-            case 0:
-              validCards = state.data.collectedCards.filter(function(card) {
-                return !isBurdened(card);
-              });
-              return [4, state.ui.chooseCard(state, "Choose a card to tax:", validCards, true)];
-            case 1:
-              picked = _a.sent();
-              if (!picked)
-                return [2, null];
-              chosenName = displayName(picked);
-              return [2, function(innerState) {
-                return __awaiter11(this, void 0, void 0, function() {
-                  var cards, index;
-                  return __generator11(this, function(_a2) {
-                    switch (_a2.label) {
-                      case 0:
-                        cards = __spreadArray9([], __read14(innerState.data.collectedCards), false);
-                        index = cards.indexOf(picked);
-                        if (!(index >= 0)) return [3, 2];
-                        cards[index] = upgradeCardSpec2(cards[index], taxCardUpgrade);
-                        innerState.update({ collectedCards: cards });
-                        return [4, addTimelineAction("Burden: Taxed a card", chosenName, skipped)(innerState)];
-                      case 1:
-                        _a2.sent();
-                        _a2.label = 2;
-                      case 2:
-                        return [
-                          2
-                          /*return*/
-                        ];
-                    }
-                  });
-                });
-              }];
-          }
-        });
-      });
-    }
+    upgrade: taxCardUpgrade,
+    collection: "collectedCards",
+    prompt: "Choose a card to tax:",
+    timelineLabel: "Burden: Taxed a card"
   });
-  registerBurden({
+  registerDowngradeBurden({
     id: "decay_card",
     title: "Weaken a card",
     description: "Choose a card. Whenever that card is created, put 2 decay tokens on it.",
-    rules: [decayRule],
-    applies: function(state) {
-      return state.data.collectedCards.some(function(card) {
-        return !isBurdened(card);
-      });
-    },
-    resolveTransform: function(_option, state, skipped) {
-      return __awaiter11(void 0, void 0, void 0, function() {
-        var validCards, picked, chosenName;
-        return __generator11(this, function(_a) {
-          switch (_a.label) {
-            case 0:
-              validCards = state.data.collectedCards.filter(function(card) {
-                return !isBurdened(card);
-              });
-              return [4, state.ui.chooseCard(state, "Choose a card to decay:", validCards, true)];
-            case 1:
-              picked = _a.sent();
-              if (!picked)
-                return [2, null];
-              chosenName = displayName(picked);
-              return [2, function(innerState) {
-                return __awaiter11(this, void 0, void 0, function() {
-                  var cards, index;
-                  return __generator11(this, function(_a2) {
-                    switch (_a2.label) {
-                      case 0:
-                        cards = __spreadArray9([], __read14(innerState.data.collectedCards), false);
-                        index = cards.indexOf(picked);
-                        if (!(index >= 0)) return [3, 2];
-                        cards[index] = upgradeCardSpec2(cards[index], decayCardUpgrade);
-                        innerState.update({ collectedCards: cards });
-                        return [4, addTimelineAction("Burden: Decayed a card", chosenName, skipped)(innerState)];
-                      case 1:
-                        _a2.sent();
-                        _a2.label = 2;
-                      case 2:
-                        return [
-                          2
-                          /*return*/
-                        ];
-                    }
-                  });
-                });
-              }];
-          }
-        });
-      });
-    }
+    upgrade: decayCardUpgrade,
+    collection: "collectedCards",
+    prompt: "Choose a card to decay:",
+    timelineLabel: "Burden: Decayed a card",
+    rules: [decayRule]
   });
-  registerBurden({
+  registerDowngradeBurden({
     id: "dull_card",
     title: "Dull a card",
     description: "Choose a card. It costs $1 more to play.",
-    applies: function(state) {
-      return state.data.collectedCards.some(function(card) {
-        return !isBurdened(card);
-      });
-    },
-    resolveTransform: function(_option, state, skipped) {
-      return __awaiter11(void 0, void 0, void 0, function() {
-        var validCards, picked, chosenName;
-        return __generator11(this, function(_a) {
-          switch (_a.label) {
-            case 0:
-              validCards = state.data.collectedCards.filter(function(card) {
-                return !isBurdened(card);
-              });
-              return [4, state.ui.chooseCard(state, "Choose a card to dull:", validCards, true)];
-            case 1:
-              picked = _a.sent();
-              if (!picked)
-                return [2, null];
-              chosenName = displayName(picked);
-              return [2, function(innerState) {
-                return __awaiter11(this, void 0, void 0, function() {
-                  var cards, index;
-                  return __generator11(this, function(_a2) {
-                    switch (_a2.label) {
-                      case 0:
-                        cards = __spreadArray9([], __read14(innerState.data.collectedCards), false);
-                        index = cards.indexOf(picked);
-                        if (!(index >= 0)) return [3, 2];
-                        cards[index] = upgradeCardSpec2(cards[index], dullCardUpgrade);
-                        innerState.update({ collectedCards: cards });
-                        return [4, addTimelineAction("Burden: Dulled a card", chosenName, skipped)(innerState)];
-                      case 1:
-                        _a2.sent();
-                        _a2.label = 2;
-                      case 2:
-                        return [
-                          2
-                          /*return*/
-                        ];
-                    }
-                  });
-                });
-              }];
-          }
-        });
-      });
-    }
+    upgrade: dullCardUpgrade,
+    collection: "collectedCards",
+    prompt: "Choose a card to dull:",
+    timelineLabel: "Burden: Dulled a card"
   });
-  registerBurden({
+  registerDowngradeBurden({
     id: "tax_event",
     title: "Tax an event",
     description: "Choose an event. It costs $2 more to use.",
-    applies: function(state) {
-      return state.data.collectedEvents.some(function(event) {
-        return !isBurdened(event);
-      });
-    },
-    resolveTransform: function(_option, state, skipped) {
-      return __awaiter11(void 0, void 0, void 0, function() {
-        var validEvents, picked, chosenName;
-        return __generator11(this, function(_a) {
-          switch (_a.label) {
-            case 0:
-              validEvents = state.data.collectedEvents.filter(function(event) {
-                return !isBurdened(event);
-              });
-              return [4, state.ui.chooseCard(state, "Choose an event to tax:", validEvents, true)];
-            case 1:
-              picked = _a.sent();
-              if (!picked)
-                return [2, null];
-              chosenName = displayName(picked);
-              return [2, function(innerState) {
-                return __awaiter11(this, void 0, void 0, function() {
-                  var events, index;
-                  return __generator11(this, function(_a2) {
-                    switch (_a2.label) {
-                      case 0:
-                        events = __spreadArray9([], __read14(innerState.data.collectedEvents), false);
-                        index = events.indexOf(picked);
-                        if (!(index >= 0)) return [3, 2];
-                        events[index] = upgradeCardSpec2(events[index], taxEventUpgrade);
-                        innerState.update({ collectedEvents: events });
-                        return [4, addTimelineAction("Burden: Taxed an event", chosenName, skipped)(innerState)];
-                      case 1:
-                        _a2.sent();
-                        _a2.label = 2;
-                      case 2:
-                        return [
-                          2
-                          /*return*/
-                        ];
-                    }
-                  });
-                });
-              }];
-          }
-        });
-      });
-    }
+    upgrade: taxEventUpgrade,
+    collection: "collectedEvents",
+    prompt: "Choose an event to tax:",
+    timelineLabel: "Burden: Taxed an event"
   });
 
   // public/data/extraOptions.js
@@ -19690,8 +19572,11 @@
     throw new TypeError(s ? "Object is not iterable." : "Symbol.iterator is not defined.");
   };
   var test = {
-    rewards: [
-      [1, ["encounter", shopkeeper]]
+    burdens: [
+      [1, ["burden", "tax_card"]],
+      [1, ["burden", "decay_card"]],
+      [1, ["burden", "dull_card"]],
+      [1, ["burden", "tax_event"]]
     ]
   };
   var SAVE_STORAGE_KEY = "roguelike.ongoingSaves.v1";
