@@ -1644,7 +1644,7 @@ export class InvalidHistory extends Error {
 }
 
 export class Undo extends Error {
-    constructor(public state:State) {
+    constructor(public state:State, public count:number = 1) {
         super('Undo')
         Object.setPrototypeOf(this, Undo.prototype)
     }
@@ -1778,7 +1778,7 @@ export function allowNull<T>(options: Option<T>[], message:string="None"): Optio
 
 // ---------------------------- Game loop
 
-function undo(startState: State): State {
+function undoOnce(startState: State): State {
     let state:State|null = startState
     while (true) {
         let last:Replayable|null; [state, last] = state.popFuture()
@@ -1793,6 +1793,14 @@ function undo(startState: State): State {
             return state.addRedo(last)
         }
     }
+}
+
+function undo(startState: State, count: number = 1): State {
+    let state = startState
+    for (let i = 0; i < count; i++) {
+        state = undoOnce(state)
+    }
+    return state
 }
 
 
@@ -2034,7 +2042,7 @@ export async function playGame(
         } catch (error) {
             victorious = false
             if (error instanceof Undo) {
-                state = undo(error.state)
+                state = undo(error.state, error.count)
             } else if (error instanceof Victory) {
                 state = error.state
                 victorious = true

@@ -2351,9 +2351,13 @@
     /** @class */
     (function(_super) {
       __extends(Undo3, _super);
-      function Undo3(state) {
+      function Undo3(state, count) {
+        if (count === void 0) {
+          count = 1;
+        }
         var _this = _super.call(this, "Undo") || this;
         _this.state = state;
+        _this.count = count;
         Object.setPrototypeOf(_this, Undo3.prototype);
         return _this;
       }
@@ -2571,7 +2575,7 @@
     });
     return newOptions;
   }
-  function undo(startState2) {
+  function undoOnce(startState2) {
     var _a;
     var state = startState2;
     while (true) {
@@ -2587,6 +2591,16 @@
         return state.addRedo(last);
       }
     }
+  }
+  function undo(startState2, count) {
+    if (count === void 0) {
+      count = 1;
+    }
+    var state = startState2;
+    for (var i = 0; i < count; i++) {
+      state = undoOnce(state);
+    }
+    return state;
   }
   function doOrAbort(f, fallback) {
     if (fallback === void 0) {
@@ -2952,7 +2966,7 @@
             error_2 = _a.sent();
             victorious = false;
             if (error_2 instanceof Undo) {
-              state = undo(error_2.state);
+              state = undo(error_2.state, error_2.count);
             } else if (error_2 instanceof Victory) {
               state = error_2.state;
               victorious = true;
@@ -17734,6 +17748,7 @@
           ui.playingMacro = repeat2(macro.steps, e.shiftKey ? 10 : 1);
           ui.macroRepetitionLength = macro.steps.length;
           ui.macroStepsIntoRepetition = 0;
+          ui.macroChoicesInRepetition = 0;
           if (macro.resetFirst === true) {
             var reset = startState(ui.choiceState.state);
             ui.macroStartState = reset;
@@ -17916,6 +17931,7 @@
         this.macroStartState = null;
         this.macroRepetitionLength = 0;
         this.macroStepsIntoRepetition = 0;
+        this.macroChoicesInRepetition = 0;
         this.preserveMacroOnNextSetState = false;
         this.choiceState = null;
         this.progressDirty = false;
@@ -17986,23 +18002,25 @@
         this.recordingStates.push(state);
       };
       GameUI2.prototype.matchNextMacroStep = function() {
-        var macro = this.playingMacro.shift();
-        if (macro && this.choiceState) {
-          if (this.macroRepetitionLength > 0 && this.macroStepsIntoRepetition === 0 && this.choiceState) {
-            this.macroStartState = this.choiceState.state;
-          }
-          var option = matchMacro(macro, this.choiceState.state, this.choiceState.options, this.choiceState.chosen);
-          if (option === null) {
-            this.playingMacro = [];
-            return { option: null, failed: true };
-          }
-          this.macroStepsIntoRepetition++;
-          if (this.macroRepetitionLength > 0 && this.macroStepsIntoRepetition >= this.macroRepetitionLength) {
-            this.macroStepsIntoRepetition = 0;
-          }
-          return { option, failed: false };
+        if (!this.choiceState)
+          return { option: null, failed: false };
+        if (this.playingMacro.length === 0)
+          return { option: null, failed: false };
+        if (this.macroRepetitionLength > 0 && this.macroStepsIntoRepetition === 0) {
+          this.macroStartState = this.choiceState.state;
+          this.macroChoicesInRepetition = 0;
         }
-        return { option: null, failed: false };
+        var macro = this.playingMacro.shift();
+        var option = matchMacro(macro, this.choiceState.state, this.choiceState.options, this.choiceState.chosen);
+        if (option === null) {
+          this.playingMacro = [];
+          return { option: null, failed: true };
+        }
+        this.macroStepsIntoRepetition++;
+        if (this.macroRepetitionLength > 0 && this.macroStepsIntoRepetition >= this.macroRepetitionLength) {
+          this.macroStepsIntoRepetition = 0;
+        }
+        return { option, failed: false };
       };
       GameUI2.prototype.clearChoice = function() {
         this.choiceState = null;
@@ -18033,6 +18051,8 @@
         var ui = this;
         return new Promise(function(resolve, reject) {
           function newResolve(n, shifted) {
+            if (ui.playingMacro.length > 0)
+              ui.macroChoicesInRepetition++;
             ui.clearChoice();
             ui.recordResolvedChoice(state, choicePrompt, options, info, chosen, n);
             var macroStep = macroStepFromChoice(options[n].render, chosen.includes(n), info);
@@ -18040,6 +18060,7 @@
               ui.playingMacro = repeat2([macroStep], 9);
               ui.macroRepetitionLength = 1;
               ui.macroStepsIntoRepetition = 0;
+              ui.macroChoicesInRepetition = 0;
             }
             if (ui.playingMacro.length === 0) {
               ui.macroStartState = null;
@@ -18078,6 +18099,8 @@
             if (ui.undoing) {
               newReject(new Undo(state));
             } else {
+              if (ui.playingMacro.length > 0)
+                ui.macroChoicesInRepetition++;
               ui.clearChoice();
               resolve(chooseTrivial);
             }
@@ -18085,7 +18108,12 @@
           }
           var macroMatch = ui.matchNextMacroStep();
           if (macroMatch.failed && ui.macroStartState !== null) {
-            newReject(new SetState(ui.macroStartState));
+            var rewindCount = ui.macroChoicesInRepetition;
+            ui.macroChoicesInRepetition = 0;
+            ui.macroStartState = null;
+            ui.macroRepetitionLength = 0;
+            ui.macroStepsIntoRepetition = 0;
+            newReject(new Undo(state, rewindCount));
             return;
           }
           if (macroMatch.option !== null) {

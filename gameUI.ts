@@ -1357,6 +1357,7 @@ function bindPlayMacroButtons(ui: GameUI, state: State): void {
                 ui.playingMacro = repeat(macro.steps, (e as MouseEvent).shiftKey ? 10 : 1)
                 ui.macroRepetitionLength = macro.steps.length
                 ui.macroStepsIntoRepetition = 0
+                ui.macroChoicesInRepetition = 0
                 if (macro.resetFirst === true) {
                     const reset = startState(ui.choiceState.state)
                     ui.macroStartState = reset
@@ -1503,6 +1504,7 @@ export class GameUI implements UI {
     public macroStartState: State | null = null
     public macroRepetitionLength: number = 0
     public macroStepsIntoRepetition: number = 0
+    public macroChoicesInRepetition: number = 0
     public preserveMacroOnNextSetState = false
     public choiceState: ChoiceState | null = null
     private progressDirty = false
@@ -1592,25 +1594,25 @@ export class GameUI implements UI {
     }
 
     matchNextMacroStep(): MacroMatchResult {
-        const macro = this.playingMacro.shift()
-        if (macro && this.choiceState) {
-            // At the start of a new repetition, update macroStartState so failure
-            // only rewinds the current repetition, not all previous ones
-            if (this.macroRepetitionLength > 0 && this.macroStepsIntoRepetition === 0 && this.choiceState) {
-                this.macroStartState = this.choiceState.state
-            }
-            const option = matchMacro(macro, this.choiceState.state, this.choiceState.options, this.choiceState.chosen)
-            if (option === null) {
-                this.playingMacro = []
-                return { option: null, failed: true }
-            }
-            this.macroStepsIntoRepetition++
-            if (this.macroRepetitionLength > 0 && this.macroStepsIntoRepetition >= this.macroRepetitionLength) {
-                this.macroStepsIntoRepetition = 0
-            }
-            return { option, failed: false }
+        if (!this.choiceState) return { option: null, failed: false }
+        if (this.playingMacro.length === 0) return { option: null, failed: false }
+        // At the start of a new repetition, update macroStartState so failure
+        // only rewinds the current repetition, not all previous ones
+        if (this.macroRepetitionLength > 0 && this.macroStepsIntoRepetition === 0) {
+            this.macroStartState = this.choiceState.state
+            this.macroChoicesInRepetition = 0
         }
-        return { option: null, failed: false }
+        const macro = this.playingMacro.shift()!
+        const option = matchMacro(macro, this.choiceState.state, this.choiceState.options, this.choiceState.chosen)
+        if (option === null) {
+            this.playingMacro = []
+            return { option: null, failed: true }
+        }
+        this.macroStepsIntoRepetition++
+        if (this.macroRepetitionLength > 0 && this.macroStepsIntoRepetition >= this.macroRepetitionLength) {
+            this.macroStepsIntoRepetition = 0
+        }
+        return { option, failed: false }
     }
 
     clearChoice(): void {
@@ -1651,6 +1653,7 @@ export class GameUI implements UI {
         const ui = this
         return new Promise((resolve, reject) => {
             function newResolve(n: number, shifted: boolean) {
+                if (ui.playingMacro.length > 0) ui.macroChoicesInRepetition++
                 ui.clearChoice()
                 ui.recordResolvedChoice(state, choicePrompt, options, info, chosen, n)
                 const macroStep = macroStepFromChoice(options[n].render, chosen.includes(n), info)
@@ -1658,6 +1661,7 @@ export class GameUI implements UI {
                     ui.playingMacro = repeat([macroStep], 9)
                     ui.macroRepetitionLength = 1
                     ui.macroStepsIntoRepetition = 0
+                    ui.macroChoicesInRepetition = 0
                 }
                 if (ui.playingMacro.length === 0) {
                     ui.macroStartState = null
@@ -1703,6 +1707,7 @@ export class GameUI implements UI {
                 if (ui.undoing) {
                     newReject(new Undo(state))
                 } else {
+                    if (ui.playingMacro.length > 0) ui.macroChoicesInRepetition++
                     ui.clearChoice()
                     resolve(chooseTrivial)
                 }
@@ -1711,7 +1716,13 @@ export class GameUI implements UI {
 
             const macroMatch = ui.matchNextMacroStep()
             if (macroMatch.failed && ui.macroStartState !== null) {
-                newReject(new SetState(ui.macroStartState))
+                // Undo all choices made in this repetition
+                const rewindCount = ui.macroChoicesInRepetition
+                ui.macroChoicesInRepetition = 0
+                ui.macroStartState = null
+                ui.macroRepetitionLength = 0
+                ui.macroStepsIntoRepetition = 0
+                newReject(new Undo(state, rewindCount))
                 return
             }
 
