@@ -940,6 +940,10 @@ export class MetaGameUI implements MetaUI {
         updateBufferDisplay(state)
     }
 
+    updateSidebar(state: MetaState): void {
+        updateProgressSidebar(state)
+    }
+
     private updateGameProgressSidebar(spec: GameSpec): void {
         const stageScores = spec.metaStageScores || []
         const stagePars = spec.metaStagePars || []
@@ -988,8 +992,22 @@ export class MetaGameUI implements MetaUI {
     ): Promise<VictoryData> {
         showScreen('game')
         hideDeckDialog()
-        // Update progress sidebar with all stage data from the spec
-        this.updateGameProgressSidebar(spec)
+        // Overlay ?/par on the current stage and highlight replaying stage
+        if (spec.metaStage !== undefined) {
+            const circle = document.querySelector(`#progressLine .progressCircle[data-stage="${spec.metaStage}"]`)
+            if (circle) {
+                const existing = circle.querySelector('.progressScore')
+                if (existing) existing.remove()
+                const score = document.createElement('span')
+                score.className = 'progressScore'
+                score.textContent = `?/${spec.par}`
+                circle.appendChild(score)
+            }
+        }
+        if (spec.replayStage !== undefined && spec.replayStage !== null) {
+            const replayCircle = document.querySelector(`#progressLine .progressCircle[data-stage="${spec.replayStage}"]`)
+            if (replayCircle) replayCircle.classList.add('replaying')
+        }
         // Bind deck icon to show game deck during play
         const deckIcon = getElement('deckIcon')
         deckIcon.onclick = () => {

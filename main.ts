@@ -147,7 +147,8 @@ const summaryMetaUI: MetaUI = {
     pickPath: async () => { throw new Error('Summary UI does not support pickPath') },
     chooseOption: async <T>(): Promise<T | null> => null,
     showMessage: async () => {},
-    updateBuffer: () => {}
+    updateBuffer: () => {},
+    updateSidebar: () => {}
 }
 
 function resolveSeedFromURL(): string | null {

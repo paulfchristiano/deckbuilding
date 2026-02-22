@@ -7682,6 +7682,8 @@
       });
     },
     updateBuffer: function() {
+    },
+    updateSidebar: function() {
     }
   };
   function computeReplayBufferAfterCourse(replayData, score) {
@@ -7751,6 +7753,7 @@
             _e.label = 1;
           case 1:
             _e.trys.push([1, 3, , 4]);
+            state.ui.updateSidebar(state);
             return [4, state.ui.playGame(replaySpecForStage(state, replayData), replayData.history, [], state.global.macros, state.global.viewingMacros, null, "nothing")];
           case 2:
             replayResult = _e.sent();
@@ -8288,6 +8291,7 @@
               });
             };
             stage = state.data.stage;
+            state.ui.updateSidebar(state);
             gameSpec = makeSpec(state, state.data.challenges[0], state.data.selectedChallengeIndex);
             startingBuffer = state.data.buffer;
             return [4, state.ui.playGame(gameSpec, state.data.gameHistory, state.data.gameRedo, state.global.macros, state.global.viewingMacros, function(progress) {
@@ -19448,6 +19452,9 @@
       MetaGameUI2.prototype.updateBuffer = function(state) {
         updateBufferDisplay(state);
       };
+      MetaGameUI2.prototype.updateSidebar = function(state) {
+        updateProgressSidebar(state);
+      };
       MetaGameUI2.prototype.updateGameProgressSidebar = function(spec) {
         var _a;
         var stageScores = spec.metaStageScores || [];
@@ -19505,7 +19512,23 @@
         }
         showScreen("game");
         hideDeckDialog();
-        this.updateGameProgressSidebar(spec);
+        if (spec.metaStage !== void 0) {
+          var circle = document.querySelector('#progressLine .progressCircle[data-stage="'.concat(spec.metaStage, '"]'));
+          if (circle) {
+            var existing = circle.querySelector(".progressScore");
+            if (existing)
+              existing.remove();
+            var score = document.createElement("span");
+            score.className = "progressScore";
+            score.textContent = "?/".concat(spec.par);
+            circle.appendChild(score);
+          }
+        }
+        if (spec.replayStage !== void 0 && spec.replayStage !== null) {
+          var replayCircle = document.querySelector('#progressLine .progressCircle[data-stage="'.concat(spec.replayStage, '"]'));
+          if (replayCircle)
+            replayCircle.classList.add("replaying");
+        }
         var deckIcon = getElement2("deckIcon");
         deckIcon.onclick = function() {
           if (isDeckDialogOpen()) {
@@ -19823,6 +19846,8 @@
       });
     },
     updateBuffer: function() {
+    },
+    updateSidebar: function() {
     }
   };
   function resolveSeedFromURL() {

@@ -71,6 +71,9 @@ export interface MetaUI {
 
     // Update the buffer display when it changes
     updateBuffer(state: MetaState): void
+
+    // Update the progress sidebar
+    updateSidebar(state: MetaState): void
 }
 
 export interface ActiveGameProgress {
@@ -2589,7 +2592,8 @@ const replaySimulationUI: MetaUI = {
         _options: MetaOption<T>[]
     ): Promise<T | null> => null,
     showMessage: async (): Promise<void> => {},
-    updateBuffer: (): void => {}
+    updateBuffer: (): void => {},
+    updateSidebar: (): void => {}
 }
 
 async function computeReplayBufferAfterCourse(replayData: StageReplayData, score: number): Promise<number> {
@@ -2649,6 +2653,7 @@ async function replayCompletedStage(state: MetaState, stage: number): Promise<vo
 
     let replayResult: VictoryData
     try {
+        state.ui.updateSidebar(state)
         replayResult = await state.ui.playGame(
             replaySpecForStage(state, replayData),
             replayData.history,
@@ -3105,6 +3110,7 @@ export async function playGame(
                     a.length === b.length && a.every((value, index) => value === b[index])
                 const stage = state.data.stage
                 // challenges[0] is the selected challenge (set when user clicks a challenge button)
+                state.ui.updateSidebar(state)
                 const gameSpec = makeSpec(state, state.data.challenges[0], state.data.selectedChallengeIndex)
                 const startingBuffer = state.data.buffer
                 // Pass saved game state for replay (from previous redo)
