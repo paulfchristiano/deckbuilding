@@ -2034,7 +2034,7 @@ export function describeBasePar(stage: number, state: MetaState): string {
     if (scarcityDelta === 0) return `${basePar} (Base)`
     const adjusted = displayBasePar(stage, state)
     if (adjusted === null) return `${basePar} (Base)`
-    return `${basePar} (Base), ${signedAmount(scarcityDelta)} for Scarcity, = ${adjusted}`
+    return `${basePar} (Base), ${signedAmount(scarcityDelta)} (Scarcity), = ${adjusted}`
 }
 
 export function describeParCalculation(stage: number, challenge: ChallengeSpec | null | undefined, relicCards: Card[], state: MetaState): string {
@@ -2046,13 +2046,13 @@ export function describeParCalculation(stage: number, challenge: ChallengeSpec |
     const scarcityDelta = scarcityParAdjustment(stage, state)
     if (scarcityDelta !== 0) {
         par += scarcityDelta
-        parts.push(`${signedAmount(scarcityDelta)} for Scarcity`)
+        parts.push(`${signedAmount(scarcityDelta)} (Scarcity)`)
     }
     if (challenge !== null && challenge !== undefined) {
         for (const boon of challenge.boons) {
             par += boon.parAdjustment
             if (boon.parAdjustment !== 0) {
-                parts.push(`${signedAmount(boon.parAdjustment)} for ${boon.name}`)
+                parts.push(`${signedAmount(boon.parAdjustment)} (${boon.name})`)
             }
         }
     }
@@ -2073,7 +2073,7 @@ export function describeParCalculation(stage: number, challenge: ChallengeSpec |
             const nextParams = replaceFn(params, state, relicCard)
             const parDelta = nextParams.par - params.par
             if (parDelta !== 0) {
-                parts.push(`${signedAmount(parDelta)} for ${relicCard.name}`)
+                parts.push(`${signedAmount(parDelta)} (${relicCard.name})`)
             }
             params = nextParams
         }
@@ -3115,12 +3115,10 @@ export async function playGame(
                     state.global.macros,
                     state.global.viewingMacros,
                     progress => {
-                        if (!sameReplay(state.data.gameHistory, progress.history) || !sameReplay(state.data.gameRedo, progress.redo)) {
-                            state.update({
-                                gameHistory: [...progress.history],
-                                gameRedo: [...progress.redo],
-                            })
-                        }
+                        state.update({
+                            gameHistory: [...progress.history],
+                            gameRedo: [...progress.redo],
+                        })
                         state.updateGlobal({
                             macros: progress.macros,
                             viewingMacros: progress.viewingMacros

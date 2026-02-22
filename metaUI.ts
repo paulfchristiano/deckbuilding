@@ -734,6 +734,7 @@ function renderDeckSections(sections: Array<{ title: string, items: CardSpec[] }
         })
     })
 
+    getElement('deckClose').onclick = () => hideDeckDialog()
     showDialog('deckDialog')
     deckDialogOpen = true
 }
@@ -976,7 +977,6 @@ export class MetaGameUI implements MetaUI {
                 showDeckDialogForSpec(spec)
             }
         }
-        getElement('deckClose').onclick = () => hideDeckDialog()
         return startGame(spec, gameHistory, gameRedo, macros, viewingMacros, onProgress, undoAtBeginning).catch(e => {
             if (e instanceof UndoPastBeginning) {
                 // Pass history and redo to meta Undo for restoration on redo

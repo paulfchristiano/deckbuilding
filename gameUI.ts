@@ -1501,6 +1501,8 @@ export class GameUI implements UI {
     public macroStartState: State | null = null
     public preserveMacroOnNextSetState = false
     public choiceState: ChoiceState | null = null
+    private progressDirty = false
+    private progressTimer: ReturnType<typeof setInterval> | null = null
 
     constructor(
         initialMacros: unknown = null,
@@ -1508,6 +1510,28 @@ export class GameUI implements UI {
         public readonly undoAtBeginningMode: UndoAtBeginningMode = 'leave'
     ) {
         this.macros = loadMacros(initialMacros)
+        if (onProgress) {
+            this.progressTimer = setInterval(() => this.flushProgress(), 1000)
+        }
+    }
+
+    private flushProgress(): void {
+        if (!this.progressDirty || !this.onProgress || !this.choiceState) return
+        this.progressDirty = false
+        const cs = this.choiceState
+        this.onProgress({
+            history: [...cs.state.origin().future],
+            redo: [...cs.state.future],
+            ...this.exportPersistenceData()
+        })
+    }
+
+    stopProgressTimer(): void {
+        if (this.progressTimer !== null) {
+            clearInterval(this.progressTimer)
+            this.progressTimer = null
+        }
+        this.flushProgress()
     }
 
     private recordResolvedChoice<T>(
@@ -1593,13 +1617,7 @@ export class GameUI implements UI {
     render(): void {
         if (this.choiceState) {
             const cs = this.choiceState
-            if (this.onProgress) {
-                this.onProgress({
-                    history: [...cs.state.origin().future],
-                    redo: [...cs.state.future],
-                    ...this.exportPersistenceData()
-                })
-            }
+            this.progressDirty = true
             renderChoice(
                 this,
                 cs.state,
@@ -1743,6 +1761,10 @@ export async function startGame(
     globalRendererState.viewingMacros = initialViewingMacros
     const ui = new GameUI(initialMacros, onProgress, undoAtBeginning)
 
-    const result = await playGame(spec, ui, initialHistory, initialRedo)
-    return { ...result, ...ui.exportPersistenceData() }
+    try {
+        const result = await playGame(spec, ui, initialHistory, initialRedo)
+        return { ...result, ...ui.exportPersistenceData() }
+    } finally {
+        ui.stopProgressTimer()
+    }
 }
