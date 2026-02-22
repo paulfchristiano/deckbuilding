@@ -18676,8 +18676,7 @@
     refreshUndoRedoButtons();
   }
   function updateBufferDisplay(state) {
-    var debugTag = state.debugEnabled ? " [Debug]" : "";
-    setBufferDisplayText("Buffer: ".concat(state.data.buffer).concat(debugTag));
+    setBufferDisplayText("Buffer: ".concat(state.data.buffer));
   }
   function updateProgressSidebar(state, onReplayStage) {
     var _a;

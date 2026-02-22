@@ -204,8 +204,7 @@ function exitModalDialog(): void {
 // ----------------------------- Progress & Buffer Display
 
 function updateBufferDisplay(state: MetaState): void {
-    const debugTag = state.debugEnabled ? ' [Debug]' : ''
-    setBufferDisplayText(`Buffer: ${state.data.buffer}${debugTag}`)
+    setBufferDisplayText(`Buffer: ${state.data.buffer}`)
 }
 
 function updateProgressSidebar(state: MetaState, onReplayStage?: (stage: number) => void): void {
