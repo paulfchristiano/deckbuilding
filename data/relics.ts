@@ -209,17 +209,29 @@ addRelicReward(piggyBank)
 
 export const wingedBoots: RelicSpec = {
     name: 'Winged Boots',
-    maxStage: 6,
     metaReplacers: [{
         kind: 'pathRewards',
-        text: ['Each stage has an additional path.'],
+        text: ['Each stage has two additional paths.'],
         replace: (p: PathRewardParams) => ({
             ...p,
-            paths: [...p.paths, 'Use Winged Boots']
+            paths: [...p.paths, 'Use Winged Boots', 'Use Winged Boots']
         })
     }]
 }
 addRelicReward(wingedBoots)
+
+export const compass: RelicSpec = {
+    name: 'Compass',
+    metaReplacers: [{
+        kind: 'pathRewards',
+        text: ['Each stage has an additional challenge option.'],
+        replace: (p: PathRewardParams) => ({
+            ...p,
+            numChallengeOptions: p.numChallengeOptions + 1
+        })
+    }]
+}
+addRelicReward(compass)
 
 export const flywheel: RelicSpec = {
     name: 'Flywheel',

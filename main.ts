@@ -20,6 +20,7 @@ import { renderSpecNoRelated } from './cardRendering.js'
 import { Card, CardSpec, UndoPastBeginning } from './gameLogic.js'
 
 import type { DebugTestConfig } from './metaLogic.js'
+
 let test: DebugTestConfig | null = null
 
 const SAVE_STORAGE_KEY = 'roguelike.ongoingSaves.v1'

@@ -644,10 +644,6 @@ function renderPathColumn(path: Path, state: MetaState, onSelect: (path: Path) =
     }
     pathColumn.appendChild(rewardsContainer)
 
-    // Each path has one challenge (singleton list for later stages)
-    const playDiv = createDiv('pathPlay')
-    playDiv.innerHTML = renderChallenge(path.challenges[0], state)
-    pathColumn.appendChild(playDiv)
     return pathColumn
 }
 

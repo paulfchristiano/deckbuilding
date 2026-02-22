@@ -584,6 +584,7 @@ export interface PathRewardParams {
     rewardsPerPath: number
     paths: Array<string | PathOptionSpec>
     numBurdens: number
+    numChallengeOptions: number
 }
 
 export interface BurdenParams {
@@ -689,7 +690,6 @@ export interface Path {
     onSelectEffects?: PathOnSelectEffect[]
     rewardStates: RewardState[]
     burdenStates: BurdenState[]
-    challenges: ChallengeSpec[]
 }
 
 export type MetaPhase = 'stage_select' | 'path_select' | 'in_game' | 'game_over'
@@ -1123,7 +1123,6 @@ interface SerializedPath {
     onSelectEffects?: PathOnSelectEffect[]
     rewardStates: SerializedRewardState[]
     burdenStates?: SerializedBurdenState[]
-    challenges: SerializedChallengeSpec[]
 }
 
 interface SerializedGameSpec {
@@ -1446,7 +1445,6 @@ function serializePath(path: Path): SerializedPath {
         onSelectEffects: path.onSelectEffects ? path.onSelectEffects.map(effect => ({ ...effect })) : undefined,
         rewardStates: path.rewardStates.map(serializeRewardState),
         burdenStates: path.burdenStates.map(serializeBurdenState),
-        challenges: path.challenges.map(serializeChallenge)
     }
 }
 
@@ -1456,7 +1454,6 @@ function deserializePath(path: SerializedPath): Path {
         onSelectEffects: (path.onSelectEffects || []).map(effect => ({ ...effect })),
         rewardStates: path.rewardStates.map(deserializeRewardState),
         burdenStates: (path.burdenStates || []).map(deserializeBurdenState),
-        challenges: path.challenges.map(deserializeChallenge)
     }
 }
 
@@ -2342,7 +2339,6 @@ interface PathSkeleton {
     onSelectEffects: PathOnSelectEffect[],
     rewards: RewardKind[],
     burdens: number,
-    challenges: ChallengeSpec[]
 }
 
 function normalizePathOptionSpec(path: string | PathOptionSpec): Required<PathOptionSpec> {
@@ -2353,7 +2349,18 @@ function normalizePathOptionSpec(path: string | PathOptionSpec): Required<PathOp
     }
 }
 
-async function makePaths(state: MetaState, challengeTests: ChallengeTestSpec[] = []): Promise<PathSkeleton[]> {
+function getNumChallengeOptions(state: MetaState): number {
+    const params = applyMetaReplacers({
+        kind: 'pathRewards',
+        rewardsPerPath: 2,
+        paths: ['Go left', 'Go right'],
+        numBurdens: 0,
+        numChallengeOptions: 2
+    }, state)
+    return params.numChallengeOptions
+}
+
+async function makePaths(state: MetaState): Promise<PathSkeleton[]> {
     const stage = state.data.stage
     const generator = state.generator(`paths${stage}`).newGenerator()
     const baseRewardsPerPath = 2
@@ -2363,7 +2370,8 @@ async function makePaths(state: MetaState, challengeTests: ChallengeTestSpec[] =
         kind: 'pathRewards',
         rewardsPerPath: baseRewardsPerPath,
         paths: basePaths,
-        numBurdens: baseNumBurdens
+        numBurdens: baseNumBurdens,
+        numChallengeOptions: 2
     }, state)
     await trigger({
         kind: 'path',
@@ -2376,7 +2384,6 @@ async function makePaths(state: MetaState, challengeTests: ChallengeTestSpec[] =
     const pathOptions = pathRewardParams.paths.map(normalizePathOptionSpec)
     const pathCount = pathOptions.length
     const numBurdens = Math.max(0, pathRewardParams.numBurdens)
-    const challenges = sampleChallengesForStage(state, pathCount, challengeTests)
     const rewardsPerSet = 6
     const fullSet: RewardKind[] = ['card', 'card', 'event', 'encounter', 'potion', 'relic']
     const totalRewards = pathCount * rewardsPerPath
@@ -2398,7 +2405,6 @@ async function makePaths(state: MetaState, challengeTests: ChallengeTestSpec[] =
             onSelectEffects: pathOption?.onSelectEffects || [],
             rewards: shuffledRewards.slice(start, end),
             burdens: numBurdens,
-            challenges: [challenges[pathIndex]]
         })
     }
     return paths
@@ -2428,7 +2434,6 @@ function pathFromSkeleton(skeleton: PathSkeleton): Path {
         onSelectEffects: [...skeleton.onSelectEffects],
         rewardStates,
         burdenStates,
-        challenges: skeleton.challenges
     }
 }
 
@@ -2674,7 +2679,7 @@ async function replayCompletedStage(state: MetaState, stage: number): Promise<vo
     state.ui.updateBuffer(state)
 }
 
-async function materializePath(state: MetaState, path: Path): Promise<Pick<MetaStateData, 'challenges' | 'rewardStates' | 'burdenStates'>> {
+async function materializePath(state: MetaState, path: Path): Promise<Pick<MetaStateData, 'rewardStates' | 'burdenStates'>> {
     // Materialize rewards only when the path is actually selected.
     const rewardStates = path.rewardStates.map(rs => {
         if (rs.kind === 'encounter' && rs.encounter === null) {
@@ -2730,7 +2735,7 @@ async function materializePath(state: MetaState, path: Path): Promise<Pick<MetaS
             burdenStates.push(burdenState)
         }
     }
-    return { challenges: path.challenges, rewardStates, burdenStates }
+    return { rewardStates, burdenStates }
 }
 
 async function applyPathOnSelectEffects(state: MetaState, path: Path): Promise<void> {
@@ -3049,14 +3054,12 @@ export async function playGame(
         : { rewards: [], challenges: [], burdens: [] } as ParsedTests
 
     if (!initialSnapshot) {
-        // Stage 0 offers two challenge options
-        const initialChallenges = sampleChallengesForStage(state, 2, tests.challenges)
+        const initialChallenges = sampleChallengesForStage(state, getNumChallengeOptions(state), tests.challenges)
         const initialPath = pathFromSkeleton({
             label: 'Go left',
             onSelectEffects: [],
             rewards: ['card', 'card', 'event', 'potion'] as RewardKind[],
             burdens: 0,
-            challenges: initialChallenges
         })
         for (const testSpec of rewardTestsForStage(tests.rewards, 0)) {
             initialPath.rewardStates.push(makeTestReward(state, testSpec))
@@ -3067,6 +3070,7 @@ export async function playGame(
         }
         state.replaceAndClearHistory({
             ...(await materializePath(state, initialPath)),
+            challenges: initialChallenges,
             phase: 'stage_select',
             availablePaths: [],
         })
@@ -3153,7 +3157,7 @@ export async function playGame(
                     await state.ui.showMessage(state, 'Congratulations! You have completed all stages!')
                     return
                 }
-                const paths = (await makePaths(state, tests.challenges)).map(skel => pathFromSkeleton(skel))
+                const paths = (await makePaths(state)).map(skel => pathFromSkeleton(skel))
                 for (const testSpec of rewardTestsForStage(tests.rewards, nextStage)) {
                     paths[0].rewardStates.push(makeTestReward(state, testSpec))
                 }
@@ -3187,8 +3191,11 @@ export async function playGame(
                     }
                 }
                 await applyPathOnSelectEffects(state, path)
+                const materialized = await materializePath(state, path)
+                const challenges = sampleChallengesForStage(state, getNumChallengeOptions(state), tests.challenges)
                 state.replaceAndClearHistory({
-                    ...(await materializePath(state, path)),
+                    ...materialized,
+                    challenges,
                     phase: 'stage_select',
                     availablePaths: [],
                 })
