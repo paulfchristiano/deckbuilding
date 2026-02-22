@@ -26,10 +26,8 @@ import { shopkeeper, tactician } from './data/encounters.js'
 
 let test: DebugTestConfig | null = {
     burdens: [
-        [1, ['burden', 'tax_card']],
-        [1, ['burden', 'decay_card']],
-        [1, ['burden', 'dull_card']],
-        [1, ['burden', 'tax_event']],
+        [1, ['burden', 'Broken Crown']],
+        [1, ['burden', 'Cursed Key']],
     ],
 }
 

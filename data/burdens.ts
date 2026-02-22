@@ -215,13 +215,12 @@ const cursedKey: RelicSpec = {
     name: 'Cursed Key',
     burden: true,
     metaReplacers: [{
-        kind: 'pathRewards',
-        text: ['There is 1 less reward on the final stage.'],
-        replace: (params, state) => (
-            state.data.stage === TOTAL_STAGES - 1 ?
-            {...params, rewardsPerPath: Math.max(0, params.rewardsPerPath - 1)} :
-            params
-        )
+        kind: 'reward',
+        text: ['Each reward has 1 fewer option.'],
+        replace: (params) => ({
+            ...params,
+            optionCount: Math.max(1, params.optionCount - 1)
+        })
     }, {
         kind: 'extraOptions',
         text: ['You can skip any reward to destroy this.'],
@@ -426,7 +425,7 @@ relicBurdenOption(miserlyTouch)
 relicBurdenOption(heavyStone)
 relicBurdenOption(cursedHourglass, { maxStage: TOTAL_STAGES - 2 })
 relicBurdenOption(cursedDoll, { maxStage: TOTAL_STAGES - 3 })
-relicBurdenOption(cursedKey, { maxStage: TOTAL_STAGES - 2 })
+relicBurdenOption(cursedKey)
 relicBurdenOption(cursedBoots, { maxStage: TOTAL_STAGES - 3 })
 relicBurdenOption(cursedBanner)
 relicBurdenOption(cursedSozu, { maxStage: TOTAL_STAGES - 2 })

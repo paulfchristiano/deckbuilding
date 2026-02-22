@@ -15357,10 +15357,10 @@
     name: "Cursed Key",
     burden: true,
     metaReplacers: [{
-      kind: "pathRewards",
-      text: ["There is 1 less reward on the final stage."],
-      replace: function(params, state) {
-        return state.data.stage === TOTAL_STAGES - 1 ? __assign10(__assign10({}, params), { rewardsPerPath: Math.max(0, params.rewardsPerPath - 1) }) : params;
+      kind: "reward",
+      text: ["Each reward has 1 fewer option."],
+      replace: function(params) {
+        return __assign10(__assign10({}, params), { optionCount: Math.max(1, params.optionCount - 1) });
       }
     }, {
       kind: "extraOptions",
@@ -15623,7 +15623,7 @@
   relicBurdenOption(heavyStone);
   relicBurdenOption(cursedHourglass, { maxStage: TOTAL_STAGES - 2 });
   relicBurdenOption(cursedDoll, { maxStage: TOTAL_STAGES - 3 });
-  relicBurdenOption(cursedKey, { maxStage: TOTAL_STAGES - 2 });
+  relicBurdenOption(cursedKey);
   relicBurdenOption(cursedBoots, { maxStage: TOTAL_STAGES - 3 });
   relicBurdenOption(cursedBanner);
   relicBurdenOption(cursedSozu, { maxStage: TOTAL_STAGES - 2 });
@@ -19572,10 +19572,8 @@
   };
   var test = {
     burdens: [
-      [1, ["burden", "tax_card"]],
-      [1, ["burden", "decay_card"]],
-      [1, ["burden", "dull_card"]],
-      [1, ["burden", "tax_event"]]
+      [1, ["burden", "Broken Crown"]],
+      [1, ["burden", "Cursed Key"]]
     ]
   };
   var SAVE_STORAGE_KEY = "roguelike.ongoingSaves.v1";
