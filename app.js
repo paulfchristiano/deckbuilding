@@ -864,6 +864,9 @@
       Card2.prototype.restrictions = function() {
         return this.spec.restrictions || [];
       };
+      Card2.prototype.affordable = function(kind, state) {
+        return this.available(kind, state) && canPay(this.cost(kind, state), state);
+      };
       Card2.prototype.available = function(kind, state) {
         var e_19, _a;
         if (kind == "activate" && this.spec.ability === void 0)
@@ -885,7 +888,7 @@
             if (e_19) throw e_19.error;
           }
         }
-        return canPay(this.cost(kind, state), state);
+        return true;
       };
       return Card2;
     })()
@@ -2695,7 +2698,7 @@
     }
     function available(kind) {
       return function(c) {
-        return c.available(kind, state);
+        return c.affordable(kind, state);
       };
     }
     var hand = state.hand.filter(available("play")).map(asActChoice("play"));
@@ -13469,7 +13472,7 @@
         return false;
       if (!leq(event.cost("use", state), maxCost))
         return false;
-      return true;
+      return event.available("use", state);
     });
   }
   var polishUpgrade = registerUpgrade("polish", {
@@ -19671,7 +19674,10 @@
     };
     throw new TypeError(s ? "Object is not iterable." : "Symbol.iterator is not defined.");
   };
-  var test = { challenges: [[1, ["boon", "Composting"]]] };
+  var test = {
+    rewards: [[1, ["event", commerce]], [1, ["event", splay]], [1, ["encounter", tactician]]],
+    challenges: [[1, ["curse", "Inflation"]]]
+  };
   var SAVE_STORAGE_KEY = "roguelike.ongoingSaves.v1";
   var RUN_TIMER_STORAGE_KEY = "roguelike.runTimerSeconds.v1";
   var HELP_SEEN_STORAGE_KEY = "roguelike.helpSeen.v1";

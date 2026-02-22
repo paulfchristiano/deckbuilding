@@ -43,7 +43,7 @@ function cooperationTargets(state: State, sourceCard: Card): Card[] {
     return state.events.filter(event => {
         if (event.id === source.id) return false
         if (!leq(event.cost('use', state), maxCost)) return false
-        return true
+        return event.available('use', state)
     })
 }
 

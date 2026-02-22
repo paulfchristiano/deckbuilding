@@ -21,7 +21,13 @@ import { Card, CardSpec, UndoPastBeginning } from './gameLogic.js'
 
 import type { DebugTestConfig } from './metaLogic.js'
 
-let test: DebugTestConfig | null = { challenges: [[1, ['boon', 'Composting']]]}
+import { commerce, splay } from './data/events.js'
+import { tactician } from './data/encounters.js'
+
+let test: DebugTestConfig | null = {
+    rewards: [[1, ['event', commerce]], [1, ['event', splay]], [1, ['encounter', tactician]]],
+    challenges: [[1, ['curse', 'Inflation']]],
+}
 
 const SAVE_STORAGE_KEY = 'roguelike.ongoingSaves.v1'
 const RUN_TIMER_STORAGE_KEY = 'roguelike.runTimerSeconds.v1'

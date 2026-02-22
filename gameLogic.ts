@@ -486,6 +486,9 @@ export class Card {
     restrictions(): Restriction[] {
         return this.spec.restrictions || []
     }
+    affordable(kind:ActionKind, state:State): boolean {
+        return this.available(kind, state) && canPay(this.cost(kind, state), state)
+    }
     available(kind:ActionKind, state:State): boolean {
         if (kind == 'activate' && this.spec.ability === undefined) return false;
         if (kind == 'buy' && !canCreate(this.spec, state)) return false
@@ -493,7 +496,7 @@ export class Card {
             if (restriction.test(this, state, kind))
                 return false
         }
-        return canPay(this.cost(kind, state), state)
+        return true
     }
 }
 
@@ -1867,7 +1870,7 @@ function actChoice(state:State): Promise<[State, [Card, ActionKind]|null]> {
             return {render:{kind:'card', card:c}, value:[c, kind]}
         }
     }
-    function available(kind:ActionKind) { return (c:Card) => c.available(kind, state) }
+    function available(kind:ActionKind) { return (c:Card) => c.affordable(kind, state) }
     const hand = state.hand.filter(available('play')).map(asActChoice('play'))
     const supply = state.supply.filter(available('buy')).map(asActChoice('buy'))
     const events = state.events.filter(available('use')).map(asActChoice('use'))

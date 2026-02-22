@@ -323,7 +323,7 @@ const polish:CardSpec = {
 }
 eventRewards.push(polish)
 
-const commerce:CardSpec = {
+export const commerce:CardSpec = {
     name: 'Commerce',
     fixedCost: coin(2),
     relatedCards: [villager, horse],
