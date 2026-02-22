@@ -253,7 +253,7 @@ const cursedBoots: RelicSpec = {
     metaTriggers: [{
         kind: 'relic',
         text: ['When you gain this, put a charge token on it.'],
-        simpleText: ['This starts with a charge token.'],
+        simpleText: [],
         handles: (e, _s, self: Relic) => self.id === e.relic.id,
         transform: (_e, _s, self: Relic) => async function (state: MetaState) {
             if (!state.data.relics.some(r => r.id === self.id)) return

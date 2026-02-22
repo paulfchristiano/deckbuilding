@@ -151,8 +151,8 @@ export const ferryPotion: CardSpec = {
 }
 potionRewards.push(ferryPotion)
 
-export const highwayPotion: CardSpec = {
-    name: 'Highway Potion',
+export const bridgePotion: CardSpec = {
+    name: 'Bridge Potion',
     isPotion: true,
     effects: [{
         text: [`Put a ferry token on each supply.`],
@@ -162,7 +162,7 @@ export const highwayPotion: CardSpec = {
     }],
     rules: [ferryRule]
 }
-potionRewards.push(highwayPotion)
+potionRewards.push(bridgePotion)
 
 export const royalNectar: CardSpec = {
     name: 'Royal Nectar',

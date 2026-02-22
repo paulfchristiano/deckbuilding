@@ -104,7 +104,7 @@ registerMirroredCurse((isMajor): Curse => {
 })
 
 registerMirroredCurse((_isMajor): Curse => {
-    const inflationCostPerToken = 1
+    const inflationCostPerToken = _isMajor ? 2 : 1
     return {
         name: curseName('Inflation', _isMajor),
         events: [{

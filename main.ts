@@ -25,10 +25,9 @@ import { commerce, splay } from './data/events.js'
 import { shopkeeper, tactician } from './data/encounters.js'
 
 let test: DebugTestConfig | null = {
-    burdens: [
-        [1, ['burden', 'Cursed Boots']],
-        [1, ['burden', 'decay_card']],
-    ],
+    challenges: [
+        [1, ['curse', 'Inflation (Major)']]
+    ]
 }
 
 const SAVE_STORAGE_KEY = 'roguelike.ongoingSaves.v1'

@@ -4830,7 +4830,7 @@
     };
   });
   registerMirroredCurse(function(_isMajor) {
-    var inflationCostPerToken = 1;
+    var inflationCostPerToken = _isMajor ? 2 : 1;
     return {
       name: curseName("Inflation", _isMajor),
       events: [{
@@ -11482,8 +11482,8 @@
     })]
   };
   potionRewards.push(ferryPotion);
-  var highwayPotion = {
-    name: "Highway Potion",
+  var bridgePotion = {
+    name: "Bridge Potion",
     isPotion: true,
     effects: [{
       text: ["Put a ferry token on each supply."],
@@ -11501,7 +11501,7 @@
     }],
     rules: [ferryRule]
   };
-  potionRewards.push(highwayPotion);
+  potionRewards.push(bridgePotion);
   var royalNectar = {
     name: "Royal Nectar",
     isPotion: true,
@@ -12878,7 +12878,7 @@
   });
   var publicWorks = {
     name: "Public Works",
-    buyCost: coin(6),
+    buyCost: coin(5),
     effects: [],
     replacers: [{
       text: ["Events cost @ less, but ".concat(refresh.name, " can't cost 0. Whenever this reduces a cost, discard it.")],
@@ -19605,9 +19605,8 @@
     throw new TypeError(s ? "Object is not iterable." : "Symbol.iterator is not defined.");
   };
   var test = {
-    burdens: [
-      [1, ["burden", "Cursed Boots"]],
-      [1, ["burden", "decay_card"]]
+    challenges: [
+      [1, ["curse", "Inflation (Major)"]]
     ]
   };
   var SAVE_STORAGE_KEY = "roguelike.ongoingSaves.v1";

@@ -228,7 +228,7 @@ boons.push(    {
     })
 
 const publicWorks:CardSpec = {name: 'Public Works',
-    buyCost: coin(6),
+    buyCost: coin(5),
     effects: [],
     replacers: [{
         text: [`Events cost @ less, but ${refresh.name} can't cost 0. Whenever this reduces a cost, discard it.`],
