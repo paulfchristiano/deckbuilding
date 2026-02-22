@@ -14979,7 +14979,7 @@
       }
     }, {
       kind: "start",
-      text: ["At the start of each course, remove a charge token from this. Then if it has no charge tokens, destroy this and regain the frozen relic."],
+      text: ["At the start of each course, remove a charge token from this. Then if it has no charge tokens, destroy it and regain the frozen relic."],
       handles: function(_e, _s, _self) {
         return true;
       },
@@ -18402,6 +18402,17 @@
   }
 
   // public/metaUI.js
+  var __assign12 = function() {
+    __assign12 = Object.assign || function(t) {
+      for (var s, i = 1, n = arguments.length; i < n; i++) {
+        s = arguments[i];
+        for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p))
+          t[p] = s[p];
+      }
+      return t;
+    };
+    return __assign12.apply(this, arguments);
+  };
   var __awaiter14 = function(thisArg, _arguments, P, generator) {
     function adopt(value) {
       return value instanceof P ? value : new P(function(resolve) {
@@ -18797,6 +18808,12 @@
     clearElement2(container);
     var _loop_2 = function(card2) {
       var spec = "spec" in card2 ? card2.spec : card2;
+      if (card2 instanceof Relic) {
+        var charges = card2.count("charge");
+        if (charges > 0) {
+          spec = __assign12(__assign12({}, spec), { name: "".concat(spec.name, " (").concat(charges, ")") });
+        }
+      }
       var optionEl = createElementFromHTML2(renderSpecNoRelated(spec));
       optionEl.style.cursor = "pointer";
       optionEl.onclick = function() {
@@ -19176,6 +19193,10 @@
         return p.spec;
       }) },
       { title: "Relics", items: state.data.relics.map(function(relic) {
+        var charges = relic.count("charge");
+        if (charges > 0) {
+          return __assign12(__assign12({}, relic.spec), { name: "".concat(relic.spec.name, " (").concat(charges, ")") });
+        }
         return relic.spec;
       }) }
     ];
@@ -19510,6 +19531,17 @@
   );
 
   // public/main.js
+  var __assign13 = function() {
+    __assign13 = Object.assign || function(t) {
+      for (var s, i = 1, n = arguments.length; i < n; i++) {
+        s = arguments[i];
+        for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p))
+          t[p] = s[p];
+      }
+      return t;
+    };
+    return __assign13.apply(this, arguments);
+  };
   var __awaiter15 = function(thisArg, _arguments, P, generator) {
     function adopt(value) {
       return value instanceof P ? value : new P(function(resolve) {
@@ -19617,9 +19649,7 @@
     };
     throw new TypeError(s ? "Object is not iterable." : "Symbol.iterator is not defined.");
   };
-  var test = {
-    burdens: [[1, "dull_card"]]
-  };
+  var test = null;
   var SAVE_STORAGE_KEY = "roguelike.ongoingSaves.v1";
   var RUN_TIMER_STORAGE_KEY = "roguelike.runTimerSeconds.v1";
   var HELP_SEEN_STORAGE_KEY = "roguelike.helpSeen.v1";
@@ -20395,6 +20425,10 @@
       status.className = "negativeBuffer";
     card.appendChild(status);
     var relicDisplaySpecs = state.data.relics.map(function(relic) {
+      var charges = relic.count("charge");
+      if (charges > 0) {
+        return __assign13(__assign13({}, relic.spec), { name: "".concat(relic.spec.name, " (").concat(charges, ")") });
+      }
       return relic.spec;
     });
     card.appendChild(renderDeckSection("Cards", state.data.collectedCards));

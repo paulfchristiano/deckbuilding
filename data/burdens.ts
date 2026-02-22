@@ -60,7 +60,7 @@ const frozenRelic: RelicSpec = {
         }
     }, {
         kind: 'start',
-        text: ['At the start of each course, remove a charge token from this. Then if it has no charge tokens, destroy this and regain the frozen relic.'],
+        text: ['At the start of each course, remove a charge token from this. Then if it has no charge tokens, destroy it and regain the frozen relic.'],
         handles: (_e, _s, _self: Relic) => true,
         transform: (_e, _s, self: Relic) => async function (state: MetaState) {
             const current = state.data.relics.find(r => r.id === self.id)

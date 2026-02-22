@@ -20,10 +20,7 @@ import { renderSpecNoRelated } from './cardRendering.js'
 import { Card, CardSpec, UndoPastBeginning } from './gameLogic.js'
 
 import type { DebugTestConfig } from './metaLogic.js'
-
-let test: DebugTestConfig | null = {
-    burdens: [[1, 'dull_card']]
-}
+let test: DebugTestConfig | null = null
 
 const SAVE_STORAGE_KEY = 'roguelike.ongoingSaves.v1'
 const RUN_TIMER_STORAGE_KEY = 'roguelike.runTimerSeconds.v1'
@@ -1026,7 +1023,13 @@ function openViewDialog(slot: SaveSlot): void {
     }
     if (state.data.buffer < 0) status.className = 'negativeBuffer'
     card.appendChild(status)
-    const relicDisplaySpecs = state.data.relics.map(relic => relic.spec)
+    const relicDisplaySpecs = state.data.relics.map(relic => {
+        const charges = relic.count('charge')
+        if (charges > 0) {
+            return { ...relic.spec, name: `${relic.spec.name} (${charges})` }
+        }
+        return relic.spec
+    })
 
     card.appendChild(renderDeckSection('Cards', state.data.collectedCards))
     card.appendChild(renderDeckSection('Events', state.data.collectedEvents))

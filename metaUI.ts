@@ -3,7 +3,7 @@
 
 import { Card, CardSpec, GameSpec, UndoPastBeginning, VictoryData } from './gameLogic.js'
 import {
-    MetaState, RewardState, Path, ChallengeSpec,
+    MetaState, Relic, RewardState, Path, ChallengeSpec,
     MetaUI, MetaOption,
     BASE_PARS, describeParCalculation, describeBasePar, displayBasePar, formatParDisplay,
     makeSpec,
@@ -309,7 +309,13 @@ function showCardPicker<T extends CardSpec | Card>(
     clearElement(container)
 
     for (const card of options) {
-        const spec: CardSpec = 'spec' in card ? (card as Card).spec : card as CardSpec
+        let spec: CardSpec = 'spec' in card ? (card as Card).spec : card as CardSpec
+        if (card instanceof Relic) {
+            const charges = card.count('charge')
+            if (charges > 0) {
+                spec = { ...spec, name: `${spec.name} (${charges})` }
+            }
+        }
         const optionEl = createElementFromHTML(renderSpecNoRelated(spec))
         optionEl.style.cursor = 'pointer'
         optionEl.onclick = () => close(() => onSelect(card))
@@ -657,7 +663,13 @@ function showDeckDialog(state: MetaState): void {
         { title: 'Cards', items: state.data.collectedCards },
         { title: 'Events', items: state.data.collectedEvents },
         { title: 'Potions', items: state.data.potions.map(p => p.spec) },
-        { title: 'Relics', items: state.data.relics.map(relic => relic.spec) }
+        { title: 'Relics', items: state.data.relics.map(relic => {
+            const charges = relic.count('charge')
+            if (charges > 0) {
+                return { ...relic.spec, name: `${relic.spec.name} (${charges})` }
+            }
+            return relic.spec
+        }) }
     ]
 
     let hasContent = false
