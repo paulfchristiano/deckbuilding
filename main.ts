@@ -13,7 +13,7 @@ import {
     replaySpecForStage,
     ExitToLauncher
 } from './metaLogic.js'
-import { MetaGameUI, setBufferDisplayText } from './metaUI.js'
+import { MetaGameUI, setBufferDisplayText, hideAllMetaUI } from './metaUI.js'
 import { randomString } from './rng.js'
 import { startGame } from './gameUI.js'
 import { renderSpecNoRelated } from './cardRendering.js'
@@ -24,11 +24,7 @@ import type { DebugTestConfig } from './metaLogic.js'
 import { commerce, splay } from './data/events.js'
 import { shopkeeper, tactician } from './data/encounters.js'
 
-let test: DebugTestConfig | null = {
-    challenges: [
-        [1, ['curse', 'Inflation (Major)']]
-    ]
-}
+let test: DebugTestConfig | null = null
 
 const SAVE_STORAGE_KEY = 'roguelike.ongoingSaves.v1'
 const RUN_TIMER_STORAGE_KEY = 'roguelike.runTimerSeconds.v1'
@@ -710,6 +706,7 @@ async function runGame(
         console.error(error)
         alert('Failed to load or run this game. You can abandon it from the launcher.')
     } finally {
+        hideAllMetaUI()
         activeRunSlotID = null
         renderRunTimer()
         renderLauncher()

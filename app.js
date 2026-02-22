@@ -19426,6 +19426,42 @@
       MetaGameUI2.prototype.updateBuffer = function(state) {
         updateBufferDisplay(state);
       };
+      MetaGameUI2.prototype.updateGameProgressSidebar = function(spec) {
+        var _a;
+        var stageScores = spec.metaStageScores || [];
+        var stagePars = spec.metaStagePars || [];
+        var stageTooltips = spec.metaStageTooltips || [];
+        var displays = [];
+        for (var stage = 0; stage < BASE_PARS.length; stage++) {
+          var display = { stage };
+          var basePar = BASE_PARS[stage];
+          var tooltip = (_a = stageTooltips[stage]) !== null && _a !== void 0 ? _a : basePar === void 0 ? null : "".concat(basePar, " (Base)");
+          if (tooltip !== null)
+            display.tooltipText = tooltip.replace(/, /g, "\n");
+          if (spec.metaStage !== void 0 && stage < spec.metaStage) {
+            display.completed = true;
+            var score = stageScores[stage];
+            var par = stagePars[stage];
+            if (score !== null && score !== void 0 && par !== null && par !== void 0) {
+              display.scoreText = "".concat(score, "/").concat(par);
+              if (score > par)
+                display.scoreColor = "red";
+              else if (score < par)
+                display.scoreColor = "green";
+            }
+          } else if (spec.metaStage !== void 0 && stage === spec.metaStage) {
+            display.current = true;
+            display.scoreText = "?/".concat(spec.par);
+          } else if (basePar !== void 0) {
+            display.scoreText = "".concat(basePar);
+          }
+          if (spec.replayStage !== null && spec.replayStage !== void 0 && stage === spec.replayStage) {
+            display.replaying = true;
+          }
+          displays.push(display);
+        }
+        renderProgressSidebar("#progressLine", displays);
+      };
       MetaGameUI2.prototype.playGame = function(spec, gameHistory, gameRedo, macros, viewingMacros, onProgress, undoAtBeginning) {
         if (gameHistory === void 0) {
           gameHistory = [];
@@ -19447,23 +19483,7 @@
         }
         showScreen("game");
         hideDeckDialog();
-        if (spec.metaStage !== void 0) {
-          var circle = document.querySelector('#progressLine .progressCircle[data-stage="'.concat(spec.metaStage, '"]'));
-          if (circle) {
-            var existing = circle.querySelector(".progressScore");
-            if (existing)
-              existing.remove();
-            var score = document.createElement("span");
-            score.className = "progressScore";
-            score.textContent = "?/".concat(spec.par);
-            circle.appendChild(score);
-          }
-        }
-        if (spec.replayStage !== void 0 && spec.replayStage !== null) {
-          var replayCircle = document.querySelector('#progressLine .progressCircle[data-stage="'.concat(spec.replayStage, '"]'));
-          if (replayCircle)
-            replayCircle.classList.add("replaying");
-        }
+        this.updateGameProgressSidebar(spec);
         var deckIcon = getElement2("deckIcon");
         deckIcon.onclick = function() {
           if (isDeckDialogOpen()) {
@@ -19484,6 +19504,32 @@
       return MetaGameUI2;
     })()
   );
+  function hideAllMetaUI() {
+    var e_12, _a;
+    hideElement(getElement2("stageScreen"));
+    hideElement(getElement2("pathSelectionScreen"));
+    hideElement(getElement2("gameContainer"));
+    hideElement(getElement2("victoryScreen"));
+    hideElement(getElement2("gameOverScreen"));
+    var sharedIds = ["progressSidebar", "bufferDisplay", "deckIcon"];
+    try {
+      for (var sharedIds_1 = __values15(sharedIds), sharedIds_1_1 = sharedIds_1.next(); !sharedIds_1_1.done; sharedIds_1_1 = sharedIds_1.next()) {
+        var id = sharedIds_1_1.value;
+        var el = document.getElementById(id);
+        if (el)
+          hideElement(el);
+      }
+    } catch (e_12_1) {
+      e_12 = { error: e_12_1 };
+    } finally {
+      try {
+        if (sharedIds_1_1 && !sharedIds_1_1.done && (_a = sharedIds_1.return)) _a.call(sharedIds_1);
+      } finally {
+        if (e_12) throw e_12.error;
+      }
+    }
+    hideDeckDialog();
+  }
 
   // public/main.js
   var __assign13 = function() {
@@ -19604,11 +19650,7 @@
     };
     throw new TypeError(s ? "Object is not iterable." : "Symbol.iterator is not defined.");
   };
-  var test = {
-    challenges: [
-      [1, ["curse", "Inflation (Major)"]]
-    ]
-  };
+  var test = null;
   var SAVE_STORAGE_KEY = "roguelike.ongoingSaves.v1";
   var RUN_TIMER_STORAGE_KEY = "roguelike.runTimerSeconds.v1";
   var HELP_SEEN_STORAGE_KEY = "roguelike.helpSeen.v1";
@@ -20015,6 +20057,7 @@
             alert("Failed to load or run this game. You can abandon it from the launcher.");
             return [3, 5];
           case 4:
+            hideAllMetaUI();
             activeRunSlotID = null;
             renderRunTimer();
             renderLauncher();

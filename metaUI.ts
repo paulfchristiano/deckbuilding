@@ -940,6 +940,43 @@ export class MetaGameUI implements MetaUI {
         updateBufferDisplay(state)
     }
 
+    private updateGameProgressSidebar(spec: GameSpec): void {
+        const stageScores = spec.metaStageScores || []
+        const stagePars = spec.metaStagePars || []
+        const stageTooltips = spec.metaStageTooltips || []
+        const displays: ProgressStageDisplay[] = []
+
+        for (let stage = 0; stage < BASE_PARS.length; stage++) {
+            const display: ProgressStageDisplay = { stage }
+            const basePar = BASE_PARS[stage]
+            const tooltip = stageTooltips[stage] ?? (basePar === undefined ? null : `${basePar} (Base)`)
+            if (tooltip !== null) display.tooltipText = tooltip.replace(/, /g, '\n')
+
+            if (spec.metaStage !== undefined && stage < spec.metaStage) {
+                display.completed = true
+                const score = stageScores[stage]
+                const par = stagePars[stage]
+                if (score !== null && score !== undefined && par !== null && par !== undefined) {
+                    display.scoreText = `${score}/${par}`
+                    if (score > par) display.scoreColor = 'red'
+                    else if (score < par) display.scoreColor = 'green'
+                }
+            } else if (spec.metaStage !== undefined && stage === spec.metaStage) {
+                display.current = true
+                display.scoreText = `?/${spec.par}`
+            } else if (basePar !== undefined) {
+                display.scoreText = `${basePar}`
+            }
+
+            if (spec.replayStage !== null && spec.replayStage !== undefined && stage === spec.replayStage) {
+                display.replaying = true
+            }
+            displays.push(display)
+        }
+
+        renderProgressSidebar('#progressLine', displays)
+    }
+
     playGame(
         spec: GameSpec,
         gameHistory: number[] = [],
@@ -951,23 +988,8 @@ export class MetaGameUI implements MetaUI {
     ): Promise<VictoryData> {
         showScreen('game')
         hideDeckDialog()
-        // Update progress sidebar to show ?/par for the active stage
-        if (spec.metaStage !== undefined) {
-            const circle = document.querySelector(`#progressLine .progressCircle[data-stage="${spec.metaStage}"]`)
-            if (circle) {
-                const existing = circle.querySelector('.progressScore')
-                if (existing) existing.remove()
-                const score = document.createElement('span')
-                score.className = 'progressScore'
-                score.textContent = `?/${spec.par}`
-                circle.appendChild(score)
-            }
-        }
-        // Highlight the replaying stage
-        if (spec.replayStage !== undefined && spec.replayStage !== null) {
-            const replayCircle = document.querySelector(`#progressLine .progressCircle[data-stage="${spec.replayStage}"]`)
-            if (replayCircle) replayCircle.classList.add('replaying')
-        }
+        // Update progress sidebar with all stage data from the spec
+        this.updateGameProgressSidebar(spec)
         // Bind deck icon to show game deck during play
         const deckIcon = getElement('deckIcon')
         deckIcon.onclick = () => {
@@ -1014,6 +1036,14 @@ export function showPathSelectionUI(): void {
 export function hideAllMetaUI(): void {
     hideElement(getElement('stageScreen'))
     hideElement(getElement('pathSelectionScreen'))
+    hideElement(getElement('gameContainer'))
     hideElement(getElement('victoryScreen'))
     hideElement(getElement('gameOverScreen'))
+    // Hide shared elements
+    const sharedIds = ['progressSidebar', 'bufferDisplay', 'deckIcon']
+    for (const id of sharedIds) {
+        const el = document.getElementById(id)
+        if (el) hideElement(el)
+    }
+    hideDeckDialog()
 }
