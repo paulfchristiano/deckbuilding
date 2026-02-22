@@ -17660,7 +17660,7 @@
     bindSpecials(state, ui);
   }
   function saveReplayEnabled(state, ui) {
-    return state.hasHistory() && state.spec.replayUsedPotionIDs === void 0 && ui.recordingMacro === null && ui.playingMacro.length === 0;
+    return state.hasHistory() && ui.recordingMacro === null && ui.playingMacro.length === 0;
   }
   function renderSpecials(state, ui) {
     return [

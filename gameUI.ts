@@ -1116,7 +1116,6 @@ function renderChoice(
 
 function saveReplayEnabled(state: State, ui: GameUI): boolean {
     return state.hasHistory() &&
-        state.spec.replayUsedPotionIDs === undefined &&
         ui.recordingMacro === null &&
         ui.playingMacro.length === 0
 }
