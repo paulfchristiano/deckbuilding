@@ -25,8 +25,10 @@ import { commerce, splay } from './data/events.js'
 import { tactician } from './data/encounters.js'
 
 let test: DebugTestConfig | null = {
-    rewards: [[1, ['event', commerce]], [1, ['event', splay]], [1, ['encounter', tactician]]],
-    challenges: [[1, ['curse', 'Inflation']]],
+    allCards: true,
+    allEvents: true,
+    allPotions: true,
+    allBurdens: true
 }
 
 const SAVE_STORAGE_KEY = 'roguelike.ongoingSaves.v1'

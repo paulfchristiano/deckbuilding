@@ -704,9 +704,9 @@ export const traveler:CardSpec = {
             `Choose a card to play with ${Traveler}.`,
             s => s.hand
         ))
-    }, chargeUpTo(3, ['X increases by 1 each time you play this, up to 3.'])],
+    }, chargeUpTo(3, ['X starts at 1 and increases by 1 each time you play this up to a max of 3.'])],
     buyCost: coin(4),
-    staticReplacers: [startsWithCharge(Traveler, 1)],
+    staticReplacers: [startsWithCharge(Traveler, 1, true)],
 }
 cardRewards.push(traveler)
 
@@ -805,7 +805,7 @@ export const banquet:CardSpec = {
     }],
     ability: [{
         text: [`If you have no cards in your hand, discard this for +$1 per charge token on it.`],
-        simpleText: [`Once you have no cards in your hand, you can discard this to gain +$X.`],
+        simpleText: [`Once you have no cards in your hand, you can discard this from play to gain +$X.`],
         transform: (state, card) => payToDo(discardFromPlay(card), gainCoins(card.charge, card))
     }]
     
@@ -1246,7 +1246,7 @@ const churn:CardSpec = {
     name: churnName,
     effects: [actionsEffect(1), {
         text: [`For each charge token on this put a non-${churnName} card from your discard into your hand.`],
-        simpleText: [`Put X non-${churnName} cards from your discard into your hand.`],
+        simpleText: [`Put 2 non-${churnName} cards from your discard into your hand.`],
         transform: (state, card) => async function(state) {
             const n = state.find(card).charge
             let cards:Card[]; [state, cards] = await multichoice(state,
@@ -1258,7 +1258,7 @@ const churn:CardSpec = {
         }
     }, {
         text: [`Remove a charge token from this. Then if it has no charge tokens, trash it.`],
-        simpleText: [`Decrease X by 1. If X is now 0, trash this.`],
+        simpleText: [`This returns one less card each time you play it.`],
         transform: (state, card) => async function(state) {
             if (state.find(card).charge > 0) {
                 state = await discharge(card, 1)(state)

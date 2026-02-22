@@ -3415,6 +3415,7 @@
     return {
       kind: "create",
       text: ["When you would create ".concat(a(cardName), " in your discard, instead create it in play.")],
+      simpleText: ["".concat(cardName, " is created in play.")],
       handles: function(p) {
         return p.spec.name == cardName;
       },
@@ -10204,9 +10205,9 @@
           return s.hand;
         }));
       }
-    }, chargeUpTo(3, ["X increases by 1 each time you play this, up to 3."])],
+    }, chargeUpTo(3, ["X starts at 1 and increases by 1 each time you play this up to a max of 3."])],
     buyCost: coin(4),
-    staticReplacers: [startsWithCharge(Traveler, 1)]
+    staticReplacers: [startsWithCharge(Traveler, 1, true)]
   };
   cardRewards.push(traveler);
   var fountain = {
@@ -10325,7 +10326,7 @@
     }],
     ability: [{
       text: ["If you have no cards in your hand, discard this for +$1 per charge token on it."],
-      simpleText: ["Once you have no cards in your hand, you can discard this to gain +$X."],
+      simpleText: ["Once you have no cards in your hand, you can discard this from play to gain +$X."],
       transform: function(state, card) {
         return payToDo(discardFromPlay(card), gainCoins(card.charge, card));
       }
@@ -10929,7 +10930,7 @@
     name: churnName,
     effects: [actionsEffect(1), {
       text: ["For each charge token on this put a non-".concat(churnName, " card from your discard into your hand.")],
-      simpleText: ["Put X non-".concat(churnName, " cards from your discard into your hand.")],
+      simpleText: ["Put 2 non-".concat(churnName, " cards from your discard into your hand.")],
       transform: function(state, card) {
         return function(state2) {
           return __awaiter6(this, void 0, void 0, function() {
@@ -10955,7 +10956,7 @@
       }
     }, {
       text: ["Remove a charge token from this. Then if it has no charge tokens, trash it."],
-      simpleText: ["Decrease X by 1. If X is now 0, trash this."],
+      simpleText: ["This returns one less card each time you play it."],
       transform: function(state, card) {
         return function(state2) {
           return __awaiter6(this, void 0, void 0, function() {
@@ -19675,8 +19676,10 @@
     throw new TypeError(s ? "Object is not iterable." : "Symbol.iterator is not defined.");
   };
   var test = {
-    rewards: [[1, ["event", commerce]], [1, ["event", splay]], [1, ["encounter", tactician]]],
-    challenges: [[1, ["curse", "Inflation"]]]
+    allCards: true,
+    allEvents: true,
+    allPotions: true,
+    allBurdens: true
   };
   var SAVE_STORAGE_KEY = "roguelike.ongoingSaves.v1";
   var RUN_TIMER_STORAGE_KEY = "roguelike.runTimerSeconds.v1";

@@ -2568,6 +2568,7 @@ export function startInPlay(cardName: string): Replacer {
     return {
         kind: 'create',
         text: [`When you would create ${a(cardName)} in your discard, instead create it in play.`],
+        simpleText: [`${cardName} is created in play.`],
         handles: p => p.spec.name == cardName,
         replace: p => ({ ...p, zone: 'play' })
     }
