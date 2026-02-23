@@ -18098,14 +18098,16 @@
             reject: newReject
           };
           var macroMatch = ui.matchNextMacroStep();
-          if (macroMatch.failed && ui.macroStartState !== null) {
+          if (macroMatch.failed) {
             var rewindCount = ui.macroChoicesInRepetition;
             ui.macroChoicesInRepetition = 0;
             ui.macroStartState = null;
             ui.macroRepetitionLength = 0;
             ui.macroStepsIntoRepetition = 0;
-            newReject(new Undo(state, rewindCount));
-            return;
+            if (rewindCount > 0) {
+              newReject(new Undo(state, rewindCount));
+              return;
+            }
           }
           var chooseTrivial = ui.chooseTrivial(state, options, info);
           if (macroMatch.option !== null) {
@@ -19698,7 +19700,7 @@
     };
     throw new TypeError(s ? "Object is not iterable." : "Symbol.iterator is not defined.");
   };
-  var test = {};
+  var test = null;
   var SAVE_STORAGE_KEY = "roguelike.ongoingSaves.v1";
   var RUN_TIMER_STORAGE_KEY = "roguelike.runTimerSeconds.v1";
   var HELP_SEEN_STORAGE_KEY = "roguelike.helpSeen.v1";

@@ -1699,15 +1699,18 @@ export class GameUI implements UI {
             }
 
             const macroMatch = ui.matchNextMacroStep()
-            if (macroMatch.failed && ui.macroStartState !== null) {
+            if (macroMatch.failed) {
                 // Undo all choices made in this repetition
                 const rewindCount = ui.macroChoicesInRepetition
                 ui.macroChoicesInRepetition = 0
                 ui.macroStartState = null
                 ui.macroRepetitionLength = 0
                 ui.macroStepsIntoRepetition = 0
-                newReject(new Undo(state, rewindCount))
-                return
+                if (rewindCount > 0) {
+                    newReject(new Undo(state, rewindCount))
+                    return
+                }
+                // rewindCount is 0: nothing to undo, just present the current choice
             }
 
             const chooseTrivial = ui.chooseTrivial(state, options, info)

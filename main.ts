@@ -23,9 +23,9 @@ import type { DebugTestConfig } from './metaLogic.js'
 
 import { commerce, splay } from './data/events.js'
 import { shopkeeper, tactician } from './data/encounters.js'
+import { getSpecByName } from './registry.js'
 
-let test: DebugTestConfig | null = {
-}
+let test: DebugTestConfig | null = null
 
 const SAVE_STORAGE_KEY = 'roguelike.ongoingSaves.v1'
 const RUN_TIMER_STORAGE_KEY = 'roguelike.runTimerSeconds.v1'
