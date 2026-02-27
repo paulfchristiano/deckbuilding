@@ -658,7 +658,8 @@ export type GameSpec = {
     replayStage?: number | null,
     selectedChallengeIndex?: number,
     collectedCards?: CardSpec[],
-    collectedEvents?: CardSpec[]
+    collectedEvents?: CardSpec[],
+    hints?: string[]
 }
 
 export class State {
@@ -2150,11 +2151,11 @@ registerRule(echoRule)
 export const shelterRule: Rule = {
     name: 'Shelter',
     replacers: [{
-        text: [`Whenever a card with a shelter token would be trashed, remove a shelter token instead.`],
-        simpleText: [`Whenever you would trash a card, remove a shelter token instead.`],
+        text: [`Whenever a card with a shelter token would be trashed or discarded, remove a shelter token instead.`],
+        simpleText: [`Whenever you would trash or discard a card, remove a shelter token instead.`],
         kind: 'move',
         handles: (p, state) => state.find(p.card).count('shelter') > 0
-            && p.fromZone == 'play' && p.toZone == 'void',
+            && p.fromZone == 'play' && (p.toZone == 'void' || p.toZone == 'discard'),
         replace: (p, state) => {
             const card = state.find(p.card)
             return {

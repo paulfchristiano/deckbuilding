@@ -23,7 +23,7 @@ import { Generator } from '../rng.js'
 
 import {
     GameSetupParams, RewardParams, ExtraOptionsParams, PathRewardParams,
-    CourseEndEvent, CourseStartEvent, GainRelicEvent, LoseRelicEvent, GainCardEvent, GainEventEvent, PathGenerationEvent,
+    CourseEndEvent, CourseStartEvent, GainRelicEvent, LoseRelicEvent, GainPotionEvent, GainCardEvent, GainEventEvent, PathGenerationEvent,
     MetaTransform, addBuffer, gainPotion, gainRelic, removeRelic, RelicSpec, Relic,
     MetaState,
 } from '../metaLogic.js'
@@ -141,16 +141,42 @@ export const silverMirror: RelicSpec = {
     maxStage: 6,
     metaTriggers: [{
         kind: 'relic',
-        simpleText: ['The next time you gain a relic, gain two additional copies of it.'],
-        text: [`Whenever you gain a relic other than ${mirrorName}, gain two additional copies of that relic and destroy this.`],
-        handles: (e: GainRelicEvent, _s: MetaState, relic: Relic) =>
+        simpleText: ['Whenever you gain another relic or potion, you may trash this and pay 2 buffer to copy it twice.'],
+        text: [`Whenever you gain a relic other than ${mirrorName}, you may trash this and pay 2 buffer to gain two additional copies of that relic.`],
+        handles: (e: GainRelicEvent, s: MetaState, relic: Relic) =>
             e.relic.id !== relic.id
             && e.relic.name !== mirrorName
-            && !isBurdened(e.relic.spec),
+            && !isBurdened(e.relic.spec)
+            && s.data.buffer >= 2,
         transform: (e: GainRelicEvent, _s: MetaState, relic: Relic) => async function (state: MetaState) {
+            const confirmed = await state.ui.chooseOption(state,
+                `Activate Silver Mirror to copy ${displayName(e.relic.spec)}?`,
+                [{ label: 'Yes, copy it twice', value: true }, { label: 'No', value: false }],
+                false
+            )
+            if (confirmed !== true) return
+            await addBuffer(-2)(state)
             await removeRelic(state, relic.id)
             await gainRelic(e.relic.spec)(state)
             await gainRelic(e.relic.spec)(state)
+        },
+    }, {
+        kind: 'potion',
+        text: [`Whenever you gain a potion, you may trash this and pay 2 buffer to gain two additional copies of that potion.`],
+        simpleText: [],
+        handles: (_e: GainPotionEvent, s: MetaState, _relic: Relic) =>
+            s.data.buffer >= 2,
+        transform: (e: GainPotionEvent, _s: MetaState, relic: Relic) => async function (state: MetaState) {
+            const confirmed = await state.ui.chooseOption(state,
+                `Activate Silver Mirror to copy ${displayName(e.potion.spec)}?`,
+                [{ label: 'Yes, copy it twice', value: true }, { label: 'No', value: false }],
+                false
+            )
+            if (confirmed !== true) return
+            await addBuffer(-2)(state)
+            await removeRelic(state, relic.id)
+            await gainPotion(e.potion.spec)(state)
+            await gainPotion(e.potion.spec)(state)
         },
     }]
 }
@@ -286,9 +312,24 @@ export const matryoshkaDoll: RelicSpec = {
     maxStage: 5,
     metaReplacers: [{
         kind: 'pathRewards',
-        text: ['Each stage has an additional reward.'],
-        simpleText: [`Your next two stages have an additional reward on each path.`],
-        replace: (p, self) => ({ ...p, rewardsPerPath: p.rewardsPerPath + 1 })
+        text: ['The left path has an additional reward. Choosing it spends a charge token; when empty, this is destroyed.'],
+        simpleText: ['The next two times you choose the left path, it has an additional reward.'],
+        replace: (p, _state, self: Relic) => {
+            if (self.count('charge') === 0) return p
+            const paths = p.paths.map((path, i) => {
+                if (i !== 0) return path
+                const spec = typeof path === 'string' ? { label: path } : { ...path }
+                spec.bonusRewards = (spec.bonusRewards ?? 0) + 1
+                spec.onSelectEffects = [...(spec.onSelectEffects ?? []), {
+                    kind: 'spendRelicCharge' as const,
+                    relicID: self.id,
+                    amount: 1,
+                    destroyIfEmpty: true
+                }]
+                return spec
+            })
+            return { ...p, paths }
+        }
     }],
     metaTriggers: [{
         kind: 'relic',
@@ -299,23 +340,6 @@ export const matryoshkaDoll: RelicSpec = {
             const tokens = new Map(self.tokens)
             tokens.set('charge', 2)
             state.applyToRelic(r => r.update({ tokens }), self)
-        }
-    }, {
-        kind: 'path',
-        text: ['After generating a path, remove a charge token from this. Then if it has no charge tokens destroy it.'],
-        simpleText: [],
-        handles: (_e, _s, self: Relic) => true,
-        transform: (_e, _s, self: Relic) => async function (state: MetaState) {
-            let current = state.data.relics.find(r => r.id === self.id)
-            if (!current) return
-            const tokens = new Map(current.tokens)
-            if (current.charge > 0) {
-                tokens.set('charge', current.count('charge') - 1)
-                state.applyToRelic(r => r.update({ tokens }), current)
-            }
-            if (tokens.get('charge') === 0) {
-                await removeRelic(state, current.id)
-            }
         }
     }]
 }
@@ -521,10 +545,14 @@ export const lookingGlass: RelicSpec = {
                 p.cardSpecs,
                 p.eventSpecs,
             )
+            const addedCards = newKingdom.cards.slice(p.cardSpecs.length)
+            const addedEvents = newKingdom.events.slice(p.eventSpecs.length)
+            const names = [...addedCards, ...addedEvents].map(c => displayName(c))
             return {
                 ...p,
                 cardSpecs: newKingdom.cards,
-                eventSpecs: newKingdom.events
+                eventSpecs: newKingdom.events,
+                hints: [...(p.hints ?? []), `Looking Glass: ${names.join(', ')}`]
             }
         }
     }]

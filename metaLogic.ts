@@ -459,10 +459,14 @@ function displayCurseName(curse: Curse): string {
     return curse.name.replace(/ \(Major\)$/, '')
 }
 
-export function renderChallenge(spec: ChallengeSpec, state: MetaState): string {
-    const gameSpec:GameSpec = makeSpec(state, spec)
+export function renderChallenge(spec: ChallengeSpec, state: MetaState, challengeIndex?: number): string {
+    const gameSpec:GameSpec = makeSpec(state, spec, challengeIndex)
     const label = `${challengeSummaryWithState(spec, state)} (${gameSpec.vp}vp in ${gameSpec.par}@)`
     const stageCurse = selectedCurseForChallenge(spec, state)
+
+    const hintsHtml = (gameSpec.hints ?? []).length > 0
+        ? `<div class='challengeHints'>${(gameSpec.hints ?? []).join('<br>')}</div>`
+        : ''
 
     // Build tooltip with all related cards from VP mode and boons
     const relatedCards: CardSpec[] = [
@@ -471,10 +475,10 @@ export function renderChallenge(spec: ChallengeSpec, state: MetaState): string {
         ...(stageCurse ? stageCurse.events : []),
         ...spec.boons.flatMap(b => [...b.cards, ...b.events])
     ]
-    if (relatedCards.length === 0) return label
+    if (relatedCards.length === 0) return label + hintsHtml
     const simpleContent = relatedCards.map(buildSpecTooltipSimple).join('')
     const fullContent = relatedCards.map(buildSpecTooltipFull).join('')
-    return `${label}<span class='tooltip tooltip-simple'>${simpleContent}</span><span class='tooltip tooltip-full'>${fullContent}</span>`
+    return `${label}<span class='tooltip tooltip-simple'>${simpleContent}</span><span class='tooltip tooltip-full'>${fullContent}</span>${hintsHtml}`
 }
 
 export function challengeSummary(challenge: ChallengeSpec): string {
@@ -501,6 +505,8 @@ export interface GameSetupParams {
     vpGoal: number
     cardSpecs: CardSpec[]
     eventSpecs: CardSpec[]
+    challengeIndex?: number
+    hints?: string[]
 }
 
 export interface RelicSpec extends CardSpec {
@@ -572,11 +578,13 @@ export type PathOnSelectEffect = {
     kind: 'spendRelicCharge'
     relicID: number
     amount: number
+    destroyIfEmpty?: boolean
 }
 
 export interface PathOptionSpec {
     label: string
     onSelectEffects?: PathOnSelectEffect[]
+    bonusRewards?: number
 }
 
 export interface PathRewardParams {
@@ -816,6 +824,13 @@ export interface MetaStateData {
 
     // Which challenge was selected (index in original challenges array)
     selectedChallengeIndex?: number
+}
+
+export function getSelectedChallenge(data: MetaStateData): ChallengeSpec {
+    if (data.selectedChallengeIndex === undefined) {
+        throw new Error('No challenge selected')
+    }
+    return data.challenges[data.selectedChallengeIndex]
 }
 
 export interface MetaGlobalState {
@@ -1214,8 +1229,8 @@ function validateMetaStateData(data: MetaStateData, context: string): void {
     if (data.phase === 'stage_select' && data.challenges.length === 0) {
         throw new Error(`Invariant violation (${context}): stage_select requires challenge options`)
     }
-    if (data.phase === 'in_game' && data.challenges.length !== 1) {
-        throw new Error(`Invariant violation (${context}): in_game requires exactly one selected challenge`)
+    if (data.phase === 'in_game' && data.selectedChallengeIndex === undefined) {
+        throw new Error(`Invariant violation (${context}): in_game requires a selected challenge index`)
     }
     if (data.phase !== 'stage_select' && data.burdenStates.length > 0) {
         throw new Error(`Invariant violation (${context}): burden selections only allowed in stage_select`)
@@ -2040,7 +2055,7 @@ export function describeBasePar(stage: number, state: MetaState): string {
     return `${basePar} (Base), ${signedAmount(scarcityDelta)} (Scarcity), = ${adjusted}`
 }
 
-export function describeParCalculation(stage: number, challenge: ChallengeSpec | null | undefined, relicCards: Card[], state: MetaState): string {
+export function describeParCalculation(stage: number, challenge: ChallengeSpec | null | undefined, relicCards: Card[], state: MetaState, challengeIndex?: number): string {
     const basePar = BASE_PARS[stage]
     if (basePar === undefined) return ''
 
@@ -2065,7 +2080,8 @@ export function describeParCalculation(stage: number, challenge: ChallengeSpec |
         par,
         vpGoal: challenge?.vpMode.target ?? 0,
         cardSpecs: [],
-        eventSpecs: []
+        eventSpecs: [],
+        challengeIndex
     }
     for (const relicCard of relicCards) {
         if (!(relicCard instanceof Relic)) continue
@@ -2095,11 +2111,11 @@ function stageTooltipTexts(state: MetaState): (string | null)[] {
             if (replayData !== null) {
                 // Use the tooltip saved at game time, which reflects the modifiers that were active then
                 return replayData.spec.metaStageTooltips?.[stage]
-                    ?? describeParCalculation(stage, replayData.challenge, replayData.spec.relics, state)
+                    ?? describeParCalculation(stage, replayData.challenge, replayData.spec.relics, state, replayData.spec.selectedChallengeIndex)
             }
         }
-        if (stage === state.data.stage && state.data.challenges.length === 1) {
-            return describeParCalculation(stage, state.data.challenges[0], state.data.relics, state)
+        if (stage === state.data.stage && state.data.selectedChallengeIndex !== undefined) {
+            return describeParCalculation(stage, getSelectedChallenge(state.data), state.data.relics, state, state.data.selectedChallengeIndex)
         }
         return describeBasePar(stage, state)
     })
@@ -2161,7 +2177,9 @@ export function makeSpec(state: MetaState, challenge: ChallengeSpec, selectedCha
         par: par,
         vpGoal: vpTarget,
         cardSpecs: cards,
-        eventSpecs: events
+        eventSpecs: events,
+        challengeIndex: selectedChallengeIndex,
+        hints: undefined
     }, state)
     const finalCards = gameSetupParams.cardSpecs
     const finalEvents = gameSetupParams.eventSpecs
@@ -2182,6 +2200,7 @@ export function makeSpec(state: MetaState, challenge: ChallengeSpec, selectedCha
         selectedChallengeIndex,
         collectedCards: sortedCollectedCards,
         collectedEvents: sortedCollectedEvents,
+        hints: gameSetupParams.hints,
     }
 }
 
@@ -2361,11 +2380,12 @@ interface PathSkeleton {
     burdens: number,
 }
 
-function normalizePathOptionSpec(path: string | PathOptionSpec): Required<PathOptionSpec> {
-    if (typeof path === 'string') return { label: path, onSelectEffects: [] }
+function normalizePathOptionSpec(path: string | PathOptionSpec): PathOptionSpec {
+    if (typeof path === 'string') return { label: path, onSelectEffects: [], bonusRewards: 0 }
     return {
         label: path.label,
-        onSelectEffects: (path.onSelectEffects || []).map(effect => ({ ...effect }))
+        onSelectEffects: (path.onSelectEffects || []).map(effect => ({ ...effect })),
+        bonusRewards: path.bonusRewards ?? 0
     }
 }
 
@@ -2406,7 +2426,8 @@ async function makePaths(state: MetaState): Promise<PathSkeleton[]> {
     const numBurdens = Math.max(0, pathRewardParams.numBurdens)
     const rewardsPerSet = 6
     const fullSet: RewardKind[] = ['card', 'card', 'event', 'encounter', 'potion', 'relic']
-    const totalRewards = pathCount * rewardsPerPath
+    const perPathRewards = pathOptions.map(opt => rewardsPerPath + (opt?.bonusRewards ?? 0))
+    const totalRewards = perPathRewards.reduce((a, b) => a + b, 0)
     const completeSets = Math.floor(totalRewards / rewardsPerSet)
     const partialSetRewards = totalRewards % rewardsPerSet
 
@@ -2416,16 +2437,17 @@ async function makePaths(state: MetaState): Promise<PathSkeleton[]> {
 
     const shuffledRewards = generator.permute(rewardPool)
     const paths: PathSkeleton[] = []
+    let rewardCursor = 0
     for (let pathIndex = 0; pathIndex < pathCount; pathIndex++) {
-        const start = pathIndex * rewardsPerPath
-        const end = start + rewardsPerPath
+        const numRewards = perPathRewards[pathIndex]
         const pathOption = pathOptions[pathIndex]
         paths.push({
             label: pathOption?.label ?? 'Path',
             onSelectEffects: pathOption?.onSelectEffects || [],
-            rewards: shuffledRewards.slice(start, end),
+            rewards: shuffledRewards.slice(rewardCursor, rewardCursor + numRewards),
             burdens: numBurdens,
         })
+        rewardCursor += numRewards
     }
     return paths
 }
@@ -2772,6 +2794,9 @@ async function applyPathOnSelectEffects(state: MetaState, path: Path): Promise<v
             const tokens = new Map(relic.tokens)
             tokens.set('charge', nextCharge)
             state.applyToRelic(current => current.update({ tokens }), relic)
+            if (effect.destroyIfEmpty && nextCharge === 0) {
+                await removeRelic(state, relic.id)
+            }
         }
     }
 }
@@ -3111,7 +3136,7 @@ export async function playGame(
                 const stage = state.data.stage
                 // challenges[0] is the selected challenge (set when user clicks a challenge button)
                 state.ui.updateSidebar(state)
-                const gameSpec = makeSpec(state, state.data.challenges[0], state.data.selectedChallengeIndex)
+                const gameSpec = makeSpec(state, getSelectedChallenge(state.data), state.data.selectedChallengeIndex)
                 const startingBuffer = state.data.buffer
                 // Pass saved game state for replay (from previous redo)
                 const { score, potionsRemaining, history, macros, viewingMacros } = await state.ui.playGame(
@@ -3150,8 +3175,8 @@ export async function playGame(
                 stageReplays[stage] = {
                     stage,
                     challenge: {
-                        ...state.data.challenges[0],
-                        boons: [...state.data.challenges[0].boons]
+                        ...getSelectedChallenge(state.data),
+                        boons: [...getSelectedChallenge(state.data).boons]
                     },
                     spec: cloneGameSpec(gameSpec),
                     score,
@@ -3164,7 +3189,7 @@ export async function playGame(
                 const stageTimelineEntry: Extract<MetaTimelineEntry, { kind: 'stage' }> = {
                     kind: 'stage',
                     stage,
-                    challenge: challengeSummaryWithState(state.data.challenges[0], state),
+                    challenge: challengeSummaryWithState(getSelectedChallenge(state.data), state),
                     score,
                     par: gameSpec.par,
                     usedPotions
@@ -3192,6 +3217,7 @@ export async function playGame(
                 state.replaceAndClearHistory({
                     phase: 'path_select',
                     challenges: [],
+                    selectedChallengeIndex: undefined,
                     rewardStates: [],
                     burdenStates: [],
                     availablePaths: paths,
@@ -3238,9 +3264,9 @@ export async function playGame(
                         throw e
                     }
                 }
-                // Store the selected challenge as the only one
+                // Store which challenge was selected
                 const selectedChallengeIndex = state.data.challenges.indexOf(selectedChallenge)
-                state.update({ challenges: [selectedChallenge], selectedChallengeIndex, availablePaths: [] })
+                state.update({ selectedChallengeIndex, availablePaths: [] })
                 await trigger({kind: 'start', stage: state.data.stage}, state)
                 if (state.data.burdenStates.some(burden => !isBurdenResolved(burden))) {
                     throw new Error('Invariant violation: cannot start stage with unresolved burdens')

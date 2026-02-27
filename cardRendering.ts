@@ -129,10 +129,11 @@ function renderSpecSimpleBody(spec: CardSpec): string {
 }
 
 function buildSimpleTooltipForSingleSpec(spec: CardSpec): string {
+    const relic = isRelicSpec(spec)
     const buyCost = cardSpecCost(spec, 'buy')
     const actionCost = cardSpecCost(spec, actionCostKindForSpec(spec))
-    const buyStr = !isZero(buyCost) ? `(${renderCost(buyCost as Cost)})` : '---'
-    const costStr = !isZero(actionCost) ? `(${renderCost(actionCost as Cost)})` : '---'
+    const buyStr = relic ? '---' : (!isZero(buyCost) ? `(${renderCost(buyCost as Cost)})` : '---')
+    const costStr = relic ? '---' : (!isZero(actionCost) ? `(${renderCost(actionCost as Cost)})` : '---')
     const header = `<div>---${buyStr} ${displayName(spec)} ${costStr}---</div>`
     const body = renderSpecSimpleBody(spec)
     return `${header}${body}`
@@ -140,10 +141,11 @@ function buildSimpleTooltipForSingleSpec(spec: CardSpec): string {
 
 // Build full HTML tooltip for a card spec (matching in-game tooltip style)
 export function buildSpecTooltipFull(spec: CardSpec): string {
+    const relic = isRelicSpec(spec)
     const buyCost = cardSpecCost(spec, 'buy')
     const actionCost = cardSpecCost(spec, actionCostKindForSpec(spec))
-    const buyStr = !isZero(buyCost) ? `(${renderCost(buyCost as Cost)})` : '---'
-    const costStr = !isZero(actionCost) ? `(${renderCost(actionCost as Cost)})` : '---'
+    const buyStr = relic ? '---' : (!isZero(buyCost) ? `(${renderCost(buyCost as Cost)})` : '---')
+    const costStr = relic ? '---' : (!isZero(actionCost) ? `(${renderCost(actionCost as Cost)})` : '---')
     const header = `<div>---${buyStr} ${displayName(spec)} ${costStr}---</div>`
     const baseFilling = header + cardText(spec)
 
@@ -171,10 +173,11 @@ export type SpecTooltipMode = 'default' | 'onlyRelated'
 // Render a CardSpec without related cards inline, but with tooltip
 // Uses simpleText if available for compact display
 export function renderSpecNoRelated(spec: CardSpec, tooltipMode: SpecTooltipMode = 'default'): string {
+    const relic = isRelicSpec(spec)
     const buyCost = cardSpecCost(spec, 'buy')
     const actionCost = cardSpecCost(spec, actionCostKindForSpec(spec))
-    const buyText = isZero(buyCost) ? '' : `(${renderCost(buyCost as Cost)})&nbsp;`
-    const costText = isZero(actionCost) ? '' : `&nbsp;(${renderCost(actionCost as Cost)})`
+    const buyText = relic ? '' : (isZero(buyCost) ? '' : `(${renderCost(buyCost as Cost)})&nbsp;`)
+    const costText = relic ? '' : (isZero(actionCost) ? '' : `&nbsp;(${renderCost(actionCost as Cost)})`)
     const header = `<div>${buyText}<strong>${displayName(spec)}</strong>${costText}</div>`
 
     // Use simpleText if available, otherwise full card text

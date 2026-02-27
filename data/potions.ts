@@ -421,3 +421,19 @@ export const mirrorBrew: CardSpec = {
     }]
 }
 potionRewards.push(mirrorBrew)
+
+const potionOfShelter: CardSpec = {
+    name: 'Potion of Shelter',
+    isPotion: true,
+    effects: [{
+        text: ['Put 3 shelter tokens on each card in play.'],
+        transform: (state, card) => async function(state) {
+            for (const c of state.play) {
+                state = await addToken(c, 'shelter', 3)(state)
+            }
+            return state
+        }
+    }],
+    rules: [shelterRule]
+}
+potionRewards.push(potionOfShelter)

@@ -758,26 +758,35 @@ export const potionLab: Encounter = {
     getOptions(data: unknown, metaState: MetaState): RewardOption[] {
         const d = data as PotionLabData
         const offerName = displayName(d.offer)
+        const hasPotions = metaState.data.potions.length > 0
         return [
             {
-                label: 'Double batch',
-                description: `Gain 2 copies of ${offerName}.`,
+                label: 'House special',
+                description: `Trade in a potion to gain 2 copies of ${offerName}.`,
                 tooltipSpec: d.offer,
-                disabled: d.selectedIndex !== null,
+                disabled: d.selectedIndex !== null || !hasPotions,
                 checked: d.selectedIndex === 0,
-                onClick: async () => ({
-                    newData: { ...d, selectedIndex: 0 },
-                    transform: compose(
-                        addTimelineAction('Potion Lab: Double batch', `Gained two ${offerName}`),
-                        gainPotion(d.offer, { silent: true }),
-                        gainPotion(d.offer, { silent: true }),
+                onClick: async () => {
+                    const potion = await metaState.ui.chooseCard(
+                        metaState, 'Choose a potion to trade in:', metaState.data.potions, true
                     )
-                })
+                    if (!potion) return { newData: d }
+                    const potionName = displayName(potion.spec)
+                    return {
+                        newData: { ...d, selectedIndex: 0 },
+                        transform: async (state: MetaState) => {
+                            state.removePotion(potion.id)
+                            await addTimelineAction('Potion Lab: House special', `Traded ${potionName} for two ${offerName}`)(state)
+                            await gainPotion(d.offer, { silent: true })(state)
+                            await gainPotion(d.offer, { silent: true })(state)
+                        }
+                    }
+                }
             },
             {
-                label: 'Duplication',
-                description: 'For each potion you have, gain a copy of that potion.',
-                disabled: d.selectedIndex !== null,
+                label: 'Double batch',
+                description: 'Pay 1 buffer. For each potion you have, gain a copy of that potion.',
+                disabled: d.selectedIndex !== null || metaState.data.buffer < 1,
                 checked: d.selectedIndex === 1,
                 onClick: async () => {
                     const copiedPotionNames = metaState.data.potions.map(p => displayName(p.spec))
@@ -787,7 +796,8 @@ export const potionLab: Encounter = {
                     return {
                         newData: { ...d, selectedIndex: 1 },
                         transform: async (state: MetaState) => {
-                            await addTimelineAction('Potion Lab', details)(state)
+                            await addBuffer(-1)(state)
+                            await addTimelineAction('Potion Lab: Double batch', details)(state)
                             const potionSpecs = state.data.potions.map(p => p.spec)
                             for (const spec of potionSpecs) {
                                 await gainPotion(spec, { silent: true })(state)
@@ -918,13 +928,15 @@ const tradingPost: Encounter = {
         const tradablePotions = metaState.data.potions.filter(potion => !isBurdened(potion.spec))
         const tradableRelics = metaState.data.relics.filter(relic => !isBurdened(relic.spec))
         const offeredRelicIsBad = isBurdened(d.offerRelic)
+        const alreadyHasCard = metaState.data.collectedCards.some(card => card.name === d.offerCard.name)
+        const alreadyHasEvent = metaState.data.collectedEvents.some(event => event.name === d.offerEvent.name)
 
         return [
             {
                 label: `Trade Card for ${displayName(d.offerCard)}`,
                 description: 'Give up one of your cards to receive this one.',
                 tooltipSpec: d.offerCard,
-                disabled: d.cardTraded || tradableCards.length === 0,
+                disabled: d.cardTraded || tradableCards.length === 0 || alreadyHasCard,
                 checked: d.cardTraded,
                 onClick: async () => {
                     const card = await metaState.ui.chooseCard(
@@ -949,7 +961,7 @@ const tradingPost: Encounter = {
                 label: `Trade Event for ${displayName(d.offerEvent)}`,
                 description: 'Give up one of your events to receive this one.',
                 tooltipSpec: d.offerEvent,
-                disabled: d.eventTraded || tradableEvents.length === 0,
+                disabled: d.eventTraded || tradableEvents.length === 0 || alreadyHasEvent,
                 checked: d.eventTraded,
                 onClick: async () => {
                     const event = await metaState.ui.chooseCard(

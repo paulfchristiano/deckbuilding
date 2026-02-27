@@ -225,7 +225,7 @@ eventRewards.push(focus)
 
 
 const onslaught:CardSpec = {name: 'Onslaught',
-    fixedCost: {...free, coin:6, energy:1},
+    fixedCost: {...free, coin:4, energy:1},
     effects: [{
         text: [`Repeat any number of times: play a card in your hand
             that was also there at the start of this effect

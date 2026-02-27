@@ -34,6 +34,7 @@ import {
     registerBurden,
     registerEncounterUpgrade,
     removeRelic,
+    GameSetupParams,
 } from '../metaLogic.js'
 import { beggarsBrew } from './potions.js'
 import { registerRelicSpec } from '../registry.js'
@@ -431,6 +432,30 @@ relicBurdenOption(cursedBanner)
 relicBurdenOption(cursedSozu, { maxStage: TOTAL_STAGES - 2 })
 relicBurdenOption(expensiveFlask)
 relicBurdenOption(brokenCrown, { maxStage: TOTAL_STAGES - 2 })
+
+const cursedCompass: RelicSpec = {
+    name: 'Cursed Compass',
+    burden: true,
+    metaReplacers: [{
+        kind: 'gameSetup',
+        text: ['The left challenge has par 1 lower.'],
+        replace: (p: GameSetupParams) => p.challengeIndex === 0 ? { ...p, par: p.par - 1 } : p
+    }]
+}
+registerRelicSpec(cursedCompass)
+relicBurdenOption(cursedCompass)
+
+const cursedLever: RelicSpec = {
+    name: 'Cursed Lever',
+    burden: true,
+    metaReplacers: [{
+        kind: 'gameSetup',
+        text: ['VP targets are 20% higher (rounded down).'],
+        replace: (p: GameSetupParams) => ({ ...p, vpGoal: Math.floor(p.vpGoal * 1.2) })
+    }]
+}
+registerRelicSpec(cursedLever)
+relicBurdenOption(cursedLever)
 
 registerBurden({
     id: 'lose_anything',

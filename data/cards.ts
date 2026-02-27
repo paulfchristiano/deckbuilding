@@ -363,7 +363,7 @@ const shelterName = 'Shelter'
 export const shelter:CardSpec = {name: shelterName,
     buyCost: coin(3),
     effects: [actionsEffect(1), {
-        text: [`Put a shelter token on each card in play. The next time they woudl leave play, instead remove a shelter token.`],
+        text: [`Put a shelter token on each card in play.`],
         transform: (state, card) => async function(state) {
             for (const c of state.play) {
                 state = await addToken(c, 'shelter')(state)

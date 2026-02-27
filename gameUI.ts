@@ -810,9 +810,11 @@ function renderCard(
 
     const costType: 'use' | 'play' = (zone === 'events' || zone === 'potions') ? 'use' : 'play'
     const tokenhtml = tokenRenderer.render(card.tokens)
-    const costhtml = zone === 'supply'
-        ? renderCost(card.cost('buy', state)) || '&nbsp'
-        : renderCost(card.cost(costType, state)) || '&nbsp'
+    const costhtml = zone === 'relics'
+        ? '&nbsp'
+        : zone === 'supply'
+            ? renderCost(card.cost('buy', state)) || '&nbsp'
+            : renderCost(card.cost(costType, state)) || '&nbsp'
 
     const picktext = options.pick !== undefined ? `<div class='pickorder'>${options.pick + 1}</div>` : ''
     const counttext = count !== 1 ? `<div class='cardcount'>${count}</div>` : ''

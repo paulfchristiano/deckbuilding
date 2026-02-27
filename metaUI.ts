@@ -10,7 +10,8 @@ import {
     ActiveGameProgress,
     renderChallenge,
     getRewardOptions, getRewardName, getBurdenOptions, isBurdenResolved, updateRewardState, updateRewardAtIndex, updateBurdenState, updateBurdenAtIndex,
-    Undo, Redo, ReplayStage, ExitToLauncher
+    Undo, Redo, ReplayStage, ExitToLauncher,
+    getSelectedChallenge
 } from './metaLogic.js'
 import { buildSpecTooltipFull, buildSpecTooltipSimple, renderSpecNoRelated } from './cardRendering.js'
 import { initHotkeys, startGame, keyListeners } from './gameUI.js'
@@ -216,9 +217,9 @@ function updateProgressSidebar(state: MetaState, onReplayStage?: (stage: number)
         const shownBasePar = displayBasePar(stage, state)
         const currentStageSpec = (
             stage === state.data.stage &&
-            state.data.challenges.length === 1
+            state.data.selectedChallengeIndex !== undefined
         )
-            ? makeSpec(state, state.data.challenges[0])
+            ? makeSpec(state, getSelectedChallenge(state.data), state.data.selectedChallengeIndex)
             : null
         const currentStagePar = currentStageSpec?.par ?? null
 
@@ -228,10 +229,10 @@ function updateProgressSidebar(state: MetaState, onReplayStage?: (stage: number)
             if (replayData !== null) {
                 // Use the tooltip saved at game time, which reflects the modifiers that were active then
                 const savedTooltip = replayData.spec.metaStageTooltips?.[stage]
-                tooltip = savedTooltip ?? describeParCalculation(stage, replayData.challenge, replayData.spec.relics, state)
+                tooltip = savedTooltip ?? describeParCalculation(stage, replayData.challenge, replayData.spec.relics, state, replayData.spec.selectedChallengeIndex)
             }
         } else if (stage === state.data.stage && currentStagePar !== null) {
-            tooltip = describeParCalculation(stage, state.data.challenges[0], state.data.relics, state)
+            tooltip = describeParCalculation(stage, getSelectedChallenge(state.data), state.data.relics, state, state.data.selectedChallengeIndex)
         }
         display.tooltipText = tooltip.replace(/, /g, '\n')
 
@@ -287,7 +288,7 @@ function renderCommonUI(state: MetaState, onReplayStage?: (stage: number) => voi
 
     // Bind deck icon (toggle on click)
     const deckIcon = getElement('deckIcon')
-    deckIcon.onclick = () => deckDialogOpen ? hideDeckDialog() : showDeckDialog(state)
+    deckIcon.onclick = () => isDeckDialogOpen() ? hideDeckDialog() : showDeckDialog(state)
 }
 
 // ----------------------------- Card Picker Dialog
@@ -593,10 +594,11 @@ function renderStageScreen(
     clearElement(challengeContainer)
     const unresolvedBurdens = state.data.burdenStates.some(burdenState => !isBurdenResolved(burdenState))
 
-    for (const challenge of state.data.challenges) {
+    for (let challengeIdx = 0; challengeIdx < state.data.challenges.length; challengeIdx++) {
+        const challenge = state.data.challenges[challengeIdx]
         const playBtn = createSpan('option')
         if (!unresolvedBurdens) playBtn.setAttribute('choosable', '')
-        playBtn.innerHTML = renderChallenge(challenge, state)
+        playBtn.innerHTML = renderChallenge(challenge, state, challengeIdx)
         if (unresolvedBurdens) {
             playBtn.setAttribute('disabled', 'disabled')
         } else {
@@ -656,8 +658,6 @@ function renderPathColumn(path: Path, state: MetaState, onSelect: (path: Path) =
 }
 
 // ----------------------------- Deck Dialog
-
-let deckDialogOpen = false
 
 function showDeckDialog(state: MetaState): void {
     const sections: Array<{ title: string, items: CardSpec[] }> = [
@@ -736,16 +736,14 @@ function renderDeckSections(sections: Array<{ title: string, items: CardSpec[] }
 
     getElement('deckClose').onclick = () => hideDeckDialog()
     showDialog('deckDialog')
-    deckDialogOpen = true
 }
 
 function hideDeckDialog(): void {
     hideDialog('deckDialog')
-    deckDialogOpen = false
 }
 
 export function isDeckDialogOpen(): boolean {
-    return deckDialogOpen
+    return document.getElementById('deckDialog')?.getAttribute('active') === 'true'
 }
 
 // ----------------------------- MetaGameUI Implementation
@@ -944,43 +942,6 @@ export class MetaGameUI implements MetaUI {
         updateProgressSidebar(state)
     }
 
-    private updateGameProgressSidebar(spec: GameSpec): void {
-        const stageScores = spec.metaStageScores || []
-        const stagePars = spec.metaStagePars || []
-        const stageTooltips = spec.metaStageTooltips || []
-        const displays: ProgressStageDisplay[] = []
-
-        for (let stage = 0; stage < BASE_PARS.length; stage++) {
-            const display: ProgressStageDisplay = { stage }
-            const basePar = BASE_PARS[stage]
-            const tooltip = stageTooltips[stage] ?? (basePar === undefined ? null : `${basePar} (Base)`)
-            if (tooltip !== null) display.tooltipText = tooltip.replace(/, /g, '\n')
-
-            if (spec.metaStage !== undefined && stage < spec.metaStage) {
-                display.completed = true
-                const score = stageScores[stage]
-                const par = stagePars[stage]
-                if (score !== null && score !== undefined && par !== null && par !== undefined) {
-                    display.scoreText = `${score}/${par}`
-                    if (score > par) display.scoreColor = 'red'
-                    else if (score < par) display.scoreColor = 'green'
-                }
-            } else if (spec.metaStage !== undefined && stage === spec.metaStage) {
-                display.current = true
-                display.scoreText = `?/${spec.par}`
-            } else if (basePar !== undefined) {
-                display.scoreText = `${basePar}`
-            }
-
-            if (spec.replayStage !== null && spec.replayStage !== undefined && stage === spec.replayStage) {
-                display.replaying = true
-            }
-            displays.push(display)
-        }
-
-        renderProgressSidebar('#progressLine', displays)
-    }
-
     playGame(
         spec: GameSpec,
         gameHistory: number[] = [],
@@ -997,10 +958,13 @@ export class MetaGameUI implements MetaUI {
             const circle = document.querySelector(`#progressLine .progressCircle[data-stage="${spec.metaStage}"]`)
             if (circle) {
                 const existing = circle.querySelector('.progressScore')
+                // Preserve any tooltip from the existing score element
+                const existingTooltip = existing?.querySelector('.tooltip')
                 if (existing) existing.remove()
                 const score = document.createElement('span')
                 score.className = 'progressScore'
                 score.textContent = `?/${spec.par}`
+                if (existingTooltip) score.appendChild(existingTooltip)
                 circle.appendChild(score)
             }
         }
