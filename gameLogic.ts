@@ -156,8 +156,8 @@ export function applyCardUpgradeCost(spec: CardSpec, cost: Cost, kind: ActionKin
 
 export function cardSpecCost(spec: CardSpec, kind: ActionKind): Cost | undefined {
     const base = kind === 'buy' ? spec.buyCost : spec.fixedCost
-    if (!base) return undefined
-    return applyCardUpgradeCost(spec, base, kind)
+    const upgraded = applyCardUpgradeCost(spec, base ?? free, kind)
+    return renderCost(upgraded) === '' ? undefined : upgraded
 }
 
 // Rules are global triggers/replacers that apply to all games

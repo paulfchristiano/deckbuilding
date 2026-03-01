@@ -462,9 +462,8 @@
   }
   function cardSpecCost(spec, kind) {
     var base = kind === "buy" ? spec.buyCost : spec.fixedCost;
-    if (!base)
-      return void 0;
-    return applyCardUpgradeCost(spec, base, kind);
+    var upgraded = applyCardUpgradeCost(spec, base !== null && base !== void 0 ? base : free, kind);
+    return renderCost(upgraded) === "" ? void 0 : upgraded;
   }
   var rules = [];
   function registerRule(rule) {
@@ -19966,7 +19965,8 @@
     throw new TypeError(s ? "Object is not iterable." : "Symbol.iterator is not defined.");
   };
   var test = {
-    rewards: [[1, ["potion", [potionOfInspiration, potionOfWealth]]]]
+    rewards: [[1, ["card", [village]]]],
+    burdens: [[1, "dull_card"]]
   };
   var SAVE_STORAGE_KEY = "roguelike.ongoingSaves.v1";
   var RUN_TIMER_STORAGE_KEY = "roguelike.runTimerSeconds.v1";
