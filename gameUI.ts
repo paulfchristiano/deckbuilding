@@ -123,6 +123,7 @@ interface ChoiceState {
     chosen: number[]
     resolve: (n: number, shifted: boolean) => void
     reject: (x: any) => void
+    canonicalToVisible?: Map<number, number>
 }
 
 type MacroVerb = 'Choose' | 'Buy' | 'Play' | 'Use'
@@ -1404,7 +1405,12 @@ function bindRestart(state: State, ui: GameUI): void {
 function bindRedo(state: State, ui: GameUI): void {
     function pick() {
         if (ui.choiceState && state.redo.length > 0) {
-            ui.choiceState.resolve(state.redo[state.redo.length - 1], false)
+            const canonicalIdx = state.redo[state.redo.length - 1]
+            const cs = ui.choiceState
+            const visibleIdx = cs.canonicalToVisible !== undefined
+                ? cs.canonicalToVisible.get(canonicalIdx)
+                : canonicalIdx
+            cs.resolve(visibleIdx!, false)
         }
     }
     keyListeners.set('Z', pick)
@@ -1654,7 +1660,8 @@ export class GameUI implements UI {
         choicePrompt: string,
         options: Option<any>[],
         info: string[],
-        chosen: number[]
+        chosen: number[],
+        canonicalToVisible?: Map<number, number>
     ): Promise<number> {
         const ui = this
         return new Promise((resolve, reject) => {
@@ -1701,7 +1708,8 @@ export class GameUI implements UI {
                 info,
                 chosen,
                 resolve: newResolve,
-                reject: newReject
+                reject: newReject,
+                canonicalToVisible,
             }
 
             const macroMatch = ui.matchNextMacroStep()

@@ -2480,7 +2480,7 @@
                 return __generator(this, function(_a2) {
                   switch (_a2.label) {
                     case 0:
-                      return [4, state.ui.choice(state, prompt, visibleOptions, info, visibleChosen)];
+                      return [4, state.ui.choice(state, prompt, visibleOptions, info, visibleChosen, canonicalToVisible)];
                     case 1:
                       visibleIndex2 = _a2.sent();
                       if (visibleIndex2 >= boundedVisibleIndices.length || visibleIndex2 < 0) {
@@ -17565,7 +17565,7 @@
       return render(data.last, data.count, (_b = settings.hotkeyMap) === null || _b === void 0 ? void 0 : _b.get(data.first.id));
     }).join("");
     var _loop_1 = function(i2) {
-      var cardEl = getElement("card".concat(optionsIds[i2]));
+      var cardEl = container.querySelector("#card".concat(optionsIds[i2]));
       if (cardEl) {
         cardEl.onclick = function(e) {
           return optionsFns[i2](e.shiftKey);
@@ -18035,7 +18035,10 @@
   function bindRedo(state, ui) {
     function pick() {
       if (ui.choiceState && state.redo.length > 0) {
-        ui.choiceState.resolve(state.redo[state.redo.length - 1], false);
+        var canonicalIdx = state.redo[state.redo.length - 1];
+        var cs = ui.choiceState;
+        var visibleIdx = cs.canonicalToVisible !== void 0 ? cs.canonicalToVisible.get(canonicalIdx) : canonicalIdx;
+        cs.resolve(visibleIdx, false);
       }
     }
     keyListeners.set("Z", pick);
@@ -18307,7 +18310,7 @@
           }));
         }
       };
-      GameUI2.prototype.choice = function(state, choicePrompt, options, info, chosen) {
+      GameUI2.prototype.choice = function(state, choicePrompt, options, info, chosen, canonicalToVisible) {
         var ui = this;
         return new Promise(function(resolve, reject) {
           function newResolve(n, shifted) {
@@ -18352,7 +18355,8 @@
             info,
             chosen,
             resolve: newResolve,
-            reject: newReject
+            reject: newReject,
+            canonicalToVisible
           };
           var macroMatch = ui.matchNextMacroStep();
           if (macroMatch.failed) {
@@ -19911,7 +19915,9 @@
     };
     throw new TypeError(s ? "Object is not iterable." : "Symbol.iterator is not defined.");
   };
-  var test = null;
+  var test = {
+    rewards: [[1, ["potion", [potionOfInspiration, potionOfWealth]]]]
+  };
   var SAVE_STORAGE_KEY = "roguelike.ongoingSaves.v1";
   var RUN_TIMER_STORAGE_KEY = "roguelike.runTimerSeconds.v1";
   var HELP_SEEN_STORAGE_KEY = "roguelike.helpSeen.v1";

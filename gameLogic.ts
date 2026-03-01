@@ -609,6 +609,7 @@ export interface UI {
         options:Option<T>[],
         info: string[],
         chosen: number[],
+        canonicalToVisible?: Map<number, number>,
     ): Promise<number>;
     victory(s:State): Promise<void>;
 }
@@ -1709,7 +1710,7 @@ export async function choice<T>(
     let newState:State; [newState, index] = await doOrReplay(
         state,
         async () => {
-            const visibleIndex = await state.ui.choice(state, prompt, visibleOptions, info, visibleChosen)
+            const visibleIndex = await state.ui.choice(state, prompt, visibleOptions, info, visibleChosen, canonicalToVisible)
             if (visibleIndex >= boundedVisibleIndices.length || visibleIndex < 0) {
                 throw new InvalidHistory(visibleIndex, state)
             }
@@ -1803,7 +1804,6 @@ function undo(startState: State, count: number = 1): State {
     }
     return state
 }
-
 
 // ------------------------ Utilities for manipulating transformations
 

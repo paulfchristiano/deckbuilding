@@ -20,8 +20,11 @@ import { renderSpecNoRelated } from './cardRendering.js'
 import { Card, CardSpec, UndoPastBeginning } from './gameLogic.js'
 
 import type { DebugTestConfig } from './metaLogic.js'
+import { potionOfInspiration, potionOfWealth } from './data/potions.js'
 
-const test: DebugTestConfig | null = null
+const test: DebugTestConfig | null = {
+    rewards: [[1, ['potion', [potionOfInspiration, potionOfWealth]]]]
+}
 
 const SAVE_STORAGE_KEY = 'roguelike.ongoingSaves.v1'
 const RUN_TIMER_STORAGE_KEY = 'roguelike.runTimerSeconds.v1'
