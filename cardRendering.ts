@@ -101,9 +101,23 @@ function renderMetaText(spec: CardSpec, plain: boolean): string {
     return parts.join('')
 }
 
+// ----------------------------- Memoization
+
+// All rendering functions here are pure functions of CardSpec.
+// Specs are module-level constants with stable object identity, so WeakMap
+// caches make repeated calls (e.g. on every metagame re-render) essentially free.
+const cardTextCache = new WeakMap<CardSpec, string>()
+const tooltipFullCache = new WeakMap<CardSpec, string>()
+const tooltipSimpleCache = new WeakMap<CardSpec, string>()
+const tooltipOnlyRelatedSimpleCache = new WeakMap<CardSpec, string>()
+const specNoRelatedDefaultCache = new WeakMap<CardSpec, string>()
+const specNoRelatedOnlyRelatedCache = new WeakMap<CardSpec, string>()
+
 // ----------------------------- Card Text (Full Detail)
 
 export function cardText(spec: CardSpec): string {
+    const cached = cardTextCache.get(spec)
+    if (cached !== undefined) return cached
     const plain = isRelicSpec(spec)
     const effectHtml = renderEffects(spec)
     const buyableHtml = spec.restrictions ? renderBuyable(spec.restrictions, plain) : ''
@@ -115,11 +129,12 @@ export function cardText(spec: CardSpec): string {
     const staticReplacerHtml = cardSpecStaticReplacers(spec).map(x => renderTrigger(x, true, plain)).join('')
     const rulesHtml = cardSpecRules(spec).map(rule => renderRuleText(rule, plain)).join('')
     const metaHtml = renderMetaText(spec, plain)
-
-    return [
+    const result = [
         buyableHtml, costHtml, effectHtml, abilitiesHtml,
         triggerHtml, replacerHtml, staticTriggerHtml, staticReplacerHtml, rulesHtml, metaHtml
     ].join('')
+    cardTextCache.set(spec, result)
+    return result
 }
 
 // ----------------------------- Spec Rendering
@@ -141,6 +156,8 @@ function buildSimpleTooltipForSingleSpec(spec: CardSpec): string {
 
 // Build full HTML tooltip for a card spec (matching in-game tooltip style)
 export function buildSpecTooltipFull(spec: CardSpec): string {
+    const cached = tooltipFullCache.get(spec)
+    if (cached !== undefined) return cached
     const relic = isRelicSpec(spec)
     const buyCost = cardSpecCost(spec, 'buy')
     const actionCost = cardSpecCost(spec, actionCostKindForSpec(spec))
@@ -148,24 +165,31 @@ export function buildSpecTooltipFull(spec: CardSpec): string {
     const costStr = relic ? '---' : (!isZero(actionCost) ? `(${renderCost(actionCost as Cost)})` : '---')
     const header = `<div>---${buyStr} ${displayName(spec)} ${costStr}---</div>`
     const baseFilling = header + cardText(spec)
-
-    // Related cards
     const relatedCards = spec.relatedCards || []
     const relatedFilling = relatedCards.map(r => buildSpecTooltip(r)).join('')
-
-    return `${baseFilling}${relatedFilling}`
+    const result = `${baseFilling}${relatedFilling}`
+    tooltipFullCache.set(spec, result)
+    return result
 }
 
 export function buildSpecTooltipSimple(spec: CardSpec): string {
+    const cached = tooltipSimpleCache.get(spec)
+    if (cached !== undefined) return cached
     const mine = buildSimpleTooltipForSingleSpec(spec)
     const related = (spec.relatedCards || []).map(buildSimpleTooltipForSingleSpec).join('')
-    return `${mine}${related}`
+    const result = `${mine}${related}`
+    tooltipSimpleCache.set(spec, result)
+    return result
 }
 
 export function buildSpecTooltipOnlyRelatedSimple(spec: CardSpec): string {
+    const cached = tooltipOnlyRelatedSimpleCache.get(spec)
+    if (cached !== undefined) return cached
     const rules = cardSpecRules(spec).map(rule => renderRuleText(rule, false)).join('')
     const related = (spec.relatedCards || []).map(buildSimpleTooltipForSingleSpec).join('')
-    return `${rules}${related}`
+    const result = `${rules}${related}`
+    tooltipOnlyRelatedSimpleCache.set(spec, result)
+    return result
 }
 
 export type SpecTooltipMode = 'default' | 'onlyRelated'
@@ -173,6 +197,9 @@ export type SpecTooltipMode = 'default' | 'onlyRelated'
 // Render a CardSpec without related cards inline, but with tooltip
 // Uses simpleText if available for compact display
 export function renderSpecNoRelated(spec: CardSpec, tooltipMode: SpecTooltipMode = 'default'): string {
+    const cache = tooltipMode === 'onlyRelated' ? specNoRelatedOnlyRelatedCache : specNoRelatedDefaultCache
+    const cached = cache.get(spec)
+    if (cached !== undefined) return cached
     const relic = isRelicSpec(spec)
     const buyCost = cardSpecCost(spec, 'buy')
     const actionCost = cardSpecCost(spec, actionCostKindForSpec(spec))
@@ -184,24 +211,23 @@ export function renderSpecNoRelated(spec: CardSpec, tooltipMode: SpecTooltipMode
     const displayText = renderSpecSimpleBody(spec)
 
     const hasRelatedCards = (spec.relatedCards || []).length > 0
+    let result: string
     if (tooltipMode === 'onlyRelated' && hasRelatedCards) {
         const tooltipSimple = buildSpecTooltipOnlyRelatedSimple(spec)
         const tooltipFull = buildSpecTooltipFull(spec)
-        return `<div class='spec has-related-only'>${header}${displayText}<span class='tooltip tooltip-simple'>${tooltipSimple}</span><span class='tooltip tooltip-full'>${tooltipFull}</span></div>`
-    }
-
-    if (hasRelatedCards) {
+        result = `<div class='spec has-related-only'>${header}${displayText}<span class='tooltip tooltip-simple'>${tooltipSimple}</span><span class='tooltip tooltip-full'>${tooltipFull}</span></div>`
+    } else if (hasRelatedCards) {
         const tooltipSimple = buildSpecTooltipSimple(spec)
         const tooltipFull = buildSpecTooltipFull(spec)
-        return `<div class='spec has-related'>${header}${displayText}<span class='tooltip tooltip-simple'>${tooltipSimple}</span><span class='tooltip tooltip-full'>${tooltipFull}</span></div>`
+        result = `<div class='spec has-related'>${header}${displayText}<span class='tooltip tooltip-simple'>${tooltipSimple}</span><span class='tooltip tooltip-full'>${tooltipFull}</span></div>`
+    } else if (tooltipMode === 'onlyRelated') {
+        result = `<div class='spec'>${header}${displayText}</div>`
+    } else {
+        const tooltipHtml = buildSpecTooltipFull(spec)
+        result = `<div class='spec'>${header}${displayText}<span class='tooltip'>${tooltipHtml}</span></div>`
     }
-
-    if (tooltipMode === 'onlyRelated') {
-        return `<div class='spec'>${header}${displayText}</div>`
-    }
-
-    const tooltipHtml = buildSpecTooltipFull(spec)
-    return `<div class='spec'>${header}${displayText}<span class='tooltip'>${tooltipHtml}</span></div>`
+    cache.set(spec, result)
+    return result
 }
 
 // Backward-compatible export for existing callsites.

@@ -3098,7 +3098,19 @@ export async function playGame(
     const state: MetaState = initialSnapshot
         ? deserializeMetaGame(ui, initialSnapshot, null)
         : new MetaState(ui, seed, null, { debugEnabled, burdensEnabled, scarcityEnabled, cursesEnabled })
-    state.setChangeListener(onStateChange ? () => onStateChange!(serializeMetaGame(state)) : null)
+    let flushSave: (() => void) | null = null
+    if (onStateChange) {
+        let saveTimer: ReturnType<typeof setTimeout> | null = null
+        const doSave = () => onStateChange!(serializeMetaGame(state))
+        state.setChangeListener(() => {
+            if (saveTimer !== null) clearTimeout(saveTimer)
+            saveTimer = setTimeout(() => { saveTimer = null; doSave() }, 200)
+        })
+        flushSave = () => {
+            if (saveTimer !== null) { clearTimeout(saveTimer); saveTimer = null }
+            doSave()
+        }
+    }
     const tests = state.debugEnabled
         ? normalizeTests(test)
         : { rewards: [], challenges: [], burdens: [] } as ParsedTests
@@ -3124,8 +3136,8 @@ export async function playGame(
             phase: 'stage_select',
             availablePaths: [],
         })
-    } else if (onStateChange) {
-        onStateChange(serializeMetaGame(state))
+    } else {
+        flushSave?.()
     }
     state.ui.updateBuffer(state)
     while (true) {
@@ -3301,4 +3313,5 @@ export async function playGame(
             }
         }
     }
+    flushSave?.()
 }

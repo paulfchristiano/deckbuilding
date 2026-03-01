@@ -4272,7 +4272,16 @@
     }
     return parts.join("");
   }
+  var cardTextCache = /* @__PURE__ */ new WeakMap();
+  var tooltipFullCache = /* @__PURE__ */ new WeakMap();
+  var tooltipSimpleCache = /* @__PURE__ */ new WeakMap();
+  var tooltipOnlyRelatedSimpleCache = /* @__PURE__ */ new WeakMap();
+  var specNoRelatedDefaultCache = /* @__PURE__ */ new WeakMap();
+  var specNoRelatedOnlyRelatedCache = /* @__PURE__ */ new WeakMap();
   function cardText(spec) {
+    var cached = cardTextCache.get(spec);
+    if (cached !== void 0)
+      return cached;
     var plain = isRelicSpec(spec);
     var effectHtml = renderEffects(spec);
     var buyableHtml = spec.restrictions ? renderBuyable(spec.restrictions, plain) : "";
@@ -4294,7 +4303,7 @@
       return renderRuleText(rule, plain);
     }).join("");
     var metaHtml = renderMetaText(spec, plain);
-    return [
+    var result = [
       buyableHtml,
       costHtml,
       effectHtml,
@@ -4306,6 +4315,8 @@
       rulesHtml,
       metaHtml
     ].join("");
+    cardTextCache.set(spec, result);
+    return result;
   }
   function renderSpecSimpleBody(spec) {
     return cardSpecSimpleLines(spec).map(function(line) {
@@ -4323,6 +4334,9 @@
     return "".concat(header).concat(body);
   }
   function buildSpecTooltipFull(spec) {
+    var cached = tooltipFullCache.get(spec);
+    if (cached !== void 0)
+      return cached;
     var relic = isRelicSpec(spec);
     var buyCost = cardSpecCost(spec, "buy");
     var actionCost = cardSpecCost(spec, actionCostKindForSpec(spec));
@@ -4334,24 +4348,40 @@
     var relatedFilling = relatedCards.map(function(r) {
       return buildSpecTooltip(r);
     }).join("");
-    return "".concat(baseFilling).concat(relatedFilling);
+    var result = "".concat(baseFilling).concat(relatedFilling);
+    tooltipFullCache.set(spec, result);
+    return result;
   }
   function buildSpecTooltipSimple(spec) {
+    var cached = tooltipSimpleCache.get(spec);
+    if (cached !== void 0)
+      return cached;
     var mine = buildSimpleTooltipForSingleSpec(spec);
     var related = (spec.relatedCards || []).map(buildSimpleTooltipForSingleSpec).join("");
-    return "".concat(mine).concat(related);
+    var result = "".concat(mine).concat(related);
+    tooltipSimpleCache.set(spec, result);
+    return result;
   }
   function buildSpecTooltipOnlyRelatedSimple(spec) {
+    var cached = tooltipOnlyRelatedSimpleCache.get(spec);
+    if (cached !== void 0)
+      return cached;
     var rules2 = cardSpecRules(spec).map(function(rule) {
       return renderRuleText(rule, false);
     }).join("");
     var related = (spec.relatedCards || []).map(buildSimpleTooltipForSingleSpec).join("");
-    return "".concat(rules2).concat(related);
+    var result = "".concat(rules2).concat(related);
+    tooltipOnlyRelatedSimpleCache.set(spec, result);
+    return result;
   }
   function renderSpecNoRelated(spec, tooltipMode) {
     if (tooltipMode === void 0) {
       tooltipMode = "default";
     }
+    var cache = tooltipMode === "onlyRelated" ? specNoRelatedOnlyRelatedCache : specNoRelatedDefaultCache;
+    var cached = cache.get(spec);
+    if (cached !== void 0)
+      return cached;
     var relic = isRelicSpec(spec);
     var buyCost = cardSpecCost(spec, "buy");
     var actionCost = cardSpecCost(spec, actionCostKindForSpec(spec));
@@ -4360,21 +4390,23 @@
     var header = "<div>".concat(buyText, "<strong>").concat(displayName(spec), "</strong>").concat(costText, "</div>");
     var displayText = renderSpecSimpleBody(spec);
     var hasRelatedCards = (spec.relatedCards || []).length > 0;
+    var result;
     if (tooltipMode === "onlyRelated" && hasRelatedCards) {
       var tooltipSimple = buildSpecTooltipOnlyRelatedSimple(spec);
       var tooltipFull = buildSpecTooltipFull(spec);
-      return "<div class='spec has-related-only'>".concat(header).concat(displayText, "<span class='tooltip tooltip-simple'>").concat(tooltipSimple, "</span><span class='tooltip tooltip-full'>").concat(tooltipFull, "</span></div>");
-    }
-    if (hasRelatedCards) {
+      result = "<div class='spec has-related-only'>".concat(header).concat(displayText, "<span class='tooltip tooltip-simple'>").concat(tooltipSimple, "</span><span class='tooltip tooltip-full'>").concat(tooltipFull, "</span></div>");
+    } else if (hasRelatedCards) {
       var tooltipSimple = buildSpecTooltipSimple(spec);
       var tooltipFull = buildSpecTooltipFull(spec);
-      return "<div class='spec has-related'>".concat(header).concat(displayText, "<span class='tooltip tooltip-simple'>").concat(tooltipSimple, "</span><span class='tooltip tooltip-full'>").concat(tooltipFull, "</span></div>");
+      result = "<div class='spec has-related'>".concat(header).concat(displayText, "<span class='tooltip tooltip-simple'>").concat(tooltipSimple, "</span><span class='tooltip tooltip-full'>").concat(tooltipFull, "</span></div>");
+    } else if (tooltipMode === "onlyRelated") {
+      result = "<div class='spec'>".concat(header).concat(displayText, "</div>");
+    } else {
+      var tooltipHtml = buildSpecTooltipFull(spec);
+      result = "<div class='spec'>".concat(header).concat(displayText, "<span class='tooltip'>").concat(tooltipHtml, "</span></div>");
     }
-    if (tooltipMode === "onlyRelated") {
-      return "<div class='spec'>".concat(header).concat(displayText, "</div>");
-    }
-    var tooltipHtml = buildSpecTooltipFull(spec);
-    return "<div class='spec'>".concat(header).concat(displayText, "<span class='tooltip'>").concat(tooltipHtml, "</span></div>");
+    cache.set(spec, result);
+    return result;
   }
   function buildSpecTooltip(spec) {
     return buildSpecTooltipFull(spec);
@@ -8253,7 +8285,7 @@
   }
   function playGame2(ui_1) {
     return __awaiter4(this, arguments, void 0, function(ui, test2, seed, initialSnapshot, onStateChange, debugEnabled, burdensEnabled, scarcityEnabled, cursesEnabled) {
-      var state, tests, initialChallenges, initialPath, _a, _b, testSpec, initialBurdenTests, initialBurdenTests_1, initialBurdenTests_1_1, burdenDefinitions, _c, _d, _e, sameReplay, stage, gameSpec, startingBuffer, _f, score, potionsRemaining, history_1, macros, viewingMacros, usedPotions, persistedMacros, persistedViewingMacros, stageReplays, stageTimelineEntry, nextStage, paths, _g, _h, testSpec, pathBurdenTests, pathBurdenTests_1, pathBurdenTests_1_1, burdenDefinitions, paths, path, e_30, materialized, challenges, selectedChallenge, e_31, selectedChallengeIndex, e_32, persistedMacros, persistedViewingMacros;
+      var state, flushSave, saveTimer_1, doSave_1, tests, initialChallenges, initialPath, _a, _b, testSpec, initialBurdenTests, initialBurdenTests_1, initialBurdenTests_1_1, burdenDefinitions, _c, _d, _e, sameReplay, stage, gameSpec, startingBuffer, _f, score, potionsRemaining, history_1, macros, viewingMacros, usedPotions, persistedMacros, persistedViewingMacros, stageReplays, stageTimelineEntry, nextStage, paths, _g, _h, testSpec, pathBurdenTests, pathBurdenTests_1, pathBurdenTests_1_1, burdenDefinitions, paths, path, e_30, materialized, challenges, selectedChallenge, e_31, selectedChallengeIndex, e_32, persistedMacros, persistedViewingMacros;
       var e_33, _j, e_34, _k, e_35, _l, e_36, _m;
       var _o, _p;
       if (test2 === void 0) {
@@ -8284,9 +8316,28 @@
         switch (_q.label) {
           case 0:
             state = initialSnapshot ? deserializeMetaGame(ui, initialSnapshot, null) : new MetaState(ui, seed, null, { debugEnabled, burdensEnabled, scarcityEnabled, cursesEnabled });
-            state.setChangeListener(onStateChange ? function() {
-              return onStateChange(serializeMetaGame(state));
-            } : null);
+            flushSave = null;
+            if (onStateChange) {
+              saveTimer_1 = null;
+              doSave_1 = function() {
+                return onStateChange(serializeMetaGame(state));
+              };
+              state.setChangeListener(function() {
+                if (saveTimer_1 !== null)
+                  clearTimeout(saveTimer_1);
+                saveTimer_1 = setTimeout(function() {
+                  saveTimer_1 = null;
+                  doSave_1();
+                }, 200);
+              });
+              flushSave = function() {
+                if (saveTimer_1 !== null) {
+                  clearTimeout(saveTimer_1);
+                  saveTimer_1 = null;
+                }
+                doSave_1();
+              };
+            }
             tests = state.debugEnabled ? normalizeTests(test2) : { rewards: [], challenges: [], burdens: [] };
             if (!!initialSnapshot) return [3, 2];
             initialChallenges = sampleChallengesForStage(state, getNumChallengeOptions(state), tests.challenges);
@@ -8332,9 +8383,7 @@
             _d.apply(_c, [__assign3.apply(void 0, [__assign3.apply(void 0, _e.concat([_q.sent()])), { challenges: initialChallenges, phase: "stage_select", availablePaths: [] }])]);
             return [3, 3];
           case 2:
-            if (onStateChange) {
-              onStateChange(serializeMetaGame(state));
-            }
+            flushSave === null || flushSave === void 0 ? void 0 : flushSave();
             _q.label = 3;
           case 3:
             state.ui.updateBuffer(state);
@@ -8570,6 +8619,7 @@
           case 35:
             return [3, 4];
           case 36:
+            flushSave === null || flushSave === void 0 ? void 0 : flushSave();
             return [
               2
               /*return*/
