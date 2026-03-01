@@ -934,9 +934,10 @@ function renderZone(state: State, zone: ZoneName, settings: RenderSettings = {})
         ([_, data]) => render(data.last, data.count, settings.hotkeyMap?.get(data.first.id))
     ).join('')
 
-    // Bind click handlers
+    // Bind click handlers — use container.querySelector to avoid matching
+    // stale same-ID elements in other zones that haven't been re-rendered yet.
     for (let i = 0; i < optionsFns.length; i++) {
-        const cardEl = getElement(`card${optionsIds[i]}`)
+        const cardEl = container.querySelector(`#card${optionsIds[i]}`) as HTMLElement | null
         if (cardEl) {
             cardEl.onclick = (e) => optionsFns[i]((e as MouseEvent).shiftKey)
         }
