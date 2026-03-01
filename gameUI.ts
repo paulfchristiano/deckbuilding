@@ -1485,14 +1485,17 @@ function matchMacro<T>(macro: MacroStep, state: State, options: Option<T>[], cho
         (chosen.includes(renders.find(x => x[0] === r)![1]) === macro.chosen)
     )
 
-    renders.sort((a, b) => {
-        if (a[0].kind === 'card' && b[0].kind === 'card') {
-            return macroMismatch(a[0].card, macro.card) - macroMismatch(b[0].card, macro.card)
+    let bestMismatch = Infinity
+    let bestOptionIndex: number | null = null
+    for (const [r, i] of renders) {
+        if (r.kind !== 'card') continue
+        const mismatch = macroMismatch(r.card, macro.card)
+        if (mismatch <= bestMismatch) {
+            bestMismatch = mismatch
+            bestOptionIndex = i
         }
-        return 0
-    })
-
-    return renders.length > 0 ? renders[0][1] : null
+    }
+    return bestOptionIndex
 }
 
 // ----------------------------- GameUI Class

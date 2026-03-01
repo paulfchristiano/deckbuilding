@@ -14695,10 +14695,23 @@
   var varietyPack = {
     name: "Variety Pack",
     createInitialData: function(metaState, generator) {
+      var _a, _b;
+      var ownedCardNames = new Set(metaState.data.collectedCards.map(function(c) {
+        return c.name;
+      }));
+      var ownedEventNames = new Set(metaState.data.collectedEvents.map(function(e) {
+        return e.name;
+      }));
+      var offerCard = (_a = generator.permute(cardRewards).find(function(c) {
+        return !ownedCardNames.has(c.name);
+      })) !== null && _a !== void 0 ? _a : generator.sample(cardRewards);
+      var offerEvent = (_b = generator.permute(eventRewards).find(function(e) {
+        return !ownedEventNames.has(e.name);
+      })) !== null && _b !== void 0 ? _b : generator.sample(eventRewards);
       return {
         selectedIndex: null,
-        offerCard: generator.sample(cardRewards),
-        offerEvent: generator.sample(eventRewards),
+        offerCard,
+        offerEvent,
         offerPotion: generator.sample(potionRewards),
         offerRelic: sampleEligibleRelicReward(generator, metaState)
       };
@@ -18113,29 +18126,46 @@
     return card.place === macroCard.place && card.name === macroCard.name;
   }
   function matchMacro(macro, state, options, chosen) {
-    var renders = options.map(function(x, i) {
-      return [x.render, i];
+    var e_26, _a;
+    var renders = options.map(function(x, i2) {
+      return [x.render, i2];
     });
     if (macro.kind === "string") {
-      renders = renders.filter(function(_a) {
-        var _b = __read15(_a, 1), r = _b[0];
-        return r.kind === "string" && r.string === macro.string;
+      renders = renders.filter(function(_a2) {
+        var _b2 = __read15(_a2, 1), r2 = _b2[0];
+        return r2.kind === "string" && r2.string === macro.string;
       });
       return renders.length > 0 ? renders[0][1] : null;
     }
-    renders = renders.filter(function(_a) {
-      var _b = __read15(_a, 1), r = _b[0];
-      return r.kind === "card" && macroMatchCandidate(r.card, macro.card) && chosen.includes(renders.find(function(x) {
-        return x[0] === r;
+    renders = renders.filter(function(_a2) {
+      var _b2 = __read15(_a2, 1), r2 = _b2[0];
+      return r2.kind === "card" && macroMatchCandidate(r2.card, macro.card) && chosen.includes(renders.find(function(x) {
+        return x[0] === r2;
       })[1]) === macro.chosen;
     });
-    renders.sort(function(a2, b) {
-      if (a2[0].kind === "card" && b[0].kind === "card") {
-        return macroMismatch(a2[0].card, macro.card) - macroMismatch(b[0].card, macro.card);
+    var bestMismatch = Infinity;
+    var bestOptionIndex = null;
+    try {
+      for (var renders_1 = __values14(renders), renders_1_1 = renders_1.next(); !renders_1_1.done; renders_1_1 = renders_1.next()) {
+        var _b = __read15(renders_1_1.value, 2), r = _b[0], i = _b[1];
+        if (r.kind !== "card")
+          continue;
+        var mismatch = macroMismatch(r.card, macro.card);
+        if (mismatch <= bestMismatch) {
+          bestMismatch = mismatch;
+          bestOptionIndex = i;
+        }
       }
-      return 0;
-    });
-    return renders.length > 0 ? renders[0][1] : null;
+    } catch (e_26_1) {
+      e_26 = { error: e_26_1 };
+    } finally {
+      try {
+        if (renders_1_1 && !renders_1_1.done && (_a = renders_1.return)) _a.call(renders_1);
+      } finally {
+        if (e_26) throw e_26.error;
+      }
+    }
+    return bestOptionIndex;
   }
   var GameUI = (
     /** @class */

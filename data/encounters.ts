@@ -825,10 +825,14 @@ registerEncounter(potionLab)
 export const varietyPack: Encounter = {
     name: 'Variety Pack',
     createInitialData(metaState: MetaState, generator: Generator) {
+        const ownedCardNames = new Set(metaState.data.collectedCards.map(c => c.name))
+        const ownedEventNames = new Set(metaState.data.collectedEvents.map(e => e.name))
+        const offerCard = generator.permute(cardRewards).find(c => !ownedCardNames.has(c.name)) ?? generator.sample(cardRewards)
+        const offerEvent = generator.permute(eventRewards).find(e => !ownedEventNames.has(e.name)) ?? generator.sample(eventRewards)
         return {
             selectedIndex: null as number | null,
-            offerCard: generator.sample(cardRewards),
-            offerEvent: generator.sample(eventRewards),
+            offerCard,
+            offerEvent,
             offerPotion: generator.sample(potionRewards),
             offerRelic: sampleEligibleRelicReward(generator, metaState)
         }
