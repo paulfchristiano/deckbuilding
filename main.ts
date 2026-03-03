@@ -18,12 +18,16 @@ import { MetaGameUI, setBufferDisplayText, hideAllMetaUI, showGameScreenUI } fro
 import { randomString } from './rng.js'
 import { startGame } from './gameUI.js'
 import { renderSpec, renderSpecNoRelated } from './cardRendering.js'
-import { Card, CardSpec, UndoPastBeginning } from './gameLogic.js'
+import { Card, CardSpec, priorityRule, UndoPastBeginning } from './gameLogic.js'
 
 import type { TestConfig, TestItem, Relic, RawTestConfig } from './metaLogic.js'
+import { inefficiency } from './data/curses.js'
+import { prioritizeBoon } from './data/boons.js'
 
 const test: RawTestConfig = {
     1: [
+        ['curse', inefficiency[1]],
+        ['boon', prioritizeBoon]
     ]
 }
 //burdens: [[1, ['Cursed Boots']], [1, ['decay_card']], [1, ['Sozu', 'Broken Crown']]],

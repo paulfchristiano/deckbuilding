@@ -4782,7 +4782,10 @@
     }
   }
   function registerMirroredCurse(factory2) {
-    registerCursePair(factory2(false), factory2(true));
+    var minor = factory2(false);
+    var major = factory2(true);
+    registerCursePair(minor, major);
+    return [minor, major];
   }
   function allMinorCurses() {
     return __spreadArray5([], __read6(minorCursePool), false);
@@ -5020,7 +5023,7 @@
       vpTargetMultiplier: vpMultiplier
     };
   });
-  registerMirroredCurse(function(isMajor) {
+  var inefficiency = registerMirroredCurse(function(isMajor) {
     var freePlays = isMajor ? 1 : 2;
     return {
       name: curseName("Inefficiency", isMajor),
@@ -5030,9 +5033,9 @@
         staticReplacers: [{
           kind: "create",
           text: ["Whenever you create a card other than ".concat(copper.name, ", put ").concat(freePlays, " efficiency tokens on it.")],
-          simpleText: ["After the first ".concat(freePlays, " plays, cards other than ").concat(copper.name, " cost $1 to play.")],
+          simpleText: ["After the first ".concat(freePlays === 1 ? "play" : "".concat(freePlays, " plays"), ", cards other than ").concat(copper.name, " cost $1 to play.")],
           handles: function(params) {
-            return params.spec.name !== copper.name && ["play", "discard", "hand", null].includes(params.zone);
+            return params.spec.name !== copper.name && ["play", "discard", "hand", "void", null].includes(params.zone);
           },
           replace: function(params) {
             var tokens = new Map(params.tokens || []);
@@ -19619,7 +19622,10 @@
     throw new TypeError(s ? "Object is not iterable." : "Symbol.iterator is not defined.");
   };
   var test = {
-    1: []
+    1: [
+      ["curse", inefficiency[1]],
+      ["boon", prioritizeBoon]
+    ]
   };
   var SAVE_STORAGE_KEY = "roguelike.ongoingSaves.v1";
   var RUN_TIMER_STORAGE_KEY = "roguelike.runTimerSeconds.v1";

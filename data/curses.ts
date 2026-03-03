@@ -40,8 +40,11 @@ function registerCursePair(minor: Curse, major: Curse): void {
     for (const event of major.events) registerSpec(event)
 }
 
-function registerMirroredCurse(factory: CurseFactory): void {
-    registerCursePair(factory(false), factory(true))
+function registerMirroredCurse(factory: CurseFactory): Curse[] {
+    const minor = factory(false)
+    const major = factory(true)
+    registerCursePair(minor, major)
+    return [minor, major]
 }
 
 export function allMinorCurses(): Curse[] {
@@ -249,7 +252,7 @@ registerMirroredCurse((isMajor): Curse => {
     }
 })
 
-registerMirroredCurse((isMajor): Curse => {
+export const inefficiency = registerMirroredCurse((isMajor): Curse => {
     const freePlays = isMajor ? 1 : 2
     return {
         name: curseName('Inefficiency', isMajor),
@@ -259,8 +262,8 @@ registerMirroredCurse((isMajor): Curse => {
             staticReplacers: [{
                 kind: 'create',
                 text: [`Whenever you create a card other than ${copper.name}, put ${freePlays} efficiency tokens on it.`],
-                simpleText: [`After the first ${freePlays} plays, cards other than ${copper.name} cost $1 to play.`],
-                handles: params => params.spec.name !== copper.name && ['play', 'discard', 'hand', null].includes(params.zone),
+                simpleText: [`After the first ${freePlays === 1 ? 'play' : `${freePlays} plays`}, cards other than ${copper.name} cost $1 to play.`],
+                handles: params => params.spec.name !== copper.name && ['play', 'discard', 'hand', 'void', null].includes(params.zone),
                 replace: params => {
                     const tokens = new Map(params.tokens || [])
                     incrementMap(tokens, 'efficiency', freePlays)
