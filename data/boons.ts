@@ -27,6 +27,11 @@ import { doAll, Boon, boons,
     noop
 } from '../gameLogic.js'
 
+function registerBoon(boon: Boon): Boon {
+    boons.push(boon)
+    return boon
+}
+
 const escalate:CardSpec = {name: 'Escalate',
     fixedCost: free,
     variableCosts: [costPer(coin(1))],
@@ -43,7 +48,7 @@ const escalate:CardSpec = {name: 'Escalate',
         transform: (e, s, c) => addToken(c!, 'cost')
     }]
 }
-boons.push({
+export const escalateBoon = registerBoon({
         name: 'Escalate',
         parAdjustment: -9,
         cards: [],
@@ -55,7 +60,7 @@ const travelingFair:CardSpec = {name:'Traveling Fair',
     effects: [buyEffect(), createInPlayEffect(fair)],
     relatedCards: [fair],
 }
-boons.push(    {
+export const travelingFairBoon = registerBoon({
         name: 'Traveling Fair',
         parAdjustment: 0,
         cards: [],
@@ -75,7 +80,7 @@ const vault:CardSpec = {name: 'Vault',
         replace: p => ({...p, amount:0})
     }]
 }
-boons.push({
+export const vaultBoon = registerBoon({
     name: 'Vault',
     parAdjustment: 3,
     cards: [],
@@ -107,7 +112,7 @@ const logistics:CardSpec = {
         }
     }]
 }
-boons.push({
+export const logisticsBoon = registerBoon({
     name: 'Logistics',
     parAdjustment: -1,
     cards: [logistics],
@@ -154,7 +159,7 @@ const populate:CardSpec = {name: 'Populate',
         }
     }]
 }
-boons.push(   {
+export const populateBoon = registerBoon({
     name: 'Populate',
     parAdjustment: -9,
     cards: [],
@@ -185,7 +190,7 @@ const recycle:CardSpec = {name: 'Recycle',
     fixedCost: energy(1),
     effects: [recycleEffect()],
 }
-boons.push(    {
+export const recycleBoon = registerBoon({
         name: 'Recycle',
         parAdjustment: -4,
         cards: [],
@@ -220,7 +225,7 @@ const flourish:CardSpec = {name: flourishName,
         transform: (e, state, card) => charge(card!, 16)
     }]
 }
-boons.push(    {
+export const flourishBoon = registerBoon({
         name: 'Flourish',
         parAdjustment: -6,
         cards: [],
@@ -246,7 +251,7 @@ const publicWorks:CardSpec = {name: 'Public Works',
         }
     }],
 }
-boons.push({
+export const publicWorksBoon = registerBoon({
         name: 'Public Works',
         parAdjustment: -2,
         cards: [publicWorks],
@@ -286,7 +291,7 @@ const reuse:CardSpec = {
         }
     }]
 }
-boons.push(    {
+export const reuseBoon = registerBoon({
         name: 'Reuse',
         parAdjustment: -4,
         cards: [],
@@ -304,7 +309,7 @@ const prioritize:CardSpec = {
     )],
     rules: [priorityRule],
 }
-boons.push(   {
+export const prioritizeBoon = registerBoon({
         name: 'Prioritize',
         parAdjustment: -2,
         cards: [],
@@ -347,7 +352,7 @@ const wait:CardSpec = {
         transform: () => noop
     }],
 }
-boons.push({
+export const compostingBoon = registerBoon({
         name: 'Composting',
         parAdjustment: 0,
         cards: [composting],
@@ -367,7 +372,7 @@ const insight:CardSpec = {
         createInPlayEffect(fair),
     ]
 }
-boons.push(    {
+export const insightBoon = registerBoon({
         name: 'Insight',
         parAdjustment: 0,
         cards: [],
@@ -385,7 +390,7 @@ const windfall:CardSpec = {
         transform: (e, state, card) => doAll([gainCoins(15, card), gainBuys(5, card)])
     }]
 }
-boons.push({
+export const windfallBoon = registerBoon({
         name: 'Windfall',
         parAdjustment: -7,
         cards: [],
@@ -410,7 +415,7 @@ const duplicateStart:CardSpec = {
     }],
     rules: [duplicateRule],
 }
-boons.push({
+export const duplicationBoon = registerBoon({
         name: 'Duplication',
         parAdjustment: 0,
         cards: [],

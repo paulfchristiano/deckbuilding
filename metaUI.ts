@@ -3,15 +3,19 @@
 
 import { Card, CardSpec, GameSpec, UndoPastBeginning, VictoryData } from './gameLogic.js'
 import {
-    MetaState, Relic, RewardState, Path, ChallengeSpec,
+    MetaState, Relic, RewardState, FilledPath, ChallengeSpec,
     MetaUI, MetaOption,
     BASE_PARS, describeParCalculation, describeBasePar, displayBasePar, formatParDisplay,
     makeSpec,
     ActiveGameProgress,
     renderChallenge,
-    getRewardOptions, getRewardName, getBurdenOptions, isBurdenResolved, updateRewardState, updateRewardAtIndex, updateBurdenState, updateBurdenAtIndex,
+    getRewardOptions, rewardNamePathSelect, getBurdenOptions, isBurdenResolved, updateRewardAtIndex, updateBurdenState, updateBurdenAtIndex,
     Undo, Redo, ReplayStage, ExitToLauncher,
-    getSelectedChallenge
+    getSelectedChallenge,
+    Renderable, Path,
+    SimpleRewardState,
+    EncounterRewardState,
+    rewardNameInStage,
 } from './metaLogic.js'
 import { buildSpecTooltipFull, buildSpecTooltipSimple, renderSpecNoRelated } from './cardRendering.js'
 import { initHotkeys, startGame, keyListeners } from './gameUI.js'
@@ -261,18 +265,6 @@ function updateProgressSidebar(state: MetaState, onReplayStage?: (stage: number)
     renderProgressSidebar('#progressLine', displays)
 }
 
-function encounterTooltipText(rewardState: RewardState, state: MetaState): string {
-    if (rewardState.kind !== 'encounter' || rewardState.encounter === null) return ''
-    const options = getRewardOptions(rewardState, state)
-    if (options.length === 0) return ''
-    const lines: string[] = []
-    for (const option of options) {
-        const text = option.description ? `${option.label}: ${option.description}` : option.label
-        lines.push(text)
-    }
-    return lines.join('\n')
-}
-
 // ----------------------------- Undo/Redo Button Binding
 
 function bindUndoRedoButtons(state: MetaState, onUndo: () => void, onRedo: () => void): void {
@@ -293,7 +285,7 @@ function renderCommonUI(state: MetaState, onReplayStage?: (stage: number) => voi
 
 // ----------------------------- Card Picker Dialog
 
-function showCardPicker<T extends CardSpec | Card>(
+function showCardPicker<T extends Renderable>(
     prompt: string,
     options: T[],
     canCancel: boolean,
@@ -317,17 +309,21 @@ function showCardPicker<T extends CardSpec | Card>(
     const container = getElement('cardPickerOptions')
     clearElement(container)
 
-    for (const card of options) {
-        let spec: CardSpec = 'spec' in card ? (card as Card).spec : card as CardSpec
-        if (card instanceof Relic) {
-            const charges = card.count('charge')
-            if (charges > 0) {
-                spec = { ...spec, name: `${spec.name} (${charges})` }
-            }
+    function makeOptionHTML(item: Renderable) {
+        switch (item[0]) {
+            case 'card':
+            case 'event':
+                return renderSpecNoRelated(item[1], { kind: 'spec' })
+            case 'relic':
+                return renderSpecNoRelated(item[1].spec, { kind: 'relic', charges: item[1].count('charge') })
+            case 'potion':
+                return renderSpecNoRelated(item[1].spec, { kind: 'spec' })
         }
-        const optionEl = createElementFromHTML(renderSpecNoRelated(spec))
+    }
+    for (const item of options) {
+        const optionEl = createElementFromHTML(makeOptionHTML(item))
         optionEl.style.cursor = 'pointer'
-        optionEl.onclick = () => close(() => onSelect(card))
+        optionEl.onclick = () => close(() => onSelect(item))
         container.appendChild(optionEl)
     }
 
@@ -377,7 +373,7 @@ function showOptionPicker<T>(
 
         if (option.spec) {
             // Display as card spec with label subtitle
-            const specEl = createElementFromHTML(renderSpecNoRelated(option.spec))
+            const specEl = createElementFromHTML(renderSpecNoRelated(option.spec, {kind: 'spec'}))
 
             if (option.disabled) {
                 specEl.style.opacity = '0.5'
@@ -455,13 +451,7 @@ function renderStageScreen(
 
         // Add reward name/label
         const labelDiv = createDiv('rewardLabel')
-        labelDiv.textContent = getRewardName(rewardState)
-        if (rewardState.kind === 'encounter') {
-            const tooltipText = encounterTooltipText(rewardState, state)
-            if (tooltipText !== '') {
-                labelDiv.appendChild(createTooltip(tooltipText))
-            }
-        }
+        labelDiv.textContent = rewardNameInStage(rewardState)
         rewardRow.appendChild(labelDiv)
 
         // Add options container
@@ -481,7 +471,7 @@ function renderStageScreen(
                 const tooltipMode = useRelatedTooltipMode && hasRelatedContent
                     ? 'onlyRelated'
                     : 'default'
-                optionEl = createElementFromHTML(renderSpecNoRelated(option.spec, tooltipMode))
+                optionEl = createElementFromHTML(renderSpecNoRelated(option.spec, {kind: 'spec'}, tooltipMode))
                 optionEl.classList.add('rewardOption')
             } else {
                 // Render as text button
@@ -642,12 +632,12 @@ function renderPathColumn(path: Path, state: MetaState, onSelect: (path: Path) =
 
     const rewardsContainer = createDiv('pathRewards')
 
-    for (const rewardState of path.rewardStates) {
+    for (const rewardKind of path.rewards) {
         const rewardDiv = createDiv('pathReward')
-        rewardDiv.textContent = getRewardName(rewardState)
+        rewardDiv.textContent = rewardNamePathSelect(rewardKind)
         rewardsContainer.appendChild(rewardDiv)
     }
-    for (let burdenIndex = 0; burdenIndex < path.burdenStates.length; burdenIndex++) {
+    for (let burdenIndex = 0; burdenIndex < path.burdens; burdenIndex++) {
         const burdenDiv = createDiv('pathReward')
         burdenDiv.textContent = 'Burden'
         rewardsContainer.appendChild(burdenDiv)
@@ -659,39 +649,30 @@ function renderPathColumn(path: Path, state: MetaState, onSelect: (path: Path) =
 
 // ----------------------------- Deck Dialog
 
+// I'm so sorry about this code, blame the AI...
+type DeckSection = { title: string, items: CardSpec[], isRelic: false } | { title: string, items: Relic[], isRelic: true }
+
 function showDeckDialog(state: MetaState): void {
-    const sections: Array<{ title: string, items: CardSpec[] }> = [
-        { title: 'Cards', items: state.data.collectedCards },
-        { title: 'Events', items: state.data.collectedEvents },
-        { title: 'Potions', items: state.data.potions.map(p => p.spec) },
-        { title: 'Relics', items: state.data.relics.map(relic => {
-            const charges = relic.count('charge')
-            if (charges > 0) {
-                return { ...relic.spec, name: `${relic.spec.name} (${charges})` }
-            }
-            return relic.spec
-        }) }
+    const sections: Array<DeckSection> = [
+        { title: 'Cards', items: state.data.collectedCards, isRelic: false },
+        { title: 'Events', items: state.data.collectedEvents, isRelic: false },
+        { title: 'Potions', items: state.data.potions.map(p => p.spec), isRelic: false },
+        { title: 'Relics', items: state.data.relics, isRelic: true }
     ]
     renderDeckSections(sections)
 }
 
 function showDeckDialogForSpec(spec: GameSpec): void {
-    const sections: Array<{ title: string, items: CardSpec[] }> = [
-        { title: 'Cards', items: spec.collectedCards ?? spec.cards },
-        { title: 'Events', items: spec.collectedEvents ?? spec.events },
-        { title: 'Potions', items: spec.potions.map(p => p.spec) },
-        { title: 'Relics', items: spec.relics.map(relic => {
-            const charges = relic.count('charge')
-            if (charges > 0) {
-                return { ...relic.spec, name: `${relic.spec.name} (${charges})` }
-            }
-            return relic.spec
-        }) }
+    const sections: Array<DeckSection> = [
+        { title: 'Cards', items: spec.collectedCards ?? spec.cards, isRelic: false },
+        { title: 'Events', items: spec.collectedEvents ?? spec.events, isRelic: false },
+        { title: 'Potions', items: spec.potions.map(p => p.spec), isRelic: false },
+        { title: 'Relics', items: spec.relics.map(r => r.spec), isRelic: false } // Note that isRelic is used to tell if these are specs or full relic objects, so we set it to false here since these are just specs
     ]
     renderDeckSections(sections)
 }
 
-function renderDeckSections(sections: Array<{ title: string, items: CardSpec[] }>): void {
+function renderDeckSections(sections: Array<DeckSection>): void {
     const container = getElement('deckContents')
     clearElement(container)
 
@@ -704,8 +685,14 @@ function renderDeckSections(sections: Array<{ title: string, items: CardSpec[] }
             header.innerHTML = `<strong>${section.title}:</strong>`
             sectionDiv.appendChild(header)
             const itemsRow = createDiv('deckSectionItems')
-            for (const spec of section.items) {
-                itemsRow.appendChild(createElementFromHTML(renderSpecNoRelated(spec)))
+            if (section.isRelic) {
+                for (const relic of section.items) {
+                    itemsRow.appendChild(createElementFromHTML(renderSpecNoRelated(relic.spec, { kind: 'relic', charges: relic.count('charge') })))
+                }
+            } else {
+                for (const spec of section.items) {
+                    itemsRow.appendChild(createElementFromHTML(renderSpecNoRelated(spec, { kind: 'spec' })))
+                }
             }
             sectionDiv.appendChild(itemsRow)
             container.appendChild(sectionDiv)
@@ -753,7 +740,7 @@ export class MetaGameUI implements MetaUI {
         initHotkeys()
     }
 
-    async chooseCard<T extends CardSpec | Card>(
+    async chooseCard<T extends Renderable>(
         state: MetaState,
         prompt: string,
         options: T[],
@@ -799,6 +786,7 @@ export class MetaGameUI implements MetaUI {
         })
     }
 
+    // TODO: this should not be done in MetaUI
     async waitForChallenge(state: MetaState): Promise<ChallengeSpec> {
         return new Promise((resolve, reject) => {
             const escapeListener = () => {
@@ -842,26 +830,25 @@ export class MetaGameUI implements MetaUI {
 
                         if (option.disabled) return
 
-                        // Call the option's onClick handler
-                        const { newData, transform } = await option.onClick()
+                        let change = false
 
-                        const noOpCancel = transform === undefined && (
-                            newData === rewardState
-                            || (rewardState.kind === 'encounter' && newData === rewardState.data)
-                        )
-                        if (noOpCancel) {
-                            render()
-                            return
+                        // Call the option's onClick handler
+                        switch (option.kind) {
+                            case 'complex':
+                                const newData = await option.onClick(state)
+                                change = (rewardState.data !== newData)
+                                const newRewardState = {...rewardState as EncounterRewardState, data: newData }
+                                updateRewardAtIndex(state, rewardIndex, newRewardState)
+                                break
+                            case 'simple':
+                                const index = await option.onClick(state) as number | null
+                                const newSimpleRewardState: SimpleRewardState = {...rewardState as SimpleRewardState, data: {selectedIndex: index, rewardState: true} }
+                                updateRewardAtIndex(state, rewardIndex, newSimpleRewardState)
+                                break
                         }
 
-                        // Update the reward state
-                        const newRewardState = updateRewardState(rewardState, newData)
-                        updateRewardAtIndex(state, rewardIndex, newRewardState)
-
-                        // Apply the transform (gainCard, addBuffer, etc.)
-                        if (transform) await transform(state)
-
                         // Set checkpoint for undo
+                        // TODO: don't set checkpoint if nothing changed.
                         state.setCheckpoint()
 
                         // Re-render
@@ -873,17 +860,11 @@ export class MetaGameUI implements MetaUI {
                         const option = options[optionIndex]
                         if (option.disabled) return
 
-                        const { newData, transform } = await option.onClick()
-                        const noOpCancel = transform === undefined && newData === burdenState
-                        if (noOpCancel) {
-                            render()
-                            return
-                        }
+                        const newData = await option.onClick(state)
 
                         const newBurdenState = updateBurdenState(burdenState, newData)
                         updateBurdenAtIndex(state, burdenIndex, newBurdenState)
-                        if (transform) await transform(state)
-                        state.setCheckpoint()
+                        state.setCheckpoint() // TODO: only set checkpoint if nothing changed.
                         render()
                     },
                     (stage) => finishReject(new ReplayStage(stage))

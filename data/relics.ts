@@ -241,6 +241,7 @@ addRelicReward(piggyBank)
 
 export const wingedBoots: RelicSpec = {
     name: 'Winged Boots',
+    maxStage: 6,
     metaReplacers: [{
         kind: 'pathRewards',
         text: ['Each stage has two additional paths.'],
@@ -451,12 +452,12 @@ export const emptyBottle: RelicSpec = {
             const event = await state.ui.chooseCard(
                 state,
                 'Choose an event to bottle:',
-                [...state.data.collectedEvents],
+                state.data.collectedEvents.map(spec => ['event', spec]),
                 true
             )
             if (!event) return
-            await gainPotion(makeBottledEventPotion(event), {
-                details: `Bottled ${displayName(event)}`
+            await gainPotion(makeBottledEventPotion(event[1]), {
+                details: `Bottled ${displayName(event[1])}`
             })(state)
         }
     }, {

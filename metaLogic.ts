@@ -27,14 +27,17 @@ export interface MetaOption<T> {
     label: string
     value: T
     spec?: CardSpec  // Optional card spec to display
+    isRelicSpec?: boolean
     disabled?: boolean // Greyed out if it's not enabled
     description?: string
 }
 
+export type Renderable = ['card', CardSpec] | ['relic', Relic] | ['potion', Card] | ['event', CardSpec]
+
 // UI interface for meta-game interactions (analogous to UI in gameLogic)
 export interface MetaUI {
     // Choose from a list of cards (for encounters with sub-dialogs)
-    chooseCard<T extends CardSpec | Card>(
+    chooseCard<T extends Renderable>(
         state: MetaState,
         prompt: string,
         options: T[],
@@ -85,71 +88,86 @@ export interface ActiveGameProgress {
 
 // --------------------- Reward Options and Encounters
 
+// This is a pretty redundant and messy implementation, blame the AI.
+
 // A button/option displayed for a reward or encounter
-export interface RewardOption {
+export type RewardOption = {
     label: string
     description?: string
     spec?: CardSpec           // Display as card if provided
+    isRelicSpec?: boolean     // True if spec is a relic (for rendering)
     tooltipSpec?: CardSpec    // Optional tooltip card content for text options
     compact?: boolean         // Render as compact text option
     bufferDelta?: number      // Buffer gained/lost when this option is picked
     disabled: boolean
     checked: boolean          // Shows checkmark if selected
-    onClick: () => Promise<{ newData: unknown, transform?: MetaTransform }>
-}
+} & ({
+    kind: 'complex',
+    onClick: (state:MetaState) => Promise<RewardStateData> // Returns new data, as per the old function, and mutates state.
+} | {
+    kind: 'simple',
+    onClick: (state: MetaState) => Promise<number | null> // Set this value to optionSelected, and mutates state
+})
 
 // Encounter interface - defines behavior for encounter rewards
 export interface Encounter {
     name: string
-    createInitialData(metaState: MetaState, generator: Generator): unknown
-    getOptions(data: unknown, metaState: MetaState): RewardOption[]
+    tooltip?: string
+    createInitialData(metaState: MetaState, generator: Generator): RewardStateData
+    getOptions(data: RewardStateData, metaState: MetaState): RewardOption[]
 }
 
 // State for simple rewards (card/event/potion/relic)
-export interface SimpleRewardState {
-    kind: 'card' | 'event' | 'potion' | 'relic'
-    options: CardSpec[] | RelicSpec[]
-    selectedIndex: number | null
+export type SimpleRewardState = ({
+    kind: 'card' | 'event' | 'potion'
+    options: Array<CardSpec>
+} | {
+    kind: 'relic'
+    options: Array<RelicSpec>
+}) & {
+    data: {selectedIndex: number | null, rewardState: true} // Index of selected option, or null if none
 }
 
-// State for encounters (encounter/data are null until path is selected)
+// State for encounters
 export interface EncounterRewardState {
     kind: 'encounter'
-    encounter: Encounter | null
-    data: unknown
+    encounter: Encounter
+    data: RewardStateData
 }
+
+export type RewardStateData = {
+  [key: string]: unknown;
+} & {
+  rewardState: true;
+};
 
 export type RewardState = SimpleRewardState | EncounterRewardState
 
-export interface BurdenOptionState {
-    id: string
-    title: string
-    description?: string
-    spec: CardSpec | null
-    data: unknown
-}
-
-export interface BurdenState {
-    options: BurdenOptionState[]
-    selectedIndex: number | null
+export interface BurdenState extends RewardStateData {
+    options: Burden[]
     selectedIndices: number[]
-    numPicked: number
+    numRequired: number
+    rewardState: true
 }
 
-export interface BurdenDefinition {
-    id: string
-    title: string
-    description?: string
-    rules?: Rule[]
-    weight: number
-    minStage: number
-    maxStage: number
+export interface Burden {
+    name: string
+    render: {
+        kind: 'text',
+        description: string
+        rules?: Rule[]
+    } | {
+        kind: 'relic',
+        spec: RelicSpec
+    }
+    weight?: number
+    minStage?: number
+    maxStage?: number
     applies: (state: MetaState) => boolean
-    createOption: (state: MetaState, generator: Generator) => BurdenOptionState
-    resolveTransform: (option: BurdenOptionState, state: MetaState, skipped: string[]) => Promise<MetaTransform | null> | MetaTransform | null
+    resolve: (state: MetaState, skipped: string[]) => Promise<boolean> // True if the burden is now discharged
 }
 
-export type ExtraOptionID = string
+export type ExtraOptionID = 'takeItAll' | 'singingBowl' | 'destroyCursedKey'
 
 export interface ExtraOptionRender {
     label: string
@@ -206,38 +224,51 @@ function enabledExtraOptions(state: MetaState): Set<ExtraOptionID> {
     return new Set(params.options.filter(option => allowed.has(option)))
 }
 
-// Get options for a simple reward
-function getSimpleRewardOptions(state: SimpleRewardState, metaState: MetaState): RewardOption[] {
-    const options = state.options as Array<CardSpec | RelicSpec>
+// Compute the buffer adjustments for each option in a simple reward (Sozu, Broken Crown, etc.)
+export function rewardPickAdjustments(kind: RewardKind, optionCount: number, metaState: MetaState): number[] {
     const rewardParams = applyMetaReplacers({
         kind: 'reward',
-        optionCount: options.length,
+        optionCount,
         pickBufferAdjustments: [],
-        rewardKind: state.kind
+        rewardKind: kind
     }, metaState)
+    return rewardParams.pickBufferAdjustments
+}
+
+// Transform for picking a single reward option: gains the item and applies buffer adjustments.
+export function pickRewardOption(
+    option: CardSpec | RelicSpec,
+    kind: RewardKind,
+    adjustment: number,
+    opts?: { silent?: boolean, skipped?: string[] }
+): MetaTransform {
+    const gainTransform =
+        kind === 'card' ? gainCard(option as CardSpec, opts) :
+        kind === 'event' ? gainEvent(option as CardSpec, opts) :
+        kind === 'potion' ? gainPotion(option as CardSpec, opts) :
+        gainRelic(option as RelicSpec, opts)
+    return adjustment === 0 ? gainTransform : compose(gainTransform, addBuffer(adjustment))
+}
+
+// Get options for a simple reward
+function getSimpleRewardOptions(rewardState: SimpleRewardState, metaState: MetaState): RewardOption[] {
+    const options = rewardState.options as Array<CardSpec | RelicSpec>
+    const adjustments = rewardPickAdjustments(rewardState.kind, options.length, metaState)
     return options.map((option: CardSpec | RelicSpec, i: number) => ({
         label: displayName(option as CardSpec),
+        kind: 'simple',
         spec: option as CardSpec,
-        disabled: state.selectedIndex !== null
-            || (state.kind === 'relic' && !relicGainRequirementSatisfied(option as RelicSpec, metaState)),
-        checked: state.selectedIndex === i,
-        bufferDelta: rewardParams.pickBufferAdjustments[i] ?? 0,
-        onClick: async () => {
+        isRelicSpec: rewardState.kind === 'relic',
+        disabled: rewardState.data.selectedIndex !== null
+            || (rewardState.kind === 'relic' && !relicGainRequirementSatisfied(option as RelicSpec, metaState)),
+        checked: rewardState.data.selectedIndex === i,
+        bufferDelta: adjustments[i] ?? 0,
+        onClick: async (state: MetaState) => {
             const skipped = options
-                .filter((_, optionIndex) => optionIndex !== i)
+                .filter((_, j) => j !== i)
                 .map(spec => displayName(spec as CardSpec))
-            const transform =
-                state.kind === 'card' ? gainCard(option as CardSpec, { skipped }) :
-                state.kind === 'event' ? gainEvent(option as CardSpec, { skipped }) :
-                state.kind === 'potion' ? gainPotion(option as CardSpec, { skipped }) :
-                gainRelic(option as RelicSpec, { skipped })
-            const pickBufferAdjustment = rewardParams.pickBufferAdjustments[i] ?? 0
-            return {
-                newData: { ...state, selectedIndex: i },
-                transform: pickBufferAdjustment === 0
-                    ? transform
-                    : compose(transform, addBuffer(pickBufferAdjustment))
-            }
+            await pickRewardOption(option, rewardState.kind, adjustments[i] ?? 0, { skipped })(state)
+            return i
         }
     }))
 }
@@ -250,13 +281,13 @@ export function getRewardOptions(rewardState: RewardState, metaState: MetaState)
 
     const alreadySelected = rewardState.kind === 'encounter'
         ? encounterRewardCompleted(rewardState)
-        : rewardState.selectedIndex !== null
+        : rewardState.data.selectedIndex !== null
 
     if (rewardState.kind !== 'encounter') {
         const enabledIDs = enabledExtraOptions(metaState)
-        const selectedExtraOption = rewardState.selectedIndex === null
+        const selectedExtraOption = rewardState.data.selectedIndex === null
             ? null
-            : extraOptionBySelectionMarker(rewardState.selectedIndex)
+            : extraOptionBySelectionMarker(rewardState.data.selectedIndex!)
         if (selectedExtraOption !== null) enabledIDs.add(selectedExtraOption.id)
 
         for (const definition of getRegisteredExtraOptions()) {
@@ -264,16 +295,15 @@ export function getRewardOptions(rewardState: RewardState, metaState: MetaState)
             const rendered = definition.render(rewardState, metaState)
             baseOptions.push({
                 label: rendered.label,
+                kind: 'simple',
                 description: rendered.description,
                 tooltipSpec: rendered.tooltipSpec,
                 compact: rendered.compact,
                 disabled: alreadySelected,
-                checked: rewardState.selectedIndex === definition.selectionMarker,
-                onClick: async () => {
-                    return {
-                        newData: { ...rewardState, selectedIndex: definition.selectionMarker },
-                        transform: rendered.transform
-                    }
+                checked: rewardState.data.selectedIndex === definition.selectionMarker,
+                onClick: async (state:MetaState) => {
+                    await rendered.transform(state)
+                    return definition.selectionMarker
                 }
             })
         }
@@ -282,78 +312,65 @@ export function getRewardOptions(rewardState: RewardState, metaState: MetaState)
     return baseOptions
 }
 
-// Update a reward state with new data
-export function updateRewardState(rewardState: RewardState, newData: unknown): RewardState {
-    if (rewardState.kind === 'encounter') {
-        return { ...rewardState, data: newData }
+function burdenDefinitionById(id: string): Burden {
+    const result = burdenRegistry.find(definition => definition.name === id)
+    if (result === undefined) {
+        throw new Error('No burden found with id ' + id)
     } else {
-        return newData as SimpleRewardState
+        return result
     }
 }
 
-function burdenDefinitionById(id: string): BurdenDefinition | null {
-    return burdenRegistry.find(definition => definition.id === id) ?? null
-}
-
 export function getRegisteredBurdenIds(): string[] {
-    return burdenRegistry.map(definition => definition.id)
+    return burdenRegistry.map(definition => definition.name)
 }
 
 export function isBurdenResolved(burdenState: BurdenState): boolean {
-    return burdenState.selectedIndices.length >= burdenState.numPicked
+    return burdenState.selectedIndices.length >= burdenState.numRequired
 }
 
 export function getBurdenOptions(burdenState: BurdenState, metaState: MetaState): RewardOption[] {
-    return burdenState.options.map((option, index) => {
-        const definition = burdenDefinitionById(option.id)
-        if (!definition) {
-            throw new Error(`Unknown burden option "${option.id}"`)
-        }
-        const applicable = definition.applies(metaState)
-        const ruleLines = (definition.rules || []).flatMap(rule => {
-            const lines: string[] = []
-            for (const trigger of (rule.triggers || [])) {
-                lines.push(...(trigger.simpleText ?? trigger.text))
-            }
-            for (const replacer of (rule.replacers || [])) {
-                lines.push(...(replacer.simpleText ?? replacer.text))
-            }
-            return lines
-        })
-        const baseDescription = option.description || ''
-        const descriptionLines = baseDescription.length > 0
-            ? [baseDescription, ...ruleLines]
-            : ruleLines
+    return burdenState.options.map((burden, index) => {
+        const applicable = burden.applies(metaState)
         const resolved = isBurdenResolved(burdenState)
         const alreadyPicked = burdenState.selectedIndices.includes(index)
+        const descriptionLines:string[] = []
+        if (burden.render.kind === 'text') {
+            descriptionLines.push(burden.render.description)
+            for (const rule of burden.render.rules ?? []) {
+                for (const trigger of rule.triggers ?? []) {
+                    if (trigger.simpleText) { descriptionLines.push(...trigger.simpleText) }
+                }
+                for (const replacer of rule.replacers ?? []) {
+                    if (replacer.simpleText) { descriptionLines.push(...replacer.simpleText) }
+                }
+            }
+        }
         return {
-            label: option.title,
+            label: (burden.render.kind === 'text') ? burden.name : '',
+            kind: 'complex',
             description: descriptionLines.join('\n'),
-            spec: option.spec ?? undefined,
+            spec: (burden.render.kind === 'relic') ? burden.render.spec : undefined,
+            isRelicSpec: burden.render.kind === 'relic',
             disabled: resolved || alreadyPicked || !applicable,
             checked: alreadyPicked,
-            onClick: async () => {
-                if (!definition.applies(metaState)) {
-                    return { newData: burdenState }
+            onClick: async function (state: MetaState) {
+                if (!burden.applies(state)) {
+                    return burdenState
                 }
                 const selectedIndices = [...burdenState.selectedIndices, index]
-                const isFinalPick = selectedIndices.length >= burdenState.numPicked
+                const isFinalPick = selectedIndices.length >= burdenState.numRequired
                 const skipped = isFinalPick
-                    ? burdenState.options.filter((_, i) => !selectedIndices.includes(i)).map(o => o.title)
+                    ? burdenState.options.filter((_, i) => !selectedIndices.includes(i)).map(o => o.name)
                     : []
-                const transform = await definition.resolveTransform(option, metaState, skipped)
-                if (!transform) {
+                const done = await burden.resolve(metaState, skipped)
+                if (done) {
                     return {
-                        newData: burdenState,
-                    }
-                }
-                return {
-                    newData: {
                         ...burdenState,
-                        selectedIndex: selectedIndices[0] ?? null,
                         selectedIndices
-                    },
-                    transform
+                    }
+                } else {
+                    return burdenState
                 }
             }
         }
@@ -373,7 +390,7 @@ interface EncounterRegistration {
 
 const encounterRegistry: EncounterRegistration[] = []
 const encounterUpgradeRegistry = new Map<string, CardUpgrade>()
-const burdenRegistry: BurdenDefinition[] = []
+const burdenRegistry: Burden[] = []
 
 export function registerEncounter(
     encounter: Encounter,
@@ -394,27 +411,10 @@ export function getEncounterUpgradeById(id: string): CardUpgrade | null {
     return encounterUpgradeRegistry.get(id) || null
 }
 
-export function registerBurden(definition: Omit<BurdenDefinition, 'weight' | 'minStage' | 'maxStage' | 'applies' | 'createOption'> & {
-    weight?: number
-    minStage?: number
-    maxStage?: number
-    applies?: (state: MetaState) => boolean
-    createOption?: (state: MetaState, generator: Generator) => BurdenOptionState
-}): void {
-    burdenRegistry.push({
-        ...definition,
-        weight: definition.weight ?? 1,
-        minStage: definition.minStage ?? 0,
-        maxStage: definition.maxStage ?? (TOTAL_STAGES - 1),
-        applies: definition.applies ?? (() => true),
-        createOption: definition.createOption ?? ((state, _generator) => ({
-            id: definition.id,
-            title: definition.title,
-            description: definition.description,
-            spec: null,
-            data: null,
-        })),
-    })
+
+export function registerBurden(definition: Burden): Burden {
+    burdenRegistry.push(definition)
+    return definition
 }
 
 export function getEncounterState(state: MetaState, generator: Generator, stage: number): EncounterRewardState {
@@ -430,9 +430,13 @@ export function getEncounterState(state: MetaState, generator: Generator, stage:
     }
 }
 
-export function getEncounterByName(name: string): Encounter | null {
+export function getEncounterByName(name: string): Encounter {
     const registration = encounterRegistry.find(entry => entry.encounter.name === name)
-    return registration ? registration.encounter : null
+    if (!registration) {
+        throw new Error(`No encounter found with name "${name}"`)
+    } else {
+        return registration.encounter
+    }
 }
 
 // ----------------------------- Constants
@@ -476,8 +480,8 @@ export function renderChallenge(spec: ChallengeSpec, state: MetaState, challenge
         ...spec.boons.flatMap(b => [...b.cards, ...b.events])
     ]
     if (relatedCards.length === 0) return label + hintsHtml
-    const simpleContent = relatedCards.map(buildSpecTooltipSimple).join('')
-    const fullContent = relatedCards.map(buildSpecTooltipFull).join('')
+    const simpleContent = relatedCards.map(r => buildSpecTooltipSimple(r)).join('')
+    const fullContent = relatedCards.map(r => buildSpecTooltipFull(r)).join('')
     return `${label}<span class='tooltip tooltip-simple'>${simpleContent}</span><span class='tooltip tooltip-full'>${fullContent}</span>${hintsHtml}`
 }
 
@@ -693,9 +697,9 @@ export type TypedMetaTrigger =
 
 
 // A path the player can choose (contains rewards + kingdom)
-export interface Path {
-    label: string
-    onSelectEffects?: PathOnSelectEffect[]
+export interface FilledPath {
+    // label: string
+    // onSelectEffects?: PathOnSelectEffect[]
     rewardStates: RewardState[]
     burdenStates: BurdenState[]
 }
@@ -769,19 +773,25 @@ function upsertStageTimelineEntry(timeline: MetaTimelineEntry[], entry: Extract<
     return updated
 }
 
-// Get display name for a reward state
-export function getRewardName(rewardState: RewardState): string {
+// Name in the sidebar when playing the stage.
+export function rewardNameInStage(rewardState: RewardState): string {
     if (rewardState.kind === 'encounter') {
-        // Show "???" for pending encounters, name after path is selected
-        return rewardState.encounter ? rewardState.encounter.name : '???'
+        return rewardState.encounter.name
+    } else {
+        return rewardNamePathSelect(rewardState.kind)
     }
+}
+
+// Name in the path when choosing which one to select.
+export function rewardNamePathSelect(rewardKind: RewardKind): string {
     const labels: Record<string, string> = {
         card: 'Add Card',
         event: 'Add Event',
         potion: 'Add Potion',
-        relic: 'Add Relic'
+        relic: 'Add Relic',
+        encounter: '???'
     }
-    return labels[rewardState.kind]
+    return labels[rewardKind]
 }
 
 // ----------------------------- MetaState
@@ -1103,27 +1113,22 @@ interface SerializedCard {
 interface SerializedSimpleRewardState {
     kind: 'card' | 'event' | 'potion' | 'relic'
     options: SerializedSpecRef[]
-    selectedIndex: number | null
+    data: unknown
 }
 
 interface SerializedBurdenOptionState {
-    id: string
-    title: string
-    description?: string
-    spec: unknown
-    data: unknown
+    name: string,
 }
 
 interface SerializedBurdenState {
     options: SerializedBurdenOptionState[]
-    selectedIndex: number | null
-    selectedIndices?: number[]
-    numPicked?: number
+    selectedIndices: number[]
+    numRequired: number
 }
 
 interface SerializedEncounterRewardState {
     kind: 'encounter'
-    encounterName: string | null
+    encounterName: string
     data: unknown
 }
 
@@ -1139,8 +1144,8 @@ interface SerializedChallengeSpec {
 interface SerializedPath {
     label?: string
     onSelectEffects?: PathOnSelectEffect[]
-    rewardStates: SerializedRewardState[]
-    burdenStates?: SerializedBurdenState[]
+    rewards: RewardKind[]
+    burdens: number
 }
 
 interface SerializedGameSpec {
@@ -1465,8 +1470,8 @@ function serializePath(path: Path): SerializedPath {
     return {
         label: path.label,
         onSelectEffects: path.onSelectEffects ? path.onSelectEffects.map(effect => ({ ...effect })) : undefined,
-        rewardStates: path.rewardStates.map(serializeRewardState),
-        burdenStates: path.burdenStates.map(serializeBurdenState),
+        rewards: path.rewards,
+        burdens: path.burdens,
     }
 }
 
@@ -1474,42 +1479,27 @@ function deserializePath(path: SerializedPath): Path {
     return {
         label: path.label ?? 'Path',
         onSelectEffects: (path.onSelectEffects || []).map(effect => ({ ...effect })),
-        rewardStates: path.rewardStates.map(deserializeRewardState),
-        burdenStates: (path.burdenStates || []).map(deserializeBurdenState),
+        rewards: path.rewards,
+        burdens: path.burdens,
     }
 }
-
 function serializeBurdenState(burdenState: BurdenState): SerializedBurdenState {
     return {
-        selectedIndex: burdenState.selectedIndices[0] ?? null,
         selectedIndices: [...burdenState.selectedIndices],
-        numPicked: burdenState.numPicked,
         options: burdenState.options.map(option => ({
-            id: option.id,
-            title: option.title,
-            description: option.description,
-            spec: encodeUnknown(option.spec),
-            data: encodeUnknown(option.data)
-        }))
+            name: option.name,
+        })),
+        numRequired: burdenState.numRequired
     }
 }
 
 function deserializeBurdenState(burdenState: SerializedBurdenState): BurdenState {
-    const selectedIndices = burdenState.selectedIndices !== undefined
-        ? [...burdenState.selectedIndices]
-        : (burdenState.selectedIndex === null ? [] : [burdenState.selectedIndex])
-    const numPicked = Math.max(1, burdenState.numPicked ?? 1)
+    const selectedIndices = burdenState.selectedIndices
     return {
-        selectedIndex: selectedIndices[0] ?? null,
         selectedIndices,
-        numPicked,
-        options: burdenState.options.map(option => ({
-            id: option.id,
-            title: option.title,
-            description: option.description,
-            spec: decodeUnknown(option.spec) as CardSpec | null,
-            data: decodeUnknown(option.data)
-        }))
+        numRequired: burdenState.numRequired,
+        options: burdenState.options.map(option => burdenDefinitionById(option.name)),
+        rewardState: true
     }
 }
 
@@ -1517,7 +1507,7 @@ function serializeRewardState(rewardState: RewardState): SerializedRewardState {
     if (rewardState.kind === 'encounter') {
         return {
             kind: 'encounter',
-            encounterName: rewardState.encounter ? rewardState.encounter.name : null,
+            encounterName: rewardState.encounter.name,
             data: encodeUnknown(rewardState.data)
         }
     }
@@ -1529,7 +1519,7 @@ function serializeRewardState(rewardState: RewardState): SerializedRewardState {
     return {
         kind: rewardState.kind,
         options: (rewardState.options as CardSpec[]).map(spec => serializeSpec(spec, category)),
-        selectedIndex: rewardState.selectedIndex
+        data: rewardState.data
     }
 }
 
@@ -1537,14 +1527,22 @@ function deserializeRewardState(rewardState: SerializedRewardState): RewardState
     if (rewardState.kind === 'encounter') {
         return {
             kind: 'encounter',
-            encounter: rewardState.encounterName ? getEncounterByName(rewardState.encounterName) : null,
-            data: decodeUnknown(rewardState.data)
+            encounter: getEncounterByName(rewardState.encounterName),
+            data: {...decodeUnknown(rewardState.data) as {[key: string]: unknown}, rewardState: true},
         }
     }
-    return {
-        kind: rewardState.kind,
-        options: rewardState.options.map(deserializeSpec) as CardSpec[],
-        selectedIndex: rewardState.selectedIndex
+    if (rewardState.kind === 'relic') {
+        return {
+            kind: 'relic',
+            options: rewardState.options.map(spec => deserializeSpec(spec)) as RelicSpec[],
+            data: {...decodeUnknown(rewardState.data) as {selectedIndex: number | null}, rewardState: true},
+        }
+    } else {
+        return {
+            kind: rewardState.kind,
+            options: rewardState.options.map(deserializeSpec) as CardSpec[],
+            data: {...decodeUnknown(rewardState.data) as {selectedIndex: number | null}, rewardState: true}
+        }
     }
 }
 
@@ -2253,6 +2251,8 @@ export function sampleEligibleRelicReward(
     return sampled
 }
 
+
+
 // ----------------------- Generate data
 
 interface ChallengeOverrides {
@@ -2279,7 +2279,7 @@ function nextDistinctByName<T extends { name: string }>(
 function sampleChallengesForStage(
     state: MetaState,
     count: number,
-    challengeTests: ChallengeTestSpec[] = []
+    test: TestConfig = {}
 ): ChallengeSpec[] {
     const stage = state.data.stage
     const generator = state.generator(`challenges${stage}`)
@@ -2300,7 +2300,7 @@ function sampleChallengesForStage(
     const result: ChallengeSpec[] = []
 
     for (let pathIndex = 0; pathIndex < count; pathIndex++) {
-        const overrides = challengeOverridesForStage(challengeTests, stage, pathIndex)
+        const overrides = challengeOverridesForStage(test, stage, pathIndex)
         const vpMode = overrides.vpMode ?? nextDistinctByName(vpModeOrder, usedVPModes, vpFallbackIndex)
         usedVPModes.add(vpMode.name)
 
@@ -2330,10 +2330,10 @@ function sampleChallengesForStage(
 function orderedBurdenCandidates(
     _state: MetaState,
     generator: Generator
-): BurdenDefinition[] {
-    const weighted: BurdenDefinition[] = []
+): Burden[] {
+    const weighted: Burden[] = []
     for (const definition of burdenRegistry) {
-        const weight = Math.max(1, definition.weight)
+        const weight = definition.weight ?? 1
         for (let index = 0; index < weight; index++) {
             weighted.push(definition)
         }
@@ -2352,14 +2352,14 @@ async function sampleBurdenState(state: MetaState, generator: Generator): Promis
     const numOptions = Math.max(1, burdenParams.numOptions)
     const numPicked = Math.max(1, Math.min(burdenParams.numPicked, numOptions))
     const ordered = orderedBurdenCandidates(state, generator)
-    const options: BurdenOptionState[] = []
+    const options: Burden[] = []
     const chosenIDs = new Set<string>()
     for (const definition of ordered) {
-        if (chosenIDs.has(definition.id)) continue
-        if (definition.minStage > stage || stage > definition.maxStage) continue
+        if (chosenIDs.has(definition.name)) continue
+        if ((definition.minStage ?? 1) > stage || stage > (definition.maxStage ?? TOTAL_STAGES - 1)) continue
         if (!definition.applies(state)) continue
-        options.push(definition.createOption(state, generator))
-        chosenIDs.add(definition.id)
+        options.push(definition)
+        chosenIDs.add(definition.name)
         if (options.length === numOptions) break
     }
     if (options.length < numOptions) {
@@ -2367,13 +2367,13 @@ async function sampleBurdenState(state: MetaState, generator: Generator): Promis
     }
     return {
         options,
-        selectedIndex: null,
         selectedIndices: [],
-        numPicked
+        numRequired: numPicked,
+        rewardState: true
     }
 }
 
-interface PathSkeleton {
+export interface Path {
     label: string,
     onSelectEffects: PathOnSelectEffect[],
     rewards: RewardKind[],
@@ -2400,7 +2400,7 @@ function getNumChallengeOptions(state: MetaState): number {
     return params.numChallengeOptions
 }
 
-async function makePaths(state: MetaState): Promise<PathSkeleton[]> {
+async function makePaths(state: MetaState): Promise<Path[]> {
     const stage = state.data.stage
     const generator = state.generator(`paths${stage}`).newGenerator()
     const baseRewardsPerPath = 2
@@ -2436,7 +2436,7 @@ async function makePaths(state: MetaState): Promise<PathSkeleton[]> {
     if (partialSetRewards > 0) rewardPool.push(...generator.samples(fullSet, partialSetRewards))
 
     const shuffledRewards = generator.permute(rewardPool)
-    const paths: PathSkeleton[] = []
+    const paths: Path[] = []
     let rewardCursor = 0
     for (let pathIndex = 0; pathIndex < pathCount; pathIndex++) {
         const numRewards = perPathRewards[pathIndex]
@@ -2450,33 +2450,6 @@ async function makePaths(state: MetaState): Promise<PathSkeleton[]> {
         rewardCursor += numRewards
     }
     return paths
-}
-
-function pathFromSkeleton(skeleton: PathSkeleton): Path {
-    const rewardStates: RewardState[] = []
-    for (const rewardKind of skeleton.rewards) {
-        if (rewardKind === 'encounter') {
-            rewardStates.push({ kind: 'encounter', encounter: null, data: null })
-        } else if (rewardKind === 'relic') {
-            rewardStates.push({ kind: 'relic', options: [] as RelicSpec[], selectedIndex: null })
-        } else if (rewardKind === 'card') {
-            rewardStates.push({ kind: 'card', options: [] as CardSpec[], selectedIndex: null })
-        } else if (rewardKind === 'event') {
-            rewardStates.push({ kind: 'event', options: [] as CardSpec[], selectedIndex: null })
-        } else if (rewardKind === 'potion') {
-            rewardStates.push({ kind: 'potion', options: [] as CardSpec[], selectedIndex: null })
-        }
-    }
-    const burdenStates: BurdenState[] = []
-    for (let index = 0; index < skeleton.burdens; index++) {
-        burdenStates.push({ options: [], selectedIndex: null, selectedIndices: [], numPicked: 1 })
-    }
-    return {
-        label: skeleton.label,
-        onSelectEffects: [...skeleton.onSelectEffects],
-        rewardStates,
-        burdenStates,
-    }
 }
 
 // ------------------ Meta loop -------------------
@@ -2554,7 +2527,7 @@ function usedPotionNames(startingPotions: Card[], remainingPotions: Card[]): str
         .map(potion => displayName(potion.spec))
 }
 
-function sampleRewardOptionsByBaseName(
+export function sampleRewards(
     generator: Generator,
     allOptions: CardSpec[],
     count: number,
@@ -2569,6 +2542,15 @@ function sampleRewardOptionsByBaseName(
         if (result.length >= count) break
     }
     return result
+}
+
+export function sampleReward(
+    generator: Generator,
+    allOptions: CardSpec[],
+    collected: CardSpec[]
+): CardSpec {
+    const options = sampleRewards(generator, allOptions, 1, collected)
+    return options[0]
 }
 
 // TODO: I think there is probably a bug where you are passing in the wrong state here.
@@ -2587,7 +2569,7 @@ export function replaySpecForStage(state: MetaState, replayData: StageReplayData
 }
 
 const replaySimulationUI: MetaUI = {
-    chooseCard: async <T extends CardSpec | Card>(
+    chooseCard: async <T extends ['card', CardSpec] | ['relic', Relic] | ['potion', Card] | ['event', CardSpec]>(
         _state: MetaState,
         _prompt: string,
         _options: T[]
@@ -2726,60 +2708,108 @@ async function replayCompletedStage(state: MetaState, stage: number): Promise<vo
     state.ui.updateBuffer(state)
 }
 
-async function materializePath(state: MetaState, path: Path): Promise<Pick<MetaStateData, 'rewardStates' | 'burdenStates'>> {
+const rewardDataInit:{selectedIndex: null, rewardState: true} = {selectedIndex: null, rewardState: true}
+
+async function materializePath(state: MetaState, pathSkeleton: Path, test: TestConfig = {}): Promise<FilledPath> {
+
     // Materialize rewards only when the path is actually selected.
-    const rewardStates = path.rewardStates.map(rs => {
-        if (rs.kind === 'encounter' && rs.encounter === null) {
-            const generator = state.generator(`encounter`).newGenerator()
-            return getEncounterState(state, generator, state.data.stage)
-        } else if (rs.kind === 'card' && rs.options.length === 0) {
-            const generator = state.generator(`rewardscard`).newGenerator()
-            return {
-                kind: 'card' as const,
-                options: sampleRewardOptionsByBaseName(
-                    generator,
-                    cardRewards,
-                    getRewardOptionCount(state, 'card'),
-                    state.data.collectedCards
-                ),
-                selectedIndex: null
-            }
-        } else if (rs.kind === 'event' && rs.options.length === 0) {
-            const generator = state.generator(`rewardsevent`).newGenerator()
-            return {
-                kind: 'event' as const,
-                options: sampleRewardOptionsByBaseName(
-                    generator,
-                    eventRewards,
-                    getRewardOptionCount(state, 'event'),
-                    state.data.collectedEvents
-                ),
-                selectedIndex: null
-            }
-        } else if (rs.kind === 'potion' && rs.options.length === 0) {
-            const generator = state.generator(`rewardspotion`).newGenerator()
-            return {
-                kind: 'potion' as const,
-                options: generator.samples(potionRewards, getRewardOptionCount(state, 'potion')),
-                selectedIndex: null
-            }
-        } else if (rs.kind === 'relic' && rs.options.length === 0) {
-            const generator = state.generator(`rewardsrelic`).newGenerator()
-            return {
-                kind: 'relic' as const,
-                options: sampleEligibleRelicRewards(generator, getRewardOptionCount(state, 'relic'), state),
-                selectedIndex: null
+    const rewardStates = pathSkeleton.rewards.map(kind => {
+        switch (kind) {
+            case 'encounter': {
+                const generator = state.generator(`encounter`).newGenerator()
+                return getEncounterState(state, generator, state.data.stage)
+            } case 'card': {
+                const generator = state.generator(`rewardscard`).newGenerator()
+                return {
+                    kind: 'card' as const,
+                    options: sampleRewards(
+                        generator,
+                        cardRewards,
+                        getRewardOptionCount(state, 'card'),
+                        state.data.collectedCards
+                    ),
+                    data: rewardDataInit
+                }
+            } case 'event': {
+                const generator = state.generator(`rewardsevent`).newGenerator()
+                return {
+                    kind: 'event' as const,
+                    options: sampleRewards(
+                        generator,
+                        eventRewards,
+                        getRewardOptionCount(state, 'event'),
+                        state.data.collectedEvents
+                    ),
+                    data: rewardDataInit
+                }
+            } case 'potion': {
+                const generator = state.generator(`rewardspotion`).newGenerator()
+                return {
+                    kind: 'potion' as const,
+                    options: generator.samples(potionRewards, getRewardOptionCount(state, 'potion')),
+                    data: rewardDataInit
+                }
+            } case 'relic': {
+                const generator = state.generator(`rewardsrelic`).newGenerator()
+                return {
+                    kind: 'relic' as const,
+                    options: sampleEligibleRelicRewards(generator, getRewardOptionCount(state, 'relic'), state),
+                    data: rewardDataInit
+                }
             }
         }
-        return rs
     })
     const burdenGenerator = state.generator(`rewardsburden`).newGenerator()
     const burdenStates: BurdenState[] = []
-    for (const burdenState of path.burdenStates) {
-        if (burdenState.options.length === 0) {
-            burdenStates.push(await sampleBurdenState(state, burdenGenerator))
-        } else {
-            burdenStates.push(burdenState)
+    for (let i = 0; i < pathSkeleton.burdens; i++) {
+        burdenStates.push(await sampleBurdenState(state, burdenGenerator))
+    }
+    for (const item of test[state.data.stage + 1] ?? []) {
+        switch (item[0]) {
+            case 'burdens':
+                burdenStates.push({
+                    options: item[1],
+                    selectedIndices: [],
+                    numRequired: 1,
+                     rewardState: true
+                 })
+                break
+            case 'potions':
+                rewardStates.push({
+                    kind: 'potion',
+                    options: item[1],
+                    data: rewardDataInit
+                })
+                break
+            case 'events':
+                rewardStates.push({
+                    kind: 'event',
+                    options: item[1],
+                    data: rewardDataInit
+                })
+                break
+            case 'cards':
+                rewardStates.push({
+                    kind: 'card',
+                    options: item[1],
+                    data: rewardDataInit
+                })
+                break
+            case 'encounter':
+                const generator = state.generator('test')
+                rewardStates.push({
+                    kind: 'encounter',
+                    encounter: item[1],
+                    data: item[1].createInitialData(state, generator)
+                })
+                break
+            case 'relics':
+                rewardStates.push({
+                    kind: 'relic',
+                    options: item[1],
+                    data: rewardDataInit
+                })
+                break
         }
     }
     return { rewardStates, burdenStates }
@@ -2801,292 +2831,107 @@ async function applyPathOnSelectEffects(state: MetaState, path: Path): Promise<v
     }
 }
 
-// We can define staged tests in order to inject a given reward for a specific stage while debugging.
-// Stage is 1-based for readability (stage 1 = first stage shown to the player).
-type RewardTestSpec =
-    | ['potion', CardSpec | CardSpec[]]
-    | ['relic', RelicSpec | RelicSpec[]]
-    | ['card', CardSpec | CardSpec[]]
-    | ['event', CardSpec | CardSpec[]]
+type NormalizedTestItem = ['victory', VPMode]
+    | ['boon', Boon] 
+    | ['curse', Curse]
+    | ['burdens', Burden[]]
+    | ['potions', CardSpec[]]
+    | ['relics', RelicSpec[]]
+    | ['cards', CardSpec[]]
+    | ['events', CardSpec[]]
     | ['encounter', Encounter]
-export type TestSpec = [number, RewardTestSpec]
-type VPModeTestRef = VPMode | string
-type BoonTestRef = Boon | string
-type CurseTestRef = Curse | string
-type BurdenTestRef = string
-type BurdenTestGroupRef = ['burden', BurdenTestRef | BurdenTestRef[]]
-type ChallengeStageTest = ['vpMode', VPModeTestRef] | ['boon', BoonTestRef] | ['curse', CurseTestRef]
-export type ChallengeTestSpec = [number, ChallengeStageTest]
-export type BurdenTestSpec = [number, BurdenTestRef | BurdenTestGroupRef]
-export interface DebugTestConfig {
-    rewards?: TestSpec[]
-    challenges?: ChallengeTestSpec[]
-    burdens?: BurdenTestSpec[]
-    allCards?: boolean
-    allEvents?: boolean
-    allPotions?: boolean
-    allRelics?: boolean
-    allBurdens?: boolean
+
+export type TestItem = NormalizedTestItem
+    | ['burden', Burden]
+    | ['allBurdens']
+    | ['potion', CardSpec]
+    | ['allPotions']
+    | ['relic', RelicSpec]
+    | ['allRelics']
+    | ['card', CardSpec]
+    | ['allCards']
+    | ['event', CardSpec]
+    | ['allEvents']
+
+export interface TestConfig {[stage: number]: NormalizedTestItem[]}
+export interface RawTestConfig {[stage: number]: TestItem[]}
+
+function assertNever(x: never): never {
+  throw new Error(x)
 }
 
-interface ParsedTests {
-    rewards: TestSpec[]
-    challenges: ChallengeTestSpec[]
-    burdens: BurdenTestSpec[]
-}
-
-function isRewardTestSpec(value: unknown): value is RewardTestSpec {
-    return Array.isArray(value)
-        && value.length === 2
-        && typeof value[0] === 'string'
-}
-
-function isTestSpec(value: unknown): value is TestSpec {
-    return Array.isArray(value)
-        && value.length === 2
-        && typeof value[0] === 'number'
-        && Number.isInteger(value[0])
-        && isRewardTestSpec(value[1])
-}
-
-function isChallengeStageTest(value: unknown): value is ChallengeStageTest {
-    return Array.isArray(value)
-        && value.length === 2
-        && (value[0] === 'vpMode' || value[0] === 'boon' || value[0] === 'curse')
-        && (typeof value[1] === 'string' || (value[1] !== null && typeof value[1] === 'object'))
-}
-
-function isChallengeTestSpec(value: unknown): value is ChallengeTestSpec {
-    return Array.isArray(value)
-        && value.length === 2
-        && typeof value[0] === 'number'
-        && Number.isInteger(value[0])
-        && isChallengeStageTest(value[1])
-}
-
-function isBurdenTestSpec(value: unknown): value is BurdenTestSpec {
-    const isGroup =
-        Array.isArray(value)
-        && value.length === 2
-        && Array.isArray(value[1])
-        && value[1].length === 2
-        && value[1][0] === 'burden'
-        && (
-            typeof value[1][1] === 'string'
-            || (Array.isArray(value[1][1]) && value[1][1].every(entry => typeof entry === 'string'))
-        )
-    return Array.isArray(value)
-        && value.length === 2
-        && typeof value[0] === 'number'
-        && Number.isInteger(value[0])
-        && (typeof value[1] === 'string' || isGroup)
-}
-
-function isDebugTestConfig(value: unknown): value is DebugTestConfig {
-    if (value === null || typeof value !== 'object' || Array.isArray(value)) return false
-    const record = value as Record<string, unknown>
-    const rewards = record.rewards
-    const challenges = record.challenges
-    const burdens = record.burdens
-    const allCards = record.allCards
-    const allEvents = record.allEvents
-    const allPotions = record.allPotions
-    const allRelics = record.allRelics
-    const allBurdens = record.allBurdens
-    const rewardsValid = rewards === undefined || (Array.isArray(rewards) && rewards.every(isTestSpec))
-    const challengesValid = challenges === undefined || (Array.isArray(challenges) && challenges.every(isChallengeTestSpec))
-    const burdensValid = burdens === undefined || (Array.isArray(burdens) && burdens.every(isBurdenTestSpec))
-    const allCardsValid = allCards === undefined || typeof allCards === 'boolean'
-    const allEventsValid = allEvents === undefined || typeof allEvents === 'boolean'
-    const allPotionsValid = allPotions === undefined || typeof allPotions === 'boolean'
-    const allRelicsValid = allRelics === undefined || typeof allRelics === 'boolean'
-    const allBurdensValid = allBurdens === undefined || typeof allBurdens === 'boolean'
-    return rewardsValid
-        && challengesValid
-        && burdensValid
-        && allCardsValid
-        && allEventsValid
-        && allPotionsValid
-        && allRelicsValid
-        && allBurdensValid
-}
-
-function normalizeTests(test: null | TestSpec | TestSpec[] | DebugTestConfig): ParsedTests {
-    if (test === null) return { rewards: [], challenges: [], burdens: [] }
-    if (isDebugTestConfig(test)) {
-        const rewards = test.rewards ? [...test.rewards] : []
-        const bulkStage = 1
-        if (test.allCards) {
-            rewards.push([bulkStage, ['card', [...cardRewards]]])
-        }
-        if (test.allEvents) {
-            rewards.push([bulkStage, ['event', [...eventRewards]]])
-        }
-        if (test.allPotions) {
-            rewards.push([bulkStage, ['potion', [...potionRewards]]])
-        }
-        if (test.allRelics) {
-            rewards.push([bulkStage, ['relic', [...(relicRewards as RelicSpec[])]]])
-        }
-
-        const burdens = test.burdens ? [...test.burdens] : []
-        if (test.allBurdens) {
-            burdens.push([bulkStage, ['burden', getRegisteredBurdenIds()]])
-        }
-        return {
-            rewards,
-            challenges: test.challenges ? [...test.challenges] : [],
-            burdens,
-        }
+export function normalizeTests(raw: RawTestConfig): TestConfig {
+    const result = {} as TestConfig
+    for (const stage in raw) {
+        const items = raw[stage]
+        result[stage] = items.map(item => {
+            switch (item[0]) {
+                case 'victory':
+                case 'boon':
+                case 'curse':
+                case 'cards':
+                case 'events':
+                case 'potions':
+                case 'relics':
+                case 'burdens':
+                case 'encounter':
+                     return item
+                case 'card':
+                    return ['cards', [item[1]]]
+                case 'event':
+                    return ['events', [item[1]]]
+                case 'potion':
+                    return ['potions', [item[1]]]
+                case 'relic':
+                    return ['relics', [item[1]]]
+                case 'burden':
+                    return ['burdens', [item[1]]]
+                 case 'allCards':
+                    return ['cards', [...cardRewards]]
+                case 'allEvents':
+                    return ['events', [...eventRewards]]
+                case 'allPotions':
+                    return ['potions', [...potionRewards]]
+                case 'allRelics':
+                    return ['relics', [...relicRewards]]
+                case 'allBurdens':
+                    return ['burdens', [...burdenRegistry]]
+                default:
+                    return assertNever(item[0])
+            }
+        })
     }
-    if (isTestSpec(test)) return { rewards: [test], challenges: [], burdens: [] }
-    if (Array.isArray(test) && test.every(isTestSpec)) {
-        return { rewards: [...test], challenges: [], burdens: [] }
-    }
-    throw new Error('Invalid debug test specification')
-}
-
-const warnedUnknownVPModeTests = new Set<string>()
-const warnedUnknownBoonTests = new Set<string>()
-const warnedUnknownCurseTests = new Set<string>()
-const warnedUnknownBurdenTests = new Set<string>()
-
-function resolveVPModeTestRef(ref: VPModeTestRef): VPMode | null {
-    if (typeof ref !== 'string') return ref
-    const mode = vpModes.find(vpMode => vpMode.name === ref) ?? null
-    if (mode === null && !warnedUnknownVPModeTests.has(ref)) {
-        warnedUnknownVPModeTests.add(ref)
-        console.warn(`Unknown vp mode in debug test config: ${ref}`)
-    }
-    return mode
-}
-
-function resolveBoonTestRef(ref: BoonTestRef): Boon | null {
-    if (typeof ref !== 'string') return ref
-    const boon = boons.find(candidate => candidate.name === ref) ?? null
-    if (boon === null && !warnedUnknownBoonTests.has(ref)) {
-        warnedUnknownBoonTests.add(ref)
-        console.warn(`Unknown boon in debug test config: ${ref}`)
-    }
-    return boon
-}
-
-function resolveCurseTestRef(ref: CurseTestRef): Curse | null {
-    if (typeof ref !== 'string') return ref
-    const curse = findCurseByName(ref)
-    if (curse !== null) return curse
-    if (!warnedUnknownCurseTests.has(ref)) {
-        warnedUnknownCurseTests.add(ref)
-        console.warn(`Unknown curse in debug test config: ${ref}`)
-    }
-    return null
-}
-
-function resolveBurdenTestRef(ref: BurdenTestRef): BurdenDefinition | null {
-    const burden = burdenDefinitionById(ref)
-    if (burden === null && !warnedUnknownBurdenTests.has(ref)) {
-        warnedUnknownBurdenTests.add(ref)
-        console.warn(`Unknown burden in debug test config: ${ref}`)
-    }
-    return burden
+    return result
 }
 
 function challengeOverridesForStage(
-    tests: ChallengeTestSpec[],
+    tests: TestConfig,
     stageIndex: number,
     pathIndex: number
 ): ChallengeOverrides {
     if (pathIndex !== 0) return {}
     const stageNumber = stageIndex + 1
     const overrides: ChallengeOverrides = {}
-    for (const [stage, stageTest] of tests) {
-        if (stage !== stageNumber) continue
-        if (stageTest[0] === 'vpMode') {
-            const mode = resolveVPModeTestRef(stageTest[1])
-            if (mode !== null) overrides.vpMode = mode
-        } else if (stageTest[0] === 'boon') {
-            const boon = resolveBoonTestRef(stageTest[1])
-            if (boon !== null) overrides.boon = boon
-        } else {
-            const curse = resolveCurseTestRef(stageTest[1])
-            if (curse !== null) overrides.curse = curse
+    const stageTests = tests[stageNumber] ?? []
+    for (const item of stageTests) {
+        switch (item[0]) {
+            case 'victory':
+                overrides.vpMode = item[1]
+                break
+            case 'boon':
+                overrides.boon = item[1]
+                break
+            case 'curse':
+                overrides.curse = item[1]
+                break
         }
     }
     return overrides
 }
 
-function rewardTestsForStage(tests: TestSpec[], stageIndex: number): RewardTestSpec[] {
-    const stageNumber = stageIndex + 1
-    return tests
-        .filter(([stage]) => stage === stageNumber)
-        .map(([, spec]) => spec)
-}
-
-function burdenTestsForStage(tests: BurdenTestSpec[], stageIndex: number): BurdenDefinition[][] {
-    const stageNumber = stageIndex + 1
-    const result: BurdenDefinition[][] = []
-    for (const [stage, refOrGroup] of tests) {
-        if (stage !== stageNumber) continue
-        if (typeof refOrGroup === 'string') {
-            const burden = resolveBurdenTestRef(refOrGroup)
-            if (burden !== null) result.push([burden])
-            continue
-        }
-        const refs = Array.isArray(refOrGroup[1]) ? refOrGroup[1] : [refOrGroup[1]]
-        const group: BurdenDefinition[] = []
-        const seen = new Set<string>()
-        for (const ref of refs) {
-            const burden = resolveBurdenTestRef(ref)
-            if (burden === null || seen.has(burden.id)) continue
-            seen.add(burden.id)
-            group.push(burden)
-        }
-        if (group.length > 0) result.push(group)
-    }
-    return result
-}
-
-function makeTestBurdenState(state: MetaState, burdenDefinitions: BurdenDefinition[]): BurdenState {
-    const generator = state.generator('test')
-    const options = burdenDefinitions.map(definition => definition.createOption(state, generator))
-    return {
-        options,
-        selectedIndex: null,
-        selectedIndices: [],
-        numPicked: 1
-    }
-}
-
-function makeTestReward(state: MetaState, spec: RewardTestSpec): RewardState {
-    switch (spec[0]) {
-        case 'potion':
-        case 'event':
-        case 'card': {
-            const options = Array.isArray(spec[1]) ? [...spec[1]] : [spec[1]]
-            return { kind: spec[0], options: options as CardSpec[], selectedIndex: null }
-        }
-        case 'relic':
-            return {
-                kind: 'relic',
-                options: (Array.isArray(spec[1]) ? [...spec[1]] : [spec[1]]) as RelicSpec[],
-                selectedIndex: null
-            }
-        case 'encounter':
-            const generator = state.generator('test')
-            const encounter = spec[1]
-            return {
-                kind: 'encounter',
-                encounter,
-                data: encounter.createInitialData(state, generator)
-            }
-    }
-}
-
-// TODO: implement undo (figure out how it is done right now).
-// Note that all checkpoints are at a point where you want to back into the main loop in this method.
 export async function playGame(
     ui: MetaUI,
-    test: null | TestSpec | TestSpec[] | DebugTestConfig = null,
+    test: TestConfig = {},
     seed: string | null = null,
     initialSnapshot: SerializedMetaGame | null = null,
     onStateChange: ((snapshot: SerializedMetaGame) => void) | null = null,
@@ -3111,27 +2956,18 @@ export async function playGame(
             doSave()
         }
     }
-    const tests = state.debugEnabled
-        ? normalizeTests(test)
-        : { rewards: [], challenges: [], burdens: [] } as ParsedTests
+    const activeTests = state.debugEnabled ? normalizeTests(test) : {}
 
     if (!initialSnapshot) {
-        const initialChallenges = sampleChallengesForStage(state, getNumChallengeOptions(state), tests.challenges)
-        const initialPath = pathFromSkeleton({
+        const initialChallenges = sampleChallengesForStage(state, getNumChallengeOptions(state), activeTests)
+        const initialPath = await materializePath(state,{
             label: 'Go left',
             onSelectEffects: [],
             rewards: ['card', 'card', 'event', 'potion'] as RewardKind[],
             burdens: 0,
-        })
-        for (const testSpec of rewardTestsForStage(tests.rewards, 0)) {
-            initialPath.rewardStates.push(makeTestReward(state, testSpec))
-        }
-        const initialBurdenTests = burdenTestsForStage(tests.burdens, 0)
-        for (const burdenDefinitions of initialBurdenTests) {
-            initialPath.burdenStates.push(makeTestBurdenState(state, burdenDefinitions))
-        }
+        }, activeTests)
         state.replaceAndClearHistory({
-            ...(await materializePath(state, initialPath)),
+            ...initialPath,
             challenges: initialChallenges,
             phase: 'stage_select',
             availablePaths: [],
@@ -3218,21 +3054,14 @@ export async function playGame(
                     await state.ui.showMessage(state, 'Congratulations! You have completed all stages!')
                     return
                 }
-                const paths = (await makePaths(state)).map(skel => pathFromSkeleton(skel))
-                for (const testSpec of rewardTestsForStage(tests.rewards, nextStage)) {
-                    paths[0].rewardStates.push(makeTestReward(state, testSpec))
-                }
-                const pathBurdenTests = burdenTestsForStage(tests.burdens, nextStage)
-                for (const burdenDefinitions of pathBurdenTests) {
-                    paths[0].burdenStates.push(makeTestBurdenState(state, burdenDefinitions))
-                }
+                const skeletons = await makePaths(state)
                 state.replaceAndClearHistory({
                     phase: 'path_select',
                     challenges: [],
                     selectedChallengeIndex: undefined,
                     rewardStates: [],
                     burdenStates: [],
-                    availablePaths: paths,
+                    availablePaths: skeletons,
                 })
             } else if (state.data.phase === 'path_select') {
                 const paths = state.data.availablePaths
@@ -3252,9 +3081,10 @@ export async function playGame(
                         throw e
                     }
                 }
+                const materialized = await materializePath(state, path, activeTests)
                 await applyPathOnSelectEffects(state, path)
-                const materialized = await materializePath(state, path)
-                const challenges = sampleChallengesForStage(state, getNumChallengeOptions(state), tests.challenges)
+                const nextStage = state.data.stage
+                const challenges = sampleChallengesForStage(state, getNumChallengeOptions(state), activeTests)
                 state.replaceAndClearHistory({
                     ...materialized,
                     challenges,

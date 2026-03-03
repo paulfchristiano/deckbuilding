@@ -21,7 +21,6 @@ import {
     refresh,
 } from '../gameLogic.js'
 import {
-    BurdenOptionState,
     MetaState,
     Relic,
     RelicSpec,
@@ -35,6 +34,7 @@ import {
     registerEncounterUpgrade,
     removeRelic,
     GameSetupParams,
+    Burden,
 } from '../metaLogic.js'
 import { beggarsBrew } from './potions.js'
 import { registerRelicSpec } from '../registry.js'
@@ -51,31 +51,31 @@ const frozenRelic: RelicSpec = {
     burden: true,
     metaTriggers: [{
         kind: 'relic',
-        text: ['When you gain this, put 3 charge tokens on it.'],
-        simpleText: [`This starts with 3 charge tokens on it.`],
+        text: ['When you gain this, put 2 charge tokens on it.'],
+        simpleText: [`This starts with 2 charge tokens on it.`],
         handles: (e, _s, self: Relic) => self.id === e.relic.id,
         transform: (_e, _s, self: Relic) => async function (state: MetaState) {
             if (!state.data.relics.some(r => r.id === self.id)) return
             const tokens = new Map(self.tokens)
-            tokens.set('charge', 3)
+            tokens.set('charge', 2)
             state.applyToRelic(r => r.update({ tokens }), self)
         }
     }, {
         kind: 'start',
-        text: ['At the start of each course, remove a charge token from this. Then if it has no charge tokens, destroy it and regain the frozen relic.'],
+        text: ['At the start of each course, remove a charge token from this. If it had no charge tokens, instead destroy it and regain the frozen relic.'],
         handles: (_e, _s, _self: Relic) => true,
         transform: (_e, _s, self: Relic) => async function (state: MetaState) {
             const current = state.data.relics.find(r => r.id === self.id)
             if (!current) return
-            const nextCharge = Math.max(current.count('charge') - 1, 0)
-            const tokens = new Map(current.tokens)
-            tokens.set('charge', nextCharge)
-            state.applyToRelic(r => r.update({ tokens }), current)
-            if (nextCharge > 0) return
-            const thawed = (current.notedCards?.[0] as RelicSpec | undefined) ?? null
-            await removeRelic(state, current.id)
-            if (thawed) {
-                await gainRelic(thawed, { details: `Thawed ${displayName(thawed)}` })(state)
+            if (current.count('charge') === 0) {
+                const thawed = (current.notedCards?.[0] as RelicSpec | undefined) ?? null
+                await removeRelic(state, current.id)
+                await gainRelic(thawed!, { details: `Thawed ${displayName(thawed!)}` })(state)
+            } else {
+                const nextCharge = Math.max(current.count('charge') - 1, 0)
+                const tokens = new Map(current.tokens)
+                tokens.set('charge', nextCharge)
+                state.applyToRelic(r => r.update({ tokens }), current)
             }
         }
     }]
@@ -243,7 +243,7 @@ const cursedBoots: RelicSpec = {
         replace: (params, _state, self: Relic) => {
             const paths = params.paths.slice(1)
             if (self.count('charge') > 0) {
-                paths.push({
+                paths.unshift({
                     label: 'Use Cursed Boots',
                     onSelectEffects: [{ kind: 'spendRelicCharge', relicID: self.id, amount: 1 }]
                 })
@@ -289,13 +289,12 @@ const cursedBanner: RelicSpec = {
 }
 registerRelicSpec(cursedBanner)
 
-const cursedSozu: RelicSpec = {
+const sozu: RelicSpec = {
     name: 'Sozu',
     burden: true,
     metaReplacers: [{
         kind: 'reward',
         text: ['Whenever you pick a potion reward, lose 1 buffer.'],
-        simpleText: ['Potion reward options: lose 1 buffer.'],
         replace: params => {
             if (params.rewardKind !== 'potion') return params
             const pickBufferAdjustments = [...params.pickBufferAdjustments]
@@ -306,7 +305,7 @@ const cursedSozu: RelicSpec = {
         }
     }]
 }
-registerRelicSpec(cursedSozu)
+registerRelicSpec(sozu)
 
 const expensiveFlask: RelicSpec = {
     name: 'Expensive Flask',
@@ -366,20 +365,20 @@ function setDecayReplacer(numTokens: number): ((params: CreateParams) => CreateP
     }
 }
 
-const decayCardUpgrade: CardUpgrade = {
-    id: 'burden_decay_card',
+const weakenCardUpgrade: CardUpgrade = {
+    id: 'burden_weaken_card',
     burden: true,
     name: name => `${name}−`,
     rules: [decayRule],
     staticReplacers: [{
         kind: 'create',
-        text: ['When you create this, if it has no decay tokens put 2 on it. If it has more than 2 decay tokens, remove all but 2.'],
+        text: ['When you create a card from this supply put 2 decay tokens on it if it has none. If it has more than 2 decay tokens, remove all but 2.'],
         simpleText: [`This is created with 2 decay tokens on it.`],
-        handles: (params, s, source) => params.zone === 'discard' && params.spec.name === source.name,
+        handles: (params, s, source) => params.spec.name === source.name,
         replace: setDecayReplacer(2)
     }]
 }
-registerEncounterUpgrade('burden_decay_card', decayCardUpgrade)
+registerEncounterUpgrade('burden_weaken_card', weakenCardUpgrade)
 
 const dullCardUpgrade: CardUpgrade = {
     id: 'burden_dull_card',
@@ -404,34 +403,38 @@ registerEncounterUpgrade('burden_tax_event', taxEventUpgrade)
 function relicBurdenOption(
     spec: RelicSpec,
     options: { minStage?: number, maxStage?: number } = {}
-): void {
+): Burden {
+    registerRelicSpec(spec)
     const id = spec.name
-    registerBurden({
-        id,
-        title: displayName(spec),
+    return registerBurden({
+        name: id,
+        render: {
+            kind: 'relic',
+            spec: spec
+        },
+        minStage: options.minStage,
+        maxStage: options.maxStage,
         ...options,
         applies: state => !state.data.relics.some(relic => relic.spec.name === spec.name),
-        createOption: () => ({
-            id,
-            title: displayName(spec),
-            spec,
-            data: null,
-        }),
-        resolveTransform: async (_option, _state, skipped) => gainRelic(spec, { skipped }),
+        resolve: async function (state, skipped) {
+            await addTimelineAction(`Burden: ${id}`, undefined, skipped)(state)
+            await gainRelic(spec, { silent: true })(state)
+            return true
+        }
     })
 }
 
-relicBurdenOption(fakeCoin)
-relicBurdenOption(miserlyTouch)
-relicBurdenOption(heavyStone)
-relicBurdenOption(cursedHourglass, { maxStage: TOTAL_STAGES - 2 })
-relicBurdenOption(cursedDoll, { maxStage: TOTAL_STAGES - 2 })
-relicBurdenOption(cursedKey, { maxStage: TOTAL_STAGES - 2 })
-relicBurdenOption(cursedBoots, { maxStage: TOTAL_STAGES - 3 })
-relicBurdenOption(cursedBanner)
-relicBurdenOption(cursedSozu, { maxStage: TOTAL_STAGES - 2 })
-relicBurdenOption(expensiveFlask)
-relicBurdenOption(brokenCrown, { maxStage: TOTAL_STAGES - 2 })
+export const fakeCoinBurden = relicBurdenOption(fakeCoin)
+export const miserlyTouchBurden = relicBurdenOption(miserlyTouch)
+export const heavyStoneBurden = relicBurdenOption(heavyStone)
+export const cursedHourglassBurden = relicBurdenOption(cursedHourglass, { maxStage: TOTAL_STAGES - 2 })
+export const cursedDollBurden = relicBurdenOption(cursedDoll, { maxStage: TOTAL_STAGES - 2 })
+export const cursedKeyBurden = relicBurdenOption(cursedKey, { maxStage: TOTAL_STAGES - 2 })
+export const cursedBootsBurden = relicBurdenOption(cursedBoots, { maxStage: TOTAL_STAGES - 3 })
+export const cursedBannerBurden = relicBurdenOption(cursedBanner)
+export const sozuBurden = relicBurdenOption(sozu, { maxStage: TOTAL_STAGES - 2 })
+export const expensiveFlaskBurden = relicBurdenOption(expensiveFlask)
+export const brokenCrownBurden = relicBurdenOption(brokenCrown, { maxStage: TOTAL_STAGES - 2 })
 
 const cursedCompass: RelicSpec = {
     name: 'Cursed Compass',
@@ -443,7 +446,7 @@ const cursedCompass: RelicSpec = {
     }]
 }
 registerRelicSpec(cursedCompass)
-relicBurdenOption(cursedCompass)
+export const cursedCompassBurden = relicBurdenOption(cursedCompass)
 
 const cursedLever: RelicSpec = {
     name: 'Cursed Lever',
@@ -455,175 +458,181 @@ const cursedLever: RelicSpec = {
     }]
 }
 registerRelicSpec(cursedLever)
-relicBurdenOption(cursedLever)
+export const cursedLeverBurden = relicBurdenOption(cursedLever)
 
 registerBurden({
-    id: 'lose_anything',
-    title: 'Forsake',
-    description: 'Give up a card, event, potion, or relic.',
-    weight: 3,
+    name: 'Forsake',
+    render: {
+        kind: 'text',
+        description: 'Give up a card, event, potion, or relic.',
+    },
     applies: state =>
         state.data.collectedCards.some(card => !isBurdened(card))
         || state.data.collectedEvents.some(event => !isBurdened(event))
         || state.data.potions.some(potion => !isBurdened(potion.spec))
         || state.data.relics.some(relic => !isBurdened(relic.spec)),
-    resolveTransform: async (_option: BurdenOptionState, state: MetaState, skipped: string[]) => {
+    resolve: async function (state: MetaState, skipped: string[]): Promise<boolean> {
         const cardOptions = state.data.collectedCards.filter(card => !isBurdened(card))
         const eventOptions = state.data.collectedEvents.filter(event => !isBurdened(event))
         const potionOptions = state.data.potions.filter(potion => !isBurdened(potion.spec))
         const relicOptions = state.data.relics.filter(candidate => !isBurdened(candidate.spec))
-        const options: Array<CardSpec | Card> = [
-            ...cardOptions,
-            ...eventOptions,
-            ...potionOptions,
-            ...relicOptions
+        const options: Array<['card', CardSpec] | ['event', CardSpec] | ['potion', Card] | ['relic', Relic]> = [
+            ...cardOptions.map(spec => ['card', spec] as ['card', CardSpec]),
+            ...eventOptions.map(spec => ['event', spec] as ['event', CardSpec]),
+            ...potionOptions.map(spec => ['potion', spec] as ['potion', Card]),
+            ...relicOptions.map(relic => ['relic', relic] as ['relic', Relic])
         ]
-        if (options.length === 0) return null
+        if (options.length === 0) return false
         const picked = await state.ui.chooseCard(
             state,
             'Choose what to give up:',
             options,
             true
         )
-        if (!picked) return null
-        if (picked instanceof Relic) {
-            const chosenName = displayName(picked.spec)
-            return async function (innerState: MetaState) {
-                await removeRelic(innerState, picked.id)
-                await addTimelineAction('Burden: Lost a relic', chosenName, skipped)(innerState)
-            }
-        }
-        if (picked instanceof Card) { // Only potion options are cards, the others are cardSpecs. Very janky.
-            const chosenName = displayName(picked.spec)
-            return async function (innerState: MetaState) {
-                innerState.removePotion(picked.id)
-                await addTimelineAction('Burden: Lost a potion', chosenName, skipped)(innerState)
-            }
-        }
-        if (eventOptions.includes(picked)) {
-            const chosenName = displayName(picked)
-            return async function (innerState: MetaState) {
-                innerState.removeEvent(picked.name)
-                await addTimelineAction('Burden: Lost an event', chosenName, skipped)(innerState)
-            }
-        }
-        const chosenName = displayName(picked)
-        return async function (innerState: MetaState) {
-            innerState.removeCard(picked.name)
-            await addTimelineAction('Burden: Lost a card', chosenName, skipped)(innerState)
+        if (!picked) return false
+        switch (picked[0]) {
+            case 'relic':
+                const relic:Relic = picked[1]
+                const relicName = displayName(relic.spec)
+                await removeRelic(state, relic.id)
+                await addTimelineAction('Burden: Forsake', `Lost ${relicName}`, skipped)(state)
+                return true
+            case 'potion':
+                const potion:Card = picked[1]
+                const potionName = displayName(potion.spec)
+                state.removePotion(potion.id)
+                await addTimelineAction('Burden: Forsake', `Lost ${potionName}`, skipped)(state)
+                return true
+            case 'event':
+                const eventSpec:CardSpec = picked[1]
+                const eventName = displayName(eventSpec)
+                state.removeEvent(eventSpec.name)
+                await addTimelineAction('Burden: Forsake', `Lost ${eventName}`, skipped)(state)
+                return true
+            case 'card':
+                const cardSpec:CardSpec = picked[1]
+                const cardName = displayName(cardSpec)
+                state.removeCard(cardSpec.name)
+                await addTimelineAction('Burden: Forsake', `Lost ${cardName}`, skipped)(state)
+                return true
         }
     },
 })
 
-registerBurden({
-    id: 'lose_buffer',
-    title: 'Falter',
-    description: 'Lose 1 buffer.',
-    weight: 2,
+export const falter = registerBurden({
+    name: 'Falter',
+    render: {
+        kind: 'text',
+        description: 'Lose 1 buffer.',
+    },
     applies: state => state.data.buffer > 0,
-    resolveTransform: async (_option, _state, skipped) => async function (state: MetaState) {
+    resolve: async function (state:MetaState, skipped) {
         await addBuffer(-1)(state)
         await addTimelineAction('Burden: Lost 1 buffer', undefined, skipped)(state)
+        return true
     },
 })
 
-registerBurden({
-    id: 'lose_potion_brew',
-    title: 'Trade a potion',
-    description: `Give up a potion and gain ${beggarsBrew.name}.`,
+export const tradePotion = registerBurden({
+    name: 'Trade a potion',
+    render: {
+        kind: 'text',
+        description: `Give up a potion and gain ${beggarsBrew.name}.`,
+    },
     applies: state => state.data.potions.some(potion => !isBurdened(potion.spec)),
-    resolveTransform: async (_option, state, skipped) => {
-        const validPotions = state.data.potions.filter(potion => !isBurdened(potion.spec))
+    resolve: async function (state:MetaState, skipped: string[]) {
+        const validPotions = state.data.potions.filter(potion => !isBurdened(potion.spec)).map(potion => ['potion', potion] as ['potion', Card])
         const picked = await state.ui.chooseCard(state, 'Choose a potion to give up:', validPotions, true)
-        if (!picked) return null
-        const chosenName = displayName(picked.spec)
-        return async function (innerState: MetaState) {
-            innerState.removePotion(picked.id)
-            await gainPotion(beggarsBrew, { details: `Gave up ${chosenName}`, skipped })(innerState)
-        }
+        if (!picked) return false
+        const chosenName = displayName(picked[1].spec)
+        state.removePotion(picked[1].id)
+        await gainPotion(beggarsBrew, { details: `Gave up ${chosenName}`, skipped })(state)
+        return true
     },
 })
 
-registerBurden({
-    id: 'freeze_relic',
-    title: 'Freeze a relic',
-    description: 'Freeze a relic for the next 2 stages.',
+export const freezeRelic = registerBurden({
+    name: 'Freeze a relic',
+    render: {
+        kind: 'text',
+        description: 'Freeze a relic for the next 2 stages.',
+    },
     maxStage: 5,
     applies: state => state.data.relics.some(relic => !isBurdened(relic.spec)),
-    resolveTransform: async (_option, state, skipped) => {
-        const options = state.data.relics.filter(relic => !isBurdened(relic.spec))
-        if (options.length === 0) return null
+    resolve: async function (state, skipped) {
+        const options = state.data.relics.filter(relic => !isBurdened(relic.spec)).map(relic => ['relic', relic] as ['relic', Relic])
+        if (options.length === 0) return false
         const picked = await state.ui.chooseCard(state, 'Choose a relic to freeze:', options, true)
-        if (!picked) return null
-        const chosenName = displayName(picked.spec)
-        const frozenSpec = makeFrozenRelicSpec(picked.spec)
-        return async function (innerState: MetaState) {
-            await removeRelic(innerState, picked.id)
-            await gainNotedRelic(frozenSpec, [picked.spec], { silent: true })(innerState)
-            await addTimelineAction(`Froze ${chosenName}`, undefined, skipped)(innerState)
-        }
+        if (!picked) return false
+        const chosenName = displayName(picked[1].spec)
+        const frozenSpec = makeFrozenRelicSpec(picked[1].spec)
+        await removeRelic(state, picked[1].id)
+        await gainNotedRelic(frozenSpec, [picked[1].spec], { silent: true })(state)
+        await addTimelineAction(`Froze ${chosenName}`, undefined, skipped)(state)
+        return true
     },
 })
 
 function registerDowngradeBurden(options: {
-    id: string,
-    title: string,
+    name: string,
     description: string,
     upgrade: CardUpgrade,
-    collection: 'collectedCards' | 'collectedEvents',
+    type: 'card' | 'event',
     prompt: string,
     timelineLabel: string,
     rules?: Rule[],
-}): void {
-    registerBurden({
-        id: options.id,
-        title: options.title,
-        description: options.description,
-        rules: options.rules,
-        applies: state => state.data[options.collection].some(spec => !isBurdened(spec)),
-        resolveTransform: async (_option, state, skipped) => {
-            const valid = state.data[options.collection].filter(spec => !isBurdened(spec))
+}): Burden {
+    const collection = options.type === 'card' ? 'collectedCards' : 'collectedEvents'
+    return registerBurden({
+        name: options.name,
+        render: {
+            kind: 'text',
+            description: options.description,
+            rules: options.rules,
+        },
+        applies: state => state.data[collection].some(spec => !isBurdened(spec)),
+        resolve: async function(state: MetaState, skipped: string[]) {
+            const valid:['card' | 'event', CardSpec][] = state.data[collection].filter(spec => !isBurdened(spec)).map(spec => [options.type, spec])
             const picked = await state.ui.chooseCard(state, options.prompt, valid, true)
-            if (!picked) return null
-            const chosenName = displayName(picked)
-            return async function (innerState: MetaState) {
-                const items = [...innerState.data[options.collection]]
-                const index = items.indexOf(picked)
-                if (index >= 0) {
-                    items[index] = upgradeCardSpec(items[index], options.upgrade)
-                    innerState.update({ [options.collection]: items })
-                    await addTimelineAction(options.timelineLabel, chosenName, skipped)(innerState)
-                }
+            if (!picked) return false
+            const chosenName = displayName(picked[1])
+            const items = [...state.data[collection]]
+            const index = items.indexOf(picked[1])
+            if (index >= 0) {
+                items[index] = upgradeCardSpec(items[index], options.upgrade)
+                state.update({ [collection]: items })
+                await addTimelineAction(options.timelineLabel, chosenName, skipped)(state)
             }
+            return true
         },
     })
 }
 
-registerDowngradeBurden({
-    id: 'tax_card', title: 'Tax a card',
+export const taxCard = registerDowngradeBurden({
+    name: 'Tax a card',
     description: 'Choose a card. It costs $2 more to buy.',
-    upgrade: taxCardUpgrade, collection: 'collectedCards',
+    upgrade: taxCardUpgrade, type: 'card',
     prompt: 'Choose a card to tax:', timelineLabel: 'Burden: Taxed a card',
 })
 
-registerDowngradeBurden({
-    id: 'decay_card', title: 'Weaken a card',
+export const weakenCard = registerDowngradeBurden({
+    name: 'Weaken a card',
     description: 'Choose a card. Whenever that card is created, put 2 decay tokens on it.',
-    upgrade: decayCardUpgrade, collection: 'collectedCards',
+    upgrade: weakenCardUpgrade, type: 'card',
     prompt: 'Choose a card to decay:', timelineLabel: 'Burden: Decayed a card',
     rules: [decayRule],
 })
 
-registerDowngradeBurden({
-    id: 'dull_card', title: 'Dull a card',
+export const dullCard = registerDowngradeBurden({
+    name: 'Dull a card',
     description: 'Choose a card. It costs $1 more to play.',
-    upgrade: dullCardUpgrade, collection: 'collectedCards',
+    upgrade: dullCardUpgrade, type: 'card',
     prompt: 'Choose a card to dull:', timelineLabel: 'Burden: Dulled a card',
 })
 
-registerDowngradeBurden({
-    id: 'tax_event', title: 'Tax an event',
+export const taxEvent = registerDowngradeBurden({
+    name: 'Tax an event',
     description: 'Choose an event. It costs $2 more to use.',
-    upgrade: taxEventUpgrade, collection: 'collectedEvents',
+    upgrade: taxEventUpgrade, type: 'event',
     prompt: 'Choose an event to tax:', timelineLabel: 'Burden: Taxed an event',
 })

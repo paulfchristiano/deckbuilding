@@ -9,6 +9,7 @@ import {
     boons,
     vpModes
 } from './gameLogic.js'
+import { RelicSpec } from './metaLogic.js'
 
 const extraSpecsByName = new Map<string, CardSpec>()
 
@@ -17,12 +18,10 @@ export function registerSpec(spec: CardSpec): void {
 }
 
 export function registerRelicSpec(spec: CardSpec): void {
-    spec.isRelic = true
     registerSpec(spec)
 }
 
-export function addRelicReward(spec: CardSpec): void {
-    spec.isRelic = true
+export function addRelicReward(spec: RelicSpec): void {
     relicRewards.push(spec)
 }
 

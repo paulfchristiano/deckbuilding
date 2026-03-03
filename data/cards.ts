@@ -260,7 +260,7 @@ const workshopName = 'Workshop'
 export const workshop:CardSpec = {name: workshopName,
     fixedCost: energy(0),
     buyCost: coin(3),
-    effects: [workshopEffect(4, workshopName)],
+    effects: [workshopEffect(4)],
 }
 cardRewards.push(workshop)
 
@@ -273,9 +273,9 @@ export const shippingLane:CardSpec = {name: 'Shipping Lane',
 cardRewards.push(shippingLane)
 
 const factoryName = 'Factory'
-const factory:CardSpec = {name: factoryName,
+export const factory:CardSpec = {name: factoryName,
     fixedCost: energy(1),
-    effects: [workshopEffect(6, factoryName)],
+    effects: [workshopEffect(6)],
     buyCost: coin(3)
 }
 cardRewards.push(factory)

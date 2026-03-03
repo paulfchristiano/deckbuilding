@@ -5,7 +5,6 @@ export function makeCardInABoxRelic(spec: CardSpec): RelicSpec {
     const cardName = displayName(spec)
     return {
         name: `Boxed ${cardName}`,
-        isRelic: true,
         simpleText: [
             `At the start of the game, create a copy of ${cardName} in your hand.`,
             'Trash this.'

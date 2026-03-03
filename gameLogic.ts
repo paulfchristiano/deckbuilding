@@ -1,9 +1,10 @@
 // ----------------------------- Cards
 // Note: Meta-game types (MetaReplacer, MetaTrigger) are in metaLogic.ts
 
+import { RelicSpec } from "./metaLogic";
+
 export interface CardSpec {
     name: string;
-    isRelic?: boolean; // Explicit rendering marker for relic-style text formatting
     upgrades?: CardUpgrade[];
     fixedCost?: Cost;
     restrictions?: Restriction[];
@@ -2645,13 +2646,13 @@ export function recycleEffect(): Effect {
     }
 }
 
-export function workshopEffect(n:number, except:string):Effect {
+export function workshopEffect(n:number, except?:string | undefined):Effect {
     return targetedEffect(
         (target, card) => target.buy(card),
-        `Buy a card in the supply costing up to $${n} not named ${except}.`,
+        `Buy a card in the supply costing up to $${n}${except ? ` not named ${except}` : ''}.`,
         state => state.supply.filter(
             x => leq(x.cost('buy', state), coin(n))
-                && x.name != except
+                && (except === undefined || x.name != except)
                 && canCreate(x.spec, state)
         )
     )
@@ -3040,6 +3041,6 @@ export interface VPMode {
 export const cardRewards: CardSpec[] = []
 export const eventRewards: CardSpec[] = []
 export const potionRewards: CardSpec[] = []
-export const relicRewards: CardSpec[] = []
+export const relicRewards: RelicSpec[] = []
 export const boons: Boon[] = []
 export const vpModes: VPMode[] = []

@@ -2,14 +2,11 @@ import { CardSpec, displayName } from '../gameLogic.js'
 import {
     addBuffer,
     addTimelineAction,
-    gainCard,
-    gainEvent,
-    gainPotion,
-    gainRelic,
     registerExtraOption,
     removeRelic,
-    RelicSpec,
     SimpleRewardState,
+    pickRewardOption,
+    rewardPickAdjustments,
 } from '../metaLogic.js'
 
 function rewardOptionNames(rewardState: SimpleRewardState): string[] {
@@ -38,19 +35,19 @@ registerExtraOption({
     selectionMarker: -2,
     render: (rewardState) => {
         const taken = rewardOptionNames(rewardState)
-        const details = taken.length > 0 ? `Taken: ${taken.join(', ')}` : undefined
+        const details = taken.length > 0 ? `${taken.join(', ')}` : undefined
         return {
             label: 'Take it all',
             compact: true,
             transform: async state => {
+                // Compute adjustments before any mutations so Sozu/Broken Crown fire correctly
+                const adjustments = rewardPickAdjustments(rewardState.kind, rewardState.options.length, state)
                 const piggyBank = state.data.relics.find(relic => relic.name === 'Piggy Bank')
                 if (piggyBank) await removeRelic(state, piggyBank.id)
                 await addTimelineAction('Take it all', details)(state)
-                for (const option of rewardState.options) {
-                    if (rewardState.kind === 'card') await gainCard(option as CardSpec, { silent: true })(state)
-                    else if (rewardState.kind === 'event') await gainEvent(option as CardSpec, { silent: true })(state)
-                    else if (rewardState.kind === 'potion') await gainPotion(option as CardSpec, { silent: true })(state)
-                    else await gainRelic(option as RelicSpec, { silent: true })(state)
+                for (let i = 0; i < rewardState.options.length; i++) {
+                    const option = rewardState.options[i] as CardSpec
+                    await pickRewardOption(option, rewardState.kind, adjustments[i] ?? 0, { silent: true })(state)
                 }
             }
         }

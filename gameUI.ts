@@ -142,6 +142,7 @@ interface MacroRequirements {
     buys: number
     hand: Map<string, number>
     discard: Map<string, number>
+    potions: Map<string, number>
 }
 
 interface Macro {
@@ -311,7 +312,8 @@ function cloneMacro(macro: Macro): Macro {
             actions: macro.requirements.actions,
             buys: macro.requirements.buys,
             hand: new Map(macro.requirements.hand),
-            discard: new Map(macro.requirements.discard)
+            discard: new Map(macro.requirements.discard),
+            potions: new Map(macro.requirements.potions)
         },
         startPrompt: macro.startPrompt,
         displayLabelMain: macro.displayLabelMain,
@@ -336,7 +338,8 @@ function emptyMacroRequirements(): MacroRequirements {
         actions: 0,
         buys: 0,
         hand: new Map(),
-        discard: new Map()
+        discard: new Map(),
+        potions: new Map()
     }
 }
 
@@ -375,6 +378,7 @@ function computeMacroRequirements(states: State[], steps: MacroStep[]): MacroReq
     const startState = states[0]
     const startHandCounts = cardCountsByName(startState.hand)
     const startDiscardCounts = cardCountsByName(startState.discard)
+    const startPotionCounts = cardCountsByName(startState.potions)
     let hasEmptiedDiscard = false
     let discardNonempty = false
 
@@ -393,6 +397,7 @@ function computeMacroRequirements(states: State[], steps: MacroStep[]): MacroReq
             noteDecrease(requirements.hand, startHandCounts, cardCountsByName(state.hand))
             noteDecrease(requirements.discard, startDiscardCounts, cardCountsByName(state.discard))
         }
+        noteDecrease(requirements.potions, startPotionCounts, cardCountsByName(state.potions))
     }
 
     return requirements
@@ -417,6 +422,7 @@ function canPlayMacro(macro: Macro, state: State, choiceState: ChoiceState | nul
     if (state.buys < macro.requirements.buys) return false
     if (!hasRequiredCounts(macro.requirements.hand, cardCountsByName(state.hand))) return false
     if (!hasRequiredCounts(macro.requirements.discard, cardCountsByName(state.discard))) return false
+    if (!hasRequiredCounts(macro.requirements.potions, cardCountsByName(state.potions))) return false
     if (choiceState === null) return false
     if (macro.startPrompt !== choiceState.choicePrompt) return false
     const firstStep = macro.steps[0]
@@ -716,7 +722,7 @@ function renderRuleText(rule: Rule): string {
 }
 
 export function cardText(spec: CardSpec): string {
-    return renderCardText(spec)
+    return renderCardText(spec, false)
 }
 
 // ----------------------------- Tooltip Rendering

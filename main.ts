@@ -11,21 +11,34 @@ import {
     MetaTimelineEntry,
     deserializeMetaGame,
     replaySpecForStage,
-    ExitToLauncher
+    ExitToLauncher,
+    normalizeTests
 } from './metaLogic.js'
 import { MetaGameUI, setBufferDisplayText, hideAllMetaUI, showGameScreenUI } from './metaUI.js'
 import { randomString } from './rng.js'
 import { startGame } from './gameUI.js'
-import { renderSpecNoRelated } from './cardRendering.js'
+import { renderSpec, renderSpecNoRelated } from './cardRendering.js'
 import { Card, CardSpec, UndoPastBeginning } from './gameLogic.js'
 
-import type { DebugTestConfig } from './metaLogic.js'
-import { village } from './data/cards.js'
+import type { TestConfig, TestItem, Relic, RawTestConfig } from './metaLogic.js'
+import { village, workshop, factory } from './data/cards.js'
+import { mirrorMaker, potionShop, shopkeeper, tactician } from './data/encounters.js'
+import { matryoshkaDoll, piggyBank, silverMirror } from './data/relics.js'
+import { freezeRelic, sozuBurden, weakenCard } from './data/burdens.js'
+import { prioritizeBoon } from './data/boons.js'
+import { haggle } from './data/events.js'
 
-const test: DebugTestConfig | null = {
-    rewards: [[1, ['card', [village]]]],
-    burdens: [[1, 'dull_card']],
+const test: RawTestConfig = {
+    1: [
+        ['cards', [workshop, factory]],
+        ['encounter', mirrorMaker],
+        ['events', [haggle]],
+        ['burdens', [freezeRelic, sozuBurden]],
+        ['encounter', shopkeeper],
+        ['encounter', potionShop]
+    ]
 }
+//burdens: [[1, ['Cursed Boots']], [1, ['decay_card']], [1, ['Sozu', 'Broken Crown']]],
 
 const SAVE_STORAGE_KEY = 'roguelike.ongoingSaves.v1'
 const RUN_TIMER_STORAGE_KEY = 'roguelike.runTimerSeconds.v1'
@@ -141,7 +154,7 @@ interface SaveSlot {
 }
 
 const summaryMetaUI: MetaUI = {
-    chooseCard: async <T extends CardSpec | Card>(): Promise<T | null> => null,
+    chooseCard: async <T extends ['card', CardSpec] | ['relic', Relic] | ['potion', Card] | ['event', CardSpec]>(): Promise<T | null> => null,
     playGame: async () => { throw new Error('Summary UI does not support playGame') },
     waitForChallenge: async () => { throw new Error('Summary UI does not support waitForChallenge') },
     pickPath: async () => { throw new Error('Summary UI does not support pickPath') },
@@ -685,7 +698,7 @@ async function runGame(
     const burdensEnabled = snapshot ? isBurdensGame(snapshot) : newGameBurdensSetting
     const scarcityEnabled = snapshot ? isScarcityGame(snapshot) : newGameScarcitySetting
     const cursesEnabled = snapshot ? isCursesGame(snapshot) : newGameCursesSetting
-    const activeTest: DebugTestConfig | null = debugEnabled ? test : null
+    const activeTest: TestConfig = debugEnabled ? normalizeTests(test) : {}
     activeRunSlotID = slotID
     runTimerSeconds = Math.max(0, Math.floor(initialElapsedSeconds))
     persistRunTimerSeconds()
@@ -952,7 +965,7 @@ function timelineRowContent(
     }
 }
 
-function renderDeckSection(title: string, specs: CardSpec[]): HTMLElement {
+function renderDeckSectionRaw(title: string, items: HTMLElement[]): HTMLElement {
     const section = document.createElement('div')
     section.className = 'viewDeckSection'
     const heading = document.createElement('div')
@@ -961,20 +974,34 @@ function renderDeckSection(title: string, specs: CardSpec[]): HTMLElement {
     section.appendChild(heading)
     const cards = document.createElement('div')
     cards.className = 'viewDeckCards'
-    if (specs.length === 0) {
+    if (items.length === 0) {
         const empty = document.createElement('div')
         empty.className = 'saveSeed'
         empty.textContent = 'None'
         cards.appendChild(empty)
     } else {
-        for (const spec of specs) {
-            const wrap = document.createElement('div')
-            wrap.innerHTML = renderSpecNoRelated(spec)
-            cards.appendChild(wrap.firstElementChild as HTMLElement)
+        for (const item of items) {
+            cards.appendChild(item)
         }
     }
     section.appendChild(cards)
     return section
+}
+
+function renderRelicSection(relics: Relic[]): HTMLElement {
+    return renderDeckSectionRaw('Relics', relics.map(relic => {
+        const wrap = document.createElement('div')
+        wrap.innerHTML = renderSpecNoRelated(relic.spec, {kind: 'relic', charges: relic.count('charge')})
+        return wrap.firstElementChild as HTMLElement
+    }))
+}
+
+function renderDeckSection(title: string, specs: CardSpec[]): HTMLElement {
+    return renderDeckSectionRaw(title, specs.map(spec => {
+        const wrap = document.createElement('div')
+        wrap.innerHTML = renderSpecNoRelated(spec, {kind: 'spec'})
+        return wrap.firstElementChild as HTMLElement
+    }))
 }
 
 function openViewDialog(slot: SaveSlot): void {
@@ -1030,18 +1057,11 @@ function openViewDialog(slot: SaveSlot): void {
     }
     if (state.data.buffer < 0) status.className = 'negativeBuffer'
     card.appendChild(status)
-    const relicDisplaySpecs = state.data.relics.map(relic => {
-        const charges = relic.count('charge')
-        if (charges > 0) {
-            return { ...relic.spec, name: `${relic.spec.name} (${charges})` }
-        }
-        return relic.spec
-    })
 
     card.appendChild(renderDeckSection('Cards', state.data.collectedCards))
     card.appendChild(renderDeckSection('Events', state.data.collectedEvents))
     card.appendChild(renderDeckSection('Potions', state.data.potions.map(p => p.spec)))
-    card.appendChild(renderDeckSection('Relics', relicDisplaySpecs))
+    card.appendChild(renderRelicSection(state.data.relics))
 
     const timelineTitle = document.createElement('div')
     timelineTitle.className = 'viewDeckTitle'
