@@ -21,21 +21,9 @@ import { renderSpec, renderSpecNoRelated } from './cardRendering.js'
 import { Card, CardSpec, UndoPastBeginning } from './gameLogic.js'
 
 import type { TestConfig, TestItem, Relic, RawTestConfig } from './metaLogic.js'
-import { village, workshop, factory } from './data/cards.js'
-import { mirrorMaker, potionShop, shopkeeper, tactician } from './data/encounters.js'
-import { matryoshkaDoll, piggyBank, silverMirror } from './data/relics.js'
-import { freezeRelic, sozuBurden, weakenCard } from './data/burdens.js'
-import { prioritizeBoon } from './data/boons.js'
-import { haggle } from './data/events.js'
 
 const test: RawTestConfig = {
     1: [
-        ['cards', [workshop, factory]],
-        ['encounter', mirrorMaker],
-        ['events', [haggle]],
-        ['burdens', [freezeRelic, sozuBurden]],
-        ['encounter', shopkeeper],
-        ['encounter', potionShop]
     ]
 }
 //burdens: [[1, ['Cursed Boots']], [1, ['decay_card']], [1, ['Sozu', 'Broken Crown']]],

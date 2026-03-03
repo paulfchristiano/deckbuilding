@@ -8917,6 +8917,148 @@
     }]
   };
   addRelicReward(flywheel);
+  var strikingBell = {
+    name: "Striking Bell",
+    metaTriggers: [{
+      kind: "end",
+      text: ["At end of each course, remove all charge counters from this."],
+      simpleText: [],
+      handles: function() {
+        return true;
+      },
+      transform: function(_e, _s, self) {
+        return function(state) {
+          return __awaiter5(this, void 0, void 0, function() {
+            return __generator5(this, function(_a) {
+              state.applyToRelic(function(r) {
+                return r.update({ tokens: /* @__PURE__ */ new Map() });
+              }, self);
+              return [
+                2
+                /*return*/
+              ];
+            });
+          });
+        };
+      }
+    }],
+    triggers: [{
+      kind: "play",
+      text: [
+        "When you play a card, put a charge token on this, then if it has 8 or more tokens, remove 8 and create a ".concat(villager.name, "} in play.")
+      ],
+      simpleText: ["Every 8 cards you play, create a ".concat(villager.name, " in play.")],
+      handles: function() {
+        return true;
+      },
+      transform: function(_e, _s, source) {
+        return function(state) {
+          return __awaiter5(this, void 0, void 0, function() {
+            var relic, current;
+            return __generator5(this, function(_a) {
+              switch (_a.label) {
+                case 0:
+                  relic = source;
+                  return [4, charge(relic, 1)(state)];
+                case 1:
+                  state = _a.sent();
+                  _a.label = 2;
+                case 2:
+                  if (false) return [3, 5];
+                  current = state.find(relic);
+                  if (!current || current.charge < 8)
+                    return [2, state];
+                  return [4, charge(relic, -8)(state)];
+                case 3:
+                  state = _a.sent();
+                  return [4, create(villager, "play")(state)];
+                case 4:
+                  state = _a.sent();
+                  return [3, 2];
+                case 5:
+                  return [
+                    2
+                    /*return*/
+                  ];
+              }
+            });
+          });
+        };
+      }
+    }]
+  };
+  addRelicReward(strikingBell);
+  var pushCart = {
+    name: "Pushcart",
+    metaTriggers: [{
+      kind: "end",
+      text: ["At end of each course, remove all charge counters from this."],
+      simpleText: [],
+      handles: function() {
+        return true;
+      },
+      transform: function(_e, _s, self) {
+        return function(state) {
+          return __awaiter5(this, void 0, void 0, function() {
+            return __generator5(this, function(_a) {
+              state.applyToRelic(function(r) {
+                return r.update({ tokens: /* @__PURE__ */ new Map() });
+              }, self);
+              return [
+                2
+                /*return*/
+              ];
+            });
+          });
+        };
+      }
+    }],
+    triggers: [{
+      kind: "buy",
+      text: [
+        "When you buy a card, put a charge token on this, then if it has 4 or more tokens, remove 4 and create a ".concat(fair.name, " in play.")
+      ],
+      simpleText: ["Every 4th card you buy is created in your hand instead of discard."],
+      handles: function() {
+        return true;
+      },
+      transform: function(_e, _s, source) {
+        return function(state) {
+          return __awaiter5(this, void 0, void 0, function() {
+            var relic, current;
+            return __generator5(this, function(_a) {
+              switch (_a.label) {
+                case 0:
+                  relic = source;
+                  return [4, charge(relic, 1)(state)];
+                case 1:
+                  state = _a.sent();
+                  _a.label = 2;
+                case 2:
+                  if (false) return [3, 5];
+                  current = state.find(relic);
+                  if (!current || current.charge < 4)
+                    return [2, state];
+                  return [4, charge(relic, -4)(state)];
+                case 3:
+                  state = _a.sent();
+                  return [4, create(fair, "play")(state)];
+                case 4:
+                  state = _a.sent();
+                  return [3, 2];
+                case 5:
+                  return [
+                    2
+                    /*return*/
+                  ];
+              }
+            });
+          });
+        };
+      }
+    }]
+  };
+  addRelicReward(pushCart);
   var creditVoucher = {
     name: "Credit Voucher",
     triggers: [{
@@ -19491,14 +19633,7 @@
     throw new TypeError(s ? "Object is not iterable." : "Symbol.iterator is not defined.");
   };
   var test = {
-    1: [
-      ["cards", [workshop, factory]],
-      ["encounter", mirrorMaker],
-      ["events", [haggle]],
-      ["burdens", [freezeRelic, sozuBurden]],
-      ["encounter", shopkeeper],
-      ["encounter", potionShop]
-    ]
+    1: []
   };
   var SAVE_STORAGE_KEY = "roguelike.ongoingSaves.v1";
   var RUN_TIMER_STORAGE_KEY = "roguelike.runTimerSeconds.v1";

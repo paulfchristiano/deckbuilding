@@ -16,7 +16,9 @@ import {
     eventRewards,
     State,
     charge,
-    isBurdened
+    isBurdened,
+    villager,
+    fair
 } from '../gameLogic.js'
 import { addRelicReward, registerRelicSpec } from '../registry.js'
 import { Generator } from '../rng.js'
@@ -296,6 +298,68 @@ export const flywheel: RelicSpec = {
     }]
 }
 addRelicReward(flywheel)
+
+export const strikingBell: RelicSpec = {
+    name: 'Striking Bell',
+    metaTriggers: [{
+        kind: 'end',
+        text: ['At end of each course, remove all charge counters from this.'],
+        simpleText: [],
+        handles: () => true,
+        transform: (_e, _s, self: Relic) => async function (state: MetaState) {
+            state.applyToRelic(r => r.update({ tokens: new Map() }), self)
+        }
+    }],
+    triggers: [{
+        kind: 'play',
+        text: [`When you play a card, put a charge token on this, then if it has 8 or more tokens, remove 8 and create a ${villager.name}} in play.`
+        ],
+        simpleText: [`Every 8 cards you play, create a ${villager.name} in play.`],
+        handles: () => true,
+        transform: (_e, _s, source: Card|null) => async function (state: State) {
+            const relic = source!
+            state = await charge(relic, 1)(state)
+            while (true) {
+                const current = state.find(relic)
+                if (!current || current.charge < 8) return state
+                state = await charge(relic, -8)(state)
+                state = await create(villager, 'play')(state)
+            }
+        }
+    }]
+}
+addRelicReward(strikingBell)
+
+export const pushCart: RelicSpec = {
+    name: 'Pushcart',
+    metaTriggers: [{
+        kind: 'end',
+        text: ['At end of each course, remove all charge counters from this.'],
+        simpleText: [],
+        handles: () => true,
+        transform: (_e, _s, self: Relic) => async function (state: MetaState) {
+            state.applyToRelic(r => r.update({ tokens: new Map() }), self)
+        }
+    }],
+    triggers: [{
+        kind: 'buy',
+        text: [`When you buy a card, put a charge token on this, then if it has 4 or more tokens, remove 4 and create a ${fair.name} in play.`
+        ],
+        simpleText: [`Every 4th card you buy is created in your hand instead of discard.`],
+        handles: () => true,
+        transform: (_e, _s, source: Card|null) => async function (state: State) {
+            const relic = source!
+            state = await charge(relic, 1)(state)
+            while (true) {
+                const current = state.find(relic)
+                if (!current || current.charge < 4) return state
+                state = await charge(relic, -4)(state)
+                state = await create(fair, 'play')(state)
+            }
+        }
+    }]
+}
+addRelicReward(pushCart)
 
 export const creditVoucher: RelicSpec = {
     name: 'Credit Voucher',
