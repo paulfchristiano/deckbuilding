@@ -2976,7 +2976,7 @@ export async function playGame(
         flushSave?.()
     }
     state.ui.updateBuffer(state)
-    while (true) {
+    try { while (true) {
         try {
             if (state.data.phase === 'in_game') {
                 const sameReplay = (a: number[], b: number[]): boolean =>
@@ -3142,6 +3142,7 @@ export async function playGame(
                 throw e
             }
         }
+    } } finally {
+        flushSave?.()
     }
-    flushSave?.()
 }

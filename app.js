@@ -8172,11 +8172,14 @@
             state.ui.updateBuffer(state);
             _d.label = 4;
           case 4:
-            if (false) return [3, 36];
+            _d.trys.push([4, , 38, 39]);
             _d.label = 5;
           case 5:
-            _d.trys.push([5, 34, , 35]);
-            if (!(state.data.phase === "in_game")) return [3, 11];
+            if (false) return [3, 37];
+            _d.label = 6;
+          case 6:
+            _d.trys.push([6, 35, , 36]);
+            if (!(state.data.phase === "in_game")) return [3, 12];
             sameReplay = function(a2, b) {
               return a2.length === b.length && a2.every(function(value, index) {
                 return value === b[index];
@@ -8196,7 +8199,7 @@
                 viewingMacros: progress.viewingMacros
               });
             }, "leave")];
-          case 6:
+          case 7:
             _a = _d.sent(), score = _a.score, potionsRemaining = _a.potionsRemaining, history_1 = _a.history, macros = _a.macros, viewingMacros = _a.viewingMacros;
             usedPotions = usedPotionNames(gameSpec.potions, potionsRemaining);
             persistedMacros = macros !== null && macros !== void 0 ? macros : state.global.macros;
@@ -8211,7 +8214,7 @@
               gameRedo: []
             });
             return [4, endCourse(score, gameSpec.par, state)];
-          case 7:
+          case 8:
             _d.sent();
             stageReplays = __spreadArray6([], __read7(state.data.stageReplays), false);
             stageReplays[stage] = {
@@ -8239,18 +8242,18 @@
             });
             nextStage = state.data.stage + 1;
             state.update({ stage: nextStage });
-            if (!(nextStage >= TOTAL_STAGES)) return [3, 9];
+            if (!(nextStage >= TOTAL_STAGES)) return [3, 10];
             state.update({ phase: "game_over" });
             return [4, state.ui.showMessage(state, "Congratulations! You have completed all stages!")];
-          case 8:
+          case 9:
             _d.sent();
             return [
               2
               /*return*/
             ];
-          case 9:
-            return [4, makePaths(state)];
           case 10:
+            return [4, makePaths(state)];
+          case 11:
             skeletons = _d.sent();
             state.replaceAndClearHistory({
               phase: "path_select",
@@ -8260,75 +8263,75 @@
               burdenStates: [],
               availablePaths: skeletons
             });
-            return [3, 33];
-          case 11:
-            if (!(state.data.phase === "path_select")) return [3, 22];
+            return [3, 34];
+          case 12:
+            if (!(state.data.phase === "path_select")) return [3, 23];
             paths = state.data.availablePaths;
             if (paths.length === 0) {
               throw new Error("Invariant violation: path_select phase missing available paths");
             }
             path = void 0;
-            _d.label = 12;
-          case 12:
-            if (false) return [3, 19];
             _d.label = 13;
           case 13:
-            _d.trys.push([13, 15, , 18]);
-            return [4, state.ui.pickPath(state, paths)];
+            if (false) return [3, 20];
+            _d.label = 14;
           case 14:
-            path = _d.sent();
-            return [3, 19];
+            _d.trys.push([14, 16, , 19]);
+            return [4, state.ui.pickPath(state, paths)];
           case 15:
-            e_28 = _d.sent();
-            if (!(e_28 instanceof ReplayStage)) return [3, 17];
-            return [4, replayCompletedStage(state, e_28.stage)];
+            path = _d.sent();
+            return [3, 20];
           case 16:
-            _d.sent();
-            return [3, 12];
+            e_28 = _d.sent();
+            if (!(e_28 instanceof ReplayStage)) return [3, 18];
+            return [4, replayCompletedStage(state, e_28.stage)];
           case 17:
-            throw e_28;
+            _d.sent();
+            return [3, 13];
           case 18:
-            return [3, 12];
+            throw e_28;
           case 19:
-            return [4, materializePath(state, path, activeTests)];
+            return [3, 13];
           case 20:
+            return [4, materializePath(state, path, activeTests)];
+          case 21:
             materialized = _d.sent();
             return [4, applyPathOnSelectEffects(state, path)];
-          case 21:
+          case 22:
             _d.sent();
             nextStage = state.data.stage;
             challenges = sampleChallengesForStage(state, getNumChallengeOptions(state), activeTests);
             state.replaceAndClearHistory(__assign3(__assign3({}, materialized), { challenges, phase: "stage_select", availablePaths: [] }));
-            return [3, 33];
-          case 22:
-            if (!(state.data.phase === "stage_select")) return [3, 32];
-            selectedChallenge = void 0;
-            _d.label = 23;
+            return [3, 34];
           case 23:
-            if (false) return [3, 30];
+            if (!(state.data.phase === "stage_select")) return [3, 33];
+            selectedChallenge = void 0;
             _d.label = 24;
           case 24:
-            _d.trys.push([24, 26, , 29]);
-            return [4, state.ui.waitForChallenge(state)];
+            if (false) return [3, 31];
+            _d.label = 25;
           case 25:
-            selectedChallenge = _d.sent();
-            return [3, 30];
+            _d.trys.push([25, 27, , 30]);
+            return [4, state.ui.waitForChallenge(state)];
           case 26:
-            e_29 = _d.sent();
-            if (!(e_29 instanceof ReplayStage)) return [3, 28];
-            return [4, replayCompletedStage(state, e_29.stage)];
+            selectedChallenge = _d.sent();
+            return [3, 31];
           case 27:
-            _d.sent();
-            return [3, 23];
+            e_29 = _d.sent();
+            if (!(e_29 instanceof ReplayStage)) return [3, 29];
+            return [4, replayCompletedStage(state, e_29.stage)];
           case 28:
-            throw e_29;
+            _d.sent();
+            return [3, 24];
           case 29:
-            return [3, 23];
+            throw e_29;
           case 30:
+            return [3, 24];
+          case 31:
             selectedChallengeIndex = state.data.challenges.indexOf(selectedChallenge);
             state.update({ selectedChallengeIndex, availablePaths: [] });
             return [4, trigger2({ kind: "start", stage: state.data.stage }, state)];
-          case 31:
+          case 32:
             _d.sent();
             if (state.data.burdenStates.some(function(burden) {
               return !isBurdenResolved(burden);
@@ -8342,15 +8345,15 @@
               gameHistory: [],
               gameRedo: []
             });
-            return [3, 33];
-          case 32:
+            return [3, 34];
+          case 33:
             return [
               2
               /*return*/
             ];
-          case 33:
-            return [3, 35];
           case 34:
+            return [3, 36];
+          case 35:
             e_30 = _d.sent();
             if (e_30 instanceof Undo2) {
               persistedMacros = (_b = e_30.macros) !== null && _b !== void 0 ? _b : state.global.macros;
@@ -8368,11 +8371,18 @@
             } else {
               throw e_30;
             }
-            return [3, 35];
-          case 35:
-            return [3, 4];
+            return [3, 36];
           case 36:
+            return [3, 5];
+          case 37:
+            return [3, 39];
+          case 38:
             flushSave === null || flushSave === void 0 ? void 0 : flushSave();
+            return [
+              7
+              /*endfinally*/
+            ];
+          case 39:
             return [
               2
               /*return*/
