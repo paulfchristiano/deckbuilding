@@ -61,6 +61,7 @@ export const bagOfPreparation: RelicSpec = {
 }
 addRelicReward(bagOfPreparation)
 
+/*
 export const courier: RelicSpec = {
     name: 'Courier',
     replacers: [{
@@ -71,6 +72,7 @@ export const courier: RelicSpec = {
     }],
 }
 addRelicReward(courier)
+*/
 
 // Inkwell: Par is 1@ higher on each course
 export const inkwell: RelicSpec = {

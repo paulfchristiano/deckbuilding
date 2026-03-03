@@ -8576,20 +8576,6 @@
     }]
   };
   addRelicReward(bagOfPreparation);
-  var courier = {
-    name: "Courier",
-    replacers: [{
-      kind: "resource",
-      text: ["".concat(refresh.name, " gives you 2 more buys.")],
-      handles: function(e, s, c) {
-        return sourceHasName(e.source, refresh.name) && e.resource === "buys";
-      },
-      replace: function(e, s, c) {
-        return __assign4(__assign4({}, e), { amount: e.amount + 2 });
-      }
-    }]
-  };
-  addRelicReward(courier);
   var inkwell = {
     name: "Inkwell",
     metaReplacers: [{
