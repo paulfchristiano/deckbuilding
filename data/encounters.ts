@@ -681,7 +681,33 @@ registerEncounter(tactician)
 
 type PotionShopData = {
     offers: CardSpec[]
+    offersTaken: boolean[]
+    potionSold: boolean
 } & RewardStateData
+
+function takeOffer(n:number, data:PotionShopData): PotionShopData {
+    const newOffersTaken = [...data.offersTaken]
+    newOffersTaken[n] = true
+    return { ...data, offersTaken: newOffersTaken, selectedIndex: n }
+}
+
+function takeOfferOption(n:number, data:PotionShopData): RewardOption {
+    const cost = n+1
+    return {
+        label: `Buy ${displayName(data.offers[n])}`,
+        kind: 'complex',
+        description: `Buy this potion for ${cost}@ buffer.`,
+        tooltipSpec: data.offers[n],
+        disabled: data.offersTaken[n],
+        checked: data.offersTaken[n],
+        onClick: async function (state: MetaState) {
+            await addBuffer(-cost)(state)
+            await addTimelineAction(`Potion shop: bought ${displayName(data.offers[n])}`, `Spent ${cost}@`)(state)
+            await gainPotion(data.offers[n], { silent: true })(state)
+            return takeOffer(n, data)
+        }
+    }
+}
 
 export const potionShop: Encounter = {
     name: 'Potion Shop',
@@ -689,6 +715,8 @@ export const potionShop: Encounter = {
         return {
             ...rewardStateInit,
             offers: generator.samples(potionRewards, 3),
+            offersTaken: [false, false, false],
+            potionSold: false,
         }
     },
     getOptions(data: RewardStateData, metaState: MetaState): RewardOption[] {
@@ -701,40 +729,12 @@ export const potionShop: Encounter = {
             relatedCards: [...(second.relatedCards || []), third]
         }
         return [
-            {
-                label: `Take ${displayName(first)}`,
-                kind: 'complex',
-                description: 'Take this potion for free.',
-                tooltipSpec: first,
-                disabled: d.selectedIndex !== null,
-                checked: d.selectedIndex === 0,
-                onClick: async function (state: MetaState) {
-                    await gainPotion(first, { silent: true })(state)
-                    await addTimelineAction('Potion shop: free sample', displayName(first))(state)
-                    return {...data, selectedIndex: 0}
-                }
-            },
-            {
-                label: `Buy ${displayName(second)} + ${displayName(third)}`,
-                kind: 'complex',
-                description: 'Lose 3@ buffer to buy both potions.',
-                tooltipSpec: bundleTooltipSpec,
-                disabled: d.selectedIndex !== null || metaState.data.buffer < 3,
-                checked: d.selectedIndex === 1,
-                onClick: async function (state:MetaState) {
-                    await addBuffer(-3)(state)
-                    await addTimelineAction('Potion shop: bundle purchase for 3@', bundleDetail)(state)
-                    await gainPotion(second, { silent: true })(state)
-                    await gainPotion(third, { silent: true })(state)
-                    return { ...data, selectedIndex: 1 }
-                }
-            },
-            {
+               {
                 label: 'Sell a potion',
                 kind: 'complex',
-                description: 'Lose a potion and gain 4@ buffer.',
-                disabled: d.selectedIndex !== null || sellablePotions.length === 0,
-                checked: d.selectedIndex === 2,
+                description: 'Lose a potion and gain 2@ buffer.',
+                disabled: d.potionSold || sellablePotions.length === 0,
+                checked: d.potionSold,
                 onClick: async function (state: MetaState) {
                     const potion = await metaState.ui.chooseCard(
                         metaState,
@@ -744,11 +744,14 @@ export const potionShop: Encounter = {
                     )
                     if (!potion) return data
                     state.removePotion(potion[1].id)
-                    await addBuffer(4)(state)
-                    await addTimelineAction('Potion shop: sell a potion for 4@', `Sold ${displayName(potion[1].spec)}`)(state)
-                    return { ...data, selectedIndex: 2 }
+                    await addBuffer(2)(state)
+                    await addTimelineAction(`Potion shop: sold ${displayName(potion[1].spec)}`, `Gained 2@`)(state)
+                    return { ...data, potionSold: true }
                 }
-            }
+            },
+            takeOfferOption(0, d),
+            takeOfferOption(1, d),
+            takeOfferOption(2, d)
         ]
     }
 }

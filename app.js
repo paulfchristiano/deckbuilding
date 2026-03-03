@@ -14259,10 +14259,45 @@
     }
   };
   registerEncounter(tactician);
+  function takeOffer(n, data) {
+    var newOffersTaken = __spreadArray8([], __read13(data.offersTaken), false);
+    newOffersTaken[n] = true;
+    return __assign9(__assign9({}, data), { offersTaken: newOffersTaken, selectedIndex: n });
+  }
+  function takeOfferOption(n, data) {
+    var cost = n + 1;
+    return {
+      label: "Buy ".concat(displayName(data.offers[n])),
+      kind: "complex",
+      description: "Buy this potion for ".concat(cost, "@ buffer."),
+      tooltipSpec: data.offers[n],
+      disabled: data.offersTaken[n],
+      checked: data.offersTaken[n],
+      onClick: function(state) {
+        return __awaiter10(this, void 0, void 0, function() {
+          return __generator10(this, function(_a) {
+            switch (_a.label) {
+              case 0:
+                return [4, addBuffer(-cost)(state)];
+              case 1:
+                _a.sent();
+                return [4, addTimelineAction("Potion shop: bought ".concat(displayName(data.offers[n])), "Spent ".concat(cost, "@"))(state)];
+              case 2:
+                _a.sent();
+                return [4, gainPotion(data.offers[n], { silent: true })(state)];
+              case 3:
+                _a.sent();
+                return [2, takeOffer(n, data)];
+            }
+          });
+        });
+      }
+    };
+  }
   var potionShop = {
     name: "Potion Shop",
     createInitialData: function(_metaState, generator) {
-      return __assign9(__assign9({}, rewardStateInit), { offers: generator.samples(potionRewards, 3) });
+      return __assign9(__assign9({}, rewardStateInit), { offers: generator.samples(potionRewards, 3), offersTaken: [false, false, false], potionSold: false });
     },
     getOptions: function(data, metaState) {
       var d = data;
@@ -14274,65 +14309,11 @@
       var bundleTooltipSpec = __assign9(__assign9({}, second), { relatedCards: __spreadArray8(__spreadArray8([], __read13(second.relatedCards || []), false), [third], false) });
       return [
         {
-          label: "Take ".concat(displayName(first)),
-          kind: "complex",
-          description: "Take this potion for free.",
-          tooltipSpec: first,
-          disabled: d.selectedIndex !== null,
-          checked: d.selectedIndex === 0,
-          onClick: function(state) {
-            return __awaiter10(this, void 0, void 0, function() {
-              return __generator10(this, function(_a2) {
-                switch (_a2.label) {
-                  case 0:
-                    return [4, gainPotion(first, { silent: true })(state)];
-                  case 1:
-                    _a2.sent();
-                    return [4, addTimelineAction("Potion shop: free sample", displayName(first))(state)];
-                  case 2:
-                    _a2.sent();
-                    return [2, __assign9(__assign9({}, data), { selectedIndex: 0 })];
-                }
-              });
-            });
-          }
-        },
-        {
-          label: "Buy ".concat(displayName(second), " + ").concat(displayName(third)),
-          kind: "complex",
-          description: "Lose 3@ buffer to buy both potions.",
-          tooltipSpec: bundleTooltipSpec,
-          disabled: d.selectedIndex !== null || metaState.data.buffer < 3,
-          checked: d.selectedIndex === 1,
-          onClick: function(state) {
-            return __awaiter10(this, void 0, void 0, function() {
-              return __generator10(this, function(_a2) {
-                switch (_a2.label) {
-                  case 0:
-                    return [4, addBuffer(-3)(state)];
-                  case 1:
-                    _a2.sent();
-                    return [4, addTimelineAction("Potion shop: bundle purchase for 3@", bundleDetail)(state)];
-                  case 2:
-                    _a2.sent();
-                    return [4, gainPotion(second, { silent: true })(state)];
-                  case 3:
-                    _a2.sent();
-                    return [4, gainPotion(third, { silent: true })(state)];
-                  case 4:
-                    _a2.sent();
-                    return [2, __assign9(__assign9({}, data), { selectedIndex: 1 })];
-                }
-              });
-            });
-          }
-        },
-        {
           label: "Sell a potion",
           kind: "complex",
-          description: "Lose a potion and gain 4@ buffer.",
-          disabled: d.selectedIndex !== null || sellablePotions.length === 0,
-          checked: d.selectedIndex === 2,
+          description: "Lose a potion and gain 2@ buffer.",
+          disabled: d.potionSold || sellablePotions.length === 0,
+          checked: d.potionSold,
           onClick: function(state) {
             return __awaiter10(this, void 0, void 0, function() {
               var potion;
@@ -14347,18 +14328,21 @@
                     if (!potion)
                       return [2, data];
                     state.removePotion(potion[1].id);
-                    return [4, addBuffer(4)(state)];
+                    return [4, addBuffer(2)(state)];
                   case 2:
                     _a2.sent();
-                    return [4, addTimelineAction("Potion shop: sell a potion for 4@", "Sold ".concat(displayName(potion[1].spec)))(state)];
+                    return [4, addTimelineAction("Potion shop: sold ".concat(displayName(potion[1].spec)), "Gained 2@")(state)];
                   case 3:
                     _a2.sent();
-                    return [2, __assign9(__assign9({}, data), { selectedIndex: 2 })];
+                    return [2, __assign9(__assign9({}, data), { potionSold: true })];
                 }
               });
             });
           }
-        }
+        },
+        takeOfferOption(0, d),
+        takeOfferOption(1, d),
+        takeOfferOption(2, d)
       ];
     }
   };
