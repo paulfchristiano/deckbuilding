@@ -80,8 +80,8 @@ registerMirroredCurse((isMajor): Curse => {
     }
 })
 
-registerMirroredCurse((isMajor): Curse => {
-    const maxActionsFromRefresh = isMajor ? 1 : 3
+export const [minorSqueeze, majorSqueeze] = registerMirroredCurse((isMajor): Curse => {
+    const maxActionsFromRefresh = isMajor ? 0 : 2
     return {
         name: curseName('Squeeze', isMajor),
         events: [{
@@ -90,8 +90,8 @@ registerMirroredCurse((isMajor): Curse => {
             effects: [actionsEffect(1)],
             staticReplacers: [{
                 kind: 'resource',
-                text: [`Whenever you would gain actions from ${refresh.name}, gain at most ${maxActionsFromRefresh}.`],
-                simpleText: [`You gain at most ${maxActionsFromRefresh} actions from ${refresh.name}.`],
+                text: [isMajor ? `You can't gain actions from ${refresh.name}` : `Whenever you would gain actions from ${refresh.name}, gain at most ${maxActionsFromRefresh}.`],
+                simpleText: [isMajor ? `You can't gain actions from ${refresh.name}` : `You gain at most ${maxActionsFromRefresh} actions from ${refresh.name}.`],
                 handles: (params: ResourceEvent) =>
                     params.resource === 'actions'
                     && params.amount > 0
@@ -103,7 +103,7 @@ registerMirroredCurse((isMajor): Curse => {
     }
 })
 
-registerMirroredCurse((_isMajor): Curse => {
+export const [minorInflation, majorInflation] = registerMirroredCurse((_isMajor): Curse => {
     const inflationCostPerToken = _isMajor ? 2 : 1
     return {
         name: curseName('Inflation', _isMajor),

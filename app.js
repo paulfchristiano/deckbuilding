@@ -165,12 +165,12 @@
     return to.concat(ar || Array.prototype.slice.call(from));
   };
   function isBurdened(spec) {
-    var e_1, _a;
+    var e_1, _a2;
     if (spec.burden === true)
       return true;
     if (spec.upgrades) {
       try {
-        for (var _b = __values(spec.upgrades), _c = _b.next(); !_c.done; _c = _b.next()) {
+        for (var _b2 = __values(spec.upgrades), _c = _b2.next(); !_c.done; _c = _b2.next()) {
           var upgrade = _c.value;
           if (upgrade.burden === true)
             return true;
@@ -179,7 +179,7 @@
         e_1 = { error: e_1_1 };
       } finally {
         try {
-          if (_c && !_c.done && (_a = _b.return)) _a.call(_b);
+          if (_c && !_c.done && (_a2 = _b2.return)) _a2.call(_b2);
         } finally {
           if (e_1) throw e_1.error;
         }
@@ -188,7 +188,7 @@
     return false;
   }
   function appendUpgrades(base, upgrades, getter) {
-    var e_2, _a;
+    var e_2, _a2;
     var result = base ? __spreadArray([], __read(base), false) : [];
     if (!upgrades)
       return result;
@@ -203,7 +203,7 @@
       e_2 = { error: e_2_1 };
     } finally {
       try {
-        if (upgrades_1_1 && !upgrades_1_1.done && (_a = upgrades_1.return)) _a.call(upgrades_1);
+        if (upgrades_1_1 && !upgrades_1_1.done && (_a2 = upgrades_1.return)) _a2.call(upgrades_1);
       } finally {
         if (e_2) throw e_2.error;
       }
@@ -211,10 +211,10 @@
     return result;
   }
   function displayName(spec) {
-    var e_3, _a;
+    var e_3, _a2;
     var name = spec.name;
     try {
-      for (var _b = __values(spec.upgrades || []), _c = _b.next(); !_c.done; _c = _b.next()) {
+      for (var _b2 = __values(spec.upgrades || []), _c = _b2.next(); !_c.done; _c = _b2.next()) {
         var upgrade = _c.value;
         if (upgrade.name) {
           name = upgrade.name(name);
@@ -224,7 +224,7 @@
       e_3 = { error: e_3_1 };
     } finally {
       try {
-        if (_c && !_c.done && (_a = _b.return)) _a.call(_b);
+        if (_c && !_c.done && (_a2 = _b2.return)) _a2.call(_b2);
       } finally {
         if (e_3) throw e_3.error;
       }
@@ -242,7 +242,7 @@
     });
   }
   function cardSpecSimpleLines(spec) {
-    var e_4, _a, e_5, _b, e_6, _c, e_7, _d, e_8, _e, e_9, _f, e_10, _g, e_11, _h, e_12, _j, e_13, _k, e_14, _l, e_15, _m;
+    var e_4, _a2, e_5, _b2, e_6, _c, e_7, _d, e_8, _e, e_9, _f, e_10, _g, e_11, _h, e_12, _j, e_13, _k, e_14, _l, e_15, _m;
     var _o, _p, _q, _r, _s, _t, _u, _v, _w, _x;
     var lines = [];
     if (spec.simpleText !== void 0) {
@@ -259,7 +259,7 @@
       e_4 = { error: e_4_1 };
     } finally {
       try {
-        if (_z && !_z.done && (_a = _y.return)) _a.call(_y);
+        if (_z && !_z.done && (_a2 = _y.return)) _a2.call(_y);
       } finally {
         if (e_4) throw e_4.error;
       }
@@ -273,7 +273,7 @@
       e_5 = { error: e_5_1 };
     } finally {
       try {
-        if (_1 && !_1.done && (_b = _0.return)) _b.call(_0);
+        if (_1 && !_1.done && (_b2 = _0.return)) _b2.call(_0);
       } finally {
         if (e_5) throw e_5.error;
       }
@@ -440,10 +440,10 @@
     });
   }
   function applyCardUpgradeCost(spec, cost, kind) {
-    var e_16, _a;
+    var e_16, _a2;
     var result = cost;
     try {
-      for (var _b = __values(spec.upgrades || []), _c = _b.next(); !_c.done; _c = _b.next()) {
+      for (var _b2 = __values(spec.upgrades || []), _c = _b2.next(); !_c.done; _c = _b2.next()) {
         var upgrade = _c.value;
         if (upgrade.cost) {
           result = upgrade.cost(result, kind);
@@ -453,7 +453,7 @@
       e_16 = { error: e_16_1 };
     } finally {
       try {
-        if (_c && !_c.done && (_a = _b.return)) _a.call(_b);
+        if (_c && !_c.done && (_a2 = _b2.return)) _a2.call(_b2);
       } finally {
         if (e_16) throw e_16.error;
       }
@@ -535,14 +535,14 @@
         return this.update({ ticks: this.ticks.slice(0, n - 1).concat([t + 1]) });
       };
       Card2.prototype.baseCost = function(state, kind) {
-        var e_17, _a;
+        var e_17, _a2;
         switch (kind) {
           case "play":
           case "use":
             var result = this.spec.fixedCost || free;
             if (this.spec.variableCosts != void 0) {
               try {
-                for (var _b = __values(this.spec.variableCosts), _c = _b.next(); !_c.done; _c = _b.next()) {
+                for (var _b2 = __values(this.spec.variableCosts), _c = _b2.next(); !_c.done; _c = _b2.next()) {
                   var vc = _c.value;
                   result = addCosts(result, vc.calculate(this, state));
                 }
@@ -550,7 +550,7 @@
                 e_17 = { error: e_17_1 };
               } finally {
                 try {
-                  if (_c && !_c.done && (_a = _b.return)) _a.call(_b);
+                  if (_c && !_c.done && (_a2 = _b2.return)) _a2.call(_b2);
                 } finally {
                   if (e_17) throw e_17.error;
                 }
@@ -588,7 +588,7 @@
         return function(state) {
           return __awaiter(this, void 0, void 0, function() {
             var cost;
-            return __generator(this, function(_a) {
+            return __generator(this, function(_a2) {
               state = state.log("Paying for ".concat(renderCardName(card)));
               cost = card.cost(kind, state);
               return [2, withTracking(payCost(cost, card), { kind: "cost", card, cost })(state)];
@@ -609,15 +609,15 @@
         var card = this;
         return function(state) {
           return __awaiter(this, void 0, void 0, function() {
-            var before, trackingSpec, gameEvent, _a, _b;
+            var before, trackingSpec, gameEvent, _a2, _b2;
             return __generator(this, function(_c) {
               switch (_c.label) {
                 case 0:
                   card = state.find(card);
                   state = logAct(state, kind, card);
                   before = state;
-                  _a = kind;
-                  switch (_a) {
+                  _a2 = kind;
+                  switch (_a2) {
                     case "play":
                       return [3, 1];
                     case "potion":
@@ -670,7 +670,7 @@
                 case 9:
                   return [4, withTracking(function(state2) {
                     return __awaiter(this, void 0, void 0, function() {
-                      var _a2, _b2, _c2, effect, e_18_1, _d, _e, effect, e_19_1;
+                      var _a3, _b3, _c2, effect, e_18_1, _d, _e, effect, e_19_1;
                       var e_18, _f, e_19, _g;
                       return __generator(this, function(_h) {
                         switch (_h.label) {
@@ -678,8 +678,8 @@
                             return [4, trigger(gameEvent)(state2)];
                           case 1:
                             state2 = _h.sent();
-                            _a2 = kind;
-                            switch (_a2) {
+                            _a3 = kind;
+                            switch (_a3) {
                               case "use":
                                 return [3, 2];
                               case "play":
@@ -694,7 +694,7 @@
                             return [3, 20];
                           case 2:
                             _h.trys.push([2, 7, 8, 9]);
-                            _b2 = __values(card.effects()), _c2 = _b2.next();
+                            _b3 = __values(card.effects()), _c2 = _b3.next();
                             _h.label = 3;
                           case 3:
                             if (!!_c2.done) return [3, 6];
@@ -705,7 +705,7 @@
                             state2 = _h.sent();
                             _h.label = 5;
                           case 5:
-                            _c2 = _b2.next();
+                            _c2 = _b3.next();
                             return [3, 3];
                           case 6:
                             return [3, 9];
@@ -715,7 +715,7 @@
                             return [3, 9];
                           case 8:
                             try {
-                              if (_c2 && !_c2.done && (_f = _b2.return)) _f.call(_b2);
+                              if (_c2 && !_c2.done && (_f = _b3.return)) _f.call(_b3);
                             } finally {
                               if (e_18) throw e_18.error;
                             }
@@ -772,8 +772,8 @@
                 case 10:
                   state = _c.sent();
                   card = state.find(card);
-                  _b = kind;
-                  switch (_b) {
+                  _b2 = kind;
+                  switch (_b2) {
                     case "play":
                       return [3, 11];
                     case "potion":
@@ -890,13 +890,13 @@
         return this.available(kind, state) && canPay(this.cost(kind, state), state);
       };
       Card2.prototype.available = function(kind, state) {
-        var e_20, _a;
+        var e_20, _a2;
         if (kind == "activate" && this.spec.ability === void 0)
           return false;
         if (kind == "buy" && !canCreate(this.spec, state))
           return false;
         try {
-          for (var _b = __values(this.restrictions()), _c = _b.next(); !_c.done; _c = _b.next()) {
+          for (var _b2 = __values(this.restrictions()), _c = _b2.next(); !_c.done; _c = _b2.next()) {
             var restriction = _c.value;
             if (restriction.test(this, state, kind))
               return false;
@@ -905,7 +905,7 @@
           e_20 = { error: e_20_1 };
         } finally {
           try {
-            if (_c && !_c.done && (_a = _b.return)) _a.call(_b);
+            if (_c && !_c.done && (_a2 = _b2.return)) _a2.call(_b2);
           } finally {
             if (e_20) throw e_20.error;
           }
@@ -926,7 +926,7 @@
     };
   }
   function multiplyCosts(c, n) {
-    var e_21, _a;
+    var e_21, _a2;
     var result = {};
     try {
       for (var allCostResources_1 = __values(allCostResources), allCostResources_1_1 = allCostResources_1.next(); !allCostResources_1_1.done; allCostResources_1_1 = allCostResources_1.next()) {
@@ -939,7 +939,7 @@
       e_21 = { error: e_21_1 };
     } finally {
       try {
-        if (allCostResources_1_1 && !allCostResources_1_1.done && (_a = allCostResources_1.return)) _a.call(allCostResources_1);
+        if (allCostResources_1_1 && !allCostResources_1_1.done && (_a2 = allCostResources_1.return)) _a2.call(allCostResources_1);
       } finally {
         if (e_21) throw e_21.error;
       }
@@ -1061,9 +1061,9 @@
           }
         });
         newZone.sort(function(a2, b) {
-          var _a, _b;
-          var aIndex = (_a = supplyOrder.get(a2.name)) !== null && _a !== void 0 ? _a : Infinity;
-          var bIndex = (_b = supplyOrder.get(b.name)) !== null && _b !== void 0 ? _b : Infinity;
+          var _a2, _b2;
+          var aIndex = (_a2 = supplyOrder.get(a2.name)) !== null && _a2 !== void 0 ? _a2 : Infinity;
+          var bIndex = (_b2 = supplyOrder.get(b.name)) !== null && _b2 !== void 0 ? _b2 : Infinity;
           if (aIndex !== Infinity && bIndex !== Infinity) {
             return aIndex - bIndex;
           } else if (aIndex !== Infinity) {
@@ -1098,10 +1098,10 @@
         return this.update({ zones: newZones });
       };
       State2.prototype.resolvingCards = function() {
-        var e_22, _a;
+        var e_22, _a2;
         var result = [];
         try {
-          for (var _b = __values(this.resolving), _c = _b.next(); !_c.done; _c = _b.next()) {
+          for (var _b2 = __values(this.resolving), _c = _b2.next(); !_c.done; _c = _b2.next()) {
             var c = _c.value;
             if (c.kind == "card")
               result.push(c);
@@ -1110,7 +1110,7 @@
           e_22 = { error: e_22_1 };
         } finally {
           try {
-            if (_c && !_c.done && (_a = _b.return)) _a.call(_b);
+            if (_c && !_c.done && (_a2 = _b2.return)) _a2.call(_b2);
           } finally {
             if (e_22) throw e_22.error;
           }
@@ -1127,10 +1127,10 @@
         return this.update({ zones: newZones });
       };
       State2.prototype.remove = function(card) {
-        var e_23, _a;
+        var e_23, _a2;
         var newZones = /* @__PURE__ */ new Map();
         try {
-          for (var _b = __values(this.zones), _c = _b.next(); !_c.done; _c = _b.next()) {
+          for (var _b2 = __values(this.zones), _c = _b2.next(); !_c.done; _c = _b2.next()) {
             var _d = __read(_c.value, 2), name_1 = _d[0], zone = _d[1];
             newZones.set(name_1, zone.filter(function(c) {
               return c.id != card.id;
@@ -1140,7 +1140,7 @@
           e_23 = { error: e_23_1 };
         } finally {
           try {
-            if (_c && !_c.done && (_a = _b.return)) _a.call(_b);
+            if (_c && !_c.done && (_a2 = _b2.return)) _a2.call(_b2);
           } finally {
             if (e_23) throw e_23.error;
           }
@@ -1150,10 +1150,10 @@
         }) });
       };
       State2.prototype.apply = function(f, card) {
-        var e_24, _a;
+        var e_24, _a2;
         var newZones = /* @__PURE__ */ new Map();
         try {
-          for (var _b = __values(this.zones), _c = _b.next(); !_c.done; _c = _b.next()) {
+          for (var _b2 = __values(this.zones), _c = _b2.next(); !_c.done; _c = _b2.next()) {
             var _d = __read(_c.value, 2), name_2 = _d[0], zone = _d[1];
             newZones.set(name_2, zone.map(function(c) {
               return c.id == card.id ? f(c) : c;
@@ -1163,7 +1163,7 @@
           e_24 = { error: e_24_1 };
         } finally {
           try {
-            if (_c && !_c.done && (_a = _b.return)) _a.call(_b);
+            if (_c && !_c.done && (_a2 = _b2.return)) _a2.call(_b2);
           } finally {
             if (e_24) throw e_24.error;
           }
@@ -1181,10 +1181,10 @@
         }, oldCard);
       };
       State2.prototype.addShadow = function(spec) {
-        var _a;
+        var _a2;
         var state = this;
         var id;
-        _a = __read(state.makeID(), 2), state = _a[0], id = _a[1];
+        _a2 = __read(state.makeID(), 2), state = _a2[0], id = _a2[1];
         var shadow = new Shadow(id, spec);
         return state.addResolving(shadow);
       };
@@ -1192,7 +1192,7 @@
         return this.update({ resources });
       };
       State2.prototype.idMap = function() {
-        var e_25, _a, e_26, _b, e_27, _c;
+        var e_25, _a2, e_26, _b2, e_27, _c;
         var byId = /* @__PURE__ */ new Map();
         try {
           for (var _d = __values(this.zones), _e = _d.next(); !_e.done; _e = _d.next()) {
@@ -1206,7 +1206,7 @@
               e_26 = { error: e_26_1 };
             } finally {
               try {
-                if (zone_1_1 && !zone_1_1.done && (_b = zone_1.return)) _b.call(zone_1);
+                if (zone_1_1 && !zone_1_1.done && (_b2 = zone_1.return)) _b2.call(zone_1);
               } finally {
                 if (e_26) throw e_26.error;
               }
@@ -1216,7 +1216,7 @@
           e_25 = { error: e_25_1 };
         } finally {
           try {
-            if (_e && !_e.done && (_a = _d.return)) _a.call(_d);
+            if (_e && !_e.done && (_a2 = _d.return)) _a2.call(_d);
           } finally {
             if (e_25) throw e_25.error;
           }
@@ -1240,9 +1240,9 @@
         return byId;
       };
       State2.prototype.find = function(card) {
-        var e_28, _a;
+        var e_28, _a2;
         try {
-          for (var _b = __values(this.zones), _c = _b.next(); !_c.done; _c = _b.next()) {
+          for (var _b2 = __values(this.zones), _c = _b2.next(); !_c.done; _c = _b2.next()) {
             var _d = __read(_c.value, 2), name_4 = _d[0], zone_2 = _d[1];
             var matches_1 = zone_2.filter(function(c) {
               return c.id == card.id;
@@ -1254,7 +1254,7 @@
           e_28 = { error: e_28_1 };
         } finally {
           try {
-            if (_c && !_c.done && (_a = _b.return)) _a.call(_b);
+            if (_c && !_c.done && (_a2 = _b2.return)) _a2.call(_b2);
           } finally {
             if (e_28) throw e_28.error;
           }
@@ -1278,9 +1278,9 @@
         }, card);
       };
       State2.prototype.consumeRedo = function(record) {
-        var _a;
+        var _a2;
         var result, redo;
-        _a = __read(popLast(this.redo), 2), result = _a[0], redo = _a[1];
+        _a2 = __read(popLast(this.redo), 2), result = _a2[0], redo = _a2[1];
         if (result === null)
           return this;
         return this.update({ redo: result == record ? redo : [] });
@@ -1300,15 +1300,15 @@
         return this.update({ logs });
       };
       State2.prototype.shiftFuture = function() {
-        var _a;
+        var _a2;
         var result, future;
-        _a = __read(shiftFirst(this.future), 2), result = _a[0], future = _a[1];
+        _a2 = __read(shiftFirst(this.future), 2), result = _a2[0], future = _a2[1];
         return [this.update({ future }), result];
       };
       State2.prototype.popFuture = function() {
-        var _a;
+        var _a2;
         var result, future;
-        _a = __read(popLast(this.future), 2), result = _a[0], future = _a[1];
+        _a2 = __read(popLast(this.future), 2), result = _a2[0], future = _a2[1];
         return [this.update({ future }), result];
       };
       State2.prototype.setCheckpoint = function() {
@@ -1399,7 +1399,7 @@
   function trigger(e) {
     return function(state) {
       return __awaiter(this, void 0, void 0, function() {
-        var initialState2, rules_1, rules_1_1, rule, ruleCard, _a, _b, rawTrigger, trigger_4, e_29_1, e_30_1, triggers, _c, _d, card, _e, _f, trigger_5, _g, _h, card, _j, _k, trigger_6, triggers_1, triggers_1_1, _l, card, rawTrigger, trigger_7, e_31_1;
+        var initialState2, rules_1, rules_1_1, rule, ruleCard, _a2, _b2, rawTrigger, trigger_4, e_29_1, e_30_1, triggers, _c, _d, card, _e, _f, trigger_5, _g, _h, card, _j, _k, trigger_6, triggers_1, triggers_1_1, _l, card, rawTrigger, trigger_7, e_31_1;
         var e_30, _m, e_29, _o, e_32, _p, e_33, _q, e_34, _r, e_35, _s, e_31, _t;
         return __generator(this, function(_u) {
           switch (_u.label) {
@@ -1418,11 +1418,11 @@
               _u.label = 3;
             case 3:
               _u.trys.push([3, 8, 9, 10]);
-              _a = (e_29 = void 0, __values(rule.triggers)), _b = _a.next();
+              _a2 = (e_29 = void 0, __values(rule.triggers)), _b2 = _a2.next();
               _u.label = 4;
             case 4:
-              if (!!_b.done) return [3, 7];
-              rawTrigger = _b.value;
+              if (!!_b2.done) return [3, 7];
+              rawTrigger = _b2.value;
               if (!(rawTrigger.kind == e.kind)) return [3, 6];
               trigger_4 = rawTrigger;
               if (!(trigger_4.handles(e, initialState2, null) && trigger_4.handles(e, state, null))) return [3, 6];
@@ -1432,7 +1432,7 @@
               state = _u.sent();
               _u.label = 6;
             case 6:
-              _b = _a.next();
+              _b2 = _a2.next();
               return [3, 4];
             case 7:
               return [3, 10];
@@ -1442,7 +1442,7 @@
               return [3, 10];
             case 9:
               try {
-                if (_b && !_b.done && (_o = _a.return)) _o.call(_a);
+                if (_b2 && !_b2.done && (_o = _a2.return)) _o.call(_a2);
               } finally {
                 if (e_29) throw e_29.error;
               }
@@ -1568,7 +1568,7 @@
     };
   }
   function replace(x, state) {
-    var e_36, _a, e_37, _b, e_38, _c, e_39, _d, e_40, _e, e_41, _f, e_42, _g;
+    var e_36, _a2, e_37, _b2, e_38, _c, e_39, _d, e_40, _e, e_41, _f, e_42, _g;
     try {
       for (var rules_2 = __values(rules), rules_2_1 = rules_2.next(); !rules_2_1.done; rules_2_1 = rules_2.next()) {
         var rule = rules_2_1.value;
@@ -1587,7 +1587,7 @@
             e_37 = { error: e_37_1 };
           } finally {
             try {
-              if (_j && !_j.done && (_b = _h.return)) _b.call(_h);
+              if (_j && !_j.done && (_b2 = _h.return)) _b2.call(_h);
             } finally {
               if (e_37) throw e_37.error;
             }
@@ -1598,7 +1598,7 @@
       e_36 = { error: e_36_1 };
     } finally {
       try {
-        if (rules_2_1 && !rules_2_1.done && (_a = rules_2.return)) _a.call(rules_2);
+        if (rules_2_1 && !rules_2_1.done && (_a2 = rules_2.return)) _a2.call(rules_2);
       } finally {
         if (e_36) throw e_36.error;
       }
@@ -1712,13 +1712,13 @@
   function withTracking(f, spec) {
     return function(state) {
       return __awaiter(this, void 0, void 0, function() {
-        return __generator(this, function(_a) {
-          switch (_a.label) {
+        return __generator(this, function(_a2) {
+          switch (_a2.label) {
             case 0:
               state = startTracking(state, spec);
               return [4, f(state)];
             case 1:
-              state = _a.sent();
+              state = _a2.sent();
               state = stopTracking(state, spec);
               return [2, state];
           }
@@ -1751,18 +1751,18 @@
     return function(state) {
       return __awaiter(this, void 0, void 0, function() {
         var card;
-        var _a;
-        return __generator(this, function(_b) {
-          switch (_b.label) {
+        var _a2;
+        return __generator(this, function(_b2) {
+          switch (_b2.label) {
             case 0:
               return [4, createAndTrack(spec, zone, tokens)(state)];
             case 1:
-              _a = __read.apply(void 0, [_b.sent(), 2]), card = _a[0], state = _a[1];
+              _a2 = __read.apply(void 0, [_b2.sent(), 2]), card = _a2[0], state = _a2[1];
               if (!(card != null)) return [3, 3];
               return [4, postprocess(card)(state)];
             case 2:
-              state = _b.sent();
-              _b.label = 3;
+              state = _b2.sent();
+              _b2.label = 3;
             case 3:
               return [2, state];
           }
@@ -1771,12 +1771,12 @@
     };
   }
   function createRaw(state, spec, zone, tokens) {
-    var _a, e_43, _b;
+    var _a2, e_43, _b2;
     if (zone === void 0) {
       zone = "discard";
     }
     var id;
-    _a = __read(state.makeID(), 2), state = _a[0], id = _a[1];
+    _a2 = __read(state.makeID(), 2), state = _a2[0], id = _a2[1];
     var card = new Card(spec, id);
     if (tokens != void 0) {
       try {
@@ -1788,7 +1788,7 @@
         e_43 = { error: e_43_1 };
       } finally {
         try {
-          if (tokens_1_1 && !tokens_1_1.done && (_b = tokens_1.return)) _b.call(tokens_1);
+          if (tokens_1_1 && !tokens_1_1.done && (_b2 = tokens_1.return)) _b2.call(tokens_1);
         } finally {
           if (e_43) throw e_43.error;
         }
@@ -1798,7 +1798,7 @@
     return [state, card];
   }
   function createRawMulti(state, specs, zone) {
-    var e_44, _a, _b;
+    var e_44, _a2, _b2;
     if (zone === void 0) {
       zone = "discard";
     }
@@ -1806,13 +1806,13 @@
       for (var specs_1 = __values(specs), specs_1_1 = specs_1.next(); !specs_1_1.done; specs_1_1 = specs_1.next()) {
         var spec = specs_1_1.value;
         var card = void 0;
-        _b = __read(createRaw(state, spec, zone), 2), state = _b[0], card = _b[1];
+        _b2 = __read(createRaw(state, spec, zone), 2), state = _b2[0], card = _b2[1];
       }
     } catch (e_44_1) {
       e_44 = { error: e_44_1 };
     } finally {
       try {
-        if (specs_1_1 && !specs_1_1.done && (_a = specs_1.return)) _a.call(specs_1);
+        if (specs_1_1 && !specs_1_1.done && (_a2 = specs_1.return)) _a2.call(specs_1);
       } finally {
         if (e_44) throw e_44.error;
       }
@@ -1825,7 +1825,7 @@
     }
     return function(state) {
       return __awaiter(this, void 0, void 0, function() {
-        var params, card, _a, _b, effect, e_45_1;
+        var params, card, _a2, _b2, effect, e_45_1;
         var _c, e_45, _d;
         return __generator(this, function(_e) {
           switch (_e.label) {
@@ -1844,17 +1844,17 @@
               _e.label = 2;
             case 2:
               _e.trys.push([2, 7, 8, 9]);
-              _a = __values(params.effects), _b = _a.next();
+              _a2 = __values(params.effects), _b2 = _a2.next();
               _e.label = 3;
             case 3:
-              if (!!_b.done) return [3, 6];
-              effect = _b.value;
+              if (!!_b2.done) return [3, 6];
+              effect = _b2.value;
               return [4, effect(card)(state)];
             case 4:
               state = _e.sent();
               _e.label = 5;
             case 5:
-              _b = _a.next();
+              _b2 = _a2.next();
               return [3, 3];
             case 6:
               return [3, 9];
@@ -1864,7 +1864,7 @@
               return [3, 9];
             case 8:
               try {
-                if (_b && !_b.done && (_d = _a.return)) _d.call(_a);
+                if (_b2 && !_b2.done && (_d = _a2.return)) _d.call(_a2);
               } finally {
                 if (e_45) throw e_45.error;
               }
@@ -1889,7 +1889,7 @@
     }
     return function(state) {
       return __awaiter(this, void 0, void 0, function() {
-        var params, _a, _b, effect, e_46_1;
+        var params, _a2, _b2, effect, e_46_1;
         var e_46, _c;
         return __generator(this, function(_d) {
           switch (_d.label) {
@@ -1917,17 +1917,17 @@
               _d.label = 2;
             case 2:
               _d.trys.push([2, 7, 8, 9]);
-              _a = __values(params.effects), _b = _a.next();
+              _a2 = __values(params.effects), _b2 = _a2.next();
               _d.label = 3;
             case 3:
-              if (!!_b.done) return [3, 6];
-              effect = _b.value;
+              if (!!_b2.done) return [3, 6];
+              effect = _b2.value;
               return [4, effect(state)];
             case 4:
               state = _d.sent();
               _d.label = 5;
             case 5:
-              _b = _a.next();
+              _b2 = _a2.next();
               return [3, 3];
             case 6:
               return [3, 9];
@@ -1937,7 +1937,7 @@
               return [3, 9];
             case 8:
               try {
-                if (_b && !_b.done && (_c = _a.return)) _c.call(_a);
+                if (_b2 && !_b2.done && (_c = _a2.return)) _c.call(_a2);
               } finally {
                 if (e_46) throw e_46.error;
               }
@@ -1953,7 +1953,7 @@
     };
   }
   function renderCost(cost, full) {
-    var e_47, _a;
+    var e_47, _a2;
     if (full === void 0) {
       full = false;
     }
@@ -1970,7 +1970,7 @@
       e_47 = { error: e_47_1 };
     } finally {
       try {
-        if (toRender_1_1 && !toRender_1_1.done && (_a = toRender_1.return)) _a.call(toRender_1);
+        if (toRender_1_1 && !toRender_1_1.done && (_a2 = toRender_1.return)) _a2.call(toRender_1);
       } finally {
         if (e_47) throw e_47.error;
       }
@@ -2048,7 +2048,7 @@
   function payCost(c, source) {
     return function(state) {
       return __awaiter(this, void 0, void 0, function() {
-        var _a, _b, effect, e_48_1;
+        var _a2, _b2, effect, e_48_1;
         var e_48, _c;
         return __generator(this, function(_d) {
           switch (_d.label) {
@@ -2078,17 +2078,17 @@
               _d.label = 1;
             case 1:
               _d.trys.push([1, 6, 7, 8]);
-              _a = __values(c.effects), _b = _a.next();
+              _a2 = __values(c.effects), _b2 = _a2.next();
               _d.label = 2;
             case 2:
-              if (!!_b.done) return [3, 5];
-              effect = _b.value;
+              if (!!_b2.done) return [3, 5];
+              effect = _b2.value;
               return [4, effect(state)];
             case 3:
               state = _d.sent();
               _d.label = 4;
             case 4:
-              _b = _a.next();
+              _b2 = _a2.next();
               return [3, 2];
             case 5:
               return [3, 8];
@@ -2098,7 +2098,7 @@
               return [3, 8];
             case 7:
               try {
-                if (_b && !_b.done && (_c = _a.return)) _c.call(_a);
+                if (_b2 && !_b2.done && (_c = _a2.return)) _c.call(_a2);
               } finally {
                 if (e_48) throw e_48.error;
               }
@@ -2116,7 +2116,7 @@
   function gainResource(resource, amount, source) {
     return function(state) {
       return __awaiter(this, void 0, void 0, function() {
-        var newResources, params, _a, _b, transform, e_49_1;
+        var newResources, params, _a2, _b2, transform, e_49_1;
         var e_49, _c;
         return __generator(this, function(_d) {
           switch (_d.label) {
@@ -2146,17 +2146,17 @@
               _d.label = 1;
             case 1:
               _d.trys.push([1, 6, 7, 8]);
-              _a = __values(params.effects), _b = _a.next();
+              _a2 = __values(params.effects), _b2 = _a2.next();
               _d.label = 2;
             case 2:
-              if (!!_b.done) return [3, 5];
-              transform = _b.value;
+              if (!!_b2.done) return [3, 5];
+              transform = _b2.value;
               return [4, transform(state)];
             case 3:
               state = _d.sent();
               _d.label = 4;
             case 4:
-              _b = _a.next();
+              _b2 = _a2.next();
               return [3, 2];
             case 5:
               return [3, 8];
@@ -2166,7 +2166,7 @@
               return [3, 8];
             case 7:
               try {
-                if (_b && !_b.done && (_c = _a.return)) _c.call(_a);
+                if (_b2 && !_b2.done && (_c = _a2.return)) _c.call(_a2);
               } finally {
                 if (e_49) throw e_49.error;
               }
@@ -2211,12 +2211,12 @@
     return function(state) {
       return __awaiter(this, void 0, void 0, function() {
         var vp_goal, victoryParams;
-        return __generator(this, function(_a) {
-          switch (_a.label) {
+        return __generator(this, function(_a2) {
+          switch (_a2.label) {
             case 0:
               return [4, gainResource("points", n, source)(state)];
             case 1:
-              state = _a.sent();
+              state = _a2.sent();
               vp_goal = state.vp_goal;
               if (vp_goal > 0 && state.points >= vp_goal) {
                 victoryParams = replace({ kind: "victory", victory: true }, state);
@@ -2242,7 +2242,7 @@
     return function(state) {
       return __awaiter(this, void 0, void 0, function() {
         var oldCharge, newCharge;
-        return __generator(this, function(_a) {
+        return __generator(this, function(_a2) {
           card = state.find(card);
           if (card.place == null) {
             if (cost)
@@ -2278,7 +2278,7 @@
     return function(state) {
       return __awaiter(this, void 0, void 0, function() {
         var newCard;
-        return __generator(this, function(_a) {
+        return __generator(this, function(_a2) {
           card = state.find(card);
           if (card.place == null)
             return [2, state];
@@ -2300,7 +2300,7 @@
     return function(state) {
       return __awaiter(this, void 0, void 0, function() {
         var current, removed, newCard;
-        return __generator(this, function(_a) {
+        return __generator(this, function(_a2) {
           card = state.find(card);
           if (card.place == null) {
             if (isCost)
@@ -2403,20 +2403,20 @@
   function doOrReplay(state, f) {
     return __awaiter(this, void 0, void 0, function() {
       var record, x;
-      var _a;
-      return __generator(this, function(_b) {
-        switch (_b.label) {
+      var _a2;
+      return __generator(this, function(_b2) {
+        switch (_b2.label) {
           case 0:
-            _a = __read(state.shiftFuture(), 2), state = _a[0], record = _a[1];
+            _a2 = __read(state.shiftFuture(), 2), state = _a2[0], record = _a2[1];
             if (!(record !== null)) return [3, 1];
             x = record;
             return [3, 3];
           case 1:
             return [4, f()];
           case 2:
-            x = _b.sent();
+            x = _b2.sent();
             state = state.consumeRedo(x);
-            _b.label = 3;
+            _b2.label = 3;
           case 3:
             return [2, [state.addHistory(x), x]];
         }
@@ -2425,7 +2425,7 @@
   }
   function choice(state_1, prompt_1, options_1) {
     return __awaiter(this, arguments, void 0, function(state, prompt, options, info, chosen, presentedIndices) {
-      var index, visibleIndices, boundedVisibleIndices, visibleOptions, canonicalToVisible, _a, _b, _c, visibleIndex, canonicalIndex, visibleChosen, newState;
+      var index, visibleIndices, boundedVisibleIndices, visibleOptions, canonicalToVisible, _a2, _b2, _c, visibleIndex, canonicalIndex, visibleChosen, newState;
       var e_50, _d, _e;
       var _this = this;
       if (info === void 0) {
@@ -2453,15 +2453,15 @@
             });
             canonicalToVisible = /* @__PURE__ */ new Map();
             try {
-              for (_a = __values(boundedVisibleIndices.entries()), _b = _a.next(); !_b.done; _b = _a.next()) {
-                _c = __read(_b.value, 2), visibleIndex = _c[0], canonicalIndex = _c[1];
+              for (_a2 = __values(boundedVisibleIndices.entries()), _b2 = _a2.next(); !_b2.done; _b2 = _a2.next()) {
+                _c = __read(_b2.value, 2), visibleIndex = _c[0], canonicalIndex = _c[1];
                 canonicalToVisible.set(canonicalIndex, visibleIndex);
               }
             } catch (e_50_1) {
               e_50 = { error: e_50_1 };
             } finally {
               try {
-                if (_b && !_b.done && (_d = _a.return)) _d.call(_a);
+                if (_b2 && !_b2.done && (_d = _a2.return)) _d.call(_a2);
               } finally {
                 if (e_50) throw e_50.error;
               }
@@ -2476,12 +2476,12 @@
             return [4, doOrReplay(state, function() {
               return __awaiter(_this, void 0, void 0, function() {
                 var visibleIndex2;
-                return __generator(this, function(_a2) {
-                  switch (_a2.label) {
+                return __generator(this, function(_a3) {
+                  switch (_a3.label) {
                     case 0:
                       return [4, state.ui.choice(state, prompt, visibleOptions, info, visibleChosen, canonicalToVisible)];
                     case 1:
-                      visibleIndex2 = _a2.sent();
+                      visibleIndex2 = _a3.sent();
                       if (visibleIndex2 >= boundedVisibleIndices.length || visibleIndex2 < 0) {
                         throw new InvalidHistory(visibleIndex2, state);
                       }
@@ -2502,7 +2502,7 @@
   function multichoice(state_1, prompt_1, options_1) {
     return __awaiter(this, arguments, void 0, function(state, prompt, options, max, min, info) {
       var chosen, nextOptions, next, k;
-      var _a;
+      var _a2;
       if (max === void 0) {
         max = null;
       }
@@ -2512,11 +2512,11 @@
       if (info === void 0) {
         info = [];
       }
-      return __generator(this, function(_b) {
-        switch (_b.label) {
+      return __generator(this, function(_b2) {
+        switch (_b2.label) {
           case 0:
             chosen = [];
-            _b.label = 1;
+            _b2.label = 1;
           case 1:
             if (false) return [3, 3];
             if (max != null && chosen.length == max)
@@ -2532,7 +2532,7 @@
             next = void 0;
             return [4, choice(state, prompt, nextOptions, info, chosen)];
           case 2:
-            _a = __read.apply(void 0, [_b.sent(), 2]), state = _a[0], next = _a[1];
+            _a2 = __read.apply(void 0, [_b2.sent(), 2]), state = _a2[0], next = _a2[1];
             if (next === null)
               return [3, 3];
             k = chosen.indexOf(next);
@@ -2575,11 +2575,11 @@
     return newOptions;
   }
   function undoOnce(startState2) {
-    var _a;
+    var _a2;
     var state = startState2;
     while (true) {
       var last = void 0;
-      _a = __read(state.popFuture(), 2), state = _a[0], last = _a[1];
+      _a2 = __read(state.popFuture(), 2), state = _a2[0], last = _a2[1];
       if (last == null) {
         var prevState = state;
         state = state.backup();
@@ -2608,16 +2608,16 @@
     return function(state) {
       return __awaiter(this, void 0, void 0, function() {
         var result, error_1;
-        return __generator(this, function(_a) {
-          switch (_a.label) {
+        return __generator(this, function(_a2) {
+          switch (_a2.label) {
             case 0:
-              _a.trys.push([0, 2, , 3]);
+              _a2.trys.push([0, 2, , 3]);
               return [4, f(state)];
             case 1:
-              result = _a.sent();
+              result = _a2.sent();
               return [2, result];
             case 2:
-              error_1 = _a.sent();
+              error_1 = _a2.sent();
               if (error_1 instanceof CostNotPaid) {
                 if (fallback != null)
                   return [2, fallback(state)];
@@ -2642,12 +2642,12 @@
     }
     return doOrAbort(function(state) {
       return __awaiter(this, void 0, void 0, function() {
-        return __generator(this, function(_a) {
-          switch (_a.label) {
+        return __generator(this, function(_a2) {
+          switch (_a2.label) {
             case 0:
               return [4, cost(state)];
             case 1:
-              state = _a.sent();
+              state = _a2.sent();
               return [2, effect(state)];
           }
         });
@@ -2658,17 +2658,17 @@
     return function(state) {
       return __awaiter(this, void 0, void 0, function() {
         var i;
-        return __generator(this, function(_a) {
-          switch (_a.label) {
+        return __generator(this, function(_a2) {
+          switch (_a2.label) {
             case 0:
               i = 0;
-              _a.label = 1;
+              _a2.label = 1;
             case 1:
               if (!(i < effects.length)) return [3, 4];
               return [4, effects[i](state)];
             case 2:
-              state = _a.sent();
-              _a.label = 3;
+              state = _a2.sent();
+              _a2.label = 3;
             case 3:
               i++;
               return [3, 1];
@@ -2703,18 +2703,18 @@
   }
   function act(state) {
     return __awaiter(this, void 0, void 0, function() {
-      var picked, _a, card, kind;
-      var _b;
+      var picked, _a2, card, kind;
+      var _b2;
       return __generator(this, function(_c) {
         switch (_c.label) {
           case 0:
             return [4, actChoice(state)];
           case 1:
-            _b = __read.apply(void 0, [_c.sent(), 2]), state = _b[0], picked = _b[1];
+            _b2 = __read.apply(void 0, [_c.sent(), 2]), state = _b2[0], picked = _b2[1];
             if (picked == null) {
               throw new Error("No valid options.");
             }
-            _a = __read(picked, 2), card = _a[0], kind = _a[1];
+            _a2 = __read(picked, 2), card = _a2[0], kind = _a2[1];
             return [2, payToDo(card.payCost(kind), card.activate(kind, "act"))(state)];
         }
       });
@@ -2726,7 +2726,7 @@
     });
   }
   function actChoice(state) {
-    var e_51, _a;
+    var e_51, _a2;
     function asActChoice(kind) {
       return function(c) {
         return { render: { kind: "card", card: c }, value: [c, kind] };
@@ -2753,7 +2753,7 @@
       return i;
     });
     try {
-      for (var _b = __values(potions.entries()), _c = _b.next(); !_c.done; _c = _b.next()) {
+      for (var _b2 = __values(potions.entries()), _c = _b2.next(); !_c.done; _c = _b2.next()) {
         var _d = __read(_c.value, 2), potionIndex = _d[0], option = _d[1];
         var _e = __read(option.value, 1), card = _e[0];
         if (allowedPotionIDs.has(card.id)) {
@@ -2764,7 +2764,7 @@
       e_51 = { error: e_51_1 };
     } finally {
       try {
-        if (_c && !_c.done && (_a = _b.return)) _a.call(_b);
+        if (_c && !_c.done && (_a2 = _b2.return)) _a2.call(_b2);
       } finally {
         if (e_51) throw e_51.error;
       }
@@ -2793,7 +2793,7 @@
   }
   function lexical(comps) {
     return function(a2, b) {
-      var e_52, _a;
+      var e_52, _a2;
       try {
         for (var comps_1 = __values(comps), comps_1_1 = comps_1.next(); !comps_1_1.done; comps_1_1 = comps_1.next()) {
           var comp = comps_1_1.value;
@@ -2805,7 +2805,7 @@
         e_52 = { error: e_52_1 };
       } finally {
         try {
-          if (comps_1_1 && !comps_1_1.done && (_a = comps_1.return)) _a.call(comps_1);
+          if (comps_1_1 && !comps_1_1.done && (_a2 = comps_1.return)) _a2.call(comps_1);
         } finally {
           if (e_52) throw e_52.error;
         }
@@ -2823,7 +2823,7 @@
     nameComp
   ]);
   function maxID(cards) {
-    var e_53, _a;
+    var e_53, _a2;
     var max = 0;
     try {
       for (var cards_1 = __values(cards), cards_1_1 = cards_1.next(); !cards_1_1.done; cards_1_1 = cards_1.next()) {
@@ -2835,7 +2835,7 @@
       e_53 = { error: e_53_1 };
     } finally {
       try {
-        if (cards_1_1 && !cards_1_1.done && (_a = cards_1.return)) _a.call(cards_1);
+        if (cards_1_1 && !cards_1_1.done && (_a2 = cards_1.return)) _a2.call(cards_1);
       } finally {
         if (e_53) throw e_53.error;
       }
@@ -2843,7 +2843,7 @@
     return max;
   }
   function initialState(spec, ui) {
-    var e_54, _a, e_55, _b;
+    var e_54, _a2, e_55, _b2;
     var state = new State(spec, ui);
     try {
       for (var _c = __values(spec.potions), _d = _c.next(); !_d.done; _d = _c.next()) {
@@ -2854,7 +2854,7 @@
       e_54 = { error: e_54_1 };
     } finally {
       try {
-        if (_d && !_d.done && (_a = _c.return)) _a.call(_c);
+        if (_d && !_d.done && (_a2 = _c.return)) _a2.call(_c);
       } finally {
         if (e_54) throw e_54.error;
       }
@@ -2868,7 +2868,7 @@
       e_55 = { error: e_55_1 };
     } finally {
       try {
-        if (_f && !_f.done && (_b = _e.return)) _b.call(_e);
+        if (_f && !_f.done && (_b2 = _e.return)) _b2.call(_e);
       } finally {
         if (e_55) throw e_55.error;
       }
@@ -2885,14 +2885,14 @@
     return xs.values();
   }
   function undoOrSet(to, from) {
-    var e_56, _a;
+    var e_56, _a2;
     var newHistory = to.origin().future;
     var oldHistory = from.origin().future;
     var newRedo = from.redo.slice();
     var predecessor = to.spec == from.spec;
     if (predecessor) {
       try {
-        for (var _b = __values(reversed(oldHistory.entries())), _c = _b.next(); !_c.done; _c = _b.next()) {
+        for (var _b2 = __values(reversed(oldHistory.entries())), _c = _b2.next(); !_c.done; _c = _b2.next()) {
           var _d = __read(_c.value, 2), i = _d[0], e = _d[1];
           if (i >= newHistory.length) {
             newRedo.push(e);
@@ -2904,7 +2904,7 @@
         e_56 = { error: e_56_1 };
       } finally {
         try {
-          if (_c && !_c.done && (_a = _b.return)) _a.call(_b);
+          if (_c && !_c.done && (_a2 = _b2.return)) _a2.call(_b2);
         } finally {
           if (e_56) throw e_56.error;
         }
@@ -2921,8 +2921,8 @@
       if (initialRedo === void 0) {
         initialRedo = [];
       }
-      return __generator(this, function(_a) {
-        switch (_a.label) {
+      return __generator(this, function(_a2) {
+        switch (_a2.label) {
           case 0:
             state = initialState(spec, ui);
             if (initialFuture.length > 0) {
@@ -2933,22 +2933,22 @@
             }
             return [4, trigger({ kind: "beforeStart" })(state)];
           case 1:
-            state = _a.sent();
+            state = _a2.sent();
             return [4, trigger({ kind: "afterStart" })(state)];
           case 2:
-            state = _a.sent();
+            state = _a2.sent();
             victorious = false;
-            _a.label = 3;
+            _a2.label = 3;
           case 3:
             if (false) return [3, 11];
             state = state.setCheckpoint();
-            _a.label = 4;
+            _a2.label = 4;
           case 4:
-            _a.trys.push([4, 9, , 10]);
+            _a2.trys.push([4, 9, , 10]);
             if (!victorious) return [3, 6];
             return [4, state.ui.victory(state)];
           case 5:
-            _a.sent();
+            _a2.sent();
             return [2, {
               score: state.energy,
               potionsRemaining: state.potions,
@@ -2957,12 +2957,12 @@
           case 6:
             return [4, act(state)];
           case 7:
-            state = _a.sent();
-            _a.label = 8;
+            state = _a2.sent();
+            _a2.label = 8;
           case 8:
             return [3, 10];
           case 9:
-            error_2 = _a.sent();
+            error_2 = _a2.sent();
             victorious = false;
             if (error_2 instanceof Undo) {
               state = undo(error_2.state, error_2.count);
@@ -2996,31 +2996,31 @@
       transform: function(state, card) {
         return function(state2) {
           return __awaiter(this, void 0, void 0, function() {
-            return __generator(this, function(_a) {
-              switch (_a.label) {
+            return __generator(this, function(_a2) {
+              switch (_a2.label) {
                 case 0:
                   return [4, setResource("coin", 0, card)(state2)];
                 case 1:
-                  state2 = _a.sent();
+                  state2 = _a2.sent();
                   return [4, setResource("actions", 0, card)(state2)];
                 case 2:
-                  state2 = _a.sent();
+                  state2 = _a2.sent();
                   return [4, setResource("buys", 0, card)(state2)];
                 case 3:
-                  state2 = _a.sent();
+                  state2 = _a2.sent();
                   return [4, moveMany(state2.discard, "hand")(state2)];
                 case 4:
-                  state2 = _a.sent();
+                  state2 = _a2.sent();
                   return [4, moveMany(state2.play, "hand")(state2)];
                 case 5:
-                  state2 = _a.sent();
+                  state2 = _a2.sent();
                   state2 = sortHand(state2);
                   return [4, gainActions(n, card)(state2)];
                 case 6:
-                  state2 = _a.sent();
+                  state2 = _a2.sent();
                   return [4, gainBuys(1, card)(state2)];
                 case 7:
-                  state2 = _a.sent();
+                  state2 = _a2.sent();
                   return [2, state2];
               }
             });
@@ -3032,24 +3032,24 @@
   function fountainTransform(source) {
     return function(state) {
       return __awaiter(this, void 0, void 0, function() {
-        return __generator(this, function(_a) {
-          switch (_a.label) {
+        return __generator(this, function(_a2) {
+          switch (_a2.label) {
             case 0:
               return [4, setResource("coin", 0, source)(state)];
             case 1:
-              state = _a.sent();
+              state = _a2.sent();
               return [4, setResource("actions", 0, source)(state)];
             case 2:
-              state = _a.sent();
+              state = _a2.sent();
               return [4, setResource("buys", 0, source)(state)];
             case 3:
-              state = _a.sent();
+              state = _a2.sent();
               return [4, gainActions(5, source)(state)];
             case 4:
-              state = _a.sent();
+              state = _a2.sent();
               return [4, gainBuys(1, source)(state)];
             case 5:
-              state = _a.sent();
+              state = _a2.sent();
               return [2, state];
           }
         });
@@ -3252,7 +3252,7 @@
     throw new Error("Unexpected: ".concat(x));
   }
   function countDistinct(xs) {
-    var e_57, _a;
+    var e_57, _a2;
     var distinct = /* @__PURE__ */ new Set();
     var result = 0;
     try {
@@ -3267,7 +3267,7 @@
       e_57 = { error: e_57_1 };
     } finally {
       try {
-        if (xs_1_1 && !xs_1_1.done && (_a = xs_1.return)) _a.call(xs_1);
+        if (xs_1_1 && !xs_1_1.done && (_a2 = xs_1.return)) _a2.call(xs_1);
       } finally {
         if (e_57) throw e_57.error;
       }
@@ -3290,14 +3290,14 @@
     }
     return function(state) {
       return __awaiter(this, void 0, void 0, function() {
-        return __generator(this, function(_a) {
-          switch (_a.label) {
+        return __generator(this, function(_a2) {
+          switch (_a2.label) {
             case 0:
               return [4, doAll(cards.map(function(card) {
                 return move(card, toZone, true);
               }))(state)];
             case 1:
-              state = _a.sent();
+              state = _a2.sent();
               if (cards.length == 0 || logged) {
                 return [2, state];
               } else if (toZone == null) {
@@ -3323,7 +3323,7 @@
   function discardFromPlay(card) {
     return function(state) {
       return __awaiter(this, void 0, void 0, function() {
-        return __generator(this, function(_a) {
+        return __generator(this, function(_a2) {
           card = state.find(card);
           if (card.place != "play")
             throw new CostNotPaid("Card not in play.");
@@ -3335,7 +3335,7 @@
   function setResource(resource, amount, source) {
     return function(state) {
       return __awaiter(this, void 0, void 0, function() {
-        return __generator(this, function(_a) {
+        return __generator(this, function(_a2) {
           return [2, gainResource(resource, amount - state.resources[resource], source)(state)];
         });
       });
@@ -3344,7 +3344,7 @@
   function gainActions(n, source) {
     return function(state) {
       return __awaiter(this, void 0, void 0, function() {
-        return __generator(this, function(_a) {
+        return __generator(this, function(_a2) {
           return [2, gainResource("actions", n, source)(state)];
         });
       });
@@ -3587,12 +3587,12 @@
       transform: function(e, state, card) {
         return function(state2) {
           return __awaiter(this, void 0, void 0, function() {
-            return __generator(this, function(_a) {
-              switch (_a.label) {
+            return __generator(this, function(_a2) {
+              switch (_a2.label) {
                 case 0:
                   return [4, trash(card)(state2)];
                 case 1:
-                  state2 = _a.sent();
+                  state2 = _a2.sent();
                   return [2, e.card.buy(card)(state2)];
               }
             });
@@ -3617,15 +3617,15 @@
           function(t) {
             return function(state) {
               return __awaiter(this, void 0, void 0, function() {
-                return __generator(this, function(_a) {
-                  switch (_a.label) {
+                return __generator(this, function(_a2) {
+                  switch (_a2.label) {
                     case 0:
                       t = state.find(t);
                       if (!(t.place == "void")) return [3, 2];
                       return [4, t.play(source)(state)];
                     case 1:
-                      state = _a.sent();
-                      _a.label = 2;
+                      state = _a2.sent();
+                      _a2.label = 2;
                     case 2:
                       return [2, state];
                   }
@@ -3709,21 +3709,21 @@
     return function(state) {
       return __awaiter(this, void 0, void 0, function() {
         var choices, target;
-        var _a;
-        return __generator(this, function(_b) {
-          switch (_b.label) {
+        var _a2;
+        return __generator(this, function(_b2) {
+          switch (_b2.label) {
             case 0:
               choices = options(state).map(asChoice);
               if (special.optional !== void 0)
                 choices = allowNull(choices, special.optional);
               return [4, choice(state, text, choices, ["applyToTarget"])];
             case 1:
-              _a = __read.apply(void 0, [_b.sent(), 2]), state = _a[0], target = _a[1];
+              _a2 = __read.apply(void 0, [_b2.sent(), 2]), state = _a2[0], target = _a2[1];
               if (!(target != null)) return [3, 3];
               return [4, f(target)(state)];
             case 2:
-              state = _b.sent();
-              _b.label = 3;
+              state = _b2.sent();
+              _b2.label = 3;
             case 3:
               if (target == null && special.cost == true)
                 throw new CostNotPaid("No valid targets");
@@ -3754,16 +3754,16 @@
         return function(state) {
           return __awaiter(this, void 0, void 0, function() {
             var cards;
-            var _a;
-            return __generator(this, function(_b) {
-              switch (_b.label) {
+            var _a2;
+            return __generator(this, function(_b2) {
+              switch (_b2.label) {
                 case 0:
                   return [4, multichoice(state, text, options(state, c).map(asChoice), max)];
                 case 1:
-                  _a = __read.apply(void 0, [_b.sent(), 2]), state = _a[0], cards = _a[1];
+                  _a2 = __read.apply(void 0, [_b2.sent(), 2]), state = _a2[0], cards = _a2[1];
                   return [4, f(cards, c)(state)];
                 case 2:
-                  state = _b.sent();
+                  state = _b2.sent();
                   return [2, state];
               }
             });
@@ -3881,8 +3881,8 @@
     relicRewards.push(spec);
   }
   function getSpecByName(name) {
-    var e_1, _a;
-    var _b;
+    var e_1, _a2;
+    var _b2;
     if (extraSpecsByName.has(name))
       return extraSpecsByName.get(name);
     var byName = /* @__PURE__ */ new Map();
@@ -3896,12 +3896,12 @@
       e_1 = { error: e_1_1 };
     } finally {
       try {
-        if (_d && !_d.done && (_a = _c.return)) _a.call(_c);
+        if (_d && !_d.done && (_a2 = _c.return)) _a2.call(_c);
       } finally {
         if (e_1) throw e_1.error;
       }
     }
-    return (_b = byName.get(name)) !== null && _b !== void 0 ? _b : null;
+    return (_b2 = byName.get(name)) !== null && _b2 !== void 0 ? _b2 : null;
   }
   function allKnownSpecs() {
     return __spreadArray2(__spreadArray2(__spreadArray2(__spreadArray2(__spreadArray2(__spreadArray2(__spreadArray2(__spreadArray2(__spreadArray2([], __read2(cardRewards), false), __read2(eventRewards), false), __read2(potionRewards), false), __read2(relicRewards), false), __read2(core.cards), false), __read2(core.events), false), __read2(vpModes.flatMap(function(vpMode) {
@@ -3969,11 +3969,11 @@
         return new Generator2(result);
       };
       Generator2.prototype.permute = function(list) {
-        var _a;
+        var _a2;
         var result = list.slice();
         for (var i = result.length - 1; i > 0; i--) {
           var j = Math.floor(this.next() * (i + 1));
-          _a = __read3([result[j], result[i]], 2), result[i] = _a[0], result[j] = _a[1];
+          _a2 = __read3([result[j], result[i]], 2), result[i] = _a2[0], result[j] = _a2[1];
         }
         return result;
       };
@@ -4074,10 +4074,10 @@
     return spec;
   }
   function renderEffects(spec) {
-    var e_1, _a;
+    var e_1, _a2;
     var parts = [];
     try {
-      for (var _b = __values3(cardSpecEffects(spec)), _c = _b.next(); !_c.done; _c = _b.next()) {
+      for (var _b2 = __values3(cardSpecEffects(spec)), _c = _b2.next(); !_c.done; _c = _b2.next()) {
         var effect = _c.value;
         parts.push.apply(parts, __spreadArray3([], __read4(effect.text), false));
       }
@@ -4085,7 +4085,7 @@
       e_1 = { error: e_1_1 };
     } finally {
       try {
-        if (_c && !_c.done && (_a = _b.return)) _a.call(_b);
+        if (_c && !_c.done && (_a2 = _b2.return)) _a2.call(_b2);
       } finally {
         if (e_1) throw e_1.error;
       }
@@ -4107,10 +4107,10 @@
     }).join("");
   }
   function renderAbility(spec, isRelic) {
-    var e_2, _a;
+    var e_2, _a2;
     var parts = [];
     try {
-      for (var _b = __values3(spec.ability || []), _c = _b.next(); !_c.done; _c = _b.next()) {
+      for (var _b2 = __values3(spec.ability || []), _c = _b2.next(); !_c.done; _c = _b2.next()) {
         var effect = _c.value;
         parts.push.apply(parts, __spreadArray3([], __read4(effect.text.map(function(x) {
           return isRelic ? "<div>".concat(x, "</div>") : "<div>(ability) ".concat(x, "</div>");
@@ -4120,7 +4120,7 @@
       e_2 = { error: e_2_1 };
     } finally {
       try {
-        if (_c && !_c.done && (_a = _b.return)) _a.call(_b);
+        if (_c && !_c.done && (_a2 = _b2.return)) _a2.call(_b2);
       } finally {
         if (e_2) throw e_2.error;
       }
@@ -4134,7 +4134,7 @@
     return renderLines(x.text, desc);
   }
   function renderVariableCosts(cs, isRelic) {
-    var e_3, _a, e_4, _b;
+    var e_3, _a2, e_4, _b2;
     var parts = [];
     try {
       for (var cs_1 = __values3(cs), cs_1_1 = cs_1.next(); !cs_1_1.done; cs_1_1 = cs_1.next()) {
@@ -4148,7 +4148,7 @@
           e_4 = { error: e_4_1 };
         } finally {
           try {
-            if (_d && !_d.done && (_b = _c.return)) _b.call(_c);
+            if (_d && !_d.done && (_b2 = _c.return)) _b2.call(_c);
           } finally {
             if (e_4) throw e_4.error;
           }
@@ -4158,7 +4158,7 @@
       e_3 = { error: e_3_1 };
     } finally {
       try {
-        if (cs_1_1 && !cs_1_1.done && (_a = cs_1.return)) _a.call(cs_1);
+        if (cs_1_1 && !cs_1_1.done && (_a2 = cs_1.return)) _a2.call(cs_1);
       } finally {
         if (e_3) throw e_3.error;
       }
@@ -4166,7 +4166,7 @@
     return parts.join("");
   }
   function renderBuyable(bs, isRelic) {
-    var e_5, _a, e_6, _b;
+    var e_5, _a2, e_6, _b2;
     var parts = [];
     try {
       for (var bs_1 = __values3(bs), bs_1_1 = bs_1.next(); !bs_1_1.done; bs_1_1 = bs_1.next()) {
@@ -4182,7 +4182,7 @@
           e_6 = { error: e_6_1 };
         } finally {
           try {
-            if (_d && !_d.done && (_b = _c.return)) _b.call(_c);
+            if (_d && !_d.done && (_b2 = _c.return)) _b2.call(_c);
           } finally {
             if (e_6) throw e_6.error;
           }
@@ -4192,7 +4192,7 @@
       e_5 = { error: e_5_1 };
     } finally {
       try {
-        if (bs_1_1 && !bs_1_1.done && (_a = bs_1.return)) _a.call(bs_1);
+        if (bs_1_1 && !bs_1_1.done && (_a2 = bs_1.return)) _a2.call(bs_1);
       } finally {
         if (e_5) throw e_5.error;
       }
@@ -4200,7 +4200,7 @@
     return parts.join("");
   }
   function renderRuleText(rule, isRelic) {
-    var e_7, _a, e_8, _b;
+    var e_7, _a2, e_8, _b2;
     var parts = [];
     try {
       for (var _c = __values3(rule.triggers || []), _d = _c.next(); !_d.done; _d = _c.next()) {
@@ -4211,7 +4211,7 @@
       e_7 = { error: e_7_1 };
     } finally {
       try {
-        if (_d && !_d.done && (_a = _c.return)) _a.call(_c);
+        if (_d && !_d.done && (_a2 = _c.return)) _a2.call(_c);
       } finally {
         if (e_7) throw e_7.error;
       }
@@ -4225,7 +4225,7 @@
       e_8 = { error: e_8_1 };
     } finally {
       try {
-        if (_f && !_f.done && (_b = _e.return)) _b.call(_e);
+        if (_f && !_f.done && (_b2 = _e.return)) _b2.call(_e);
       } finally {
         if (e_8) throw e_8.error;
       }
@@ -4233,7 +4233,7 @@
     return parts.join("");
   }
   function renderMetaText(spec, isRelic) {
-    var e_9, _a, e_10, _b;
+    var e_9, _a2, e_10, _b2;
     var x = asMetaTextSpec(spec);
     var parts = [];
     try {
@@ -4245,7 +4245,7 @@
       e_9 = { error: e_9_1 };
     } finally {
       try {
-        if (_d && !_d.done && (_a = _c.return)) _a.call(_c);
+        if (_d && !_d.done && (_a2 = _c.return)) _a2.call(_c);
       } finally {
         if (e_9) throw e_9.error;
       }
@@ -4259,7 +4259,7 @@
       e_10 = { error: e_10_1 };
     } finally {
       try {
-        if (_f && !_f.done && (_b = _e.return)) _b.call(_e);
+        if (_f && !_f.done && (_b2 = _e.return)) _b2.call(_e);
       } finally {
         if (e_10) throw e_10.error;
       }
@@ -4516,15 +4516,15 @@
         transform: function(_e, _s, sourceCard) {
           return function(state) {
             return __awaiter2(this, void 0, void 0, function() {
-              return __generator2(this, function(_a) {
-                switch (_a.label) {
+              return __generator2(this, function(_a2) {
+                switch (_a2.label) {
                   case 0:
                     return [4, create(spec, "hand")(state)];
                   case 1:
-                    state = _a.sent();
+                    state = _a2.sent();
                     return [4, trash(sourceCard)(state)];
                   case 2:
-                    state = _a.sent();
+                    state = _a2.sent();
                     return [2, state];
                 }
               });
@@ -4569,7 +4569,7 @@
         return function(state) {
           return __awaiter2(this, void 0, void 0, function() {
             var target;
-            return __generator2(this, function(_a) {
+            return __generator2(this, function(_a2) {
               target = state.events.find(function(event) {
                 return event.name === baseName;
               });
@@ -4743,13 +4743,15 @@
     }
     return to.concat(ar || Array.prototype.slice.call(from));
   };
+  var _a;
+  var _b;
   var minorCursePool = [];
   var majorCursePool = [];
   function curseName(base, isMajor) {
     return isMajor ? "".concat(base, " (Major)") : base;
   }
   function registerCursePair(minor, major) {
-    var e_1, _a, e_2, _b;
+    var e_1, _a2, e_2, _b2;
     minorCursePool.push(minor);
     majorCursePool.push(major);
     try {
@@ -4761,7 +4763,7 @@
       e_1 = { error: e_1_1 };
     } finally {
       try {
-        if (_d && !_d.done && (_a = _c.return)) _a.call(_c);
+        if (_d && !_d.done && (_a2 = _c.return)) _a2.call(_c);
       } finally {
         if (e_1) throw e_1.error;
       }
@@ -4775,7 +4777,7 @@
       e_2 = { error: e_2_1 };
     } finally {
       try {
-        if (_f && !_f.done && (_b = _e.return)) _b.call(_e);
+        if (_f && !_f.done && (_b2 = _e.return)) _b2.call(_e);
       } finally {
         if (e_2) throw e_2.error;
       }
@@ -4819,8 +4821,8 @@
       }]
     };
   });
-  registerMirroredCurse(function(isMajor) {
-    var maxActionsFromRefresh = isMajor ? 1 : 3;
+  var minorSqueeze = (_a = __read6(registerMirroredCurse(function(isMajor) {
+    var maxActionsFromRefresh = isMajor ? 0 : 2;
     return {
       name: curseName("Squeeze", isMajor),
       events: [{
@@ -4829,8 +4831,8 @@
         effects: [actionsEffect(1)],
         staticReplacers: [{
           kind: "resource",
-          text: ["Whenever you would gain actions from ".concat(refresh.name, ", gain at most ").concat(maxActionsFromRefresh, ".")],
-          simpleText: ["You gain at most ".concat(maxActionsFromRefresh, " actions from ").concat(refresh.name, ".")],
+          text: [isMajor ? "You can't gain actions from ".concat(refresh.name) : "Whenever you would gain actions from ".concat(refresh.name, ", gain at most ").concat(maxActionsFromRefresh, ".")],
+          simpleText: [isMajor ? "You can't gain actions from ".concat(refresh.name) : "You gain at most ".concat(maxActionsFromRefresh, " actions from ").concat(refresh.name, ".")],
           handles: function(params) {
             return params.resource === "actions" && params.amount > 0 && params.source instanceof Card && params.source.name === refresh.name;
           },
@@ -4840,8 +4842,9 @@
         }]
       }]
     };
-  });
-  registerMirroredCurse(function(_isMajor) {
+  }), 2), _a[0]);
+  var majorSqueeze = _a[1];
+  var minorInflation = (_b = __read6(registerMirroredCurse(function(_isMajor) {
     var inflationCostPerToken = _isMajor ? 2 : 1;
     return {
       name: curseName("Inflation", _isMajor),
@@ -4858,8 +4861,8 @@
           transform: function(e) {
             return function(state) {
               return __awaiter3(void 0, void 0, void 0, function() {
-                return __generator3(this, function(_a) {
-                  switch (_a.label) {
+                return __generator3(this, function(_a2) {
+                  switch (_a2.label) {
                     case 0:
                       return [4, doAll(state.supply.filter(function(card) {
                         return card.name === e.card.name;
@@ -4867,7 +4870,7 @@
                         return addToken(card, "inflation", 1);
                       }))(state)];
                     case 1:
-                      return [2, _a.sent()];
+                      return [2, _a2.sent()];
                   }
                 });
               });
@@ -4889,7 +4892,8 @@
         }]
       }]
     };
-  });
+  }), 2), _b[0]);
+  var majorInflation = _b[1];
   registerMirroredCurse(function(isMajor) {
     var removeCount = isMajor ? 1 : 2;
     return {
@@ -4914,8 +4918,8 @@
           transform: function(e) {
             return function(state) {
               return __awaiter3(void 0, void 0, void 0, function() {
-                return __generator3(this, function(_a) {
-                  switch (_a.label) {
+                return __generator3(this, function(_a2) {
+                  switch (_a2.label) {
                     case 0:
                       return [4, doAll(state.supply.filter(function(card) {
                         return card.name === e.card.name;
@@ -4923,7 +4927,7 @@
                         return addToken(card, "encumber", 1);
                       }))(state)];
                     case 1:
-                      return [2, _a.sent()];
+                      return [2, _a2.sent()];
                   }
                 });
               });
@@ -5248,8 +5252,8 @@
     return __spreadArray6([], __read7(extraOptionRegistry.values()), false);
   }
   function extraOptionBySelectionMarker(marker) {
-    var _a;
-    return (_a = extraOptionSelectionRegistry.get(marker)) !== null && _a !== void 0 ? _a : null;
+    var _a2;
+    return (_a2 = extraOptionSelectionRegistry.get(marker)) !== null && _a2 !== void 0 ? _a2 : null;
   }
   function encounterRewardCompleted(rewardState) {
     var data = rewardState.data;
@@ -5289,7 +5293,7 @@
     var options = rewardState.options;
     var adjustments = rewardPickAdjustments(rewardState.kind, options.length, metaState);
     return options.map(function(option, i) {
-      var _a;
+      var _a2;
       return {
         label: displayName(option),
         kind: "simple",
@@ -5297,22 +5301,22 @@
         isRelicSpec: rewardState.kind === "relic",
         disabled: rewardState.data.selectedIndex !== null || rewardState.kind === "relic" && !relicGainRequirementSatisfied(option, metaState),
         checked: rewardState.data.selectedIndex === i,
-        bufferDelta: (_a = adjustments[i]) !== null && _a !== void 0 ? _a : 0,
+        bufferDelta: (_a2 = adjustments[i]) !== null && _a2 !== void 0 ? _a2 : 0,
         onClick: function(state) {
           return __awaiter4(_this, void 0, void 0, function() {
             var skipped;
-            var _a2;
-            return __generator4(this, function(_b) {
-              switch (_b.label) {
+            var _a3;
+            return __generator4(this, function(_b2) {
+              switch (_b2.label) {
                 case 0:
                   skipped = options.filter(function(_, j) {
                     return j !== i;
                   }).map(function(spec) {
                     return displayName(spec);
                   });
-                  return [4, pickRewardOption(option, rewardState.kind, (_a2 = adjustments[i]) !== null && _a2 !== void 0 ? _a2 : 0, { skipped })(state)];
+                  return [4, pickRewardOption(option, rewardState.kind, (_a3 = adjustments[i]) !== null && _a3 !== void 0 ? _a3 : 0, { skipped })(state)];
                 case 1:
-                  _b.sent();
+                  _b2.sent();
                   return [2, i];
               }
             });
@@ -5322,7 +5326,7 @@
     });
   }
   function getRewardOptions(rewardState, metaState) {
-    var e_1, _a;
+    var e_1, _a2;
     var _this = this;
     var baseOptions = rewardState.kind === "encounter" ? !rewardState.encounter ? [] : rewardState.encounter.getOptions(rewardState.data, metaState) : getSimpleRewardOptions(rewardState, metaState);
     var alreadySelected = rewardState.kind === "encounter" ? encounterRewardCompleted(rewardState) : rewardState.data.selectedIndex !== null;
@@ -5345,12 +5349,12 @@
           checked: rewardState.data.selectedIndex === definition2.selectionMarker,
           onClick: function(state) {
             return __awaiter4(_this, void 0, void 0, function() {
-              return __generator4(this, function(_a2) {
-                switch (_a2.label) {
+              return __generator4(this, function(_a3) {
+                switch (_a3.label) {
                   case 0:
                     return [4, rendered.transform(state)];
                   case 1:
-                    _a2.sent();
+                    _a3.sent();
                     return [2, definition2.selectionMarker];
                 }
               });
@@ -5359,7 +5363,7 @@
         });
       };
       try {
-        for (var _b = __values5(getRegisteredExtraOptions()), _c = _b.next(); !_c.done; _c = _b.next()) {
+        for (var _b2 = __values5(getRegisteredExtraOptions()), _c = _b2.next(); !_c.done; _c = _b2.next()) {
           var definition = _c.value;
           _loop_1(definition);
         }
@@ -5367,7 +5371,7 @@
         e_1 = { error: e_1_1 };
       } finally {
         try {
-          if (_c && !_c.done && (_a = _b.return)) _a.call(_b);
+          if (_c && !_c.done && (_a2 = _b2.return)) _a2.call(_b2);
         } finally {
           if (e_1) throw e_1.error;
         }
@@ -5390,7 +5394,7 @@
   }
   function getBurdenOptions(burdenState, metaState) {
     return burdenState.options.map(function(burden, index) {
-      var e_2, _a, e_3, _b, e_4, _c;
+      var e_2, _a2, e_3, _b2, e_4, _c;
       var _d, _e, _f;
       var applicable = burden.applies(metaState);
       var resolved = isBurdenResolved(burdenState);
@@ -5412,7 +5416,7 @@
               e_3 = { error: e_3_1 };
             } finally {
               try {
-                if (_k && !_k.done && (_b = _j.return)) _b.call(_j);
+                if (_k && !_k.done && (_b2 = _j.return)) _b2.call(_j);
               } finally {
                 if (e_3) throw e_3.error;
               }
@@ -5438,7 +5442,7 @@
           e_2 = { error: e_2_1 };
         } finally {
           try {
-            if (_h && !_h.done && (_a = _g.return)) _a.call(_g);
+            if (_h && !_h.done && (_a2 = _g.return)) _a2.call(_g);
           } finally {
             if (e_2) throw e_2.error;
           }
@@ -5455,8 +5459,8 @@
         onClick: function(state) {
           return __awaiter4(this, void 0, void 0, function() {
             var selectedIndices, isFinalPick, skipped, done;
-            return __generator4(this, function(_a2) {
-              switch (_a2.label) {
+            return __generator4(this, function(_a3) {
+              switch (_a3.label) {
                 case 0:
                   if (!burden.applies(state)) {
                     return [2, burdenState];
@@ -5470,7 +5474,7 @@
                   }) : [];
                   return [4, burden.resolve(metaState, skipped)];
                 case 1:
-                  done = _a2.sent();
+                  done = _a3.sent();
                   if (done) {
                     return [2, __assign3(__assign3({}, burdenState), { selectedIndices })];
                   } else {
@@ -5494,11 +5498,11 @@
   var encounterUpgradeRegistry = /* @__PURE__ */ new Map();
   var burdenRegistry = [];
   function registerEncounter(encounter, options) {
-    var _a, _b;
+    var _a2, _b2;
     encounterRegistry.push({
       encounter,
-      minStage: (_a = options === null || options === void 0 ? void 0 : options.minStage) !== null && _a !== void 0 ? _a : 0,
-      maxStage: (_b = options === null || options === void 0 ? void 0 : options.maxStage) !== null && _b !== void 0 ? _b : 7
+      minStage: (_a2 = options === null || options === void 0 ? void 0 : options.minStage) !== null && _a2 !== void 0 ? _a2 : 0,
+      maxStage: (_b2 = options === null || options === void 0 ? void 0 : options.maxStage) !== null && _b2 !== void 0 ? _b2 : 7
     });
   }
   function registerEncounterUpgrade(id, upgrade) {
@@ -5544,11 +5548,11 @@
     return curse.name.replace(/ \(Major\)$/, "");
   }
   function renderChallenge(spec, state, challengeIndex) {
-    var _a, _b;
+    var _a2, _b2;
     var gameSpec = makeSpec(state, spec, challengeIndex);
     var label = "".concat(challengeSummaryWithState(spec, state), " (").concat(gameSpec.vp, "vp in ").concat(gameSpec.par, "@)");
     var stageCurse = selectedCurseForChallenge(spec, state);
-    var hintsHtml = ((_a = gameSpec.hints) !== null && _a !== void 0 ? _a : []).length > 0 ? "<div class='challengeHints'>".concat(((_b = gameSpec.hints) !== null && _b !== void 0 ? _b : []).join("<br>"), "</div>") : "";
+    var hintsHtml = ((_a2 = gameSpec.hints) !== null && _a2 !== void 0 ? _a2 : []).length > 0 ? "<div class='challengeHints'>".concat(((_b2 = gameSpec.hints) !== null && _b2 !== void 0 ? _b2 : []).join("<br>"), "</div>") : "";
     var relatedCards = __spreadArray6(__spreadArray6(__spreadArray6(__spreadArray6([], __read7(spec.vpMode.cards), false), __read7(spec.vpMode.events), false), __read7(stageCurse ? stageCurse.events : []), false), __read7(spec.boons.flatMap(function(b) {
       return __spreadArray6(__spreadArray6([], __read7(b.cards), false), __read7(b.events), false);
     })), false);
@@ -5625,7 +5629,7 @@
     })(Card)
   );
   function normalizeTimelineEntries(timeline) {
-    var e_5, _a;
+    var e_5, _a2;
     var result = [];
     var firstStageRowIndex = /* @__PURE__ */ new Map();
     try {
@@ -5647,7 +5651,7 @@
       e_5 = { error: e_5_1 };
     } finally {
       try {
-        if (timeline_1_1 && !timeline_1_1.done && (_a = timeline_1.return)) _a.call(timeline_1);
+        if (timeline_1_1 && !timeline_1_1.done && (_a2 = timeline_1.return)) _a2.call(timeline_1);
       } finally {
         if (e_5) throw e_5.error;
       }
@@ -5701,14 +5705,14 @@
         if (options === void 0) {
           options = {};
         }
-        var _a, _b, _c, _d;
+        var _a2, _b2, _c, _d;
         this.ui = ui;
         this.redoStack = [];
         this.undoStack = [];
         this.generators = /* @__PURE__ */ new Map();
         this.onChange = onChange;
-        this.debugEnabled = (_a = options.debugEnabled) !== null && _a !== void 0 ? _a : false;
-        this.burdensEnabled = (_b = options.burdensEnabled) !== null && _b !== void 0 ? _b : false;
+        this.debugEnabled = (_a2 = options.debugEnabled) !== null && _a2 !== void 0 ? _a2 : false;
+        this.burdensEnabled = (_b2 = options.burdensEnabled) !== null && _b2 !== void 0 ? _b2 : false;
         this.scarcityEnabled = (_c = options.scarcityEnabled) !== null && _c !== void 0 ? _c : false;
         this.cursesEnabled = (_d = options.cursesEnabled) !== null && _d !== void 0 ? _d : false;
         if (seed === null) {
@@ -5745,10 +5749,10 @@
         };
       }
       MetaState2.prototype.removeFromZone = function(id, zone) {
-        var _a;
-        this.update((_a = {}, _a[zone] = this.data[zone].filter(function(c) {
+        var _a2;
+        this.update((_a2 = {}, _a2[zone] = this.data[zone].filter(function(c) {
           return c.id !== id;
-        }), _a));
+        }), _a2));
       };
       MetaState2.prototype.applyToRelic = function(fn, r) {
         this.update({ relics: this.data.relics.map(function(rel) {
@@ -5869,7 +5873,7 @@
         return this.redoStack.length > 0;
       };
       MetaState2.prototype.uniqueSnapshots = function() {
-        var e_6, _a;
+        var e_6, _a2;
         var snapshots = __spreadArray6(__spreadArray6([this.data, this.checkpoint], __read7(this.undoStack), false), __read7(this.redoStack), false);
         var seen = /* @__PURE__ */ new Set();
         var result = [];
@@ -5885,7 +5889,7 @@
           e_6 = { error: e_6_1 };
         } finally {
           try {
-            if (snapshots_1_1 && !snapshots_1_1.done && (_a = snapshots_1.return)) _a.call(snapshots_1);
+            if (snapshots_1_1 && !snapshots_1_1.done && (_a2 = snapshots_1.return)) _a2.call(snapshots_1);
           } finally {
             if (e_6) throw e_6.error;
           }
@@ -5893,9 +5897,9 @@
         return result;
       };
       MetaState2.prototype.mutateAllSnapshots = function(mutator) {
-        var e_7, _a;
+        var e_7, _a2;
         try {
-          for (var _b = __values5(this.uniqueSnapshots()), _c = _b.next(); !_c.done; _c = _b.next()) {
+          for (var _b2 = __values5(this.uniqueSnapshots()), _c = _b2.next(); !_c.done; _c = _b2.next()) {
             var snapshot = _c.value;
             mutator(snapshot);
           }
@@ -5903,7 +5907,7 @@
           e_7 = { error: e_7_1 };
         } finally {
           try {
-            if (_c && !_c.done && (_a = _b.return)) _a.call(_b);
+            if (_c && !_c.done && (_a2 = _b2.return)) _a2.call(_b2);
           } finally {
             if (e_7) throw e_7.error;
           }
@@ -5951,7 +5955,7 @@
     return "effects" in record || "buyCost" in record || "fixedCost" in record || "isPotion" in record || "upgrades" in record || "persistence" in record || "metaReplacers" in record || "metaTriggers" in record || "relatedCards" in record || "simpleText" in record;
   }
   function encodeUnknown(value) {
-    var e_8, _a;
+    var e_8, _a2;
     if (value instanceof Relic) {
       return {
         __type: "relic",
@@ -5967,8 +5971,8 @@
     if (value instanceof Map) {
       return {
         __type: "map",
-        entries: __spreadArray6([], __read7(value.entries()), false).map(function(_a2) {
-          var _b2 = __read7(_a2, 2), key2 = _b2[0], entryValue2 = _b2[1];
+        entries: __spreadArray6([], __read7(value.entries()), false).map(function(_a3) {
+          var _b3 = __read7(_a3, 2), key2 = _b3[0], entryValue2 = _b3[1];
           return [encodeUnknown(key2), encodeUnknown(entryValue2)];
         })
       };
@@ -5985,7 +5989,7 @@
     if (value !== null && typeof value === "object") {
       var result = {};
       try {
-        for (var _b = __values5(Object.entries(value)), _c = _b.next(); !_c.done; _c = _b.next()) {
+        for (var _b2 = __values5(Object.entries(value)), _c = _b2.next(); !_c.done; _c = _b2.next()) {
           var _d = __read7(_c.value, 2), key = _d[0], entryValue = _d[1];
           result[key] = encodeUnknown(entryValue);
         }
@@ -5993,7 +5997,7 @@
         e_8 = { error: e_8_1 };
       } finally {
         try {
-          if (_c && !_c.done && (_a = _b.return)) _a.call(_b);
+          if (_c && !_c.done && (_a2 = _b2.return)) _a2.call(_b2);
         } finally {
           if (e_8) throw e_8.error;
         }
@@ -6003,7 +6007,7 @@
     return value;
   }
   function decodeUnknown(value) {
-    var e_9, _a;
+    var e_9, _a2;
     if (Array.isArray(value)) {
       return value.map(decodeUnknown);
     }
@@ -6024,7 +6028,7 @@
       }
       var result = {};
       try {
-        for (var _b = __values5(Object.entries(record)), _c = _b.next(); !_c.done; _c = _b.next()) {
+        for (var _b2 = __values5(Object.entries(record)), _c = _b2.next(); !_c.done; _c = _b2.next()) {
           var _d = __read7(_c.value, 2), key = _d[0], entryValue = _d[1];
           result[key] = decodeUnknown(entryValue);
         }
@@ -6032,7 +6036,7 @@
         e_9 = { error: e_9_1 };
       } finally {
         try {
-          if (_c && !_c.done && (_a = _b.return)) _a.call(_b);
+          if (_c && !_c.done && (_a2 = _b2.return)) _a2.call(_b2);
         } finally {
           if (e_9) throw e_9.error;
         }
@@ -6053,9 +6057,9 @@
     throw new Error('Unable to resolve spec "'.concat(name, '"'));
   }
   function serializeSpec(spec, categoryHint) {
-    var _a;
+    var _a2;
     if (spec.persistence) {
-      var base = (_a = spec.relatedCards) === null || _a === void 0 ? void 0 : _a[0];
+      var base = (_a2 = spec.relatedCards) === null || _a2 === void 0 ? void 0 : _a2[0];
       if (!base) {
         throw new Error('Dynamic spec "'.concat(spec.name, '" is missing related base card'));
       }
@@ -6082,7 +6086,7 @@
     };
   }
   function applyUpgrades(base, upgradeIDs) {
-    var e_10, _a;
+    var e_10, _a2;
     var result = base;
     try {
       for (var upgradeIDs_1 = __values5(upgradeIDs), upgradeIDs_1_1 = upgradeIDs_1.next(); !upgradeIDs_1_1.done; upgradeIDs_1_1 = upgradeIDs_1.next()) {
@@ -6097,7 +6101,7 @@
       e_10 = { error: e_10_1 };
     } finally {
       try {
-        if (upgradeIDs_1_1 && !upgradeIDs_1_1.done && (_a = upgradeIDs_1.return)) _a.call(upgradeIDs_1);
+        if (upgradeIDs_1_1 && !upgradeIDs_1_1.done && (_a2 = upgradeIDs_1.return)) _a2.call(upgradeIDs_1);
       } finally {
         if (e_10) throw e_10.error;
       }
@@ -6147,21 +6151,21 @@
     return new Card(spec, card.id, card.ticks, tokens, card.place);
   }
   function serializeChallenge(challenge) {
-    var _a;
+    var _a2;
     return {
       stage: challenge.stage,
       vpModeName: challenge.vpMode.name,
       boonNames: challenge.boons.map(function(boon) {
         return boon.name;
       }),
-      curseName: (_a = challenge.curse) === null || _a === void 0 ? void 0 : _a.name
+      curseName: (_a2 = challenge.curse) === null || _a2 === void 0 ? void 0 : _a2.name
     };
   }
   function findCurseByName(name) {
-    var _a;
-    return (_a = __spreadArray6(__spreadArray6([], __read7(allMinorCurses()), false), __read7(allMajorCurses()), false).find(function(c) {
+    var _a2;
+    return (_a2 = __spreadArray6(__spreadArray6([], __read7(allMinorCurses()), false), __read7(allMajorCurses()), false).find(function(c) {
       return c.name === name;
-    })) !== null && _a !== void 0 ? _a : null;
+    })) !== null && _a2 !== void 0 ? _a2 : null;
   }
   function deserializeChallenge(challenge) {
     var vpMode = vpModes.find(function(mode) {
@@ -6196,9 +6200,9 @@
     };
   }
   function deserializePath(path) {
-    var _a;
+    var _a2;
     return {
-      label: (_a = path.label) !== null && _a !== void 0 ? _a : "Path",
+      label: (_a2 = path.label) !== null && _a2 !== void 0 ? _a2 : "Path",
       onSelectEffects: (path.onSelectEffects || []).map(function(effect) {
         return __assign3({}, effect);
       }),
@@ -6270,7 +6274,7 @@
     }
   }
   function serializeGameSpec(spec) {
-    var _a, _b;
+    var _a2, _b2;
     return {
       vp: spec.vp,
       par: spec.par,
@@ -6296,16 +6300,16 @@
       replayUsedPotionIDs: spec.replayUsedPotionIDs ? __spreadArray6([], __read7(spec.replayUsedPotionIDs), false) : void 0,
       replayStage: spec.replayStage,
       selectedChallengeIndex: spec.selectedChallengeIndex,
-      collectedCards: (_a = spec.collectedCards) === null || _a === void 0 ? void 0 : _a.map(function(card) {
+      collectedCards: (_a2 = spec.collectedCards) === null || _a2 === void 0 ? void 0 : _a2.map(function(card) {
         return serializeSpec(card, "card");
       }),
-      collectedEvents: (_b = spec.collectedEvents) === null || _b === void 0 ? void 0 : _b.map(function(event) {
+      collectedEvents: (_b2 = spec.collectedEvents) === null || _b2 === void 0 ? void 0 : _b2.map(function(event) {
         return serializeSpec(event, "event");
       })
     };
   }
   function deserializeGameSpec(spec) {
-    var _a, _b;
+    var _a2, _b2;
     return {
       vp: spec.vp,
       par: spec.par,
@@ -6331,10 +6335,10 @@
       replayUsedPotionIDs: spec.replayUsedPotionIDs ? __spreadArray6([], __read7(spec.replayUsedPotionIDs), false) : void 0,
       replayStage: spec.replayStage,
       selectedChallengeIndex: spec.selectedChallengeIndex,
-      collectedCards: (_a = spec.collectedCards) === null || _a === void 0 ? void 0 : _a.map(function(card) {
+      collectedCards: (_a2 = spec.collectedCards) === null || _a2 === void 0 ? void 0 : _a2.map(function(card) {
         return deserializeSpec(card);
       }),
-      collectedEvents: (_b = spec.collectedEvents) === null || _b === void 0 ? void 0 : _b.map(function(event) {
+      collectedEvents: (_b2 = spec.collectedEvents) === null || _b2 === void 0 ? void 0 : _b2.map(function(event) {
         return deserializeSpec(event);
       })
     };
@@ -6393,8 +6397,8 @@
     return JSON.parse(JSON.stringify(data));
   }
   function deserializeMetaStateData(data) {
-    var _a;
-    var phase = (_a = data.phase) !== null && _a !== void 0 ? _a : data.playingGame === true ? "in_game" : data.availablePaths && data.availablePaths.length > 0 ? "path_select" : "stage_select";
+    var _a2;
+    var phase = (_a2 = data.phase) !== null && _a2 !== void 0 ? _a2 : data.playingGame === true ? "in_game" : data.availablePaths && data.availablePaths.length > 0 ? "path_select" : "stage_select";
     var result = {
       stage: data.stage,
       phase,
@@ -6468,8 +6472,8 @@
       scarcityEnabled: state.scarcityEnabled,
       cursesEnabled: state.cursesEnabled,
       masterGeneratorState: state.masterGenerator.exportState(),
-      generatorStates: __spreadArray6([], __read7(state.generators.entries()), false).map(function(_a) {
-        var _b = __read7(_a, 2), key = _b[0], generator = _b[1];
+      generatorStates: __spreadArray6([], __read7(state.generators.entries()), false).map(function(_a2) {
+        var _b2 = __read7(_a2, 2), key = _b2[0], generator = _b2[1];
         return {
           key,
           state: generator.exportState()
@@ -6485,15 +6489,15 @@
     };
   }
   function deserializeMetaGame(ui, serialized, onChange) {
-    var _a, _b, _c, _d, _e, _f;
+    var _a2, _b2, _c, _d, _e, _f;
     if (onChange === void 0) {
       onChange = null;
     }
     if (serialized.version !== 1) {
       throw new Error("Unsupported save version ".concat(serialized.version));
     }
-    var debugEnabled = (_a = serialized.debugEnabled) !== null && _a !== void 0 ? _a : false;
-    var burdensEnabled = (_b = serialized.burdensEnabled) !== null && _b !== void 0 ? _b : false;
+    var debugEnabled = (_a2 = serialized.debugEnabled) !== null && _a2 !== void 0 ? _a2 : false;
+    var burdensEnabled = (_b2 = serialized.burdensEnabled) !== null && _b2 !== void 0 ? _b2 : false;
     var scarcityEnabled = (_c = serialized.scarcityEnabled) !== null && _c !== void 0 ? _c : false;
     var cursesEnabled = (_d = serialized.cursesEnabled) !== null && _d !== void 0 ? _d : false;
     var state = new MetaState(ui, serialized.seed, onChange, { debugEnabled, burdensEnabled, scarcityEnabled, cursesEnabled });
@@ -6535,32 +6539,32 @@
     return function(state) {
       return __awaiter4(this, void 0, void 0, function() {
         var transforms_1, transforms_1_1, t, e_11_1;
-        var e_11, _a;
-        return __generator4(this, function(_b) {
-          switch (_b.label) {
+        var e_11, _a2;
+        return __generator4(this, function(_b2) {
+          switch (_b2.label) {
             case 0:
-              _b.trys.push([0, 5, 6, 7]);
+              _b2.trys.push([0, 5, 6, 7]);
               transforms_1 = __values5(transforms), transforms_1_1 = transforms_1.next();
-              _b.label = 1;
+              _b2.label = 1;
             case 1:
               if (!!transforms_1_1.done) return [3, 4];
               t = transforms_1_1.value;
               return [4, t(state)];
             case 2:
-              _b.sent();
-              _b.label = 3;
+              _b2.sent();
+              _b2.label = 3;
             case 3:
               transforms_1_1 = transforms_1.next();
               return [3, 1];
             case 4:
               return [3, 7];
             case 5:
-              e_11_1 = _b.sent();
+              e_11_1 = _b2.sent();
               e_11 = { error: e_11_1 };
               return [3, 7];
             case 6:
               try {
-                if (transforms_1_1 && !transforms_1_1.done && (_a = transforms_1.return)) _a.call(transforms_1);
+                if (transforms_1_1 && !transforms_1_1.done && (_a2 = transforms_1.return)) _a2.call(transforms_1);
               } finally {
                 if (e_11) throw e_11.error;
               }
@@ -6581,7 +6585,7 @@
   function addBuffer(amount) {
     return function(state) {
       return __awaiter4(this, void 0, void 0, function() {
-        return __generator4(this, function(_a) {
+        return __generator4(this, function(_a2) {
           state.update({ buffer: state.data.buffer + amount });
           state.ui.updateBuffer(state);
           return [
@@ -6595,7 +6599,7 @@
   function addTimelineAction(action, details, skipped) {
     return function(state) {
       return __awaiter4(this, void 0, void 0, function() {
-        return __generator4(this, function(_a) {
+        return __generator4(this, function(_a2) {
           state.update({
             timeline: __spreadArray6(__spreadArray6([], __read7(state.data.timeline), false), [{
               kind: "action",
@@ -6620,8 +6624,8 @@
     return function(state) {
       return __awaiter4(this, void 0, void 0, function() {
         var nextData;
-        return __generator4(this, function(_a) {
-          switch (_a.label) {
+        return __generator4(this, function(_a2) {
+          switch (_a2.label) {
             case 0:
               nextData = {
                 collectedCards: __spreadArray6(__spreadArray6([], __read7(state.data.collectedCards), false), [card], false)
@@ -6639,7 +6643,7 @@
               state.update(nextData);
               return [4, trigger2({ kind: "card", card }, state)];
             case 1:
-              _a.sent();
+              _a2.sent();
               return [
                 2
                 /*return*/
@@ -6656,8 +6660,8 @@
     return function(state) {
       return __awaiter4(this, void 0, void 0, function() {
         var nextData;
-        return __generator4(this, function(_a) {
-          switch (_a.label) {
+        return __generator4(this, function(_a2) {
+          switch (_a2.label) {
             case 0:
               nextData = {
                 collectedEvents: __spreadArray6(__spreadArray6([], __read7(state.data.collectedEvents), false), [event], false)
@@ -6675,7 +6679,7 @@
               state.update(nextData);
               return [4, trigger2({ kind: "event", event }, state)];
             case 1:
-              _a.sent();
+              _a2.sent();
               return [
                 2
                 /*return*/
@@ -6692,8 +6696,8 @@
     return function(state) {
       return __awaiter4(this, void 0, void 0, function() {
         var nextID, potionCard, nextData;
-        return __generator4(this, function(_a) {
-          switch (_a.label) {
+        return __generator4(this, function(_a2) {
+          switch (_a2.label) {
             case 0:
               nextID = state.data.nextID;
               potionCard = new Card(potion, nextID);
@@ -6714,7 +6718,7 @@
               state.update(nextData);
               return [4, trigger2({ kind: "potion", potion: potionCard }, state)];
             case 1:
-              _a.sent();
+              _a2.sent();
               return [
                 2
                 /*return*/
@@ -6731,8 +6735,8 @@
     return function(state) {
       return __awaiter4(this, void 0, void 0, function() {
         var nextID, relicCard, nextData;
-        return __generator4(this, function(_a) {
-          switch (_a.label) {
+        return __generator4(this, function(_a2) {
+          switch (_a2.label) {
             case 0:
               nextID = state.data.nextID;
               relicCard = new Relic(relic, nextID);
@@ -6753,7 +6757,7 @@
               state.update(nextData);
               return [4, trigger2({ kind: "relic", relic: relicCard }, state)];
             case 1:
-              _a.sent();
+              _a2.sent();
               return [
                 2
                 /*return*/
@@ -6770,8 +6774,8 @@
     return function(state) {
       return __awaiter4(this, void 0, void 0, function() {
         var nextID, relicCard, nextData;
-        return __generator4(this, function(_a) {
-          switch (_a.label) {
+        return __generator4(this, function(_a2) {
+          switch (_a2.label) {
             case 0:
               nextID = state.data.nextID;
               relicCard = new Relic(relic, nextID, notedCards);
@@ -6792,7 +6796,7 @@
               state.update(nextData);
               return [4, trigger2({ kind: "relic", relic: relicCard }, state)];
             case 1:
-              _a.sent();
+              _a2.sent();
               return [
                 2
                 /*return*/
@@ -6805,8 +6809,8 @@
   function removeRelic(state, id) {
     return __awaiter4(this, void 0, void 0, function() {
       var relic;
-      return __generator4(this, function(_a) {
-        switch (_a.label) {
+      return __generator4(this, function(_a2) {
+        switch (_a2.label) {
           case 0:
             relic = state.data.relics.find(function(r) {
               return r.id === id;
@@ -6818,7 +6822,7 @@
               ];
             return [4, trigger2({ kind: "loseRelic", relic }, state)];
           case 1:
-            _a.sent();
+            _a2.sent();
             state.removeRelic(id);
             return [
               2
@@ -6845,8 +6849,8 @@
   function endCourse(score, par, state) {
     return __awaiter4(this, void 0, void 0, function() {
       var newScores, newPars;
-      return __generator4(this, function(_a) {
-        switch (_a.label) {
+      return __generator4(this, function(_a2) {
+        switch (_a2.label) {
           case 0:
             newScores = __spreadArray6([], __read7(state.data.stageScores), false);
             newPars = __spreadArray6([], __read7(state.data.stagePars), false);
@@ -6855,12 +6859,12 @@
             state.update({ stageScores: newScores, stagePars: newPars });
             return [4, trigger2({ kind: "end", score, par }, state)];
           case 1:
-            _a.sent();
+            _a2.sent();
             if (!(score > par)) return [3, 3];
             return [4, addBuffer(par - score)(state)];
           case 2:
-            _a.sent();
-            _a.label = 3;
+            _a2.sent();
+            _a2.label = 3;
           case 3:
             return [
               2
@@ -6871,7 +6875,7 @@
     });
   }
   function applyMetaReplacers(params, state) {
-    var e_12, _a, e_13, _b;
+    var e_12, _a2, e_13, _b2;
     try {
       for (var _c = __values5(state.data.relics), _d = _c.next(); !_d.done; _d = _c.next()) {
         var relic = _d.value;
@@ -6888,7 +6892,7 @@
           e_13 = { error: e_13_1 };
         } finally {
           try {
-            if (metaReplacers_1_1 && !metaReplacers_1_1.done && (_b = metaReplacers_1.return)) _b.call(metaReplacers_1);
+            if (metaReplacers_1_1 && !metaReplacers_1_1.done && (_b2 = metaReplacers_1.return)) _b2.call(metaReplacers_1);
           } finally {
             if (e_13) throw e_13.error;
           }
@@ -6898,7 +6902,7 @@
       e_12 = { error: e_12_1 };
     } finally {
       try {
-        if (_d && !_d.done && (_a = _c.return)) _a.call(_c);
+        if (_d && !_d.done && (_a2 = _c.return)) _a2.call(_c);
       } finally {
         if (e_12) throw e_12.error;
       }
@@ -6966,7 +6970,7 @@
     return "".concat(basePar, " (Base), ").concat(signedAmount(scarcityDelta), " (Scarcity), = ").concat(adjusted);
   }
   function describeParCalculation(stage, challenge, relicCards, state, challengeIndex) {
-    var e_14, _a, e_15, _b, e_16, _c;
+    var e_14, _a2, e_15, _b2, e_16, _c;
     var _d;
     var basePar = BASE_PARS[stage];
     if (basePar === void 0)
@@ -6991,7 +6995,7 @@
         e_14 = { error: e_14_1 };
       } finally {
         try {
-          if (_f && !_f.done && (_a = _e.return)) _a.call(_e);
+          if (_f && !_f.done && (_a2 = _e.return)) _a2.call(_e);
         } finally {
           if (e_14) throw e_14.error;
         }
@@ -7038,7 +7042,7 @@
       e_15 = { error: e_15_1 };
     } finally {
       try {
-        if (relicCards_1_1 && !relicCards_1_1.done && (_b = relicCards_1.return)) _b.call(relicCards_1);
+        if (relicCards_1_1 && !relicCards_1_1.done && (_b2 = relicCards_1.return)) _b2.call(relicCards_1);
       } finally {
         if (e_15) throw e_15.error;
       }
@@ -7049,13 +7053,13 @@
   }
   function stageTooltipTexts(state) {
     return BASE_PARS.map(function(basePar, stage) {
-      var _a, _b;
+      var _a2, _b2;
       if (basePar === void 0)
         return null;
       if (stage < state.data.stage) {
         var replayData = state.data.stageReplays[stage];
         if (replayData !== null) {
-          return (_b = (_a = replayData.spec.metaStageTooltips) === null || _a === void 0 ? void 0 : _a[stage]) !== null && _b !== void 0 ? _b : describeParCalculation(stage, replayData.challenge, replayData.spec.relics, state, replayData.spec.selectedChallengeIndex);
+          return (_b2 = (_a2 = replayData.spec.metaStageTooltips) === null || _a2 === void 0 ? void 0 : _a2[stage]) !== null && _b2 !== void 0 ? _b2 : describeParCalculation(stage, replayData.challenge, replayData.spec.relics, state, replayData.spec.selectedChallengeIndex);
         }
       }
       if (stage === state.data.stage && state.data.selectedChallengeIndex !== void 0) {
@@ -7066,17 +7070,17 @@
   }
   function trigger2(e, state) {
     return __awaiter4(this, void 0, void 0, function() {
-      var _a, _b, relic, metaTriggers, metaTriggers_1, metaTriggers_1_1, rawTrigger, trigger_2, handles, e_17_1, e_18_1;
+      var _a2, _b2, relic, metaTriggers, metaTriggers_1, metaTriggers_1_1, rawTrigger, trigger_2, handles, e_17_1, e_18_1;
       var e_18, _c, e_17, _d;
       return __generator4(this, function(_e) {
         switch (_e.label) {
           case 0:
             _e.trys.push([0, 11, 12, 13]);
-            _a = __values5(state.data.relics), _b = _a.next();
+            _a2 = __values5(state.data.relics), _b2 = _a2.next();
             _e.label = 1;
           case 1:
-            if (!!_b.done) return [3, 10];
-            relic = _b.value;
+            if (!!_b2.done) return [3, 10];
+            relic = _b2.value;
             metaTriggers = relic.metaTriggers();
             if (!metaTriggers) return [3, 9];
             _e.label = 2;
@@ -7115,7 +7119,7 @@
               /*endfinally*/
             ];
           case 9:
-            _b = _a.next();
+            _b2 = _a2.next();
             return [3, 1];
           case 10:
             return [3, 13];
@@ -7125,7 +7129,7 @@
             return [3, 13];
           case 12:
             try {
-              if (_b && !_b.done && (_c = _a.return)) _c.call(_a);
+              if (_b2 && !_b2.done && (_c = _a2.return)) _c.call(_a2);
             } finally {
               if (e_18) throw e_18.error;
             }
@@ -7143,8 +7147,8 @@
     });
   }
   function makeSpec(state, challenge, selectedChallengeIndex) {
-    var e_19, _a;
-    var _b;
+    var e_19, _a2;
+    var _b2;
     var par = BASE_PARS[state.data.stage];
     par += scarcityParAdjustment(state.data.stage, state);
     var vpTarget = challenge.vpMode.target;
@@ -7153,7 +7157,7 @@
     var stageCurse = selectedCurseForChallenge(challenge, state);
     if (stageCurse !== null) {
       events.push.apply(events, __spreadArray6([], __read7(stageCurse.events), false));
-      vpTarget = Math.ceil(vpTarget * ((_b = stageCurse.vpTargetMultiplier) !== null && _b !== void 0 ? _b : 1));
+      vpTarget = Math.ceil(vpTarget * ((_b2 = stageCurse.vpTargetMultiplier) !== null && _b2 !== void 0 ? _b2 : 1));
     }
     try {
       for (var _c = __values5(challenge.boons), _d = _c.next(); !_d.done; _d = _c.next()) {
@@ -7166,7 +7170,7 @@
       e_19 = { error: e_19_1 };
     } finally {
       try {
-        if (_d && !_d.done && (_a = _c.return)) _a.call(_c);
+        if (_d && !_d.done && (_a2 = _c.return)) _a2.call(_c);
       } finally {
         if (e_19) throw e_19.error;
       }
@@ -7228,22 +7232,22 @@
     return params.optionCount;
   }
   function relicAvailableOnStage(relic, stage) {
-    var _a, _b;
-    var minStage = (_a = relic.minStage) !== null && _a !== void 0 ? _a : 0;
-    var maxStage = (_b = relic.maxStage) !== null && _b !== void 0 ? _b : TOTAL_STAGES - 1;
+    var _a2, _b2;
+    var minStage = (_a2 = relic.minStage) !== null && _a2 !== void 0 ? _a2 : 0;
+    var maxStage = (_b2 = relic.maxStage) !== null && _b2 !== void 0 ? _b2 : TOTAL_STAGES - 1;
     return minStage <= stage && stage <= maxStage;
   }
   function standardRelicRewards() {
     return relicRewards;
   }
   function sampleEligibleRelicRewards(generator, count, state) {
-    var e_20, _a;
+    var e_20, _a2;
     var blockedNames = new Set(state.data.relics.map(function(relic2) {
       return relic2.spec.name;
     }));
     var result = [];
     try {
-      for (var _b = __values5(generator.permute(standardRelicRewards())), _c = _b.next(); !_c.done; _c = _b.next()) {
+      for (var _b2 = __values5(generator.permute(standardRelicRewards())), _c = _b2.next(); !_c.done; _c = _b2.next()) {
         var relic = _c.value;
         if (blockedNames.has(relic.name))
           continue;
@@ -7258,7 +7262,7 @@
       e_20 = { error: e_20_1 };
     } finally {
       try {
-        if (_c && !_c.done && (_a = _b.return)) _a.call(_b);
+        if (_c && !_c.done && (_a2 = _b2.return)) _a2.call(_b2);
       } finally {
         if (e_20) throw e_20.error;
       }
@@ -7285,7 +7289,7 @@
     return fallback;
   }
   function sampleChallengesForStage(state, count, test2) {
-    var _a, _b, _c;
+    var _a2, _b2, _c;
     if (test2 === void 0) {
       test2 = {};
     }
@@ -7306,11 +7310,11 @@
     var result = [];
     for (var pathIndex = 0; pathIndex < count; pathIndex++) {
       var overrides = challengeOverridesForStage(test2, stage, pathIndex);
-      var vpMode = (_a = overrides.vpMode) !== null && _a !== void 0 ? _a : nextDistinctByName(vpModeOrder, usedVPModes, vpFallbackIndex);
+      var vpMode = (_a2 = overrides.vpMode) !== null && _a2 !== void 0 ? _a2 : nextDistinctByName(vpModeOrder, usedVPModes, vpFallbackIndex);
       usedVPModes.add(vpMode.name);
       var challengeBoons = [];
       if (!isFinalStage) {
-        var boon = (_b = overrides.boon) !== null && _b !== void 0 ? _b : nextDistinctByName(boonOrder, usedBoons, boonFallbackIndex);
+        var boon = (_b2 = overrides.boon) !== null && _b2 !== void 0 ? _b2 : nextDistinctByName(boonOrder, usedBoons, boonFallbackIndex);
         usedBoons.add(boon.name);
         challengeBoons = [boon];
       }
@@ -7328,13 +7332,13 @@
     return result;
   }
   function orderedBurdenCandidates(_state, generator) {
-    var e_21, _a;
-    var _b;
+    var e_21, _a2;
+    var _b2;
     var weighted = [];
     try {
       for (var burdenRegistry_1 = __values5(burdenRegistry), burdenRegistry_1_1 = burdenRegistry_1.next(); !burdenRegistry_1_1.done; burdenRegistry_1_1 = burdenRegistry_1.next()) {
         var definition = burdenRegistry_1_1.value;
-        var weight = (_b = definition.weight) !== null && _b !== void 0 ? _b : 1;
+        var weight = (_b2 = definition.weight) !== null && _b2 !== void 0 ? _b2 : 1;
         for (var index = 0; index < weight; index++) {
           weighted.push(definition);
         }
@@ -7343,7 +7347,7 @@
       e_21 = { error: e_21_1 };
     } finally {
       try {
-        if (burdenRegistry_1_1 && !burdenRegistry_1_1.done && (_a = burdenRegistry_1.return)) _a.call(burdenRegistry_1);
+        if (burdenRegistry_1_1 && !burdenRegistry_1_1.done && (_a2 = burdenRegistry_1.return)) _a2.call(burdenRegistry_1);
       } finally {
         if (e_21) throw e_21.error;
       }
@@ -7353,8 +7357,8 @@
   function sampleBurdenState(state, generator) {
     return __awaiter4(this, void 0, void 0, function() {
       var stage, burdenParams, numOptions, numPicked, ordered, options, chosenIDs, ordered_1, ordered_1_1, definition;
-      var e_22, _a;
-      var _b, _c;
+      var e_22, _a2;
+      var _b2, _c;
       return __generator4(this, function(_d) {
         switch (_d.label) {
           case 0:
@@ -7377,7 +7381,7 @@
                 definition = ordered_1_1.value;
                 if (chosenIDs.has(definition.name))
                   continue;
-                if (((_b = definition.minStage) !== null && _b !== void 0 ? _b : 1) > stage || stage > ((_c = definition.maxStage) !== null && _c !== void 0 ? _c : TOTAL_STAGES - 1))
+                if (((_b2 = definition.minStage) !== null && _b2 !== void 0 ? _b2 : 1) > stage || stage > ((_c = definition.maxStage) !== null && _c !== void 0 ? _c : TOTAL_STAGES - 1))
                   continue;
                 if (!definition.applies(state))
                   continue;
@@ -7390,7 +7394,7 @@
               e_22 = { error: e_22_1 };
             } finally {
               try {
-                if (ordered_1_1 && !ordered_1_1.done && (_a = ordered_1.return)) _a.call(ordered_1);
+                if (ordered_1_1 && !ordered_1_1.done && (_a2 = ordered_1.return)) _a2.call(ordered_1);
               } finally {
                 if (e_22) throw e_22.error;
               }
@@ -7409,7 +7413,7 @@
     });
   }
   function normalizePathOptionSpec(path) {
-    var _a;
+    var _a2;
     if (typeof path === "string")
       return { label: path, onSelectEffects: [], bonusRewards: 0 };
     return {
@@ -7417,7 +7421,7 @@
       onSelectEffects: (path.onSelectEffects || []).map(function(effect) {
         return __assign3({}, effect);
       }),
-      bonusRewards: (_a = path.bonusRewards) !== null && _a !== void 0 ? _a : 0
+      bonusRewards: (_a2 = path.bonusRewards) !== null && _a2 !== void 0 ? _a2 : 0
     };
   }
   function getNumChallengeOptions(state) {
@@ -7433,9 +7437,9 @@
   function makePaths(state) {
     return __awaiter4(this, void 0, void 0, function() {
       var stage, generator, baseRewardsPerPath, basePaths, baseNumBurdens, pathRewardParams, rewardsPerPath, pathOptions, pathCount, numBurdens, rewardsPerSet, fullSet, perPathRewards, totalRewards, completeSets, partialSetRewards, rewardPool, i, shuffledRewards, paths, rewardCursor, pathIndex, numRewards, pathOption;
-      var _a;
-      return __generator4(this, function(_b) {
-        switch (_b.label) {
+      var _a2;
+      return __generator4(this, function(_b2) {
+        switch (_b2.label) {
           case 0:
             stage = state.data.stage;
             generator = state.generator("paths".concat(stage)).newGenerator();
@@ -7457,7 +7461,7 @@
               numBurdens: pathRewardParams.numBurdens
             }, state)];
           case 1:
-            _b.sent();
+            _b2.sent();
             rewardsPerPath = pathRewardParams.rewardsPerPath;
             pathOptions = pathRewardParams.paths.map(normalizePathOptionSpec);
             pathCount = pathOptions.length;
@@ -7465,8 +7469,8 @@
             rewardsPerSet = 6;
             fullSet = ["card", "card", "event", "encounter", "potion", "relic"];
             perPathRewards = pathOptions.map(function(opt) {
-              var _a2;
-              return rewardsPerPath + ((_a2 = opt === null || opt === void 0 ? void 0 : opt.bonusRewards) !== null && _a2 !== void 0 ? _a2 : 0);
+              var _a3;
+              return rewardsPerPath + ((_a3 = opt === null || opt === void 0 ? void 0 : opt.bonusRewards) !== null && _a3 !== void 0 ? _a3 : 0);
             });
             totalRewards = perPathRewards.reduce(function(a2, b) {
               return a2 + b;
@@ -7485,7 +7489,7 @@
               numRewards = perPathRewards[pathIndex];
               pathOption = pathOptions[pathIndex];
               paths.push({
-                label: (_a = pathOption === null || pathOption === void 0 ? void 0 : pathOption.label) !== null && _a !== void 0 ? _a : "Path",
+                label: (_a2 = pathOption === null || pathOption === void 0 ? void 0 : pathOption.label) !== null && _a2 !== void 0 ? _a2 : "Path",
                 onSelectEffects: (pathOption === null || pathOption === void 0 ? void 0 : pathOption.onSelectEffects) || [],
                 rewards: shuffledRewards.slice(rewardCursor, rewardCursor + numRewards),
                 burdens: numBurdens
@@ -7589,13 +7593,13 @@
     });
   }
   function sampleRewards(generator, allOptions, count, collected) {
-    var e_23, _a;
+    var e_23, _a2;
     var blockedBaseNames = new Set(collected.map(function(spec2) {
       return spec2.name;
     }));
     var result = [];
     try {
-      for (var _b = __values5(generator.permute(allOptions)), _c = _b.next(); !_c.done; _c = _b.next()) {
+      for (var _b2 = __values5(generator.permute(allOptions)), _c = _b2.next(); !_c.done; _c = _b2.next()) {
         var spec = _c.value;
         if (blockedBaseNames.has(spec.name))
           continue;
@@ -7608,7 +7612,7 @@
       e_23 = { error: e_23_1 };
     } finally {
       try {
-        if (_c && !_c.done && (_a = _b.return)) _a.call(_b);
+        if (_c && !_c.done && (_a2 = _b2.return)) _a2.call(_b2);
       } finally {
         if (e_23) throw e_23.error;
       }
@@ -7625,7 +7629,7 @@
   var replaySimulationUI = {
     chooseCard: function(_state, _prompt, _options) {
       return __awaiter4(void 0, void 0, void 0, function() {
-        return __generator4(this, function(_a) {
+        return __generator4(this, function(_a2) {
           return [2, null];
         });
       });
@@ -7651,35 +7655,35 @@
         if (_onProgress === void 0) {
           _onProgress = null;
         }
-        return __generator4(this, function(_a) {
+        return __generator4(this, function(_a2) {
           throw new Error("Replay simulation does not support playGame");
         });
       });
     },
     waitForChallenge: function() {
       return __awaiter4(void 0, void 0, void 0, function() {
-        return __generator4(this, function(_a) {
+        return __generator4(this, function(_a2) {
           throw new Error("Replay simulation does not support waitForChallenge");
         });
       });
     },
     pickPath: function() {
       return __awaiter4(void 0, void 0, void 0, function() {
-        return __generator4(this, function(_a) {
+        return __generator4(this, function(_a2) {
           throw new Error("Replay simulation does not support pickPath");
         });
       });
     },
     chooseOption: function(_state, _prompt, _options) {
       return __awaiter4(void 0, void 0, void 0, function() {
-        return __generator4(this, function(_a) {
+        return __generator4(this, function(_a2) {
           return [2, null];
         });
       });
     },
     showMessage: function() {
       return __awaiter4(void 0, void 0, void 0, function() {
-        return __generator4(this, function(_a) {
+        return __generator4(this, function(_a2) {
           return [
             2
             /*return*/
@@ -7695,8 +7699,8 @@
   function computeReplayBufferAfterCourse(replayData, score) {
     return __awaiter4(this, void 0, void 0, function() {
       var simulationState, data;
-      return __generator4(this, function(_a) {
-        switch (_a.label) {
+      return __generator4(this, function(_a2) {
+        switch (_a2.label) {
           case 0:
             simulationState = new MetaState(replaySimulationUI, "replay-sim");
             data = {
@@ -7723,7 +7727,7 @@
             simulationState.checkpoint = data;
             return [4, endCourse(score, replayData.par, simulationState)];
           case 1:
-            _a.sent();
+            _a2.sent();
             return [2, simulationState.data.buffer];
         }
       });
@@ -7746,7 +7750,7 @@
   function replayCompletedStage(state, stage) {
     return __awaiter4(this, void 0, void 0, function() {
       var replayData, replayResult, e_24, macros, viewingMacros, newBufferAfterCourse, updatedReplayData, bufferAdjustment, usedPotions, stageTimelineEntry;
-      var _a, _b, _c, _d;
+      var _a2, _b2, _c, _d;
       return __generator4(this, function(_e) {
         switch (_e.label) {
           case 0:
@@ -7767,8 +7771,8 @@
           case 3:
             e_24 = _e.sent();
             if (e_24 instanceof Undo2) {
-              macros = (_a = e_24.macros) !== null && _a !== void 0 ? _a : state.global.macros;
-              viewingMacros = (_b = e_24.viewingMacros) !== null && _b !== void 0 ? _b : state.global.viewingMacros;
+              macros = (_a2 = e_24.macros) !== null && _a2 !== void 0 ? _a2 : state.global.macros;
+              viewingMacros = (_b2 = e_24.viewingMacros) !== null && _b2 !== void 0 ? _b2 : state.global.viewingMacros;
               state.updateGlobal({ macros, viewingMacros });
               return [
                 2
@@ -7816,7 +7820,7 @@
   var rewardDataInit = { selectedIndex: null, rewardState: true };
   function materializePath(state_1, pathSkeleton_1) {
     return __awaiter4(this, arguments, void 0, function(state, pathSkeleton, test2) {
-      var rewardStates, burdenGenerator, burdenStates, i, _a, _b, _c, _d, item, generator;
+      var rewardStates, burdenGenerator, burdenStates, i, _a2, _b2, _c, _d, item, generator;
       var e_25, _e;
       var _f;
       if (test2 === void 0) {
@@ -7871,10 +7875,10 @@
             _g.label = 1;
           case 1:
             if (!(i < pathSkeleton.burdens)) return [3, 4];
-            _b = (_a = burdenStates).push;
+            _b2 = (_a2 = burdenStates).push;
             return [4, sampleBurdenState(state, burdenGenerator)];
           case 2:
-            _b.apply(_a, [_g.sent()]);
+            _b2.apply(_a2, [_g.sent()]);
             _g.label = 3;
           case 3:
             i++;
@@ -7946,7 +7950,7 @@
   }
   function applyPathOnSelectEffects(state, path) {
     return __awaiter4(this, void 0, void 0, function() {
-      var _loop_2, _a, _b, effect, e_26_1;
+      var _loop_2, _a2, _b2, effect, e_26_1;
       var e_26, _c;
       return __generator4(this, function(_d) {
         switch (_d.label) {
@@ -7984,17 +7988,17 @@
             _d.label = 1;
           case 1:
             _d.trys.push([1, 6, 7, 8]);
-            _a = __values5(path.onSelectEffects || []), _b = _a.next();
+            _a2 = __values5(path.onSelectEffects || []), _b2 = _a2.next();
             _d.label = 2;
           case 2:
-            if (!!_b.done) return [3, 5];
-            effect = _b.value;
+            if (!!_b2.done) return [3, 5];
+            effect = _b2.value;
             return [5, _loop_2(effect)];
           case 3:
             _d.sent();
             _d.label = 4;
           case 4:
-            _b = _a.next();
+            _b2 = _a2.next();
             return [3, 2];
           case 5:
             return [3, 8];
@@ -8004,7 +8008,7 @@
             return [3, 8];
           case 7:
             try {
-              if (_b && !_b.done && (_c = _a.return)) _c.call(_a);
+              if (_b2 && !_b2.done && (_c = _a2.return)) _c.call(_a2);
             } finally {
               if (e_26) throw e_26.error;
             }
@@ -8068,13 +8072,13 @@
     return result;
   }
   function challengeOverridesForStage(tests, stageIndex, pathIndex) {
-    var e_27, _a;
-    var _b;
+    var e_27, _a2;
+    var _b2;
     if (pathIndex !== 0)
       return {};
     var stageNumber = stageIndex + 1;
     var overrides = {};
-    var stageTests = (_b = tests[stageNumber]) !== null && _b !== void 0 ? _b : [];
+    var stageTests = (_b2 = tests[stageNumber]) !== null && _b2 !== void 0 ? _b2 : [];
     try {
       for (var stageTests_1 = __values5(stageTests), stageTests_1_1 = stageTests_1.next(); !stageTests_1_1.done; stageTests_1_1 = stageTests_1.next()) {
         var item = stageTests_1_1.value;
@@ -8094,7 +8098,7 @@
       e_27 = { error: e_27_1 };
     } finally {
       try {
-        if (stageTests_1_1 && !stageTests_1_1.done && (_a = stageTests_1.return)) _a.call(stageTests_1);
+        if (stageTests_1_1 && !stageTests_1_1.done && (_a2 = stageTests_1.return)) _a2.call(stageTests_1);
       } finally {
         if (e_27) throw e_27.error;
       }
@@ -8103,8 +8107,8 @@
   }
   function playGame2(ui_1) {
     return __awaiter4(this, arguments, void 0, function(ui, test2, seed, initialSnapshot, onStateChange, debugEnabled, burdensEnabled, scarcityEnabled, cursesEnabled) {
-      var state, flushSave, saveTimer_1, doSave_1, activeTests, initialChallenges, initialPath, sameReplay, stage, gameSpec, startingBuffer, _a, score, potionsRemaining, history_1, macros, viewingMacros, usedPotions, persistedMacros, persistedViewingMacros, stageReplays, stageTimelineEntry, nextStage, skeletons, paths, path, e_28, materialized, nextStage, challenges, selectedChallenge, e_29, selectedChallengeIndex, e_30, persistedMacros, persistedViewingMacros;
-      var _b, _c;
+      var state, flushSave, saveTimer_1, doSave_1, activeTests, initialChallenges, initialPath, sameReplay, stage, gameSpec, startingBuffer, _a2, score, potionsRemaining, history_1, macros, viewingMacros, usedPotions, persistedMacros, persistedViewingMacros, stageReplays, stageTimelineEntry, nextStage, skeletons, paths, path, e_28, materialized, nextStage, challenges, selectedChallenge, e_29, selectedChallengeIndex, e_30, persistedMacros, persistedViewingMacros;
+      var _b2, _c;
       if (test2 === void 0) {
         test2 = {};
       }
@@ -8203,7 +8207,7 @@
               });
             }, "leave")];
           case 7:
-            _a = _d.sent(), score = _a.score, potionsRemaining = _a.potionsRemaining, history_1 = _a.history, macros = _a.macros, viewingMacros = _a.viewingMacros;
+            _a2 = _d.sent(), score = _a2.score, potionsRemaining = _a2.potionsRemaining, history_1 = _a2.history, macros = _a2.macros, viewingMacros = _a2.viewingMacros;
             usedPotions = usedPotionNames(gameSpec.potions, potionsRemaining);
             persistedMacros = macros !== null && macros !== void 0 ? macros : state.global.macros;
             persistedViewingMacros = viewingMacros !== null && viewingMacros !== void 0 ? viewingMacros : state.global.viewingMacros;
@@ -8359,7 +8363,7 @@
           case 35:
             e_30 = _d.sent();
             if (e_30 instanceof Undo2) {
-              persistedMacros = (_b = e_30.macros) !== null && _b !== void 0 ? _b : state.global.macros;
+              persistedMacros = (_b2 = e_30.macros) !== null && _b2 !== void 0 ? _b2 : state.global.macros;
               persistedViewingMacros = (_c = e_30.viewingMacros) !== null && _c !== void 0 ? _c : state.global.viewingMacros;
               state.updateGlobal({
                 macros: persistedMacros,
@@ -8668,12 +8672,12 @@
         return function(state) {
           return __awaiter5(this, void 0, void 0, function() {
             var confirmed;
-            return __generator5(this, function(_a) {
-              switch (_a.label) {
+            return __generator5(this, function(_a2) {
+              switch (_a2.label) {
                 case 0:
                   return [4, state.ui.chooseOption(state, "Activate Silver Mirror to copy ".concat(displayName(e.relic.spec), "?"), [{ label: "Yes, copy it twice", value: true }, { label: "No", value: false }], false)];
                 case 1:
-                  confirmed = _a.sent();
+                  confirmed = _a2.sent();
                   if (confirmed !== true)
                     return [
                       2
@@ -8681,16 +8685,16 @@
                     ];
                   return [4, addBuffer(-2)(state)];
                 case 2:
-                  _a.sent();
+                  _a2.sent();
                   return [4, removeRelic(state, relic.id)];
                 case 3:
-                  _a.sent();
+                  _a2.sent();
                   return [4, gainRelic(e.relic.spec)(state)];
                 case 4:
-                  _a.sent();
+                  _a2.sent();
                   return [4, gainRelic(e.relic.spec)(state)];
                 case 5:
-                  _a.sent();
+                  _a2.sent();
                   return [
                     2
                     /*return*/
@@ -8711,12 +8715,12 @@
         return function(state) {
           return __awaiter5(this, void 0, void 0, function() {
             var confirmed;
-            return __generator5(this, function(_a) {
-              switch (_a.label) {
+            return __generator5(this, function(_a2) {
+              switch (_a2.label) {
                 case 0:
                   return [4, state.ui.chooseOption(state, "Activate Silver Mirror to copy ".concat(displayName(e.potion.spec), "?"), [{ label: "Yes, copy it twice", value: true }, { label: "No", value: false }], false)];
                 case 1:
-                  confirmed = _a.sent();
+                  confirmed = _a2.sent();
                   if (confirmed !== true)
                     return [
                       2
@@ -8724,16 +8728,16 @@
                     ];
                   return [4, addBuffer(-2)(state)];
                 case 2:
-                  _a.sent();
+                  _a2.sent();
                   return [4, removeRelic(state, relic.id)];
                 case 3:
-                  _a.sent();
+                  _a2.sent();
                   return [4, gainPotion(e.potion.spec)(state)];
                 case 4:
-                  _a.sent();
+                  _a2.sent();
                   return [4, gainPotion(e.potion.spec)(state)];
                 case 5:
-                  _a.sent();
+                  _a2.sent();
                   return [
                     2
                     /*return*/
@@ -8847,7 +8851,7 @@
       transform: function(_e, _s, self) {
         return function(state) {
           return __awaiter5(this, void 0, void 0, function() {
-            return __generator5(this, function(_a) {
+            return __generator5(this, function(_a2) {
               state.applyToRelic(function(r) {
                 return r.update({ tokens: /* @__PURE__ */ new Map() });
               }, self);
@@ -8873,14 +8877,14 @@
         return function(state) {
           return __awaiter5(this, void 0, void 0, function() {
             var relic, current;
-            return __generator5(this, function(_a) {
-              switch (_a.label) {
+            return __generator5(this, function(_a2) {
+              switch (_a2.label) {
                 case 0:
                   relic = source;
                   return [4, charge(relic, 1)(state)];
                 case 1:
-                  state = _a.sent();
-                  _a.label = 2;
+                  state = _a2.sent();
+                  _a2.label = 2;
                 case 2:
                   if (false) return [3, 5];
                   current = state.find(relic);
@@ -8888,10 +8892,10 @@
                     return [2, state];
                   return [4, charge(relic, -5)(state)];
                 case 3:
-                  state = _a.sent();
+                  state = _a2.sent();
                   return [4, gainActions(1, relic)(state)];
                 case 4:
-                  state = _a.sent();
+                  state = _a2.sent();
                   return [3, 2];
                 case 5:
                   return [
@@ -8918,7 +8922,7 @@
       transform: function(_e, _s, self) {
         return function(state) {
           return __awaiter5(this, void 0, void 0, function() {
-            return __generator5(this, function(_a) {
+            return __generator5(this, function(_a2) {
               state.applyToRelic(function(r) {
                 return r.update({ tokens: /* @__PURE__ */ new Map() });
               }, self);
@@ -8944,14 +8948,14 @@
         return function(state) {
           return __awaiter5(this, void 0, void 0, function() {
             var relic, current;
-            return __generator5(this, function(_a) {
-              switch (_a.label) {
+            return __generator5(this, function(_a2) {
+              switch (_a2.label) {
                 case 0:
                   relic = source;
                   return [4, charge(relic, 1)(state)];
                 case 1:
-                  state = _a.sent();
-                  _a.label = 2;
+                  state = _a2.sent();
+                  _a2.label = 2;
                 case 2:
                   if (false) return [3, 5];
                   current = state.find(relic);
@@ -8959,10 +8963,10 @@
                     return [2, state];
                   return [4, charge(relic, -8)(state)];
                 case 3:
-                  state = _a.sent();
+                  state = _a2.sent();
                   return [4, create(villager, "play")(state)];
                 case 4:
-                  state = _a.sent();
+                  state = _a2.sent();
                   return [3, 2];
                 case 5:
                   return [
@@ -8989,7 +8993,7 @@
       transform: function(_e, _s, self) {
         return function(state) {
           return __awaiter5(this, void 0, void 0, function() {
-            return __generator5(this, function(_a) {
+            return __generator5(this, function(_a2) {
               state.applyToRelic(function(r) {
                 return r.update({ tokens: /* @__PURE__ */ new Map() });
               }, self);
@@ -9015,14 +9019,14 @@
         return function(state) {
           return __awaiter5(this, void 0, void 0, function() {
             var relic, current;
-            return __generator5(this, function(_a) {
-              switch (_a.label) {
+            return __generator5(this, function(_a2) {
+              switch (_a2.label) {
                 case 0:
                   relic = source;
                   return [4, charge(relic, 1)(state)];
                 case 1:
-                  state = _a.sent();
-                  _a.label = 2;
+                  state = _a2.sent();
+                  _a2.label = 2;
                 case 2:
                   if (false) return [3, 5];
                   current = state.find(relic);
@@ -9030,10 +9034,10 @@
                     return [2, state];
                   return [4, charge(relic, -4)(state)];
                 case 3:
-                  state = _a.sent();
+                  state = _a2.sent();
                   return [4, create(fair, "play")(state)];
                 case 4:
-                  state = _a.sent();
+                  state = _a2.sent();
                   return [3, 2];
                 case 5:
                   return [
@@ -9073,12 +9077,12 @@
         if (self.count("charge") === 0)
           return p;
         var paths = p.paths.map(function(path, i) {
-          var _a, _b;
+          var _a2, _b2;
           if (i !== 0)
             return path;
           var spec = typeof path === "string" ? { label: path } : __assign4({}, path);
-          spec.bonusRewards = ((_a = spec.bonusRewards) !== null && _a !== void 0 ? _a : 0) + 1;
-          spec.onSelectEffects = __spreadArray7(__spreadArray7([], __read8((_b = spec.onSelectEffects) !== null && _b !== void 0 ? _b : []), false), [{
+          spec.bonusRewards = ((_a2 = spec.bonusRewards) !== null && _a2 !== void 0 ? _a2 : 0) + 1;
+          spec.onSelectEffects = __spreadArray7(__spreadArray7([], __read8((_b2 = spec.onSelectEffects) !== null && _b2 !== void 0 ? _b2 : []), false), [{
             kind: "spendRelicCharge",
             relicID: self.id,
             amount: 1,
@@ -9100,7 +9104,7 @@
         return function(state) {
           return __awaiter5(this, void 0, void 0, function() {
             var tokens;
-            return __generator5(this, function(_a) {
+            return __generator5(this, function(_a2) {
               tokens = new Map(self.tokens);
               tokens.set("charge", 2);
               state.applyToRelic(function(r) {
@@ -9131,18 +9135,18 @@
         return function(state) {
           return __awaiter5(this, void 0, void 0, function() {
             var gain;
-            return __generator5(this, function(_a) {
-              switch (_a.label) {
+            return __generator5(this, function(_a2) {
+              switch (_a2.label) {
                 case 0:
                   gain = Math.max(0, e.par - e.score);
                   return [4, removeRelic(state, self.id)];
                 case 1:
-                  _a.sent();
+                  _a2.sent();
                   if (!(gain > 0)) return [3, 3];
                   return [4, addBuffer(gain)(state)];
                 case 2:
-                  _a.sent();
-                  _a.label = 3;
+                  _a2.sent();
+                  _a2.label = 3;
                 case 3:
                   return [
                     2
@@ -9175,12 +9179,12 @@
       transform: function(_e, _s, self) {
         return function(state) {
           return __awaiter5(this, void 0, void 0, function() {
-            return __generator5(this, function(_a) {
-              switch (_a.label) {
+            return __generator5(this, function(_a2) {
+              switch (_a2.label) {
                 case 0:
                   return [4, removeRelic(state, self.id)];
                 case 1:
-                  _a.sent();
+                  _a2.sent();
                   return [
                     2
                     /*return*/
@@ -9207,23 +9211,23 @@
         transform: function() {
           return function(state) {
             return __awaiter5(this, void 0, void 0, function() {
-              var _a, _b, spec, e_1_1;
+              var _a2, _b2, spec, e_1_1;
               var e_1, _d;
               return __generator5(this, function(_f) {
                 switch (_f.label) {
                   case 0:
                     _f.trys.push([0, 5, 6, 7]);
-                    _a = __values6(relic.notedCards || []), _b = _a.next();
+                    _a2 = __values6(relic.notedCards || []), _b2 = _a2.next();
                     _f.label = 1;
                   case 1:
-                    if (!!_b.done) return [3, 4];
-                    spec = _b.value;
+                    if (!!_b2.done) return [3, 4];
+                    spec = _b2.value;
                     return [4, create(spec, "hand")(state)];
                   case 2:
                     state = _f.sent();
                     _f.label = 3;
                   case 3:
-                    _b = _a.next();
+                    _b2 = _a2.next();
                     return [3, 1];
                   case 4:
                     return [3, 7];
@@ -9233,7 +9237,7 @@
                     return [3, 7];
                   case 6:
                     try {
-                      if (_b && !_b.done && (_d = _a.return)) _d.call(_a);
+                      if (_b2 && !_b2.done && (_d = _a2.return)) _d.call(_a2);
                     } finally {
                       if (e_1) throw e_1.error;
                     }
@@ -9260,7 +9264,7 @@
       transform: function(_e, _s, relic) {
         return function(state) {
           return __awaiter5(this, void 0, void 0, function() {
-            return __generator5(this, function(_a) {
+            return __generator5(this, function(_a2) {
               state.applyToRelic(function(r) {
                 return r.update({ notedCards: [] });
               }, relic);
@@ -9283,7 +9287,7 @@
         return function(state) {
           return __awaiter5(this, void 0, void 0, function() {
             var notedCards;
-            return __generator5(this, function(_a) {
+            return __generator5(this, function(_a2) {
               notedCards = relic.notedCards || [];
               state.applyToRelic(function(r) {
                 return r.update({ notedCards: __spreadArray7(__spreadArray7([], __read8(notedCards), false), [e.card], false) });
@@ -9311,8 +9315,8 @@
         return function(state) {
           return __awaiter5(this, void 0, void 0, function() {
             var event;
-            return __generator5(this, function(_a) {
-              switch (_a.label) {
+            return __generator5(this, function(_a2) {
+              switch (_a2.label) {
                 case 0:
                   if (state.data.collectedEvents.length === 0)
                     return [
@@ -9323,7 +9327,7 @@
                     return ["event", spec];
                   }), true)];
                 case 1:
-                  event = _a.sent();
+                  event = _a2.sent();
                   if (!event)
                     return [
                       2
@@ -9333,7 +9337,7 @@
                     details: "Bottled ".concat(displayName(event[1]))
                   })(state)];
                 case 2:
-                  _a.sent();
+                  _a2.sent();
                   return [
                     2
                     /*return*/
@@ -9389,7 +9393,7 @@
   };
   addRelicReward(questionCard);
   function lookingGlassNewKingdom(state, cards, events) {
-    var e_2, _a, e_3, _b;
+    var e_2, _a2, e_3, _b2;
     var result = { cards: cards.slice(), events: events.slice() };
     var neededCards = 2;
     var neededEvents = 1;
@@ -9415,7 +9419,7 @@
       e_2 = { error: e_2_1 };
     } finally {
       try {
-        if (allCards_1_1 && !allCards_1_1.done && (_a = allCards_1.return)) _a.call(allCards_1);
+        if (allCards_1_1 && !allCards_1_1.done && (_a2 = allCards_1.return)) _a2.call(allCards_1);
       } finally {
         if (e_2) throw e_2.error;
       }
@@ -9435,7 +9439,7 @@
       e_3 = { error: e_3_1 };
     } finally {
       try {
-        if (allEvents_1_1 && !allEvents_1_1.done && (_b = allEvents_1.return)) _b.call(allEvents_1);
+        if (allEvents_1_1 && !allEvents_1_1.done && (_b2 = allEvents_1.return)) _b2.call(allEvents_1);
       } finally {
         if (e_3) throw e_3.error;
       }
@@ -9448,14 +9452,14 @@
       kind: "gameSetup",
       text: ["At the start of each stage add 2 random cards and 1 random event to the supply."],
       replace: function(p, state, self) {
-        var _a;
+        var _a2;
         var newKingdom = lookingGlassNewKingdom(state, p.cardSpecs, p.eventSpecs);
         var addedCards = newKingdom.cards.slice(p.cardSpecs.length);
         var addedEvents = newKingdom.events.slice(p.eventSpecs.length);
         var names = __spreadArray7(__spreadArray7([], __read8(addedCards), false), __read8(addedEvents), false).map(function(c) {
           return displayName(c);
         });
-        return __assign4(__assign4({}, p), { cardSpecs: newKingdom.cards, eventSpecs: newKingdom.events, hints: __spreadArray7(__spreadArray7([], __read8((_a = p.hints) !== null && _a !== void 0 ? _a : []), false), ["Looking Glass: ".concat(names.join(", "))], false) });
+        return __assign4(__assign4({}, p), { cardSpecs: newKingdom.cards, eventSpecs: newKingdom.events, hints: __spreadArray7(__spreadArray7([], __read8((_a2 = p.hints) !== null && _a2 !== void 0 ? _a2 : []), false), ["Looking Glass: ".concat(names.join(", "))], false) });
       }
     }]
   };
@@ -9623,18 +9627,18 @@
         return function(state) {
           return __awaiter6(this, void 0, void 0, function() {
             var targets;
-            var _a;
-            return __generator6(this, function(_b) {
-              switch (_b.label) {
+            var _a2;
+            return __generator6(this, function(_b2) {
+              switch (_b2.label) {
                 case 0:
                   return [4, multichoice(state, "Choose up to three cards to put into your hand.", state.discard.filter(function(c) {
                     return c.name != Till;
                   }).map(asChoice), 3)];
                 case 1:
-                  _a = __read9.apply(void 0, [_b.sent(), 2]), state = _a[0], targets = _a[1];
+                  _a2 = __read9.apply(void 0, [_b2.sent(), 2]), state = _a2[0], targets = _a2[1];
                   return [4, moveMany(targets, "hand")(state)];
                 case 2:
-                  state = _b.sent();
+                  state = _b2.sent();
                   return [2, state];
               }
             });
@@ -9847,13 +9851,13 @@
         return function(state2) {
           return __awaiter6(this, void 0, void 0, function() {
             var n;
-            return __generator6(this, function(_a) {
-              switch (_a.label) {
+            return __generator6(this, function(_a2) {
+              switch (_a2.label) {
                 case 0:
                   n = state2.find(card).charge;
                   return [4, gainActions(n, card)(state2)];
                 case 1:
-                  state2 = _a.sent();
+                  state2 = _a2.sent();
                   return [
                     2,
                     state2
@@ -9917,23 +9921,23 @@
       transform: function(state, card) {
         return function(state2) {
           return __awaiter6(this, void 0, void 0, function() {
-            var _a, _b, c, e_1_1;
+            var _a2, _b2, c, e_1_1;
             var e_1, _c;
             return __generator6(this, function(_d) {
               switch (_d.label) {
                 case 0:
                   _d.trys.push([0, 5, 6, 7]);
-                  _a = __values7(state2.play), _b = _a.next();
+                  _a2 = __values7(state2.play), _b2 = _a2.next();
                   _d.label = 1;
                 case 1:
-                  if (!!_b.done) return [3, 4];
-                  c = _b.value;
+                  if (!!_b2.done) return [3, 4];
+                  c = _b2.value;
                   return [4, addToken(c, "shelter")(state2)];
                 case 2:
                   state2 = _d.sent();
                   _d.label = 3;
                 case 3:
-                  _b = _a.next();
+                  _b2 = _a2.next();
                   return [3, 1];
                 case 4:
                   return [3, 7];
@@ -9943,7 +9947,7 @@
                   return [3, 7];
                 case 6:
                   try {
-                    if (_b && !_b.done && (_c = _a.return)) _c.call(_a);
+                    if (_b2 && !_b2.done && (_c = _a2.return)) _c.call(_a2);
                   } finally {
                     if (e_1) throw e_1.error;
                   }
@@ -9993,19 +9997,19 @@
         return function(state) {
           return __awaiter6(this, void 0, void 0, function() {
             var lab2, market2;
-            var _a, _b;
+            var _a2, _b2;
             return __generator6(this, function(_c) {
               switch (_c.label) {
                 case 0:
                   return [4, createAndTrack(ruinedLab, "supply")(state)];
                 case 1:
-                  _a = __read9.apply(void 0, [_c.sent(), 2]), lab2 = _a[0], state = _a[1];
+                  _a2 = __read9.apply(void 0, [_c.sent(), 2]), lab2 = _a2[0], state = _a2[1];
                   if (lab2 != null) {
                     state = state.moveAfter("supply", lab2, c);
                   }
                   return [4, createAndTrack(ruinedMarket, "supply")(state)];
                 case 2:
-                  _b = __read9.apply(void 0, [_c.sent(), 2]), market2 = _b[0], state = _b[1];
+                  _b2 = __read9.apply(void 0, [_c.sent(), 2]), market2 = _b2[0], state = _b2[1];
                   if (market2 != null) {
                     state = state.moveAfter("supply", market2, c);
                   }
@@ -10144,19 +10148,19 @@
         return function(state) {
           return __awaiter6(this, void 0, void 0, function() {
             var targets;
-            var _a;
-            return __generator6(this, function(_b) {
-              switch (_b.label) {
+            var _a2;
+            return __generator6(this, function(_b2) {
+              switch (_b2.label) {
                 case 0:
                   return [4, multichoice(state, "Choose any number of cards to discard", state.hand.map(asChoice))];
                 case 1:
-                  _a = __read9.apply(void 0, [_b.sent(), 2]), state = _a[0], targets = _a[1];
+                  _a2 = __read9.apply(void 0, [_b2.sent(), 2]), state = _a2[0], targets = _a2[1];
                   return [4, moveMany(targets, "discard")(state)];
                 case 2:
-                  state = _b.sent();
+                  state = _b2.sent();
                   return [4, gainActions(targets.length, card)(state)];
                 case 3:
-                  state = _b.sent();
+                  state = _b2.sent();
                   return [2, state];
               }
             });
@@ -10169,24 +10173,24 @@
         return function(state) {
           return __awaiter6(this, void 0, void 0, function() {
             var targets, i;
-            var _a;
-            return __generator6(this, function(_b) {
-              switch (_b.label) {
+            var _a2;
+            return __generator6(this, function(_b2) {
+              switch (_b2.label) {
                 case 0:
                   return [4, multichoice(state, "Choose any number of cards to trash", state.discard.map(asChoice))];
                 case 1:
-                  _a = __read9.apply(void 0, [_b.sent(), 2]), state = _a[0], targets = _a[1];
+                  _a2 = __read9.apply(void 0, [_b2.sent(), 2]), state = _a2[0], targets = _a2[1];
                   return [4, moveMany(targets, "void")(state)];
                 case 2:
-                  state = _b.sent();
+                  state = _b2.sent();
                   i = 0;
-                  _b.label = 3;
+                  _b2.label = 3;
                 case 3:
                   if (!(i < targets.length)) return [3, 6];
                   return [4, create(villager, "play")(state)];
                 case 4:
-                  state = _b.sent();
-                  _b.label = 5;
+                  state = _b2.sent();
+                  _b2.label = 5;
                 case 5:
                   i++;
                   return [3, 3];
@@ -10261,19 +10265,19 @@
           return function(state2) {
             return __awaiter6(this, void 0, void 0, function() {
               var n, i;
-              return __generator6(this, function(_a) {
-                switch (_a.label) {
+              return __generator6(this, function(_a2) {
+                switch (_a2.label) {
                   case 0:
                     n = state2.find(card).charge;
                     i = 0;
-                    _a.label = 1;
+                    _a2.label = 1;
                   case 1:
                     if (!(i < n)) return [3, 4];
                     return [4, target.play(card)(state2)];
                   case 2:
-                    state2 = _a.sent();
+                    state2 = _a2.sent();
                     state2 = tick(card)(state2);
-                    _a.label = 3;
+                    _a2.label = 3;
                   case 3:
                     i++;
                     return [3, 1];
@@ -10348,13 +10352,13 @@
         return function(state) {
           return __awaiter6(this, void 0, void 0, function() {
             var targets, n, target;
-            var _a, _b;
+            var _a2, _b2;
             return __generator6(this, function(_c) {
               switch (_c.label) {
                 case 0:
                   return [4, multichoice(state, "Choose any number of cards to discard.", state.hand.map(asChoice))];
                 case 1:
-                  _a = __read9.apply(void 0, [_c.sent(), 2]), state = _a[0], targets = _a[1];
+                  _a2 = __read9.apply(void 0, [_c.sent(), 2]), state = _a2[0], targets = _a2[1];
                   return [4, moveMany(targets, "discard")(state)];
                 case 2:
                   state = _c.sent();
@@ -10363,7 +10367,7 @@
                     return c.cost("buy", state).coin == n && canCreate(c.spec, state);
                   }).map(asChoice))];
                 case 3:
-                  _b = __read9.apply(void 0, [_c.sent(), 2]), state = _b[0], target = _b[1];
+                  _b2 = __read9.apply(void 0, [_c.sent(), 2]), state = _b2[0], target = _b2[1];
                   if (!(target != null)) return [3, 5];
                   return [4, create(target.spec, "hand")(state)];
                 case 4:
@@ -10424,13 +10428,13 @@
         return function(state2) {
           return __awaiter6(this, void 0, void 0, function() {
             var n;
-            return __generator6(this, function(_a) {
-              switch (_a.label) {
+            return __generator6(this, function(_a2) {
+              switch (_a2.label) {
                 case 0:
                   n = countDistinctNames(state2.hand);
                   return [4, gainActions(n, card)(state2)];
                 case 1:
-                  state2 = _a.sent();
+                  state2 = _a2.sent();
                   return [2, state2];
               }
             });
@@ -10443,13 +10447,13 @@
         return function(state2) {
           return __awaiter6(this, void 0, void 0, function() {
             var n;
-            return __generator6(this, function(_a) {
-              switch (_a.label) {
+            return __generator6(this, function(_a2) {
+              switch (_a2.label) {
                 case 0:
                   n = countDistinctNames(state2.discard);
                   return [4, gainCoins(n, card)(state2)];
                 case 1:
-                  state2 = _a.sent();
+                  state2 = _a2.sent();
                   return [2, state2];
               }
             });
@@ -10468,19 +10472,19 @@
         return function(state) {
           return __awaiter6(this, void 0, void 0, function() {
             var targets;
-            var _a;
-            return __generator6(this, function(_b) {
-              switch (_b.label) {
+            var _a2;
+            return __generator6(this, function(_b2) {
+              switch (_b2.label) {
                 case 0:
                   return [4, multichoice(state, "Discard any number of cards for +$1 each.", state.hand.map(asChoice))];
                 case 1:
-                  _a = __read9.apply(void 0, [_b.sent(), 2]), state = _a[0], targets = _a[1];
+                  _a2 = __read9.apply(void 0, [_b2.sent(), 2]), state = _a2[0], targets = _a2[1];
                   return [4, moveMany(targets, "discard")(state)];
                 case 2:
-                  state = _b.sent();
+                  state = _b2.sent();
                   return [4, gainCoins(targets.length, card)(state)];
                 case 3:
-                  state = _b.sent();
+                  state = _b2.sent();
                   return [2, state];
               }
             });
@@ -10493,19 +10497,19 @@
         return function(state) {
           return __awaiter6(this, void 0, void 0, function() {
             var targets;
-            var _a;
-            return __generator6(this, function(_b) {
-              switch (_b.label) {
+            var _a2;
+            return __generator6(this, function(_b2) {
+              switch (_b2.label) {
                 case 0:
                   return [4, multichoice(state, "Trash any number of cards for +1 buy each.", state.discard.map(asChoice))];
                 case 1:
-                  _a = __read9.apply(void 0, [_b.sent(), 2]), state = _a[0], targets = _a[1];
+                  _a2 = __read9.apply(void 0, [_b2.sent(), 2]), state = _a2[0], targets = _a2[1];
                   return [4, moveMany(targets, "void")(state)];
                 case 2:
-                  state = _b.sent();
+                  state = _b2.sent();
                   return [4, gainBuys(targets.length, card)(state)];
                 case 3:
-                  state = _b.sent();
+                  state = _b2.sent();
                   return [2, state];
               }
             });
@@ -10586,14 +10590,14 @@
       transform: function(state, card) {
         return function(state2) {
           return __awaiter6(this, void 0, void 0, function() {
-            return __generator6(this, function(_a) {
-              switch (_a.label) {
+            return __generator6(this, function(_a2) {
+              switch (_a2.label) {
                 case 0:
                   if (!(state2.find(card).charge > 0)) return [3, 2];
                   return [4, discharge(card, 1)(state2)];
                 case 1:
-                  state2 = _a.sent();
-                  _a.label = 2;
+                  state2 = _a2.sent();
+                  _a2.label = 2;
                 case 2:
                   return [2, state2];
               }
@@ -10654,19 +10658,19 @@
       transform: function(_, c) {
         return function(state) {
           return __awaiter6(this, void 0, void 0, function() {
-            return __generator6(this, function(_a) {
-              switch (_a.label) {
+            return __generator6(this, function(_a2) {
+              switch (_a2.label) {
                 case 0:
                   return [4, applyToTarget(function(target) {
                     return function(state2) {
                       return __awaiter6(this, void 0, void 0, function() {
                         var cost;
-                        return __generator6(this, function(_a2) {
-                          switch (_a2.label) {
+                        return __generator6(this, function(_a3) {
+                          switch (_a3.label) {
                             case 0:
                               return [4, trash(target)(state2)];
                             case 1:
-                              state2 = _a2.sent();
+                              state2 = _a3.sent();
                               cost = target.cost("buy", state2);
                               return [4, applyToTarget(function(target2) {
                                 return create(target2.spec, "hand");
@@ -10676,7 +10680,7 @@
                                 });
                               })(state2)];
                             case 2:
-                              state2 = _a2.sent();
+                              state2 = _a3.sent();
                               return [4, applyToTarget(function(target2) {
                                 return create(target2.spec, "hand");
                               }, "Choose a more expensive card to copy.", function(s) {
@@ -10685,7 +10689,7 @@
                                 });
                               })(state2)];
                             case 3:
-                              state2 = _a2.sent();
+                              state2 = _a3.sent();
                               return [2, state2];
                           }
                         });
@@ -10695,7 +10699,7 @@
                     return s.hand;
                   })(state)];
                 case 1:
-                  state = _a.sent();
+                  state = _a2.sent();
                   return [2, state];
               }
             });
@@ -10715,13 +10719,13 @@
         return function(state) {
           return __awaiter6(this, void 0, void 0, function() {
             var cards, n, targets;
-            var _a, _b;
+            var _a2, _b2;
             return __generator6(this, function(_c) {
               switch (_c.label) {
                 case 0:
                   return [4, multichoice(state, "Discard any number of cards.", state.hand.map(asChoice))];
                 case 1:
-                  _a = __read9.apply(void 0, [_c.sent(), 2]), state = _a[0], cards = _a[1];
+                  _a2 = __read9.apply(void 0, [_c.sent(), 2]), state = _a2[0], cards = _a2[1];
                   n = cards.length;
                   return [4, moveMany(cards, "discard")(state)];
                 case 2:
@@ -10730,7 +10734,7 @@
                     return c.name != harrowName;
                   }).map(asChoice), n, n)];
                 case 3:
-                  _b = __read9.apply(void 0, [_c.sent(), 2]), state = _b[0], targets = _b[1];
+                  _b2 = __read9.apply(void 0, [_c.sent(), 2]), state = _b2[0], targets = _b2[1];
                   return [4, moveMany(targets, "hand")(state)];
                 case 4:
                   state = _c.sent();
@@ -10791,11 +10795,11 @@
         return function(state) {
           return __awaiter6(this, void 0, void 0, function() {
             var i;
-            return __generator6(this, function(_a) {
-              switch (_a.label) {
+            return __generator6(this, function(_a2) {
+              switch (_a2.label) {
                 case 0:
                   i = 0;
-                  _a.label = 1;
+                  _a2.label = 1;
                 case 1:
                   if (!(i < 3)) return [3, 4];
                   return [4, payToDo(payAction(card), applyToTarget(function(target) {
@@ -10807,9 +10811,9 @@
                     return s2.hand;
                   }, { optional: "None" }))(state)];
                 case 2:
-                  state = _a.sent();
+                  state = _a2.sent();
                   state = tick(card)(state);
-                  _a.label = 3;
+                  _a2.label = 3;
                 case 3:
                   i++;
                   return [3, 1];
@@ -10878,16 +10882,16 @@
         return function(state) {
           return __awaiter6(this, void 0, void 0, function() {
             var n;
-            return __generator6(this, function(_a) {
-              switch (_a.label) {
+            return __generator6(this, function(_a2) {
+              switch (_a2.label) {
                 case 0:
                   n = state.actions;
                   return [4, payCost(__assign5(__assign5({}, free), { actions: n }), c)(state)];
                 case 1:
-                  state = _a.sent();
+                  state = _a2.sent();
                   return [4, repeat(create(horse), n)(state)];
                 case 2:
-                  state = _a.sent();
+                  state = _a2.sent();
                   return [2, state];
               }
             });
@@ -10906,29 +10910,29 @@
         return function(state) {
           return __awaiter6(this, void 0, void 0, function() {
             var cost, i, target;
-            var _a;
-            return __generator6(this, function(_b) {
-              switch (_b.label) {
+            var _a2;
+            return __generator6(this, function(_b2) {
+              switch (_b2.label) {
                 case 0:
                   cost = __assign5(__assign5({}, free), { buys: 1 });
                   i = 0;
-                  _b.label = 1;
+                  _b2.label = 1;
                 case 1:
                   if (!(i < 2)) return [3, 6];
                   target = void 0;
                   return [4, choice(state, "Choose a card to play then trash (".concat(2 - i, " remaining, $").concat(cost.coin, " total cost so far)"), state.hand.map(asChoice))];
                 case 2:
-                  _a = __read9.apply(void 0, [_b.sent(), 2]), state = _a[0], target = _a[1];
+                  _a2 = __read9.apply(void 0, [_b2.sent(), 2]), state = _a2[0], target = _a2[1];
                   if (target === null)
                     return [2, state];
                   return [4, target.play(card)(state)];
                 case 3:
-                  state = _b.sent();
+                  state = _b2.sent();
                   return [4, trash(target)(state)];
                 case 4:
-                  state = _b.sent();
+                  state = _b2.sent();
                   cost = addCosts(cost, target.cost("buy", state));
-                  _b.label = 5;
+                  _b2.label = 5;
                 case 5:
                   i++;
                   return [3, 1];
@@ -10941,7 +10945,7 @@
                     });
                   })(state)];
                 case 7:
-                  state = _b.sent();
+                  state = _b2.sent();
                   return [2, state];
               }
             });
@@ -11017,19 +11021,19 @@
         return function(state2) {
           return __awaiter6(this, void 0, void 0, function() {
             var n, cards;
-            var _a;
-            return __generator6(this, function(_b) {
-              switch (_b.label) {
+            var _a2;
+            return __generator6(this, function(_b2) {
+              switch (_b2.label) {
                 case 0:
                   n = state2.find(card).charge;
                   return [4, multichoice(state2, "Choose ".concat(num(n, "card"), " cards to put into your hand."), state2.discard.filter(function(c) {
                     return c.name != churnName;
                   }).map(asChoice), n)];
                 case 1:
-                  _a = __read9.apply(void 0, [_b.sent(), 2]), state2 = _a[0], cards = _a[1];
+                  _a2 = __read9.apply(void 0, [_b2.sent(), 2]), state2 = _a2[0], cards = _a2[1];
                   return [4, moveMany(cards, "hand")(state2)];
                 case 2:
-                  state2 = _b.sent();
+                  state2 = _b2.sent();
                   return [2, state2];
               }
             });
@@ -11042,20 +11046,20 @@
       transform: function(state, card) {
         return function(state2) {
           return __awaiter6(this, void 0, void 0, function() {
-            return __generator6(this, function(_a) {
-              switch (_a.label) {
+            return __generator6(this, function(_a2) {
+              switch (_a2.label) {
                 case 0:
                   if (!(state2.find(card).charge > 0)) return [3, 2];
                   return [4, discharge(card, 1)(state2)];
                 case 1:
-                  state2 = _a.sent();
-                  _a.label = 2;
+                  state2 = _a2.sent();
+                  _a2.label = 2;
                 case 2:
                   if (!(state2.find(card).charge == 0)) return [3, 4];
                   return [4, trash(card)(state2)];
                 case 3:
-                  state2 = _a.sent();
-                  _a.label = 4;
+                  state2 = _a2.sent();
+                  _a2.label = 4;
                 case 4:
                   return [2, state2];
               }
@@ -11078,13 +11082,13 @@
         return function(state2) {
           return __awaiter6(this, void 0, void 0, function() {
             var n;
-            return __generator6(this, function(_a) {
-              switch (_a.label) {
+            return __generator6(this, function(_a2) {
+              switch (_a2.label) {
                 case 0:
                   n = state2.play.length;
                   return [4, gainActions(n, card)(state2)];
                 case 1:
-                  state2 = _a.sent();
+                  state2 = _a2.sent();
                   return [2, state2];
               }
             });
@@ -11132,11 +11136,11 @@
         return function(state2) {
           return __awaiter6(this, void 0, void 0, function() {
             var i;
-            return __generator6(this, function(_a) {
-              switch (_a.label) {
+            return __generator6(this, function(_a2) {
+              switch (_a2.label) {
                 case 0:
                   i = 0;
-                  _a.label = 1;
+                  _a2.label = 1;
                 case 1:
                   if (!(i < 3)) return [3, 4];
                   return [4, applyToTarget(function(target) {
@@ -11147,9 +11151,9 @@
                     });
                   })(state2)];
                 case 2:
-                  state2 = _a.sent();
+                  state2 = _a2.sent();
                   state2 = tick(card)(state2);
-                  _a.label = 3;
+                  _a2.label = 3;
                 case 3:
                   i++;
                   return [3, 1];
@@ -11396,15 +11400,15 @@
       transform: function(state, card) {
         return function(state2) {
           return __awaiter7(this, void 0, void 0, function() {
-            return __generator7(this, function(_a) {
-              switch (_a.label) {
+            return __generator7(this, function(_a2) {
+              switch (_a2.label) {
                 case 0:
                   return [4, gainActions(2 * state2.actions, card)(state2)];
                 case 1:
-                  state2 = _a.sent();
+                  state2 = _a2.sent();
                   return [4, gainBuys(2 * state2.buys, card)(state2)];
                 case 2:
-                  state2 = _a.sent();
+                  state2 = _a2.sent();
                   return [2, state2];
               }
             });
@@ -11422,15 +11426,15 @@
       transform: function(state, card) {
         return function(state2) {
           return __awaiter7(this, void 0, void 0, function() {
-            return __generator7(this, function(_a) {
-              switch (_a.label) {
+            return __generator7(this, function(_a2) {
+              switch (_a2.label) {
                 case 0:
                   return [4, gainCoins(state2.coin, card)(state2)];
                 case 1:
-                  state2 = _a.sent();
+                  state2 = _a2.sent();
                   return [4, gainBuys(state2.buys, card)(state2)];
                 case 2:
-                  state2 = _a.sent();
+                  state2 = _a2.sent();
                   return [2, state2];
               }
             });
@@ -11444,9 +11448,9 @@
     name: "Potion of Copper",
     isPotion: true,
     effects: [{
-      text: ["Create 8 Coppers in your hand."],
+      text: ["Create ".concat(aOrNum(10, copper.name), " in your hand.")],
       transform: function() {
-        return repeat(create(copper, "hand"), 8);
+        return repeat(create(copper, "hand"), 10);
       }
     }]
   };
@@ -11475,13 +11479,13 @@
         return function(state2) {
           return __awaiter7(this, void 0, void 0, function() {
             var options, _loop_1, state_1;
-            return __generator7(this, function(_a) {
-              switch (_a.label) {
+            return __generator7(this, function(_a2) {
+              switch (_a2.label) {
                 case 0:
                   options = asNumberedChoices(state2.hand);
                   _loop_1 = function() {
                     var picked, trashedCost, cost_1, toBuy;
-                    var _b, _c;
+                    var _b2, _c;
                     return __generator7(this, function(_d) {
                       switch (_d.label) {
                         case 0:
@@ -11490,7 +11494,7 @@
                             return state2.find(c.value).place == "hand";
                           })))];
                         case 1:
-                          _b = __read10.apply(void 0, [_d.sent(), 2]), state2 = _b[0], picked = _b[1];
+                          _b2 = __read10.apply(void 0, [_d.sent(), 2]), state2 = _b2[0], picked = _b2[1];
                           if (!(picked == null)) return [3, 2];
                           return [2, { value: state2 }];
                         case 2:
@@ -11518,12 +11522,12 @@
                       }
                     });
                   };
-                  _a.label = 1;
+                  _a2.label = 1;
                 case 1:
                   if (false) return [3, 3];
                   return [5, _loop_1()];
                 case 2:
-                  state_1 = _a.sent();
+                  state_1 = _a2.sent();
                   if (typeof state_1 === "object")
                     return [2, state_1.value];
                   return [3, 1];
@@ -11559,7 +11563,7 @@
       transform: function(state, card) {
         return function(state2) {
           return __awaiter7(this, void 0, void 0, function() {
-            return __generator7(this, function(_a) {
+            return __generator7(this, function(_a2) {
               return [2, doAll(state2.supply.map(function(s) {
                 return addToken(s, "ferry", 1);
               }))(state2)];
@@ -11597,14 +11601,14 @@
         return function(state2) {
           return __awaiter7(this, void 0, void 0, function() {
             var cards, options, _loop_2, state_2;
-            return __generator7(this, function(_a) {
-              switch (_a.label) {
+            return __generator7(this, function(_a2) {
+              switch (_a2.label) {
                 case 0:
                   cards = state2.discard;
                   options = asNumberedChoices(cards);
                   _loop_2 = function() {
                     var picked, id_1;
-                    var _b;
+                    var _b2;
                     return __generator7(this, function(_c) {
                       switch (_c.label) {
                         case 0:
@@ -11613,7 +11617,7 @@
                             return state2.find(c.value).place == "discard";
                           })))];
                         case 1:
-                          _b = __read10.apply(void 0, [_c.sent(), 2]), state2 = _b[0], picked = _b[1];
+                          _b2 = __read10.apply(void 0, [_c.sent(), 2]), state2 = _b2[0], picked = _b2[1];
                           if (!(picked == null)) return [3, 2];
                           return [2, { value: state2 }];
                         case 2:
@@ -11633,12 +11637,12 @@
                       }
                     });
                   };
-                  _a.label = 1;
+                  _a2.label = 1;
                 case 1:
                   if (false) return [3, 3];
                   return [5, _loop_2()];
                 case 2:
-                  state_2 = _a.sent();
+                  state_2 = _a2.sent();
                   if (typeof state_2 === "object")
                     return [2, state_2.value];
                   return [3, 1];
@@ -11732,14 +11736,14 @@
         return function(state2) {
           return __awaiter7(this, void 0, void 0, function() {
             var cards, options, _loop_3, state_3;
-            return __generator7(this, function(_a) {
-              switch (_a.label) {
+            return __generator7(this, function(_a2) {
+              switch (_a2.label) {
                 case 0:
                   cards = state2.hand;
                   options = asNumberedChoices(cards);
                   _loop_3 = function() {
                     var picked, id_2;
-                    var _b;
+                    var _b2;
                     return __generator7(this, function(_c) {
                       switch (_c.label) {
                         case 0:
@@ -11748,7 +11752,7 @@
                             return state2.find(c.value).place == "hand";
                           })))];
                         case 1:
-                          _b = __read10.apply(void 0, [_c.sent(), 2]), state2 = _b[0], picked = _b[1];
+                          _b2 = __read10.apply(void 0, [_c.sent(), 2]), state2 = _b2[0], picked = _b2[1];
                           if (!(picked == null)) return [3, 2];
                           return [2, { value: state2 }];
                         case 2:
@@ -11768,12 +11772,12 @@
                       }
                     });
                   };
-                  _a.label = 1;
+                  _a2.label = 1;
                 case 1:
                   if (false) return [3, 3];
                   return [5, _loop_3()];
                 case 2:
-                  state_3 = _a.sent();
+                  state_3 = _a2.sent();
                   if (typeof state_3 === "object")
                     return [2, state_3.value];
                   return [3, 1];
@@ -11834,9 +11838,9 @@
         return function(state2) {
           return __awaiter7(this, void 0, void 0, function() {
             var otherPotions, options, picked;
-            var _a;
-            return __generator7(this, function(_b) {
-              switch (_b.label) {
+            var _a2;
+            return __generator7(this, function(_b2) {
+              switch (_b2.label) {
                 case 0:
                   otherPotions = state2.potions.filter(function(p) {
                     return p.name !== mirrorBrewName;
@@ -11847,14 +11851,14 @@
                   options = asNumberedChoices(otherPotions);
                   return [4, choice(state2, "Choose a potion to copy.", allowNull(options))];
                 case 1:
-                  _a = __read10.apply(void 0, [_b.sent(), 2]), state2 = _a[0], picked = _a[1];
+                  _a2 = __read10.apply(void 0, [_b2.sent(), 2]), state2 = _a2[0], picked = _a2[1];
                   if (!(picked !== null)) return [3, 3];
                   return [4, create(picked.spec, "potions", function(potion) {
                     return potion.activate("potion", card);
                   })(state2)];
                 case 2:
-                  state2 = _b.sent();
-                  _b.label = 3;
+                  state2 = _b2.sent();
+                  _b2.label = 3;
                 case 3:
                   return [2, state2];
               }
@@ -11873,23 +11877,23 @@
       transform: function(state, card) {
         return function(state2) {
           return __awaiter7(this, void 0, void 0, function() {
-            var _a, _b, c, e_1_1;
+            var _a2, _b2, c, e_1_1;
             var e_1, _c;
             return __generator7(this, function(_d) {
               switch (_d.label) {
                 case 0:
                   _d.trys.push([0, 5, 6, 7]);
-                  _a = __values8(state2.play), _b = _a.next();
+                  _a2 = __values8(state2.play), _b2 = _a2.next();
                   _d.label = 1;
                 case 1:
-                  if (!!_b.done) return [3, 4];
-                  c = _b.value;
+                  if (!!_b2.done) return [3, 4];
+                  c = _b2.value;
                   return [4, addToken(c, "shelter", 3)(state2)];
                 case 2:
                   state2 = _d.sent();
                   _d.label = 3;
                 case 3:
-                  _b = _a.next();
+                  _b2 = _a2.next();
                   return [3, 1];
                 case 4:
                   return [3, 7];
@@ -11899,7 +11903,7 @@
                   return [3, 7];
                 case 6:
                   try {
-                    if (_b && !_b.done && (_c = _a.return)) _c.call(_a);
+                    if (_b2 && !_b2.done && (_c = _a2.return)) _c.call(_a2);
                   } finally {
                     if (e_1) throw e_1.error;
                   }
@@ -12086,14 +12090,14 @@
         return function(state2) {
           return __awaiter8(this, void 0, void 0, function() {
             var cards, options, _loop_1, state_1;
-            return __generator8(this, function(_a) {
-              switch (_a.label) {
+            return __generator8(this, function(_a2) {
+              switch (_a2.label) {
                 case 0:
                   cards = state2.hand;
                   options = asNumberedChoices(cards);
                   _loop_1 = function() {
                     var picked, id_1;
-                    var _b;
+                    var _b2;
                     return __generator8(this, function(_c) {
                       switch (_c.label) {
                         case 0:
@@ -12102,7 +12106,7 @@
                             return state2.find(c.value).place == "hand";
                           })))];
                         case 1:
-                          _b = __read11.apply(void 0, [_c.sent(), 2]), state2 = _b[0], picked = _b[1];
+                          _b2 = __read11.apply(void 0, [_c.sent(), 2]), state2 = _b2[0], picked = _b2[1];
                           if (!(picked == null)) return [3, 2];
                           return [2, { value: state2 }];
                         case 2:
@@ -12125,12 +12129,12 @@
                       }
                     });
                   };
-                  _a.label = 1;
+                  _a2.label = 1;
                 case 1:
                   if (false) return [3, 3];
                   return [5, _loop_1()];
                 case 2:
-                  state_1 = _a.sent();
+                  state_1 = _a2.sent();
                   if (typeof state_1 === "object")
                     return [2, state_1.value];
                   return [3, 1];
@@ -12257,13 +12261,13 @@
         return function(state) {
           return __awaiter8(this, void 0, void 0, function() {
             var cards, cards_1, cards_1_1, card, e_1_1;
-            var _a, e_1, _b;
+            var _a2, e_1, _b2;
             return __generator8(this, function(_c) {
               switch (_c.label) {
                 case 0:
                   return [4, multichoice(state, "Choose two cards to synergize.", state.supply.map(asChoice), 2, 2)];
                 case 1:
-                  _a = __read11.apply(void 0, [_c.sent(), 2]), state = _a[0], cards = _a[1];
+                  _a2 = __read11.apply(void 0, [_c.sent(), 2]), state = _a2[0], cards = _a2[1];
                   _c.label = 2;
                 case 2:
                   _c.trys.push([2, 7, 8, 9]);
@@ -12287,7 +12291,7 @@
                   return [3, 9];
                 case 8:
                   try {
-                    if (cards_1_1 && !cards_1_1.done && (_b = cards_1.return)) _b.call(cards_1);
+                    if (cards_1_1 && !cards_1_1.done && (_b2 = cards_1.return)) _b2.call(cards_1);
                   } finally {
                     if (e_1) throw e_1.error;
                   }
@@ -12339,14 +12343,14 @@
         return function(state2) {
           return __awaiter8(this, void 0, void 0, function() {
             var cards, options, _loop_2, state_2;
-            return __generator8(this, function(_a) {
-              switch (_a.label) {
+            return __generator8(this, function(_a2) {
+              switch (_a2.label) {
                 case 0:
                   cards = state2.hand;
                   options = asNumberedChoices(cards);
                   _loop_2 = function() {
                     var picked, id_2;
-                    var _b;
+                    var _b2;
                     return __generator8(this, function(_c) {
                       switch (_c.label) {
                         case 0:
@@ -12355,7 +12359,7 @@
                             return state2.find(c.value).place == "hand";
                           })))];
                         case 1:
-                          _b = __read11.apply(void 0, [_c.sent(), 2]), state2 = _b[0], picked = _b[1];
+                          _b2 = __read11.apply(void 0, [_c.sent(), 2]), state2 = _b2[0], picked = _b2[1];
                           if (!(picked == null)) return [3, 2];
                           return [2, { value: state2 }];
                         case 2:
@@ -12375,12 +12379,12 @@
                       }
                     });
                   };
-                  _a.label = 1;
+                  _a2.label = 1;
                 case 1:
                   if (false) return [3, 3];
                   return [5, _loop_2()];
                 case 2:
-                  state_2 = _a.sent();
+                  state_2 = _a2.sent();
                   if (typeof state_2 === "object")
                     return [2, state_2.value];
                   return [3, 1];
@@ -12432,12 +12436,12 @@
     effects: [targetedEffect(function(card) {
       return function(state) {
         return __awaiter8(this, void 0, void 0, function() {
-          return __generator8(this, function(_a) {
-            switch (_a.label) {
+          return __generator8(this, function(_a2) {
+            switch (_a2.label) {
               case 0:
                 return [4, addToken(card, "reduction", 8)(state)];
               case 1:
-                state = _a.sent();
+                state = _a2.sent();
                 return [2, state];
             }
           });
@@ -12578,7 +12582,7 @@
   eventRewards.push(reprise);
   var accelerate = {
     name: "Accelerate",
-    fixedCost: __assign6(__assign6({}, free), { energy: 1, coin: 1 }),
+    fixedCost: __assign6(__assign6({}, free), { energy: 1, coin: 2 }),
     effects: [{
       text: ["Put a priority token on each card in the supply."],
       transform: function(state, card) {
@@ -12885,23 +12889,23 @@
       transform: function(e, state, card) {
         return function(state2) {
           return __awaiter9(this, void 0, void 0, function() {
-            var _a, _b, supplyCard, e_1_1;
+            var _a2, _b2, supplyCard, e_1_1;
             var e_1, _c;
             return __generator9(this, function(_d) {
               switch (_d.label) {
                 case 0:
                   _d.trys.push([0, 5, 6, 7]);
-                  _a = __values10(state2.supply), _b = _a.next();
+                  _a2 = __values10(state2.supply), _b2 = _a2.next();
                   _d.label = 1;
                 case 1:
-                  if (!!_b.done) return [3, 4];
-                  supplyCard = _b.value;
+                  if (!!_b2.done) return [3, 4];
+                  supplyCard = _b2.value;
                   return [4, supplyCard.buy(card)(state2)];
                 case 2:
                   state2 = _d.sent();
                   _d.label = 3;
                 case 3:
-                  _b = _a.next();
+                  _b2 = _a2.next();
                   return [3, 1];
                 case 4:
                   return [3, 7];
@@ -12911,7 +12915,7 @@
                   return [3, 7];
                 case 6:
                   try {
-                    if (_b && !_b.done && (_c = _a.return)) _c.call(_a);
+                    if (_b2 && !_b2.done && (_c = _a2.return)) _c.call(_a2);
                   } finally {
                     if (e_1) throw e_1.error;
                   }
@@ -13040,8 +13044,8 @@
         return function(state2) {
           return __awaiter9(this, void 0, void 0, function() {
             var cards, options, _loop_1, state_1;
-            return __generator9(this, function(_a) {
-              switch (_a.label) {
+            return __generator9(this, function(_a2) {
+              switch (_a2.label) {
                 case 0:
                   cards = state2.discard.filter(function(c) {
                     return c.count("reuse") == 0;
@@ -13049,7 +13053,7 @@
                   options = asNumberedChoices(cards);
                   _loop_1 = function() {
                     var picked, id_1;
-                    var _b;
+                    var _b2;
                     return __generator9(this, function(_c) {
                       switch (_c.label) {
                         case 0:
@@ -13058,7 +13062,7 @@
                             return state2.find(c.value).place == "discard";
                           })))];
                         case 1:
-                          _b = __read12.apply(void 0, [_c.sent(), 2]), state2 = _b[0], picked = _b[1];
+                          _b2 = __read12.apply(void 0, [_c.sent(), 2]), state2 = _b2[0], picked = _b2[1];
                           if (!(picked == null)) return [3, 2];
                           return [2, { value: state2 }];
                         case 2:
@@ -13081,12 +13085,12 @@
                       }
                     });
                   };
-                  _a.label = 1;
+                  _a2.label = 1;
                 case 1:
                   if (false) return [3, 3];
                   return [5, _loop_1()];
                 case 2:
-                  state_1 = _a.sent();
+                  state_1 = _a2.sent();
                   if (typeof state_1 === "object")
                     return [2, state_1.value];
                   return [3, 1];
@@ -13139,14 +13143,14 @@
         return function(state) {
           return __awaiter9(this, void 0, void 0, function() {
             var n, targets;
-            var _a;
-            return __generator9(this, function(_b) {
-              switch (_b.label) {
+            var _a2;
+            return __generator9(this, function(_b2) {
+              switch (_b2.label) {
                 case 0:
                   n = e.cost.energy;
                   return [4, multichoice(state, "Choose up to ".concat(num(n, "card"), " to put into your hand."), state.discard.map(asChoice), n)];
                 case 1:
-                  _a = __read12.apply(void 0, [_b.sent(), 2]), state = _a[0], targets = _a[1];
+                  _a2 = __read12.apply(void 0, [_b2.sent(), 2]), state = _a2[0], targets = _a2[1];
                   return [2, moveMany(targets, "hand")(state)];
               }
             });
@@ -13235,23 +13239,23 @@
       transform: function(e, state, card) {
         return function(state2) {
           return __awaiter9(this, void 0, void 0, function() {
-            var _a, _b, supply, e_2_1;
+            var _a2, _b2, supply, e_2_1;
             var e_2, _c;
             return __generator9(this, function(_d) {
               switch (_d.label) {
                 case 0:
                   _d.trys.push([0, 5, 6, 7]);
-                  _a = __values10(state2.supply), _b = _a.next();
+                  _a2 = __values10(state2.supply), _b2 = _a2.next();
                   _d.label = 1;
                 case 1:
-                  if (!!_b.done) return [3, 4];
-                  supply = _b.value;
+                  if (!!_b2.done) return [3, 4];
+                  supply = _b2.value;
                   return [4, addToken(supply, "duplicate")(state2)];
                 case 2:
                   state2 = _d.sent();
                   _d.label = 3;
                 case 3:
-                  _b = _a.next();
+                  _b2 = _a2.next();
                   return [3, 1];
                 case 4:
                   return [3, 7];
@@ -13261,7 +13265,7 @@
                   return [3, 7];
                 case 6:
                   try {
-                    if (_b && !_b.done && (_c = _a.return)) _c.call(_a);
+                    if (_b2 && !_b2.done && (_c = _a2.return)) _c.call(_a2);
                   } finally {
                     if (e_2) throw e_2.error;
                   }
@@ -13659,13 +13663,13 @@
         return function(state) {
           return __awaiter10(this, void 0, void 0, function() {
             var maxCost;
-            return __generator10(this, function(_a) {
-              switch (_a.label) {
+            return __generator10(this, function(_a2) {
+              switch (_a2.label) {
                 case 0:
                   maxCost = addCosts(sourceCard.cost("buy", state), coin(2));
                   return [4, trash(sourceCard)(state)];
                 case 1:
-                  state = _a.sent();
+                  state = _a2.sent();
                   return [4, applyToTarget(function(target) {
                     return target.buy(sourceCard);
                   }, "Choose a card to buy.", function(s) {
@@ -13674,7 +13678,7 @@
                     });
                   })(state)];
                 case 2:
-                  state = _a.sent();
+                  state = _a2.sent();
                   return [2, state];
               }
             });
@@ -13697,8 +13701,8 @@
         return function(state) {
           return __awaiter10(this, void 0, void 0, function() {
             var trashedCard, trashedCost, minCoin, maxCoin;
-            return __generator10(this, function(_a) {
-              switch (_a.label) {
+            return __generator10(this, function(_a2) {
+              switch (_a2.label) {
                 case 0:
                   trashedCard = state.find(e.card);
                   trashedCost = trashedCard.cost("buy", state);
@@ -13713,7 +13717,7 @@
                     });
                   })(state)];
                 case 1:
-                  state = _a.sent();
+                  state = _a2.sent();
                   return [2, state];
               }
             });
@@ -13734,8 +13738,8 @@
       transform: function(_state, _sourceCard) {
         return function(state) {
           return __awaiter10(this, void 0, void 0, function() {
-            return __generator10(this, function(_a) {
-              switch (_a.label) {
+            return __generator10(this, function(_a2) {
+              switch (_a2.label) {
                 case 0:
                   if (state.hand.length === 0) {
                     return [2, state];
@@ -13744,13 +13748,13 @@
                     return function(state2) {
                       return __awaiter10(this, void 0, void 0, function() {
                         var maxCost;
-                        return __generator10(this, function(_a2) {
-                          switch (_a2.label) {
+                        return __generator10(this, function(_a3) {
+                          switch (_a3.label) {
                             case 0:
                               maxCost = addCosts(trashed.cost("buy", state2), coin(2));
                               return [4, trash(trashed)(state2)];
                             case 1:
-                              state2 = _a2.sent();
+                              state2 = _a3.sent();
                               return [4, applyToTarget(function(target) {
                                 return create(target.spec, "hand");
                               }, "Choose a card to copy.", function(s) {
@@ -13759,7 +13763,7 @@
                                 });
                               })(state2)];
                             case 2:
-                              state2 = _a2.sent();
+                              state2 = _a3.sent();
                               return [2, state2];
                           }
                         });
@@ -13769,7 +13773,7 @@
                     return s.hand;
                   })(state)];
                 case 1:
-                  state = _a.sent();
+                  state = _a2.sent();
                   return [2, state];
               }
             });
@@ -13895,7 +13899,7 @@
         return function(state) {
           return __awaiter10(this, void 0, void 0, function() {
             var source;
-            return __generator10(this, function(_a) {
+            return __generator10(this, function(_a2) {
               source = state.find(sourceCard);
               return [2, applyToTarget(function(target) {
                 return target.use(source);
@@ -13933,12 +13937,12 @@
             kind: "complex",
             onClick: function(state) {
               return __awaiter10(this, void 0, void 0, function() {
-                return __generator10(this, function(_a) {
-                  switch (_a.label) {
+                return __generator10(this, function(_a2) {
+                  switch (_a2.label) {
                     case 0:
                       return [4, opt.transform(state)];
                     case 1:
-                      _a.sent();
+                      _a2.sent();
                       return [2, selectIndex(i)];
                   }
                 });
@@ -13967,23 +13971,23 @@
           onClick: function(state) {
             return __awaiter10(this, void 0, void 0, function() {
               var card;
-              return __generator10(this, function(_a) {
-                switch (_a.label) {
+              return __generator10(this, function(_a2) {
+                switch (_a2.label) {
                   case 0:
                     return [4, metaState.ui.chooseCard(metaState, "Choose a card to bottle:", __spreadArray8([], __read13(metaState.data.collectedCards), false).map(function(c) {
                       return ["card", c];
                     }), true)];
                   case 1:
-                    card = _a.sent();
+                    card = _a2.sent();
                     if (!card) {
                       return [2, data];
                     }
                     return [4, addTimelineAction("Distillery: Bottled a card", "Bottled ".concat(displayName(card[1])))(state)];
                   case 2:
-                    _a.sent();
+                    _a2.sent();
                     return [4, gainPotion(makeBottledCardPotion(card[1]), { silent: true })(state)];
                   case 3:
-                    _a.sent();
+                    _a2.sent();
                     return [2, selectIndex(0)];
                 }
               });
@@ -13998,12 +14002,12 @@
           checked: selectedIndex === 1,
           onClick: function(state) {
             return __awaiter10(this, void 0, void 0, function() {
-              return __generator10(this, function(_a) {
-                switch (_a.label) {
+              return __generator10(this, function(_a2) {
+                switch (_a2.label) {
                   case 0:
                     return [4, gainRelic(giftBox)(state)];
                   case 1:
-                    _a.sent();
+                    _a2.sent();
                     return [2, selectIndex(1)];
                 }
               });
@@ -14018,12 +14022,12 @@
           checked: selectedIndex === 2,
           onClick: function(state) {
             return __awaiter10(this, void 0, void 0, function() {
-              return __generator10(this, function(_a) {
-                switch (_a.label) {
+              return __generator10(this, function(_a2) {
+                switch (_a2.label) {
                   case 0:
                     return [4, gainRelic(emptyBottle)(state)];
                   case 1:
-                    _a.sent();
+                    _a2.sent();
                     return [2, selectIndex(2)];
                 }
               });
@@ -14051,15 +14055,15 @@
           checked: selectedIndex === 0,
           onClick: function(state) {
             return __awaiter10(this, void 0, void 0, function() {
-              return __generator10(this, function(_a) {
-                switch (_a.label) {
+              return __generator10(this, function(_a2) {
+                switch (_a2.label) {
                   case 0:
                     return [4, addTimelineAction("Mirror maker: gain Mirror Brew")(state)];
                   case 1:
-                    _a.sent();
+                    _a2.sent();
                     return [4, gainPotion(mirrorBrew, { silent: true })(state)];
                   case 2:
-                    _a.sent();
+                    _a2.sent();
                     return [2, selectIndex(0)];
                 }
               });
@@ -14075,8 +14079,8 @@
           onClick: function(state) {
             return __awaiter10(this, void 0, void 0, function() {
               var relicSpecs, relic;
-              return __generator10(this, function(_a) {
-                switch (_a.label) {
+              return __generator10(this, function(_a2) {
+                switch (_a2.label) {
                   case 0:
                     relicSpecs = state.data.relics.map(function(r) {
                       return r.spec;
@@ -14085,16 +14089,16 @@
                       return ["relic", r];
                     }), true)];
                   case 1:
-                    relic = _a.sent();
+                    relic = _a2.sent();
                     if (!relic) {
                       return [2, data];
                     }
                     return [4, addTimelineAction("Mirror Maker: Copied a relic", "Copied ".concat(displayName(relic[1].spec)))(state)];
                   case 2:
-                    _a.sent();
+                    _a2.sent();
                     return [4, gainRelic(relic[1].spec, { silent: true })(state)];
                   case 3:
-                    _a.sent();
+                    _a2.sent();
                     return [2, selectIndex(1)];
                 }
               });
@@ -14110,15 +14114,15 @@
           tooltipSpec: silverMirror,
           onClick: function(state) {
             return __awaiter10(this, void 0, void 0, function() {
-              return __generator10(this, function(_a) {
-                switch (_a.label) {
+              return __generator10(this, function(_a2) {
+                switch (_a2.label) {
                   case 0:
                     return [4, addTimelineAction("Mirror Maker: gain ".concat(silverMirror.name))(state)];
                   case 1:
-                    _a.sent();
+                    _a2.sent();
                     return [4, gainRelic(silverMirror, { silent: true })(state)];
                   case 2:
-                    _a.sent();
+                    _a2.sent();
                     return [2, selectIndex(2)];
                 }
               });
@@ -14141,14 +14145,14 @@
       var chooseUpgrade = function(upgrade, index, upgradeName, state) {
         return __awaiter10(_this, void 0, void 0, function() {
           var card, chosenName, updated, cards, cardIndex;
-          return __generator10(this, function(_a) {
-            switch (_a.label) {
+          return __generator10(this, function(_a2) {
+            switch (_a2.label) {
               case 0:
                 return [4, state.ui.chooseCard(state, "Choose a card to upgrade:", state.data.collectedCards.map(function(c) {
                   return ["card", c];
                 }), true)];
               case 1:
-                card = _a.sent();
+                card = _a2.sent();
                 if (!card) {
                   return [2, data];
                 }
@@ -14161,8 +14165,8 @@
                 state.update({ collectedCards: cards });
                 return [4, addTimelineAction("The Blacksmith: ".concat(upgradeName), "Upgraded ".concat(chosenName))(state)];
               case 2:
-                _a.sent();
-                _a.label = 3;
+                _a2.sent();
+                _a2.label = 3;
               case 3:
                 return [2, selectIndex(index)];
             }
@@ -14178,7 +14182,7 @@
           checked: selectedIndex === 0,
           onClick: function(state) {
             return __awaiter10(this, void 0, void 0, function() {
-              return __generator10(this, function(_a) {
+              return __generator10(this, function(_a2) {
                 return [2, chooseUpgrade(polishUpgrade, 0, "Polish", state)];
               });
             });
@@ -14192,7 +14196,7 @@
           checked: selectedIndex === 1,
           onClick: function(state) {
             return __awaiter10(this, void 0, void 0, function() {
-              return __generator10(this, function(_a) {
+              return __generator10(this, function(_a2) {
                 return [2, chooseUpgrade(sharpenUpgrade, 1, "Sharpen", state)];
               });
             });
@@ -14206,7 +14210,7 @@
           checked: selectedIndex === 2,
           onClick: function(state) {
             return __awaiter10(this, void 0, void 0, function() {
-              return __generator10(this, function(_a) {
+              return __generator10(this, function(_a2) {
                 return [2, chooseUpgrade(streamlineUpgrade, 2, "Streamline", state)];
               });
             });
@@ -14228,14 +14232,14 @@
       var chooseUpgrade = function(upgrade, index, upgradeName, state) {
         return __awaiter10(_this, void 0, void 0, function() {
           var card, chosenName, updated, cards, cardIndex;
-          return __generator10(this, function(_a) {
-            switch (_a.label) {
+          return __generator10(this, function(_a2) {
+            switch (_a2.label) {
               case 0:
                 return [4, state.ui.chooseCard(state, "Choose a card to upgrade:", state.data.collectedCards.map(function(c) {
                   return ["card", c];
                 }), true)];
               case 1:
-                card = _a.sent();
+                card = _a2.sent();
                 if (!card) {
                   return [2, data];
                 }
@@ -14248,7 +14252,7 @@
                 state.update({ collectedCards: cards });
                 return [4, addTimelineAction("Shopkeeper: ".concat(upgradeName), "Upgraded ".concat(chosenName))(state)];
               case 2:
-                _a.sent();
+                _a2.sent();
                 return [2, selectIndex(index)];
               case 3:
                 return [2, data];
@@ -14265,7 +14269,7 @@
           checked: selectedIndex === 0,
           onClick: function(state) {
             return __awaiter10(_this, void 0, void 0, function() {
-              return __generator10(this, function(_a) {
+              return __generator10(this, function(_a2) {
                 return [2, chooseUpgrade(buyOneGetOneUpgrade, 0, "Buy one get one", state)];
               });
             });
@@ -14279,7 +14283,7 @@
           checked: selectedIndex === 1,
           onClick: function(state) {
             return __awaiter10(_this, void 0, void 0, function() {
-              return __generator10(this, function(_a) {
+              return __generator10(this, function(_a2) {
                 return [2, chooseUpgrade(rushOrderUpgrade, 1, "Rush order", state)];
               });
             });
@@ -14293,7 +14297,7 @@
           checked: selectedIndex === 2,
           onClick: function(state) {
             return __awaiter10(_this, void 0, void 0, function() {
-              return __generator10(this, function(_a) {
+              return __generator10(this, function(_a2) {
                 return [2, chooseUpgrade(saleUpgrade, 2, "Sale", state)];
               });
             });
@@ -14315,14 +14319,14 @@
       function chooseUpgrade(upgrade, index, upgradeName, state) {
         return __awaiter10(this, void 0, void 0, function() {
           var event, chosenName, updated, events, eventIndex;
-          return __generator10(this, function(_a) {
-            switch (_a.label) {
+          return __generator10(this, function(_a2) {
+            switch (_a2.label) {
               case 0:
                 return [4, state.ui.chooseCard(state, "Choose an event to upgrade:", state.data.collectedEvents.map(function(e) {
                   return ["event", e];
                 }), true)];
               case 1:
-                event = _a.sent();
+                event = _a2.sent();
                 if (!event) {
                   return [2, data];
                 }
@@ -14335,7 +14339,7 @@
                 state.update({ collectedEvents: events });
                 return [4, addTimelineAction("Tactician: ".concat(upgradeName), "Upgraded ".concat(chosenName))(state)];
               case 2:
-                _a.sent();
+                _a2.sent();
                 return [2, selectIndex(index)];
               case 3:
                 return [2, data];
@@ -14352,7 +14356,7 @@
           checked: selectedIndex === 0,
           onClick: function(state) {
             return __awaiter10(_this, void 0, void 0, function() {
-              return __generator10(this, function(_a) {
+              return __generator10(this, function(_a2) {
                 return [2, chooseUpgrade(tacticianStrengthUpgrade, 0, "Persistence", state)];
               });
             });
@@ -14366,7 +14370,7 @@
           checked: selectedIndex === 1,
           onClick: function(state) {
             return __awaiter10(_this, void 0, void 0, function() {
-              return __generator10(this, function(_a) {
+              return __generator10(this, function(_a2) {
                 return [2, chooseUpgrade(tacticianAgilityUpgrade, 1, "Finesse", state)];
               });
             });
@@ -14380,7 +14384,7 @@
           checked: selectedIndex === 2,
           onClick: function(state) {
             return __awaiter10(_this, void 0, void 0, function() {
-              return __generator10(this, function(_a) {
+              return __generator10(this, function(_a2) {
                 return [2, chooseUpgrade(tacticianCooperationUpgrade, 2, "Teamwork", state)];
               });
             });
@@ -14406,18 +14410,18 @@
       checked: data.offersTaken[n],
       onClick: function(state) {
         return __awaiter10(this, void 0, void 0, function() {
-          return __generator10(this, function(_a) {
-            switch (_a.label) {
+          return __generator10(this, function(_a2) {
+            switch (_a2.label) {
               case 0:
                 return [4, addBuffer(-cost)(state)];
               case 1:
-                _a.sent();
+                _a2.sent();
                 return [4, addTimelineAction("Potion shop: bought ".concat(displayName(data.offers[n])), "Spent ".concat(cost, "@"))(state)];
               case 2:
-                _a.sent();
+                _a2.sent();
                 return [4, gainPotion(data.offers[n], { silent: true })(state)];
               case 3:
-                _a.sent();
+                _a2.sent();
                 return [2, takeOffer(n, data)];
             }
           });
@@ -14432,7 +14436,7 @@
     },
     getOptions: function(data, metaState) {
       var d = data;
-      var _a = __read13(d.offers, 3), first = _a[0], second = _a[1], third = _a[2];
+      var _a2 = __read13(d.offers, 3), first = _a2[0], second = _a2[1], third = _a2[2];
       var sellablePotions = metaState.data.potions.filter(function(potion) {
         return !isBurdened(potion.spec);
       });
@@ -14448,23 +14452,23 @@
           onClick: function(state) {
             return __awaiter10(this, void 0, void 0, function() {
               var potion;
-              return __generator10(this, function(_a2) {
-                switch (_a2.label) {
+              return __generator10(this, function(_a3) {
+                switch (_a3.label) {
                   case 0:
                     return [4, metaState.ui.chooseCard(metaState, "Choose a potion to give up:", sellablePotions.map(function(p) {
                       return ["potion", p];
                     }), true)];
                   case 1:
-                    potion = _a2.sent();
+                    potion = _a3.sent();
                     if (!potion)
                       return [2, data];
                     state.removePotion(potion[1].id);
                     return [4, addBuffer(2)(state)];
                   case 2:
-                    _a2.sent();
+                    _a3.sent();
                     return [4, addTimelineAction("Potion shop: sold ".concat(displayName(potion[1].spec)), "Gained 2@")(state)];
                   case 3:
-                    _a2.sent();
+                    _a3.sent();
                     return [2, __assign9(__assign9({}, data), { potionSold: true })];
                 }
               });
@@ -14498,27 +14502,27 @@
           onClick: function(state) {
             return __awaiter10(this, void 0, void 0, function() {
               var potion, potionName;
-              return __generator10(this, function(_a) {
-                switch (_a.label) {
+              return __generator10(this, function(_a2) {
+                switch (_a2.label) {
                   case 0:
                     return [4, metaState.ui.chooseCard(metaState, "Choose a potion to trade in:", state.data.potions.map(function(p) {
                       return ["potion", p];
                     }), true)];
                   case 1:
-                    potion = _a.sent();
+                    potion = _a2.sent();
                     if (!potion)
                       return [2, data];
                     potionName = displayName(potion[1].spec);
                     state.removePotion(potion[1].id);
                     return [4, addTimelineAction("Potion Lab: House special", "Traded ".concat(potionName, " for two ").concat(offerName))(state)];
                   case 2:
-                    _a.sent();
+                    _a2.sent();
                     return [4, gainPotion(d.offer, { silent: true })(state)];
                   case 3:
-                    _a.sent();
+                    _a2.sent();
                     return [4, gainPotion(d.offer, { silent: true })(state)];
                   case 4:
-                    _a.sent();
+                    _a2.sent();
                     return [2, __assign9(__assign9({}, data), { selectedIndex: 0 })];
                 }
               });
@@ -14534,9 +14538,9 @@
           onClick: function(state) {
             return __awaiter10(this, void 0, void 0, function() {
               var copiedPotionNames, details, potionSpecs, potionSpecs_1, potionSpecs_1_1, spec, e_1_1;
-              var e_1, _a;
-              return __generator10(this, function(_b) {
-                switch (_b.label) {
+              var e_1, _a2;
+              return __generator10(this, function(_b2) {
+                switch (_b2.label) {
                   case 0:
                     copiedPotionNames = state.data.potions.map(function(p) {
                       return displayName(p.spec);
@@ -14544,37 +14548,37 @@
                     details = copiedPotionNames.length > 0 ? "Copied: ".concat(copiedPotionNames.join(", ")) : "Copied nothing";
                     return [4, addBuffer(-1)(state)];
                   case 1:
-                    _b.sent();
+                    _b2.sent();
                     return [4, addTimelineAction("Potion Lab: Double batch", details)(state)];
                   case 2:
-                    _b.sent();
+                    _b2.sent();
                     potionSpecs = state.data.potions.map(function(p) {
                       return p.spec;
                     });
-                    _b.label = 3;
+                    _b2.label = 3;
                   case 3:
-                    _b.trys.push([3, 8, 9, 10]);
+                    _b2.trys.push([3, 8, 9, 10]);
                     potionSpecs_1 = __values11(potionSpecs), potionSpecs_1_1 = potionSpecs_1.next();
-                    _b.label = 4;
+                    _b2.label = 4;
                   case 4:
                     if (!!potionSpecs_1_1.done) return [3, 7];
                     spec = potionSpecs_1_1.value;
                     return [4, gainPotion(spec, { silent: true })(state)];
                   case 5:
-                    _b.sent();
-                    _b.label = 6;
+                    _b2.sent();
+                    _b2.label = 6;
                   case 6:
                     potionSpecs_1_1 = potionSpecs_1.next();
                     return [3, 4];
                   case 7:
                     return [3, 10];
                   case 8:
-                    e_1_1 = _b.sent();
+                    e_1_1 = _b2.sent();
                     e_1 = { error: e_1_1 };
                     return [3, 10];
                   case 9:
                     try {
-                      if (potionSpecs_1_1 && !potionSpecs_1_1.done && (_a = potionSpecs_1.return)) _a.call(potionSpecs_1);
+                      if (potionSpecs_1_1 && !potionSpecs_1_1.done && (_a2 = potionSpecs_1.return)) _a2.call(potionSpecs_1);
                     } finally {
                       if (e_1) throw e_1.error;
                     }
@@ -14597,15 +14601,15 @@
           checked: d.selectedIndex === 2,
           onClick: function(state) {
             return __awaiter10(this, void 0, void 0, function() {
-              return __generator10(this, function(_a) {
-                switch (_a.label) {
+              return __generator10(this, function(_a2) {
+                switch (_a2.label) {
                   case 0:
                     return [4, gainRelic(sacredBark, { silent: true })(state)];
                   case 1:
-                    _a.sent();
+                    _a2.sent();
                     return [4, addTimelineAction("Potion Lab: Sacred Bark")(state)];
                   case 2:
-                    _a.sent();
+                    _a2.sent();
                     return [2, __assign9(__assign9({}, data), { selectedIndex: 2 })];
                 }
               });
@@ -14639,14 +14643,14 @@
           checked: selectedIndex === 0,
           onClick: function(state) {
             return __awaiter10(this, void 0, void 0, function() {
-              return __generator10(this, function(_a) {
-                switch (_a.label) {
+              return __generator10(this, function(_a2) {
+                switch (_a2.label) {
                   case 0:
                     return [4, gainCard(offerCard, { skipped: allOptionNames.filter(function(_, i) {
                       return i !== 0;
                     }) })(state)];
                   case 1:
-                    _a.sent();
+                    _a2.sent();
                     return [2, __assign9(__assign9({}, currentData), { selectedIndex: 0 })];
                 }
               });
@@ -14661,14 +14665,14 @@
           checked: selectedIndex === 1,
           onClick: function(state) {
             return __awaiter10(this, void 0, void 0, function() {
-              return __generator10(this, function(_a) {
-                switch (_a.label) {
+              return __generator10(this, function(_a2) {
+                switch (_a2.label) {
                   case 0:
                     return [4, gainEvent(offerEvent, { skipped: allOptionNames.filter(function(_, i) {
                       return i !== 1;
                     }) })(state)];
                   case 1:
-                    _a.sent();
+                    _a2.sent();
                     return [2, __assign9(__assign9({}, currentData), { selectedIndex: 1 })];
                 }
               });
@@ -14683,14 +14687,14 @@
           checked: selectedIndex === 2,
           onClick: function(state) {
             return __awaiter10(this, void 0, void 0, function() {
-              return __generator10(this, function(_a) {
-                switch (_a.label) {
+              return __generator10(this, function(_a2) {
+                switch (_a2.label) {
                   case 0:
                     return [4, gainPotion(offerPotion, { skipped: allOptionNames.filter(function(_, i) {
                       return i !== 2;
                     }) })(state)];
                   case 1:
-                    _a.sent();
+                    _a2.sent();
                     return [2, __assign9(__assign9({}, currentData), { selectedIndex: 2 })];
                 }
               });
@@ -14705,14 +14709,14 @@
           checked: selectedIndex === 3,
           onClick: function(state) {
             return __awaiter10(this, void 0, void 0, function() {
-              return __generator10(this, function(_a) {
-                switch (_a.label) {
+              return __generator10(this, function(_a2) {
+                switch (_a2.label) {
                   case 0:
                     return [4, gainRelic(offerRelic, { skipped: allOptionNames.filter(function(_, i) {
                       return i !== 3;
                     }) })(state)];
                   case 1:
-                    _a.sent();
+                    _a2.sent();
                     return [2, __assign9(__assign9({}, currentData), { selectedIndex: 3 })];
                 }
               });
@@ -14763,20 +14767,20 @@
           onClick: function(state) {
             return __awaiter10(this, void 0, void 0, function() {
               var card;
-              return __generator10(this, function(_a) {
-                switch (_a.label) {
+              return __generator10(this, function(_a2) {
+                switch (_a2.label) {
                   case 0:
                     return [4, state.ui.chooseCard(state, "Choose a card to trade away:", tradableCards.map(function(c) {
                       return ["card", c];
                     }), true)];
                   case 1:
-                    card = _a.sent();
+                    card = _a2.sent();
                     if (!card)
                       return [2, data];
                     state.removeCard(card[1].name);
                     return [4, gainCard(d.offerCard, { details: "Traded away ".concat(displayName(card[1])) })(state)];
                   case 2:
-                    _a.sent();
+                    _a2.sent();
                     return [2, __assign9(__assign9({}, d), { cardTraded: true })];
                 }
               });
@@ -14793,20 +14797,20 @@
           onClick: function(state) {
             return __awaiter10(this, void 0, void 0, function() {
               var event;
-              return __generator10(this, function(_a) {
-                switch (_a.label) {
+              return __generator10(this, function(_a2) {
+                switch (_a2.label) {
                   case 0:
                     return [4, state.ui.chooseCard(state, "Choose an event to trade away:", tradableEvents.map(function(e) {
                       return ["event", e];
                     }), true)];
                   case 1:
-                    event = _a.sent();
+                    event = _a2.sent();
                     if (!event)
                       return [2, data];
                     state.removeEvent(event[1].name);
                     return [4, gainEvent(d.offerEvent, { details: "Traded away ".concat(displayName(event[1])) })(state)];
                   case 2:
-                    _a.sent();
+                    _a2.sent();
                     return [2, __assign9(__assign9({}, d), { eventTraded: true })];
                 }
               });
@@ -14823,20 +14827,20 @@
           onClick: function(state) {
             return __awaiter10(this, void 0, void 0, function() {
               var potion;
-              return __generator10(this, function(_a) {
-                switch (_a.label) {
+              return __generator10(this, function(_a2) {
+                switch (_a2.label) {
                   case 0:
                     return [4, state.ui.chooseCard(state, "Choose a potion to trade away:", tradablePotions.map(function(p) {
                       return ["potion", p];
                     }), true)];
                   case 1:
-                    potion = _a.sent();
+                    potion = _a2.sent();
                     if (!potion)
                       return [2, data];
                     state.removePotion(potion[1].id);
                     return [4, gainPotion(d.offerPotion, { details: "Traded away ".concat(displayName(potion[1].spec)) })(state)];
                   case 2:
-                    _a.sent();
+                    _a2.sent();
                     return [2, __assign9(__assign9({}, d), { potionTraded: true })];
                 }
               });
@@ -14853,22 +14857,22 @@
           onClick: function(state) {
             return __awaiter10(this, void 0, void 0, function() {
               var relic;
-              return __generator10(this, function(_a) {
-                switch (_a.label) {
+              return __generator10(this, function(_a2) {
+                switch (_a2.label) {
                   case 0:
                     return [4, state.ui.chooseCard(state, "Choose a relic to trade away:", tradableRelics.map(function(r) {
                       return ["relic", r];
                     }), true)];
                   case 1:
-                    relic = _a.sent();
+                    relic = _a2.sent();
                     if (!relic)
                       return [2, data];
                     return [4, removeRelic(state, relic[1].id)];
                   case 2:
-                    _a.sent();
+                    _a2.sent();
                     return [4, gainRelic(d.offerRelic, { details: "Traded away ".concat(displayName(relic[1].spec)) })(state)];
                   case 3:
-                    _a.sent();
+                    _a2.sent();
                     return [2, __assign9(__assign9({}, d), { relicTraded: true })];
                 }
               });
@@ -15091,7 +15095,7 @@
         return function(state) {
           return __awaiter11(this, void 0, void 0, function() {
             var tokens;
-            return __generator11(this, function(_a) {
+            return __generator11(this, function(_a2) {
               if (!state.data.relics.some(function(r) {
                 return r.id === self.id;
               }))
@@ -15122,7 +15126,7 @@
         return function(state) {
           return __awaiter11(this, void 0, void 0, function() {
             var current, thawed, nextCharge, tokens_1;
-            var _a, _b;
+            var _a2, _b2;
             return __generator11(this, function(_c) {
               switch (_c.label) {
                 case 0:
@@ -15135,7 +15139,7 @@
                       /*return*/
                     ];
                   if (!(current.count("charge") === 0)) return [3, 3];
-                  thawed = (_b = (_a = current.notedCards) === null || _a === void 0 ? void 0 : _a[0]) !== null && _b !== void 0 ? _b : null;
+                  thawed = (_b2 = (_a2 = current.notedCards) === null || _a2 === void 0 ? void 0 : _a2[0]) !== null && _b2 !== void 0 ? _b2 : null;
                   return [4, removeRelic(state, current.id)];
                 case 1:
                   _c.sent();
@@ -15181,7 +15185,7 @@
         return function(state) {
           return __awaiter11(this, void 0, void 0, function() {
             var target;
-            return __generator11(this, function(_a) {
+            return __generator11(this, function(_a2) {
               target = state.discard.filter(function(card) {
                 return card.name === copper.name;
               }).reduce(function(best, card) {
@@ -15223,25 +15227,25 @@
       transform: function() {
         return function(state) {
           return __awaiter11(this, void 0, void 0, function() {
-            var _a, _b, target, e_1_1;
+            var _a2, _b2, target, e_1_1;
             var e_1, _c;
             return __generator11(this, function(_d) {
               switch (_d.label) {
                 case 0:
                   _d.trys.push([0, 5, 6, 7]);
-                  _a = __values12(state.discard.filter(function(card) {
+                  _a2 = __values12(state.discard.filter(function(card) {
                     return card.name === copper.name;
-                  })), _b = _a.next();
+                  })), _b2 = _a2.next();
                   _d.label = 1;
                 case 1:
-                  if (!!_b.done) return [3, 4];
-                  target = _b.value;
+                  if (!!_b2.done) return [3, 4];
+                  target = _b2.value;
                   return [4, setDecayTransform(target, 3)(state)];
                 case 2:
                   state = _d.sent();
                   _d.label = 3;
                 case 3:
-                  _b = _a.next();
+                  _b2 = _a2.next();
                   return [3, 1];
                 case 4:
                   return [3, 7];
@@ -15251,7 +15255,7 @@
                   return [3, 7];
                 case 6:
                   try {
-                    if (_b && !_b.done && (_c = _a.return)) _c.call(_a);
+                    if (_b2 && !_b2.done && (_c = _a2.return)) _c.call(_a2);
                   } finally {
                     if (e_1) throw e_1.error;
                   }
@@ -15307,7 +15311,7 @@
         return function(state) {
           return __awaiter11(this, void 0, void 0, function() {
             var tokens;
-            return __generator11(this, function(_a) {
+            return __generator11(this, function(_a2) {
               if (!state.data.relics.some(function(r) {
                 return r.id === self.id;
               }))
@@ -15339,8 +15343,8 @@
         return function(state) {
           return __awaiter11(this, void 0, void 0, function() {
             var current, nextCharge, tokens;
-            return __generator11(this, function(_a) {
-              switch (_a.label) {
+            return __generator11(this, function(_a2) {
+              switch (_a2.label) {
                 case 0:
                   current = state.data.relics.find(function(r) {
                     return r.id === self.id;
@@ -15359,8 +15363,8 @@
                   if (!(nextCharge === 0)) return [3, 2];
                   return [4, removeRelic(state, current.id)];
                 case 1:
-                  _a.sent();
-                  _a.label = 2;
+                  _a2.sent();
+                  _a2.label = 2;
                 case 2:
                   return [
                     2
@@ -15395,12 +15399,12 @@
       transform: function(_e, _s, self) {
         return function(state) {
           return __awaiter11(this, void 0, void 0, function() {
-            return __generator11(this, function(_a) {
-              switch (_a.label) {
+            return __generator11(this, function(_a2) {
+              switch (_a2.label) {
                 case 0:
                   return [4, removeRelic(state, self.id)];
                 case 1:
-                  _a.sent();
+                  _a2.sent();
                   return [
                     2
                     /*return*/
@@ -15463,7 +15467,7 @@
         return function(state) {
           return __awaiter11(this, void 0, void 0, function() {
             var tokens;
-            return __generator11(this, function(_a) {
+            return __generator11(this, function(_a2) {
               if (!state.data.relics.some(function(r) {
                 return r.id === self.id;
               }))
@@ -15506,12 +15510,12 @@
       transform: function(_e, _s, self) {
         return function(state) {
           return __awaiter11(this, void 0, void 0, function() {
-            return __generator11(this, function(_a) {
-              switch (_a.label) {
+            return __generator11(this, function(_a2) {
+              switch (_a2.label) {
                 case 0:
                   return [4, removeRelic(state, self.id)];
                 case 1:
-                  _a.sent();
+                  _a2.sent();
                   return [
                     2
                     /*return*/
@@ -15531,12 +15535,12 @@
       kind: "reward",
       text: ["Whenever you pick a potion reward, lose 1 buffer."],
       replace: function(params) {
-        var _a;
+        var _a2;
         if (params.rewardKind !== "potion")
           return params;
         var pickBufferAdjustments = __spreadArray9([], __read14(params.pickBufferAdjustments), false);
         for (var i = 0; i < params.optionCount; i++) {
-          pickBufferAdjustments[i] = ((_a = pickBufferAdjustments[i]) !== null && _a !== void 0 ? _a : 0) - 1;
+          pickBufferAdjustments[i] = ((_a2 = pickBufferAdjustments[i]) !== null && _a2 !== void 0 ? _a2 : 0) - 1;
         }
         return __assign10(__assign10({}, params), { pickBufferAdjustments });
       }
@@ -15565,9 +15569,9 @@
       kind: "reward",
       text: ["When you pick the first option from a reward pack, lose 1 buffer."],
       replace: function(params) {
-        var _a;
+        var _a2;
         var pickBufferAdjustments = __spreadArray9([], __read14(params.pickBufferAdjustments), false);
-        pickBufferAdjustments[0] = ((_a = pickBufferAdjustments[0]) !== null && _a !== void 0 ? _a : 0) - 1;
+        pickBufferAdjustments[0] = ((_a2 = pickBufferAdjustments[0]) !== null && _a2 !== void 0 ? _a2 : 0) - 1;
         return __assign10(__assign10({}, params), { pickBufferAdjustments });
       }
     }]
@@ -15588,15 +15592,15 @@
     return function(state) {
       return __awaiter11(this, void 0, void 0, function() {
         var currentCount;
-        return __generator11(this, function(_a) {
-          switch (_a.label) {
+        return __generator11(this, function(_a2) {
+          switch (_a2.label) {
             case 0:
               currentCount = card.count("decay");
               if (currentCount < numTokens && currentCount > 0)
                 return [2, state];
               return [4, addToken(card, "decay", numTokens - currentCount)(state)];
             case 1:
-              state = _a.sent();
+              state = _a2.sent();
               return [2, state];
           }
         });
@@ -15667,15 +15671,15 @@
       });
     }, resolve: function(state, skipped) {
       return __awaiter11(this, void 0, void 0, function() {
-        return __generator11(this, function(_a) {
-          switch (_a.label) {
+        return __generator11(this, function(_a2) {
+          switch (_a2.label) {
             case 0:
               return [4, addTimelineAction("Burden: ".concat(id), void 0, skipped)(state)];
             case 1:
-              _a.sent();
+              _a2.sent();
               return [4, gainRelic(spec, { silent: true })(state)];
             case 2:
-              _a.sent();
+              _a2.sent();
               return [2, true];
           }
         });
@@ -15738,9 +15742,9 @@
     },
     resolve: function(state, skipped) {
       return __awaiter11(this, void 0, void 0, function() {
-        var cardOptions, eventOptions, potionOptions, relicOptions, options, picked, _a, relic, relicName, potion, potionName, eventSpec, eventName, cardSpec, cardName;
-        return __generator11(this, function(_b) {
-          switch (_b.label) {
+        var cardOptions, eventOptions, potionOptions, relicOptions, options, picked, _a2, relic, relicName, potion, potionName, eventSpec, eventName, cardSpec, cardName;
+        return __generator11(this, function(_b2) {
+          switch (_b2.label) {
             case 0:
               cardOptions = state.data.collectedCards.filter(function(card) {
                 return !isBurdened(card);
@@ -15767,11 +15771,11 @@
                 return [2, false];
               return [4, state.ui.chooseCard(state, "Choose what to give up:", options, true)];
             case 1:
-              picked = _b.sent();
+              picked = _b2.sent();
               if (!picked)
                 return [2, false];
-              _a = picked[0];
-              switch (_a) {
+              _a2 = picked[0];
+              switch (_a2) {
                 case "relic":
                   return [3, 2];
                 case "potion":
@@ -15787,10 +15791,10 @@
               relicName = displayName(relic.spec);
               return [4, removeRelic(state, relic.id)];
             case 3:
-              _b.sent();
+              _b2.sent();
               return [4, addTimelineAction("Burden: Forsake", "Lost ".concat(relicName), skipped)(state)];
             case 4:
-              _b.sent();
+              _b2.sent();
               return [2, true];
             case 5:
               potion = picked[1];
@@ -15798,7 +15802,7 @@
               state.removePotion(potion.id);
               return [4, addTimelineAction("Burden: Forsake", "Lost ".concat(potionName), skipped)(state)];
             case 6:
-              _b.sent();
+              _b2.sent();
               return [2, true];
             case 7:
               eventSpec = picked[1];
@@ -15806,7 +15810,7 @@
               state.removeEvent(eventSpec.name);
               return [4, addTimelineAction("Burden: Forsake", "Lost ".concat(eventName), skipped)(state)];
             case 8:
-              _b.sent();
+              _b2.sent();
               return [2, true];
             case 9:
               cardSpec = picked[1];
@@ -15814,7 +15818,7 @@
               state.removeCard(cardSpec.name);
               return [4, addTimelineAction("Burden: Forsake", "Lost ".concat(cardName), skipped)(state)];
             case 10:
-              _b.sent();
+              _b2.sent();
               return [2, true];
             case 11:
               return [
@@ -15837,15 +15841,15 @@
     },
     resolve: function(state, skipped) {
       return __awaiter11(this, void 0, void 0, function() {
-        return __generator11(this, function(_a) {
-          switch (_a.label) {
+        return __generator11(this, function(_a2) {
+          switch (_a2.label) {
             case 0:
               return [4, addBuffer(-1)(state)];
             case 1:
-              _a.sent();
+              _a2.sent();
               return [4, addTimelineAction("Burden: Lost 1 buffer", void 0, skipped)(state)];
             case 2:
-              _a.sent();
+              _a2.sent();
               return [2, true];
           }
         });
@@ -15866,8 +15870,8 @@
     resolve: function(state, skipped) {
       return __awaiter11(this, void 0, void 0, function() {
         var validPotions, picked, chosenName;
-        return __generator11(this, function(_a) {
-          switch (_a.label) {
+        return __generator11(this, function(_a2) {
+          switch (_a2.label) {
             case 0:
               validPotions = state.data.potions.filter(function(potion) {
                 return !isBurdened(potion.spec);
@@ -15876,14 +15880,14 @@
               });
               return [4, state.ui.chooseCard(state, "Choose a potion to give up:", validPotions, true)];
             case 1:
-              picked = _a.sent();
+              picked = _a2.sent();
               if (!picked)
                 return [2, false];
               chosenName = displayName(picked[1].spec);
               state.removePotion(picked[1].id);
               return [4, gainPotion(beggarsBrew, { details: "Gave up ".concat(chosenName), skipped })(state)];
             case 2:
-              _a.sent();
+              _a2.sent();
               return [2, true];
           }
         });
@@ -15905,8 +15909,8 @@
     resolve: function(state, skipped) {
       return __awaiter11(this, void 0, void 0, function() {
         var options, picked, chosenName, frozenSpec;
-        return __generator11(this, function(_a) {
-          switch (_a.label) {
+        return __generator11(this, function(_a2) {
+          switch (_a2.label) {
             case 0:
               options = state.data.relics.filter(function(relic) {
                 return !isBurdened(relic.spec);
@@ -15917,20 +15921,20 @@
                 return [2, false];
               return [4, state.ui.chooseCard(state, "Choose a relic to freeze:", options, true)];
             case 1:
-              picked = _a.sent();
+              picked = _a2.sent();
               if (!picked)
                 return [2, false];
               chosenName = displayName(picked[1].spec);
               frozenSpec = makeFrozenRelicSpec(picked[1].spec);
               return [4, removeRelic(state, picked[1].id)];
             case 2:
-              _a.sent();
+              _a2.sent();
               return [4, gainNotedRelic(frozenSpec, [picked[1].spec], { silent: true })(state)];
             case 3:
-              _a.sent();
+              _a2.sent();
               return [4, addTimelineAction("Froze ".concat(chosenName), void 0, skipped)(state)];
             case 4:
-              _a.sent();
+              _a2.sent();
               return [2, true];
           }
         });
@@ -15954,9 +15958,9 @@
       resolve: function(state, skipped) {
         return __awaiter11(this, void 0, void 0, function() {
           var valid, picked, chosenName, items, index;
-          var _a;
-          return __generator11(this, function(_b) {
-            switch (_b.label) {
+          var _a2;
+          return __generator11(this, function(_b2) {
+            switch (_b2.label) {
               case 0:
                 valid = state.data[collection].filter(function(spec) {
                   return !isBurdened(spec);
@@ -15965,7 +15969,7 @@
                 });
                 return [4, state.ui.chooseCard(state, options.prompt, valid, true)];
               case 1:
-                picked = _b.sent();
+                picked = _b2.sent();
                 if (!picked)
                   return [2, false];
                 chosenName = displayName(picked[1]);
@@ -15973,11 +15977,11 @@
                 index = items.indexOf(picked[1]);
                 if (!(index >= 0)) return [3, 3];
                 items[index] = upgradeCardSpec2(items[index], options.upgrade);
-                state.update((_a = {}, _a[collection] = items, _a));
+                state.update((_a2 = {}, _a2[collection] = items, _a2));
                 return [4, addTimelineAction(options.timelineLabel, chosenName, skipped)(state)];
               case 2:
-                _b.sent();
-                _b.label = 3;
+                _b2.sent();
+                _b2.label = 3;
               case 3:
                 return [2, true];
             }
@@ -16133,15 +16137,15 @@
         compact: true,
         transform: function(state) {
           return __awaiter12(void 0, void 0, void 0, function() {
-            return __generator12(this, function(_a) {
-              switch (_a.label) {
+            return __generator12(this, function(_a2) {
+              switch (_a2.label) {
                 case 0:
                   return [4, addTimelineAction("Gain 2 buffer", details)(state)];
                 case 1:
-                  _a.sent();
+                  _a2.sent();
                   return [4, addBuffer(2)(state)];
                 case 2:
-                  _a.sent();
+                  _a2.sent();
                   return [
                     2
                     /*return*/
@@ -16165,9 +16169,9 @@
         transform: function(state) {
           return __awaiter12(void 0, void 0, void 0, function() {
             var adjustments, piggyBank2, i, option;
-            var _a;
-            return __generator12(this, function(_b) {
-              switch (_b.label) {
+            var _a2;
+            return __generator12(this, function(_b2) {
+              switch (_b2.label) {
                 case 0:
                   adjustments = rewardPickAdjustments(rewardState.kind, rewardState.options.length, state);
                   piggyBank2 = state.data.relics.find(function(relic) {
@@ -16176,21 +16180,21 @@
                   if (!piggyBank2) return [3, 2];
                   return [4, removeRelic(state, piggyBank2.id)];
                 case 1:
-                  _b.sent();
-                  _b.label = 2;
+                  _b2.sent();
+                  _b2.label = 2;
                 case 2:
                   return [4, addTimelineAction("Take it all", details)(state)];
                 case 3:
-                  _b.sent();
+                  _b2.sent();
                   i = 0;
-                  _b.label = 4;
+                  _b2.label = 4;
                 case 4:
                   if (!(i < rewardState.options.length)) return [3, 7];
                   option = rewardState.options[i];
-                  return [4, pickRewardOption(option, rewardState.kind, (_a = adjustments[i]) !== null && _a !== void 0 ? _a : 0, { silent: true })(state)];
+                  return [4, pickRewardOption(option, rewardState.kind, (_a2 = adjustments[i]) !== null && _a2 !== void 0 ? _a2 : 0, { silent: true })(state)];
                 case 5:
-                  _b.sent();
-                  _b.label = 6;
+                  _b2.sent();
+                  _b2.label = 6;
                 case 6:
                   i++;
                   return [3, 4];
@@ -16218,8 +16222,8 @@
         transform: function(state) {
           return __awaiter12(void 0, void 0, void 0, function() {
             var cursedKey2;
-            return __generator12(this, function(_a) {
-              switch (_a.label) {
+            return __generator12(this, function(_a2) {
+              switch (_a2.label) {
                 case 0:
                   cursedKey2 = state.data.relics.find(function(relic) {
                     return relic.name === "Cursed Key";
@@ -16227,12 +16231,12 @@
                   if (!cursedKey2) return [3, 2];
                   return [4, removeRelic(state, cursedKey2.id)];
                 case 1:
-                  _a.sent();
-                  _a.label = 2;
+                  _a2.sent();
+                  _a2.label = 2;
                 case 2:
                   return [4, addTimelineAction("Destroy Cursed Key", details)(state)];
                 case 3:
-                  _a.sent();
+                  _a2.sent();
                   return [
                     2
                     /*return*/
@@ -16682,7 +16686,7 @@
     };
   }
   function cardCountsByName(cards) {
-    var e_1, _a;
+    var e_1, _a2;
     var counts = /* @__PURE__ */ new Map();
     try {
       for (var cards_1 = __values13(cards), cards_1_1 = cards_1.next(); !cards_1_1.done; cards_1_1 = cards_1.next()) {
@@ -16693,7 +16697,7 @@
       e_1 = { error: e_1_1 };
     } finally {
       try {
-        if (cards_1_1 && !cards_1_1.done && (_a = cards_1.return)) _a.call(cards_1);
+        if (cards_1_1 && !cards_1_1.done && (_a2 = cards_1.return)) _a2.call(cards_1);
       } finally {
         if (e_1) throw e_1.error;
       }
@@ -16701,7 +16705,7 @@
     return counts;
   }
   function noteDecrease(target, start, current) {
-    var e_2, _a;
+    var e_2, _a2;
     var names = new Set(__spreadArray10(__spreadArray10([], __read15(start.keys()), false), __read15(current.keys()), false));
     try {
       for (var names_1 = __values13(names), names_1_1 = names_1.next(); !names_1_1.done; names_1_1 = names_1.next()) {
@@ -16715,7 +16719,7 @@
       e_2 = { error: e_2_1 };
     } finally {
       try {
-        if (names_1_1 && !names_1_1.done && (_a = names_1.return)) _a.call(names_1);
+        if (names_1_1 && !names_1_1.done && (_a2 = names_1.return)) _a2.call(names_1);
       } finally {
         if (e_2) throw e_2.error;
       }
@@ -16754,10 +16758,10 @@
     return requirements;
   }
   function hasRequiredCounts(required, current) {
-    var e_3, _a;
+    var e_3, _a2;
     try {
       for (var required_1 = __values13(required), required_1_1 = required_1.next(); !required_1_1.done; required_1_1 = required_1.next()) {
-        var _b = __read15(required_1_1.value, 2), name_2 = _b[0], minimum = _b[1];
+        var _b2 = __read15(required_1_1.value, 2), name_2 = _b2[0], minimum = _b2[1];
         if ((current.get(name_2) || 0) < minimum)
           return false;
       }
@@ -16765,7 +16769,7 @@
       e_3 = { error: e_3_1 };
     } finally {
       try {
-        if (required_1_1 && !required_1_1.done && (_a = required_1.return)) _a.call(required_1);
+        if (required_1_1 && !required_1_1.done && (_a2 = required_1.return)) _a2.call(required_1);
       } finally {
         if (e_3) throw e_3.error;
       }
@@ -16803,10 +16807,10 @@
     return step.verb;
   }
   function macroStepLabel(step) {
-    var _a;
+    var _a2;
     if (step.kind === "string")
       return step.string;
-    return (_a = step.card.displayName) !== null && _a !== void 0 ? _a : step.card.name;
+    return (_a2 = step.card.displayName) !== null && _a2 !== void 0 ? _a2 : step.card.name;
   }
   function renderMacroTooltip(macro) {
     if (macro.steps.length === 0)
@@ -16830,8 +16834,8 @@
   function buildReplayMacroFromState(targetState) {
     return __awaiter13(this, void 0, void 0, function() {
       var history, steps, recordingStates, startPrompt, cursor, captureUI, error_1;
-      return __generator13(this, function(_a) {
-        switch (_a.label) {
+      return __generator13(this, function(_a2) {
+        switch (_a2.label) {
           case 0:
             history = __spreadArray10([], __read15(targetState.origin().future), false);
             if (history.length === 0)
@@ -16844,7 +16848,7 @@
               choice: function(state, prompt, options, info, chosen) {
                 return __awaiter13(this, void 0, void 0, function() {
                   var index;
-                  return __generator13(this, function(_a2) {
+                  return __generator13(this, function(_a3) {
                     if (cursor >= history.length)
                       throw new ReplayMacroCaptureComplete();
                     index = history[cursor];
@@ -16864,7 +16868,7 @@
               },
               victory: function() {
                 return __awaiter13(this, void 0, void 0, function() {
-                  return __generator13(this, function(_a2) {
+                  return __generator13(this, function(_a3) {
                     if (cursor >= history.length)
                       throw new ReplayMacroCaptureComplete();
                     throw new Error("Unable to save replay: replay reached victory before consuming history.");
@@ -16872,15 +16876,15 @@
                 });
               }
             };
-            _a.label = 1;
+            _a2.label = 1;
           case 1:
-            _a.trys.push([1, 3, , 4]);
+            _a2.trys.push([1, 3, , 4]);
             return [4, playGame(targetState.spec, captureUI)];
           case 2:
-            _a.sent();
+            _a2.sent();
             return [3, 4];
           case 3:
-            error_1 = _a.sent();
+            error_1 = _a2.sent();
             if (!(error_1 instanceof ReplayMacroCaptureComplete))
               throw error_1;
             return [3, 4];
@@ -16909,7 +16913,7 @@
       function HotkeyMapper2() {
       }
       HotkeyMapper2.prototype.map = function(state, options) {
-        var e_4, _a, e_5, _b;
+        var e_4, _a2, e_5, _b2;
         var result = /* @__PURE__ */ new Map();
         var taken = /* @__PURE__ */ new Map();
         var pickable = new Set(options.map(function(o) {
@@ -16924,7 +16928,7 @@
           taken.set(k, x);
         }
         function setFrom(cards, preferredHotkeys) {
-          var e_6, _a2;
+          var e_6, _a3;
           var preferredSet = new Set(preferredHotkeys);
           var otherHotkeys = hotkeys.filter(function(x) {
             return !preferredSet.has(x);
@@ -16933,11 +16937,11 @@
             return !taken.has(x);
           });
           function tokenSketch(tokens) {
-            return __spreadArray10([], __read15(tokens.entries()), false).filter(function(_a3) {
-              var _b2 = __read15(_a3, 2), _ = _b2[0], v = _b2[1];
+            return __spreadArray10([], __read15(tokens.entries()), false).filter(function(_a4) {
+              var _b3 = __read15(_a4, 2), _ = _b3[0], v = _b3[1];
               return v > 0;
-            }).map(function(_a3) {
-              var _b2 = __read15(_a3, 2), k = _b2[0], v = _b2[1];
+            }).map(function(_a4) {
+              var _b3 = __read15(_a4, 2), k = _b3[0], v = _b3[1];
               return "".concat(k).concat(v);
             }).sort().join(",");
           }
@@ -16962,7 +16966,7 @@
             e_6 = { error: e_6_1 };
           } finally {
             try {
-              if (cards_2_1 && !cards_2_1.done && (_a2 = cards_2.return)) _a2.call(cards_2);
+              if (cards_2_1 && !cards_2_1.done && (_a3 = cards_2.return)) _a3.call(cards_2);
             } finally {
               if (e_6) throw e_6.error;
             }
@@ -16985,7 +16989,7 @@
           e_4 = { error: e_4_1 };
         } finally {
           try {
-            if (options_1_1 && !options_1_1.done && (_a = options_1.return)) _a.call(options_1);
+            if (options_1_1 && !options_1_1.done && (_a2 = options_1.return)) _a2.call(options_1);
           } finally {
             if (e_4) throw e_4.error;
           }
@@ -17007,7 +17011,7 @@
           e_5 = { error: e_5_1 };
         } finally {
           try {
-            if (options_2_1 && !options_2_1.done && (_b = options_2.return)) _b.call(options_2);
+            if (options_2_1 && !options_2_1.done && (_b2 = options_2.return)) _b2.call(options_2);
           } finally {
             if (e_5) throw e_5.error;
           }
@@ -17033,11 +17037,11 @@
         return idx;
       };
       TokenRenderer2.prototype.render = function(tokens) {
-        var e_7, _a;
+        var e_7, _a2;
         var parts = [];
         try {
           for (var tokens_1 = __values13(tokens), tokens_1_1 = tokens_1.next(); !tokens_1_1.done; tokens_1_1 = tokens_1.next()) {
-            var _b = __read15(tokens_1_1.value, 2), token = _b[0], count = _b[1];
+            var _b2 = __read15(tokens_1_1.value, 2), token = _b2[0], count = _b2[1];
             if (count > 0) {
               var idx = this.getTokenIndex(token);
               var color = this.tokenColors[idx % this.tokenColors.length];
@@ -17049,7 +17053,7 @@
           e_7 = { error: e_7_1 };
         } finally {
           try {
-            if (tokens_1_1 && !tokens_1_1.done && (_a = tokens_1.return)) _a.call(tokens_1);
+            if (tokens_1_1 && !tokens_1_1.done && (_a2 = tokens_1.return)) _a2.call(tokens_1);
           } finally {
             if (e_7) throw e_7.error;
           }
@@ -17057,11 +17061,11 @@
         return parts.length > 0 ? "(".concat(parts.join(""), ")") : "";
       };
       TokenRenderer2.prototype.renderTooltip = function(tokens) {
-        var e_8, _a;
+        var e_8, _a2;
         var parts = [];
         try {
           for (var tokens_2 = __values13(tokens), tokens_2_1 = tokens_2.next(); !tokens_2_1.done; tokens_2_1 = tokens_2.next()) {
-            var _b = __read15(tokens_2_1.value, 2), token = _b[0], count = _b[1];
+            var _b2 = __read15(tokens_2_1.value, 2), token = _b2[0], count = _b2[1];
             if (count > 0) {
               parts.push(count === 1 ? token : "".concat(token, " (").concat(count, ")"));
             }
@@ -17070,7 +17074,7 @@
           e_8 = { error: e_8_1 };
         } finally {
           try {
-            if (tokens_2_1 && !tokens_2_1.done && (_a = tokens_2.return)) _a.call(tokens_2);
+            if (tokens_2_1 && !tokens_2_1.done && (_a2 = tokens_2.return)) _a2.call(tokens_2);
           } finally {
             if (e_8) throw e_8.error;
           }
@@ -17102,10 +17106,10 @@
     return "Cost: ".concat(parts.length > 0 ? parts.join(" and ") : "do nothing", ".");
   }
   function renderEffects2(spec) {
-    var e_9, _a;
+    var e_9, _a2;
     var parts = [];
     try {
-      for (var _b = __values13(cardSpecEffects(spec)), _c = _b.next(); !_c.done; _c = _b.next()) {
+      for (var _b2 = __values13(cardSpecEffects(spec)), _c = _b2.next(); !_c.done; _c = _b2.next()) {
         var effect = _c.value;
         parts.push.apply(parts, __spreadArray10([], __read15(effect.text), false));
       }
@@ -17113,7 +17117,7 @@
       e_9 = { error: e_9_1 };
     } finally {
       try {
-        if (_c && !_c.done && (_a = _b.return)) _a.call(_b);
+        if (_c && !_c.done && (_a2 = _b2.return)) _a2.call(_b2);
       } finally {
         if (e_9) throw e_9.error;
       }
@@ -17123,10 +17127,10 @@
     }).join("");
   }
   function renderAbility2(spec) {
-    var e_10, _a;
+    var e_10, _a2;
     var parts = [];
     try {
-      for (var _b = __values13(spec.ability || []), _c = _b.next(); !_c.done; _c = _b.next()) {
+      for (var _b2 = __values13(spec.ability || []), _c = _b2.next(); !_c.done; _c = _b2.next()) {
         var effect = _c.value;
         parts.push.apply(parts, __spreadArray10([], __read15(effect.text.map(function(x) {
           return "<div>(ability) ".concat(x, "</div>");
@@ -17136,7 +17140,7 @@
       e_10 = { error: e_10_1 };
     } finally {
       try {
-        if (_c && !_c.done && (_a = _b.return)) _a.call(_b);
+        if (_c && !_c.done && (_a2 = _b2.return)) _a2.call(_b2);
       } finally {
         if (e_10) throw e_10.error;
       }
@@ -17245,11 +17249,11 @@
     return "<div id='card".concat(card.id, "' class='card").concat(replayPotionClass, "' ").concat(ticktext, " ").concat(choosetext, ">\n        ").concat(picktext, " ").concat(counttext, "\n        <div class='cardbody'>").concat(hotkeytext, " ").concat(card).concat(tokenhtml, "</div>\n        <div class='cardcost'>").concat(costhtml, "</div>\n        <span class='tooltip tooltip-simple'>").concat(renderTooltipSimple(card, state, tokenRenderer), "</span>\n        <span class='tooltip tooltip-full'>").concat(renderTooltipFull(card, state, tokenRenderer), "</span>\n    </div>");
   }
   function sketchMap(x) {
-    return __spreadArray10([], __read15(x.entries()), false).filter(function(_a) {
-      var _b = __read15(_a, 2), _ = _b[0], v = _b[1];
+    return __spreadArray10([], __read15(x.entries()), false).filter(function(_a2) {
+      var _b2 = __read15(_a2, 2), _ = _b2[0], v = _b2[1];
       return v > 0;
-    }).map(function(_a) {
-      var _b = __read15(_a, 2), k = _b[0], v = _b[1];
+    }).map(function(_a2) {
+      var _b2 = __read15(_a2, 2), k = _b2[0], v = _b2[1];
       return "".concat(k).concat(v);
     }).sort().join(",");
   }
@@ -17257,7 +17261,7 @@
     return "".concat(card.name).concat(sketchMap(card.tokens)).concat(getIfDef(settings.pickMap, card.id)).concat(getIfDef(settings.optionsMap, card.id));
   }
   function sketchCards(cards, settings) {
-    var e_17, _a;
+    var e_17, _a2;
     var sketches = [];
     var counts = /* @__PURE__ */ new Map();
     var first = /* @__PURE__ */ new Map();
@@ -17277,7 +17281,7 @@
       e_17 = { error: e_17_1 };
     } finally {
       try {
-        if (cards_3_1 && !cards_3_1.done && (_a = cards_3.return)) _a.call(cards_3);
+        if (cards_3_1 && !cards_3_1.done && (_a2 = cards_3.return)) _a2.call(cards_3);
       } finally {
         if (e_17) throw e_17.error;
       }
@@ -17313,10 +17317,10 @@
     }
     var cards = state.zones.get(zone) || [];
     var sketches = sketchCards(cards, settings);
-    container.innerHTML = sketches.map(function(_a) {
-      var _b;
-      var _c = __read15(_a, 2), _ = _c[0], data = _c[1];
-      return render(data.last, data.count, (_b = settings.hotkeyMap) === null || _b === void 0 ? void 0 : _b.get(data.first.id));
+    container.innerHTML = sketches.map(function(_a2) {
+      var _b2;
+      var _c = __read15(_a2, 2), _ = _c[0], data = _c[1];
+      return render(data.last, data.count, (_b2 = settings.hotkeyMap) === null || _b2 === void 0 ? void 0 : _b2.get(data.first.id));
     }).join("");
     var _loop_1 = function(i2) {
       var cardEl = container.querySelector("#card".concat(optionsIds[i2]));
@@ -17331,7 +17335,7 @@
     }
   }
   function renderState(state, settings) {
-    var e_18, _a;
+    var e_18, _a2;
     if (settings === void 0) {
       settings = {};
     }
@@ -17368,7 +17372,7 @@
       e_18 = { error: e_18_1 };
     } finally {
       try {
-        if (zoneNames_1_1 && !zoneNames_1_1.done && (_a = zoneNames_1.return)) _a.call(zoneNames_1);
+        if (zoneNames_1_1 && !zoneNames_1_1.done && (_a2 = zoneNames_1.return)) _a2.call(zoneNames_1);
       } finally {
         if (e_18) throw e_18.error;
       }
@@ -17388,7 +17392,7 @@
     });
   }
   function setVisibleLog(state, logType, ui) {
-    var e_19, _a;
+    var e_19, _a2;
     try {
       for (var logTypes_1 = __values13(logTypes), logTypes_1_1 = logTypes_1.next(); !logTypes_1_1.done; logTypes_1_1 = logTypes_1.next()) {
         var lt = logTypes_1_1.value;
@@ -17405,7 +17409,7 @@
       e_19 = { error: e_19_1 };
     } finally {
       try {
-        if (logTypes_1_1 && !logTypes_1_1.done && (_a = logTypes_1.return)) _a.call(logTypes_1);
+        if (logTypes_1_1 && !logTypes_1_1.done && (_a2 = logTypes_1.return)) _a2.call(logTypes_1);
       } finally {
         if (e_19) throw e_19.error;
       }
@@ -17413,7 +17417,7 @@
     displayLogLines(state.logs[logType], ui);
   }
   function displayLogLines(logs, ui) {
-    var e_20, _a;
+    var e_20, _a2;
     var result = [];
     for (var i = logs.length - 1; i >= 0; i--) {
       result.push('<div><span class="logLine" pos='.concat(i, ">").concat(logs[i][0], "</span></div>"));
@@ -17432,7 +17436,7 @@
       }
     };
     try {
-      for (var _b = __values13(logs.entries()), _c = _b.next(); !_c.done; _c = _b.next()) {
+      for (var _b2 = __values13(logs.entries()), _c = _b2.next(); !_c.done; _c = _b2.next()) {
         var _d = __read15(_c.value, 2), i = _d[0], _e = __read15(_d[1], 2), _ = _e[0], state = _e[1];
         _loop_2(i, _, state);
       }
@@ -17440,7 +17444,7 @@
       e_20 = { error: e_20_1 };
     } finally {
       try {
-        if (_c && !_c.done && (_a = _b.return)) _a.call(_b);
+        if (_c && !_c.done && (_a2 = _b2.return)) _a2.call(_b2);
       } finally {
         if (e_20) throw e_20.error;
       }
@@ -17466,7 +17470,7 @@
     return el;
   }
   function renderChoice(ui, state, choicePrompt, options, picks) {
-    var e_21, _a, e_22, _b, e_23, _c;
+    var e_21, _a2, e_22, _b2, e_23, _c;
     if (picks === void 0) {
       picks = [];
     }
@@ -17486,7 +17490,7 @@
       e_21 = { error: e_21_1 };
     } finally {
       try {
-        if (options_3_1 && !options_3_1.done && (_a = options_3.return)) _a.call(options_3);
+        if (options_3_1 && !options_3_1.done && (_a2 = options_3.return)) _a2.call(options_3);
       } finally {
         if (e_21) throw e_21.error;
       }
@@ -17501,7 +17505,7 @@
       e_22 = { error: e_22_1 };
     } finally {
       try {
-        if (_e && !_e.done && (_b = _d.return)) _b.call(_d);
+        if (_e && !_e.done && (_b2 = _d.return)) _b2.call(_d);
       } finally {
         if (e_22) throw e_22.error;
       }
@@ -17626,8 +17630,8 @@
     el.onclick = function() {
       return __awaiter13(_this, void 0, void 0, function() {
         var macro;
-        return __generator13(this, function(_a) {
-          switch (_a.label) {
+        return __generator13(this, function(_a2) {
+          switch (_a2.label) {
             case 0:
               if (!saveReplayEnabled(state, ui))
                 return [
@@ -17637,7 +17641,7 @@
               globalRendererState.viewingMacros = true;
               return [4, buildReplayMacroFromState(state)];
             case 1:
-              macro = _a.sent();
+              macro = _a2.sent();
               if (macro !== null) {
                 ui.macros.push(cloneMacro(macro));
               }
@@ -17845,7 +17849,7 @@
     }
   }
   function macroMismatch(card, macroCard) {
-    var e_24, _a, e_25, _b;
+    var e_24, _a2, e_25, _b2;
     var result = 0;
     try {
       for (var _c = __values13(card.tokens), _d = _c.next(); !_d.done; _d = _c.next()) {
@@ -17857,7 +17861,7 @@
       e_24 = { error: e_24_1 };
     } finally {
       try {
-        if (_d && !_d.done && (_a = _c.return)) _a.call(_c);
+        if (_d && !_d.done && (_a2 = _c.return)) _a2.call(_c);
       } finally {
         if (e_24) throw e_24.error;
       }
@@ -17872,7 +17876,7 @@
       e_25 = { error: e_25_1 };
     } finally {
       try {
-        if (_g && !_g.done && (_b = _f.return)) _b.call(_f);
+        if (_g && !_g.done && (_b2 = _f.return)) _b2.call(_f);
       } finally {
         if (e_25) throw e_25.error;
       }
@@ -17883,19 +17887,19 @@
     return card.place === macroCard.place && card.name === macroCard.name;
   }
   function matchMacro(macro, state, options, chosen) {
-    var e_26, _a;
+    var e_26, _a2;
     var renders = options.map(function(x, i2) {
       return [x.render, i2];
     });
     if (macro.kind === "string") {
-      renders = renders.filter(function(_a2) {
-        var _b2 = __read15(_a2, 1), r2 = _b2[0];
+      renders = renders.filter(function(_a3) {
+        var _b3 = __read15(_a3, 1), r2 = _b3[0];
         return r2.kind === "string" && r2.string === macro.string;
       });
       return renders.length > 0 ? renders[0][1] : null;
     }
-    renders = renders.filter(function(_a2) {
-      var _b2 = __read15(_a2, 1), r2 = _b2[0];
+    renders = renders.filter(function(_a3) {
+      var _b3 = __read15(_a3, 1), r2 = _b3[0];
       return r2.kind === "card" && macroMatchCandidate(r2.card, macro.card) && chosen.includes(renders.find(function(x) {
         return x[0] === r2;
       })[1]) === macro.chosen;
@@ -17904,7 +17908,7 @@
     var bestOptionIndex = null;
     try {
       for (var renders_1 = __values13(renders), renders_1_1 = renders_1.next(); !renders_1_1.done; renders_1_1 = renders_1.next()) {
-        var _b = __read15(renders_1_1.value, 2), r = _b[0], i = _b[1];
+        var _b2 = __read15(renders_1_1.value, 2), r = _b2[0], i = _b2[1];
         if (r.kind !== "card")
           continue;
         var mismatch = macroMismatch(r.card, macro.card);
@@ -17917,7 +17921,7 @@
       e_26 = { error: e_26_1 };
     } finally {
       try {
-        if (renders_1_1 && !renders_1_1.done && (_a = renders_1.return)) _a.call(renders_1);
+        if (renders_1_1 && !renders_1_1.done && (_a2 = renders_1.return)) _a2.call(renders_1);
       } finally {
         if (e_26) throw e_26.error;
       }
@@ -18149,10 +18153,10 @@
       GameUI2.prototype.victory = function(state) {
         return __awaiter13(this, void 0, void 0, function() {
           var ui;
-          return __generator13(this, function(_a) {
+          return __generator13(this, function(_a2) {
             ui = this;
             return [2, new Promise(function(resolve, reject) {
-              var _a2;
+              var _a3;
               ui.undoing = true;
               function newReject(reason) {
                 if (reason instanceof Undo)
@@ -18162,7 +18166,7 @@
               }
               var isReplay = state.spec.replayStage !== null && state.spec.replayStage !== void 0;
               var overPar = Math.max(0, state.energy - state.spec.par);
-              var buffer = (_a2 = state.spec.buffer) !== null && _a2 !== void 0 ? _a2 : 0;
+              var buffer = (_a3 = state.spec.buffer) !== null && _a3 !== void 0 ? _a3 : 0;
               var blockedByBuffer = !isReplay && overPar > buffer;
               var choicePrompt = blockedByBuffer ? "You went ".concat(overPar, " over par, but only have ").concat(buffer, " buffer") : "You won using ".concat(state.energy, " energy!");
               var options = blockedByBuffer ? [] : [{
@@ -18211,20 +18215,20 @@
       if (undoAtBeginning === void 0) {
         undoAtBeginning = "leave";
       }
-      return __generator13(this, function(_a) {
-        switch (_a.label) {
+      return __generator13(this, function(_a2) {
+        switch (_a2.label) {
           case 0:
             initHotkeys();
             resetGlobalRenderer();
             closeMacroDeleteMenu();
             globalRendererState.viewingMacros = initialViewingMacros;
             ui = new GameUI(initialMacros, onProgress, undoAtBeginning);
-            _a.label = 1;
+            _a2.label = 1;
           case 1:
-            _a.trys.push([1, , 3, 4]);
+            _a2.trys.push([1, , 3, 4]);
             return [4, playGame(spec, ui, initialHistory, initialRedo)];
           case 2:
-            result = _a.sent();
+            result = _a2.sent();
             return [2, __assign11(__assign11({}, result), ui.exportPersistenceData())];
           case 3:
             ui.stopProgressTimer();
@@ -18262,7 +18266,7 @@
     return tooltip;
   }
   function renderProgressSidebar(selector, stages) {
-    var e_1, _a;
+    var e_1, _a2;
     var circles = document.querySelectorAll("".concat(selector, " .progressCircle"));
     var byStage = /* @__PURE__ */ new Map();
     try {
@@ -18274,7 +18278,7 @@
       e_1 = { error: e_1_1 };
     } finally {
       try {
-        if (stages_1_1 && !stages_1_1.done && (_a = stages_1.return)) _a.call(stages_1);
+        if (stages_1_1 && !stages_1_1.done && (_a2 = stages_1.return)) _a2.call(stages_1);
       } finally {
         if (e_1) throw e_1.error;
       }
@@ -18492,7 +18496,7 @@
     bufferDisplay.textContent = text;
   }
   function showScreen(screen) {
-    var e_1, _a, e_2, _b;
+    var e_1, _a2, e_2, _b2;
     var screens = {
       stage: "stageScreen",
       path: "pathSelectionScreen",
@@ -18514,7 +18518,7 @@
       e_1 = { error: e_1_1 };
     } finally {
       try {
-        if (_d && !_d.done && (_a = _c.return)) _a.call(_c);
+        if (_d && !_d.done && (_a2 = _c.return)) _a2.call(_c);
       } finally {
         if (e_1) throw e_1.error;
       }
@@ -18536,7 +18540,7 @@
       e_2 = { error: e_2_1 };
     } finally {
       try {
-        if (sharedElements_1_1 && !sharedElements_1_1.done && (_b = sharedElements_1.return)) _b.call(sharedElements_1);
+        if (sharedElements_1_1 && !sharedElements_1_1.done && (_b2 = sharedElements_1.return)) _b2.call(sharedElements_1);
       } finally {
         if (e_2) throw e_2.error;
       }
@@ -18630,7 +18634,7 @@
     setBufferDisplayText("Buffer: ".concat(state.data.buffer));
   }
   function updateProgressSidebar(state, onReplayStage) {
-    var _a, _b;
+    var _a2, _b2;
     var inGame = state.data.phase === "in_game";
     var displays = [];
     var _loop_1 = function(stage2) {
@@ -18638,12 +18642,12 @@
       var basePar = BASE_PARS[stage2];
       var shownBasePar = displayBasePar(stage2, state);
       var currentStageSpec = stage2 === state.data.stage && state.data.selectedChallengeIndex !== void 0 ? makeSpec(state, getSelectedChallenge(state.data), state.data.selectedChallengeIndex) : null;
-      var currentStagePar = (_a = currentStageSpec === null || currentStageSpec === void 0 ? void 0 : currentStageSpec.par) !== null && _a !== void 0 ? _a : null;
+      var currentStagePar = (_a2 = currentStageSpec === null || currentStageSpec === void 0 ? void 0 : currentStageSpec.par) !== null && _a2 !== void 0 ? _a2 : null;
       var tooltip = basePar === void 0 ? "" : describeBasePar(stage2, state);
       if (stage2 < state.data.stage) {
         var replayData = state.data.stageReplays[stage2];
         if (replayData !== null) {
-          var savedTooltip = (_b = replayData.spec.metaStageTooltips) === null || _b === void 0 ? void 0 : _b[stage2];
+          var savedTooltip = (_b2 = replayData.spec.metaStageTooltips) === null || _b2 === void 0 ? void 0 : _b2[stage2];
           tooltip = savedTooltip !== null && savedTooltip !== void 0 ? savedTooltip : describeParCalculation(stage2, replayData.challenge, replayData.spec.relics, state, replayData.spec.selectedChallengeIndex);
         }
       } else if (stage2 === state.data.stage && currentStagePar !== null) {
@@ -18697,7 +18701,7 @@
     };
   }
   function showCardPicker(prompt, options, canCancel, onSelect, onCancel) {
-    var e_3, _a;
+    var e_3, _a2;
     enterModalDialog();
     var closed = false;
     var unbindDismiss = function() {
@@ -18744,7 +18748,7 @@
       e_3 = { error: e_3_1 };
     } finally {
       try {
-        if (options_1_1 && !options_1_1.done && (_a = options_1.return)) _a.call(options_1);
+        if (options_1_1 && !options_1_1.done && (_a2 = options_1.return)) _a2.call(options_1);
       } finally {
         if (e_3) throw e_3.error;
       }
@@ -18766,7 +18770,7 @@
     }
   }
   function showOptionPicker(prompt, options, canCancel, onSelect, onCancel) {
-    var e_4, _a;
+    var e_4, _a2;
     enterModalDialog();
     var closed = false;
     var unbindDismiss = function() {
@@ -18836,7 +18840,7 @@
       e_4 = { error: e_4_1 };
     } finally {
       try {
-        if (options_2_1 && !options_2_1.done && (_a = options_2.return)) _a.call(options_2);
+        if (options_2_1 && !options_2_1.done && (_a2 = options_2.return)) _a2.call(options_2);
       } finally {
         if (e_4) throw e_4.error;
       }
@@ -18872,7 +18876,7 @@
       var optionsDiv = createDiv("rewardOptions");
       var options = getRewardOptions(rewardState, state);
       options.forEach(function(option, optionIndex) {
-        var _a, _b;
+        var _a2, _b2;
         var optionEl;
         if (option.spec) {
           var hasRelatedContent = (option.spec.relatedCards || []).length > 0;
@@ -18901,9 +18905,9 @@
             optionEl.appendChild(tooltipFull);
           }
         }
-        if (((_a = option.bufferDelta) !== null && _a !== void 0 ? _a : 0) !== 0) {
+        if (((_a2 = option.bufferDelta) !== null && _a2 !== void 0 ? _a2 : 0) !== 0) {
           var bufferBadge = createSpan("rewardOptionBufferBadge");
-          if (((_b = option.bufferDelta) !== null && _b !== void 0 ? _b : 0) < 0) {
+          if (((_b2 = option.bufferDelta) !== null && _b2 !== void 0 ? _b2 : 0) < 0) {
             bufferBadge.classList.add("negative");
           } else {
             bufferBadge.classList.add("positive");
@@ -18939,7 +18943,7 @@
       var optionsDiv = createDiv("rewardOptions");
       var options = getBurdenOptions(burdenState, state);
       options.forEach(function(option, optionIndex) {
-        var e_5, _a;
+        var e_5, _a2;
         var optionEl;
         if (option.spec) {
           optionEl = createElementFromHTML2(renderSpecNoRelated(option.spec));
@@ -18951,7 +18955,7 @@
           optionEl.appendChild(nameDiv);
           if (option.description) {
             try {
-              for (var _b = __values15(option.description.split("\n")), _c = _b.next(); !_c.done; _c = _b.next()) {
+              for (var _b2 = __values15(option.description.split("\n")), _c = _b2.next(); !_c.done; _c = _b2.next()) {
                 var line = _c.value;
                 if (line.length === 0)
                   continue;
@@ -18963,7 +18967,7 @@
               e_5 = { error: e_5_1 };
             } finally {
               try {
-                if (_c && !_c.done && (_a = _b.return)) _a.call(_b);
+                if (_c && !_c.done && (_a2 = _b2.return)) _a2.call(_b2);
               } finally {
                 if (e_5) throw e_5.error;
               }
@@ -19015,7 +19019,7 @@
     }
   }
   function renderPathSelectionScreen(state, paths, onSelect, onReplayStage) {
-    var e_6, _a;
+    var e_6, _a2;
     showScreen("path");
     renderCommonUI(state, onReplayStage);
     var debugTag = state.debugEnabled ? " [Debug]" : "";
@@ -19023,7 +19027,7 @@
     var columns = getElement2("pathColumns");
     clearElement2(columns);
     try {
-      for (var _b = __values15(paths.entries()), _c = _b.next(); !_c.done; _c = _b.next()) {
+      for (var _b2 = __values15(paths.entries()), _c = _b2.next(); !_c.done; _c = _b2.next()) {
         var _d = __read16(_c.value, 2), index = _d[0], path = _d[1];
         columns.appendChild(renderPathColumn(path, state, onSelect, index));
       }
@@ -19031,14 +19035,14 @@
       e_6 = { error: e_6_1 };
     } finally {
       try {
-        if (_c && !_c.done && (_a = _b.return)) _a.call(_b);
+        if (_c && !_c.done && (_a2 = _b2.return)) _a2.call(_b2);
       } finally {
         if (e_6) throw e_6.error;
       }
     }
   }
   function renderPathColumn(path, state, onSelect, index) {
-    var e_7, _a;
+    var e_7, _a2;
     var pathColumn = createDiv("pathColumn");
     var pathChoice = createSpan("option pathChoice");
     pathChoice.setAttribute("choosable", "");
@@ -19050,7 +19054,7 @@
     pathColumn.appendChild(pathChoice);
     var rewardsContainer = createDiv("pathRewards");
     try {
-      for (var _b = __values15(path.rewards), _c = _b.next(); !_c.done; _c = _b.next()) {
+      for (var _b2 = __values15(path.rewards), _c = _b2.next(); !_c.done; _c = _b2.next()) {
         var rewardKind = _c.value;
         var rewardDiv = createDiv("pathReward");
         rewardDiv.textContent = rewardNamePathSelect(rewardKind);
@@ -19060,7 +19064,7 @@
       e_7 = { error: e_7_1 };
     } finally {
       try {
-        if (_c && !_c.done && (_a = _b.return)) _a.call(_b);
+        if (_c && !_c.done && (_a2 = _b2.return)) _a2.call(_b2);
       } finally {
         if (e_7) throw e_7.error;
       }
@@ -19085,10 +19089,10 @@
     renderDeckSections(sections);
   }
   function showDeckDialogForSpec(spec) {
-    var _a, _b;
+    var _a2, _b2;
     var sections = [
-      { title: "Cards", items: (_a = spec.collectedCards) !== null && _a !== void 0 ? _a : spec.cards, isRelic: false },
-      { title: "Events", items: (_b = spec.collectedEvents) !== null && _b !== void 0 ? _b : spec.events, isRelic: false },
+      { title: "Cards", items: (_a2 = spec.collectedCards) !== null && _a2 !== void 0 ? _a2 : spec.cards, isRelic: false },
+      { title: "Events", items: (_b2 = spec.collectedEvents) !== null && _b2 !== void 0 ? _b2 : spec.events, isRelic: false },
       { title: "Potions", items: spec.potions.map(function(p) {
         return p.spec;
       }), isRelic: false },
@@ -19100,7 +19104,7 @@
     renderDeckSections(sections);
   }
   function renderDeckSections(sections) {
-    var e_8, _a, e_9, _b, e_10, _c;
+    var e_8, _a2, e_9, _b2, e_10, _c;
     var container = getElement2("deckContents");
     clearElement2(container);
     var hasContent = false;
@@ -19124,7 +19128,7 @@
               e_9 = { error: e_9_1 };
             } finally {
               try {
-                if (_e && !_e.done && (_b = _d.return)) _b.call(_d);
+                if (_e && !_e.done && (_b2 = _d.return)) _b2.call(_d);
               } finally {
                 if (e_9) throw e_9.error;
               }
@@ -19153,7 +19157,7 @@
       e_8 = { error: e_8_1 };
     } finally {
       try {
-        if (sections_1_1 && !sections_1_1.done && (_a = sections_1.return)) _a.call(sections_1);
+        if (sections_1_1 && !sections_1_1.done && (_a2 = sections_1.return)) _a2.call(sections_1);
       } finally {
         if (e_8) throw e_8.error;
       }
@@ -19186,8 +19190,8 @@
     hideDialog("deckDialog");
   }
   function isDeckDialogOpen() {
-    var _a;
-    return ((_a = document.getElementById("deckDialog")) === null || _a === void 0 ? void 0 : _a.getAttribute("active")) === "true";
+    var _a2;
+    return ((_a2 = document.getElementById("deckDialog")) === null || _a2 === void 0 ? void 0 : _a2.getAttribute("active")) === "true";
   }
   var MetaGameUI = (
     /** @class */
@@ -19200,7 +19204,7 @@
           if (canCancel === void 0) {
             canCancel = true;
           }
-          return __generator14(this, function(_a) {
+          return __generator14(this, function(_a2) {
             return [2, new Promise(function(resolve, reject) {
               bindUndoRedoButtons(state, function() {
                 return reject(new Undo2());
@@ -19221,7 +19225,7 @@
           if (canCancel === void 0) {
             canCancel = true;
           }
-          return __generator14(this, function(_a) {
+          return __generator14(this, function(_a2) {
             return [2, new Promise(function(resolve, reject) {
               bindUndoRedoButtons(state, function() {
                 return reject(new Undo2());
@@ -19240,7 +19244,7 @@
       MetaGameUI2.prototype.waitForChallenge = function(state) {
         return __awaiter14(this, void 0, void 0, function() {
           var _this = this;
-          return __generator14(this, function(_a) {
+          return __generator14(this, function(_a2) {
             return [2, new Promise(function(resolve, reject) {
               var escapeListener = function() {
                 if (isDeckDialogOpen()) {
@@ -19280,9 +19284,9 @@
                   // onOptionClick
                   function(rewardIndex, optionIndex) {
                     return __awaiter14(_this, void 0, void 0, function() {
-                      var rewardState, options, option, change, _a2, newData, newRewardState, index, newSimpleRewardState;
-                      return __generator14(this, function(_b) {
-                        switch (_b.label) {
+                      var rewardState, options, option, change, _a3, newData, newRewardState, index, newSimpleRewardState;
+                      return __generator14(this, function(_b2) {
+                        switch (_b2.label) {
                           case 0:
                             rewardState = state.data.rewardStates[rewardIndex];
                             options = getRewardOptions(rewardState, state);
@@ -19293,8 +19297,8 @@
                                 /*return*/
                               ];
                             change = false;
-                            _a2 = option.kind;
-                            switch (_a2) {
+                            _a3 = option.kind;
+                            switch (_a3) {
                               case "complex":
                                 return [3, 1];
                               case "simple":
@@ -19304,7 +19308,7 @@
                           case 1:
                             return [4, option.onClick(state)];
                           case 2:
-                            newData = _b.sent();
+                            newData = _b2.sent();
                             change = rewardState.data !== newData;
                             newRewardState = __assign12(__assign12({}, rewardState), { data: newData });
                             updateRewardAtIndex(state, rewardIndex, newRewardState);
@@ -19312,7 +19316,7 @@
                           case 3:
                             return [4, option.onClick(state)];
                           case 4:
-                            index = _b.sent();
+                            index = _b2.sent();
                             newSimpleRewardState = __assign12(__assign12({}, rewardState), { data: { selectedIndex: index, rewardState: true } });
                             updateRewardAtIndex(state, rewardIndex, newSimpleRewardState);
                             return [3, 5];
@@ -19330,8 +19334,8 @@
                   function(burdenIndex, optionIndex) {
                     return __awaiter14(_this, void 0, void 0, function() {
                       var burdenState, options, option, newData, newBurdenState;
-                      return __generator14(this, function(_a2) {
-                        switch (_a2.label) {
+                      return __generator14(this, function(_a3) {
+                        switch (_a3.label) {
                           case 0:
                             burdenState = state.data.burdenStates[burdenIndex];
                             options = getBurdenOptions(burdenState, state);
@@ -19343,7 +19347,7 @@
                               ];
                             return [4, option.onClick(state)];
                           case 1:
-                            newData = _a2.sent();
+                            newData = _a3.sent();
                             newBurdenState = updateBurdenState(burdenState, newData);
                             updateBurdenAtIndex(state, burdenIndex, newBurdenState);
                             state.setCheckpoint();
@@ -19368,7 +19372,7 @@
       };
       MetaGameUI2.prototype.pickPath = function(state, paths) {
         return __awaiter14(this, void 0, void 0, function() {
-          return __generator14(this, function(_a) {
+          return __generator14(this, function(_a2) {
             return [2, new Promise(function(resolve, reject) {
               var escapeListener = function() {
                 if (isDeckDialogOpen()) {
@@ -19407,7 +19411,7 @@
       };
       MetaGameUI2.prototype.showMessage = function(state, message) {
         return __awaiter14(this, void 0, void 0, function() {
-          return __generator14(this, function(_a) {
+          return __generator14(this, function(_a2) {
             console.log("[MetaUI]: ".concat(message));
             return [
               2
@@ -19472,10 +19476,10 @@
           }
         };
         return startGame(spec, gameHistory, gameRedo, macros, viewingMacros, onProgress, undoAtBeginning).catch(function(e) {
-          var _a, _b;
+          var _a2, _b2;
           if (e instanceof UndoPastBeginning) {
             var persistence = e.macroPersistence;
-            throw new Undo2(e.history, e.redo, (_a = persistence === null || persistence === void 0 ? void 0 : persistence.macros) !== null && _a !== void 0 ? _a : macros, (_b = persistence === null || persistence === void 0 ? void 0 : persistence.viewingMacros) !== null && _b !== void 0 ? _b : viewingMacros);
+            throw new Undo2(e.history, e.redo, (_a2 = persistence === null || persistence === void 0 ? void 0 : persistence.macros) !== null && _a2 !== void 0 ? _a2 : macros, (_b2 = persistence === null || persistence === void 0 ? void 0 : persistence.viewingMacros) !== null && _b2 !== void 0 ? _b2 : viewingMacros);
           }
           throw e;
         });
@@ -19487,7 +19491,7 @@
     showScreen("game");
   }
   function hideAllMetaUI() {
-    var e_11, _a;
+    var e_11, _a2;
     hideElement(getElement2("stageScreen"));
     hideElement(getElement2("pathSelectionScreen"));
     hideElement(getElement2("gameContainer"));
@@ -19505,7 +19509,7 @@
       e_11 = { error: e_11_1 };
     } finally {
       try {
-        if (sharedIds_1_1 && !sharedIds_1_1.done && (_a = sharedIds_1.return)) _a.call(sharedIds_1);
+        if (sharedIds_1_1 && !sharedIds_1_1.done && (_a2 = sharedIds_1.return)) _a2.call(sharedIds_1);
       } finally {
         if (e_11) throw e_11.error;
       }
@@ -19623,8 +19627,9 @@
   };
   var test = {
     1: [
-      ["curse", inefficiency[1]],
-      ["boon", prioritizeBoon]
+      ["curse", minorSqueeze],
+      ["potion", potionOfCopper],
+      ["event", accelerate]
     ]
   };
   var SAVE_STORAGE_KEY = "roguelike.ongoingSaves.v1";
@@ -19666,7 +19671,7 @@
       }
       var parsed = Number.parseInt(raw, 10);
       return Number.isFinite(parsed) && parsed >= 0 ? parsed : 0;
-    } catch (_a) {
+    } catch (_a2) {
       return 0;
     }
   }
@@ -19730,42 +19735,42 @@
   var summaryMetaUI = {
     chooseCard: function() {
       return __awaiter15(void 0, void 0, void 0, function() {
-        return __generator15(this, function(_a) {
+        return __generator15(this, function(_a2) {
           return [2, null];
         });
       });
     },
     playGame: function() {
       return __awaiter15(void 0, void 0, void 0, function() {
-        return __generator15(this, function(_a) {
+        return __generator15(this, function(_a2) {
           throw new Error("Summary UI does not support playGame");
         });
       });
     },
     waitForChallenge: function() {
       return __awaiter15(void 0, void 0, void 0, function() {
-        return __generator15(this, function(_a) {
+        return __generator15(this, function(_a2) {
           throw new Error("Summary UI does not support waitForChallenge");
         });
       });
     },
     pickPath: function() {
       return __awaiter15(void 0, void 0, void 0, function() {
-        return __generator15(this, function(_a) {
+        return __generator15(this, function(_a2) {
           throw new Error("Summary UI does not support pickPath");
         });
       });
     },
     chooseOption: function() {
       return __awaiter15(void 0, void 0, void 0, function() {
-        return __generator15(this, function(_a) {
+        return __generator15(this, function(_a2) {
           return [2, null];
         });
       });
     },
     showMessage: function() {
       return __awaiter15(void 0, void 0, void 0, function() {
-        return __generator15(this, function(_a) {
+        return __generator15(this, function(_a2) {
           return [
             2
             /*return*/
@@ -19801,40 +19806,40 @@
   function loadNewGameBurdensEnabled() {
     try {
       return localStorage.getItem(BURDENS_SETTING_STORAGE_KEY) === "1";
-    } catch (_a) {
+    } catch (_a2) {
       return false;
     }
   }
   function loadNewGameScarcityEnabled() {
     try {
       return localStorage.getItem(SCARCITY_SETTING_STORAGE_KEY) === "1";
-    } catch (_a) {
+    } catch (_a2) {
       return false;
     }
   }
   function loadNewGameCursesEnabled() {
     try {
       return localStorage.getItem(CURSES_SETTING_STORAGE_KEY) === "1";
-    } catch (_a) {
+    } catch (_a2) {
       return false;
     }
   }
   function persistNewGameBurdensEnabled() {
     try {
       localStorage.setItem(BURDENS_SETTING_STORAGE_KEY, newGameBurdensEnabled ? "1" : "0");
-    } catch (_a) {
+    } catch (_a2) {
     }
   }
   function persistNewGameScarcityEnabled() {
     try {
       localStorage.setItem(SCARCITY_SETTING_STORAGE_KEY, newGameScarcityEnabled ? "1" : "0");
-    } catch (_a) {
+    } catch (_a2) {
     }
   }
   function persistNewGameCursesEnabled() {
     try {
       localStorage.setItem(CURSES_SETTING_STORAGE_KEY, newGameCursesEnabled ? "1" : "0");
-    } catch (_a) {
+    } catch (_a2) {
     }
   }
   function updateLauncherBurdensTag() {
@@ -19888,7 +19893,7 @@
       }).sort(function(a2, b) {
         return b.updatedAt - a2.updatedAt;
       });
-    } catch (_a) {
+    } catch (_a2) {
       return [];
     }
   }
@@ -19934,7 +19939,7 @@
     localStorage.setItem(HELP_SEEN_STORAGE_KEY, "1");
   }
   function setCoreUIVisible(visible) {
-    var e_1, _a;
+    var e_1, _a2;
     var hidden = !visible;
     var ids = [
       "stageScreen",
@@ -19962,7 +19967,7 @@
       e_1 = { error: e_1_1 };
     } finally {
       try {
-        if (ids_1_1 && !ids_1_1.done && (_a = ids_1.return)) _a.call(ids_1);
+        if (ids_1_1 && !ids_1_1.done && (_a2 = ids_1.return)) _a2.call(ids_1);
       } finally {
         if (e_1) throw e_1.error;
       }
@@ -19979,7 +19984,7 @@
   function runGame(slotID_1, snapshot_1, seed_1) {
     return __awaiter15(this, arguments, void 0, function(slotID, snapshot, seed, newGameDebugEnabled, initialElapsedSeconds, newGameBurdensSetting, newGameScarcitySetting, newGameCursesSetting) {
       var debugEnabled, burdensEnabled, scarcityEnabled, cursesEnabled, activeTest, seedDisplay, metaUI, saveCallback, error_1;
-      var _a;
+      var _a2;
       if (newGameDebugEnabled === void 0) {
         newGameDebugEnabled = false;
       }
@@ -19995,8 +20000,8 @@
       if (newGameCursesSetting === void 0) {
         newGameCursesSetting = false;
       }
-      return __generator15(this, function(_b) {
-        switch (_b.label) {
+      return __generator15(this, function(_b2) {
+        switch (_b2.label) {
           case 0:
             debugEnabled = snapshot ? isDebugGame(snapshot) : newGameDebugEnabled;
             burdensEnabled = snapshot ? isBurdensGame(snapshot) : newGameBurdensSetting;
@@ -20011,21 +20016,21 @@
             if (seedDisplay)
               seedDisplay.textContent = "Seed: ".concat(seed);
             setCoreUIVisible(true);
-            (_a = document.getElementById("saveLauncher")) === null || _a === void 0 ? void 0 : _a.remove();
+            (_a2 = document.getElementById("saveLauncher")) === null || _a2 === void 0 ? void 0 : _a2.remove();
             clearLauncherDialogs();
             metaUI = new MetaGameUI();
             saveCallback = function(nextSnapshot) {
               upsertSaveSlot(slotID, nextSnapshot, runTimerSeconds);
             };
-            _b.label = 1;
+            _b2.label = 1;
           case 1:
-            _b.trys.push([1, 3, 4, 5]);
+            _b2.trys.push([1, 3, 4, 5]);
             return [4, playGame2(metaUI, activeTest, seed, snapshot, saveCallback, debugEnabled, burdensEnabled, scarcityEnabled, cursesEnabled)];
           case 2:
-            _b.sent();
+            _b2.sent();
             return [3, 5];
           case 3:
-            error_1 = _b.sent();
+            error_1 = _b2.sent();
             if (error_1 instanceof ExitToLauncher)
               return [
                 2
@@ -20053,9 +20058,9 @@
     });
   }
   function clearLauncherDialogs() {
-    var _a, _b, _c, _d, _e;
-    (_a = document.getElementById("newGameDialog")) === null || _a === void 0 ? void 0 : _a.remove();
-    (_b = document.getElementById("challengeSettingsDialog")) === null || _b === void 0 ? void 0 : _b.remove();
+    var _a2, _b2, _c, _d, _e;
+    (_a2 = document.getElementById("newGameDialog")) === null || _a2 === void 0 ? void 0 : _a2.remove();
+    (_b2 = document.getElementById("challengeSettingsDialog")) === null || _b2 === void 0 ? void 0 : _b2.remove();
     (_c = document.getElementById("viewGameDialog")) === null || _c === void 0 ? void 0 : _c.remove();
     (_d = document.getElementById("allSavesDialog")) === null || _d === void 0 ? void 0 : _d.remove();
     (_e = document.getElementById("helpDialog")) === null || _e === void 0 ? void 0 : _e.remove();
@@ -20065,7 +20070,7 @@
     }
   }
   function openHelpDialog() {
-    var e_2, _a;
+    var e_2, _a2;
     clearLauncherDialogs();
     var dialog = document.createElement("div");
     dialog.id = "helpDialog";
@@ -20088,7 +20093,7 @@
       e_2 = { error: e_2_1 };
     } finally {
       try {
-        if (HELP_ITEMS_1_1 && !HELP_ITEMS_1_1.done && (_a = HELP_ITEMS_1.return)) _a.call(HELP_ITEMS_1);
+        if (HELP_ITEMS_1_1 && !HELP_ITEMS_1_1.done && (_a2 = HELP_ITEMS_1.return)) _a2.call(HELP_ITEMS_1);
       } finally {
         if (e_2) throw e_2.error;
       }
@@ -20223,19 +20228,19 @@
   function runReplayFromSnapshot(slot, stage) {
     return __awaiter15(this, void 0, void 0, function() {
       var seedDisplay, state, replayData, bufferDisplay, debugTag, error_2;
-      var _a;
-      return __generator15(this, function(_b) {
-        switch (_b.label) {
+      var _a2;
+      return __generator15(this, function(_b2) {
+        switch (_b2.label) {
           case 0:
             seedDisplay = document.getElementById("seedDisplay");
             if (seedDisplay)
               seedDisplay.textContent = "Seed: ".concat(slot.seed);
             showGameScreenUI();
-            (_a = document.getElementById("saveLauncher")) === null || _a === void 0 ? void 0 : _a.remove();
+            (_a2 = document.getElementById("saveLauncher")) === null || _a2 === void 0 ? void 0 : _a2.remove();
             clearLauncherDialogs();
-            _b.label = 1;
+            _b2.label = 1;
           case 1:
-            _b.trys.push([1, 3, 4, 5]);
+            _b2.trys.push([1, 3, 4, 5]);
             state = deserializeMetaGame(summaryMetaUI, slot.snapshot, null);
             replayData = state.data.stageReplays[stage];
             if (!replayData) {
@@ -20252,10 +20257,10 @@
             }
             return [4, startGame(replaySpecForStage(state, replayData), replayData.history, [], state.global.macros, state.global.viewingMacros, null, "nothing")];
           case 2:
-            _b.sent();
+            _b2.sent();
             return [3, 5];
           case 3:
-            error_2 = _b.sent();
+            error_2 = _b2.sent();
             if (!(error_2 instanceof UndoPastBeginning)) {
               console.error(error_2);
               alert("Failed to open replay.");
@@ -20278,10 +20283,10 @@
     });
   }
   function timelineRowContent(entry, stageScores, stagePars) {
-    var _a, _b;
+    var _a2, _b2;
     if (entry.kind === "stage") {
-      var score = (_a = stageScores[entry.stage]) !== null && _a !== void 0 ? _a : entry.score;
-      var par = (_b = stagePars[entry.stage]) !== null && _b !== void 0 ? _b : entry.par;
+      var score = (_a2 = stageScores[entry.stage]) !== null && _a2 !== void 0 ? _a2 : entry.score;
+      var par = (_b2 = stagePars[entry.stage]) !== null && _b2 !== void 0 ? _b2 : entry.par;
       var usedText = entry.usedPotions && entry.usedPotions.length > 0 ? entry.usedPotions.map(function(name) {
         return "used ".concat(name);
       }).join(", ") : null;
@@ -20314,7 +20319,7 @@
     };
   }
   function renderDeckSectionRaw(title, items) {
-    var e_3, _a;
+    var e_3, _a2;
     var section = document.createElement("div");
     section.className = "viewDeckSection";
     var heading = document.createElement("div");
@@ -20338,7 +20343,7 @@
         e_3 = { error: e_3_1 };
       } finally {
         try {
-          if (items_1_1 && !items_1_1.done && (_a = items_1.return)) _a.call(items_1);
+          if (items_1_1 && !items_1_1.done && (_a2 = items_1.return)) _a2.call(items_1);
         } finally {
           if (e_3) throw e_3.error;
         }
@@ -20362,7 +20367,7 @@
     }));
   }
   function openViewDialog(slot) {
-    var e_4, _a;
+    var e_4, _a2;
     var _this = this;
     clearLauncherDialogs();
     var state;
@@ -20457,13 +20462,13 @@
           replayButton.textContent = "View replay";
           replayButton.onclick = function() {
             return __awaiter15(_this, void 0, void 0, function() {
-              return __generator15(this, function(_a2) {
-                switch (_a2.label) {
+              return __generator15(this, function(_a3) {
+                switch (_a3.label) {
                   case 0:
                     dialog.remove();
                     return [4, runReplayFromSnapshot(slot, entry2.stage)];
                   case 1:
-                    _a2.sent();
+                    _a3.sent();
                     return [
                       2
                       /*return*/
@@ -20477,7 +20482,7 @@
         timeline.appendChild(row);
       };
       try {
-        for (var _b = __values16(state.data.timeline), _c = _b.next(); !_c.done; _c = _b.next()) {
+        for (var _b2 = __values16(state.data.timeline), _c = _b2.next(); !_c.done; _c = _b2.next()) {
           var entry = _c.value;
           _loop_1(entry);
         }
@@ -20485,7 +20490,7 @@
         e_4 = { error: e_4_1 };
       } finally {
         try {
-          if (_c && !_c.done && (_a = _b.return)) _a.call(_b);
+          if (_c && !_c.done && (_a2 = _b2.return)) _a2.call(_b2);
         } finally {
           if (e_4) throw e_4.error;
         }
@@ -20543,7 +20548,7 @@
       continueButton.textContent = "Continue";
       continueButton.onclick = function() {
         return __awaiter15(_this, void 0, void 0, function() {
-          return __generator15(this, function(_a) {
+          return __generator15(this, function(_a2) {
             return [2, runGame(slot.id, slot.snapshot, slot.seed, false, slot.elapsedSeconds)];
           });
         });
@@ -20567,7 +20572,7 @@
     return row;
   }
   function openAllSavesDialog() {
-    var e_5, _a;
+    var e_5, _a2;
     clearLauncherDialogs();
     var slots = loadSaveSlots();
     var dialog = document.createElement("div");
@@ -20627,7 +20632,7 @@
         e_5 = { error: e_5_1 };
       } finally {
         try {
-          if (slots_1_1 && !slots_1_1.done && (_a = slots_1.return)) _a.call(slots_1);
+          if (slots_1_1 && !slots_1_1.done && (_a2 = slots_1.return)) _a2.call(slots_1);
         } finally {
           if (e_5) throw e_5.error;
         }
@@ -20642,12 +20647,12 @@
     document.body.appendChild(dialog);
   }
   function renderLauncher() {
-    var e_6, _a;
+    var e_6, _a2;
     var _this = this;
-    var _b;
+    var _b2;
     ensureLauncherStyles();
     setCoreUIVisible(false);
-    (_b = document.getElementById("saveLauncher")) === null || _b === void 0 ? void 0 : _b.remove();
+    (_b2 = document.getElementById("saveLauncher")) === null || _b2 === void 0 ? void 0 : _b2.remove();
     clearLauncherDialogs();
     var root = document.createElement("div");
     root.id = "saveLauncher";
@@ -20718,14 +20723,14 @@
       var startNewGame = function() {
         return __awaiter15(_this, void 0, void 0, function() {
           var seed, slotID;
-          return __generator15(this, function(_a2) {
-            switch (_a2.label) {
+          return __generator15(this, function(_a3) {
+            switch (_a3.label) {
               case 0:
                 seed = normalizeSeed(seedInput.value) || randomString();
                 slotID = "".concat(Date.now(), "-").concat(Math.floor(Math.random() * 1e6));
                 return [4, runGame(slotID, null, seed, debugNewGame, 0, newGameBurdensEnabled, newGameScarcityEnabled, newGameCursesEnabled)];
               case 1:
-                _a2.sent();
+                _a3.sent();
                 return [
                   2
                   /*return*/
@@ -20737,8 +20742,8 @@
       startButton.onclick = startNewGame;
       seedInput.addEventListener("keydown", function(event2) {
         return __awaiter15(_this, void 0, void 0, function() {
-          return __generator15(this, function(_a2) {
-            switch (_a2.label) {
+          return __generator15(this, function(_a3) {
+            switch (_a3.label) {
               case 0:
                 if (event2.key !== "Enter")
                   return [
@@ -20748,7 +20753,7 @@
                 event2.preventDefault();
                 return [4, startNewGame()];
               case 1:
-                _a2.sent();
+                _a3.sent();
                 return [
                   2
                   /*return*/
@@ -20806,7 +20811,7 @@
         e_6 = { error: e_6_1 };
       } finally {
         try {
-          if (slots_2_1 && !slots_2_1.done && (_a = slots_2.return)) _a.call(slots_2);
+          if (slots_2_1 && !slots_2_1.done && (_a2 = slots_2.return)) _a2.call(slots_2);
         } finally {
           if (e_6) throw e_6.error;
         }
@@ -20857,7 +20862,7 @@
   }
   window.addEventListener("load", function() {
     return __awaiter15(void 0, void 0, void 0, function() {
-      return __generator15(this, function(_a) {
+      return __generator15(this, function(_a2) {
         newGameBurdensEnabled = loadNewGameBurdensEnabled();
         newGameScarcityEnabled = loadNewGameScarcityEnabled();
         newGameCursesEnabled = loadNewGameCursesEnabled();

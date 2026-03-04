@@ -21,13 +21,16 @@ import { renderSpec, renderSpecNoRelated } from './cardRendering.js'
 import { Card, CardSpec, priorityRule, UndoPastBeginning } from './gameLogic.js'
 
 import type { TestConfig, TestItem, Relic, RawTestConfig } from './metaLogic.js'
-import { inefficiency } from './data/curses.js'
+import { inefficiency, majorSqueeze, minorSqueeze } from './data/curses.js'
 import { prioritizeBoon } from './data/boons.js'
+import { potionOfCopper } from './data/potions.js'
+import { accelerate } from './data/events.js'
 
 const test: RawTestConfig = {
     1: [
-        ['curse', inefficiency[1]],
-        ['boon', prioritizeBoon]
+        ['curse', minorSqueeze],
+        ['potion', potionOfCopper],
+        ['event', accelerate]
     ]
 }
 //burdens: [[1, ['Cursed Boots']], [1, ['decay_card']], [1, ['Sozu', 'Broken Crown']]],

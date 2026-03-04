@@ -461,7 +461,7 @@ eventRewards.push(reprise)
 
 export const accelerate:CardSpec = {
     name: 'Accelerate',
-    fixedCost: {...free, energy:1, coin:1},
+    fixedCost: {...free, energy:1, coin:2},
     effects: [{
         text: [`Put a priority token on each card in the supply.`],
         transform: (state, card) => doAll(state.supply.map(c => addToken(c, 'priority')))

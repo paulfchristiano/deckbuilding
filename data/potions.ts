@@ -26,7 +26,8 @@ import {
     tick,
     reductionRule,
     noop,
-    canCreate
+    canCreate,
+    aOrNum
 } from '../gameLogic.js'
 import { registerSpec } from '../registry.js'
 
@@ -70,8 +71,8 @@ export const potionOfCopper: CardSpec = {
     name: 'Potion of Copper',
     isPotion: true,
     effects: [{
-        text: ['Create 8 Coppers in your hand.'],
-        transform: () => repeat(create(copper, 'hand'), 8)
+        text: [`Create ${aOrNum(10, copper.name)} in your hand.`],
+        transform: () => repeat(create(copper, 'hand'), 10)
     }]
 }
 potionRewards.push(potionOfCopper)
